@@ -1,0 +1,262 @@
+# ==============================================================================
+# POLARI SUITE - DOCKER COMPOSE (Orchestrated Mode)
+# ==============================================================================
+#
+# IMPORTANT: Choose ONE mode to run - do NOT mix:
+#   - SUITE MODE: Run from polari-suite/ using THIS file
+#   - INDIVIDUAL MODE: Run from political-scorecard-node/ or polari-rf-node/
+#
+# Running both will cause container name conflicts!
+#
+# ==============================================================================
+# USAGE
+# ==============================================================================
+#   Dev mode:  
+#       sudo docker compose --profile dev up -d
+#   Update Single Container in Dev Mode Example :  
+#       sudo docker compose --profile dev up -d --build psc-backend 
+#   Prod mode: 
+#       sudo docker compose --profile prod up -d
+#
+# ==============================================================================
+# DEV MODE PORTS (Cloudflare-compatible HTTPS)
+# ==============================================================================
+#   Services (via proxy):
+#     - Keycloak Auth:   https://localhost:8443
+#     - PSC Frontend:    https://localhost:2053
+#     - PSC Backend API: https://localhost:2083
+#     - PRF Frontend:    https://localhost:2087
+#     - PRF Backend API: https://localhost:2096
+#
+#   Databases (for external tools like DBeaver):
+#     - MariaDB (consolidated): localhost:3306
+#       - Database: keycloak (user: kc)
+#       - Databases: psc, psc_scoring_db, psc_location_db (user: psc-scorecard-server)
+#     - Redis: localhost:6379
+#
+# ==============================================================================
+# PROD MODE DOMAINS
+# ==============================================================================
+#   - auth.polari-systems.org
+#   - psc.polari-systems.org
+#   - api.psc.polari-systems.org
+#   - prf.polari-systems.org
+#   - api.prf.polari-systems.org
+# ==============================================================================
+
+services:
+  # ============================================
+  # SHARED DATABASE SERVICES
+  # ============================================
+
+  # Consolidated MariaDB - serves both Keycloak and PSC
+  pol-mariadb:
+    build:
+      context: ./pol-mariadb
+      dockerfile: Dockerfile
+    container_name: pol-mariadb
+    image: pol-mariadb:latest
+    restart: always
+    ports:
+      - "3306:3306"  # External access for DB tools
+    networks:
+      - polari-network
+    env_file:
+      - ./pol-mariadb/mariadb.env
+    volumes:
+      - pol_mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # PSC Cache - Redis
+  psc-redis:
+    build: ./political-scorecard-node/political-scorecard-backend/redis
+    container_name: psc-redis
+    image: psc-redis:latest
+    ports:
+      - "6379:6379"  # External access for Redis tools
+    networks:
+      - polari-network
+    volumes:
+      - psc_redis_data:/data
+
+  # ============================================
+  # PROXY SERVICES
+  # ============================================
+
+  # Development Proxy - Port-based routing
+  pol-dev-proxy:
+    build:
+      context: ./pol-proxy
+      dockerfile: Dockerfile
+      args:
+        NGINX_CONF: nginx.dev.conf
+    container_name: pol-dev-proxy
+    image: pol-dev-proxy:latest
+    profiles:
+      - dev
+    ports:
+      - "2053:2053"   # PSC Frontend (Cloudflare HTTPS)
+      - "2083:2083"   # PSC Backend API (Cloudflare HTTPS)
+      - "2087:2087"   # PRF Frontend (Cloudflare HTTPS)
+      - "2096:2096"   # PRF Backend API (Cloudflare HTTPS)
+      - "8443:8443"   # Keycloak Auth (Cloudflare HTTPS)
+    networks:
+      - polari-network
+    depends_on:
+      - pol-keycloak
+      - psc-frontend
+      - psc-backend
+      - prf-frontend
+      - prf-backend
+
+  # Production Proxy - Subdomain routing
+  pol-prod-proxy:
+    build:
+      context: ./pol-proxy
+      dockerfile: Dockerfile
+      args:
+        NGINX_CONF: nginx.prod.conf
+    container_name: pol-prod-proxy
+    image: pol-prod-proxy:latest
+    profiles:
+      - prod
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - polari-network
+    depends_on:
+      - pol-keycloak
+      - psc-frontend
+      - psc-backend
+      - prf-frontend
+      - prf-backend
+
+  # ============================================
+  # AUTHENTICATION SERVICES
+  # ============================================
+
+  # Keycloak - Shared Authentication Server
+  pol-keycloak:
+    build:
+      context: ./pol-keycloak
+      dockerfile: Dockerfile.pol-kc
+    container_name: pol-keycloak
+    image: pol-keycloak:latest
+    networks:
+      - polari-network
+    env_file:
+      - ./pol-keycloak/keycloak-admin.env
+    volumes:
+      - ./pol-keycloak/environments/keycloak-suite.conf:/opt/keycloak/conf/keycloak.conf
+    depends_on:
+      pol-mariadb:
+        condition: service_healthy
+    entrypoint: ["/opt/startup_shells/kc_entrypoint.sh"]
+
+  # ============================================
+  # POLITICAL SCORECARD (PSC) SERVICES
+  # ============================================
+
+  # PSC Frontend - Angular Application
+  psc-frontend:
+    build:
+      context: ./political-scorecard-node/political-scorecard-frontend
+      dockerfile: Dockerfile
+    container_name: psc-frontend
+    image: psc-frontend:latest
+    networks:
+      - polari-network
+    volumes:
+      - ./political-scorecard-node/political-scorecard-frontend:/app
+      - /app/node_modules
+    env_file:
+      - ./political-scorecard-node/political-scorecard-frontend/.env
+    command: npm run start
+    depends_on:
+      - psc-backend
+
+  # PSC Backend - Spring Boot Application
+  psc-backend:
+    build:
+      context: ./political-scorecard-node/political-scorecard-backend
+      dockerfile: Dockerfile.suite
+    container_name: psc-backend
+    image: psc-backend:latest
+    networks:
+      - polari-network
+    environment:
+      # Database connection to consolidated MariaDB
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
+      - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
+      - SPRING_DATASOURCE_PASSWORD=pscpassword
+    volumes:
+      - ./political-scorecard-node/political-scorecard-backend:/app
+    command: ./startup_shell/startup_shell.sh
+    depends_on:
+      pol-mariadb:
+        condition: service_healthy
+      psc-redis:
+        condition: service_started
+
+  # ============================================
+  # POLARI RESEARCH FRAMEWORK (PRF) SERVICES
+  # ============================================
+
+  # PRF Frontend - Angular Application
+  prf-frontend:
+    build:
+      context: ./polari-rf-node/polari-platform-angular
+    container_name: prf-frontend
+    image: prf-frontend:latest
+    networks:
+      - polari-network
+    env_file:
+      - ./polari-rf-node/.env
+    volumes:
+      - prf_frontend_dist:/project/dist
+      - prf_frontend_cache:/project/.angular
+    depends_on:
+      - prf-backend
+
+  # PRF Backend - Python Application
+  prf-backend:
+    build:
+      context: ./polari-rf-node/polari-framework
+    container_name: prf-backend
+    image: prf-backend:latest
+    networks:
+      - polari-network
+    env_file:
+      - ./polari-rf-node/.env
+    volumes:
+      - prf_backend_data:/app/data
+      - prf_backend_cache:/app/__pycache__
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  # Consolidated MariaDB data
+  pol_mariadb_data:
+
+  # PSC
+  psc_redis_data:
+
+  # PRF
+  prf_frontend_dist:
+  prf_frontend_cache:
+  prf_backend_data:
+  prf_backend_cache:
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  polari-network:
+    driver: bridge

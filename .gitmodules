@@ -1,8 +1,8 @@
 [submodule "political-scorecard-node"]
 	path = political-scorecard-node
 	url = https://github.com/dausume/political-scorecard-node.git
-[submodule "polari-node"]
-	path = polari-node
+[submodule "polari-rf-node"]
+	path = polari-rf-node
 	url = https://github.com/dausume/polari-node.git
 [submodule "polari-cli"]
 	path = polari-cli

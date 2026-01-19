@@ -1,0 +1,73 @@
+# ==============================================================================
+# POLARI SUITE ROOT .gitignore
+# ==============================================================================
+# This file applies to the polari-suite root directory.
+# Subprojects (political-scorecard-node, polari-rf-node) have their own .gitignore files.
+
+# ==============================================================================
+# SSL/TLS CERTIFICATES AND KEYS
+# ==============================================================================
+# SECURITY: Never commit certificates or private keys to version control
+# This catches certs in any subdirectory that might not have its own .gitignore
+*.crt
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.der
+
+# Certificate directories
+**/certs/
+**/ssl/
+**/certificates/
+
+# Specific cert locations for Polari core services
+pol-proxy/certs/
+pol-keycloak/certs/
+
+# ==============================================================================
+# ENVIRONMENT FILES
+# ==============================================================================
+# Environment files often contain sensitive data (API keys, passwords, etc.)
+.env
+.env.local
+.env.*.local
+*.env
+
+# ==============================================================================
+# IDE AND EDITOR FILES
+# ==============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ==============================================================================
+# OS FILES
+# ==============================================================================
+Thumbs.db
+.DS_Store
+
+# ==============================================================================
+# LOGS
+# ==============================================================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==============================================================================
+# DOCKER
+# ==============================================================================
+# Override files are local development configs
+docker-compose.override.yml
+
+# ==============================================================================
+# TEMPORARY FILES
+# ==============================================================================
+.cache/
+.tmp/
+temp/
