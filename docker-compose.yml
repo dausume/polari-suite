@@ -22,6 +22,7 @@
 # DEV MODE PORTS (Cloudflare-compatible HTTPS)
 # ==============================================================================
 #   Services (via proxy):
+#     - Default (redirects to PSC): https://localhost or https://localhost:443
 #     - Keycloak Auth:   https://localhost:8443
 #     - PSC Frontend:    https://localhost:2053
 #     - PSC Backend API: https://localhost:2083
@@ -100,6 +101,7 @@ services:
     profiles:
       - dev
     ports:
+      - "443:443"     # Default HTTPS (redirects to PSC Frontend)
       - "2053:2053"   # PSC Frontend (Cloudflare HTTPS)
       - "2083:2083"   # PSC Backend API (Cloudflare HTTPS)
       - "2087:2087"   # PRF Frontend (Cloudflare HTTPS)
