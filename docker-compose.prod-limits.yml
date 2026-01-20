@@ -1,0 +1,172 @@
+# ==============================================================================
+# POLARI SUITE - PRODUCTION RESOURCE LIMITS
+# ==============================================================================
+#
+# Optimized for: DigitalOcean Basic Droplet - 4GB RAM / 2 vCPU / 60GB
+# Target: 1 user with comfortable headroom
+#
+# USAGE:
+#   docker compose -f docker-compose.yml -f docker-compose.prod-limits.yml --profile prod up -d
+#
+# MEMORY BUDGET (4GB total):
+#   - OS/Docker overhead: ~500MB
+#   - Keycloak:           1024MB (Java - needs the most)
+#   - psc-backend:         768MB (Spring Boot)
+#   - pol-mariadb:         512MB (Database)
+#   - prf-backend:         384MB (Python)
+#   - psc-redis:           128MB (Cache)
+#   - psc-frontend:         64MB (nginx static)
+#   - prf-frontend:         64MB (nginx static)
+#   - pol-proxy:            64MB (nginx proxy)
+#   - Buffer:             ~512MB
+#   --------------------------------
+#   Total allocated:     ~3.5GB
+#
+# ==============================================================================
+
+services:
+  # ============================================
+  # SHARED DATABASE SERVICES
+  # ============================================
+
+  pol-mariadb:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    command: >
+      --innodb-buffer-pool-size=128M
+      --innodb-log-file-size=32M
+      --max-connections=50
+      --query-cache-size=0
+      --tmp-table-size=16M
+      --max-heap-table-size=16M
+
+  psc-redis:
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.2'
+        reservations:
+          memory: 64M
+          cpus: '0.05'
+    command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
+
+  # ============================================
+  # PROXY SERVICE
+  # ============================================
+
+  pol-prod-proxy:
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.2'
+        reservations:
+          memory: 32M
+          cpus: '0.05'
+
+  # ============================================
+  # AUTHENTICATION SERVICES
+  # ============================================
+
+  pol-keycloak:
+    environment:
+      # JVM memory limits for Keycloak
+      # -Xms: Initial heap (start smaller to save memory at rest)
+      # -Xmx: Maximum heap (hard cap)
+      - JAVA_OPTS_APPEND=-Xms256m -Xmx768m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: '0.75'
+        reservations:
+          memory: 512M
+          cpus: '0.2'
+
+  # ============================================
+  # POLITICAL SCORECARD (PSC) SERVICES
+  # ============================================
+
+  psc-frontend:
+    build:
+      context: ./political-scorecard-node/political-scorecard-frontend
+      dockerfile: Dockerfile.prod
+    image: psc-frontend:prod
+    # Remove dev volumes (not needed for production static build)
+    volumes: []
+    # No command override - uses nginx from Dockerfile.prod
+    command: []
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.2'
+        reservations:
+          memory: 32M
+          cpus: '0.05'
+
+  psc-backend:
+    build:
+      context: ./political-scorecard-node/political-scorecard-backend
+      dockerfile: Dockerfile.prod
+    image: psc-backend:prod
+    # Remove dev volumes (not needed for production JAR)
+    volumes: []
+    # No command override - uses ENTRYPOINT from Dockerfile.prod
+    command: []
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
+      - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
+      - SPRING_DATASOURCE_PASSWORD=pscpassword
+      - SPRING_PROFILES_ACTIVE=prod
+      # JVM options set in Dockerfile.prod, can override here if needed
+      - JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  # ============================================
+  # POLARI RESEARCH FRAMEWORK (PRF) SERVICES
+  # ============================================
+
+  prf-frontend:
+    build:
+      context: ./polari-rf-node/polari-platform-angular
+      dockerfile: Dockerfile.prod
+    image: prf-frontend:prod
+    # Remove dev volumes
+    volumes: []
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.2'
+        reservations:
+          memory: 32M
+          cpus: '0.05'
+
+  prf-backend:
+    environment:
+      - DEPLOY_ENV=production
+      # Production CORS origins - add your domains here
+      - CORS_ORIGINS=https://prf.polari-systems.org,https://www.prf.polari-systems.org,https://polari-systems.org
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: '0.4'
+        reservations:
+          memory: 128M
+          cpus: '0.1'

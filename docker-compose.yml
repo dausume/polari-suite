@@ -11,12 +11,16 @@
 # ==============================================================================
 # USAGE
 # ==============================================================================
-#   Dev mode:  
+#   Dev mode:
 #       sudo docker compose --profile dev up -d
-#   Update Single Container in Dev Mode Example :  
-#       sudo docker compose --profile dev up -d --build psc-backend 
-#   Prod mode: 
+#   Update Single Container in Dev Mode Example :
+#       sudo docker compose --profile dev up -d --build psc-backend
+#   Prod mode (standard):
 #       sudo docker compose --profile prod up -d
+#   Prod mode (with resource limits for small VPS - 4GB/2vCPU):
+#       sudo docker compose -f docker-compose.yml -f docker-compose.prod-limits.yml --profile prod up -d
+#   Prod LOCAL TEST (prod builds + limits, but dev proxy for port-based access):
+#       sudo docker compose -f docker-compose.yml -f docker-compose.prod-local.yml --profile dev up -d --build
 #
 # ==============================================================================
 # DEV MODE PORTS (Cloudflare-compatible HTTPS)
