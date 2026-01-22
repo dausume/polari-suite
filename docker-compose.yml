@@ -241,6 +241,7 @@ services:
     env_file:
       - ./polari-rf-node/.env
     volumes:
+      - ./polari-rf-node/polari-framework:/app  # Mount source code for dev
       - prf_backend_data:/app/data
       - prf_backend_cache:/app/__pycache__
 
