@@ -1,0 +1,211 @@
+events { worker_connections 1024; }
+
+http {
+    include mime.types;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /dev/stdout main;
+    error_log /dev/stderr warn;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 10m;
+    ssl_prefer_server_ciphers on;
+
+    # Upstream definitions
+    upstream keycloak {
+        server pol-keycloak:8443;
+    }
+
+    upstream psc-frontend {
+        server psc-frontend:4200;
+    }
+
+    upstream psc-backend {
+        server psc-backend:8080;
+    }
+
+    upstream prf-frontend {
+        server prf-frontend:4200;
+    }
+
+    upstream prf-backend {
+        server prf-backend:3000;
+    }
+
+    # HTTP redirect to HTTPS
+    server {
+        listen 80;
+        server_name *.${LOCAL_IP}.nip.io ${LOCAL_IP}.nip.io;
+        return 301 https://$host$request_uri;
+    }
+
+    # Landing page - ${LOCAL_IP}.nip.io
+    server {
+        listen 443 ssl;
+        server_name ${LOCAL_IP}.nip.io www.${LOCAL_IP}.nip.io;
+
+        ssl_certificate /etc/nginx/certs/nip.io/server.crt;
+        ssl_certificate_key /etc/nginx/certs/nip.io/server.key;
+
+        location / {
+            return 200 'Polari Systems - Prod-Local Test Environment';
+            add_header Content-Type text/plain;
+        }
+    }
+
+    # Keycloak Auth - auth.${LOCAL_IP}.nip.io
+    server {
+        listen 443 ssl;
+        server_name auth.${LOCAL_IP}.nip.io;
+
+        ssl_certificate /etc/nginx/certs/nip.io/server.crt;
+        ssl_certificate_key /etc/nginx/certs/nip.io/server.key;
+
+        location / {
+            proxy_pass https://keycloak;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # mTLS to Keycloak
+            proxy_ssl_verify on;
+            proxy_ssl_name pol-keycloak;
+            proxy_ssl_trusted_certificate /etc/nginx/certs/ca/pol-ca.crt;
+            proxy_ssl_certificate /etc/nginx/certs/pol-proxy.crt;
+            proxy_ssl_certificate_key /etc/nginx/certs/pol-proxy.key;
+        }
+    }
+
+    # PSC Frontend - psc.${LOCAL_IP}.nip.io
+    server {
+        listen 443 ssl;
+        server_name psc.${LOCAL_IP}.nip.io;
+
+        ssl_certificate /etc/nginx/certs/nip.io/server.crt;
+        ssl_certificate_key /etc/nginx/certs/nip.io/server.key;
+
+        location / {
+            proxy_pass http://psc-frontend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # WebSocket support for dev server
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+    }
+
+    # PSC Backend API - api.psc.${LOCAL_IP}.nip.io
+    server {
+        listen 443 ssl;
+        server_name api.psc.${LOCAL_IP}.nip.io;
+
+        ssl_certificate /etc/nginx/certs/nip.io/server.crt;
+        ssl_certificate_key /etc/nginx/certs/nip.io/server.key;
+
+        # Health check endpoint
+        location = /health {
+            default_type application/json;
+            return 200 '{"status":"ok","service":"psc-backend-proxy"}';
+        }
+
+        # Certificate trust verification endpoint
+        location = /cert-trust {
+            default_type text/html;
+            return 200 '<!DOCTYPE html>
+<html>
+<head><title>Certificate Trusted - PSC API</title>
+<style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#f0f9f0;}
+.card{background:white;padding:2rem;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center;max-width:400px;}
+h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
+<body><div class="card"><h1>Certificate Trusted</h1>
+<p><strong>PSC Backend API</strong></p>
+<p>You have successfully established trust with this service.</p>
+<p><a href="javascript:window.close()">Close this tab</a> and return to the application.</p>
+</div></body></html>';
+        }
+
+        location / {
+            proxy_pass http://psc-backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Port $server_port;
+        }
+    }
+
+    # PRF Frontend - prf.${LOCAL_IP}.nip.io
+    server {
+        listen 443 ssl;
+        server_name prf.${LOCAL_IP}.nip.io;
+
+        ssl_certificate /etc/nginx/certs/nip.io/server.crt;
+        ssl_certificate_key /etc/nginx/certs/nip.io/server.key;
+
+        location / {
+            proxy_pass http://prf-frontend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # WebSocket support for dev server
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+    }
+
+    # PRF Backend API - api.prf.${LOCAL_IP}.nip.io
+    server {
+        listen 443 ssl;
+        server_name api.prf.${LOCAL_IP}.nip.io;
+
+        ssl_certificate /etc/nginx/certs/nip.io/server.crt;
+        ssl_certificate_key /etc/nginx/certs/nip.io/server.key;
+
+        # Health check endpoint
+        location = /health {
+            default_type application/json;
+            return 200 '{"status":"ok","service":"prf-backend-proxy"}';
+        }
+
+        # Certificate trust verification endpoint
+        location = /cert-trust {
+            default_type text/html;
+            add_header Access-Control-Allow-Origin "https://prf.${LOCAL_IP}.nip.io" always;
+            return 200 '<!DOCTYPE html>
+<html>
+<head><title>Certificate Trusted - PRF API</title>
+<style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#f0f9f0;}
+.card{background:white;padding:2rem;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center;max-width:400px;}
+h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
+<body><div class="card"><h1>Certificate Trusted</h1>
+<p><strong>PRF Backend API</strong></p>
+<p>You have successfully established trust with this service.</p>
+<p><a href="javascript:window.close()">Close this tab</a> and return to the application.</p>
+</div></body></html>';
+        }
+
+        location / {
+            # Note: CORS headers are handled by the PRF backend itself
+            # Do NOT add them here or they will be duplicated
+
+            proxy_pass http://prf-backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Port $server_port;
+        }
+    }
+}

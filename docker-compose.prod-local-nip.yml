@@ -1,0 +1,227 @@
+# ==============================================================================
+# POLARI SUITE - PRODUCTION LOCAL TEST (nip.io subdomain routing)
+# ==============================================================================
+#
+# Purpose: Test production builds locally WITH subdomain routing via nip.io
+# Uses: Production Dockerfiles + Resource limits + Subdomain proxy (like real prod)
+#
+# SETUP (run once, or when IP changes):
+#   ./prod-local-setup.sh
+#
+# USAGE:
+#   sudo docker compose -f docker-compose.yml -f docker-compose.prod-local-nip.yml --profile prod-local up -d --build
+#
+# ACCESS (using your local IP, e.g., 10.0.0.102):
+#
+#   - Landing:      https://10.0.0.102.nip.io
+#   - Keycloak:     https://auth.10.0.0.102.nip.io
+#   - PSC Frontend: https://psc.10.0.0.102.nip.io
+#   - PSC API:      https://api.psc.10.0.0.102.nip.io
+#   - PRF Frontend: https://prf.10.0.0.102.nip.io
+#   - PRF API:      https://api.prf.10.0.0.102.nip.io
+#
+# ==============================================================================
+
+services:
+  # ============================================
+  # SHARED DATABASE SERVICES
+  # ============================================
+
+  pol-mariadb:
+    profiles:
+      - prod-local
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    command: >
+      --innodb-buffer-pool-size=128M
+      --innodb-log-file-size=32M
+      --max-connections=50
+      --query-cache-size=0
+      --tmp-table-size=16M
+      --max-heap-table-size=16M
+
+  psc-redis:
+    profiles:
+      - prod-local
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.2'
+        reservations:
+          memory: 64M
+          cpus: '0.05'
+    command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
+
+  # ============================================
+  # PROD-LOCAL PROXY (subdomain routing via nip.io)
+  # ============================================
+
+  pol-prod-local-proxy:
+    build:
+      context: ./pol-proxy
+      dockerfile: Dockerfile
+      args:
+        NGINX_CONF: nginx.prod.conf  # Base config, will be overridden by volume mount
+    container_name: pol-prod-local-proxy
+    image: pol-prod-local-proxy:latest
+    profiles:
+      - prod-local
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - polari-network
+    volumes:
+      # Mount generated nginx config (from prod-local-setup.sh)
+      - ./.generated/nginx.prod-local.conf:/etc/nginx/nginx.conf:ro
+      # Mount generated nip.io certificates
+      - ./pol-proxy/certs/nip.io:/etc/nginx/certs/nip.io:ro
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.2'
+        reservations:
+          memory: 32M
+          cpus: '0.05'
+    depends_on:
+      pol-keycloak:
+        condition: service_started
+      psc-frontend:
+        condition: service_started
+      psc-backend:
+        condition: service_healthy
+      prf-frontend:
+        condition: service_started
+      prf-backend:
+        condition: service_healthy
+
+  # ============================================
+  # AUTHENTICATION SERVICES
+  # ============================================
+
+  pol-keycloak:
+    profiles:
+      - prod-local
+    env_file:
+      - ./.generated/.env.prod-local
+    environment:
+      - JAVA_OPTS_APPEND=-Xms256m -Xmx768m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true
+      # Keycloak hostname will use KC_HOSTNAME from env file if configured in keycloak.conf
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: '0.75'
+        reservations:
+          memory: 512M
+          cpus: '0.2'
+
+  # ============================================
+  # POLITICAL SCORECARD (PSC) SERVICES
+  # ============================================
+
+  psc-frontend:
+    profiles:
+      - prod-local
+    build:
+      context: ./political-scorecard-node/political-scorecard-frontend
+      dockerfile: Dockerfile.prod
+    image: psc-frontend:prod-local
+    volumes:
+      # Mount generated runtime config for nip.io URLs
+      - ./.generated/psc-runtime-config.json:/usr/share/nginx/html/assets/runtime-config.json:ro
+    command: []
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.2'
+        reservations:
+          memory: 32M
+          cpus: '0.05'
+
+  psc-backend:
+    profiles:
+      - prod-local
+    build:
+      context: ./political-scorecard-node/political-scorecard-backend
+      dockerfile: Dockerfile.prod
+    image: psc-backend:prod-local
+    volumes: []
+    command: []
+    env_file:
+      - ./.generated/.env.prod-local
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
+      - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
+      - SPRING_DATASOURCE_PASSWORD=pscpassword
+      - SPRING_PROFILES_ACTIVE=prod
+      - JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+    # Healthcheck defined in Dockerfile.prod uses /actuator/health
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+    depends_on:
+      pol-mariadb:
+        condition: service_healthy
+      psc-redis:
+        condition: service_started
+
+  # ============================================
+  # POLARI RESEARCH FRAMEWORK (PRF) SERVICES
+  # ============================================
+
+  prf-frontend:
+    profiles:
+      - prod-local
+    build:
+      context: ./polari-rf-node/polari-platform-angular
+      dockerfile: Dockerfile.prod
+    image: prf-frontend:prod-local
+    volumes:
+      # Mount generated runtime config for nip.io URLs
+      - ./.generated/prf-runtime-config.json:/usr/share/nginx/html/assets/runtime-config.json:ro
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.2'
+        reservations:
+          memory: 32M
+          cpus: '0.05'
+
+  prf-backend:
+    profiles:
+      - prod-local
+    env_file:
+      - ./.generated/.env.prod-local
+    environment:
+      - DEPLOY_ENV=production
+      # CORS_ORIGINS will come from .env.prod-local file
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/', timeout=5)"]
+      interval: 10s
+      timeout: 10s
+      start_period: 45s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+          cpus: '0.4'
+        reservations:
+          memory: 128M
+          cpus: '0.1'

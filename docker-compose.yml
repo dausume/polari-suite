@@ -21,6 +21,9 @@
 #       sudo docker compose -f docker-compose.yml -f docker-compose.prod-limits.yml --profile prod up -d
 #   Prod LOCAL TEST (prod builds + limits, but dev proxy for port-based access):
 #       sudo docker compose -f docker-compose.yml -f docker-compose.prod-local.yml --profile dev up -d --build
+#   Prod LOCAL TEST with nip.io subdomains (closest to real production):
+#       ./prod-local-setup.sh  # Run once to generate config
+#       sudo docker compose -f docker-compose.yml -f docker-compose.prod-local-nip.yml --profile prod-local up -d --build
 #
 # ==============================================================================
 # DEV MODE PORTS (Cloudflare-compatible HTTPS)
