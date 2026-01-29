@@ -165,6 +165,14 @@ services:
       - SPRING_DATASOURCE_PASSWORD=pscpassword
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+    extra_hosts:
+      # Allow container to reach host machine via nip.io domains
+      - "10.0.0.102.nip.io:host-gateway"
+      - "api.prf.10.0.0.102.nip.io:host-gateway"
+      - "api.psc.10.0.0.102.nip.io:host-gateway"
+      - "prf.10.0.0.102.nip.io:host-gateway"
+      - "psc.10.0.0.102.nip.io:host-gateway"
+      - "auth.10.0.0.102.nip.io:host-gateway"
     # Healthcheck defined in Dockerfile.prod uses /actuator/health
     deploy:
       resources:
@@ -211,6 +219,14 @@ services:
     environment:
       - DEPLOY_ENV=production
       # CORS_ORIGINS will come from .env.prod-local file
+    extra_hosts:
+      # Allow container to reach host machine via nip.io domains
+      - "10.0.0.102.nip.io:host-gateway"
+      - "api.prf.10.0.0.102.nip.io:host-gateway"
+      - "api.psc.10.0.0.102.nip.io:host-gateway"
+      - "prf.10.0.0.102.nip.io:host-gateway"
+      - "psc.10.0.0.102.nip.io:host-gateway"
+      - "auth.10.0.0.102.nip.io:host-gateway"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/', timeout=5)"]
       interval: 10s
