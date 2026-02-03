@@ -1,26 +1,21 @@
 # ==============================================================================
-# POLARI SUITE - PRODUCTION RESOURCE LIMITS
+# POLARI SUITE - STAGING LOCAL (port-based routing overlay)
 # ==============================================================================
 #
-# Optimized for: DigitalOcean Basic Droplet - 4GB RAM / 2 vCPU / 60GB
-# Target: 1 user with comfortable headroom
+# Purpose: Test production builds locally without DNS setup
+# Uses: Production Dockerfiles + Resource limits + Dev proxy (port-based routing)
+#
+# This is an OVERLAY file - use with base docker-compose.yml:
 #
 # USAGE:
-#   docker compose -f docker-compose.yml -f docker-compose.prod-limits.yml --profile prod up -d
+#   sudo docker compose -f docker-compose.yml -f docker-compose.staging-local.yml up -d --build
 #
-# MEMORY BUDGET (4GB total):
-#   - OS/Docker overhead: ~500MB
-#   - Keycloak:           1024MB (Java - needs the most)
-#   - psc-backend:         768MB (Spring Boot)
-#   - pol-mariadb:         512MB (Database)
-#   - prf-backend:         384MB (Python)
-#   - psc-redis:           128MB (Cache)
-#   - psc-frontend:         64MB (nginx static)
-#   - prf-frontend:         64MB (nginx static)
-#   - pol-proxy:            64MB (nginx proxy)
-#   - Buffer:             ~512MB
-#   --------------------------------
-#   Total allocated:     ~3.5GB
+# ACCESS (same ports as dev mode):
+#   - PSC Frontend:    https://localhost:2053
+#   - PSC Backend API: https://localhost:2083
+#   - PRF Frontend:    https://localhost:2087
+#   - PRF Backend API: https://localhost:2096
+#   - Keycloak Auth:   https://localhost:8443
 #
 # ==============================================================================
 
@@ -58,10 +53,10 @@ services:
     command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
 
   # ============================================
-  # PROXY SERVICE
+  # PROXY (inherits from base, just adds resource limits)
   # ============================================
 
-  pol-prod-proxy:
+  pol-proxy:
     deploy:
       resources:
         limits:
@@ -77,9 +72,6 @@ services:
 
   pol-keycloak:
     environment:
-      # JVM memory limits for Keycloak
-      # -Xms: Initial heap (start smaller to save memory at rest)
-      # -Xmx: Maximum heap (hard cap)
       - JAVA_OPTS_APPEND=-Xms256m -Xmx768m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true
     deploy:
       resources:
@@ -98,10 +90,8 @@ services:
     build:
       context: ./political-scorecard-node/political-scorecard-frontend
       dockerfile: Dockerfile.prod
-    image: psc-frontend:prod
-    # Remove dev volumes (not needed for production static build)
+    image: psc-frontend:staging-local
     volumes: []
-    # No command override - uses nginx from Dockerfile.prod
     command: []
     deploy:
       resources:
@@ -116,17 +106,12 @@ services:
     build:
       context: ./political-scorecard-node/political-scorecard-backend
       dockerfile: Dockerfile.prod
-    image: psc-backend:prod
-    # Remove dev volumes (not needed for production JAR)
-    volumes: []
-    # No command override - uses ENTRYPOINT from Dockerfile.prod
-    command: []
+    image: psc-backend:staging-local
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
       - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
       - SPRING_DATASOURCE_PASSWORD=pscpassword
       - SPRING_PROFILES_ACTIVE=prod
-      # JVM options set in Dockerfile.prod, can override here if needed
       - JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     deploy:
       resources:
@@ -145,8 +130,7 @@ services:
     build:
       context: ./polari-rf-node/polari-platform-angular
       dockerfile: Dockerfile.prod
-    image: prf-frontend:prod
-    # Remove dev volumes
+    image: prf-frontend:staging-local
     volumes: []
     deploy:
       resources:
@@ -159,9 +143,10 @@ services:
 
   prf-backend:
     environment:
-      - DEPLOY_ENV=production
-      # Production CORS origins - add your domains here
-      - CORS_ORIGINS=https://prf.polari-systems.org,https://www.prf.polari-systems.org,https://polari-systems.org
+      # Use development for CORS (allows localhost origins)
+      - DEPLOY_ENV=development
+      # Explicit CORS origins for staging-local testing
+      - CORS_ORIGINS=https://localhost:2087,https://localhost:2053,http://localhost:4200,http://localhost:4201
     deploy:
       resources:
         limits:

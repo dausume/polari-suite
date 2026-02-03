@@ -1,18 +1,17 @@
 # ==============================================================================
-# POLARI SUITE - PRODUCTION LOCAL TEST (nip.io subdomain routing)
+# POLARI SUITE - STAGING ENVIRONMENT (nip.io subdomain routing)
 # ==============================================================================
 #
 # Purpose: Test production builds locally WITH subdomain routing via nip.io
 # Uses: Production Dockerfiles + Resource limits + Subdomain proxy (like real prod)
 #
 # SETUP (run once, or when IP changes):
-#   ./prod-local-setup.sh
+#   ./staging-setup.sh
 #
 # USAGE:
-#   sudo docker compose -f docker-compose.yml -f docker-compose.prod-local-nip.yml --profile prod-local up -d --build
+#   sudo docker compose -f docker-compose.staging-nip.yml up -d --build
 #
 # ACCESS (using your local IP, e.g., 10.0.0.102):
-#
 #   - Landing:      https://10.0.0.102.nip.io
 #   - Keycloak:     https://auth.10.0.0.102.nip.io
 #   - PSC Frontend: https://psc.10.0.0.102.nip.io
@@ -28,8 +27,24 @@ services:
   # ============================================
 
   pol-mariadb:
-    profiles:
-      - prod-local
+    build:
+      context: ./pol-mariadb
+      dockerfile: Dockerfile
+    container_name: pol-mariadb
+    image: pol-mariadb:staging
+    restart: always
+    networks:
+      - polari-network
+    env_file:
+      - ./pol-mariadb/mariadb.env
+    volumes:
+      - pol_mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
     deploy:
       resources:
         limits:
@@ -47,8 +62,13 @@ services:
       --max-heap-table-size=16M
 
   psc-redis:
-    profiles:
-      - prod-local
+    build: ./political-scorecard-node/political-scorecard-backend/redis
+    container_name: psc-redis
+    image: psc-redis:staging
+    networks:
+      - polari-network
+    volumes:
+      - psc_redis_data:/data
     deploy:
       resources:
         limits:
@@ -60,27 +80,25 @@ services:
     command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
 
   # ============================================
-  # PROD-LOCAL PROXY (subdomain routing via nip.io)
+  # STAGING PROXY (subdomain routing via nip.io)
   # ============================================
 
-  pol-prod-local-proxy:
+  pol-proxy:
     build:
       context: ./pol-proxy
       dockerfile: Dockerfile
       args:
-        NGINX_CONF: nginx.prod.conf  # Base config, will be overridden by volume mount
-    container_name: pol-prod-local-proxy
-    image: pol-prod-local-proxy:latest
-    profiles:
-      - prod-local
+        NGINX_CONF: nginx.prod.conf
+    container_name: pol-proxy
+    image: pol-proxy:staging
     ports:
       - "80:80"
       - "443:443"
     networks:
       - polari-network
     volumes:
-      # Mount generated nginx config (from prod-local-setup.sh)
-      - ./.generated/nginx.prod-local.conf:/etc/nginx/nginx.conf:ro
+      # Mount generated nginx config (from staging-setup.sh)
+      - ./.generated/nginx.staging.conf:/etc/nginx/nginx.conf:ro
       # Mount generated nip.io certificates
       - ./pol-proxy/certs/nip.io:/etc/nginx/certs/nip.io:ro
     deploy:
@@ -108,13 +126,24 @@ services:
   # ============================================
 
   pol-keycloak:
-    profiles:
-      - prod-local
+    build:
+      context: ./pol-keycloak
+      dockerfile: Dockerfile.pol-kc
+    container_name: pol-keycloak
+    image: pol-keycloak:staging
+    networks:
+      - polari-network
     env_file:
-      - ./.generated/.env.prod-local
+      - ./pol-keycloak/keycloak-admin.env
+      - ./.generated/.env.staging
+    volumes:
+      - ./pol-keycloak/environments/keycloak-suite.conf:/opt/keycloak/conf/keycloak.conf
     environment:
       - JAVA_OPTS_APPEND=-Xms256m -Xmx768m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true
-      # Keycloak hostname will use KC_HOSTNAME from env file if configured in keycloak.conf
+    depends_on:
+      pol-mariadb:
+        condition: service_healthy
+    entrypoint: ["/opt/startup_shells/kc_entrypoint.sh"]
     deploy:
       resources:
         limits:
@@ -129,16 +158,16 @@ services:
   # ============================================
 
   psc-frontend:
-    profiles:
-      - prod-local
     build:
       context: ./political-scorecard-node/political-scorecard-frontend
       dockerfile: Dockerfile.prod
-    image: psc-frontend:prod-local
+    container_name: psc-frontend
+    image: psc-frontend:staging
+    networks:
+      - polari-network
     volumes:
       # Mount generated runtime config for nip.io URLs
       - ./.generated/psc-runtime-config.json:/usr/share/nginx/html/assets/runtime-config.json:ro
-    command: []
     deploy:
       resources:
         limits:
@@ -147,18 +176,19 @@ services:
         reservations:
           memory: 32M
           cpus: '0.05'
+    depends_on:
+      - psc-backend
 
   psc-backend:
-    profiles:
-      - prod-local
     build:
       context: ./political-scorecard-node/political-scorecard-backend
       dockerfile: Dockerfile.prod
-    image: psc-backend:prod-local
-    volumes: []
-    command: []
+    container_name: psc-backend
+    image: psc-backend:staging
+    networks:
+      - polari-network
     env_file:
-      - ./.generated/.env.prod-local
+      - ./.generated/.env.staging
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
       - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
@@ -173,7 +203,6 @@ services:
       - "prf.10.0.0.102.nip.io:host-gateway"
       - "psc.10.0.0.102.nip.io:host-gateway"
       - "auth.10.0.0.102.nip.io:host-gateway"
-    # Healthcheck defined in Dockerfile.prod uses /actuator/health
     deploy:
       resources:
         limits:
@@ -193,12 +222,13 @@ services:
   # ============================================
 
   prf-frontend:
-    profiles:
-      - prod-local
     build:
       context: ./polari-rf-node/polari-platform-angular
       dockerfile: Dockerfile.prod
-    image: prf-frontend:prod-local
+    container_name: prf-frontend
+    image: prf-frontend:staging
+    networks:
+      - polari-network
     volumes:
       # Mount generated runtime config for nip.io URLs
       - ./.generated/prf-runtime-config.json:/usr/share/nginx/html/assets/runtime-config.json:ro
@@ -210,15 +240,23 @@ services:
         reservations:
           memory: 32M
           cpus: '0.05'
+    depends_on:
+      - prf-backend
 
   prf-backend:
-    profiles:
-      - prod-local
+    build:
+      context: ./polari-rf-node/polari-framework
+    container_name: prf-backend
+    image: prf-backend:staging
+    networks:
+      - polari-network
     env_file:
-      - ./.generated/.env.prod-local
+      - ./.generated/.env.staging
     environment:
-      - DEPLOY_ENV=production
-      # CORS_ORIGINS will come from .env.prod-local file
+      - DEPLOY_ENV=staging
+      # CORS_ORIGINS and PRF_API_URL will come from .env.staging file
+      # INTERNAL_API_URL: For API profiler self-call rewriting (avoids hairpin NAT)
+      - INTERNAL_API_URL=http://localhost:3000
     extra_hosts:
       # Allow container to reach host machine via nip.io domains
       - "10.0.0.102.nip.io:host-gateway"
@@ -241,3 +279,17 @@ services:
         reservations:
           memory: 128M
           cpus: '0.1'
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  pol_mariadb_data:
+  psc_redis_data:
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  polari-network:
+    driver: bridge

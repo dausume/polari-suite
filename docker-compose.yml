@@ -1,29 +1,23 @@
 # ==============================================================================
-# POLARI SUITE - DOCKER COMPOSE (Orchestrated Mode)
+# POLARI SUITE - DEVELOPMENT ENVIRONMENT
 # ==============================================================================
 #
-# IMPORTANT: Choose ONE mode to run - do NOT mix:
-#   - SUITE MODE: Run from polari-suite/ using THIS file
-#   - INDIVIDUAL MODE: Run from political-scorecard-node/ or polari-rf-node/
+# This is the base development configuration. Run directly without profiles.
 #
-# Running both will cause container name conflicts!
+# USAGE:
+#   sudo docker compose up -d
+#   sudo docker compose up -d --build              # Rebuild containers
+#   sudo docker compose up -d --build prf-backend  # Rebuild single container
+#   sudo docker compose down                       # Stop all
 #
-# ==============================================================================
-# USAGE
-# ==============================================================================
-#   Dev mode:
-#       sudo docker compose --profile dev up -d
-#   Update Single Container in Dev Mode Example :
-#       sudo docker compose --profile dev up -d --build psc-backend
-#   Prod mode (standard):
-#       sudo docker compose --profile prod up -d
-#   Prod mode (with resource limits for small VPS - 4GB/2vCPU):
-#       sudo docker compose -f docker-compose.yml -f docker-compose.prod-limits.yml --profile prod up -d
-#   Prod LOCAL TEST (prod builds + limits, but dev proxy for port-based access):
-#       sudo docker compose -f docker-compose.yml -f docker-compose.prod-local.yml --profile dev up -d --build
-#   Prod LOCAL TEST with nip.io subdomains (closest to real production):
-#       ./prod-local-setup.sh  # Run once to generate config
-#       sudo docker compose -f docker-compose.yml -f docker-compose.prod-local-nip.yml --profile prod-local up -d --build
+# OTHER ENVIRONMENTS:
+#   Staging (port-based):
+#       sudo docker compose -f docker-compose.yml -f docker-compose.staging-local.yml up -d --build
+#   Staging (nip.io subdomains - closest to prod):
+#       ./staging-setup.sh  # Run once to generate config
+#       sudo docker compose -f docker-compose.staging-nip.yml up -d --build
+#   Production:
+#       sudo docker compose -f docker-compose.prod.yml up -d
 #
 # ==============================================================================
 # DEV MODE PORTS (Cloudflare-compatible HTTPS)
@@ -38,18 +32,8 @@
 #
 #   Databases (for external tools like DBeaver):
 #     - MariaDB (consolidated): localhost:3306
-#       - Database: keycloak (user: kc)
-#       - Databases: psc, psc_scoring_db, psc_location_db (user: psc-scorecard-server)
 #     - Redis: localhost:6379
 #
-# ==============================================================================
-# PROD MODE DOMAINS
-# ==============================================================================
-#   - auth.polari-systems.org
-#   - psc.polari-systems.org
-#   - api.psc.polari-systems.org
-#   - prf.polari-systems.org
-#   - api.prf.polari-systems.org
 # ==============================================================================
 
 services:
@@ -93,20 +77,17 @@ services:
       - psc_redis_data:/data
 
   # ============================================
-  # PROXY SERVICES
+  # PROXY SERVICE (Dev - Port-based routing)
   # ============================================
 
-  # Development Proxy - Port-based routing
-  pol-dev-proxy:
+  pol-proxy:
     build:
       context: ./pol-proxy
       dockerfile: Dockerfile
       args:
         NGINX_CONF: nginx.dev.conf
-    container_name: pol-dev-proxy
-    image: pol-dev-proxy:latest
-    profiles:
-      - dev
+    container_name: pol-proxy
+    image: pol-proxy:latest
     ports:
       - "443:443"     # Default HTTPS (redirects to PSC Frontend)
       - "2053:2053"   # PSC Frontend (Cloudflare HTTPS)
@@ -114,29 +95,6 @@ services:
       - "2087:2087"   # PRF Frontend (Cloudflare HTTPS)
       - "2096:2096"   # PRF Backend API (Cloudflare HTTPS)
       - "8443:8443"   # Keycloak Auth (Cloudflare HTTPS)
-    networks:
-      - polari-network
-    depends_on:
-      - pol-keycloak
-      - psc-frontend
-      - psc-backend
-      - prf-frontend
-      - prf-backend
-
-  # Production Proxy - Subdomain routing
-  pol-prod-proxy:
-    build:
-      context: ./pol-proxy
-      dockerfile: Dockerfile
-      args:
-        NGINX_CONF: nginx.prod.conf
-    container_name: pol-prod-proxy
-    image: pol-prod-proxy:latest
-    profiles:
-      - prod
-    ports:
-      - "80:80"
-      - "443:443"
     networks:
       - polari-network
     depends_on:

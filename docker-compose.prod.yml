@@ -1,26 +1,28 @@
 # ==============================================================================
-# POLARI SUITE - PRODUCTION LOCAL TEST
+# POLARI SUITE - PRODUCTION (overlay with resource limits)
 # ==============================================================================
 #
-# Purpose: Test production builds locally without DNS setup
-# Uses: Production Dockerfiles + Resource limits + Dev proxy (port-based routing)
+# Optimized for: DigitalOcean Basic Droplet - 4GB RAM / 2 vCPU / 60GB
+# Target: 1 user with comfortable headroom
+#
+# This is an OVERLAY file - use with base docker-compose.yml:
 #
 # USAGE:
-#   Build and run:
-#       sudo docker compose -f docker-compose.yml -f docker-compose.prod-local.yml --profile dev up -d --build
+#   sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 #
-#   Monitor resource usage:
-#       docker stats
-#
-#   Check total memory:
-#       docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}"
-#
-# ACCESS (same as dev mode):
-#   - PSC Frontend:    https://localhost:2053
-#   - PSC Backend API: https://localhost:2083
-#   - PRF Frontend:    https://localhost:2087
-#   - PRF Backend API: https://localhost:2096
-#   - Keycloak Auth:   https://localhost:8443
+# MEMORY BUDGET (4GB total):
+#   - OS/Docker overhead: ~500MB
+#   - Keycloak:           1024MB (Java - needs the most)
+#   - psc-backend:         768MB (Spring Boot)
+#   - pol-mariadb:         512MB (Database)
+#   - prf-backend:         384MB (Python)
+#   - psc-redis:           128MB (Cache)
+#   - psc-frontend:         64MB (nginx static)
+#   - prf-frontend:         64MB (nginx static)
+#   - pol-proxy:            64MB (nginx proxy)
+#   - Buffer:             ~512MB
+#   --------------------------------
+#   Total allocated:     ~3.5GB
 #
 # ==============================================================================
 
@@ -58,10 +60,13 @@ services:
     command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
 
   # ============================================
-  # DEV PROXY (port-based routing for local testing)
+  # PROXY SERVICE (uses prod subdomain config)
   # ============================================
 
-  pol-dev-proxy:
+  pol-proxy:
+    build:
+      args:
+        NGINX_CONF: nginx.prod.conf
     deploy:
       resources:
         limits:
@@ -77,6 +82,7 @@ services:
 
   pol-keycloak:
     environment:
+      # JVM memory limits for Keycloak
       - JAVA_OPTS_APPEND=-Xms256m -Xmx768m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true
     deploy:
       resources:
@@ -95,7 +101,7 @@ services:
     build:
       context: ./political-scorecard-node/political-scorecard-frontend
       dockerfile: Dockerfile.prod
-    image: psc-frontend:prod-local
+    image: psc-frontend:prod
     volumes: []
     command: []
     deploy:
@@ -111,7 +117,9 @@ services:
     build:
       context: ./political-scorecard-node/political-scorecard-backend
       dockerfile: Dockerfile.prod
-    image: psc-backend:prod-local
+    image: psc-backend:prod
+    volumes: []
+    command: []
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
       - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
@@ -135,7 +143,7 @@ services:
     build:
       context: ./polari-rf-node/polari-platform-angular
       dockerfile: Dockerfile.prod
-    image: prf-frontend:prod-local
+    image: prf-frontend:prod
     volumes: []
     deploy:
       resources:
@@ -148,11 +156,9 @@ services:
 
   prf-backend:
     environment:
-      # Use development for CORS (allows localhost origins)
-      # The resource limits still apply for testing production-like constraints
-      - DEPLOY_ENV=development
-      # Explicit CORS origins for prod-local testing
-      - CORS_ORIGINS=https://localhost:2087,https://localhost:2053,http://localhost:4200,http://localhost:4201
+      - DEPLOY_ENV=production
+      # Production CORS origins
+      - CORS_ORIGINS=https://prf.polari-systems.org,https://www.prf.polari-systems.org,https://polari-systems.org
     deploy:
       resources:
         limits:
