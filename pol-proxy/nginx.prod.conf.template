@@ -39,14 +39,14 @@ http {
     # HTTP redirect to HTTPS
     server {
         listen 80;
-        server_name *.polari-systems.org polari-systems.org;
+        server_name *.${PROD_DOMAIN} ${PROD_DOMAIN};
         return 301 https://$host$request_uri;
     }
 
-    # Landing page - polari-systems.org
+    # Landing page - ${PROD_DOMAIN}
     server {
         listen 443 ssl;
-        server_name polari-systems.org www.polari-systems.org;
+        server_name ${PROD_DOMAIN} www.${PROD_DOMAIN};
 
         ssl_certificate /etc/nginx/certs/pol-proxy.crt;
         ssl_certificate_key /etc/nginx/certs/pol-proxy.key;
@@ -58,10 +58,10 @@ http {
         }
     }
 
-    # Keycloak Auth - auth.polari-systems.org
+    # Keycloak Auth - auth.${PROD_DOMAIN}
     server {
         listen 443 ssl;
-        server_name auth.polari-systems.org;
+        server_name auth.${PROD_DOMAIN};
 
         ssl_certificate /etc/nginx/certs/pol-proxy.crt;
         ssl_certificate_key /etc/nginx/certs/pol-proxy.key;
@@ -82,10 +82,10 @@ http {
         }
     }
 
-    # PSC Frontend - psc.polari-systems.org
+    # PSC Frontend - psc.${PROD_DOMAIN}
     server {
         listen 443 ssl;
-        server_name psc.polari-systems.org;
+        server_name psc.${PROD_DOMAIN};
 
         ssl_certificate /etc/nginx/certs/pol-proxy.crt;
         ssl_certificate_key /etc/nginx/certs/pol-proxy.key;
@@ -104,10 +104,10 @@ http {
         }
     }
 
-    # PSC Backend API - api.psc.polari-systems.org
+    # PSC Backend API - api.psc.${PROD_DOMAIN}
     server {
         listen 443 ssl;
-        server_name api.psc.polari-systems.org;
+        server_name api.psc.${PROD_DOMAIN};
 
         ssl_certificate /etc/nginx/certs/pol-proxy.crt;
         ssl_certificate_key /etc/nginx/certs/pol-proxy.key;
@@ -116,6 +116,22 @@ http {
         location = /health {
             default_type application/json;
             return 200 '{"status":"ok","service":"psc-backend-proxy"}';
+        }
+
+        # Certificate trust verification endpoint
+        location = /cert-trust {
+            default_type text/html;
+            return 200 '<!DOCTYPE html>
+<html>
+<head><title>Certificate Trusted - PSC API</title>
+<style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#f0f9f0;}
+.card{background:white;padding:2rem;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center;max-width:400px;}
+h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
+<body><div class="card"><h1>Certificate Trusted</h1>
+<p><strong>PSC Backend API</strong></p>
+<p>You have successfully established trust with this service.</p>
+<p><a href="javascript:window.close()">Close this tab</a> and return to the application.</p>
+</div></body></html>';
         }
 
         location / {
@@ -128,10 +144,10 @@ http {
         }
     }
 
-    # PRF Frontend - prf.polari-systems.org
+    # PRF Frontend - prf.${PROD_DOMAIN}
     server {
         listen 443 ssl;
-        server_name prf.polari-systems.org;
+        server_name prf.${PROD_DOMAIN};
 
         ssl_certificate /etc/nginx/certs/pol-proxy.crt;
         ssl_certificate_key /etc/nginx/certs/pol-proxy.key;
@@ -150,13 +166,18 @@ http {
         }
     }
 
-    # PRF Backend API - api.prf.polari-systems.org
+    # PRF Backend API - api.prf.${PROD_DOMAIN}
     server {
         listen 443 ssl;
-        server_name api.prf.polari-systems.org;
+        server_name api.prf.${PROD_DOMAIN};
 
         ssl_certificate /etc/nginx/certs/pol-proxy.crt;
         ssl_certificate_key /etc/nginx/certs/pol-proxy.key;
+
+        # Increase timeouts for API profiler (makes external requests)
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
 
         # Health check endpoint
         location = /health {
@@ -164,15 +185,33 @@ http {
             return 200 '{"status":"ok","service":"prf-backend-proxy"}';
         }
 
-        location / {
-            # CORS headers
-            add_header Access-Control-Allow-Origin "https://prf.polari-systems.org" always;
-            add_header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS" always;
-            add_header Access-Control-Allow-Headers "Authorization, Content-Type, Accept" always;
-            add_header Access-Control-Allow-Credentials "true" always;
+        # Certificate trust verification endpoint
+        location = /cert-trust {
+            default_type text/html;
+            add_header Access-Control-Allow-Origin "https://prf.${PROD_DOMAIN}" always;
+            return 200 '<!DOCTYPE html>
+<html>
+<head><title>Certificate Trusted - PRF API</title>
+<style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0;background:#f0f9f0;}
+.card{background:white;padding:2rem;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.1);text-align:center;max-width:400px;}
+h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
+<body><div class="card"><h1>Certificate Trusted</h1>
+<p><strong>PRF Backend API</strong></p>
+<p>You have successfully established trust with this service.</p>
+<p><a href="javascript:window.close()">Close this tab</a> and return to the application.</p>
+</div></body></html>';
+        }
 
-            # Handle preflight OPTIONS requests
-            if ($request_method = OPTIONS) {
+        location / {
+            # Handle CORS preflight requests at nginx level (fast, doesn't hit backend)
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' 'https://prf.${PROD_DOMAIN}' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, Accept, Origin, X-Requested-With' always;
+                add_header 'Access-Control-Allow-Credentials' 'true' always;
+                add_header 'Access-Control-Max-Age' 86400;
+                add_header 'Content-Type' 'text/plain charset=UTF-8';
+                add_header 'Content-Length' 0;
                 return 204;
             }
 
@@ -182,6 +221,19 @@ http {
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
             proxy_set_header X-Forwarded-Port $server_port;
+
+            # Add CORS headers to nginx error responses (502, 503, 504)
+            # Normal responses get CORS from backend - this prevents duplicates
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @cors_error;
+        }
+
+        # CORS-enabled error handler for nginx-level failures
+        location @cors_error {
+            add_header 'Access-Control-Allow-Origin' 'https://prf.${PROD_DOMAIN}' always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            default_type application/json;
+            return 504 '{"success":false,"error":"Backend unavailable - the backend service is not responding. Please try again later."}';
         }
     }
 }

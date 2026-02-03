@@ -73,6 +73,14 @@ docker-compose.override.yml
 temp/
 
 # ==============================================================================
-# GENERATED FILES (prod-local-setup.sh output)
+# GENERATED FILES (staging-setup.sh, prod-setup.sh output)
 # ==============================================================================
+# These contain environment-specific sensitive configuration.
+# Templates (*.template) are committed; generated files are not.
 .generated/
+
+# Specific generated configs that might be placed elsewhere
+nginx.staging.conf
+nginx.prod.conf
+.env.staging
+.env.prod

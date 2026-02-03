@@ -5,6 +5,9 @@
 # Optimized for: DigitalOcean Basic Droplet - 4GB RAM / 2 vCPU / 60GB
 # Target: 1 user with comfortable headroom
 #
+# SETUP (run once, or when domain/config changes):
+#   ./prod-setup.sh
+#
 # This is an OVERLAY file - use with base docker-compose.yml:
 #
 # USAGE:
@@ -60,13 +63,16 @@ services:
     command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
 
   # ============================================
-  # PROXY SERVICE (uses prod subdomain config)
+  # PROXY SERVICE (uses generated prod config)
   # ============================================
 
   pol-proxy:
     build:
       args:
         NGINX_CONF: nginx.prod.conf
+    volumes:
+      # Mount generated nginx config (from prod-setup.sh)
+      - ./.generated/nginx.prod.conf:/etc/nginx/nginx.conf:ro
     deploy:
       resources:
         limits:
@@ -81,6 +87,8 @@ services:
   # ============================================
 
   pol-keycloak:
+    env_file:
+      - ./.generated/.env.prod
     environment:
       # JVM memory limits for Keycloak
       - JAVA_OPTS_APPEND=-Xms256m -Xmx768m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true
@@ -102,7 +110,9 @@ services:
       context: ./political-scorecard-node/political-scorecard-frontend
       dockerfile: Dockerfile.prod
     image: psc-frontend:prod
-    volumes: []
+    volumes:
+      # Mount generated runtime config
+      - ./.generated/psc-runtime-config.prod.json:/usr/share/nginx/html/assets/runtime-config.json:ro
     command: []
     deploy:
       resources:
@@ -120,10 +130,13 @@ services:
     image: psc-backend:prod
     volumes: []
     command: []
+    env_file:
+      - ./.generated/.env.prod
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
       - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
-      - SPRING_DATASOURCE_PASSWORD=pscpassword
+      # Password comes from .env.prod via PSC_DB_PASSWORD
+      - SPRING_DATASOURCE_PASSWORD=${PSC_DB_PASSWORD:-pscpassword}
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     deploy:
@@ -144,7 +157,9 @@ services:
       context: ./polari-rf-node/polari-platform-angular
       dockerfile: Dockerfile.prod
     image: prf-frontend:prod
-    volumes: []
+    volumes:
+      # Mount generated runtime config
+      - ./.generated/prf-runtime-config.prod.json:/usr/share/nginx/html/assets/runtime-config.json:ro
     deploy:
       resources:
         limits:
@@ -155,10 +170,19 @@ services:
           cpus: '0.05'
 
   prf-backend:
+    env_file:
+      - ./.generated/.env.prod
     environment:
       - DEPLOY_ENV=production
-      # Production CORS origins
-      - CORS_ORIGINS=https://prf.polari-systems.org,https://www.prf.polari-systems.org,https://polari-systems.org
+      # CORS_ORIGINS, PRF_API_URL come from .env.prod (domain-specific)
+      # API Profiler: Internal URL (avoids hairpin NAT for self-calls)
+      - INTERNAL_API_URL=http://localhost:3000
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/', timeout=5)"]
+      interval: 10s
+      timeout: 10s
+      start_period: 45s
+      retries: 5
     deploy:
       resources:
         limits:

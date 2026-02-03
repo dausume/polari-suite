@@ -173,6 +173,11 @@ h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
         ssl_certificate /etc/nginx/certs/nip.io/server.crt;
         ssl_certificate_key /etc/nginx/certs/nip.io/server.key;
 
+        # Increase timeouts for API profiler (makes external requests)
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
+
         # Health check endpoint
         location = /health {
             default_type application/json;
@@ -197,8 +202,17 @@ h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
         }
 
         location / {
-            # Note: CORS headers are handled by the PRF backend itself
-            # Do NOT add them here or they will be duplicated
+            # Handle CORS preflight requests at nginx level (fast, doesn't hit backend)
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' 'https://prf.${LOCAL_IP}.nip.io' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, Accept, Origin, X-Requested-With' always;
+                add_header 'Access-Control-Allow-Credentials' 'true' always;
+                add_header 'Access-Control-Max-Age' 86400;
+                add_header 'Content-Type' 'text/plain charset=UTF-8';
+                add_header 'Content-Length' 0;
+                return 204;
+            }
 
             proxy_pass http://prf-backend;
             proxy_set_header Host $host;
@@ -206,6 +220,19 @@ h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
             proxy_set_header X-Forwarded-Port $server_port;
+
+            # Add CORS headers to nginx error responses (502, 503, 504)
+            # Normal responses get CORS from backend - this prevents duplicates
+            proxy_intercept_errors on;
+            error_page 502 503 504 = @cors_error;
+        }
+
+        # CORS-enabled error handler for nginx-level failures
+        location @cors_error {
+            add_header 'Access-Control-Allow-Origin' 'https://prf.${LOCAL_IP}.nip.io' always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            default_type application/json;
+            return 504 '{"success":false,"error":"Backend unavailable - the backend service is not responding. Please try again later."}';
         }
     }
 }
