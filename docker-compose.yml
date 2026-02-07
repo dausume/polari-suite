@@ -204,7 +204,6 @@ services:
     volumes:
       - ./polari-rf-node/polari-framework:/app  # Mount source code for dev
       - prf_backend_data:/app/data
-      - prf_backend_cache:/app/__pycache__
 
 # ============================================
 # VOLUMES
@@ -220,7 +219,6 @@ volumes:
   prf_frontend_dist:
   prf_frontend_cache:
   prf_backend_data:
-  prf_backend_cache:
 
 # ============================================
 # NETWORKS
