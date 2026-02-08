@@ -144,6 +144,8 @@ services:
       - /app/node_modules
     env_file:
       - ./political-scorecard-node/political-scorecard-frontend/.env
+    environment:
+      - PRF_FRONTEND_URL=https://localhost:2087
     command: npm run start
     depends_on:
       - psc-backend
