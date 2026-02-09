@@ -1,5 +1,5 @@
 # ==============================================================================
-# POLARI SUITE - PRODUCTION (overlay with resource limits)
+# POLARI SUITE - PRODUCTION ENVIRONMENT (subdomain routing)
 # ==============================================================================
 #
 # Optimized for: DigitalOcean Basic Droplet - 4GB RAM / 2 vCPU / 60GB
@@ -8,10 +8,16 @@
 # SETUP (run once, or when domain/config changes):
 #   ./prod-setup.sh
 #
-# This is an OVERLAY file - use with base docker-compose.yml:
-#
 # USAGE:
-#   sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#   sudo docker compose -f docker-compose.prod.yml up -d --build
+#
+# ACCESS (using your domain, e.g., example.com):
+#   - Landing:      https://example.com
+#   - Keycloak:     https://auth.example.com
+#   - PSC Frontend: https://psc.example.com
+#   - PSC API:      https://api.psc.example.com
+#   - PRF Frontend: https://prf.example.com
+#   - PRF API:      https://api.prf.example.com
 #
 # MEMORY BUDGET (4GB total):
 #   - OS/Docker overhead: ~500MB
@@ -35,6 +41,24 @@ services:
   # ============================================
 
   pol-mariadb:
+    build:
+      context: ./pol-mariadb
+      dockerfile: Dockerfile
+    container_name: pol-mariadb
+    image: pol-mariadb:prod
+    restart: always
+    networks:
+      - polari-network
+    env_file:
+      - ./pol-mariadb/mariadb.env
+    volumes:
+      - pol_mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
     deploy:
       resources:
         limits:
@@ -52,6 +76,13 @@ services:
       --max-heap-table-size=16M
 
   psc-redis:
+    build: ./political-scorecard-node/political-scorecard-backend/redis
+    container_name: psc-redis
+    image: psc-redis:prod
+    networks:
+      - polari-network
+    volumes:
+      - psc_redis_data:/data
     deploy:
       resources:
         limits:
@@ -63,13 +94,22 @@ services:
     command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
 
   # ============================================
-  # PROXY SERVICE (uses generated prod config)
+  # PRODUCTION PROXY (subdomain routing)
   # ============================================
 
   pol-proxy:
     build:
+      context: ./pol-proxy
+      dockerfile: Dockerfile
       args:
-        NGINX_CONF: nginx.prod.conf
+        NGINX_CONF: nginx.dev.conf
+    container_name: pol-proxy
+    image: pol-proxy:prod
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - polari-network
     volumes:
       # Mount generated nginx config (from prod-setup.sh)
       - ./.generated/nginx.prod.conf:/etc/nginx/nginx.conf:ro
@@ -81,17 +121,42 @@ services:
         reservations:
           memory: 32M
           cpus: '0.05'
+    depends_on:
+      pol-keycloak:
+        condition: service_started
+      psc-frontend:
+        condition: service_started
+      psc-backend:
+        condition: service_healthy
+      prf-frontend:
+        condition: service_started
+      prf-backend:
+        condition: service_healthy
 
   # ============================================
   # AUTHENTICATION SERVICES
   # ============================================
 
   pol-keycloak:
+    build:
+      context: ./pol-keycloak
+      dockerfile: Dockerfile.pol-kc
+    container_name: pol-keycloak
+    image: pol-keycloak:prod
+    networks:
+      - polari-network
     env_file:
+      - ./pol-keycloak/keycloak-admin.env
       - ./.generated/.env.prod
+    volumes:
+      - ./pol-keycloak/environments/keycloak-suite.conf:/opt/keycloak/conf/keycloak.conf
     environment:
-      # JVM memory limits for Keycloak
       - JAVA_OPTS_APPEND=-Xms256m -Xmx768m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true
+      - KEYCLOAK_MODE=production
+    depends_on:
+      pol-mariadb:
+        condition: service_healthy
+    entrypoint: ["/opt/startup_shells/kc_entrypoint.sh"]
     deploy:
       resources:
         limits:
@@ -109,11 +174,13 @@ services:
     build:
       context: ./political-scorecard-node/political-scorecard-frontend
       dockerfile: Dockerfile.prod
+    container_name: psc-frontend
     image: psc-frontend:prod
+    networks:
+      - polari-network
     volumes:
-      # Mount generated runtime config
+      # Mount generated runtime config for production URLs
       - ./.generated/psc-runtime-config.prod.json:/usr/share/nginx/html/assets/runtime-config.json:ro
-    command: []
     deploy:
       resources:
         limits:
@@ -122,14 +189,17 @@ services:
         reservations:
           memory: 32M
           cpus: '0.05'
+    depends_on:
+      - psc-backend
 
   psc-backend:
     build:
       context: ./political-scorecard-node/political-scorecard-backend
       dockerfile: Dockerfile.prod
+    container_name: psc-backend
     image: psc-backend:prod
-    volumes: []
-    command: []
+    networks:
+      - polari-network
     env_file:
       - ./.generated/.env.prod
     environment:
@@ -147,6 +217,11 @@ services:
         reservations:
           memory: 256M
           cpus: '0.1'
+    depends_on:
+      pol-mariadb:
+        condition: service_healthy
+      psc-redis:
+        condition: service_started
 
   # ============================================
   # POLARI RESEARCH FRAMEWORK (PRF) SERVICES
@@ -156,9 +231,12 @@ services:
     build:
       context: ./polari-rf-node/polari-platform-angular
       dockerfile: Dockerfile.prod
+    container_name: prf-frontend
     image: prf-frontend:prod
+    networks:
+      - polari-network
     volumes:
-      # Mount generated runtime config
+      # Mount generated runtime config for production URLs
       - ./.generated/prf-runtime-config.prod.json:/usr/share/nginx/html/assets/runtime-config.json:ro
     deploy:
       resources:
@@ -168,14 +246,22 @@ services:
         reservations:
           memory: 32M
           cpus: '0.05'
+    depends_on:
+      - prf-backend
 
   prf-backend:
+    build:
+      context: ./polari-rf-node/polari-framework
+    container_name: prf-backend
+    image: prf-backend:prod
+    networks:
+      - polari-network
     env_file:
       - ./.generated/.env.prod
     environment:
       - DEPLOY_ENV=production
-      # CORS_ORIGINS, PRF_API_URL come from .env.prod (domain-specific)
-      # API Profiler: Internal URL (avoids hairpin NAT for self-calls)
+      # CORS_ORIGINS and PRF_API_URL come from .env.prod file
+      # INTERNAL_API_URL: For API profiler self-call rewriting (avoids hairpin NAT)
       - INTERNAL_API_URL=http://localhost:3000
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/', timeout=5)"]
@@ -191,3 +277,17 @@ services:
         reservations:
           memory: 128M
           cpus: '0.1'
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  pol_mariadb_data:
+  psc_redis_data:
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  polari-network:
+    driver: bridge

@@ -88,7 +88,7 @@ services:
       context: ./pol-proxy
       dockerfile: Dockerfile
       args:
-        NGINX_CONF: nginx.prod.conf
+        NGINX_CONF: nginx.dev.conf
     container_name: pol-proxy
     image: pol-proxy:staging
     ports:
@@ -140,6 +140,7 @@ services:
       - ./pol-keycloak/environments/keycloak-suite.conf:/opt/keycloak/conf/keycloak.conf
     environment:
       - JAVA_OPTS_APPEND=-Xms256m -Xmx768m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true
+      - KEYCLOAK_MODE=staging
     depends_on:
       pol-mariadb:
         condition: service_healthy

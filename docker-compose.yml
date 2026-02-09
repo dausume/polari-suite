@@ -160,6 +160,7 @@ services:
     networks:
       - polari-network
     environment:
+      - SPRING_PROFILES_ACTIVE=dev
       # Database connection to consolidated MariaDB
       - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
       - SPRING_DATASOURCE_USERNAME=psc-scorecard-server

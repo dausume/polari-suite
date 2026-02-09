@@ -221,6 +221,8 @@ PRF_API_URL=https://api.prf.${LOCAL_IP}.nip.io
 
 # CORS Origins (comma-separated)
 CORS_ORIGINS=https://psc.${LOCAL_IP}.nip.io,https://prf.${LOCAL_IP}.nip.io,https://auth.${LOCAL_IP}.nip.io
+# Spring Boot reads this env var for CORS allowed origins
+APP_CORS_ALLOWED_ORIGINS=https://psc.${LOCAL_IP}.nip.io,https://prf.${LOCAL_IP}.nip.io,https://auth.${LOCAL_IP}.nip.io
 
 # Keycloak
 KC_HOSTNAME=auth.${LOCAL_IP}.nip.io

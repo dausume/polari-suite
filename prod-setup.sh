@@ -10,7 +10,7 @@
 #   ./prod-setup.sh
 #
 # Then deploy:
-#   sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#   sudo docker compose -f docker-compose.prod.yml up -d --build
 #
 # SECURITY NOTE: Generated files contain sensitive configuration and are
 # gitignored. Never commit the .generated/ directory contents to version control.
@@ -149,6 +149,8 @@ PRF_API_URL=https://api.prf.${PROD_DOMAIN}
 
 # CORS Origins (comma-separated)
 CORS_ORIGINS=https://psc.${PROD_DOMAIN},https://prf.${PROD_DOMAIN},https://auth.${PROD_DOMAIN},https://${PROD_DOMAIN},https://www.${PROD_DOMAIN}
+# Spring Boot reads this env var for CORS allowed origins
+APP_CORS_ALLOWED_ORIGINS=https://psc.${PROD_DOMAIN},https://prf.${PROD_DOMAIN},https://auth.${PROD_DOMAIN},https://${PROD_DOMAIN},https://www.${PROD_DOMAIN}
 
 # Keycloak
 KC_HOSTNAME=auth.${PROD_DOMAIN}
@@ -267,7 +269,7 @@ echo -e "  ${BLUE}$GENERATED_DIR/prf-runtime-config.prod.json${NC}"
 echo -e "  ${BLUE}$GENERATED_DIR/psc-runtime-config.prod.json${NC}"
 echo ""
 echo -e "To deploy:"
-echo -e "  ${YELLOW}sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build${NC}"
+echo -e "  ${YELLOW}sudo docker compose -f docker-compose.prod.yml up -d --build${NC}"
 echo ""
 echo -e "${RED}SECURITY REMINDER:${NC} The .generated/ directory contains sensitive"
 echo -e "configuration. Ensure it remains gitignored and never committed."

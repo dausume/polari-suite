@@ -7,8 +7,10 @@
 # It runs after realms are loaded to add environment-specific redirect URIs.
 #
 # Environment Variables (optional):
+#   KEYCLOAK_MODE - "suite", "standalone", "staging", or "production" (default: auto)
+#   KC_HOSTNAME  - Keycloak hostname (e.g. auth.10.0.0.102.nip.io or auth.example.com)
+#                  Used by staging/production modes to derive subdomain redirect URIs
 #   PSC_REDIRECT_URIS - Comma-separated list of additional redirect URIs for PSC frontend
-#   KEYCLOAK_MODE - "suite" or "standalone" (default: auto-detect)
 #
 # Usage:
 #   ./configure_clients.sh [--suite | --standalone]
@@ -50,14 +52,32 @@ BASE_REDIRECT_URIS=(
     "http://localhost:4200"
 )
 
+# Subdomain redirect URIs derived from KC_HOSTNAME
+# KC_HOSTNAME is set by staging-setup.sh or prod-setup.sh (e.g. auth.10.0.0.102.nip.io or auth.example.com)
+SUBDOMAIN_REDIRECT_URIS=()
+if [ -n "$KC_HOSTNAME" ]; then
+    # Strip "auth." prefix to get the base domain (e.g. 10.0.0.102.nip.io or example.com)
+    BASE_DOMAIN="${KC_HOSTNAME#auth.}"
+    echo "Deriving redirect URIs from KC_HOSTNAME=$KC_HOSTNAME (base domain: $BASE_DOMAIN)"
+    SUBDOMAIN_REDIRECT_URIS=(
+        "https://psc.${BASE_DOMAIN}/*"
+        "https://psc.${BASE_DOMAIN}"
+    )
+elif [ "$MODE" = "staging" ] || [ "$MODE" = "production" ]; then
+    echo "WARNING: MODE=$MODE but KC_HOSTNAME is not set. Cannot derive subdomain redirect URIs."
+fi
+
 # Build combined redirect URIs based on mode
 if [ "$MODE" = "suite" ]; then
     REDIRECT_URIS=("${BASE_REDIRECT_URIS[@]}" "${SUITE_REDIRECT_URIS[@]}")
 elif [ "$MODE" = "standalone" ]; then
     REDIRECT_URIS=("${BASE_REDIRECT_URIS[@]}" "${STANDALONE_REDIRECT_URIS[@]}")
+elif [ "$MODE" = "staging" ] || [ "$MODE" = "production" ]; then
+    REDIRECT_URIS=("${BASE_REDIRECT_URIS[@]}" "${SUBDOMAIN_REDIRECT_URIS[@]}")
 else
     # Auto mode: include all URIs for maximum compatibility
-    REDIRECT_URIS=("${BASE_REDIRECT_URIS[@]}" "${SUITE_REDIRECT_URIS[@]}" "${STANDALONE_REDIRECT_URIS[@]}")
+    # Also includes subdomain URIs if KC_HOSTNAME is set
+    REDIRECT_URIS=("${BASE_REDIRECT_URIS[@]}" "${SUITE_REDIRECT_URIS[@]}" "${STANDALONE_REDIRECT_URIS[@]}" "${SUBDOMAIN_REDIRECT_URIS[@]}")
 fi
 
 # Add any custom URIs from environment variable
