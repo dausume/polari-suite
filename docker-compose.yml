@@ -11,10 +11,8 @@
 #   sudo docker compose down                       # Stop all
 #
 # OTHER ENVIRONMENTS:
-#   Staging (port-based):
-#       sudo docker compose -f docker-compose.yml -f docker-compose.staging-local.yml up -d --build
 #   Staging (nip.io subdomains - closest to prod):
-#       ./staging-setup.sh  # Run once to generate config
+#       ./nip-staging-setup.sh  # Run once to generate config
 #       sudo docker compose -f docker-compose.staging-nip.yml up -d --build
 #   Production:
 #       sudo docker compose -f docker-compose.prod.yml up -d
