@@ -1,0 +1,42 @@
+# ==============================================================================
+# POL-FILE-STORE - Standalone Proof-of-Concept
+# ==============================================================================
+#
+# MinIO S3-compatible object storage for the Polari Suite.
+# Bucket initialization is handled by the Spring Boot application
+# via MinioDatasourceInitializer / LegislationBucketInitializer.
+#
+# USAGE:
+#   docker compose up -d --build           # Start MinIO
+#   docker compose down                    # Stop
+#
+# ACCESS:
+#   API:     http://localhost:9000   (S3-compatible)
+#   Console: http://localhost:9001   (Web UI - login with creds from minio.env)
+#
+# ==============================================================================
+
+services:
+  pol-file-store:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pol-file-store
+    image: pol-file-store:latest
+    restart: always
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # MinIO Console
+    env_file:
+      - ./minio.env
+    volumes:
+      - pol_file_store_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pol_file_store_data:

@@ -32,6 +32,10 @@
 #     - MariaDB (consolidated): localhost:3306
 #     - Redis: localhost:6379
 #
+#   File Storage:
+#     - MinIO S3 API:  http://localhost:9000
+#     - MinIO Console: http://localhost:9001
+#
 # ==============================================================================
 
 services:
@@ -57,6 +61,30 @@ services:
       - pol_mariadb_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # MinIO S3-compatible Object Storage - shared file store
+  pol-file-store:
+    build:
+      context: ./pol-file-store
+      dockerfile: Dockerfile
+    container_name: pol-file-store
+    image: pol-file-store:latest
+    restart: always
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # MinIO Console
+    networks:
+      - polari-network
+    env_file:
+      - ./pol-file-store/minio.env
+    volumes:
+      - pol_file_store_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
       start_period: 10s
       interval: 10s
       timeout: 5s
@@ -212,6 +240,9 @@ services:
 volumes:
   # Consolidated MariaDB data
   pol_mariadb_data:
+
+  # Shared file storage (MinIO)
+  pol_file_store_data:
 
   # PSC
   psc_redis_data:
