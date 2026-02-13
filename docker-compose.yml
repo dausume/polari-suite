@@ -230,6 +230,8 @@ services:
       - polari-network
     env_file:
       - ./polari-rf-node/.env
+    environment:
+      - MODULE_MATERIALS_SCIENCE_ENABLED=false
     volumes:
       - ./polari-rf-node/polari-framework:/app  # Mount source code for dev
       - prf_backend_data:/app/data
