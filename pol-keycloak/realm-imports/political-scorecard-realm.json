@@ -441,7 +441,9 @@
       "name": "Electrical Engineering Background",
       "path": "/Electrical Engineering Background",
       "subGroups": [],
-      "attributes": {},
+      "attributes": {
+        "psc-type": ["Professional-Group"]
+      },
       "realmRoles": [],
       "clientRoles": {}
     },
@@ -450,7 +452,9 @@
       "name": "Independent Researcher",
       "path": "/Independent Researcher",
       "subGroups": [],
-      "attributes": {},
+      "attributes": {
+        "psc-type": ["Professional-Group"]
+      },
       "realmRoles": [],
       "clientRoles": {}
     },
@@ -459,7 +463,9 @@
       "name": "Network Engineers",
       "path": "/Network Engineers",
       "subGroups": [],
-      "attributes": {},
+      "attributes": {
+        "psc-type": ["Professional-Group"]
+      },
       "realmRoles": [],
       "clientRoles": {}
     },
@@ -468,7 +474,9 @@
       "name": "Physics Background",
       "path": "/Physics Background",
       "subGroups": [],
-      "attributes": {},
+      "attributes": {
+        "psc-type": ["Professional-Group"]
+      },
       "realmRoles": [],
       "clientRoles": {}
     },
@@ -477,7 +485,9 @@
       "name": "Pirate Party",
       "path": "/Pirate Party",
       "subGroups": [],
-      "attributes": {},
+      "attributes": {
+        "psc-type": ["Political-Group"]
+      },
       "realmRoles": [],
       "clientRoles": {}
     },
@@ -486,7 +496,9 @@
       "name": "Political Independent",
       "path": "/Political Independent",
       "subGroups": [],
-      "attributes": {},
+      "attributes": {
+        "psc-type": ["Political-Group"]
+      },
       "realmRoles": [],
       "clientRoles": {}
     },
@@ -495,7 +507,9 @@
       "name": "Software Engineers",
       "path": "/Software Engineers",
       "subGroups": [],
-      "attributes": {},
+      "attributes": {
+        "psc-type": ["Professional-Group"]
+      },
       "realmRoles": [],
       "clientRoles": {}
     },
@@ -504,7 +518,9 @@
       "name": "Transhumanist Party",
       "path": "/Transhumanist Party",
       "subGroups": [],
-      "attributes": {},
+      "attributes": {
+        "psc-type": ["Political-Group"]
+      },
       "realmRoles": [],
       "clientRoles": {}
     }
@@ -737,6 +753,8 @@
     {
       "id": "b3d4ae5e-9971-48d0-9d9c-0b9077be1be1",
       "clientId": "admin-permissions",
+      "secret": "psc-admin-permissions-secret",
+      "clientAuthenticatorType": "client-secret",
       "surrogateAuthRequired": false,
       "enabled": true,
       "alwaysDisplayInConsole": false,

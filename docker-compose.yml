@@ -141,6 +141,8 @@ services:
       dockerfile: Dockerfile.pol-kc
     container_name: pol-keycloak
     image: pol-keycloak:latest
+    ports:
+      - "8080:8080"  # External access for checking jwks is accessible
     networks:
       - polari-network
     env_file:
@@ -191,6 +193,8 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
       - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
       - SPRING_DATASOURCE_PASSWORD=pscpassword
+    env_file:
+      - ./pol-keycloak/keycloak-admin.env
     volumes:
       - ./political-scorecard-node/political-scorecard-backend:/app
     command: ./startup_shell/startup_shell.sh
