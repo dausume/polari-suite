@@ -205,19 +205,28 @@ echo ""
 SERVER_IP=""
 
 if [[ "$ENV" == "prod" ]]; then
-    echo ""
-    echo "WARNING: Production setup should only be run on the production server."
-    echo ""
-    read -p "Are you running this on the production server? (yes/no): " CONFIRM
-    if [[ "$CONFIRM" != "yes" ]]; then
-        echo "Aborting. Please run this script on the production server."
-        exit 1
+    if [[ "${POLARI_CONFIRM_PROD:-}" == "yes" ]]; then
+        echo "   Skipping production confirmation (POLARI_CONFIRM_PROD=yes)"
+    else
+        echo ""
+        echo "WARNING: Production setup should only be run on the production server."
+        echo ""
+        read -p "Are you running this on the production server? (yes/no): " CONFIRM
+        if [[ "$CONFIRM" != "yes" ]]; then
+            echo "Aborting. Please run this script on the production server."
+            exit 1
+        fi
     fi
 
-    read -p "Enter the server's public IPv6 address: " SERVER_IP
-    if [[ -z "$SERVER_IP" ]]; then
-        echo "Error: IPv6 address is required for production."
-        exit 1
+    if [[ -n "${POLARI_SERVER_IP:-}" ]]; then
+        SERVER_IP="$POLARI_SERVER_IP"
+        echo "   Using provided server IP: $SERVER_IP"
+    else
+        read -p "Enter the server's public IPv6 address: " SERVER_IP
+        if [[ -z "$SERVER_IP" ]]; then
+            echo "Error: IPv6 address is required for production."
+            exit 1
+        fi
     fi
     echo ""
 fi
@@ -240,14 +249,24 @@ if [[ "$CERTS_ONLY" != "true" ]]; then
         KC_ADMIN_PASS="admin"
         echo "   Using dev defaults: admin/admin"
     else
-        read -p "   Keycloak admin username [admin]: " KC_ADMIN_USER
-        KC_ADMIN_USER="${KC_ADMIN_USER:-admin}"
+        if [[ -n "${POLARI_KC_ADMIN_USER:-}" ]]; then
+            KC_ADMIN_USER="$POLARI_KC_ADMIN_USER"
+            echo "   Using provided Keycloak admin username: $KC_ADMIN_USER"
+        else
+            read -p "   Keycloak admin username [admin]: " KC_ADMIN_USER
+            KC_ADMIN_USER="${KC_ADMIN_USER:-admin}"
+        fi
 
-        read -sp "   Keycloak admin password (Enter for random): " KC_ADMIN_PASS
-        echo ""
-        if [[ -z "$KC_ADMIN_PASS" ]]; then
-            KC_ADMIN_PASS=$(generate_password)
-            echo "   Generated password: $KC_ADMIN_PASS"
+        if [[ -n "${POLARI_KC_ADMIN_PASS:-}" ]]; then
+            KC_ADMIN_PASS="$POLARI_KC_ADMIN_PASS"
+            echo "   Using provided Keycloak admin password"
+        else
+            read -sp "   Keycloak admin password (Enter for random): " KC_ADMIN_PASS
+            echo ""
+            if [[ -z "$KC_ADMIN_PASS" ]]; then
+                KC_ADMIN_PASS=$(generate_password)
+                echo "   Generated password: $KC_ADMIN_PASS"
+            fi
         fi
     fi
 
@@ -285,25 +304,40 @@ EOF
         PSC_DB_PASS="pscpassword"
         echo "   Using dev defaults"
     else
-        read -sp "   MariaDB root password (Enter for random): " MYSQL_ROOT_PASS
-        echo ""
-        if [[ -z "$MYSQL_ROOT_PASS" ]]; then
-            MYSQL_ROOT_PASS=$(generate_password)
-            echo "   Generated root password: $MYSQL_ROOT_PASS"
+        if [[ -n "${POLARI_MYSQL_ROOT_PASS:-}" ]]; then
+            MYSQL_ROOT_PASS="$POLARI_MYSQL_ROOT_PASS"
+            echo "   Using provided MariaDB root password"
+        else
+            read -sp "   MariaDB root password (Enter for random): " MYSQL_ROOT_PASS
+            echo ""
+            if [[ -z "$MYSQL_ROOT_PASS" ]]; then
+                MYSQL_ROOT_PASS=$(generate_password)
+                echo "   Generated root password: $MYSQL_ROOT_PASS"
+            fi
         fi
 
-        read -sp "   Keycloak DB password (Enter for random): " KC_DB_PASS
-        echo ""
-        if [[ -z "$KC_DB_PASS" ]]; then
-            KC_DB_PASS=$(generate_password)
-            echo "   Generated KC DB password: $KC_DB_PASS"
+        if [[ -n "${POLARI_KC_DB_PASS:-}" ]]; then
+            KC_DB_PASS="$POLARI_KC_DB_PASS"
+            echo "   Using provided Keycloak DB password"
+        else
+            read -sp "   Keycloak DB password (Enter for random): " KC_DB_PASS
+            echo ""
+            if [[ -z "$KC_DB_PASS" ]]; then
+                KC_DB_PASS=$(generate_password)
+                echo "   Generated KC DB password: $KC_DB_PASS"
+            fi
         fi
 
-        read -sp "   PSC DB password (Enter for random): " PSC_DB_PASS
-        echo ""
-        if [[ -z "$PSC_DB_PASS" ]]; then
-            PSC_DB_PASS=$(generate_password)
-            echo "   Generated PSC DB password: $PSC_DB_PASS"
+        if [[ -n "${POLARI_PSC_DB_PASS:-}" ]]; then
+            PSC_DB_PASS="$POLARI_PSC_DB_PASS"
+            echo "   Using provided PSC DB password"
+        else
+            read -sp "   PSC DB password (Enter for random): " PSC_DB_PASS
+            echo ""
+            if [[ -z "$PSC_DB_PASS" ]]; then
+                PSC_DB_PASS=$(generate_password)
+                echo "   Generated PSC DB password: $PSC_DB_PASS"
+            fi
         fi
     fi
 
@@ -423,7 +457,8 @@ DNS.4 = host.docker.internal"
         PROXY_SANS="DNS.1 = localhost
 DNS.2 = pol-proxy
 DNS.3 = host.docker.internal
-DNS.4 = *.localhost"
+DNS.4 = *.localhost
+DNS.5 = pol-file-store"
     else
         CA_SUBJ="/C=US/ST=VA/L=Arlington/O=Polari/OU=CA/CN=polari-systems.org CA"
         KC_CN="auth.polari-systems.org"
@@ -439,7 +474,10 @@ DNS.4 = psc.polari-systems.org
 DNS.5 = api.psc.polari-systems.org
 DNS.6 = prf.polari-systems.org
 DNS.7 = api.prf.polari-systems.org
-DNS.8 = pol-proxy
+DNS.8 = files.polari-systems.org
+DNS.9 = s3.polari-systems.org
+DNS.10 = pol-proxy
+DNS.11 = pol-file-store
 IP.1 = $SERVER_IP"
     fi
 

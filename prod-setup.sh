@@ -41,38 +41,42 @@ echo ""
 echo -e "${YELLOW}[1/5] Production Domain Configuration${NC}"
 echo ""
 
-# Check for existing config
-EXISTING_DOMAIN=""
-if [ -f "$GENERATED_DIR/.env.prod" ]; then
-    EXISTING_DOMAIN=$(grep "^PROD_DOMAIN=" "$GENERATED_DIR/.env.prod" 2>/dev/null | cut -d'=' -f2)
-fi
-
-if [ -n "$EXISTING_DOMAIN" ]; then
-    echo -e "  Existing domain found: ${GREEN}$EXISTING_DOMAIN${NC}"
-    read -p "  Use existing domain? (Y/n): " USE_EXISTING
-    if [[ "$USE_EXISTING" =~ ^[Nn] ]]; then
-        EXISTING_DOMAIN=""
-    fi
-fi
-
-if [ -z "$EXISTING_DOMAIN" ]; then
-    echo "  Enter your production domain (e.g., example.com):"
-    echo "  This will be used for:"
-    echo "    - Landing page:    https://example.com"
-    echo "    - Keycloak:        https://auth.example.com"
-    echo "    - PSC Frontend:    https://psc.example.com"
-    echo "    - PSC API:         https://api.psc.example.com"
-    echo "    - PRF Frontend:    https://prf.example.com"
-    echo "    - PRF API:         https://api.prf.example.com"
-    echo ""
-    read -p "  Production domain: " PROD_DOMAIN
-
-    if [ -z "$PROD_DOMAIN" ]; then
-        echo -e "${RED}ERROR: Domain is required${NC}"
-        exit 1
-    fi
+if [[ -n "${POLARI_PROD_DOMAIN:-}" ]]; then
+    PROD_DOMAIN="$POLARI_PROD_DOMAIN"
 else
-    PROD_DOMAIN="$EXISTING_DOMAIN"
+    # Check for existing config
+    EXISTING_DOMAIN=""
+    if [ -f "$GENERATED_DIR/.env.prod" ]; then
+        EXISTING_DOMAIN=$(grep "^PROD_DOMAIN=" "$GENERATED_DIR/.env.prod" 2>/dev/null | cut -d'=' -f2)
+    fi
+
+    if [ -n "$EXISTING_DOMAIN" ]; then
+        echo -e "  Existing domain found: ${GREEN}$EXISTING_DOMAIN${NC}"
+        read -p "  Use existing domain? (Y/n): " USE_EXISTING
+        if [[ "$USE_EXISTING" =~ ^[Nn] ]]; then
+            EXISTING_DOMAIN=""
+        fi
+    fi
+
+    if [ -z "$EXISTING_DOMAIN" ]; then
+        echo "  Enter your production domain (e.g., example.com):"
+        echo "  This will be used for:"
+        echo "    - Landing page:    https://example.com"
+        echo "    - Keycloak:        https://auth.example.com"
+        echo "    - PSC Frontend:    https://psc.example.com"
+        echo "    - PSC API:         https://api.psc.example.com"
+        echo "    - PRF Frontend:    https://prf.example.com"
+        echo "    - PRF API:         https://api.prf.example.com"
+        echo ""
+        read -p "  Production domain: " PROD_DOMAIN
+
+        if [ -z "$PROD_DOMAIN" ]; then
+            echo -e "${RED}ERROR: Domain is required${NC}"
+            exit 1
+        fi
+    else
+        PROD_DOMAIN="$EXISTING_DOMAIN"
+    fi
 fi
 
 echo -e "  Using domain: ${GREEN}$PROD_DOMAIN${NC}"
@@ -87,12 +91,22 @@ echo "  Press Enter to use defaults, or enter custom values."
 echo ""
 
 # PSC Database
-read -p "  PSC database password [pscpassword]: " PSC_DB_PASSWORD
-PSC_DB_PASSWORD="${PSC_DB_PASSWORD:-pscpassword}"
+if [[ -n "${POLARI_PSC_DB_PASS:-}" ]]; then
+    PSC_DB_PASSWORD="$POLARI_PSC_DB_PASS"
+    echo -e "  Using provided PSC database password"
+else
+    read -p "  PSC database password [pscpassword]: " PSC_DB_PASSWORD
+    PSC_DB_PASSWORD="${PSC_DB_PASSWORD:-pscpassword}"
+fi
 
 # MariaDB root password
-read -p "  MariaDB root password [rootpassword]: " MARIADB_ROOT_PASSWORD
-MARIADB_ROOT_PASSWORD="${MARIADB_ROOT_PASSWORD:-rootpassword}"
+if [[ -n "${POLARI_MYSQL_ROOT_PASS:-}" ]]; then
+    MARIADB_ROOT_PASSWORD="$POLARI_MYSQL_ROOT_PASS"
+    echo -e "  Using provided MariaDB root password"
+else
+    read -p "  MariaDB root password [rootpassword]: " MARIADB_ROOT_PASSWORD
+    MARIADB_ROOT_PASSWORD="${MARIADB_ROOT_PASSWORD:-rootpassword}"
+fi
 
 echo ""
 

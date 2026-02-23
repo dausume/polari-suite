@@ -6,18 +6,22 @@
 # Uses: Production Dockerfiles + Resource limits + Subdomain proxy (like real prod)
 #
 # SETUP (run once, or when IP changes):
-#   ./staging-setup.sh
+#   ./nip-staging-setup.sh
 #
 # USAGE:
-#   sudo docker compose -f docker-compose.staging-nip.yml up -d --build
+#   sudo docker compose -f docker-compose.staging-nip.yml --env-file .generated/.env.staging up -d --build
 #
 # ACCESS (using your local IP, e.g., 10.0.0.102):
-#   - Landing:      https://10.0.0.102.nip.io
-#   - Keycloak:     https://auth.10.0.0.102.nip.io
-#   - PSC Frontend: https://psc.10.0.0.102.nip.io
-#   - PSC API:      https://api.psc.10.0.0.102.nip.io
-#   - PRF Frontend: https://prf.10.0.0.102.nip.io
-#   - PRF API:      https://api.prf.10.0.0.102.nip.io
+#   - Landing:        https://10.0.0.102.nip.io
+#   - Keycloak:       https://auth.10.0.0.102.nip.io
+#   - PSC Frontend:   https://psc.10.0.0.102.nip.io
+#   - PSC API:        https://api.psc.10.0.0.102.nip.io
+#   - PRF Frontend:   https://prf.10.0.0.102.nip.io
+#   - PRF API:        https://api.prf.10.0.0.102.nip.io
+#   - MinIO Console:  https://files.10.0.0.102.nip.io
+#   - MinIO S3 API:   https://s3.10.0.0.102.nip.io
+#
+# NOTE: extra_hosts use ${LOCAL_IP} which is resolved from --env-file at launch.
 #
 # ==============================================================================
 
@@ -61,6 +65,39 @@ services:
       --tmp-table-size=16M
       --max-heap-table-size=16M
 
+  # MinIO S3-compatible Object Storage - shared file store
+  pol-file-store:
+    build:
+      context: ./pol-file-store
+      dockerfile: Dockerfile
+    container_name: pol-file-store
+    image: pol-file-store:staging
+    restart: always
+    networks:
+      - polari-network
+    env_file:
+      - ./pol-file-store/minio.env
+    environment:
+      # Tell MinIO its external URLs so presigned URLs and console redirects work
+      - MINIO_SERVER_URL=https://s3.${LOCAL_IP}.nip.io
+      - MINIO_BROWSER_REDIRECT_URL=https://files.${LOCAL_IP}.nip.io
+    volumes:
+      - pol_file_store_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.3'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
   psc-redis:
     build: ./political-scorecard-node/political-scorecard-backend/redis
     container_name: psc-redis
@@ -97,7 +134,7 @@ services:
     networks:
       - polari-network
     volumes:
-      # Mount generated nginx config (from staging-setup.sh)
+      # Mount generated nginx config (from nip-staging-setup.sh)
       - ./.generated/nginx.staging.conf:/etc/nginx/nginx.conf:ro
       # Mount generated nip.io certificates
       - ./pol-proxy/certs/nip.io:/etc/nginx/certs/nip.io:ro
@@ -112,6 +149,8 @@ services:
     depends_on:
       pol-keycloak:
         condition: service_started
+      pol-file-store:
+        condition: service_healthy
       psc-frontend:
         condition: service_started
       psc-backend:
@@ -190,20 +229,29 @@ services:
       - polari-network
     env_file:
       - ./.generated/.env.staging
+      - ./pol-keycloak/keycloak-admin.env
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
       - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
       - SPRING_DATASOURCE_PASSWORD=pscpassword
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+      # MinIO connection (internal Docker network)
+      - MINIO_ENDPOINT=http://pol-file-store:9000
+      - MINIO_ACCESS_KEY=polari-admin
+      - MINIO_SECRET_KEY=polari-file-store-password
+      - MINIO_BUCKET=legislation
     extra_hosts:
       # Allow container to reach host machine via nip.io domains
-      - "10.0.0.102.nip.io:host-gateway"
-      - "api.prf.10.0.0.102.nip.io:host-gateway"
-      - "api.psc.10.0.0.102.nip.io:host-gateway"
-      - "prf.10.0.0.102.nip.io:host-gateway"
-      - "psc.10.0.0.102.nip.io:host-gateway"
-      - "auth.10.0.0.102.nip.io:host-gateway"
+      # Uses ${LOCAL_IP} from --env-file .generated/.env.staging
+      - "${LOCAL_IP}.nip.io:host-gateway"
+      - "api.prf.${LOCAL_IP}.nip.io:host-gateway"
+      - "api.psc.${LOCAL_IP}.nip.io:host-gateway"
+      - "prf.${LOCAL_IP}.nip.io:host-gateway"
+      - "psc.${LOCAL_IP}.nip.io:host-gateway"
+      - "auth.${LOCAL_IP}.nip.io:host-gateway"
+      - "files.${LOCAL_IP}.nip.io:host-gateway"
+      - "s3.${LOCAL_IP}.nip.io:host-gateway"
     deploy:
       resources:
         limits:
@@ -214,6 +262,8 @@ services:
           cpus: '0.1'
     depends_on:
       pol-mariadb:
+        condition: service_healthy
+      pol-file-store:
         condition: service_healthy
       psc-redis:
         condition: service_started
@@ -253,19 +303,26 @@ services:
       - polari-network
     env_file:
       - ./.generated/.env.staging
+      - ./pol-file-store/client.env
     environment:
       - DEPLOY_ENV=staging
       # CORS_ORIGINS and PRF_API_URL will come from .env.staging file
       # INTERNAL_API_URL: For API profiler self-call rewriting (avoids hairpin NAT)
       - INTERNAL_API_URL=http://localhost:3000
+      # MinIO object storage
+      - OBJECT_STORAGE_ENABLED=true
+      - MINIO_ENDPOINT=pol-file-store:9000
     extra_hosts:
       # Allow container to reach host machine via nip.io domains
-      - "10.0.0.102.nip.io:host-gateway"
-      - "api.prf.10.0.0.102.nip.io:host-gateway"
-      - "api.psc.10.0.0.102.nip.io:host-gateway"
-      - "prf.10.0.0.102.nip.io:host-gateway"
-      - "psc.10.0.0.102.nip.io:host-gateway"
-      - "auth.10.0.0.102.nip.io:host-gateway"
+      # Uses ${LOCAL_IP} from --env-file .generated/.env.staging
+      - "${LOCAL_IP}.nip.io:host-gateway"
+      - "api.prf.${LOCAL_IP}.nip.io:host-gateway"
+      - "api.psc.${LOCAL_IP}.nip.io:host-gateway"
+      - "prf.${LOCAL_IP}.nip.io:host-gateway"
+      - "psc.${LOCAL_IP}.nip.io:host-gateway"
+      - "auth.${LOCAL_IP}.nip.io:host-gateway"
+      - "files.${LOCAL_IP}.nip.io:host-gateway"
+      - "s3.${LOCAL_IP}.nip.io:host-gateway"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/', timeout=5)"]
       interval: 10s
@@ -280,12 +337,16 @@ services:
         reservations:
           memory: 128M
           cpus: '0.1'
+    depends_on:
+      pol-file-store:
+        condition: service_healthy
 
 # ============================================
 # VOLUMES
 # ============================================
 volumes:
   pol_mariadb_data:
+  pol_file_store_data:
   psc_redis_data:
 
 # ============================================

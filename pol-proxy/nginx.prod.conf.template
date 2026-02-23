@@ -36,6 +36,14 @@ http {
         server prf-backend:3000;
     }
 
+    upstream minio-api {
+        server pol-file-store:9000;
+    }
+
+    upstream minio-console {
+        server pol-file-store:9001;
+    }
+
     # HTTP redirect to HTTPS
     server {
         listen 80;
@@ -234,6 +242,59 @@ h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
             add_header 'Access-Control-Allow-Credentials' 'true' always;
             default_type application/json;
             return 504 '{"success":false,"error":"Backend unavailable - the backend service is not responding. Please try again later."}';
+        }
+    }
+
+    # MinIO Console - files.${PROD_DOMAIN}
+    server {
+        listen 443 ssl;
+        server_name files.${PROD_DOMAIN};
+
+        ssl_certificate /etc/nginx/certs/pol-proxy.crt;
+        ssl_certificate_key /etc/nginx/certs/pol-proxy.key;
+
+        # Allow large file uploads via console
+        client_max_body_size 100M;
+
+        location / {
+            proxy_pass http://minio-console;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # WebSocket support for MinIO Console live updates
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+        }
+    }
+
+    # MinIO S3 API - s3.${PROD_DOMAIN}
+    server {
+        listen 443 ssl;
+        server_name s3.${PROD_DOMAIN};
+
+        ssl_certificate /etc/nginx/certs/pol-proxy.crt;
+        ssl_certificate_key /etc/nginx/certs/pol-proxy.key;
+
+        # Allow large file uploads
+        client_max_body_size 100M;
+
+        # Disable buffering for streaming uploads/downloads
+        proxy_buffering off;
+        proxy_request_buffering off;
+
+        location / {
+            proxy_pass http://minio-api;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_connect_timeout 300s;
+            proxy_send_timeout 300s;
+            proxy_read_timeout 300s;
         }
     }
 }
