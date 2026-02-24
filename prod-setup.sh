@@ -117,6 +117,23 @@ else
     MARIADB_ROOT_PASSWORD="${MARIADB_ROOT_PASSWORD:-rootpassword}"
 fi
 
+# MinIO (S3-compatible object storage)
+if [[ -n "${POLARI_MINIO_ROOT_USER:-}" ]]; then
+    MINIO_ROOT_USER="$POLARI_MINIO_ROOT_USER"
+    echo -e "  Using provided MinIO root user"
+else
+    read -p "  MinIO root user [polari-admin]: " MINIO_ROOT_USER
+    MINIO_ROOT_USER="${MINIO_ROOT_USER:-polari-admin}"
+fi
+
+if [[ -n "${POLARI_MINIO_ROOT_PASS:-}" ]]; then
+    MINIO_ROOT_PASSWORD="$POLARI_MINIO_ROOT_PASS"
+    echo -e "  Using provided MinIO root password"
+else
+    read -p "  MinIO root password [polari-file-store-password]: " MINIO_ROOT_PASSWORD
+    MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD:-polari-file-store-password}"
+fi
+
 echo ""
 
 # ==============================================================================
@@ -182,6 +199,12 @@ KC_HOSTNAME=auth.${PROD_DOMAIN}
 KC_DB_PASSWORD=${KC_DB_PASSWORD}
 PSC_DB_PASSWORD=${PSC_DB_PASSWORD}
 MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+
+# MinIO (S3-compatible object storage) credentials
+MINIO_ROOT_USER=${MINIO_ROOT_USER}
+MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
 
 # Deployment
 DEPLOY_ENV=production

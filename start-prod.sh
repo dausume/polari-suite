@@ -215,6 +215,23 @@ if [[ "$NEED_SECURITY" == "true" ]]; then
         fi
     fi
     export POLARI_PSC_DB_PASS
+
+    # MinIO root password (shared with prod-setup)
+    if [[ -z "${POLARI_MINIO_ROOT_USER:-}" ]]; then
+        read -p "  MinIO root user [polari-admin]: " POLARI_MINIO_ROOT_USER
+        POLARI_MINIO_ROOT_USER="${POLARI_MINIO_ROOT_USER:-polari-admin}"
+    fi
+    export POLARI_MINIO_ROOT_USER
+
+    if [[ -z "${POLARI_MINIO_ROOT_PASS:-}" ]]; then
+        read -sp "  MinIO root password (Enter for random): " POLARI_MINIO_ROOT_PASS
+        echo ""
+        if [[ -z "$POLARI_MINIO_ROOT_PASS" ]]; then
+            POLARI_MINIO_ROOT_PASS=$(generate_password)
+            echo -e "  Generated MinIO root password: ${GREEN}$POLARI_MINIO_ROOT_PASS${NC}"
+        fi
+    fi
+    export POLARI_MINIO_ROOT_PASS
     echo ""
 
     # Skip the interactive confirmation in setup-polari-security.sh
@@ -239,6 +256,18 @@ elif [[ "$NEED_PROD_SETUP" == "true" ]]; then
         POLARI_MYSQL_ROOT_PASS="${POLARI_MYSQL_ROOT_PASS:-rootpassword}"
     fi
     export POLARI_MYSQL_ROOT_PASS
+
+    if [[ -z "${POLARI_MINIO_ROOT_USER:-}" ]]; then
+        read -p "  MinIO root user [polari-admin]: " POLARI_MINIO_ROOT_USER
+        POLARI_MINIO_ROOT_USER="${POLARI_MINIO_ROOT_USER:-polari-admin}"
+    fi
+    export POLARI_MINIO_ROOT_USER
+
+    if [[ -z "${POLARI_MINIO_ROOT_PASS:-}" ]]; then
+        read -p "  MinIO root password [polari-file-store-password]: " POLARI_MINIO_ROOT_PASS
+        POLARI_MINIO_ROOT_PASS="${POLARI_MINIO_ROOT_PASS:-polari-file-store-password}"
+    fi
+    export POLARI_MINIO_ROOT_PASS
     echo ""
 fi
 

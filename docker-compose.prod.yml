@@ -91,6 +91,7 @@ services:
       - polari-network
     env_file:
       - ./pol-file-store/minio.env
+      - ./.generated/.env.prod
     environment:
       # Tell MinIO its external URLs so presigned URLs and console redirects work
       - MINIO_SERVER_URL=https://s3.${PROD_DOMAIN}
@@ -250,9 +251,10 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
       # MinIO connection (internal Docker network)
+      # Credentials come from .env.prod via MINIO_ACCESS_KEY / MINIO_SECRET_KEY
       - MINIO_ENDPOINT=http://pol-file-store:9000
-      - MINIO_ACCESS_KEY=polari-admin
-      - MINIO_SECRET_KEY=polari-file-store-password
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-polari-admin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-polari-file-store-password}
       - MINIO_BUCKET=legislation
     deploy:
       resources:
