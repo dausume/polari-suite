@@ -12,12 +12,14 @@
 #   sudo docker compose -f docker-compose.prod.yml up -d --build
 #
 # ACCESS (using your domain, e.g., example.com):
-#   - Landing:      https://example.com
-#   - Keycloak:     https://auth.example.com
-#   - PSC Frontend: https://psc.example.com
-#   - PSC API:      https://api.psc.example.com
-#   - PRF Frontend: https://prf.example.com
-#   - PRF API:      https://api.prf.example.com
+#   - Landing:       https://example.com
+#   - Keycloak:      https://auth.example.com
+#   - PSC Frontend:  https://psc.example.com
+#   - PSC API:       https://api.psc.example.com
+#   - PRF Frontend:  https://prf.example.com
+#   - PRF API:       https://api.prf.example.com
+#   - MinIO Console: https://files.example.com
+#   - MinIO S3 API:  https://s3.example.com
 #
 # MEMORY BUDGET (4GB total):
 #   - OS/Docker overhead: ~500MB
@@ -25,13 +27,14 @@
 #   - psc-backend:         768MB (Spring Boot)
 #   - pol-mariadb:         512MB (Database)
 #   - prf-backend:         384MB (Python)
+#   - pol-file-store:      256MB (MinIO S3 storage)
 #   - psc-redis:           128MB (Cache)
 #   - psc-frontend:         64MB (nginx static)
 #   - prf-frontend:         64MB (nginx static)
 #   - pol-proxy:            64MB (nginx proxy)
-#   - Buffer:             ~512MB
+#   - Buffer:             ~256MB
 #   --------------------------------
-#   Total allocated:     ~3.5GB
+#   Total allocated:     ~3.8GB
 #
 # ==============================================================================
 
@@ -75,6 +78,39 @@ services:
       --query-cache-size=0
       --tmp-table-size=16M
       --max-heap-table-size=16M
+
+  # MinIO S3-compatible Object Storage - shared file store
+  pol-file-store:
+    build:
+      context: ./pol-file-store
+      dockerfile: Dockerfile
+    container_name: pol-file-store
+    image: pol-file-store:prod
+    restart: always
+    networks:
+      - polari-network
+    env_file:
+      - ./pol-file-store/minio.env
+    environment:
+      # Tell MinIO its external URLs so presigned URLs and console redirects work
+      - MINIO_SERVER_URL=https://s3.${PROD_DOMAIN}
+      - MINIO_BROWSER_REDIRECT_URL=https://files.${PROD_DOMAIN}
+    volumes:
+      - pol_file_store_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.3'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
 
   psc-redis:
     build: ./political-scorecard-node/political-scorecard-backend/redis
@@ -125,6 +161,8 @@ services:
     depends_on:
       pol-keycloak:
         condition: service_started
+      pol-file-store:
+        condition: service_healthy
       psc-frontend:
         condition: service_started
       psc-backend:
@@ -203,6 +241,7 @@ services:
       - polari-network
     env_file:
       - ./.generated/.env.prod
+      - ./pol-keycloak/keycloak-admin.env
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
       - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
@@ -210,6 +249,11 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${PSC_DB_PASSWORD:-pscpassword}
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+      # MinIO connection (internal Docker network)
+      - MINIO_ENDPOINT=http://pol-file-store:9000
+      - MINIO_ACCESS_KEY=polari-admin
+      - MINIO_SECRET_KEY=polari-file-store-password
+      - MINIO_BUCKET=legislation
     deploy:
       resources:
         limits:
@@ -220,6 +264,8 @@ services:
           cpus: '0.1'
     depends_on:
       pol-mariadb:
+        condition: service_healthy
+      pol-file-store:
         condition: service_healthy
       psc-redis:
         condition: service_started
@@ -259,11 +305,15 @@ services:
       - polari-network
     env_file:
       - ./.generated/.env.prod
+      - ./pol-file-store/client.env
     environment:
       - DEPLOY_ENV=production
       # CORS_ORIGINS and PRF_API_URL come from .env.prod file
       # INTERNAL_API_URL: For API profiler self-call rewriting (avoids hairpin NAT)
       - INTERNAL_API_URL=http://localhost:3000
+      # MinIO object storage
+      - OBJECT_STORAGE_ENABLED=true
+      - MINIO_ENDPOINT=pol-file-store:9000
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/', timeout=5)"]
       interval: 10s
@@ -278,12 +328,16 @@ services:
         reservations:
           memory: 128M
           cpus: '0.1'
+    depends_on:
+      pol-file-store:
+        condition: service_healthy
 
 # ============================================
 # VOLUMES
 # ============================================
 volumes:
   pol_mariadb_data:
+  pol_file_store_data:
   psc_redis_data:
 
 # ============================================

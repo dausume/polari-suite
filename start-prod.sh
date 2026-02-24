@@ -100,6 +100,31 @@ if [[ "$FORCE_SETUP" == "true" ]] || [[ ! -f "$ENV_FILE" ]]; then
 fi
 
 # ==============================================================================
+# FORCE SETUP: Stop stack and reset database volumes
+# ==============================================================================
+# MariaDB init scripts only run on first start with an empty data directory.
+# When --force-setup regenerates credentials, we must also reset the database
+# volume so init.sh creates users with the new passwords.
+if [[ "$FORCE_SETUP" == "true" ]]; then
+    echo -e "${YELLOW}Force setup requested — stopping stack and resetting database volume...${NC}"
+    if [[ -f "$ENV_FILE" ]]; then
+        sudo docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" down 2>/dev/null || true
+    else
+        sudo docker compose -f "$COMPOSE_FILE" down 2>/dev/null || true
+    fi
+    # Find and remove the MariaDB volume (name depends on docker compose project name)
+    MARIADB_VOL=$(sudo docker volume ls --format '{{.Name}}' | grep 'pol_mariadb_data$' | head -1)
+    if [[ -n "$MARIADB_VOL" ]]; then
+        echo -e "  Removing MariaDB volume: ${YELLOW}$MARIADB_VOL${NC}"
+        sudo docker volume rm "$MARIADB_VOL"
+        echo -e "  ${GREEN}Volume removed — init.sh will run fresh on next start${NC}"
+    else
+        echo -e "  ${GREEN}No existing MariaDB volume found${NC}"
+    fi
+    echo ""
+fi
+
+# ==============================================================================
 # COLLECT CREDENTIALS UPFRONT (single prompt session)
 # ==============================================================================
 if [[ "$NEED_SECURITY" == "true" || "$NEED_PROD_SETUP" == "true" ]]; then
