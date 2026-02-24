@@ -90,7 +90,6 @@ services:
     networks:
       - polari-network
     env_file:
-      - ./pol-file-store/minio.env
       - ./.generated/.env.prod
     environment:
       # Tell MinIO its external URLs so presigned URLs and console redirects work
@@ -307,7 +306,6 @@ services:
       - polari-network
     env_file:
       - ./.generated/.env.prod
-      - ./pol-file-store/client.env
     environment:
       - DEPLOY_ENV=production
       # CORS_ORIGINS and PRF_API_URL come from .env.prod file
