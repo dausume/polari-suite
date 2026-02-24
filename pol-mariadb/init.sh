@@ -21,7 +21,7 @@ PSC_PASS="${PSC_DB_PASSWORD:-pscpassword}"
 
 echo "[init.sh] Initializing databases and users..."
 
-mysql -u root -p"${MARIADB_ROOT_PASSWORD}" <<-EOSQL
+mariadb -u root -p"${MARIADB_ROOT_PASSWORD}" <<-EOSQL
 
 -- ==============================================================================
 -- KEYCLOAK DATABASE AND USER
