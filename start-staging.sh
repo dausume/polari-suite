@@ -185,7 +185,7 @@ fi
 echo -e "${YELLOW}[3/3] Starting staging stack...${NC}"
 echo ""
 
-sudo docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d "${COMPOSE_ARGS[@]}"
+sudo docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up --build -d "${COMPOSE_ARGS[@]}"
 
 echo ""
 echo -e "${GREEN}============================================${NC}"

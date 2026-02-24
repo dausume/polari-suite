@@ -197,6 +197,12 @@ if [[ "$NEED_SECURITY" == "true" ]]; then
 
 elif [[ "$NEED_PROD_SETUP" == "true" ]]; then
     # Only prod-setup needed — collect DB passwords if not already set
+    if [[ -z "${POLARI_KC_DB_PASS:-}" ]]; then
+        read -p "  Keycloak database password [kcpassword]: " POLARI_KC_DB_PASS
+        POLARI_KC_DB_PASS="${POLARI_KC_DB_PASS:-kcpassword}"
+    fi
+    export POLARI_KC_DB_PASS
+
     if [[ -z "${POLARI_PSC_DB_PASS:-}" ]]; then
         read -p "  PSC database password [pscpassword]: " POLARI_PSC_DB_PASS
         POLARI_PSC_DB_PASS="${POLARI_PSC_DB_PASS:-pscpassword}"
@@ -257,7 +263,7 @@ fi
 echo -e "${YELLOW}[3/3] Starting production stack...${NC}"
 echo ""
 
-sudo docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d "${COMPOSE_ARGS[@]}"
+sudo docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up --build -d "${COMPOSE_ARGS[@]}"
 
 echo ""
 echo -e "${GREEN}============================================${NC}"

@@ -51,6 +51,7 @@ services:
       - polari-network
     env_file:
       - ./pol-mariadb/mariadb.env
+      - ./.generated/.env.prod
     volumes:
       - pol_mariadb_data:/var/lib/mysql
     healthcheck:

@@ -90,6 +90,15 @@ echo ""
 echo "  Press Enter to use defaults, or enter custom values."
 echo ""
 
+# Keycloak Database
+if [[ -n "${POLARI_KC_DB_PASS:-}" ]]; then
+    KC_DB_PASSWORD="$POLARI_KC_DB_PASS"
+    echo -e "  Using provided Keycloak database password"
+else
+    read -p "  Keycloak database password [kcpassword]: " KC_DB_PASSWORD
+    KC_DB_PASSWORD="${KC_DB_PASSWORD:-kcpassword}"
+fi
+
 # PSC Database
 if [[ -n "${POLARI_PSC_DB_PASS:-}" ]]; then
     PSC_DB_PASSWORD="$POLARI_PSC_DB_PASS"
@@ -170,6 +179,7 @@ APP_CORS_ALLOWED_ORIGINS=https://psc.${PROD_DOMAIN},https://prf.${PROD_DOMAIN},h
 KC_HOSTNAME=auth.${PROD_DOMAIN}
 
 # Database credentials
+KC_DB_PASSWORD=${KC_DB_PASSWORD}
 PSC_DB_PASSWORD=${PSC_DB_PASSWORD}
 MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
 
