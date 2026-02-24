@@ -30,8 +30,8 @@ fi
 
 # Now attempt to retrieve the access token using admin credentials
 MASTER_REALM="master"
-MASTER_PASSWORD="admin"  # Replace with secure method to retrieve password in production
-MASTER_USERNAME="admin"
+MASTER_USERNAME="${KEYCLOAK_ADMIN:-admin}"
+MASTER_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
 MASTER_CLIENT="admin-cli"
 
 TOKEN_RETRY_LIMIT=5

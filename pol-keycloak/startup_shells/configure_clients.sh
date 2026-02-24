@@ -118,8 +118,8 @@ fi
 
 # Get admin access token
 MASTER_REALM="master"
-MASTER_USERNAME="admin"
-MASTER_PASSWORD="admin"  # In production, use secrets management
+MASTER_USERNAME="${KEYCLOAK_ADMIN:-admin}"
+MASTER_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
 MASTER_CLIENT="admin-cli"
 
 echo ""
