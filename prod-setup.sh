@@ -237,6 +237,11 @@ cat > "$PRF_CONFIG_FILE" << EOF
       "url": "api.prf.${PROD_DOMAIN}",
       "port": "443"
     },
+    "ws": {
+      "protocol": "ws",
+      "url": "api.prf.${PROD_DOMAIN}",
+      "port": "3001"
+    },
     "preferHttps": true
   },
 

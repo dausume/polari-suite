@@ -313,6 +313,9 @@ services:
       # MinIO object storage
       - OBJECT_STORAGE_ENABLED=true
       - MINIO_ENDPOINT=pol-file-store:9000
+      # WebSocket (STOMP) notifications
+      - WEBSOCKET_ENABLED=true
+      - WEBSOCKET_PORT=3001
     extra_hosts:
       # Allow container to reach host machine via nip.io domains
       # Uses ${LOCAL_IP} from --env-file .generated/.env.staging

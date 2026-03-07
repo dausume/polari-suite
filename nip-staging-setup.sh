@@ -260,6 +260,11 @@ cat > "$PRF_CONFIG_FILE" << EOF
       "url": "api.prf.${LOCAL_IP}.nip.io",
       "port": "443"
     },
+    "ws": {
+      "protocol": "ws",
+      "url": "api.prf.${LOCAL_IP}.nip.io",
+      "port": "3001"
+    },
     "preferHttps": true
   },
 

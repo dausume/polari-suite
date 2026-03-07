@@ -306,6 +306,7 @@ services:
       - polari-network
     env_file:
       - ./.generated/.env.prod
+      - ./pol-file-store/client.env
     environment:
       - DEPLOY_ENV=production
       # CORS_ORIGINS and PRF_API_URL come from .env.prod file
@@ -314,6 +315,9 @@ services:
       # MinIO object storage
       - OBJECT_STORAGE_ENABLED=true
       - MINIO_ENDPOINT=pol-file-store:9000
+      # WebSocket (STOMP) notifications
+      - WEBSOCKET_ENABLED=true
+      - WEBSOCKET_PORT=3001
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/', timeout=5)"]
       interval: 10s
