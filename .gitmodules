@@ -7,6 +7,3 @@
 [submodule "polari-cli"]
 	path = polari-cli
 	url = https://github.com/dausume/polari-cli.git
-[submodule "pol-geocoder"]
-	path = pol-geocoder
-	url = git@github.com:dausume/polari-geocoder.git

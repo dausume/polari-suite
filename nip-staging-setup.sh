@@ -228,9 +228,24 @@ CORS_ORIGINS=https://psc.${LOCAL_IP}.nip.io,https://prf.${LOCAL_IP}.nip.io,https
 # Spring Boot reads this env var for CORS allowed origins
 APP_CORS_ALLOWED_ORIGINS=https://psc.${LOCAL_IP}.nip.io,https://prf.${LOCAL_IP}.nip.io,https://auth.${LOCAL_IP}.nip.io,https://files.${LOCAL_IP}.nip.io
 
-# Keycloak
+# Keycloak — shared
 KC_HOSTNAME=auth.${LOCAL_IP}.nip.io
+
+# Keycloak — PSC realm (issuer URI is the public-facing URL clients see in token claims)
 KEYCLOAK_ISSUER_URI=https://auth.${LOCAL_IP}.nip.io/realms/Political-Scorecard
+
+# Keycloak — Polari realm
+# Public issuer (matches `iss` claim) — used by the PRF backend to validate JWTs.
+POLARI_KEYCLOAK_ISSUER_URI=https://auth.${LOCAL_IP}.nip.io/realms/Polari
+# JWKS endpoint — public-key set the backend pulls to verify token signatures
+# without round-tripping Keycloak on every request. Uses the in-network HTTP
+# URL because the backend container reaches Keycloak via the docker network.
+POLARI_KEYCLOAK_JWKS_URI=http://pol-keycloak:8080/realms/Polari/protocol/openid-connect/certs
+# Admin API base for server-to-server calls (user/group management, etc).
+POLARI_KEYCLOAK_ADMIN_URL=http://pol-keycloak:8080
+# Realm + service-account client identity for the PRF backend.
+POLARI_KEYCLOAK_REALM=Polari
+POLARI_KEYCLOAK_ADMIN_CLIENT_ID=polari-backend
 EOF
 
 echo -e "  Generated: ${GREEN}$ENV_FILE${NC}"
@@ -285,6 +300,17 @@ cat > "$PRF_CONFIG_FILE" << EOF
     "retryInterval": 3000,
     "maxRetryTime": 60000,
     "timeout": 30000
+  },
+
+  "keycloak": {
+    "authority": "https://auth.${LOCAL_IP}.nip.io/realms/Polari",
+    "clientId": "polari-frontend",
+    "realm": "Polari",
+    "redirectUri": "https://prf.${LOCAL_IP}.nip.io",
+    "postLogoutRedirectUri": "https://prf.${LOCAL_IP}.nip.io",
+    "responseType": "code",
+    "scope": "openid profile email roles",
+    "silentRedirectUri": "https://prf.${LOCAL_IP}.nip.io/silent-refresh.html"
   },
 
   "features": {

@@ -270,13 +270,25 @@ if [[ "$CERTS_ONLY" != "true" ]]; then
         fi
     fi
 
-    # Generate a client secret for the admin-permissions client
+    # Generate a client secret for the admin-permissions client (PSC realm)
     if [[ "$ENV" == "dev" ]]; then
         KC_ADMIN_CLIENT_SECRET=$(generate_password)
         echo "   Generated admin-permissions client secret"
     else
         KC_ADMIN_CLIENT_SECRET=$(generate_password)
         echo "   Generated admin-permissions client secret: $KC_ADMIN_CLIENT_SECRET"
+    fi
+
+    # Generate a client secret for the polari-backend service-account client
+    # (Polari realm). Parallel to admin-permissions — configure_clients.sh
+    # picks this up via KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET and PUTs it
+    # onto the Keycloak client at startup.
+    if [[ "$ENV" == "dev" ]]; then
+        POLARI_BE_CLIENT_SECRET=$(generate_password)
+        echo "   Generated polari-backend client secret"
+    else
+        POLARI_BE_CLIENT_SECRET=$(generate_password)
+        echo "   Generated polari-backend client secret: $POLARI_BE_CLIENT_SECRET"
     fi
 
     mkdir -p "$(dirname "$KC_ENV_FILE")"
@@ -286,9 +298,15 @@ if [[ "$CERTS_ONLY" != "true" ]]; then
 KEYCLOAK_ADMIN=$KC_ADMIN_USER
 KEYCLOAK_ADMIN_PASSWORD=$KC_ADMIN_PASS
 
-# Client secret for admin-permissions (used by backend for group management)
-# configure_clients.sh sets this on the Keycloak client at startup
+# Client secret for admin-permissions (Political-Scorecard realm, used by
+# the PSC backend for group management). configure_clients.sh sets this on
+# the Keycloak client at startup.
 KEYCLOAK_ADMIN_CLIENT_SECRET=$KC_ADMIN_CLIENT_SECRET
+
+# Client secret for polari-backend (Polari realm service-account client,
+# used by the PRF backend for admin-API calls). configure_clients.sh sets
+# this on the Keycloak client at startup.
+KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET=$POLARI_BE_CLIENT_SECRET
 EOF
     chmod 600 "$KC_ENV_FILE"
     echo "   Created: $KC_ENV_FILE"
@@ -410,7 +428,8 @@ Generated: $(date)
 KEYCLOAK ADMIN:
   Username: $KC_ADMIN_USER
   Password: $KC_ADMIN_PASS
-  Admin-Permissions Client Secret: $KC_ADMIN_CLIENT_SECRET
+  Admin-Permissions Client Secret (PSC realm): $KC_ADMIN_CLIENT_SECRET
+  Polari-Backend Client Secret (Polari realm):  $POLARI_BE_CLIENT_SECRET
   URL: https://auth.polari-systems.org
 
 MARIADB:
@@ -589,6 +608,65 @@ EOF
             "$PRF_SCRIPT" "$ENV" $SUBPROJECT_ARGS
         fi
     fi
+fi
+
+# ==============================================================================
+# PHASE 3 (ADDITIVE, OPT-IN): CENTRALIZED CA — step-ca + Let's Encrypt edge
+# ==============================================================================
+# Per CENTRALIZED_CA_PLAN.md §9/§11. This block is STRICTLY ADDITIVE and a
+# NO-OP unless one of the new env/flags is set, so all existing behavior above
+# (the openssl self-signed flow) is 100% preserved.
+#
+# Activation: set any of these (env or via the corresponding flag parsed above):
+#   CERT_BACKEND=step-ca   (run ca/setup-step-ca.sh + ca/issue-internal-certs.sh)
+#   PUBLIC_EDGE=letsencrypt (additionally run ca/setup-letsencrypt.sh)
+#   INTERNAL_TLS=terminate|bridge  (passed through; default terminate)
+#
+# Defaults are chosen so that with NOTHING set, this entire block is skipped.
+CERT_BACKEND="${CERT_BACKEND:-}"
+PUBLIC_EDGE="${PUBLIC_EDGE:-}"
+INTERNAL_TLS="${INTERNAL_TLS:-terminate}"
+
+CA_SUBSHELL_DIR="$SCRIPT_DIR/ca"
+# Pass-through flags for the ca/ sub-shells (non-interactive in CI / prod-confirm).
+CA_FLAGS=""
+if [[ "${POLARI_CA_NON_INTERACTIVE:-}" == "yes" || "${POLARI_CONFIRM_PROD:-}" == "yes" ]]; then
+    CA_FLAGS="$CA_FLAGS --non-interactive"
+fi
+if [[ "${POLARI_CA_DRY_RUN:-}" == "yes" ]]; then
+    CA_FLAGS="$CA_FLAGS --dry-run"
+fi
+
+if [[ -n "$CERT_BACKEND" || "$PUBLIC_EDGE" == "letsencrypt" ]]; then
+    echo ""
+    echo "============================================"
+    echo "Phase 3: Centralized CA (step-ca / Let's Encrypt)"
+    echo "  CERT_BACKEND=${CERT_BACKEND:-<unset>}  PUBLIC_EDGE=${PUBLIC_EDGE:-<unset>}  INTERNAL_TLS=$INTERNAL_TLS"
+    echo "============================================"
+
+    if [[ ! -d "$CA_SUBSHELL_DIR" ]]; then
+        echo "   WARNING: ca/ sub-shells not found at $CA_SUBSHELL_DIR — skipping Phase 3."
+    else
+        # step-ca is the universal internal CA (run whenever a backend is named;
+        # default to step-ca if only PUBLIC_EDGE was set).
+        if [[ "${CERT_BACKEND:-step-ca}" == "step-ca" ]]; then
+            echo ""
+            echo "-> ca/setup-step-ca.sh"
+            INTERNAL_TLS="$INTERNAL_TLS" bash "$CA_SUBSHELL_DIR/setup-step-ca.sh" $CA_FLAGS
+
+            echo ""
+            echo "-> ca/issue-internal-certs.sh"
+            INTERNAL_TLS="$INTERNAL_TLS" bash "$CA_SUBSHELL_DIR/issue-internal-certs.sh" $CA_FLAGS
+        fi
+
+        # Let's Encrypt only at the public edge (e.g. prod parent node).
+        if [[ "$PUBLIC_EDGE" == "letsencrypt" ]]; then
+            echo ""
+            echo "-> ca/setup-letsencrypt.sh"
+            bash "$CA_SUBSHELL_DIR/setup-letsencrypt.sh" $CA_FLAGS
+        fi
+    fi
+    echo ""
 fi
 
 # ==============================================================================

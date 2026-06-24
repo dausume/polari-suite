@@ -192,8 +192,19 @@ CORS_ORIGINS=https://psc.${PROD_DOMAIN},https://prf.${PROD_DOMAIN},https://auth.
 # Spring Boot reads this env var for CORS allowed origins
 APP_CORS_ALLOWED_ORIGINS=https://psc.${PROD_DOMAIN},https://prf.${PROD_DOMAIN},https://auth.${PROD_DOMAIN},https://${PROD_DOMAIN},https://www.${PROD_DOMAIN}
 
-# Keycloak
+# Keycloak — shared
 KC_HOSTNAME=auth.${PROD_DOMAIN}
+
+# Keycloak — Polari realm
+# Public issuer (matches `iss` claim) — used by the PRF backend to validate JWTs.
+POLARI_KEYCLOAK_ISSUER_URI=https://auth.${PROD_DOMAIN}/realms/Polari
+# JWKS endpoint — public-key set the backend pulls to verify token signatures
+# without round-tripping Keycloak on every request.
+POLARI_KEYCLOAK_JWKS_URI=http://pol-keycloak:8080/realms/Polari/protocol/openid-connect/certs
+# Admin API base for server-to-server calls.
+POLARI_KEYCLOAK_ADMIN_URL=http://pol-keycloak:8080
+POLARI_KEYCLOAK_REALM=Polari
+POLARI_KEYCLOAK_ADMIN_CLIENT_ID=polari-backend
 
 # Database credentials
 KC_DB_PASSWORD=${KC_DB_PASSWORD}
@@ -262,6 +273,17 @@ cat > "$PRF_CONFIG_FILE" << EOF
     "retryInterval": 3000,
     "maxRetryTime": 60000,
     "timeout": 30000
+  },
+
+  "keycloak": {
+    "authority": "https://auth.${PROD_DOMAIN}/realms/Polari",
+    "clientId": "polari-frontend",
+    "realm": "Polari",
+    "redirectUri": "https://prf.${PROD_DOMAIN}",
+    "postLogoutRedirectUri": "https://prf.${PROD_DOMAIN}",
+    "responseType": "code",
+    "scope": "openid profile email roles",
+    "silentRedirectUri": "https://prf.${PROD_DOMAIN}/silent-refresh.html"
   },
 
   "features": {

@@ -55,13 +55,25 @@ BASE_REDIRECT_URIS=(
 # Subdomain redirect URIs derived from KC_HOSTNAME
 # KC_HOSTNAME is set by staging-setup.sh or prod-setup.sh (e.g. auth.10.0.0.102.nip.io or auth.example.com)
 SUBDOMAIN_REDIRECT_URIS=()
+PRF_SUBDOMAIN_REDIRECT_URIS=()
 if [ -n "$KC_HOSTNAME" ]; then
     # Strip "auth." prefix to get the base domain (e.g. 10.0.0.102.nip.io or example.com)
     BASE_DOMAIN="${KC_HOSTNAME#auth.}"
     echo "Deriving redirect URIs from KC_HOSTNAME=$KC_HOSTNAME (base domain: $BASE_DOMAIN)"
+    # PSC frontend subdomain URIs
     SUBDOMAIN_REDIRECT_URIS=(
         "https://psc.${BASE_DOMAIN}/*"
         "https://psc.${BASE_DOMAIN}"
+    )
+    # PRF (Polari) frontend subdomain URIs — used by the Polari realm's
+    # `polari-frontend` client. Both `prf.` (matches the proxy convention
+    # for the PRF Angular app) and `app.prf.` (in case a sub-app sub-
+    # domain is later split out).
+    PRF_SUBDOMAIN_REDIRECT_URIS=(
+        "https://prf.${BASE_DOMAIN}/*"
+        "https://prf.${BASE_DOMAIN}"
+        "https://app.prf.${BASE_DOMAIN}/*"
+        "https://app.prf.${BASE_DOMAIN}"
     )
 elif [ "$MODE" = "staging" ] || [ "$MODE" = "production" ]; then
     echo "WARNING: MODE=$MODE but KC_HOSTNAME is not set. Cannot derive subdomain redirect URIs."
@@ -335,6 +347,196 @@ else
                 else
                     echo "ERROR: Failed to assign roles. HTTP $ASSIGN_HTTP_CODE"
                     echo "Response: $ASSIGN_BODY"
+                fi
+            fi
+        fi
+    fi
+fi
+
+# ==============================================================================
+# CONFIGURE POLARI REALM CLIENTS
+# ==============================================================================
+# Mirrors the PSC config pass above, applied to the `Polari` realm:
+#   - polari-frontend → patch redirect URIs from KC_HOSTNAME (prf.${BASE_DOMAIN})
+#   - polari-backend  → patch client secret from KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET
+# Skips gracefully if the realm or clients don't exist (e.g. if polari-realm.json
+# wasn't imported), so this script remains safe for PSC-only deployments.
+# ==============================================================================
+
+POLARI_REALM="Polari"
+POLARI_FE_CLIENT_ID="polari-frontend"
+POLARI_BE_CLIENT_ID="polari-backend"
+
+echo ""
+echo "=============================================="
+echo "Configuring Polari realm clients"
+echo "=============================================="
+
+# Build the Polari frontend's redirect URI list using the same base/mode
+# logic as PSC, swapping in PRF-specific subdomains.
+if [ "$MODE" = "suite" ]; then
+    POLARI_REDIRECT_URIS=("${BASE_REDIRECT_URIS[@]}" "${SUITE_REDIRECT_URIS[@]}")
+elif [ "$MODE" = "standalone" ]; then
+    POLARI_REDIRECT_URIS=("${BASE_REDIRECT_URIS[@]}" "${STANDALONE_REDIRECT_URIS[@]}")
+elif [ "$MODE" = "staging" ] || [ "$MODE" = "production" ]; then
+    POLARI_REDIRECT_URIS=("${BASE_REDIRECT_URIS[@]}" "${PRF_SUBDOMAIN_REDIRECT_URIS[@]}")
+else
+    POLARI_REDIRECT_URIS=("${BASE_REDIRECT_URIS[@]}" "${SUITE_REDIRECT_URIS[@]}" "${STANDALONE_REDIRECT_URIS[@]}" "${PRF_SUBDOMAIN_REDIRECT_URIS[@]}")
+fi
+
+# Allow operator override.
+if [ -n "$PRF_REDIRECT_URIS" ]; then
+    IFS=',' read -ra PRF_CUSTOM_URIS <<< "$PRF_REDIRECT_URIS"
+    POLARI_REDIRECT_URIS+=("${PRF_CUSTOM_URIS[@]}")
+fi
+POLARI_REDIRECT_URIS=($(printf '%s\n' "${POLARI_REDIRECT_URIS[@]}" | sort -u))
+
+echo "Polari frontend redirect URIs to configure:"
+printf '  - %s\n' "${POLARI_REDIRECT_URIS[@]}"
+
+# --- 1. Locate the Polari realm ----------------------------------------------
+POLARI_REALM_CHECK=$(curl -s -o /dev/null -w "%{http_code}" \
+    -X GET "$KEYCLOAK_URL/admin/realms/$POLARI_REALM" \
+    -H "Authorization: Bearer $ACCESS_TOKEN")
+
+if [ "$POLARI_REALM_CHECK" != "200" ]; then
+    echo "INFO: Polari realm not present (HTTP $POLARI_REALM_CHECK). Skipping Polari client configuration."
+else
+    echo "Found Polari realm — configuring clients."
+
+    # --- 2. Configure polari-frontend redirect URIs --------------------------
+    PFE_RESPONSE=$(curl -s -X GET \
+        "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients?clientId=$POLARI_FE_CLIENT_ID" \
+        -H "Authorization: Bearer $ACCESS_TOKEN" \
+        -H "Content-Type: application/json")
+    PFE_UUID=$(echo "$PFE_RESPONSE" | jq -r '.[0].id')
+
+    if [ "$PFE_UUID" = "null" ] || [ -z "$PFE_UUID" ]; then
+        echo "WARNING: Client '$POLARI_FE_CLIENT_ID' not found in '$POLARI_REALM'. Skipping."
+    else
+        echo "Found $POLARI_FE_CLIENT_ID UUID: $PFE_UUID"
+
+        PFE_CURRENT=$(curl -s -X GET \
+            "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients/$PFE_UUID" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json")
+
+        PFE_URIS_JSON=$(printf '%s\n' "${POLARI_REDIRECT_URIS[@]}" | jq -R . | jq -s .)
+        PFE_PAYLOAD=$(echo "$PFE_CURRENT" | jq --argjson uris "$PFE_URIS_JSON" '
+            .redirectUris = $uris |
+            .webOrigins = ["*"]
+        ')
+
+        PFE_UPDATE=$(curl -s -w "\n%{http_code}" -X PUT \
+            "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients/$PFE_UUID" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PFE_PAYLOAD")
+        PFE_HTTP=$(echo "$PFE_UPDATE" | tail -n1)
+
+        if [ "$PFE_HTTP" = "204" ] || [ "$PFE_HTTP" = "200" ]; then
+            echo "SUCCESS: $POLARI_FE_CLIENT_ID redirect URIs updated."
+        else
+            echo "ERROR: Failed to update $POLARI_FE_CLIENT_ID. HTTP $PFE_HTTP"
+            echo "$PFE_UPDATE" | sed '$d'
+        fi
+    fi
+
+    # --- 3. Configure polari-backend client secret + service-account roles ----
+    PBE_RESPONSE=$(curl -s -X GET \
+        "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients?clientId=$POLARI_BE_CLIENT_ID" \
+        -H "Authorization: Bearer $ACCESS_TOKEN" \
+        -H "Content-Type: application/json")
+    PBE_UUID=$(echo "$PBE_RESPONSE" | jq -r '.[0].id')
+
+    if [ "$PBE_UUID" = "null" ] || [ -z "$PBE_UUID" ]; then
+        echo "WARNING: Client '$POLARI_BE_CLIENT_ID' not found in '$POLARI_REALM'. Skipping."
+    else
+        echo "Found $POLARI_BE_CLIENT_ID UUID: $PBE_UUID"
+
+        # 3a. Set the client secret from env (parallel to PSC's admin-permissions
+        # secret pattern). Preferred env var name is
+        # KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET; falls back to the existing
+        # KEYCLOAK_ADMIN_CLIENT_SECRET so a single setup-polari-security.sh run
+        # can populate both realms without proliferating env vars.
+        POLARI_BE_SECRET="${KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET:-$KEYCLOAK_ADMIN_CLIENT_SECRET}"
+        if [ -n "$POLARI_BE_SECRET" ]; then
+            echo "Setting client secret for '$POLARI_BE_CLIENT_ID'..."
+            PBE_DETAIL=$(curl -s -X GET \
+                "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients/$PBE_UUID" \
+                -H "Authorization: Bearer $ACCESS_TOKEN" \
+                -H "Content-Type: application/json")
+            PBE_PATCHED=$(echo "$PBE_DETAIL" | jq --arg secret "$POLARI_BE_SECRET" '.secret = $secret')
+
+            PBE_SECRET_UPDATE=$(curl -s -w "\n%{http_code}" -X PUT \
+                "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients/$PBE_UUID" \
+                -H "Authorization: Bearer $ACCESS_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "$PBE_PATCHED")
+            PBE_SECRET_HTTP=$(echo "$PBE_SECRET_UPDATE" | tail -n1)
+
+            if [ "$PBE_SECRET_HTTP" = "204" ] || [ "$PBE_SECRET_HTTP" = "200" ]; then
+                echo "SUCCESS: Client secret set for '$POLARI_BE_CLIENT_ID'."
+            else
+                echo "WARNING: Failed to set secret. HTTP $PBE_SECRET_HTTP"
+                echo "$PBE_SECRET_UPDATE" | sed '$d'
+            fi
+        else
+            echo "WARNING: No secret env var set for '$POLARI_BE_CLIENT_ID'."
+            echo "         Set KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET in keycloak-admin.env."
+        fi
+
+        # 3b. Grant the backend's service account the realm-management roles
+        # needed for user/group management calls (mirrors PSC's admin-permissions
+        # pattern: view-users, manage-users, view-realm).
+        PBE_SA_RESPONSE=$(curl -s -X GET \
+            "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients/$PBE_UUID/service-account-user" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json")
+        PBE_SA_UUID=$(echo "$PBE_SA_RESPONSE" | jq -r '.id')
+
+        if [ "$PBE_SA_UUID" = "null" ] || [ -z "$PBE_SA_UUID" ]; then
+            echo "INFO: service-account-user not available for '$POLARI_BE_CLIENT_ID' (serviceAccountsEnabled may be off). Skipping role grant."
+        else
+            P_RM_RESPONSE=$(curl -s -X GET \
+                "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients?clientId=realm-management" \
+                -H "Authorization: Bearer $ACCESS_TOKEN" \
+                -H "Content-Type: application/json")
+            P_RM_UUID=$(echo "$P_RM_RESPONSE" | jq -r '.[0].id')
+
+            if [ "$P_RM_UUID" = "null" ] || [ -z "$P_RM_UUID" ]; then
+                echo "WARNING: realm-management client not found in '$POLARI_REALM'. Skipping."
+            else
+                P_ROLES=("view-users" "manage-users" "view-realm")
+                P_ROLE_JSON="["
+                for rn in "${P_ROLES[@]}"; do
+                    RR=$(curl -s -X GET \
+                        "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients/$P_RM_UUID/roles/$rn" \
+                        -H "Authorization: Bearer $ACCESS_TOKEN" \
+                        -H "Content-Type: application/json")
+                    RID=$(echo "$RR" | jq -r '.id')
+                    if [ "$RID" = "null" ] || [ -z "$RID" ]; then
+                        echo "  WARN: role '$rn' missing in Polari realm-management. Skipping."
+                        continue
+                    fi
+                    if [ "$P_ROLE_JSON" != "[" ]; then P_ROLE_JSON="$P_ROLE_JSON,"; fi
+                    P_ROLE_JSON="$P_ROLE_JSON$(echo "$RR" | jq -c '{id: .id, name: .name}')"
+                done
+                P_ROLE_JSON="$P_ROLE_JSON]"
+
+                if [ "$P_ROLE_JSON" != "[]" ]; then
+                    P_ASSIGN=$(curl -s -w "\n%{http_code}" -X POST \
+                        "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/users/$PBE_SA_UUID/role-mappings/clients/$P_RM_UUID" \
+                        -H "Authorization: Bearer $ACCESS_TOKEN" \
+                        -H "Content-Type: application/json" \
+                        -d "$P_ROLE_JSON")
+                    P_HTTP=$(echo "$P_ASSIGN" | tail -n1)
+                    if [ "$P_HTTP" = "204" ] || [ "$P_HTTP" = "200" ]; then
+                        echo "SUCCESS: $POLARI_BE_CLIENT_ID service-account roles assigned."
+                    else
+                        echo "WARNING: Polari service-account role grant failed. HTTP $P_HTTP"
+                        echo "$P_ASSIGN" | sed '$d'
+                    fi
                 fi
             fi
         fi
