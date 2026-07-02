@@ -177,6 +177,13 @@ made concrete: space composition as configuration):
   precondition sim — the interface definition stays identical, only the choice source
   changes. That's deliberate: the material picker you asked for is the doorway into
   Milestone B without rework.
+- **Failed first-principles choices are DISABLED WITH REASON AND DATA** (decided
+  2026-07-02): when the first-principles space fails to achieve a valid solution for a
+  substance (no temp/pressure yields a solid ball), the IC interface still shows that
+  substance — disabled, with the gate's plain-language reason AND the supporting data
+  (e.g. the T/P range searched, the nearest-miss result). The physics teaching the user
+  what it refused, and why, is part of the framework's purpose. Choice schema gains:
+  `{key, label, enabled: false, disabledReason, disabledData: {...gate outputs...}}`.
 
 Both are plain definition classes: import + `defClassList` + optional seed rows. We seed one
 demo of each: **"Pendulum in Wind"** (members: pendulum + wind; panels: scene, energy graph,
