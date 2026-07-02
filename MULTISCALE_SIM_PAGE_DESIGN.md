@@ -84,6 +84,40 @@ couplings in that shape.
 - **Backend definition classes cost nothing**: import + `defClassList` gives auto DB table +
   CRUDE + typing. (Polari doing its job.)
 
+## Simulation intents (Dustin, 2026-07-02): declare WHAT FOR first — it constrains everything
+
+A simulation's **intent** — what we're trying to get out of it — is declared first; it
+determines what must be defined, what the simulation PRODUCES, and where it can legally
+plug into a multi-scale composition. This is the backbone of the Phase 5 wizard: "What do
+you want this simulation to do?" → a short, concrete per-intent checklist.
+
+| Intent | Plain question | Must define (beyond a space) | Produces | Multi-scale plug point |
+|---|---|---|---|---|
+| Observe | "see what happens" | ICs, viz | trajectories/fields | co-steps; sampleable source |
+| Search | "find conditions where X is possible" | candidate space + gate | one achieved solution + derived props | first-principles stage; `derive` |
+| Feasibility | "map the envelope where X holds" | candidate space + gate | validity region + boundary | constrains IC interfaces (disabled-with-data per region) |
+| Optimize | "get close to a target" | objective/score + budget | best-found + score history | Search's slot, re-enterable (Milestone E/F) |
+| Calibrate | "match my measured data" | reference dataset + tunables + fit objective | calibrated parameters | upstream of everything; writes back to the space |
+| Validate | "prove lawful behavior" | invariants + tolerances | pass/fail + drift | trust gate on a space; compositions may require it |
+| Sensitivity | "which inputs matter" | perturbation spec + metrics | rankings / tolerance bands | guides coupling fidelity → feeds node consolidation |
+| Compare | "what differs between A and B" | variant bundles + contrast metrics | aligned trajectories + deltas | analysis overlay ONLY — never causal |
+
+**Coherence rules (machine-checkable, rejected with plain-language reasons):**
+1. Only product-bearing intents (Search / Feasibility / Optimize / Calibrate) may be
+   `derive` sources. 2. Only continuous intents (Observe) co-step and get sampled.
+3. Compare never sits inside the causal chain. 4. A composition may require member spaces
+   to hold passing Validations before their couplings are trusted.
+
+**Mission note:** Calibrate + Validate are what turn demos into locally-trustworthy tools
+(a model tuned to YOUR soil/wax/climate, proven lawful); Sensitivity produces exactly the
+evidence the eventual node-consolidation goal needs (what a node can safely shed).
+
+**Implementation stance:** these are mostly variations of existing machinery — one search
+orchestrator with different candidate generators/selection rules (Search/Feasibility/
+Optimize/Calibrate), the gate engine pointed at invariants (Validate), the comparison
+overlay (Compare). Add `intent` to stages (and standalone sims) with per-intent required-
+definition checklists in Phase 5; don't build separate engines per intent.
+
 ## The one real backend gap
 
 **No timeseries endpoint.** Generic CRUDE `readAll` cannot filter by run or step (it returns
