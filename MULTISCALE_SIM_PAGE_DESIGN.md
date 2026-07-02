@@ -134,7 +134,31 @@ made concrete: space composition as configuration):
   SolutionDefinition** evaluated over the run's results, executed through the SAME engine
   flow the IC validator already uses (flattened `class.field` context in → pass/fail +
   reason + derived values out). Gate passes → the next stage unlocks, and `derive` maps the
-  gate's outputs (proven ball mass/radius) into the next stage's ICs/params. A `coStep`
+  gate's outputs (proven ball mass/radius) into the next stage's ICs/params.
+
+  **Solution search (decided 2026-07-02): a first-principles stage can attempt MULTIPLE
+  candidate solutions per simulation to reach one valid solution.** Stage schema gains
+  `search`: each candidate is a run of the stage's sim with its own parameter overrides
+  (a different T/P point); the orchestrator steps candidates in batches, gate-evaluates
+  each, and the stage is ACHIEVED by the first candidate whose gate passes (the winner's
+  derived values feed `derive`). All attempts — including failures — are recorded; an
+  exhausted search IS the `disabledData` for the downstream choice (searched ranges,
+  every attempt's reason, nearest miss).
+  ```json
+  "search": {
+    "candidates": {"kind": "grid",
+                   "parameters": {"temperature": {"from": 250, "to": 350, "steps": 5},
+                                   "pressure":    {"from": 1,   "to": 100, "steps": 4}}},
+    "stepsPerAttempt": 50,      // default: the sim's duration/dt
+    "batchSize": 4,             // attempts advanced per orchestrator call
+    "select": "first-valid"     // ("best-score" via a gate score output: later)
+  }
+  ```
+  `kind: "list"` supplies explicit candidate dicts; `kind: "solver"` (gradient-descent
+  candidate generation — the Milestone E "encroach on a target" search) is the reserved
+  next step and slots into the same orchestrator. The search is STATELESS/resumable:
+  attempts are ordinary named runs (`<msim>-<stage>-attempt-<k>`), so progress is derivable
+  from the DB and repeated orchestrator calls continue where the last left off. A `coStep`
   stage is the live coupled stepping we have today. The page shows the progression as a
   plain stepper — "1 ✓ Material proved · 2 ▶ Pendulum running" — with a human-readable
   reason when a gate fails ("no solid phase found in the searched T/P range").
