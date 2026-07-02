@@ -30,6 +30,36 @@ built yet — review + adjust freely._
 8. **Audience: normal people.** This is a framework to help non-specialists build
    multi-scale simulations — guided flows and plain-language gates over expert consoles.
 
+## Core concepts (Dustin, 2026-07-02 — these govern naming and architecture)
+
+**Scenario Comparison ≠ Multi-Scale.** Two distinct things the page does; never blur them:
+
+- **Scenario Comparison**: the *same* simulation run under different conditions, side by
+  side (vacuum vs wind; ice bob vs steel bob). The runs are **causally independent** —
+  nothing flows between them; the page merely keeps them time-aligned for contrast. This is
+  what the fan-out stepping + side-by-side viewer are, and the UI labels them
+  "scenario comparison".
+
+- **Multi-Scale Simulation**: spaces with **inherent logical interconnection** — they step
+  and interlink logically. Two grades of interconnection exist in the system today:
+  1. *Coupled stepping* (wind → pendulum): one space's field sampled into another's step,
+     across timescales. Real multi-scale data flow.
+  2. *Constitutive dependency* (material → pendulum): the deeper form. The **first-
+     principles space** (materials) must have a valid-solution condition that is both
+     **DEFINED** (the condition is authored: "a solid ball is achievable; analyze its
+     shape/size/properties") **and ACHIEVED** (an actual run found the temp/pressure where
+     it holds) before the downstream simulation can even *define its own initial
+     conditions*. The pendulum's IC interface is only legitimate downstream of that.
+     Enforced in the stage evaluator: a stage that later stages `derive` from is never
+     complete without a defined, passing gate — running alone doesn't count.
+
+Mathematically, multi-scale spaces are often function/solution spaces (Green's-function /
+Hilbert-space character) rather than simple state vectors. The framework's primitives are
+shaped for that: **field-valued state** (a whole grid/matrix as one row, e.g. `cells_json`)
+and **no-code sampler equations as the projection operators between spaces**. When a space's
+"state" is a solution space, the coupling is a projection/sampling from it — keep new
+couplings in that shape.
+
 ## What already exists (surveyed — we reuse, not rebuild)
 
 - **Display grid system**: `Display → DisplayRow → DisplayColumn → DisplayItem`, rendered by
