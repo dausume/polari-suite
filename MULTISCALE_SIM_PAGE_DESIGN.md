@@ -115,8 +115,15 @@ evidence the eventual node-consolidation goal needs (what a node can safely shed
 **Implementation stance:** these are mostly variations of existing machinery — one search
 orchestrator with different candidate generators/selection rules (Search/Feasibility/
 Optimize/Calibrate), the gate engine pointed at invariants (Validate), the comparison
-overlay (Compare). Add `intent` to stages (and standalone sims) with per-intent required-
-definition checklists in Phase 5; don't build separate engines per intent.
+overlay (Compare). Don't build separate engines per intent.
+
+**Where `intent` lives (decided 2026-07-02): BOTH.** `SimulationDefinition.intent` declares
+what a space is for on its own (drives the wizard's checklist even before the sim joins any
+composition — a standalone "Calibrate" sim already knows to ask for a reference dataset);
+a stage's `intent` declares the role in THIS composition (the same Observe space can be an
+Observe co-step here and a Search subject elsewhere). Stage intent must be compatible with
+the sim's own intent-capabilities; mismatches rejected with plain-language reasons. Field +
+checklists land in Phase 5 (schema change → ships with Phase 5's fresh-data pass).
 
 ## The one real backend gap
 
