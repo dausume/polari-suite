@@ -29,6 +29,12 @@ built yet — review + adjust freely._
    ball's properties flowing into its initial conditions.
 8. **Audience: normal people.** This is a framework to help non-specialists build
    multi-scale simulations — guided flows and plain-language gates over expert consoles.
+8b. **Knobs AND suggestions (standing principle, 2026-07-03)**: most capabilities exist
+   as BOTH an explicit knob (a durable, independently-usable configuration surface) and a
+   conditional, evidence-bearing suggestion that points at that knob with a ready-to-apply
+   setting. Suggestions never auto-apply and always say why (the measured evidence).
+   Precedents: field-save overrides ← resource suggestions; executionBackend ← parallelHint;
+   overrideResourceWarning ← the 409 guard's message; coherence findings ← stage/intent knobs.
 
 ## Core concepts (Dustin, 2026-07-02 — these govern naming and architecture)
 
