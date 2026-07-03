@@ -355,6 +355,21 @@ the **coupling editor form**, a **sim-def/space form**, **binding editor forms**
 are currently seeded/JSON-edited), the **IC-interface editor**, and the **rail/wizard**
 shell itself. All are config forms over existing CRUDE objects — no new engine surface.
 
+## Composition Graph view (Dustin, 2026-07-02)
+
+When logical dependencies exist (a simulation feeding another, an IC-selection interface, a
+Display selection), the page offers a THIRD view besides Run/Configure: a **D3 node-graph of
+the composition**, visually kin to the no-code solution editor's node trees (conceptually
+similar — these are still nodes being woven together — though not literally a solution
+graph). Nodes = each member Simulation and each logic space (IC-selection interfaces count);
+gates render as badges on their space's node. Edges = what actually flows, labeled: coupling
+samples ("wind velocity @ bob → applied force"), derive flows ("ball mass/radius → pendulum
+ICs"), IC-interface feeds ("sets mass, bob_radius"), stage-order dependencies. LIVE while
+running: nodes carry current step/time + headline state values (current-state endpoint).
+Lightweight drill-in: click a node → detail drawer (intent, dt, params, latest state, gate
+verdicts) with jumps into the Configure rail sections or the detailed pages — navigate in,
+modify or inspect, come back.
+
 ## Build order (each phase = branch off dev, per the standing workflow)
 
 - **Phase 1 (backend):** two definition classes (incl. `stages_json`) + `/series` endpoint +
