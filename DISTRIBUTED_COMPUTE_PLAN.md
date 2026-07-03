@@ -153,3 +153,13 @@ Sequencing (updated): twin build (in flight) → cross-instance Dask materials s
 peer-sourced coupling (2-node, hand-placed) → Track 3 modules (exporter + loader + peer
 serving) → Track 4 (placement map, parent orchestration, member install instruction,
 probe/fetch permissions). The twin IS the 2-node lab for all of it.
+
+## Convergence with Isle-Mesh (discovered 2026-07-03)
+Dustin's OTHER project (on isle-core, with its own Claude instance + memory): **Isle-Mesh**
+— an OpenWRT-router-VM VLAN system (`isle create/join`, `.isle` = apps within one island,
+`.arch` = linked isles, `.mesh` = full mesh) — IS the network layer Track 4's "linked over
+a vlan" node network should ride. Mapping: one Polari node's stack per isle (.isle DNS
+names for PeerNode base_urls); the parent/member network = an archipelago; our same-host
+polari-link bridge is the stand-in Isle-Mesh replaces across machines. The cross-host twin
+step should target an isle (static-IP wired VLAN per Isle-Mesh's own plan) rather than raw
+LAN IPs. Both projects converged on the same architecture from opposite ends.
