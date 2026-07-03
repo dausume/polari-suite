@@ -355,6 +355,53 @@ the **coupling editor form**, a **sim-def/space form**, **binding editor forms**
 are currently seeded/JSON-edited), the **IC-interface editor**, and the **rail/wizard**
 shell itself. All are config forms over existing CRUDE objects — no new engine surface.
 
+## Resource-aware simulation (Dustin, 2026-07-03) — measure, warn, suggest, window
+
+For extremely complex simulations, memory/data is the binding constraint. Polari already
+carries Dustin's earlier foundation (storage_predictor, field_save_policy
+core/derivable/skip, per-field intervals, the /storage-estimate endpoint); this layer
+finishes it with MEASURED costs and automated protection:
+
+1. **Measure per-step cost**: instrument `run_step` to record wall-clock time and persisted
+   row bytes per step; keep rolling averages per run (`avg_step_seconds`,
+   `avg_step_bytes`, sampled cheaply — serialize-size of the rows it just wrote).
+   **Stat freezing (Dustin, 2026-07-03): measurement consolidates itself away.** Per
+   (class, field) size stats carry {count, mean, max, coefficient of variation}; once a
+   field has been sampled enough times that size change under the LOCAL usage pattern is
+   negligible (n ≥ N with CV < ε, or fixed-width numeric → frozen immediately), it's
+   marked frozen: mean/max become known constants, the per-step serialization measuring
+   for it stops, and projections read the constants. Frozen stats persist (a small
+   StepCostProfile record per sim def) so projections work without re-warmup across
+   restarts. Purposeful re-enable: a "re-measure" action clears frozen stats; automatic
+   invalidation when the local usage pattern changes (sim def params / field policies /
+   grid config hash changes). Step wall-time stays a cheap always-on EMA (one clock read);
+   it's the SIZE serialization that's worth shedding. Genuinely variable-size payloads
+   (adaptive grids) never stabilize and correctly keep being measured.
+2. **Know the budget**: container/host memory limit + current usage + disk free, exposed by
+   a small resources endpoint.
+3. **THE CRITICAL WARNING (build first)**: when a batch run is requested (or steps typed
+   into the run controls), project `steps × avg_step_cost` against the remaining budget.
+   Plain language: "Running 5,000 steps at the usual ~2.1 MB/step needs ~10.5 GB — that
+   would nearly drain available memory (12 GB free). Consider the suggestions below."
+   Backend pre-check on the batch endpoint (warn always; block only past a hard threshold
+   with an explicit override flag) + debounced projection in the run controls UI.
+4. **Auto-suggested data-saving strategies**, ranked by measured per-field sizes, emitted
+   as concrete `field_save_overrides_json` proposals the user can apply per-run in one
+   click (the per-run override channel already exists): demote heavy derived fields to
+   derivable/skip, raise per-field intervals on bulky fields (e.g. a grid's cells_json
+   every N steps), raise recording_interval_steps, enable a retention window.
+5. **Retention window** ("retain only what's needed to progress"): the runner needs only
+   step N−1 (+ coupled sources at ZOH) to compute N. Per-run `retention_window_steps`:
+   keep the last W steps fully + sparse checkpoints beyond; prune older rows from memory
+   and DB. DEFAULT OFF (no behavior change) — this is the piece that historically broke
+   things; known consumers to keep honest when it's on: scrubber/snapshot (scrub range =
+   retained steps only, say so in the UI), /series (returns retained steps), evals,
+   idempotent re-step. Ship behind the explicit per-run opt-in with those consumers
+   handled, not before.
+
+Sequencing: implement after Milestone B lands (same backend files in flight). The warning
+(3) is the priority per Dustin: "critical to detect and warn about."
+
 ## Composition Graph view (Dustin, 2026-07-02)
 
 When logical dependencies exist (a simulation feeding another, an IC-selection interface, a
