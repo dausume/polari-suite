@@ -210,3 +210,39 @@ nothing.
   consumed or demote codegen to a reference view. *Do after P2/P3 stabilize semantics.*
 
 Suggested order: **P1 → P2 → P3 → P4 → P5.**
+
+## P6 — General-computation node families (Dustin + review, 2026-07-03)
+
+What "code in general" needs beyond P1–P5, ordered by load-bearing-ness. AUTH FINDING:
+Keycloak JWT + polariCRUDE per-user object-access machinery exist at the API layer, but
+solutions receive NO identity in context and no node can check a role/permission —
+authorization exists around the no-code, never inside it.
+
+1. **Auth/Authz nodes (Dustin's call-out — critical, esp. for module-shipped solutions):**
+   CurrentUser context injection (id/roles/groups/claims from request.auth into every
+   execution); RequireRole/RequirePermission as guard-terminal AND branch node; object-
+   level CanRead/CanWrite(instance) via the existing CRUDE access dicts; **definer-vs-
+   invoker rights model** declared on the P3 solution contract (module solutions default
+   to INVOKER's rights); execution attribution in traces; SecretRef value-source (no-code
+   never holds raw secrets).
+2. **Error handling:** per-node onError slots / TryBlock, typed error values, retry-with-
+   policy nodes. Today failure = abort; nothing touching the world can be robust without
+   this.
+3. **Data-access nodes:** Query/Create/Update/Delete instances, permission-enforced via
+   the CRUDE access machinery; stated transaction semantics. Turns "simulation logic"
+   into "application logic".
+4. **External I/O:** HTTP-request node (allowlisted, authz-checked), timers/schedules,
+   inbound webhook triggers (webhook machinery exists).
+5. **Event subscribe/trigger:** the other half of EmitEvent — solutions triggered BY
+   events (incl. STOMP), else emit is a bell nobody hears.
+6. **Mundane essentials:** string ops (format/regex/parse/JSON-path), date/time, SEEDED
+   random (reproducibility is a standing design decision).
+7. **Solution-scoped persistent state:** variables outliving one execution, as an
+   inspectable, permission-governed definition object.
+8. **Parallel branches:** fork/join in a graph (execution-backend machinery exists).
+Also: extend SolutionTestCase/ExecutionStepAssertion to new nodes; wall-time budgets per
+solution (extends P2 budgets, ties to the resource layer); breakpoints/watches later.
+
+Suggested slotting: auth/authz + error handling land WITH or immediately after P3/P4
+(contracts + display bridge need both); data access + I/O + events follow; essentials
+sprinkle in wherever a phase touches their surface.
