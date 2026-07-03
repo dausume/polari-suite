@@ -94,3 +94,30 @@ Shape TBD by the Isle-Mesh side (CLI subcommand with JSON output is fine: `isle 
   first-boot behavior, PeerNode base_url on .isle names; Track 4 placement rides it.
 - Integration milestone: **two machines, manager app + one .deb each, zero manual
   network/peer configuration → a parent/child Polari pair exchanging a module.**
+
+## 7. Polari-side Phase 1 (concrete tasks — START HERE post-session-clear)
+Buildable NOW, against the existing twin, without waiting on isle-mesh deliverables:
+1. **PeerAgreement admission flow** (replaces the twin's shared token, per ruling §5.2):
+   PeerAgreement definition class (requester identity/fingerprint, requested role, status
+   pending|approved|denied|revoked, scope, approvedBy/At, token_hash per-child);
+   endpoints: POST /api/peers/join-request (child→parent), GET /api/peers/agreements,
+   POST /api/peers/agreements/{id}/approve|deny (mints per-child scoped token, returns
+   over the channel)|revoke; child-side: request → poll/receive → store token → register.
+   Manager surface later; API + selftests + live twin verify first (B joins A via
+   agreement instead of the shared env token; keep the env token as a deprecated fallback
+   knob during transition).
+2. **Mesh-detection module** (polariPeers/mesh_facts.py): consume `isle facts --json`
+   when the CLI exists on the host; graceful absence (returns meshed:false); MOCKABLE
+   (env POLARI_MESH_FACTS_CMD override) so role auto-config develops before isle-mesh
+   ships the real subcommand.
+3. **Role auto-config** (first-boot logic): detect → register .isle name (claim via mesh
+   facts claim() when available; else skip) → discover existing Polari (mesh facts /
+   direct probe list) → none: parent; found: child → SEND JOIN REQUEST (flow #1) →
+   on approval pull coordination module (existing modules API). All knobs-and-suggestions:
+   role knob (auto|parent|child) with auto default; every auto decision logged with
+   evidence.
+4. **Small enablers**: PeerNode base_url accepts .isle hostnames (trivial); first-boot
+   idempotency (re-running auto-config is safe); the deprecated-shared-token fallback knob.
+Isle-Mesh side (other instance, unchanged from §6): appify/package hardening, footprint
+audit, `isle facts` + atomic claims. Integration test when both sides land: the §6
+milestone.
