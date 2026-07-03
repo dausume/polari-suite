@@ -66,9 +66,18 @@ Shape TBD by the Isle-Mesh side (CLI subcommand with JSON output is fine: `isle 
 1. **Parent-claim race**: two Polaris installed near-simultaneously. Proposal:
    first-claim-wins via the atomic mesh-registry claim; the loser configures as child;
    a manual role knob overrides either way; the manager app surfaces the topology.
-2. **Child token distribution**: the peer-registration secret should ride the mesh's own
-   join trust (isle join secret or agent-mediated exchange), not hand-copying. Later:
-   Keycloak federation replaces shared tokens.
+2. **Child token distribution — RULED (Dustin, 2026-07-03): mesh-carried, but with an
+   explicit AGREEMENT.** Admission flow: the child sends a JOIN REQUEST over the mesh
+   channel (identity: hostname, .isle name, instance fingerprint, requested role) — never
+   auto-admitted. The request becomes a durable PeerAgreement object on the parent
+   (status pending), surfaced in the manager surfaces (suggestion: "device X asks to join
+   as child"; knob: approve/deny). On approval the parent mints a PER-CHILD, scoped,
+   REVOCABLE token delivered over the mesh channel; the child confirms which parent it is
+   joining (bilateral consent — matters once multiple isles exist); the agreement records
+   who approved, when, and scope, on both sides. Revocation = deleting the agreement (no
+   shared secret to rotate). Optional convenience knob, DEFAULT OFF: auto-approve devices
+   already on my isle. Later: Keycloak federation replaces the token mechanics; the
+   agreement object remains the consent record.
 3. Degradation depth — **RULED (Dustin, 2026-07-03): yes.** An unmeshed .deb functions
    as a standalone normal docker-compose app, reachable via its `.local` name (mDNS —
    which also resolves from other devices on the same plain LAN, so it's discoverable
