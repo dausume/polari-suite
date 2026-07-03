@@ -102,9 +102,20 @@ Design essentials:
   raw), validate manifest, seed idempotently (the seeding machinery already is the
   importer); unload = remove the module's objects. Knob + suggestion per the standing
   principle (e.g. "this node never uses mapping — unload the geo module").
-- **Localized-mission nuance (important):** GitHub is DISTRIBUTION, not a runtime
-  dependency — bundles cache locally after fetch, import also works from a local file or
-  any git remote (self-hosted gitea), so a fully-local deployment never phones home.
+- **GitHub is A distribution channel, not THE one (Dustin, 2026-07-03).** Every Polari
+  serves its own MODULES API — instances are module registries for each other:
+    * `GET /api/modules` — installed AND installing modules (manifest summaries: name,
+      version=SHA, dependencies, status) so peers can PROBE what a node has/is getting;
+    * `GET /api/modules/{name}` — the full bundle JSON, so a peer can ask for a copy and
+      install it. Modules are just JSON; serving them over the normal API is trivial.
+  ModuleSource kinds unify: `github` | `git` | `file` | `peer` (another Polari's base
+  URL) — one loader, four fetchers. The twin handshake includes the modules API from day
+  one (peer-announce carries the module inventory), so "what does my peer have installed"
+  is part of the first integration, and node specialization via pulling modules FROM PEERS
+  becomes the native path (trajectory step 3 feeding step 4).
+- **Localized-mission nuance:** no source kind is a runtime dependency — bundles cache
+  locally after fetch; a fully-local deployment (file/peer/self-hosted git) never phones
+  home.
 
 Sequence confirmed with Dustin (2026-07-03): Dask track 1 (in flight) → twin build (shared
 infra, INSTANCE_ID parametrization, mem bumps) → cross-instance Dask materials search →
