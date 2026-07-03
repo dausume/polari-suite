@@ -120,3 +120,36 @@ Design essentials:
 Sequence confirmed with Dustin (2026-07-03): Dask track 1 (in flight) → twin build (shared
 infra, INSTANCE_ID parametrization, mem bumps) → cross-instance Dask materials search →
 GitHub-modular samples (exporter → sample repos → loader).
+
+## Track 4 — Polari node network: distributed multi-scale (Dustin, 2026-07-03)
+
+**Goal:** a parent Polari controlling member nodes so EXTRA-COMPLEX multi-scale
+simulations split across servers: parts of the composition live on one Polari, parts on
+another, and the multi-scale simulation works in that situation — complex simulation on
+hardware the average person has (many normal machines instead of one big one).
+
+Design pillars:
+1. **Roles**: parent/coordinator + members. The COORDINATING/OVERALL MODULE — the
+   MultiScaleSimulationDefinition with its stages, couplings, run-set pairings, and the
+   new PLACEMENT MAP ({space/sim → node}) — lives on BOTH parent and members, so each
+   node knows its responsibilities in coordinating data for the overall simulation.
+2. **Placement via modules (dependency: Track 3 is a prerequisite)**: only the sub-module
+   needed for computing a node's sub-section is installed there; the parent can instruct
+   a member to install a module (peer-fetch in reverse / member pulls from parent).
+3. **INFORMATION HIDING (Dustin's principle)**: nodes may NOT know how peers do their
+   simulations at depth. The coordination contract between nodes = the COUPLING SURFACE
+   (what field, sampled how, into which keys) + stage gates/derives + run pairings —
+   never the peer's solutions/equations/internal state. Modules API distinguishes PROBE
+   (manifests: what a node offers) from FETCH (bundles: how it computes) — permissioned
+   separately. Tolerant of nodes built by different people to different depths.
+4. **Distributed execution semantics**: lazy-pull couplings cross nodes via the peer:
+   scheme; stage searches run on the node owning the space (its Dask/processes backend);
+   the parent orchestrates run-sets (create paired runs on owning nodes, drive stepping,
+   gather status/verdicts); ZOH time-alignment already tolerates network latency by
+   construction (sample latest ≤ t).
+5. Trust: parent-member shared tokens now (twin's mechanism), proper federation later.
+
+Sequencing (updated): twin build (in flight) → cross-instance Dask materials search →
+peer-sourced coupling (2-node, hand-placed) → Track 3 modules (exporter + loader + peer
+serving) → Track 4 (placement map, parent orchestration, member install instruction,
+probe/fetch permissions). The twin IS the 2-node lab for all of it.
