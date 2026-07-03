@@ -67,3 +67,45 @@ needed is INSTANCE PARAMETRIZATION, not network plumbing.**
 **Sequencing:** resource-aware layer (in flight) → Dask track 1 target (parallel search
 attempts, serial default preserved) → twin-polari build + ping/list handshake → peer-
 sourced coupling. Each its own phase branch + Dustin checkpoint.
+
+## Twin-build feasibility (MEASURED 2026-07-03): YES, comfortably
+Host: 15.9 GB RAM (~10 GB available), 65 GB disk free. Current stack uses ~813 MB actual
+(keycloak 515 is the heavyweight; backend 108). Images are REUSED by a second instance →
+zero added image disk; volumes trivial (backend-data 1.6 MB). **Shared-infra twin (the
+plan): one Keycloak (two realms/clients) + one MariaDB + one MinIO (per-instance buckets)
+serve both; second backend+frontend ≈ 120–450 MB RAM, ~0 disk.** Even a nothing-shared
+full twin (+~813 MB) fits. Sizing note: raise backend mem_limit 384 MB → ~1 GB per
+instance for in-container Dask clusters (host has headroom).
+
+**The twin test that matters (Dustin):** Dask parallelizing the MATERIALS simulation
+across BOTH instances — instance A's search farms attempt tasks to workers on A and B
+(dask scheduler on A, worker containers on both, over the polari-link network; attempt
+tasks are already pure/manager-free by Track-1 design, so cross-instance is "the same
+tasks, remote workers").
+
+## Track 3 — GitHub-modular samples (after the twin + cross-instance Dask work)
+**Goal (Dustin):** finalize modularization so ALL samples (pendulum, wind, materials, the
+demo composition) are stashed in separate GitHub projects as JSON configurations, loaded
+on demand via the GitHub API as MODULES — the application transforms and gains capabilities
+by pulling configuration objects from GitHub projects; unloading sheds them (trajectory
+step 4, consolidation, made real; roadmap Milestone D grown up).
+
+Design essentials:
+- A module = a JSON bundle: manifest (name, version=commit SHA, dependencies between
+  modules) + definition objects (sim defs, solution defs, matrix/equation defs, scenes,
+  bindings, msim compositions, IC interfaces, step-0 seed rows) + CLASS DEFINITIONS IN
+  CONFIGURATION FORM (the /createClass path proves classes-as-config works).
+- The prerequisite work: migrate the hand-coded sample *SimState classes into
+  createClass-style configuration + build the EXPORTER (walk live DB content for a chosen
+  scope → module bundle JSON) — export what exists today, don't re-author it.
+- ModuleSource / loaded-module registry objects; loader = fetch (GitHub contents API or
+  raw), validate manifest, seed idempotently (the seeding machinery already is the
+  importer); unload = remove the module's objects. Knob + suggestion per the standing
+  principle (e.g. "this node never uses mapping — unload the geo module").
+- **Localized-mission nuance (important):** GitHub is DISTRIBUTION, not a runtime
+  dependency — bundles cache locally after fetch, import also works from a local file or
+  any git remote (self-hosted gitea), so a fully-local deployment never phones home.
+
+Sequence confirmed with Dustin (2026-07-03): Dask track 1 (in flight) → twin build (shared
+infra, INSTANCE_ID parametrization, mem bumps) → cross-instance Dask materials search →
+GitHub-modular samples (exporter → sample repos → loader).
