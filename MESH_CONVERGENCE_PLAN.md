@@ -69,8 +69,13 @@ Shape TBD by the Isle-Mesh side (CLI subcommand with JSON output is fine: `isle 
 2. **Child token distribution**: the peer-registration secret should ride the mesh's own
    join trust (isle join secret or agent-mediated exchange), not hand-copying. Later:
    Keycloak federation replaces shared tokens.
-3. Degradation depth: does an unmeshed Polari .deb install single-instance-standalone
-   (proposed: yes, full function, zero mesh references) — confirm.
+3. Degradation depth — **RULED (Dustin, 2026-07-03): yes.** An unmeshed .deb functions
+   as a standalone normal docker-compose app, reachable via its `.local` name (mDNS —
+   which also resolves from other devices on the same plain LAN, so it's discoverable
+   with zero configuration). This is additive by design: appify's scaffolding already
+   generates `.local` server names as the base and `.isle` as the mesh layer — joining a
+   mesh later ADDS `.isle` without touching `.local`. Postinst nuance for the unmeshed
+   path: verify avahi presence / ride `<hostname>.local`; zero mesh components installed.
 
 ## 6. Sequencing across the two projects
 - Isle-Mesh side (other instance): appify/package (.deb gen) hardening; the component-
