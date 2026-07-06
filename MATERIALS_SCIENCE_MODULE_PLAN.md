@@ -1,7 +1,23 @@
 # Materials Science Module — Plan
 
-**Status: DRAFT for Dustin's review (2026-07-06, written by Claude per the pre-work directive).
-Nothing below is started without confirmation except where marked already-done.**
+**Status: APPROVED by Dustin 2026-07-06 ("plan looks good") with refinements: prove both
+DB modes live (lightweight sqlite Polari vs mariadb+keydb combo Polari) ✅ DONE; build the
+module coherently (basis started ✅); FEM/DFT via pre-existing OO libraries (engine layer
+✅ — scikit-fem + ASE/Quantum-ESPRESSO per his research notes; no explicit library doc
+existed, QE is the one code his notes commit to).**
+
+**BUILT 2026-07-06 (branches dev-msci-1-db-adapters, dev-msci-2-materials-basis):**
+- Track 3 ✅ LIVE: DB adapter seam (sqlite|mariadb via DATABASE_TYPE; KeyDB table cache
+  via CACHE_BACKEND). Verified side by side — instance A on sqlite, twin-B on the combo
+  (95 tables in polari_objects_b, restore-from-mariadb on restart, 26 cache keys in
+  prf-b-keydb). Two live-found dialect fixes: sqlite NONE affinity, reserved-word
+  identifiers ('precision'). Overlay: polari-rf-node/docker-compose.dbcombo.yml.
+- Tracks A/B first slice ✅: materialsScience/materials_basis (MaterialsScienceMaterial
+  + MaterialScaleDefinition), scale_presence gates, formulation_math (linear blend +
+  Voigt/Reuss/Hill + target scoring), engines/ (FEM: scikit-fem conduction solve
+  validated vs analytic; DFT: ASE structure layer live, QE execution layer
+  capability-gated). 37-check selftest. Seeds bridge the wax world incl.
+  paraffin-wax@L0 → the condensation sim.
 
 The Materials Science Module is the **2nd multi-scale-simulation test case** (after
 pendulum-in-wind). It will get computationally heavy, so it must exercise ALL the
