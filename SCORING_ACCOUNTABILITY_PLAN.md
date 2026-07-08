@@ -390,6 +390,54 @@ must be first-class, votable, and score-bearing:
    is a trajectory, not a snapshot — you can watch a protection get
    hollowed out ruling by ruling.
 
+## scr-15 — Media accountability: accuracy against the data — BUILT 2026-07-08 (fw c4b85b1)
+> Dustin 2026-07-08: "media accountability for accuracy to data"
+
+Media outlets become scoreable subjects whose FACTUAL CLAIMS are
+checked against the ingested data — the engine already knows what the
+number actually was, so accuracy is computable, not voted.
+1. **Media outlets as subjects** (kind 'media-outlet'); MediaEvidence
+   gains `outlet_name` so every cited article ties to an accountable
+   outlet.
+2. **FactualClaim rows**: outlet × statement × the checkable payload
+   (term, subject, contexts, claimed_value, claim date) + the article
+   evidence. Logged by contributors (attributed).
+3. **AccuracyPolicy** (editable bands over relative error, the
+   AgreementPolicy idiom): exact ≤0.5% · accurate ≤5% · close ≤15% ·
+   wrong — what counts as accurate is a SETTING.
+4. **check_claim**: resolve the measured value through the SAME
+   engine path scores use (context + time matched, scr-4 native) →
+   relative error → band, with both numbers + the measured value's
+   provenance. No data = 'unverifiable', an honest refusal naming
+   what's missing — never a silent skip.
+5. **Outlet accuracy record** (the contributor-record idiom): claims
+   checked/unverifiable, band distribution, mean relative error,
+   per-term breakdown → outlets rank by demonstrated accuracy, and
+   scr-16 reads this as source quality.
+
+## scr-16 — Per-group bias analysis — BUILT 2026-07-08 (fw 36b99f4; ng 8fb7cc6 carries the scr-15/16 sections)
+> Dustin 2026-07-08: "per group bias analysis"
+
+Four independent bias reads per group, each label traveling with its
+numbers (bands = editable **BiasPolicy** rows):
+1. **Stance skew vs consensus**: the group's aggregate definition vs
+   the all-groups consensus, per term — opposed stances and emphasis
+   gaps named (reuses scr-3 machinery).
+2. **Assertion direction one-sidedness**: over assertions by the
+   group's member contributors (`ScoreGroup.member_contributor_
+   names_json`, new): supports-vs-harms fractions per target subject
+   kind — a group that only ever harms one kind of target is
+   visible.
+3. **Validity-vote alignment (confirmation-bias read)**: for each
+   member validity vote, was the assertion FAVORABLE to the group's
+   stance on its term? alignmentRate = self-serving votes / decisive
+   votes, banded (balanced / leaning / one-sided / echo-chamber);
+   counter-stance votes are the evidence-driven signal. Small
+   samples labeled, never over-read.
+4. **Source quality**: evidence grades + scr-15 outlet accuracy over
+   the sources the group's assertions cite — "who do they cite and
+   how accurate are those outlets".
+
 ## Scorecard-side thin fixes (small, do during scr-7)
 - worldview-ballots / contextualized-term-scores / critical-contexts:
   frontend CRUD services exist, backend has NO controllers — add thin
