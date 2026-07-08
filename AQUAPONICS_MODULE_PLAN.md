@@ -168,21 +168,44 @@ Environmental impact + survival are SCORES over sim outputs:
 - Eutectic/interaction effects in nutrient chemistry: model as
   independent species first, flag interactions as a known simplification.
 
-## Build phasing (proposed — branch per confirmed phase)
-- **aqp-1**: module scaffold + object layer (PotDefinition, PotHole with
-  the gravity-clamp constraint, PotMaterial) + geometry validation +
-  seeds + selftest + a SimSpace3D pot render.
-- **aqp-2**: SoilDefinition + WaterDefinition + NutrientProfile
-  (multiscale, tunable) + the aquaponic/hydroponic source.
-- **aqp-3**: hydraulics simulation (gravity flow, reservoir, self-
-  watering behaviour) as a SimulationDefinition; the angle-drains
-  question answered.
-- **aqp-4**: PlantDefinition + PlantPart (permanent structure,
-  composition, per-part nutrient/CO₂/O₂ I/O + min–max).
-- **aqp-5**: AtmosphereDefinition + gas exchange + full coupling
-  (A↔B↔C↔atmosphere).
-- **aqp-6**: environmental-impact + survival scoring via the context-
-  scoring engine; per-part lifetime carbon/nutrient capture report.
+## Build phasing (branch per confirmed phase)
+- **aqp-1 BUILT** (dev-aqp-1-pot, 22ecbcb): PotDefinition + PotHole with
+  the gravity-clamp constraint validation, two waterproof pot materials
+  (geopolymer/ceramic) as materials-science rows + 3 hydraulic property
+  meanings, generate_holes, API. selftest_pot 20/20. (SimSpace3D render
+  deferred.)
+- **aqp-2 BUILT** (dev-aqp-2-media, e7cd7bf): NutrientSpecies vocab +
+  NutrientProfile + SoilDefinition + WaterDefinition (multiscale,
+  tunable) + aquaponic/hydroponic sources; media analysis (available
+  water, N:P:K, dissolved-gas checks; aquaponic Fe/K deficiency shows).
+  selftest_growth_media 17/17.
+- **aqp-3 NOT BUILT** — the dynamic hydraulics. Needs a NEW scikit-fem
+  scalar Darcy/diffusion engine (materials survey confirmed no fluid
+  physics exists) + *SimState classes + SimulationCouplingDefinition +
+  a MultiScaleSimulationDefinition. The reduced reservoir + Darcy-
+  through-soil model with a fidelity knob; answers "does slot angle X
+  still drain?" dynamically. THE remaining phase.
+- **aqp-4 BUILT** (dev-aqp-4-plant, 7f403df): PlantDefinition +
+  PlantPart (permanent structure + fate, composition, per-part
+  nutrient/CO₂/O₂ flux w/ min-max); part_capture, lifetime capture
+  (CAPTURED vs PERMANENTLY-SEQUESTERED by fate — refuses greenwash),
+  gas/nutrient budget. selftest_plant 16/16.
+- **aqp-5 BUILT** (dev-aqp-5-atmosphere, b210e44): AtmosphereDefinition
+  (open/controlled, CO₂/O₂/T/RH/light/ventilation); VPD by Tetens +
+  plant↔air gas exchange (open unlimited / sealed depletes / ventilated
+  steady-state CO₂). selftest_atmosphere 10/10.
+- **aqp-6 BUILT** (dev-aqp-6-impact, 3ab1e76): PotSystemDefinition binds
+  pot+soil+water+plant+atmosphere; system_survival (supply-vs-demand,
+  limiting factor named — tent VPD-stressed, sealed chamber fails on
+  CO₂) + system_impact (lifetime permanent carbon, N/P/K removed from
+  the loop, water throughput); scoring bridge = pot-environmental-impact
+  ScoreConcept ranking systems live via objectRef into
+  impact_result_json. selftest_system 13/13.
+
+**Status 2026-07-08 (evening)**: aqp-1/2/4/5/6 BUILT + committed (5
+stacked branches off the scoring stack; 76 module selftest checks
+green; scoring parity intact). NOT deployed to staging yet. aqp-3
+(hydraulics engine) is the one remaining phase.
 
 ## Conventions
 Branch per phase (dev-aqp-1…); selftests per module; staging deploy per
