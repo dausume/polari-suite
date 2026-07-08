@@ -323,6 +323,39 @@ holds office. Three systems the framework needs:
    consume tax money through programs, per area, over time (scr-4
    frames native).
 
+## scr-12a — Survival-cost intake walkthrough (personal lens, first slice) — BUILT 2026-07-08 (fw 0d3ea23, ng 6691a90: /scoring/survival wizard)
+> Dustin 2026-07-08: "walking people through entering in their
+> survival costs per month … rent, mortgage, what is required to work
+> like cars needed per person … ask them to go into their bank app
+> and go through the calendar for a month … also ask for
+> uncancellable subscriptions since those are a pseudo-tax caused by
+> corporate corruption or can be considered as such"
+
+1. **CostCategory rows** (editable vocabulary, the AgreementPolicy
+   idiom): each category carries its own WALKTHROUGH GUIDANCE ("open
+   your bank app, go through last month's calendar, sum the rent
+   payments…"), a kind (survival / work-required / pseudo-tax /
+   discretionary) and a matching ScoreTerm. 'uncancellable-
+   subscriptions' seeds as kind pseudo-tax — the classification is a
+   KNOB on the row (a contestable framing groups can later vote on
+   via scr-8/13), never baked-in fact.
+2. **Walkthrough endpoint**: ordered steps from the category rows —
+   household knobs first (household size, workers, cars needed per
+   worker), then one step per category with its guidance. The UI is
+   generated FROM the vocabulary, so editing categories edits the
+   wizard (object-coherence).
+3. **Submit**: validates against the vocabulary (unknown categories
+   refuse; skipped categories are honest gaps that travel as
+   completeness, not errors), creates a household ScoreSubject
+   (pseudonymous contributor attribution) + one ContextualizedValue
+   per category under [location, month] contexts — the profile IS
+   engine-native data from the moment it lands.
+4. **Area report**: per category across household profiles in an
+   area/month: n, mean, median; subtotals BY KIND — survival /
+   work-required / pseudo-tax — so "what does surviving here cost"
+   and "how much of that is pseudo-tax" are one read. Small samples
+   flagged.
+
 ## scr-13 — Definition accountability (the DC affordable-housing case)
 > "in DC affordable housing was promised and subsidized but what they
 > subsidized were housing for households with over 200k salary for small
