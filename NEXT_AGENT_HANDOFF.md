@@ -32,11 +32,33 @@ An earlier version may live on the isle-core Claude instance.
   judicial) — all DESIGNED in `SCORING_ACCOUNTABILITY_PLAN.md`, none
   built.
 
-### PSC (political-scorecard-node)
-- NOT running on this staging stack; NOT modified this session. The
-  scr-7 wiring that would connect it to Polari's /api/scoring is
-  unbuilt. If Dustin wants the scorecard node itself up, that's a
-  separate bring-up (its own compose; Java/Spring + Angular 19).
+### PSC (political-scorecard-node) — NOW RUNNING (combined stack)
+- End of session the stack was SWITCHED from the prf-node-only compose
+  to the **suite-root combined** `docker-compose.staging-nip.yml` (both
+  nodes, shared pol-* infra, pol-proxy routing both). PSC builds clean
+  after its revisions (psc-backend maven BUILD SUCCESS, psc-frontend).
+  Live: psc.192.168.0.210.nip.io + api.psc.192.168.0.210.nip.io (200);
+  prf.192.168.0.210.nip.io unchanged (all scoring + aquaponics intact,
+  re-seeded fresh — 1533 instances, no backfill needed on a clean vol).
+- The `.generated/` configs were stale (IP 10.0.0.101) — regenerated
+  for 192.168.0.210 via `./nip-staging-setup.sh` (no sudo needed;
+  docker works without sudo here despite the script's printed hint).
+- TRADEOFFS of the combined stack vs the old prf-node stack: NO twin
+  (prf-b-*), NO dask workers, NO msci-engines remote worker (those
+  compose files: polari-rf-node/docker-compose.{twin-b,dask,
+  msci-engines}.yml — still exist, can be run alongside; twin-b + dask
+  projects were left running on their own ports 8081-8083). The
+  beeswax@L1 FEM demo reads persisted last_result_json so it works
+  without the msci-engines worker.
+- I did NOT modify PSC source; scr-7 (scorecard ↔ Polari /api/scoring
+  wiring) is still unbuilt — PSC runs on its own mocks/backends.
+- Restart/stop the combined stack from suite root:
+  `export LOCAL_IP=192.168.0.210 && docker compose -f
+  docker-compose.staging-nip.yml --env-file .generated/.env.staging
+  up -d` (or `down`). GOTCHA: prf-backend healthcheck start_period
+  (45s) is shorter than a cold seed — it flaps 'unhealthy' on first
+  `up` and blocks pol-proxy; just re-run `up -d` once it's healthy and
+  the proxy starts. (Consider raising prf-backend start_period.)
 
 ### Branch topology — NEEDS A MERGE DECISION
 Everything is STACKED on one line of dev branches in polari-framework
