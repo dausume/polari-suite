@@ -70,6 +70,16 @@ remain parked exactly as the previous handoff described.
 - `pol build render --topology swarm` flag (today stacks derive from the
   compose bundles via stackify, which is equivalent for v1).
 
+## 3b. THE NEXT INITIATIVE (planned, not started): topology orchestration
+Dustin's directive 2026-07-09: core instance carries the full swarm/
+compose topology as object-tree data; Topology tab (instance counts, db
+kinds, connections, module-per-instance drag-drop w/ FEM/DFT/multiscale
+dependency demo); `pol topology` CLI incl. PORTABLE export/deploy
+packages (credential-free, round-trip-tested); intelligent processing
+shift (routing auto, reallocation suggested). FULL PLAN:
+TOPOLOGY_ORCHESTRATION_PLAN.md (phases top-1..top-8) + memory
+[[topology-orchestration]]. START AT top-1 (backend topology/ module).
+
 ## 4. Parked application work (unchanged from previous handoff)
 - scr-7 scorecard↔Polari wiring, scr-9..14 (SCORING_ACCOUNTABILITY_PLAN).
 - aqp-3 hydraulics (AQUAPONICS_MODULE_PLAN; isle-core has NO earlier
