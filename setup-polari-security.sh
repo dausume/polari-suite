@@ -18,6 +18,7 @@ set -e
 #   ./setup-polari-security.sh dev --skip-subs  # Only setup core Polari
 #   ./setup-polari-security.sh dev --certs-only # Only generate certificates
 #   ./setup-polari-security.sh dev --env-only   # Only create env files
+#   ./setup-polari-security.sh prod --auto       # prod, all passwords auto-generated
 # ==============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,6 +30,7 @@ ENV="${1:-dev}"
 SKIP_SUBPROJECTS=false
 CERTS_ONLY=false
 ENV_ONLY=false
+AUTO_MODE=false
 
 # Parse additional arguments
 shift || true
@@ -44,6 +46,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --env-only)
             ENV_ONLY=true
+            shift
+            ;;
+        --auto)
+            AUTO_MODE=true
             shift
             ;;
         *)
@@ -64,6 +70,8 @@ if [[ "$ENV" != "dev" && "$ENV" != "prod" && "$ENV" != "cleanup" ]]; then
     echo "  --skip-subs    Only setup core Polari, skip PSC and PRF"
     echo "  --certs-only   Only generate certificates, skip env files"
     echo "  --env-only     Only create env files, skip certificates"
+    echo "  --auto         prod: NO prompts — auto-generate every password"
+    echo "                 (default prod behavior prompts per password; Enter = random)"
     exit 1
 fi
 
@@ -258,7 +266,7 @@ if [[ "$CERTS_ONLY" != "true" ]]; then
         if [[ -n "${POLARI_KC_ADMIN_USER:-}" ]]; then
             KC_ADMIN_USER="$POLARI_KC_ADMIN_USER"
             echo "   Using provided Keycloak admin username: $KC_ADMIN_USER"
-        elif [[ "$ENV" == "dev" ]]; then
+        elif [[ "$ENV" == "dev" || "$AUTO_MODE" == "true" ]]; then
             KC_ADMIN_USER="admin"
         else
             read -p "   Keycloak admin username [admin]: " KC_ADMIN_USER
@@ -268,7 +276,7 @@ if [[ "$CERTS_ONLY" != "true" ]]; then
         if [[ -n "${POLARI_KC_ADMIN_PASS:-}" ]]; then
             KC_ADMIN_PASS="$POLARI_KC_ADMIN_PASS"
             echo "   Using provided Keycloak admin password"
-        elif [[ "$ENV" == "dev" ]]; then
+        elif [[ "$ENV" == "dev" || "$AUTO_MODE" == "true" ]]; then
             KC_ADMIN_PASS=$(generate_password)
             echo "   Generated Keycloak admin password: $KC_ADMIN_PASS"
             echo "   (save it — needed for the Keycloak admin console)"
@@ -325,7 +333,7 @@ EOF
         if [[ -n "${POLARI_MYSQL_ROOT_PASS:-}" ]]; then
             MYSQL_ROOT_PASS="$POLARI_MYSQL_ROOT_PASS"
             echo "   Using provided MariaDB root password"
-        elif [[ "$ENV" == "dev" ]]; then
+        elif [[ "$ENV" == "dev" || "$AUTO_MODE" == "true" ]]; then
             MYSQL_ROOT_PASS=$(generate_password)
             echo "   Generated MariaDB root password"
         else
@@ -340,7 +348,7 @@ EOF
         if [[ -n "${POLARI_KC_DB_PASS:-}" ]]; then
             KC_DB_PASS="$POLARI_KC_DB_PASS"
             echo "   Using provided Keycloak DB password"
-        elif [[ "$ENV" == "dev" ]]; then
+        elif [[ "$ENV" == "dev" || "$AUTO_MODE" == "true" ]]; then
             KC_DB_PASS=$(generate_password)
             echo "   Generated KC DB password"
         else
@@ -355,7 +363,7 @@ EOF
         if [[ -n "${POLARI_PSC_DB_PASS:-}" ]]; then
             PSC_DB_PASS="$POLARI_PSC_DB_PASS"
             echo "   Using provided PSC DB password"
-        elif [[ "$ENV" == "dev" ]]; then
+        elif [[ "$ENV" == "dev" || "$AUTO_MODE" == "true" ]]; then
             PSC_DB_PASS=$(generate_password)
             echo "   Generated PSC DB password"
         else
@@ -409,7 +417,7 @@ EOF
         if [[ -n "${POLARI_MINIO_ROOT_PASS:-}" ]]; then
             MINIO_PASS="$POLARI_MINIO_ROOT_PASS"
             echo "   Using provided MinIO root password"
-        elif [[ "$ENV" == "dev" ]]; then
+        elif [[ "$ENV" == "dev" || "$AUTO_MODE" == "true" ]]; then
             MINIO_PASS=$(generate_password)
             echo "   Generated MinIO root password"
         else
