@@ -1,12 +1,50 @@
-# Next-agent handoff — 2026-07-09 (PIVOT BACK TO AQUAPONICS)
+# Next-agent handoff — 2026-07-09 (AQUAPONICS PHASE 2 BUILT — tail below)
 
-Dustin is moving back to the aquaponics simulation. **START HERE:
-`AQUAPONICS_PHASE2_PLAN.md`** at the suite root — three fully-detailed,
+## ⚡ UPDATE 2026-07-09 (later session): aqp-3 / aqp-7 / aqp-8 ALL BUILT
+All three Phase-2 phases are BUILT, committed locally, and selftest-green
+(133 aquaponics checks). Branch stack in polari-framework:
+`dev-aqp-3-hydraulics` → `dev-aqp-7-vermicompost` → `dev-aqp-8-growth`
+(HEAD `dev-aqp-8-growth` = all three; commits 3780e28 / 48e5a20 /
+054f401). rf-node worker twin on `dev-aqp-3-hydraulics` (3c09349).
+Full per-phase detail + gotchas in [[aquaponics-module]] memory.
+
+**✅ DEPLOYED + LIVE-VERIFIED this session** on
+docker-compose.staging-nip.yml (prf-backend rebuilt, cold-seeded, all 8
+aquaponics selftests green in-container). Live results:
+- aqp-3 `GET /api/aquaponics/pots/demo-herb-pot/drains?soil=coir-perlite-mix`
+  → `fidelity: fem`, drains: true, 0.044 mL/s, 8192-element mesh;
+  head-field → 4225-node head field. **scikit-fem is pure-python and
+  RIDES THE ALPINE BACKEND IMAGE** (as fem_engine.py's own comment
+  says) — the FEM path runs IN-BACKEND, the msci-engines worker rebuild
+  is NOT needed for aqp-3. (The worker `/darcy/*` routes + `darcy_solver.py`
+  twin still exist as the delegation fallback; harmless, already built.)
+- aqp-7 compare-modes recommends `direct`, periodic pulse peak 5.0 mg/L
+  N; simulate persists the snapshot; the `nutrient-enrichment-efficiency`
+  ScoreConcept resolves live.
+- aqp-8 grow survives healthy (3 parts, top interaction leaf→root);
+  under starved nitrate the root goes `condition: failed, limiting:
+  nitrate-n, survived: false`.
+
+**GPT-4 TAKEOVER — remaining tail (in priority order):**
+1. **Optional: aqp-3 sim-as-data wrappers** (plan §aqp-3 item 4 —
+   PotHydraulicsSimState + SimulationDefinition + coupling). I built the
+   engine + analysis + API + scoring; deferred the runnable-sim-object
+   wrappers (not in acceptance, add risk). Same for aqp-7 CompostLoopState
+   / aqp-8 PlantLifetimeState if a runnable timeline object is wanted.
+3. **Frontend surfaces** for the three phases (none built).
+4. **Dustin browser review** + push to GitHub (repos PUBLIC — push
+   before any `pol deploy run`).
+
+Verify commands are at the bottom of this file. Nothing pushed to
+GitHub (repos PUBLIC).
+
+---
+
+Dustin moved back to the aquaponics simulation. Phase-2 plan (now
+executed): **`AQUAPONICS_PHASE2_PLAN.md`** at the suite root — three
 GPT-4-executable phases (aqp-3 FEM hydraulics → aqp-7 worm-compost
 enrichment loop → aqp-8 per-part plant growth/failure), ordered
-HARDEST→EASIEST per Dustin. Do them one at a time, branch per phase,
-selftest green before moving on. The plan is self-contained; read it
-first. Background context: [[aquaponics-module]] +
+HARDEST→EASIEST. Background: [[aquaponics-module]] +
 `AQUAPONICS_MODULE_PLAN.md`.
 
 ## The three phases (all planned in AQUAPONICS_PHASE2_PLAN.md)
@@ -37,6 +75,31 @@ aqp-3 was always "the one remaining phase". aqp-7/aqp-8 are NEW
 (2026-07-09). Module lives at
 `polari-rf-node/polari-framework/aquaponics/`; conventions + the exact
 polariServer wiring points are in AQUAPONICS_PHASE2_PLAN.md §0.
+
+## Live-verify commands for the aqp-3/7/8 endpoints
+After `export LOCAL_IP=192.168.0.210` + `docker compose -f
+docker-compose.staging-nip.yml up -d --build prf-backend` and the cold
+seed finishes (backend serves :3000), from the suite root:
+
+```
+# in-container selftests (all 8 suites; 133 checks)
+for t in pot growth_media plant atmosphere system hydraulics \
+         vermicompost plant_growth; do \
+  docker exec prf-backend python3 -m aquaponics.selftest_$t | tail -1; done
+
+# aqp-3 hydraulics (reservoir until the worker carries skfem)
+docker exec prf-backend python3 -c "import urllib.request as u; \
+print(u.urlopen('http://localhost:3000/api/aquaponics/pots/demo-herb-pot/drains?soil=coir-perlite-mix').read())"
+# aqp-7 vermicompost
+docker exec prf-backend python3 -c "import urllib.request as u; \
+print(u.urlopen('http://localhost:3000/api/aquaponics/compost-loops/basil-loop-direct/compare-modes').read())"
+# aqp-8 growth
+docker exec prf-backend python3 -c "import json,urllib.request as u; \
+r=u.Request('http://localhost:3000/api/aquaponics/plants/sweet-basil/grow',\
+data=json.dumps({'days':120}).encode(),headers={'Content-Type':'application/json'}); \
+print(u.urlopen(r).read()[:400])"
+```
+Public proxy equivalent: `https://api.prf.192.168.0.210.nip.io/api/aquaponics/...`
 
 ## Deploy discipline (bit me repeatedly)
 - `export LOCAL_IP=192.168.0.210` before ANY docker compose on

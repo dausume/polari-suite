@@ -1,5 +1,22 @@
 # Aquaponics Module — Phase 2 Plan (aqp-3 / aqp-7 / aqp-8)
 
+> **✅ STATUS 2026-07-09: ALL THREE PHASES BUILT + LIVE-VERIFIED on
+> staging.** 133 aquaponics selftest checks green; prf-backend rebuilt
+> + cold-seeded. aqp-3 runs the scikit-fem Darcy solve IN-BACKEND
+> (`fidelity: fem`, 8192 elems — skfem is pure-python and rides the
+> Alpine image, so the msci-engines worker rebuild is NOT needed);
+> aqp-7 compare-modes + simulate-persist + `nutrient-enrichment-
+> efficiency` scoring resolve; aqp-8 grow survives healthy and FAILS
+> under starved nitrate naming `nitrate-n`. Branch stack (framework)
+> `dev-aqp-3-hydraulics → dev-aqp-7-vermicompost → dev-aqp-8-growth`
+> (054f401); rf-node worker twin `dev-aqp-3-hydraulics` (3c09349).
+> NOT pushed to GitHub. Remaining tail + verify commands: see
+> `NEXT_AGENT_HANDOFF.md`. The runnable-sim-object wrappers (*SimState
+> / SimulationDefinition, §aqp-3 item 4) were intentionally deferred
+> (not in acceptance; the engine+analysis+API+scoring for each phase
+> ARE built). Below is the original plan, retained for reference.
+
+
 **Written 2026-07-09 as a durable, executable handoff.** Three new
 phases extend the existing `aquaponics/` module. Ordered HARDEST →
 EASIEST (Dustin's directive) so the executing agent front-loads risk:
