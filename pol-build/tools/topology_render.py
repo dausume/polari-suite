@@ -170,10 +170,11 @@ def group_instances(doc):
                 'file': 'docker-compose.msci-engines.yml',
                 'stack': 'polari-engines', 'role': 'engines',
                 'replicas': i.get('replicas', 1),
-                'placement': (f'node.hostname == {machine}'
-                              if i.get('placement_constraint', '')
-                              == '' and machine else
-                              i.get('placement_constraint', '')),
+                # machines are addressed by the stable label pol swarm
+                # init/join sets, never by hostname
+                'placement': (i.get('placement_constraint', '')
+                              or (f'node.labels.polari.machine == '
+                                  f'{machine}' if machine else '')),
                 'remote': remote,
                 'action': 'pol swarm deploy engines'})
         elif k == ENGINES and target == 'compose':

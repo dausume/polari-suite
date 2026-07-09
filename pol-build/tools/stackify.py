@@ -11,6 +11,9 @@ Transforms (each an explicit swarm-schema requirement):
   - networks declared `external: true` with LOCAL scope become stack-owned
     overlay networks (cross-stack shared overlays are a later refinement —
     the stack gets its own namespaced overlay)
+  - --constraint <service>=<expr> (repeatable, top-4): emit
+    deploy.placement.constraints — how `pol allocate` pins a service to
+    a machine (node labels, set by pol swarm init/join)
 
 stdin: compose-config yaml   stdout: stack yaml
 """
@@ -18,8 +21,24 @@ import sys
 
 import yaml
 
+constraints = {}
+args = sys.argv[1:]
+while args:
+    if args[0] == "--constraint" and len(args) > 1:
+        svc, _, expr = args[1].partition("=")
+        constraints.setdefault(svc, []).append(expr)
+        args = args[2:]
+    else:
+        args = args[1:]
+
 doc = yaml.safe_load(sys.stdin)
 doc.pop("name", None)
+
+for name, svc in (doc.get("services") or {}).items():
+    for expr in constraints.get(name, []):
+        placement = svc.setdefault("deploy", {}).setdefault(
+            "placement", {})
+        placement.setdefault("constraints", []).append(expr)
 
 for svc in (doc.get("services") or {}).values():
     svc.pop("container_name", None)
