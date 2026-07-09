@@ -63,17 +63,19 @@
 # # USAGE:
 # #   sudo docker compose -f docker-compose.staging-nip.yml --env-file .generated/.env.{{ gen_env }} up -d --build
 # #
-# # ACCESS (using your local IP, e.g., 10.0.0.102):
-# #   - Landing:        https://10.0.0.102.nip.io
-# #   - Keycloak:       https://auth.10.0.0.102.nip.io
-# #   - PSC Frontend:   https://psc.10.0.0.102.nip.io
-# #   - PSC API:        https://api.psc.10.0.0.102.nip.io
-# #   - PRF Frontend:   https://prf.10.0.0.102.nip.io
-# #   - PRF API:        https://api.prf.10.0.0.102.nip.io
-# #   - MinIO Console:  https://files.10.0.0.102.nip.io
-# #   - MinIO S3 API:   https://s3.10.0.0.102.nip.io
+# # ACCESS (auto-rendered from the configured LOCAL_IP):
+# #   - Landing:        https://{{ local_ip }}.nip.io
+# #   - Keycloak:       https://auth.{{ local_ip }}.nip.io
+# #   - PSC Frontend:   https://psc.{{ local_ip }}.nip.io
+# #   - PSC API:        https://api.psc.{{ local_ip }}.nip.io
+# #   - PRF Frontend:   https://prf.{{ local_ip }}.nip.io
+# #   - PRF API:        https://api.prf.{{ local_ip }}.nip.io
+# #   - MinIO Console:  https://files.{{ local_ip }}.nip.io
+# #   - MinIO S3 API:   https://s3.{{ local_ip }}.nip.io
 # #
-# # NOTE: extra_hosts use ${LOCAL_IP} which is resolved from --env-file at launch.
+# # NOTE: extra_hosts use ${LOCAL_IP}, resolved from --env-file at LAUNCH time
+# # (the runtime knob); the doc URLs above are rendered from the CONFIGURED
+# # LOCAL_IP at BUILD time (env > .generated/.env.staging > route lookup).
 # #
 # # ==============================================================================
 # 

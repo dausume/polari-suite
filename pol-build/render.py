@@ -63,7 +63,30 @@ def load_context(setup_path, env_override=None):
     ctx["env_name"] = env_name
     ctx["active_env_vars"] = env         # rf-node jinja-gen/playbook.yml names
     ctx["active_env_name"] = env_name
+    ctx.setdefault("local_ip", resolve_local_ip(os.path.dirname(os.path.abspath(setup_path))))
     return ctx
+
+
+def resolve_local_ip(project_dir):
+    """The IP doc-comments render with — 'whatever it is set to become by
+    the scripts': env LOCAL_IP > .generated/.env.staging > route lookup."""
+    if os.environ.get("LOCAL_IP"):
+        return os.environ["LOCAL_IP"]
+    gen = os.path.join(project_dir, ".generated", ".env.staging")
+    if os.path.exists(gen):
+        with open(gen) as fh:
+            for line in fh:
+                if line.startswith("LOCAL_IP="):
+                    return line.strip().split("=", 1)[1]
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("192.168.0.1", 80))
+        return s.getsockname()[0]
+    except OSError:
+        return "127.0.0.1"
+    finally:
+        s.close()
 
 
 def run_embed_extraction(project_dir):
