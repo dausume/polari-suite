@@ -13,8 +13,8 @@ actions:
   command: pol compose suite up
 - order: 2
   group: engines-stack
-  machine: staging-a
-  remote: false
+  machine: lightweight
+  remote: true
   instances:
   - engines
   command: pol swarm deploy engines

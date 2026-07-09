@@ -16,6 +16,15 @@ topology:
   notes: Seeded by top-1 to mirror the live 2026-07-09 deployment; becomes the first
     portable package (topologies/staging-a.topology.yml, top-3).
 machines:
+- name: lightweight
+  ssh_alias: lightweight
+  arch: x86_64
+  mem_gb: 7.5
+  roles_json: '["engines", "remote-worker"]'
+  swarm_role: worker
+  repo_dir: ~/polari-suite
+  source: nodes.yml
+  notes: "N95 4-core / 7.5G; suspend disabled 2026-07-08 \u2014 safe headless target."
 - name: staging-a
   ssh_alias: ''
   arch: x86_64
@@ -32,7 +41,7 @@ instances:
   service_kinds_json: '["prf-msci-engines"]'
   replicas: 1
   env_tier: staging
-  machine_name: staging-a
+  machine_name: lightweight
   placement_constraint: ''
   db_backend: sqlite
   image_tag: staging
@@ -119,12 +128,24 @@ assignments:
   state: enabled
   topology_name: staging-a
   notes: DFT engine capability on the engines worker.
+- name: materialsScience.dft@prf-dask
+  module_name: materialsScience.dft
+  instance_name: prf-dask
+  state: disabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
 - name: materialsScience.fem@engines
   module_name: materialsScience.fem
   instance_name: engines
   state: enabled
   topology_name: staging-a
   notes: FEM engine capability on the engines worker.
+- name: materialsScience.fem@prf-dask
+  module_name: materialsScience.fem
+  instance_name: prf-dask
+  state: disabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
 - name: materialsScience.multiscale@prf-a
   module_name: materialsScience.multiscale
   instance_name: prf-a

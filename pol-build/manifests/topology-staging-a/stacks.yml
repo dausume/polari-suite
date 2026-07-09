@@ -3,7 +3,7 @@
 stacks:
 - stack: polari-engines
   role: engines
-  machine: staging-a
+  machine: lightweight
   replicas: 1
-  placement: node.hostname == staging-a
+  placement: node.labels.polari.machine == lightweight
   source: docker-compose.msci-engines.yml
