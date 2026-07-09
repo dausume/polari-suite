@@ -67,21 +67,40 @@ def load_context(setup_path):
 
 
 def run_embed_extraction(project_dir):
-    """Run the bash detector + processor (annotated file -> .j2)."""
-    gen_dir = os.path.join(project_dir, "jinja-gen")
-    detector = os.path.join(gen_dir, "embedded-jinja-detector.sh")
-    processor = os.path.join(gen_dir, "embed-jinja-file-processor.sh")
-    if not os.path.exists(detector):
+    """Run the bash detector + processor (annotated file -> .j2).
+
+    Tooling: the canonical copies live in pol-build/ (next to this file);
+    a project-local jinja-gen/ pair is honored as a fallback. Detection
+    scope: <project>/pol-services/ when it exists (the bld-3 annotated
+    source tree), else the whole project.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = [here, os.path.join(project_dir, "jinja-gen")]
+    detector = processor = None
+    for c in candidates:
+        d = os.path.join(c, "embedded-jinja-detector.sh")
+        p = os.path.join(c, "embed-jinja-file-processor.sh")
+        if os.path.exists(d) and os.path.exists(p):
+            detector, processor = d, p
+            break
+    if not detector:
         return 0
-    out = subprocess.run(["bash", detector, project_dir],
+    scope = os.path.join(project_dir, "pol-services")
+    if not os.path.isdir(scope):
+        scope = project_dir
+    excludes = [os.path.join(project_dir, x)
+                for x in ("node_modules", ".git", "jinja-build", "jinja-templates")]
+    out = subprocess.run(["bash", detector, scope, *excludes],
                          capture_output=True, text=True, check=False).stdout
     hits = [l.strip() for l in out.splitlines() if l.strip() and os.path.isfile(l.strip())]
     for f in hits:
+        # processor mirrors paths relative to its <project_dir> arg — pass
+        # the real project root so templates land in <project>/jinja-templates/.
         subprocess.run(["bash", processor, project_dir, f], check=True)
     return len(hits)
 
 
-def render(project_dir, setup_path, check=False):
+def render(project_dir, setup_path, check=False, only=None):
     ctx = load_context(setup_path)
     tdir = os.path.join(project_dir, "jinja-templates")
     bdir = os.path.join(project_dir, "jinja-build")
@@ -99,6 +118,8 @@ def render(project_dir, setup_path, check=False):
         for name in sorted(files):
             if not name.endswith(".j2"):
                 continue  # e.g. compose_macros.jinja — import-only
+            if only and name not in (only, only + ".j2"):
+                continue
             rel = os.path.relpath(os.path.join(root, name), tdir)
             total += 1
             out_text = env.get_template(rel.replace(os.sep, "/")).render(**ctx)
@@ -131,13 +152,15 @@ def main():
     ap.add_argument("project_dir")
     ap.add_argument("--setup", default=None, help="values file (default <project>/setup.yml)")
     ap.add_argument("--check", action="store_true", help="report drift, write nothing, exit 1 on change")
+    ap.add_argument("--only", default=None, metavar="NAME",
+                    help="render just one bundle (template basename, .j2 optional)")
     args = ap.parse_args()
     project = os.path.abspath(args.project_dir)
     setup = args.setup or os.path.join(project, "setup.yml")
     n = run_embed_extraction(project)
     if n:
         print(f"  extracted {n} annotated working file(s) -> jinja-templates/")
-    sys.exit(render(project, setup, check=args.check))
+    sys.exit(render(project, setup, check=args.check, only=args.only))
 
 
 if __name__ == "__main__":

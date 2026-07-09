@@ -1,0 +1,18 @@
+# ==============================================================================
+# POLARI SUITE — build values (pol-build/render.py context)
+# ==============================================================================
+# CREDENTIAL-FREE by policy: templates reference generated env files
+# (setup-polari-security.sh), never secret values. render.py refuses/warns
+# on credential-like keys.
+# Variation axis 'env' — see pol-build/registry/services.yml variation_axes.
+# ==============================================================================
+current-setup:
+  env: staging
+
+environments:
+  dev:
+    suite_image_tag: latest
+  staging:
+    suite_image_tag: staging
+  prod:
+    suite_image_tag: prod

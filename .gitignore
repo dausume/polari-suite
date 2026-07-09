@@ -88,3 +88,7 @@ nginx.prod.conf
 # Claude Code local files (settings, memory) — keep private
 .claude/
 CLAUDE.local.md
+
+# Generated mirror trees (pol build render --project suite)
+jinja-build/
+jinja-templates/
