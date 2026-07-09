@@ -1,96 +1,76 @@
-# Next-agent handoff — 2026-07-09 (build-system round complete)
+# Next-agent handoff — 2026-07-09 (topology orchestration round COMPLETE)
 
-The 2026-07-08→09 session pivoted (per Dustin) from scorecard/hydroponics
-to the BUILD SYSTEM. That round is now functionally COMPLETE (bld-1..7
-v1). Full log in memory [[polari-build-system]]; design in
-BUILD_SYSTEM_PLAN.md. Scorecard (scr-7, scr-9..14) + aquaponics (aqp-3)
-remain parked exactly as the previous handoff described.
+The 2026-07-09 overnight session built ALL of top-1..top-8
+(TOPOLOGY_ORCHESTRATION_PLAN.md) — built, committed branch-per-phase,
+and live-verified on staging A + the lightweight node. Full reference
++ gotchas in memory [[topology-orchestration]].
 
 ## 0. FIRST THINGS
-- **NOTHING IS PUSHED.** All work is in LOCAL commits on: suite
-  `dev-build-security`, rf-node `dev-jinja-family`, polari-cli `dev`.
-  All repos are PUBLIC ([[public-repos-hygiene]]) — the branch stacks
-  also still hold the older scr-*/aqp-* work unpushed. `pol deploy run`
-  pulls from GitHub, so PUSH BEFORE any remote deploy.
-- The `pol` CLI is installed at ~/.local/bin/pol (symlink to
-  polari-cli/index.js). `pol help` + `pol <module> help` are the living
-  docs; polari-cli/docs/QUICK-REFERENCE.md is the cheat sheet.
+- **NOTHING IS PUSHED to GitHub.** Local branch stacks:
+  suite `dev-top-4-multinode` (over dev-top-3 ... dev-build-security),
+  polari-cli `dev-top-4-multinode`, polari-rf-node
+  `dev-topology-orchestration`, polari-framework `dev-top-1-topology`,
+  polari-platform-angular `dev-top-5-topology-tab`. All repos PUBLIC —
+  push before any `pol deploy run` (nodes pull GitHub).
+- The LIVE system now spans TWO machines: staging A (core, swarm
+  manager) + lightweight (swarm WORKER running the polari-engines
+  stack task). `pol topology diff` = NO DRIFT across both.
 
-## 1. What the build system now is
-- **Every compose file (13) is a GENERATED artifact.** Sources:
-  pol-services/ (suite + polari-rf-node) — isle-mesh jinja-script idiom
-  (comment-jinja, `## variation:` notes). WORKFLOW: edit pol-services/*,
-  `pol build render [--project suite]`, `pol build promote`. Byte-parity
-  gates catch drift. NEVER hand-edit the root compose files.
-- **Credentials**: all setup-generated or knob-supplied (skip-if-exists,
-  volume-baked passwords never regenerate). `pol security setup`
-  (dev=random; prod=per-password choice; prod --auto=all random).
-  Leaked prf KC client secret was rotated; env files untracked.
-- **Proxies**: nginx configs generate in-pipeline (`pol proxy
-  render|check|promote`; check = containerized nginx -t). Byte-parity
-  with the old sed outputs; sed path still exists in setup scripts
-  (retire once prod domain flows through: POLARI_PROD_DOMAIN knob).
-- **Swarm (isle-mesh stand-in)**: `pol swarm deploy engines` PROVEN E2E
-  on staging A (single-node swarm, overlay net, service answering on
-  :9500 — left RUNNING as polari-engines stack). suite/node stacks
-  render to .generated/stack-*.yml but refuse to deploy while their
-  compose twins hold ports 80/443. v1 inlines creds via compose-config;
-  docker-secrets is the queued refinement.
-- **ssh deploys**: `pol deploy nodes|preflight|run` per
-  pol-build/manifests/nodes.yml (isle-core + lightweight; lightweight
-  preflight verified live, suspend disabled so it's headless-safe).
-- **Shorthands**: `pol start|rebuild|stop|last` replay the recorded
-  last-build approach (works for compose AND swarm — currently records
-  swarm/engines). Missing-state/missing-render cases explain the
-  pipeline instead of failing.
-- **Registry**: pol-build/registry/services.yml = 19 service kinds +
-  interconnects (instance-wiring artifacts incl. the scr-7 seam).
-  `pol registry check` green. `pol config service <kind>` for nested
-  per-service views; `pol db` (twin sqlite<->combo switching live);
-  `pol modules` (list/deps/selftest inside prf-backend); `pol cert`
-  (prod choice: self-signed vs Let's Encrypt walkthrough + cron
-  auto-renew — all open source).
+## 1. What topology orchestration now is
+- **Topology = rows on the core** (`topology/` module, /api/topology/*):
+  machines, instances, module assignments, dependency edges, typed
+  connections (registry interconnects), desired vs observed.
+  Seeds mirror staging-a truth. 52-check selftest
+  (`pol modules selftest topology`).
+- **CLI**: `pol topology status|graph|validate|pull|push|diff|report|
+  render|apply|deploy|assign`, `pol allocate`, `pol swarm join`.
+  Files (topologies/*.topology.yml, nodes.yml) are interchange; rows
+  are truth. render → manifests/topology-<name>/ is byte-parity-gated
+  against the generated bundles.
+- **Portable packages**: topologies/staging-a.topology.yml (committed,
+  credential-free). `pol topology deploy <pkg>` = push→render→apply;
+  round trip proven live.
+- **Multi-node**: `pol swarm join lightweight` done (node label
+  polari.machine=*, topology row auto-updated). `pol allocate engines
+  lightweight` moved the stack there live (image via docker save|ssh
+  load; placement by label; pyscf still served through the routing
+  mesh). isle-core NOT joined yet.
+- **Topology tab** (/topology): drift banner (carries suggested pol
+  commands incl. top-8 reallocation suggestions), validation findings,
+  instance cards, connections w/ artifacts, D3 graph, CDK drag-drop
+  module chips → /assign. DEPLOYED in prf-frontend.
+  **⚠️ Dustin's browser/visual review pending** (assign was
+  live-verified via CLI only).
+- **Provider routing (top-7)**: materialsScience delegation ladders
+  MSCI_ENGINES_URL (knob wins) → topology-resolved LIVE provider →
+  honest refusal. The suite backend now gets pyscf WITHOUT the env
+  var. Failures mark edges degraded (amber in the tab) and yield
+  one-click reallocation suggestions in drift (top-8).
 
-## 2. Live state on staging A (192.168.0.210)
-- Combined compose suite UP (prf+psc, all 200 — scoring + aquaponics
-  data intact). Single-node swarm ACTIVE with the polari-engines stack
-  running (:9500). twin-b/dask compose projects still up (8081-8083).
-- Suite .env + credential env files exist with LEGACY dev values
-  (admin/kcpassword era) — expected: skip-if-exists protects the live
-  volumes. Fresh installs get random everywhere.
+## 2. Live state
+- staging A: combined suite (prf+psc, all healthy), twin-b, dask
+  (project polari-dask), swarm manager. lightweight: swarm worker,
+  runs polari-engines task (:9500 via mesh). Both nodes observed
+  (pol topology report [--node lightweight]).
+- ⚠️ LOCAL_IP must be exported for ANY docker compose command on
+  docker-compose.staging-nip.yml (minio crash-loops otherwise).
 
-## 3. Remaining build refinements (none blocking)
-- docker-secrets mounting for swarm (replace compose-config inlining).
-- Segment/assembly decomposition of the proxy sources (isle-mesh
-  segments model) + retire the sed path from setup scripts.
-- rf-node core-five service sources could merge more line-level (they
-  group per-env where blocks differ — correct but coarse).
-- multi-node swarm: join lightweight/isle-core (`pol swarm join-token`,
-  `pol deploy`), then real placement.
-- `pol build render --topology swarm` flag (today stacks derive from the
-  compose bundles via stackify, which is equivalent for v1).
+## 3. Follow-ups (none blocking)
+- Push the branch stacks; Dustin's tab review; validator render-level
+  checks (ports); sustained-failure history for reallocation;
+  docker-secrets for swarm; registry-based image distribution
+  (replace save|load); join isle-core when wanted.
 
-## 3b. THE NEXT INITIATIVE (planned, not started): topology orchestration
-Dustin's directive 2026-07-09: core instance carries the full swarm/
-compose topology as object-tree data; Topology tab (instance counts, db
-kinds, connections, module-per-instance drag-drop w/ FEM/DFT/multiscale
-dependency demo); `pol topology` CLI incl. PORTABLE export/deploy
-packages (credential-free, round-trip-tested); intelligent processing
-shift (routing auto, reallocation suggested). FULL PLAN:
-TOPOLOGY_ORCHESTRATION_PLAN.md (phases top-1..top-8) + memory
-[[topology-orchestration]]. START AT top-1 (backend topology/ module).
-
-## 4. Parked application work (unchanged from previous handoff)
-- scr-7 scorecard↔Polari wiring, scr-9..14 (SCORING_ACCOUNTABILITY_PLAN).
-- aqp-3 hydraulics (AQUAPONICS_MODULE_PLAN; isle-core has NO earlier
-  spec — searched 2026-07-08, rebuilt plan is canonical).
-- Aquaponics frontend pages; live vote ingestion seam.
+## 4. Parked application work (unchanged)
+- scr-7 scorecard↔Polari wiring, scr-9..14; aqp-3 hydraulics;
+  aquaponics frontend pages; live vote ingestion.
 
 ## 5. Gotchas carried forward
-- prf-backend healthcheck flap on cold seed → re-run `pol suite up`.
-- `##` author comments strip only INSIDE `# jinja-start` blocks.
-- registry.sh check maps compose names→kinds via its ALIASES dict.
+- prf-backend healthcheck flap on cold seed; :3000 binds after seeding.
+- API-created treeObject rows need explicit saveInstanceInDB.
+- docker exec python3 = fresh process — provider_registry.MANAGER only
+  lives in the server; test routing via HTTP endpoints.
+- ssh'd docker --format strings with inner quotes = ONE quoted string.
 - Angular templates: literal `@` breaks builds — use `&#64;`.
-- falcon POST bodies must read `request.bounded_stream`.
-- Host python can't import polariServer (PyJWT) — selftests run inside
-  the prf-backend container (`pol modules selftest <mod>`).
+- falcon POST bodies read request.bounded_stream.
+- Host python can't import polariServer — selftests run in-container.
