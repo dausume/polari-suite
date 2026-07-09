@@ -1,0 +1,19 @@
+# ==============================================================================
+# POLARI DEPLOY TARGETS (bld-6) — machines `pol deploy` can drive over ssh.
+# NO SECRETS here: ssh uses the aliases from ~/.ssh/config (key auth);
+# credentials self-generate ON the target via the setup scripts.
+# ==============================================================================
+nodes:
+  isle-core:
+    ssh: isle-core                # detts@192.168.0.24 (passwordless key)
+    repo_dir: ~/polari-suite
+    roles: [engines, remote-worker, node]
+    notes: "6-core i5 / 7.6G; also runs the Isle-Mesh project + its own Claude"
+  lightweight:
+    ssh: lightweight              # dausume@192.168.0.66 (passwordless key)
+    repo_dir: ~/polari-suite
+    roles: [engines, remote-worker]
+    notes: "N95 4-core / 7.5G; suspend disabled 2026-07-08 — safe headless target"
+
+# Repos are PUBLIC — clone needs no credentials:
+repo_url: https://github.com/dausume/polari-suite.git
