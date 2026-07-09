@@ -1,0 +1,81 @@
+# jinja-start
+## SERVICE: prf-frontend — annotated source (see suite-bundle.yml).
+## Rendered per env by pol-build/manifests/suite-bundles.yml.
+## variation: env — prf-frontend differs per tier: dev | staging | prod
+# {% if env_name == 'dev' %}
+# 
+#   # ============================================
+#   # POLARI RESEARCH FRAMEWORK (PRF) SERVICES
+#   # ============================================
+# 
+#   # PRF Frontend - Angular Application
+#   prf-frontend:
+#     build:
+#       context: ./polari-rf-node/polari-platform-angular
+#     container_name: prf-frontend
+#     image: prf-frontend:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./polari-rf-node/.env
+#     volumes:
+#       - prf_frontend_dist:/project/dist
+#       - prf_frontend_cache:/project/.angular
+#     depends_on:
+#       - prf-backend
+# {% elif env_name == 'staging' %}
+# 
+#   # ============================================
+#   # POLARI RESEARCH FRAMEWORK (PRF) SERVICES
+#   # ============================================
+# 
+#   prf-frontend:
+#     build:
+#       context: ./polari-rf-node/polari-platform-angular
+#       dockerfile: Dockerfile.prod
+#     container_name: prf-frontend
+#     image: prf-frontend:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+#     volumes:
+#       # Mount generated runtime config for nip.io URLs
+#       - ./{{ prf_runtime_config }}:/usr/share/nginx/html/assets/runtime-config.json:ro
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 64M
+#           cpus: '0.2'
+#         reservations:
+#           memory: 32M
+#           cpus: '0.05'
+#     depends_on:
+#       - prf-backend
+# {% elif env_name == 'prod' %}
+# 
+#   # ============================================
+#   # POLARI RESEARCH FRAMEWORK (PRF) SERVICES
+#   # ============================================
+# 
+#   prf-frontend:
+#     build:
+#       context: ./polari-rf-node/polari-platform-angular
+#       dockerfile: Dockerfile.prod
+#     container_name: prf-frontend
+#     image: prf-frontend:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+#     volumes:
+#       # Mount generated runtime config for production URLs
+#       - ./{{ prf_runtime_config }}:/usr/share/nginx/html/assets/runtime-config.json:ro
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 64M
+#           cpus: '0.2'
+#         reservations:
+#           memory: 32M
+#           cpus: '0.05'
+#     depends_on:
+#       - prf-backend
+# {% endif %}
+# jinja-end

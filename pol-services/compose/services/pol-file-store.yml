@@ -1,0 +1,99 @@
+# jinja-start
+## SERVICE: pol-file-store — annotated source (see suite-bundle.yml).
+## Rendered per env by pol-build/manifests/suite-bundles.yml.
+## variation: env — pol-file-store differs per tier: dev | staging | prod
+# {% if env_name == 'dev' %}
+# 
+#   # MinIO S3-compatible Object Storage - shared file store
+#   pol-file-store:
+#     build:
+#       context: ./pol-file-store
+#       dockerfile: Dockerfile
+#     container_name: pol-file-store
+#     image: pol-file-store:{{ suite_image_tag }}
+#     restart: always
+#     ports:
+#       - "9000:9000"   # S3 API
+#       - "9001:9001"   # MinIO Console
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./pol-file-store/minio.env
+#     volumes:
+#       - pol_file_store_data:/data
+#     healthcheck:
+#       test: ["CMD", "mc", "ready", "local"]
+#       start_period: 10s
+#       interval: 10s
+#       timeout: 5s
+#       retries: 3
+# {% elif env_name == 'staging' %}
+# 
+#   # MinIO S3-compatible Object Storage - shared file store
+#   pol-file-store:
+#     build:
+#       context: ./pol-file-store
+#       dockerfile: Dockerfile
+#     container_name: pol-file-store
+#     image: pol-file-store:{{ suite_image_tag }}
+#     restart: always
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./pol-file-store/minio.env
+#     environment:
+#       # Tell MinIO its external URLs so presigned URLs and console redirects work
+#       - MINIO_SERVER_URL=https://s3.${LOCAL_IP}.nip.io
+#       - MINIO_BROWSER_REDIRECT_URL=https://files.${LOCAL_IP}.nip.io
+#     volumes:
+#       - pol_file_store_data:/data
+#     healthcheck:
+#       test: ["CMD", "mc", "ready", "local"]
+#       start_period: 10s
+#       interval: 10s
+#       timeout: 5s
+#       retries: 3
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 256M
+#           cpus: '0.3'
+#         reservations:
+#           memory: 128M
+#           cpus: '0.1'
+# {% elif env_name == 'prod' %}
+# 
+#   # MinIO S3-compatible Object Storage - shared file store
+#   pol-file-store:
+#     build:
+#       context: ./pol-file-store
+#       dockerfile: Dockerfile
+#     container_name: pol-file-store
+#     image: pol-file-store:{{ suite_image_tag }}
+#     restart: always
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./.generated/.env.{{ gen_env }}
+#     environment:
+#       # Tell MinIO its external URLs so presigned URLs and console redirects work
+#       - MINIO_SERVER_URL=https://s3.${PROD_DOMAIN}
+#       - MINIO_BROWSER_REDIRECT_URL=https://files.${PROD_DOMAIN}
+#     volumes:
+#       - pol_file_store_data:/data
+#     healthcheck:
+#       test: ["CMD", "mc", "ready", "local"]
+#       start_period: 10s
+#       interval: 10s
+#       timeout: 5s
+#       retries: 3
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 256M
+#           cpus: '0.3'
+#         reservations:
+#           memory: 128M
+#           cpus: '0.1'
+# {% endif %}
+# jinja-end

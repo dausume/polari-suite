@@ -1,0 +1,38 @@
+# jinja-start
+## SERVICE: psc-redis — annotated source (see suite-bundle.yml).
+## Rendered per env by pol-build/manifests/suite-bundles.yml.
+## variation: env — psc-redis differs per tier: dev | staging+prod
+# {% if env_name == 'dev' %}
+# 
+#   # PSC Cache - Redis
+#   psc-redis:
+#     build: ./political-scorecard-node/political-scorecard-backend/redis
+#     container_name: psc-redis
+#     image: psc-redis:{{ suite_image_tag }}
+#     ports:
+#       - "6379:6379"  # External access for Redis tools
+#     networks:
+#       - polari-network
+#     volumes:
+#       - psc_redis_data:/data
+# {% elif env_name == 'staging' or env_name == 'prod' %}
+# 
+#   psc-redis:
+#     build: ./political-scorecard-node/political-scorecard-backend/redis
+#     container_name: psc-redis
+#     image: psc-redis:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+#     volumes:
+#       - psc_redis_data:/data
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 128M
+#           cpus: '0.2'
+#         reservations:
+#           memory: 64M
+#           cpus: '0.05'
+#     command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
+# {% endif %}
+# jinja-end

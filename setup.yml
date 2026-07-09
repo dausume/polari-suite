@@ -2,8 +2,7 @@
 # POLARI SUITE — build values (pol-build/render.py context)
 # ==============================================================================
 # CREDENTIAL-FREE by policy: templates reference generated env files
-# (setup-polari-security.sh), never secret values. render.py refuses/warns
-# on credential-like keys.
+# (setup-polari-security.sh), never secret values.
 # Variation axis 'env' — see pol-build/registry/services.yml variation_axes.
 # ==============================================================================
 current-setup:
@@ -12,7 +11,16 @@ current-setup:
 environments:
   dev:
     suite_image_tag: latest
+    gen_env: dev
+    prf_runtime_config: ".generated/prf-runtime-config.json"
+    psc_runtime_config: ".generated/psc-runtime-config.json"
   staging:
     suite_image_tag: staging
+    gen_env: staging
+    prf_runtime_config: ".generated/prf-runtime-config.json"
+    psc_runtime_config: ".generated/psc-runtime-config.json"
   prod:
     suite_image_tag: prod
+    gen_env: prod
+    prf_runtime_config: ".generated/prf-runtime-config.prod.json"
+    psc_runtime_config: ".generated/psc-runtime-config.prod.json"

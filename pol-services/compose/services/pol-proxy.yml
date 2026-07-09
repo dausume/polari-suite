@@ -1,0 +1,123 @@
+# jinja-start
+## SERVICE: pol-proxy — annotated source (see suite-bundle.yml).
+## Rendered per env by pol-build/manifests/suite-bundles.yml.
+## variation: env — pol-proxy differs per tier: dev | staging | prod
+# {% if env_name == 'dev' %}
+# 
+#   # ============================================
+#   # PROXY SERVICE (Dev - Port-based routing)
+#   # ============================================
+# 
+#   pol-proxy:
+#     build:
+#       context: ./pol-proxy
+#       dockerfile: Dockerfile
+#       args:
+#         NGINX_CONF: nginx.dev.conf
+#     container_name: pol-proxy
+#     image: pol-proxy:{{ suite_image_tag }}
+#     ports:
+#       - "443:443"     # Default HTTPS (redirects to PSC Frontend)
+#       - "2053:2053"   # PSC Frontend (Cloudflare HTTPS)
+#       - "2083:2083"   # PSC Backend API (Cloudflare HTTPS)
+#       - "2087:2087"   # PRF Frontend (Cloudflare HTTPS)
+#       - "2096:2096"   # PRF Backend API (Cloudflare HTTPS)
+#       - "8443:8443"   # Keycloak Auth (Cloudflare HTTPS)
+#     networks:
+#       - polari-network
+#     depends_on:
+#       - pol-keycloak
+#       - psc-frontend
+#       - psc-backend
+#       - prf-frontend
+#       - prf-backend
+# {% elif env_name == 'staging' %}
+# 
+#   # ============================================
+#   # STAGING PROXY (subdomain routing via nip.io)
+#   # ============================================
+# 
+#   pol-proxy:
+#     build:
+#       context: ./pol-proxy
+#       dockerfile: Dockerfile
+#       args:
+#         NGINX_CONF: nginx.dev.conf
+#     container_name: pol-proxy
+#     image: pol-proxy:{{ suite_image_tag }}
+#     ports:
+#       - "80:80"
+#       - "443:443"
+#     networks:
+#       - polari-network
+#     volumes:
+#       # Mount generated nginx config (from nip-staging-setup.sh)
+#       - ./.generated/nginx.{{ gen_env }}.conf:/etc/nginx/nginx.conf:ro
+#       # Mount generated nip.io certificates
+#       - ./pol-proxy/certs/nip.io:/etc/nginx/certs/nip.io:ro
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 64M
+#           cpus: '0.2'
+#         reservations:
+#           memory: 32M
+#           cpus: '0.05'
+#     depends_on:
+#       pol-keycloak:
+#         condition: service_started
+#       pol-file-store:
+#         condition: service_healthy
+#       psc-frontend:
+#         condition: service_started
+#       psc-backend:
+#         condition: service_healthy
+#       prf-frontend:
+#         condition: service_started
+#       prf-backend:
+#         condition: service_healthy
+# {% elif env_name == 'prod' %}
+# 
+#   # ============================================
+#   # PRODUCTION PROXY (subdomain routing)
+#   # ============================================
+# 
+#   pol-proxy:
+#     build:
+#       context: ./pol-proxy
+#       dockerfile: Dockerfile
+#       args:
+#         NGINX_CONF: nginx.dev.conf
+#     container_name: pol-proxy
+#     image: pol-proxy:{{ suite_image_tag }}
+#     ports:
+#       - "80:80"
+#       - "443:443"
+#     networks:
+#       - polari-network
+#     volumes:
+#       # Mount generated nginx config (from prod-setup.sh)
+#       - ./.generated/nginx.{{ gen_env }}.conf:/etc/nginx/nginx.conf:ro
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 64M
+#           cpus: '0.2'
+#         reservations:
+#           memory: 32M
+#           cpus: '0.05'
+#     depends_on:
+#       pol-keycloak:
+#         condition: service_started
+#       pol-file-store:
+#         condition: service_healthy
+#       psc-frontend:
+#         condition: service_started
+#       psc-backend:
+#         condition: service_healthy
+#       prf-frontend:
+#         condition: service_started
+#       prf-backend:
+#         condition: service_healthy
+# {% endif %}
+# jinja-end

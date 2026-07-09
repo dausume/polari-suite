@@ -35,10 +35,10 @@ LEGACY_CRED_KEYS = {  # known plaintext values in rf-node setup.yml — bld-7 pu
 }
 
 
-def load_context(setup_path):
+def load_context(setup_path, env_override=None):
     with open(setup_path) as fh:
         setup = yaml.safe_load(fh)
-    env_name = setup.get("current-setup", {}).get("env", "dev")
+    env_name = env_override or setup.get("current-setup", {}).get("env", "dev")
     env = (setup.get("environments") or {}).get(env_name)
     if env is None:
         sys.exit(f"render.py: environments.{env_name} not found in {setup_path}")
@@ -146,6 +146,43 @@ def render(project_dir, setup_path, check=False, only=None):
     return 0
 
 
+def render_manifest(project_dir, setup_path, manifest_path, check=False):
+    """Multi-env rendering: one template -> N outputs (one per env), per
+    pol-build/manifests/*.yml. Each output lands in jinja-build/<file> and
+    is byte-compared against the hand-written <file> at the project root
+    when it exists (parity report)."""
+    with open(manifest_path) as fh:
+        manifest = yaml.safe_load(fh)
+    tdir = os.path.join(project_dir, "jinja-templates")
+    bdir = os.path.join(project_dir, "jinja-build")
+    jenv = jinja2.Environment(
+        loader=jinja2.FileSystemLoader(tdir),
+        trim_blocks=True, lstrip_blocks=False, keep_trailing_newline=True,
+        undefined=jinja2.StrictUndefined,
+    )
+    failures = 0
+    for bundle in manifest.get("bundles", []):
+        template = bundle["template"]
+        for out in bundle["outputs"]:
+            ctx = load_context(setup_path, env_override=out["env"])
+            text = jenv.get_template(template).render(**ctx)
+            out_path = os.path.join(bdir, out["file"])
+            os.makedirs(os.path.dirname(out_path) or bdir, exist_ok=True)
+            hand = os.path.join(project_dir, out["file"])
+            if not check:
+                with open(out_path, "w") as fh:
+                    fh.write(text)
+            if os.path.exists(hand):
+                with open(hand) as fh:
+                    ok = fh.read() == text
+                status = "PARITY OK (byte)" if ok else "PARITY DIFF"
+                failures += 0 if ok else 1
+            else:
+                status = "no hand-written twin"
+            print(f"  [{out['env']:>7}] {out['file']:<36} {status}")
+    return 1 if failures else 0
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -154,12 +191,16 @@ def main():
     ap.add_argument("--check", action="store_true", help="report drift, write nothing, exit 1 on change")
     ap.add_argument("--only", default=None, metavar="NAME",
                     help="render just one bundle (template basename, .j2 optional)")
+    ap.add_argument("--manifest", default=None,
+                    help="multi-env bundle manifest (renders each output per its env)")
     args = ap.parse_args()
     project = os.path.abspath(args.project_dir)
     setup = args.setup or os.path.join(project, "setup.yml")
     n = run_embed_extraction(project)
     if n:
         print(f"  extracted {n} annotated working file(s) -> jinja-templates/")
+    if args.manifest:
+        sys.exit(render_manifest(project, setup, args.manifest, check=args.check))
     sys.exit(render(project, setup, check=args.check, only=args.only))
 
 

@@ -1,0 +1,73 @@
+# jinja-start
+## SERVICE: pol-mariadb — annotated source (see suite-bundle.yml).
+## Rendered per env by pol-build/manifests/suite-bundles.yml.
+## variation: env — pol-mariadb differs per tier: dev | staging+prod
+# {% if env_name == 'dev' %}
+#   # ============================================
+#   # SHARED DATABASE SERVICES
+#   # ============================================
+# 
+#   # Consolidated MariaDB - serves both Keycloak and PSC
+#   pol-mariadb:
+#     build:
+#       context: ./pol-mariadb
+#       dockerfile: Dockerfile
+#     container_name: pol-mariadb
+#     image: pol-mariadb:{{ suite_image_tag }}
+#     restart: always
+#     ports:
+#       - "3306:3306"  # External access for DB tools
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./pol-mariadb/mariadb.env
+#     volumes:
+#       - pol_mariadb_data:/var/lib/mysql
+#     healthcheck:
+#       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+#       start_period: 10s
+#       interval: 10s
+#       timeout: 5s
+#       retries: 3
+# {% elif env_name == 'staging' or env_name == 'prod' %}
+#   # ============================================
+#   # SHARED DATABASE SERVICES
+#   # ============================================
+# 
+#   pol-mariadb:
+#     build:
+#       context: ./pol-mariadb
+#       dockerfile: Dockerfile
+#     container_name: pol-mariadb
+#     image: pol-mariadb:{{ suite_image_tag }}
+#     restart: always
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./pol-mariadb/mariadb.env
+#       - ./.generated/.env.{{ gen_env }}
+#     volumes:
+#       - pol_mariadb_data:/var/lib/mysql
+#     healthcheck:
+#       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+#       start_period: 10s
+#       interval: 10s
+#       timeout: 5s
+#       retries: 3
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 512M
+#           cpus: '0.5'
+#         reservations:
+#           memory: 256M
+#           cpus: '0.1'
+#     command: >
+#       --innodb-buffer-pool-size=128M
+#       --innodb-log-file-size=32M
+#       --max-connections=50
+#       --query-cache-size=0
+#       --tmp-table-size=16M
+#       --max-heap-table-size=16M
+# {% endif %}
+# jinja-end

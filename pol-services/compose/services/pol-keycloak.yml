@@ -1,0 +1,108 @@
+# jinja-start
+## SERVICE: pol-keycloak — annotated source (see suite-bundle.yml).
+## Rendered per env by pol-build/manifests/suite-bundles.yml.
+## variation: env — pol-keycloak differs per tier: dev | staging | prod
+# {% if env_name == 'dev' %}
+# 
+#   # ============================================
+#   # AUTHENTICATION SERVICES
+#   # ============================================
+# 
+#   # Keycloak - Shared Authentication Server
+#   pol-keycloak:
+#     build:
+#       context: ./pol-keycloak
+#       dockerfile: Dockerfile.pol-kc
+#     container_name: pol-keycloak
+#     image: pol-keycloak:{{ suite_image_tag }}
+#     ports:
+#       - "8080:8080"  # External access for checking jwks is accessible
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./pol-keycloak/keycloak-admin.env
+#       # KC_DB_PASSWORD env var overrides the mounted keycloak-suite.conf,
+#       # keeping Keycloak in sync with the generated DB credentials.
+#       - ./pol-mariadb/mariadb.env
+#     volumes:
+#       - ./pol-keycloak/environments/keycloak-suite.conf:/opt/keycloak/conf/keycloak.conf
+#     depends_on:
+#       pol-mariadb:
+#         condition: service_healthy
+#     entrypoint: ["/opt/startup_shells/kc_entrypoint.sh"]
+# {% elif env_name == 'staging' %}
+# 
+#   # ============================================
+#   # AUTHENTICATION SERVICES
+#   # ============================================
+# 
+#   pol-keycloak:
+#     build:
+#       context: ./pol-keycloak
+#       dockerfile: Dockerfile.pol-kc
+#     container_name: pol-keycloak
+#     image: pol-keycloak:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./pol-keycloak/keycloak-admin.env
+#       # KC_DB_PASSWORD env var overrides the mounted keycloak-suite.conf,
+#       # keeping Keycloak in sync with the generated DB credentials.
+#       - ./pol-mariadb/mariadb.env
+#       - ./.generated/.env.{{ gen_env }}
+#     volumes:
+#       - ./pol-keycloak/environments/keycloak-suite.conf:/opt/keycloak/conf/keycloak.conf
+#     environment:
+#       - JAVA_OPTS_APPEND=-Xms256m -Xmx768m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true
+#       - KEYCLOAK_MODE=staging
+#     depends_on:
+#       pol-mariadb:
+#         condition: service_healthy
+#     entrypoint: ["/opt/startup_shells/kc_entrypoint.sh"]
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 1024M
+#           cpus: '0.75'
+#         reservations:
+#           memory: 512M
+#           cpus: '0.2'
+# {% elif env_name == 'prod' %}
+# 
+#   # ============================================
+#   # AUTHENTICATION SERVICES
+#   # ============================================
+# 
+#   pol-keycloak:
+#     build:
+#       context: ./pol-keycloak
+#       dockerfile: Dockerfile.pol-kc
+#     container_name: pol-keycloak
+#     image: pol-keycloak:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./pol-keycloak/keycloak-admin.env
+#       # KC_DB_PASSWORD env var overrides the mounted keycloak-suite.conf,
+#       # keeping Keycloak in sync with the generated DB credentials.
+#       - ./pol-mariadb/mariadb.env
+#       - ./.generated/.env.{{ gen_env }}
+#     volumes:
+#       - ./pol-keycloak/environments/keycloak-suite.conf:/opt/keycloak/conf/keycloak.conf
+#     environment:
+#       - JAVA_OPTS_APPEND=-Xms256m -Xmx768m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true
+#       - KEYCLOAK_MODE=production
+#     depends_on:
+#       pol-mariadb:
+#         condition: service_healthy
+#     entrypoint: ["/opt/startup_shells/kc_entrypoint.sh"]
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 1024M
+#           cpus: '0.75'
+#         reservations:
+#           memory: 512M
+#           cpus: '0.2'
+# {% endif %}
+# jinja-end

@@ -1,0 +1,85 @@
+# jinja-start
+## SERVICE: psc-frontend — annotated source (see suite-bundle.yml).
+## Rendered per env by pol-build/manifests/suite-bundles.yml.
+## variation: env — psc-frontend differs per tier: dev | staging | prod
+# {% if env_name == 'dev' %}
+# 
+#   # ============================================
+#   # POLITICAL SCORECARD (PSC) SERVICES
+#   # ============================================
+# 
+#   # PSC Frontend - Angular Application
+#   psc-frontend:
+#     build:
+#       context: ./political-scorecard-node/political-scorecard-frontend
+#       dockerfile: Dockerfile
+#     container_name: psc-frontend
+#     image: psc-frontend:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+#     volumes:
+#       - ./political-scorecard-node/political-scorecard-frontend:/app
+#       - /app/node_modules
+#     env_file:
+#       - ./political-scorecard-node/political-scorecard-frontend/.env
+#     environment:
+#       - PRF_FRONTEND_URL=https://localhost:2087
+#     command: npm run start
+#     depends_on:
+#       - psc-backend
+# {% elif env_name == 'staging' %}
+# 
+#   # ============================================
+#   # POLITICAL SCORECARD (PSC) SERVICES
+#   # ============================================
+# 
+#   psc-frontend:
+#     build:
+#       context: ./political-scorecard-node/political-scorecard-frontend
+#       dockerfile: Dockerfile.prod
+#     container_name: psc-frontend
+#     image: psc-frontend:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+#     volumes:
+#       # Mount generated runtime config for nip.io URLs
+#       - ./{{ psc_runtime_config }}:/usr/share/nginx/html/assets/runtime-config.json:ro
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 64M
+#           cpus: '0.2'
+#         reservations:
+#           memory: 32M
+#           cpus: '0.05'
+#     depends_on:
+#       - psc-backend
+# {% elif env_name == 'prod' %}
+# 
+#   # ============================================
+#   # POLITICAL SCORECARD (PSC) SERVICES
+#   # ============================================
+# 
+#   psc-frontend:
+#     build:
+#       context: ./political-scorecard-node/political-scorecard-frontend
+#       dockerfile: Dockerfile.prod
+#     container_name: psc-frontend
+#     image: psc-frontend:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+#     volumes:
+#       # Mount generated runtime config for production URLs
+#       - ./{{ psc_runtime_config }}:/usr/share/nginx/html/assets/runtime-config.json:ro
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 64M
+#           cpus: '0.2'
+#         reservations:
+#           memory: 32M
+#           cpus: '0.05'
+#     depends_on:
+#       - psc-backend
+# {% endif %}
+# jinja-end

@@ -1,0 +1,177 @@
+# jinja-start
+## ==========================================================================
+## SUITE BUNDLE — annotated source generating ALL THREE suite compose files
+## (dev/staging/prod) via pol-build/manifests/suite-bundles.yml.
+## Per-service sources: pol-services/compose/services/*.yml (one file per
+## service kind — 1:1 with pol-build/registry/services.yml entries).
+## '## variation:' notes name the env groups on every conditional.
+## ==========================================================================
+## variation: env — preamble differs per tier: dev | staging | prod
+# {% if env_name == 'dev' %}
+# # ==============================================================================
+# # POLARI SUITE - DEVELOPMENT ENVIRONMENT
+# # ==============================================================================
+# #
+# # This is the base development configuration. Run directly without profiles.
+# #
+# # USAGE:
+# #   sudo docker compose up -d
+# #   sudo docker compose up -d --build              # Rebuild containers
+# #   sudo docker compose up -d --build prf-backend  # Rebuild single container
+# #   sudo docker compose down                       # Stop all
+# #
+# # OTHER ENVIRONMENTS:
+# #   Staging (nip.io subdomains - closest to prod):
+# #       ./nip-staging-setup.sh  # Run once to generate config
+# #       sudo docker compose -f docker-compose.staging-nip.yml up -d --build
+# #   Production:
+# #       sudo docker compose -f docker-compose.prod.yml up -d
+# #
+# # ==============================================================================
+# # DEV MODE PORTS (Cloudflare-compatible HTTPS)
+# # ==============================================================================
+# #   Services (via proxy):
+# #     - Default (redirects to PSC): https://localhost or https://localhost:443
+# #     - Keycloak Auth:   https://localhost:8443
+# #     - PSC Frontend:    https://localhost:2053
+# #     - PSC Backend API: https://localhost:2083
+# #     - PRF Frontend:    https://localhost:2087
+# #     - PRF Backend API: https://localhost:2096
+# #
+# #   Databases (for external tools like DBeaver):
+# #     - MariaDB (consolidated): localhost:3306
+# #     - Redis: localhost:6379
+# #
+# #   File Storage:
+# #     - MinIO S3 API:  http://localhost:9000
+# #     - MinIO Console: http://localhost:9001
+# #
+# # ==============================================================================
+# 
+# services:
+# {% elif env_name == 'staging' %}
+# # ==============================================================================
+# # POLARI SUITE - STAGING ENVIRONMENT (nip.io subdomain routing)
+# # ==============================================================================
+# #
+# # Purpose: Test production builds locally WITH subdomain routing via nip.io
+# # Uses: Production Dockerfiles + Resource limits + Subdomain proxy (like real prod)
+# #
+# # SETUP (run once, or when IP changes):
+# #   ./nip-staging-setup.sh
+# #
+# # USAGE:
+# #   sudo docker compose -f docker-compose.staging-nip.yml --env-file .generated/.env.{{ gen_env }} up -d --build
+# #
+# # ACCESS (using your local IP, e.g., 10.0.0.102):
+# #   - Landing:        https://10.0.0.102.nip.io
+# #   - Keycloak:       https://auth.10.0.0.102.nip.io
+# #   - PSC Frontend:   https://psc.10.0.0.102.nip.io
+# #   - PSC API:        https://api.psc.10.0.0.102.nip.io
+# #   - PRF Frontend:   https://prf.10.0.0.102.nip.io
+# #   - PRF API:        https://api.prf.10.0.0.102.nip.io
+# #   - MinIO Console:  https://files.10.0.0.102.nip.io
+# #   - MinIO S3 API:   https://s3.10.0.0.102.nip.io
+# #
+# # NOTE: extra_hosts use ${LOCAL_IP} which is resolved from --env-file at launch.
+# #
+# # ==============================================================================
+# 
+# services:
+# {% elif env_name == 'prod' %}
+# # ==============================================================================
+# # POLARI SUITE - PRODUCTION ENVIRONMENT (subdomain routing)
+# # ==============================================================================
+# #
+# # Optimized for: DigitalOcean Basic Droplet - 4GB RAM / 2 vCPU / 60GB
+# # Target: 1 user with comfortable headroom
+# #
+# # SETUP (run once, or when domain/config changes):
+# #   ./prod-setup.sh
+# #
+# # USAGE:
+# #   sudo docker compose -f docker-compose.prod.yml up -d --build
+# #
+# # ACCESS (using your domain, e.g., example.com):
+# #   - Landing:       https://example.com
+# #   - Keycloak:      https://auth.example.com
+# #   - PSC Frontend:  https://psc.example.com
+# #   - PSC API:       https://api.psc.example.com
+# #   - PRF Frontend:  https://prf.example.com
+# #   - PRF API:       https://api.prf.example.com
+# #   - MinIO Console: https://files.example.com
+# #   - MinIO S3 API:  https://s3.example.com
+# #
+# # MEMORY BUDGET (4GB total):
+# #   - OS/Docker overhead: ~500MB
+# #   - Keycloak:           1024MB (Java - needs the most)
+# #   - psc-backend:         768MB (Spring Boot)
+# #   - pol-mariadb:         512MB (Database)
+# #   - prf-backend:         384MB (Python)
+# #   - pol-file-store:      256MB (MinIO S3 storage)
+# #   - psc-redis:           128MB (Cache)
+# #   - psc-frontend:         64MB (nginx static)
+# #   - prf-frontend:         64MB (nginx static)
+# #   - pol-proxy:            64MB (nginx proxy)
+# #   - Buffer:             ~256MB
+# #   --------------------------------
+# #   Total allocated:     ~3.8GB
+# #
+# # ==============================================================================
+# 
+# services:
+# {% endif %}
+# {% include 'pol-services/compose/services/pol-mariadb.yml.j2' %}
+# {% include 'pol-services/compose/services/pol-file-store.yml.j2' %}
+# {% include 'pol-services/compose/services/psc-redis.yml.j2' %}
+# {% include 'pol-services/compose/services/pol-proxy.yml.j2' %}
+# {% include 'pol-services/compose/services/pol-keycloak.yml.j2' %}
+# {% include 'pol-services/compose/services/psc-frontend.yml.j2' %}
+# {% include 'pol-services/compose/services/psc-backend.yml.j2' %}
+# {% include 'pol-services/compose/services/prf-frontend.yml.j2' %}
+# {% include 'pol-services/compose/services/prf-backend.yml.j2' %}
+## variation: env — tail (networks/volumes) differs per tier: dev | staging+prod
+# {% if env_name == 'dev' %}
+# 
+# # ============================================
+# # VOLUMES
+# # ============================================
+# volumes:
+#   # Consolidated MariaDB data
+#   pol_mariadb_data:
+# 
+#   # Shared file storage (MinIO)
+#   pol_file_store_data:
+# 
+#   # PSC
+#   psc_redis_data:
+# 
+#   # PRF
+#   prf_frontend_dist:
+#   prf_frontend_cache:
+#   prf_backend_data:
+# 
+# # ============================================
+# # NETWORKS
+# # ============================================
+# networks:
+#   polari-network:
+#     driver: bridge
+# {% elif env_name == 'staging' or env_name == 'prod' %}
+# 
+# # ============================================
+# # VOLUMES
+# # ============================================
+# volumes:
+#   pol_mariadb_data:
+#   pol_file_store_data:
+#   psc_redis_data:
+# 
+# # ============================================
+# # NETWORKS
+# # ============================================
+# networks:
+#   polari-network:
+#     driver: bridge
+# {% endif %}
+# jinja-end
