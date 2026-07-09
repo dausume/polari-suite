@@ -222,7 +222,14 @@ compose-declared services against the registry (19/19 green); the bld-3
 per-service files must stay 1:1 with registry entries. Precedent:
 isle-mesh registry.json.
 
-## 3. Phases (branch per confirmed phase)
+## 3. Phases — STATUS 2026-07-09: bld-1..7 v1 ALL COMPLETE
+(bld-1 CLI ✅; bld-2 python renderer ✅; bld-3 all 13 bundles byte-parity
+from pol-services/ ✅; bld-4 proxy gen + nginx -t validation ✅; bld-5
+swarm stacks — engines E2E ✅; bld-6 ssh deploy machinery + live
+preflight ✅; bld-7 purge ✅. Refinements queued in NEXT_AGENT_HANDOFF.md
+§3.)
+
+## 3b. Original phase plan (reference)
 
 - **bld-1 `pol` CLI skeleton** — polari-cli repo: dispatcher + table,
   lib/log.sh, cli-paths.sh/install, `pol security|node|suite` wrapping the
