@@ -175,6 +175,9 @@ services:
       - polari-network
     env_file:
       - ./pol-keycloak/keycloak-admin.env
+      # KC_DB_PASSWORD env var overrides the mounted keycloak-suite.conf,
+      # keeping Keycloak in sync with the generated DB credentials.
+      - ./pol-mariadb/mariadb.env
       - ./.generated/.env.staging
     volumes:
       - ./pol-keycloak/environments/keycloak-suite.conf:/opt/keycloak/conf/keycloak.conf
@@ -231,16 +234,19 @@ services:
     env_file:
       - ./.generated/.env.staging
       - ./pol-keycloak/keycloak-admin.env
+      # MINIO_ACCESS_KEY / MINIO_SECRET_KEY — generated client credentials
+      # (mirrors pol-file-store/minio.env; setup-polari-security.sh owns both).
+      - ./pol-file-store/client.env
     environment:
       - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
       - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
-      - SPRING_DATASOURCE_PASSWORD=pscpassword
+      # Resolved from --env-file .generated/.env.staging (nip-staging-setup.sh
+      # syncs it from pol-mariadb/mariadb.env); default matches legacy volumes.
+      - SPRING_DATASOURCE_PASSWORD=${PSC_DB_PASSWORD:-pscpassword}
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_OPTS=-Xms128m -Xmx512m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
       # MinIO connection (internal Docker network)
       - MINIO_ENDPOINT=http://pol-file-store:9000
-      - MINIO_ACCESS_KEY=polari-admin
-      - MINIO_SECRET_KEY=polari-file-store-password
       - MINIO_BUCKET=legislation
     extra_hosts:
       # Allow container to reach host machine via nip.io domains

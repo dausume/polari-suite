@@ -147,6 +147,9 @@ services:
       - polari-network
     env_file:
       - ./pol-keycloak/keycloak-admin.env
+      # KC_DB_PASSWORD env var overrides the mounted keycloak-suite.conf,
+      # keeping Keycloak in sync with the generated DB credentials.
+      - ./pol-mariadb/mariadb.env
     volumes:
       - ./pol-keycloak/environments/keycloak-suite.conf:/opt/keycloak/conf/keycloak.conf
     depends_on:
@@ -192,7 +195,9 @@ services:
       # Database connection to consolidated MariaDB
       - SPRING_DATASOURCE_URL=jdbc:mariadb://pol-mariadb:3306/psc
       - SPRING_DATASOURCE_USERNAME=psc-scorecard-server
-      - SPRING_DATASOURCE_PASSWORD=pscpassword
+      # Resolved from suite-root .env (written by setup-polari-security.sh
+      # from pol-mariadb/mariadb.env); default matches legacy dev volumes.
+      - SPRING_DATASOURCE_PASSWORD=${PSC_DB_PASSWORD:-pscpassword}
     env_file:
       - ./pol-keycloak/keycloak-admin.env
     volumes:

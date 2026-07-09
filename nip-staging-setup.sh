@@ -194,10 +194,23 @@ echo -e "  Generated: ${GREEN}$NIP_CERTS_DIR/server.crt${NC}"
 echo -e "  Generated: ${GREEN}$NIP_CERTS_DIR/server.key${NC}"
 
 # ==============================================================================
-# STEP 4: Generate environment file
+# STEP 4: Ensure credential env files + generate environment file
 # ==============================================================================
 echo ""
 echo -e "${YELLOW}[4/6] Generating environment file...${NC}"
+
+# Self-sufficiency: a fresh clone has NO credential env files (they are all
+# gitignored + generated). If any is missing, generate them now via
+# setup-polari-security.sh (dev mode = random, no prompts; skip-if-exists
+# protects live installs).
+for _cred in pol-keycloak/keycloak-admin.env pol-mariadb/mariadb.env \
+             pol-file-store/minio.env pol-file-store/client.env; do
+    if [ ! -f "$SCRIPT_DIR/$_cred" ]; then
+        echo -e "  Missing $_cred — running setup-polari-security.sh dev --env-only --skip-subs"
+        "$SCRIPT_DIR/setup-polari-security.sh" dev --env-only --skip-subs
+        break
+    fi
+done
 
 ENV_FILE="$GENERATED_DIR/.env.staging"
 
@@ -247,6 +260,20 @@ POLARI_KEYCLOAK_ADMIN_URL=http://pol-keycloak:8080
 POLARI_KEYCLOAK_REALM=Polari
 POLARI_KEYCLOAK_ADMIN_CLIENT_ID=polari-backend
 EOF
+
+# Append credential-interpolation values sourced from the generated env files
+# (setup-polari-security.sh owns the source files; this keeps compose
+# ${VAR:-default} interpolation in sync when this file is passed as
+# --env-file to docker compose).
+PSC_DB_PASSWORD_CUR=$(grep -E '^PSC_DB_PASSWORD=' "$SCRIPT_DIR/pol-mariadb/mariadb.env" 2>/dev/null | cut -d= -f2-)
+if [ -n "$PSC_DB_PASSWORD_CUR" ]; then
+    cat >> "$ENV_FILE" << EOF
+
+# PSC DB password (derived from pol-mariadb/mariadb.env) — resolves the
+# \${PSC_DB_PASSWORD:-...} interpolation for psc-backend.
+PSC_DB_PASSWORD=$PSC_DB_PASSWORD_CUR
+EOF
+fi
 
 echo -e "  Generated: ${GREEN}$ENV_FILE${NC}"
 

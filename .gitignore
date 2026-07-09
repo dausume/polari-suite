@@ -84,3 +84,7 @@ nginx.staging.conf
 nginx.prod.conf
 .env.staging
 .env.prod
+
+# Claude Code local files (settings, memory) — keep private
+.claude/
+CLAUDE.local.md
