@@ -1,0 +1,7 @@
+# Proxy config generation (bld-4) — replaces the sed .template path.
+# rf prod needs POLARI_PROD_DOMAIN exported (StrictUndefined refuses otherwise).
+bundles:
+  - template: pol-services/proxy/nginx.staging.conf.j2
+    outputs: [ { env: staging, file: .generated/nginx.staging.conf } ]
+  - template: pol-services/proxy/nginx.prod.conf.j2
+    outputs: [ { env: prod, file: .generated/nginx.prod.conf } ]

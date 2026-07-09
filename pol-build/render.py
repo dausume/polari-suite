@@ -64,6 +64,8 @@ def load_context(setup_path, env_override=None):
     ctx["active_env_vars"] = env         # rf-node jinja-gen/playbook.yml names
     ctx["active_env_name"] = env_name
     ctx.setdefault("local_ip", resolve_local_ip(os.path.dirname(os.path.abspath(setup_path))))
+    if os.environ.get("POLARI_PROD_DOMAIN"):
+        ctx.setdefault("prod_domain", os.environ["POLARI_PROD_DOMAIN"])
     return ctx
 
 

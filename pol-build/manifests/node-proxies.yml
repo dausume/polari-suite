@@ -1,0 +1,3 @@
+bundles:
+  - template: pol-services/proxy/nginx.staging.conf.j2
+    outputs: [ { env: staging, file: .generated/nginx.staging.conf } ]

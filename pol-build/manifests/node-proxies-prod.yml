@@ -1,0 +1,4 @@
+# Requires POLARI_PROD_DOMAIN in the environment.
+bundles:
+  - template: pol-services/proxy/nginx.prod.conf.j2
+    outputs: [ { env: prod, file: .generated/nginx.prod.conf } ]
