@@ -1,0 +1,259 @@
+# ==============================================================================
+# POLARI SERVICE REGISTRY — accountability of every service kind
+# ==============================================================================
+# Every service that can appear in ANY orchestration mode (compose | swarm |
+# isle) is catalogued here: which files deploy it, what configuration surface
+# it has (env files, generated configs, knobs), and how it INTERCONNECTS —
+# especially the auto-generated configs that wire prf/psc instances to each
+# other and to child instances.
+#
+# `pol registry check` diffs the services declared in the compose files
+# against this registry — an unregistered service is an accountability
+# failure (warn), a registered-but-nowhere-deployed service is noted.
+#
+# Precedent: isle-mesh isle-agent/registry.json (domain-conflict registry).
+# This file is DATA for the bld-2+ build pipeline (per-service annotated
+# files must 1:1 match registry entries) and for `pol` tooling. It carries
+# NO credentials — only pointers to generated env files.
+# ==============================================================================
+
+registry_version: 1
+
+# ------------------------------------------------------------------------------
+# Instance-level variation axes (how a prf or psc INSTANCE can be configured;
+# every per-service conditional in pol-services/ must name one of these in
+# its `## variation:` note)
+# ------------------------------------------------------------------------------
+variation_axes:
+  env: [dev, staging-nip, prod, stateless, fullstack-test]
+  topology: [single, swarm]        # swarm = isle-mesh stand-in; isle later
+  role: [suite, node, twin-b, dask, msci-engines, remote-worker]
+  instance: [primary, twin, child-peer]   # multi-instance wiring (below)
+
+# ------------------------------------------------------------------------------
+# Auto-generated INTERCONNECTION artifacts — the configs that connect
+# instances to each other / to child instances. Each names its generator,
+# its consumers, and the seam it wires.
+# ------------------------------------------------------------------------------
+interconnects:
+  prf-runtime-config:
+    artifact: ".generated/prf-runtime-config*.json"
+    generated_by: [nip-staging-setup.sh, polari-rf-node/staging-setup.sh, polari-rf-node/prod-setup.sh]
+    consumed_by: [prf-frontend]
+    wires: "frontend -> its backend + keycloak issuer (per env/instance URLs)"
+  psc-runtime-config:
+    artifact: ".generated/psc-runtime-config.json"
+    generated_by: [nip-staging-setup.sh]
+    consumed_by: [psc-frontend]
+    wires: "psc frontend -> psc backend + keycloak (Political-Scorecard realm)"
+  twin-runtime-config:
+    artifact: "polari-rf-node/.generated/prf-b-runtime-config.json"
+    generated_by: [polari-rf-node/twin-polari-build.sh]
+    consumed_by: [prf-frontend-b]
+    wires: "instance-B frontend -> instance-B backend (ports 8081/8083)"
+  peer-token:
+    artifact: "polari-rf-node/.generated/.polari-peer-token"
+    generated_by: [polari-rf-node/twin-polari-build.sh]
+    consumed_by: [prf-backend, prf-backend-b]
+    wires: "instance<->instance peer trust (POLARI_PEER_TOKEN; polari-link net);
+            admission flow = PeerAgreement (polariPeers/, mesh_facts)"
+  keycloak-client-secrets:
+    artifact: "pol-keycloak/keycloak-admin.env + polari-rf-node/prf-keycloak/prf-keycloak-admin.env"
+    generated_by: [setup-polari-security.sh, polari-rf-node/staging-setup.sh, polari-rf-node/prod-setup.sh]
+    consumed_by: [prf-backend, psc-backend, keycloak startup_shells/configure_clients.sh]
+    wires: "backend service-accounts -> keycloak admin API (re-PATCHed at every KC boot)"
+  db-credentials:
+    artifact: "pol-mariadb/mariadb.env + polari-rf-node/prf-mariadb/mariadb.env"
+    generated_by: [setup-polari-security.sh, polari-rf-node/staging-setup.sh, polari-rf-node/prod-setup.sh]
+    consumed_by: [pol-mariadb, pol-keycloak, psc-backend, prf-mariadb, prf-keycloak, prf-backend-b(dbcombo)]
+    wires: "DB users (kc, psc-scorecard-server, polari) — volume-baked at first init"
+  minio-credentials:
+    artifact: "pol-file-store/{minio,client}.env; rf-node knobs POLARI_MINIO_ROOT_USER/_PASS"
+    generated_by: [setup-polari-security.sh, polari-rf-node/prod-setup.sh]
+    consumed_by: [pol-file-store, prf-file-store, prf-backend, psc-backend]
+    wires: "object-storage clients -> minio root (client==root today)"
+  nginx-proxy-config:
+    artifact: ".generated/nginx.{staging,prod}.conf (suite + rf-node)"
+    generated_by: [nip-staging-setup.sh, polari-rf-node/staging-setup.sh, polari-rf-node/prod-setup.sh]
+    consumed_by: [pol-proxy, prf-proxy]
+    wires: "subdomain routing + TLS termination for every web-facing service
+            (bld-4 replaces sed templates with segment/assembly generation)"
+  scorecard-api-seam:
+    artifact: "(scr-7, designed not built) PSC -> /api/scoring wiring"
+    generated_by: [SCORING_ACCOUNTABILITY_PLAN.md scr-7]
+    consumed_by: [psc-backend, psc-frontend]
+    wires: "psc consumes prf's scoring API instead of its own mocks"
+
+# ------------------------------------------------------------------------------
+# SERVICE KINDS
+# fields: kind (unique), context (build dir), appears_in (compose files,
+# repo-relative), config (env_files/generated/knobs), connects_to
+# (kind: via-interconnect), variations (notable per-axis differences)
+# ------------------------------------------------------------------------------
+services:
+
+  # ===== suite-level shared infra (pol-*) =====
+  - kind: pol-mariadb
+    context: pol-mariadb/
+    appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml]
+    config: {env_files: [pol-mariadb/mariadb.env], knobs: [POLARI_MYSQL_ROOT_PASS, POLARI_KC_DB_PASS, POLARI_PSC_DB_PASS]}
+    connects_to: {pol-keycloak: db-credentials, psc-backend: db-credentials}
+    variations: "init.sh creates kc + psc users/dbs; passwords volume-baked"
+
+  - kind: pol-keycloak
+    context: pol-keycloak/
+    appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml]
+    config:
+      env_files: [pol-keycloak/keycloak-admin.env, pol-mariadb/mariadb.env]
+      mounts: [pol-keycloak/environments/keycloak-suite.conf]
+      knobs: [POLARI_KC_ADMIN_USER, POLARI_KC_ADMIN_PASS]
+    connects_to: {pol-mariadb: db-credentials, prf-backend: keycloak-client-secrets, psc-backend: keycloak-client-secrets}
+    variations: "two realms (Polari, Political-Scorecard); KC_DB_PASSWORD env overrides mounted conf; suite KC serves BOTH prf and psc in combined mode — standalone modes run their own KC"
+
+  - kind: pol-file-store
+    context: pol-file-store/
+    appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml]
+    config: {env_files: [pol-file-store/minio.env], knobs: [POLARI_MINIO_ROOT_USER, POLARI_MINIO_ROOT_PASS]}
+    connects_to: {prf-backend: minio-credentials, psc-backend: minio-credentials}
+
+  - kind: pol-proxy
+    context: pol-proxy/
+    appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml]
+    config: {generated: [.generated/nginx.staging.conf], certs: "pol-proxy/certs (generate-pol-certs.sh / ca toolkit)"}
+    connects_to: {pol-keycloak: nginx-proxy-config, prf-frontend: nginx-proxy-config, prf-backend: nginx-proxy-config, psc-frontend: nginx-proxy-config, psc-backend: nginx-proxy-config, pol-file-store: nginx-proxy-config}
+    variations: "staging: nip.io wildcard subdomains; prod: real-domain server blocks"
+
+  - kind: psc-redis
+    context: (image)
+    appears_in: [docker-compose.staging-nip.yml]
+    config: {}
+    connects_to: {psc-backend: {}}
+
+  # ===== PSC (political scorecard) =====
+  - kind: psc-backend
+    context: political-scorecard-node/political-scorecard-backend/
+    appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml,
+                 political-scorecard-node/docker-compose.yml]
+    config:
+      env_files: [pol-keycloak/keycloak-admin.env, pol-file-store/client.env, .generated/.env.staging]
+      interpolation: ["SPRING_DATASOURCE_PASSWORD=${PSC_DB_PASSWORD:-...}"]
+    connects_to:
+      pol-mariadb: db-credentials
+      pol-keycloak: keycloak-client-secrets
+      pol-file-store: minio-credentials
+      prf-backend: scorecard-api-seam
+    variations: "suite mode: shared pol-mariadb/keycloak; standalone psc repo: own mariadb (test creds) + own keycloak — scr-7 will point it at prf's scoring API"
+
+  - kind: psc-frontend
+    context: political-scorecard-node/political-scorecard-frontend/
+    appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml]
+    config: {generated: [.generated/psc-runtime-config.json]}
+    connects_to: {psc-backend: psc-runtime-config, pol-keycloak: psc-runtime-config}
+
+  # ===== PRF (polari research framework) =====
+  - kind: prf-backend
+    context: polari-rf-node/polari-framework/
+    appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml,
+                 polari-rf-node/docker-compose.yml, polari-rf-node/docker-compose.staging-nip.yml,
+                 polari-rf-node/docker-compose.prod.yml, polari-rf-node/docker-compose.stateless.yml,
+                 polari-rf-node/docker-compose.fullstack-test.yml]
+    config:
+      env_files: [".env(.defaults)", "prf-keycloak/prf-keycloak-admin.env | pol-keycloak/keycloak-admin.env",
+                  "pol-file-store/client.env (suite)", ".generated/.env.*"]
+      knobs: [POLARI_MINIO_ROOT_USER, POLARI_MINIO_ROOT_PASS]
+    connects_to:
+      prf-keycloak: keycloak-client-secrets
+      prf-file-store: minio-credentials
+      prf-backend-b: peer-token
+      psc-backend: scorecard-api-seam
+    variations: "suite vs standalone (which KC/minio/db it binds); sqlite vs mariadb+keydb (dbcombo overlay); stateless (no persistence); child-peer instances join via peer-token + PeerAgreement admission; dask delegation via twin stack; engines delegation via MSCI_ENGINES_URL (degrades to honest suggestion when worker absent)"
+
+  - kind: prf-frontend
+    context: polari-rf-node/polari-platform-angular/
+    appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml,
+                 polari-rf-node/docker-compose.yml, polari-rf-node/docker-compose.staging-nip.yml,
+                 polari-rf-node/docker-compose.prod.yml]
+    config: {generated: [.generated/prf-runtime-config*.json]}
+    connects_to: {prf-backend: prf-runtime-config, prf-keycloak: prf-runtime-config}
+
+  - kind: prf-mariadb
+    context: polari-rf-node/prf-mariadb/
+    appears_in: [polari-rf-node/docker-compose.yml, polari-rf-node/docker-compose.staging-nip.yml,
+                 polari-rf-node/docker-compose.prod.yml, polari-rf-node/docker-compose.stateless.yml,
+                 polari-rf-node/docker-compose.fullstack-test.yml]
+    config: {env_files: [polari-rf-node/prf-mariadb/mariadb.env], knobs: [POLARI_MARIADB_ROOT_PASS, POLARI_KC_DB_PASS, POLARI_OBJECTS_DB_PASS]}
+    connects_to: {prf-keycloak: db-credentials, prf-backend-b: db-credentials}
+    variations: "users kc + polari (init.sh hardcodes usernames); dbcombo overlay adds polari_objects_b schema"
+
+  - kind: prf-keycloak
+    context: polari-rf-node/prf-keycloak/
+    appears_in: [polari-rf-node/docker-compose.yml, polari-rf-node/docker-compose.staging-nip.yml,
+                 polari-rf-node/docker-compose.prod.yml, polari-rf-node/docker-compose.stateless.yml,
+                 polari-rf-node/docker-compose.fullstack-test.yml]
+    config:
+      env_files: [polari-rf-node/prf-keycloak/prf-keycloak-admin.env, polari-rf-node/prf-mariadb/mariadb.env]
+      baked: [prf-keycloak/environments/keycloak-prf.conf]
+      knobs: [POLARI_KC_ADMIN_PASS, POLARI_BE_SECRET]
+    connects_to: {prf-mariadb: db-credentials, prf-backend: keycloak-client-secrets}
+    variations: "standalone-PRF only (suite mode uses pol-keycloak); Polari realm auto-scaffolded; client secret re-PATCHed at every boot"
+
+  - kind: prf-file-store
+    context: (minio image / inline dockerfile)
+    appears_in: [polari-rf-node/docker-compose.yml, polari-rf-node/docker-compose.staging-nip.yml,
+                 polari-rf-node/docker-compose.prod.yml]
+    config: {knobs: [POLARI_MINIO_ROOT_USER, POLARI_MINIO_ROOT_PASS], generated: [".generated/.env.prod (prod creds)"]}
+    connects_to: {prf-backend: minio-credentials, prf-backend-b: minio-credentials}
+
+  - kind: prf-proxy
+    context: polari-rf-node/prf-proxy/
+    appears_in: [polari-rf-node/docker-compose.staging-nip.yml, polari-rf-node/docker-compose.prod.yml]
+    config: {generated: [polari-rf-node/.generated/nginx.staging.conf], certs: "prf-proxy/certs"}
+    connects_to: {prf-frontend: nginx-proxy-config, prf-backend: nginx-proxy-config, prf-keycloak: nginx-proxy-config, prf-file-store: nginx-proxy-config}
+
+  # ===== multi-instance / compute companions =====
+  - kind: prf-backend-b
+    context: (reuses prf-backend:staging image)
+    appears_in: [polari-rf-node/docker-compose.twin-b.yml, polari-rf-node/docker-compose.dbcombo.yml]
+    config:
+      env_files: [polari-rf-node/.generated/.env.staging, polari-rf-node/prf-keycloak/prf-keycloak-admin.env]
+      knobs: [POLARI_OBJECTS_DB_PASS, POLARI_KEYDB_PASS, POLARI_MINIO_ROOT_USER, POLARI_MINIO_ROOT_PASS]
+      generated: [polari-rf-node/.generated/prf-b-runtime-config.json, polari-rf-node/.generated/.polari-peer-token]
+    connects_to:
+      prf-backend: peer-token
+      prf-mariadb: db-credentials
+      prf-keydb-b: {}
+      prf-file-store: minio-credentials
+    variations: "twin = CHILD-INSTANCE pattern: reuses A's images + shared infra, own identity (POLARI_INSTANCE_ID=b), peer network polari-link; dbcombo overlay flips sqlite->mariadb+keydb"
+
+  - kind: prf-frontend-b
+    context: (reuses prf-frontend:staging image)
+    appears_in: [polari-rf-node/docker-compose.twin-b.yml]
+    config: {generated: [polari-rf-node/.generated/prf-b-runtime-config.json]}
+    connects_to: {prf-backend-b: twin-runtime-config}
+
+  - kind: prf-keydb-b
+    context: (eqalpha/keydb image)
+    appears_in: [polari-rf-node/docker-compose.dbcombo.yml]
+    config: {knobs: [POLARI_KEYDB_PASS]}
+    connects_to: {prf-backend-b: {}}
+
+  - kind: prf-dask
+    context: (dask images)
+    appears_in: [polari-rf-node/docker-compose.dask.yml]
+    config: {}
+    connects_to: {prf-backend: {}, prf-backend-b: {}}
+    variations: "scheduler + per-side workers; cross-instance parallel search proven (distributed-compute ladder)"
+
+  - kind: prf-msci-engines
+    context: polari-rf-node/ (msci engines worker)
+    appears_in: [polari-rf-node/docker-compose.msci-engines.yml, polari-rf-node/docker-compose.remote-worker.yml]
+    config: {knobs: ["MSCI_ENGINES_URL (consumer side)"]}
+    connects_to: {prf-backend: {}, prf-backend-b: {}}
+    variations: "INDEPENDENTLY DEPLOYABLE service kind (pol compose engines up); remote-worker variant runs it on another machine; consumers degrade honestly when absent"
+
+  - kind: prf-test-harness
+    context: polari-rf-node/ (fullstack-test services)
+    appears_in: [polari-rf-node/docker-compose.fullstack-test.yml]
+    config: {}
+    connects_to: {prf-backend: {}, prf-frontend: {}, prf-keycloak: {}}
+    variations: "ephemeral CI stack: polari-framework-tests, polari-framework-server, polari-frontend-tests (-test suffixed containers, restart: no)"
