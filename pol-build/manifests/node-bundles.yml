@@ -1,0 +1,22 @@
+# rf-node bundle manifest — per-service annotated sources -> the five core
+# variants; the five specials round-trip from passthrough sources.
+bundles:
+  - template: pol-services/compose/node-bundle.yml.j2
+    outputs:
+      - { env: dev,       file: docker-compose.yml }
+      - { env: stateless, file: docker-compose.stateless.yml }
+      - { env: staging,   file: docker-compose.staging-nip.yml }
+      - { env: prod,      file: docker-compose.prod.yml }
+      - { env: test,      file: docker-compose.fullstack-test.yml }
+  # Specials — single-variant bundles (passthrough sources; swarm blocks
+  # land in these in bld-5)
+  - template: pol-services/compose/bundles/docker-compose.twin-b.yml.j2
+    outputs: [ { env: staging, file: docker-compose.twin-b.yml } ]
+  - template: pol-services/compose/bundles/docker-compose.dbcombo.yml.j2
+    outputs: [ { env: staging, file: docker-compose.dbcombo.yml } ]
+  - template: pol-services/compose/bundles/docker-compose.dask.yml.j2
+    outputs: [ { env: staging, file: docker-compose.dask.yml } ]
+  - template: pol-services/compose/bundles/docker-compose.msci-engines.yml.j2
+    outputs: [ { env: staging, file: docker-compose.msci-engines.yml } ]
+  - template: pol-services/compose/bundles/docker-compose.remote-worker.yml.j2
+    outputs: [ { env: staging, file: docker-compose.remote-worker.yml } ]
