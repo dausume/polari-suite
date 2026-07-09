@@ -1,76 +1,70 @@
-# Next-agent handoff — 2026-07-09 (topology orchestration round COMPLETE)
+# Next-agent handoff — 2026-07-09 (PIVOT BACK TO AQUAPONICS)
 
-The 2026-07-09 overnight session built ALL of top-1..top-8
-(TOPOLOGY_ORCHESTRATION_PLAN.md) — built, committed branch-per-phase,
-and live-verified on staging A + the lightweight node. Full reference
-+ gotchas in memory [[topology-orchestration]].
+Dustin is moving back to the aquaponics simulation. **START HERE:
+`AQUAPONICS_PHASE2_PLAN.md`** at the suite root — three fully-detailed,
+GPT-4-executable phases (aqp-3 FEM hydraulics → aqp-7 worm-compost
+enrichment loop → aqp-8 per-part plant growth/failure), ordered
+HARDEST→EASIEST per Dustin. Do them one at a time, branch per phase,
+selftest green before moving on. The plan is self-contained; read it
+first. Background context: [[aquaponics-module]] +
+`AQUAPONICS_MODULE_PLAN.md`.
 
-## 0. FIRST THINGS
-- **NOTHING IS PUSHED to GitHub.** Local branch stacks:
-  suite `dev-top-4-multinode` (over dev-top-3 ... dev-build-security),
-  polari-cli `dev-top-4-multinode`, polari-rf-node
-  `dev-topology-orchestration`, polari-framework `dev-top-1-topology`,
-  polari-platform-angular `dev-top-5-topology-tab`. All repos PUBLIC —
-  push before any `pol deploy run` (nodes pull GitHub).
-- The LIVE system now spans TWO machines: staging A (core, swarm
-  manager) + lightweight (swarm WORKER running the polari-engines
-  stack task). `pol topology diff` = NO DRIFT across both.
+## The three phases (all planned in AQUAPONICS_PHASE2_PLAN.md)
+1. **aqp-3 — FEM water-flow engine** (hardest). New scikit-fem scalar
+   Darcy solver (twin of `materialsScience/engines/fem_engine.py`
+   `solve_steady_conduction`), runs on the msci-engines worker via the
+   topology-routed remote seam. Answers "does the pot drain by gravity,
+   at what rate, moisture field?" — replaces aqp-1's L0 permeability
+   priors. Fidelity knob: reduced reservoir model (in-backend, always
+   answers) vs FEM (worker). This is the long-standing aqp-3 phase.
+2. **aqp-7 — worm-compost (vermicompost) nutrient-enrichment loop**
+   (medium). Box-model bin that enriches passing aquaponic water; TWO
+   modes both selectable — direct-in-loop (continuous) and controlled
+   periodic flow-through (pulses + recharge). Abstract estimate OK;
+   flag rate constants as literature-range priors. Couples enriched
+   water into the pot's nutrient input; rankable via the scoring bridge.
+3. **aqp-8 — per-part plant growth / growth-failure** (easiest; extends
+   aqp-4). Makes the existing PlantPart objects GROW (logistic vs
+   limiting resource) or FAIL (limiting factor named); volume-per-part
+   interaction estimation (leaf↔root↔fruit coupling by volume+
+   condition) as a small tunable coefficient table. Realized per-part
+   volumes feed aqp-6 env-impact scoring.
 
-## 1. What topology orchestration now is
-- **Topology = rows on the core** (`topology/` module, /api/topology/*):
-  machines, instances, module assignments, dependency edges, typed
-  connections (registry interconnects), desired vs observed.
-  Seeds mirror staging-a truth. 52-check selftest
-  (`pol modules selftest topology`).
-- **CLI**: `pol topology status|graph|validate|pull|push|diff|report|
-  render|apply|deploy|assign`, `pol allocate`, `pol swarm join`.
-  Files (topologies/*.topology.yml, nodes.yml) are interchange; rows
-  are truth. render → manifests/topology-<name>/ is byte-parity-gated
-  against the generated bundles.
-- **Portable packages**: topologies/staging-a.topology.yml (committed,
-  credential-free). `pol topology deploy <pkg>` = push→render→apply;
-  round trip proven live.
-- **Multi-node**: `pol swarm join lightweight` done (node label
-  polari.machine=*, topology row auto-updated). `pol allocate engines
-  lightweight` moved the stack there live (image via docker save|ssh
-  load; placement by label; pyscf still served through the routing
-  mesh). isle-core NOT joined yet.
-- **Topology tab** (/topology): drift banner (carries suggested pol
-  commands incl. top-8 reallocation suggestions), validation findings,
-  instance cards, connections w/ artifacts, D3 graph, CDK drag-drop
-  module chips → /assign. DEPLOYED in prf-frontend.
-  **⚠️ Dustin's browser/visual review pending** (assign was
-  live-verified via CLI only).
-- **Provider routing (top-7)**: materialsScience delegation ladders
-  MSCI_ENGINES_URL (knob wins) → topology-resolved LIVE provider →
-  honest refusal. The suite backend now gets pyscf WITHOUT the env
-  var. Failures mark edges degraded (amber in the tab) and yield
-  one-click reallocation suggestions in drift (top-8).
+## aqp status recap
+aqp-1/2/4/5/6 BUILT + committed (5 stacked branches off the scoring
+stack; 76 module selftest checks green; NOT yet deployed to staging).
+aqp-3 was always "the one remaining phase". aqp-7/aqp-8 are NEW
+(2026-07-09). Module lives at
+`polari-rf-node/polari-framework/aquaponics/`; conventions + the exact
+polariServer wiring points are in AQUAPONICS_PHASE2_PLAN.md §0.
 
-## 2. Live state
-- staging A: combined suite (prf+psc, all healthy), twin-b, dask
-  (project polari-dask), swarm manager. lightweight: swarm worker,
-  runs polari-engines task (:9500 via mesh). Both nodes observed
-  (pol topology report [--node lightweight]).
-- ⚠️ LOCAL_IP must be exported for ANY docker compose command on
-  docker-compose.staging-nip.yml (minio crash-loops otherwise).
-
-## 3. Follow-ups (none blocking)
-- Push the branch stacks; Dustin's tab review; validator render-level
-  checks (ports); sustained-failure history for reallocation;
-  docker-secrets for swarm; registry-based image distribution
-  (replace save|load); join isle-core when wanted.
-
-## 4. Parked application work (unchanged)
-- scr-7 scorecard↔Polari wiring, scr-9..14; aqp-3 hydraulics;
-  aquaponics frontend pages; live vote ingestion.
-
-## 5. Gotchas carried forward
-- prf-backend healthcheck flap on cold seed; :3000 binds after seeding.
-- API-created treeObject rows need explicit saveInstanceInDB.
-- docker exec python3 = fresh process — provider_registry.MANAGER only
-  lives in the server; test routing via HTTP endpoints.
-- ssh'd docker --format strings with inner quotes = ONE quoted string.
+## Deploy discipline (bit me repeatedly)
+- `export LOCAL_IP=192.168.0.210` before ANY docker compose on
+  docker-compose.staging-nip.yml (else pol-file-store crash-loops).
+- prf-backend serves :3000 only after cold-seed (minutes; healthcheck
+  flaps). Selftests run in-container: `pol modules selftest aquaponics`.
+- API-created treeObject rows need explicit
+  `manager.db.saveInstanceInDB(row)`.
 - Angular templates: literal `@` breaks builds — use `&#64;`.
-- falcon POST bodies read request.bounded_stream.
-- Host python can't import polariServer — selftests run in-container.
+- falcon POST bodies read `request.bounded_stream`.
+
+## Just-completed (last session): TOPOLOGY ORCHESTRATION — DONE
+top-1..top-8 all built + live-verified (see [[topology-orchestration]]):
+topology-as-data core (`topology/` module, /api/topology/*), `pol
+topology` CLI + portable packages (parity round-trip), multi-node swarm
+(**lightweight joined as a worker; the polari-engines stack now RUNS
+THERE**), Topology tab (/topology, drag-drop modules — graph
+autoplacement compacted + fit-to-view per Dustin), provider routing,
+reallocation suggestions. **RELEVANT TO aqp-3**: the engines worker is
+reachable via the topology-routed remote seam with no MSCI_ENGINES_URL
+set — aqp-3's Darcy solver goes on that worker. ⚠️ Dustin's browser
+review of the Topology tab is still pending.
+
+## NOT pushed to GitHub
+All local branch stacks (repos PUBLIC). Push before any `pol deploy
+run`. Topology branches: suite/cli `dev-top-4-multinode`, rf-node
+`dev-topology-orchestration`, framework `dev-top-1-topology`, angular
+`dev-top-5-topology-tab`.
+
+## Other parked work (unchanged)
+scr-7 scorecard↔Polari wiring, scr-9..14; scoring/materials as before.
