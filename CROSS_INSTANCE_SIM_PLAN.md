@@ -14,8 +14,25 @@ map, demoted-DB RowView); remote rungs refuse naming xsim-3/xsim-6;
 schemaVersion from SchemaStabilityProfile hash, mismatch names both;
 component_binding delegates via a 5-line authority guard, bare path
 untouched. 66-test suite identical to baseline (same 12 pre-existing
-failures), 22/22 live smoke on staging. NEXT: xsim-2 on
-`dev-xsim-2-locks`.**
+failures), 22/22 live smoke on staging.**
+
+**✅ xsim-2 COMPLETE 2026-07-10 night (framework `dev-xsim-2-locks`
+607a293): simulationLocks/ — MutationLease fencing epochs (zombie
+refused naming both epochs; TTL→breakable, breaks evented),
+ObjectLockEntry working sets (selector vocab id|name|range|class-wide;
+generated auto-lock at the treeObject-creation seam; failure
+quarantines 'orphaned-by-run'), persisted SimulationQueueEntry queue
+(restart-survival LIVE-proven; resubmission ADOPTS its queued entry —
+retry-as-start), ONE contextvars gate at every sim entry (msim
+run/step, stage search, solution engine, formulation search,
+model/scale executes; tied children present the parent token), CRUDE
+PUT/POST/DELETE→423 naming the run, /api/simulation-locks +
+/api/simulation-queue (+pump). LIVE acceptance run: sim A 800 steps
+held epoch 1, sim B 423+queued position 1 (persisted), queue survived
+restart, retry adopted+ran, CRUDE 423→evented break→200. selftest
+40/40, 66-suite baseline-identical, smoke 22/22.
+NEXT: xsim-3 (cross-instance READ: shared-DB rung + PeerAgreement
+scope + GenericRemoteObject from polyTyping) on `dev-xsim-3-read`.**
 
 ## PICK UP HERE — execution context for a fresh session
 
