@@ -323,6 +323,11 @@ services:
       # dbcombo path, proven on twin-B) — the sqlite exit. Drop
       # DATABASE_TYPE to fall back to sqlite in the volume below.
       - DATABASE_TYPE=mariadb
+      # Shared-DB mode: polari_objects holds MANY instances' rows
+      # (_instance_id discriminator + composite PKs — schema migrated
+      # 2026-07-09 via polariDBmanagement.migrate_shared_db).
+      - POLARI_SHARED_OBJECT_DB=1
+      - POLARI_INSTANCE_ID=a
       - MARIADB_HOST=pol-mariadb
       - MARIADB_PORT=3306
       - MARIADB_USER=polari
