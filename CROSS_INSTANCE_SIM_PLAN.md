@@ -106,9 +106,49 @@ One `MutationLease` singleton row on core polari:
   BREAKABLE (not auto-broken) — the queue head may then break it; a
   LeaseBreakEvent row records every break, never silent. Manual admin
   break knob too. Clock authority = core's clock only (no skew games).
-- User CRUDE edits are NOT locked (object-coherence stays live). Open
-  edge case, default v1: allowed + the run report warns when a row in
-  the run's read-set changed mid-run (journal makes this detectable).
+- User CRUDE edits to objects OUTSIDE the run's lock set stay live
+  (object-coherence). Objects INSIDE it are write-locked — see below.
+
+## Object locks — the run's working set (Dustin 2026-07-10)
+
+> "we can put locks on all objects being used by simulations as well
+> and on newly generated objects from the simulation, until it is
+> done running."
+
+On top of the global lease, the run holds **write locks on its working
+set** for its whole duration:
+
+- `ObjectLockEntry` rows: (authority, className, selector) → run_id +
+  token_epoch. Selector granularity REUSES the overlap advisor's
+  vocabulary — id | name | range | class-wide — so a 100k-object sweep
+  is ONE class/range lock row, not 100k rows. **The advisor's write-set
+  manifest IS the lock manifest** (one analysis, two consumers).
+- **Acquisition**: declared read+write sets locked at run start;
+  undeclared objects touched mid-run get lazy lock escalation at first
+  touch (journaled as an undeclared-touch note — feeds the advisor's
+  accuracy back); **newly generated objects are auto-locked at
+  creation and tagged with the run**.
+- **Semantics**: write locks only. Anyone may READ a locked object
+  (frontend later shows a "locked by run X" chip); non-run WRITES get
+  an honest refusal naming the run + queue position — refusal, not
+  blocking, so no waiting and (with single-writer) NO deadlock is
+  possible anywhere in the design.
+- **Inputs frozen**: the read-set write-lock is what makes runs
+  reproducible — supersedes the earlier "allow + warn" default for
+  mid-run external edits. Admin break knob exists (LockBreakEvent
+  recorded, run notified into its blocked state).
+- **Enforcement seams**: the owning instance's write paths (CRUDE PUT,
+  saveInstanceInDB, gRPC write) check the lock table. Shared-DB
+  instances share one lock table; remote-API instances receive the
+  relevant lock subset at acquisition (xsim-4).
+- **Release**: run completion releases locks atomically with the lease.
+  Run FAILURE quarantines instead: generated objects stay locked and
+  tagged 'orphaned-by-run' with an explicit cleanup/keep knob — never
+  silently deleted, never silently adopted.
+- **Tree-growth tie-in**: run-tagged generated objects give the
+  retention lever the resource-aware-simulation directive asked for —
+  per-run retention windows / archival / residency demotion become
+  possible because outputs are identifiable as a set.
 
 ## The queue (xsim-2)
 
@@ -161,13 +201,17 @@ prompts inside a running simulation (directive 3):
   Selftests.
 - **xsim-2**: MutationLease + fencing tokens threaded through run
   contexts + SimulationQueueEntry + gating at the sim entry points
-  (simulation_api runs, solution executions, stage searches). Live:
-  start sim A, sim B queues; break-lease event path.
+  (simulation_api runs, solution executions, stage searches) +
+  **ObjectLockEntry local enforcement** (manifest locking, generated-
+  object auto-lock, non-run write refusal, quarantine-on-failure).
+  Live: start sim A, sim B queues; CRUDE edit of a locked row refused
+  naming the run; break-lease event path.
 - **xsim-3**: cross-instance READ — shared-DB rung + PeerAgreement
   scope check + GenericRemoteObject hydration from polyTyping for an
   uninstalled class. Live proof against instance b.
 - **xsim-4**: automated remote WRITES under lease + write journal +
-  stale-token refusal proof (simulated zombie).
+  stale-token refusal proof (simulated zombie) + cross-instance lock
+  replication (owner-side enforcement of the run's lock subset).
 - **xsim-5**: overlap advisor + conformance-panel surfacing + a
   deliberately-conflicting parallel definition in selftests.
 - **xsim-6**: remote-API rung via topology address book + the
@@ -186,7 +230,12 @@ prompts inside a running simulation (directive 3):
 - uninstalled-class write attempt → refusal names module + instance +
   install knob
 - peer offline at read (refusal) vs at write (blocked run state)
-- read-set row externally edited mid-run → run-report warning
+- non-run write to locked object → refusal names run + queue position
+- lazy lock escalation on undeclared touch (journaled, feeds advisor)
+- failed run → generated objects quarantined 'orphaned-by-run' (knob)
+- lock-set release atomic with lease release; break knobs evented
+- selector-level locks (class-wide/range) vs per-id — advisor manifest
+  decides granularity; overlapping selector refusal cases
 
 ## Relation to existing work
 
