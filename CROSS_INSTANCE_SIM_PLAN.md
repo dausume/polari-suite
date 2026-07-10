@@ -5,7 +5,17 @@
 approach approved ("roughly the same concept and more thought out,
 let us just go with that"); object-lock layer added at his direction;
 the strict all-sims-serialize default was flagged to him and stands
-unless he flips it. NOTHING BUILT YET. Start at xsim-1.**
+unless he flips it.**
+
+**✅ xsim-1 COMPLETE 2026-07-10 (framework `dev-xsim-1-refs` 02f394e):
+polariRefs/ (ref_format + identity_map + resolver + selftest 27/27) —
+authority-carrying refs parse; local rungs live (tree via identity
+map, demoted-DB RowView); remote rungs refuse naming xsim-3/xsim-6;
+schemaVersion from SchemaStabilityProfile hash, mismatch names both;
+component_binding delegates via a 5-line authority guard, bare path
+untouched. 66-test suite identical to baseline (same 12 pre-existing
+failures), 22/22 live smoke on staging. NEXT: xsim-2 on
+`dev-xsim-2-locks`.**
 
 ## PICK UP HERE — execution context for a fresh session
 
