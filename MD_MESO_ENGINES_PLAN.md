@@ -1,9 +1,25 @@
 # MD + Mesoscale Engines → L2/L3 Models (msci-25, msci-26, msci-27)
 
-**STATE 2026-07-10 (handoff for a fresh session): msci-25 ✅ + msci-26 ✅
-BUILT + LIVE-VERIFIED. ONLY msci-27 (the interfaces, below) REMAINS.**
+**STATE 2026-07-10 (evening): ALL THREE PHASES ✅ BUILT +
+LIVE-VERIFIED. PLAN COMPLETE.**
 
-## PICK UP HERE — msci-27 execution context
+msci-27 executed same day: md-model-config + meso-model-config
+components (angular dev-msci-27-md-meso-ui 4d3883f), pages
+/display/md-models + /display/meso-models seeded, nav + level-page
+on-ramps, no-code bead-spring case (8/8), and one backend gap closed
+along the way — execute_scale_definition now accepts
+MDModelDefinition/MesoModelDefinition rows (framework
+dev-msci-27-md-meso-ui b97052f), so the L2/L3 scale rows flipped
+partial→DEFINED live: carbon-nanotube@L2, wax-ferrite@L2,
+paraffin-wax@L3 all carry results on the rows now. use-as-threshold
+binding PUT proven end-to-end (original 0.005 model untouched);
+derived-vfc comparison live (157.7 vs 227.3 S/m). 22/22 smoke.
+Remaining tail: Dustin's browser review; repos NOT pushed.
+Deploy gotcha: recreating prf-frontend/prf-backend changes container
+IPs — pol-proxy caches them; `docker exec pol-proxy nginx -s reload`
+after every up -d --build.
+
+## (superseded) PICK UP HERE — msci-27 execution context
 - Backend work lives on polari-framework branch `dev-hwsim-1-renode`
   (contains everything through msci-26; suite pointer cd9d9d4+). All
   backend seams msci-27 needs ALREADY EXIST — this phase is Angular +
