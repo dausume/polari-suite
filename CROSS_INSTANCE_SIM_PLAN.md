@@ -31,8 +31,22 @@ PUT/POST/DELETE→423 naming the run, /api/simulation-locks +
 held epoch 1, sim B 423+queued position 1 (persisted), queue survived
 restart, retry adopted+ran, CRUDE 423→evented break→200. selftest
 40/40, 66-suite baseline-identical, smoke 22/22.
-NEXT: xsim-3 (cross-instance READ: shared-DB rung + PeerAgreement
-scope + GenericRemoteObject from polyTyping) on `dev-xsim-3-read`.**
+**✅ xsim-3 COMPLETE 2026-07-11 早 (framework `dev-xsim-3-read`
+df98d6b): shared-DB peer rung LIVE — additive
+managedDB.getAllInTableForInstance (peer-scoped, uncached, read-only),
+PeerAgreement scope check (refusal names the join flow),
+GenericRemoteObject typed via the class-shape-as-data ladder
+(local polyTyping → peer _dynamic_class_registry → raw columns),
+schemaVersion checked against the OWNER's profile on remote routes,
+identity map keys instance:<owner> (a's and b's equal ids stay two
+objects), POST /api/refs/resolve. LIVE with a REAL instance b booted
+on the shared MariaDB (own 41 materials under _instance_id='b'):
+scope refusal → approve agr-live-b → a read b's ferrite + path-walked
+its value; instance 'c' refused; bare refs untouched. selftests
+36/36+40/40, 66-suite baseline-identical, 22/22 smoke.
+NEXT: xsim-4 (automated remote WRITES under lease + WriteJournalEntry
++ zombie-refusal live proof + cross-instance lock subset) on
+`dev-xsim-4-writes`.**
 
 ## PICK UP HERE — execution context for a fresh session
 
