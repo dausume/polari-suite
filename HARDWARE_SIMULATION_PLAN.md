@@ -174,11 +174,28 @@ blend, here is the LED it could drive" a traceable chain.
   .repl, firmware image, pty path, running state) + generated .resc;
   knob API `/api/hw/machines` (create/start/stop/download); honest
   `/capability`.
-- **hwsim-3 — Verilator co-sim**: the Hardware Runtime register block
-  (0x0000 map) as a small Verilog/Amaranth design; verilated .so
-  attached to the Renode machine over SPI; firmware reads/writes FPGA
-  registers; register values ride the existing telemetry classes.
-  Include the sim/hardware-input mode MUX in the block.
+- **hwsim-3 — Verilator co-sim**: **✅ BUILT + LIVE-VERIFIED
+  2026-07-10 (framework dev-hwsim-1-renode 8cfb85c).** The register
+  map is DATA (knobs/no-code-states directive): `hwfpga/` module —
+  RegisterMapDefinition + RegisterDefinition rows seed the Hardware
+  Runtime map; Verilog core, sim wrapper, Renode harness, firmware C
+  defines, and a self-checking bench ALL generate from the rows
+  (`/api/hw/registermaps`). Verilated via oss-cad-suite; attached as
+  CoSimulated.CoSimulatedPeripheral (.so library mode, DOTNET Renode
+  portable — mono crashes on native interop) at 0x70000000.
+  LIVE: firmware read DEVICE_ID 0x504C0001 / VERSION 0x10000 from
+  REAL verilated logic into Polari rows; REST PUT {commands: 0xCAFE,
+  config: 777, mode_mux: 1} rode Commands → firmware → AXI writes →
+  readback proved write-through AND THE MUX SWITCHED (STATUS input
+  byte froze at the hw-pin pattern 0xB7); heartbeat live throughout;
+  schemas stabilized zero deviations. selftest_fpga 8/8 (real
+  verilated bench). Original spec: the Hardware Runtime register
+  block as a small Verilog design; verilated .so attached to the
+  Renode machine; firmware reads/writes FPGA registers; register
+  values ride telemetry; sim/hardware-input mode MUX included.
+  (SPI transport deferred to real boards — the block rides the
+  memory bus in Renode, the synthesizable core is bus-agnostic at
+  the register level.)
 - **hwsim-4 — universal Device interface**: register-level abstraction
   over {renode, verilated, serial}; binds grpc-4's
   `HardwareSignalDefinition` (register → object field, deadband).
