@@ -148,7 +148,20 @@ blend, here is the LED it could drive" a traceable chain.
 
 ## 5. Suggested phases (branch per phase, selftest green, live-verify)
 
-- **hwsim-1 — Renode MCU twin (the firmware gap)**: minimal open
+- **hwsim-1 — Renode MCU twin**: **✅ BUILT + LIVE-VERIFIED 2026-07-10
+  (framework branch dev-hwsim-1-renode), hours after this plan was
+  written — Dustin's "start with making hardware work".** SimRigState
+  twin class (seeded); generated per-class C header (grpc-j3 sliver,
+  `c_twin.py` + `/api/grpc/exposures/{class}/c-header` — firmware
+  knows ONLY its one class); 4KB bare-metal STM32F4 firmware; Renode
+  1.16.1 ran the ELF with USART2 on a host pty; the EXISTING bridge
+  (`source=serial`) needed ZERO changes. Real-firmware telemetry
+  updated the seeded row (matched by name, 220 STOMP notifications);
+  REST PUT pwm/led rode Commands down, firmware applied ACTUATORS
+  ONLY (its sensors kept living) and echoed `status=commanded` back;
+  schema stayed stabilized, zero deviations (bool-narrowing fix on
+  Push). Toolchain: Renode portable + xPack arm-none-eabi-gcc in
+  ~/tools (no sudo). Original spec: minimal open
   firmware (C, later generated per grpc-j3's `<class>_packets.h`)
   that speaks PolariPacket over UART; run it on a Renode STM32/RISC-V
   platform; expose the UART as a pty; point the EXISTING sim-rig
