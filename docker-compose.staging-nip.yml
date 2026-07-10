@@ -346,6 +346,15 @@ services:
       # WebSocket (STOMP) notifications
       - WEBSOCKET_ENABLED=true
       - WEBSOCKET_PORT=3001
+      # gRPC object-sync sidecar (grpc-2) — serves only classes with
+      # an enabled+current GrpcExposure row (the per-class knob).
+      - GRPC_ENABLED=true
+      - GRPC_PORT=3002
+    ports:
+      # gRPC published to the host so hardware bridges (grpc-j2: the
+      # Polari Hardware Bridge Java app) can connect from outside the
+      # compose network. REST/STOMP stay proxy-fronted as before.
+      - "3002:3002"
     extra_hosts:
       # Allow container to reach host machine via nip.io domains
       # Uses ${LOCAL_IP} from --env-file .generated/.env.staging
