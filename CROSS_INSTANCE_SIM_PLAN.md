@@ -1,6 +1,70 @@
 # Cross-Instance References + Single-Writer Multiscale Simulation
 # (xsim-1..6)
 
+**STATE 2026-07-10 (late): DESIGN CONFIRMED BY DUSTIN — fencing-token
+approach approved ("roughly the same concept and more thought out,
+let us just go with that"); object-lock layer added at his direction;
+the strict all-sims-serialize default was flagged to him and stands
+unless he flips it. NOTHING BUILT YET. Start at xsim-1.**
+
+## PICK UP HERE — execution context for a fresh session
+
+- **Branches**: polari-framework HEAD = `dev-msci-27-md-meso-ui`
+  b97052f (everything through msci-27 live) → cut `dev-xsim-1-refs`
+  from it. Angular HEAD = `dev-msci-27-md-meso-ui` 4d3883f (no
+  frontend work until xsim-2's queue/lock chips; cut per phase).
+  Suite branch dev-prf-mariadb-combo (this plan committed 063ee77+).
+- **New module layout** ([[file-size-decomposition]]): framework
+  `polariRefs/` (ref_format.py, identity_map.py, resolver.py,
+  selftest_refs.py) for xsim-1; `simulationLocks/` (lease.py,
+  object_locks.py, sim_queue.py, locks_api.py, selftest_sim_locks.py)
+  for xsim-2. treeObject classes registered in polariServer
+  defClassList like every msci class.
+- **Key seams (file paths)**:
+  - refs today: `materialsScience/component_binding.py` — objectRef
+    {className,name,path}, `find_row` = LOCAL-ONLY objectTables scan
+    (~line 48); `_resolve_binding`/_section_value do dotted paths
+    through JSON blobs. Bare refs must keep working UNTOUCHED.
+  - CRUDE writes: `polariApiServer/polariCRUDE.py` on_put ~line 263
+    (FormData polariId + updateData JSON) — object-lock refusal (423)
+    goes here (+ on_post/on_delete).
+  - sim entry points to gate: `simulations/simulation_api.py` (msim
+    runs + stage search dispatch), `polariNoCode/
+    SolutionExecutionEngine.py` (solution executes),
+    `materialsScience/formulation_search_api.py` (search runs),
+    `materialsScience/model_execution.py` execute_model +
+    `materialsScience/scale_execution.py` execute_scale_definition
+    (model/scale executes count as sims under the strict policy —
+    they take short leases through the same seam).
+  - shared-DB substrate: `polariDBmanagement/managedDB.py` +
+    `migrate_shared_db.py` (_instance_id discriminator, composite
+    PKs); peers/auth: `polariPeers/` (PeerAgreement, join_flow,
+    tokens); class-shape-as-data: `polariApiServer/createClassAPI.py`
+    + polyTyping + `_dynamic_class_registry`; schema versions:
+    SchemaStabilityProfile rows (field_summary_json = the hashable
+    shape).
+- **Deploy/verify conventions**: staging deploys from the SUITE-level
+  `docker-compose.staging-nip.yml --env-file .generated/.env.staging`
+  (services prf-backend/prf-frontend); after EVERY `up -d --build`
+  run `docker exec pol-proxy nginx -s reload` (proxy caches container
+  IPs → 502s otherwise). Backend boot ~150 s. API via
+  `curl -sk -H 'Host: api.prf.192.168.0.210.nip.io' https://localhost/...`
+  (use --form-string for CRUDE PUT tests, -F mangles JSON). Smoke:
+  `python3 polari-rf-node/polari-framework/tests/live_api_smoke.py`
+  (22/22 expected). Selftests `python3 -m <pkg>.<mod>` from
+  polari-framework/. Branch per confirmed phase; repos PUBLIC — no
+  secrets in commits; NOT pushed without Dustin.
+- **xsim-1 acceptance**: bare refs resolve exactly as before
+  everywhere; authority-carrying refs parse + local rung resolves via
+  identity map; non-local rungs refuse honestly naming their phase;
+  selftest_refs green; no behavior change in the 66-test +
+  live-smoke suites.
+- **xsim-2 acceptance**: two sims → second queues (persisted row);
+  fencing epoch bumps on break; zombie token refused; CRUDE edit of a
+  locked row → 423 naming run + queue position; generated objects
+  auto-locked + released on completion, quarantined on failure; live
+  on staging.
+
 ## Dustin's directives (2026-07-10 evening)
 
 1. Object tree growth is the concern; two relief directions already
