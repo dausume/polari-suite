@@ -260,6 +260,65 @@ bridge changes), but grpc-3/grpc-4 from GRPC_BRIDGE_PLAN.md remain
 valid parallel tracks — grpc-4's signal definitions are what hwsim-3/4
 bind to.
 
+## hwsim-pv — the missing layers from materials simulation
+   (PLANNED 2026-07-10; the solar stack works but half its layer
+   properties are literature records — these phases replace each
+   record with an EXECUTED sim, keeping the record as the
+   agreement check.)
+
+Current per-layer data sources (community-thin-film-panel):
+| layer | property | today | closes via |
+|---|---|---|---|
+| L0 cover glass | n 1.46 | literature record | pv-2 (polarizability DFT) |
+| L1 porous AR | n 1.22 | literature record | pv-1 (effective medium) |
+| L2 CNT electrode | transparency 0.85 | literature, NAMED GAP | pv-3 (Beer-Lambert + percolation) |
+| L3 ZnO ETL | gap 3.3 eV | literature record | pv-4 (cluster DFT ladder) |
+| L4 absorbers | gaps 0.95/2.1 eV | literature records | pv-5 (periodic DFT) |
+| L5 back contact | sigma 227 S/m | ALREADY simulated | — |
+| whole stack | optical delivery | not modeled | pv-6 (transfer matrix) |
+
+- **pv-1 — effective-medium optics engine** (analytic, the
+  percolation engine's optical twin): Bruggeman/Maxwell-Garnett
+  porosity -> n_eff for the porous sol-gel AR (porosity is already
+  the stated knob); quarter-wave thickness DERIVE act on the layer
+  row; validator criterion: AR index within tolerance of
+  sqrt(n_cover) and thickness of lambda/4n.
+- **pv-2 — refractive index from first principles**: pyscf
+  polarizability of a silica stand-in fragment (Si(OH)4 /
+  small siloxane cluster) -> Clausius-Mossotti/Lorentz-Lorenz ->
+  n; the 1.46 record becomes the AGREEMENT CHECK (validator:
+  derived-vs-record window), not the source.
+- **pv-3 — transparent-electrode tradeoff**: T(vf, t) via
+  Beer-Lambert with a structured CNT absorption-cross-section
+  record + sigma(vf) from the EXISTING percolation model ->
+  sheet resistance vs transparency Pareto + the sigma_dc/sigma_opt
+  figure of merit; fills the named transparency gap with a derived
+  record + knob suggestions (vf, thickness).
+- **pv-4 — ZnO cluster ladder**: (ZnO)_n fragment DFT (n=2..6,
+  pyscf; Zn basis def2-SVP) -> gap trend toward the 3.3 eV bulk
+  record; honest fragment caveats (same idiom as the acenes).
+- **pv-5 — periodic absorber gaps (the heavy rung)**: pyscf.pbc
+  gamma-point PBE on small Cu2O and FeS2 cells on the engines
+  worker (2G limit — may need the msci-engines image to grow
+  pyscf[pbc] extras + more memory); KS-PBE gap underestimation
+  STATED; validator compares derived vs the literature record
+  within a stated window. Pyrite bonus: marcasite vs pyrite cell
+  energies -> a phase-purity criterion grounded in OUR sims.
+- **pv-6 — transfer-matrix stack integrator**: n(,k) per layer
+  (records or pv-derived) -> wavelength-resolved transmission into
+  the absorber -> an 'optical delivery' factor multiplying the
+  efficiency ladder; suggestions when a layer is off its optimum
+  (AR thickness off quarter-wave, cover reflection, electrode
+  absorption). This makes the STACK itself a simulated object, not
+  a list of independently-sourced layers.
+
+Order: pv-1/pv-3 are cheap analytic wins (same engine idiom as
+percolation); pv-2/pv-4 ride the existing DFT worker; pv-6 needs
+only records; pv-5 is the infrastructure rung (image + memory).
+Every phase keeps the literature record as a VALIDATOR agreement
+check — derived numbers must explain or match them, never silently
+replace them.
+
 ## Open-source audit note
 Renode MIT; Verilator LGPL-3/Artistic-2 and ngspice modified-BSD /
 PySpice GPLv3 — all invoked as tools/worker services (process
