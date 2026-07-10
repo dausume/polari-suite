@@ -64,6 +64,7 @@ services:
       --innodb-buffer-pool-size=128M
       --innodb-log-file-size=32M
       --max-connections=50
+      --table-definition-cache=2000
       --query-cache-size=0
       --tmp-table-size=16M
       --max-heap-table-size=16M
