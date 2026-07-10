@@ -133,6 +133,17 @@ sanity (or just structural assert), OOPS the class (the mem_gb trick)
 
 ## PHASE grpc-2 — Serving layer: the sidecar gRPC server (grpcio)
 
+**✅ BUILT + LIVE-VERIFIED 2026-07-10 (framework branch
+dev-grpc-2-serving).** grpcio 1.74.0 musllinux wheel rides the Alpine
+image directly — NO Debian worker needed. Descriptors are built
+programmatically from the stored tag ledger (field_map_json), not by
+parsing .proto text (`descriptor_build.py`); one GenericRpcHandler +
+per-stream dynamic reflection serves everything. Transport MUX at the
+CRUDE notify seam; `set-transport` knob act added. selftest_serving
+23/23; live 10/10 on staging :3002 (reflection-learned client, Get
+parity vs REST, refusals naming knobs, Watch on REST touch, Commands
+full-object down); 22/22 smoke untouched.
+
 - Add `grpcio` (+ `grpcio-reflection`) to requirements; verify the
   musllinux wheel installs on the Alpine image (it should; if the
   build fights back, pivot to a Debian `grpc-bridge` worker service —
@@ -305,7 +316,20 @@ identical.
   command packet to the simulated MCU → its next telemetry frame
   reflects the commanded state); refusals inherit the stabilization
   gate.
-- **grpc-j2 — live loop (still simulation)**: generated bridge runs
+- **grpc-j2 — live loop (still simulation)**: **✅ LIVE-VERIFIED
+  2026-07-10 on staging: sim-rig bridge (Maven-built jar, javac 22 /
+  mvn 3.6) streamed 600 synthetic frames @10.1 fps → gRPC Push into
+  prf-a :3002 → ONE stable object row per class (identity = the
+  `name` convention, sim-<class>) → 601 STOMP notifications observed
+  through pol-proxy wss (the browser leg). REVERSE proven: REST PUT
+  notes=commanded-by-polari → Commands stream → simulated MCU applied
+  it → 82 subsequent telemetry frames echoed the commanded state →
+  row persisted. Schema-stability interplay proven live too: sim
+  strings OOPSed the trusted bool field → contract auto-flipped stale
+  → pushes refused with evidence → re-stabilize + regenerate (v2, no
+  retired tags) → loop clean. Measured run recorded on the bridge row
+  (notes JSON). New `configure` knob act = the sim→serial transition.**
+  Original spec: generated bridge runs
   on Ubuntu (systemd), source=simulated streams synthetic packets →
   bridge decodes → gRPC Push into prf-a (needs grpc-2) → object tree
   → STOMP fan-out visible in the browser; and the reverse: touch a
