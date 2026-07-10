@@ -1,0 +1,188 @@
+# Hardware Simulation Stack — Renode / Verilator / ngspice
+
+**Written 2026-07-10 from Dustin's direction (design goal: open source
+as much as possible; Renode as the central simulator "for the first
+several years of the hardware ecosystem"). PLANNED — phases below are
+suggestions, nothing auto-builds.** Companion to
+`GRPC_BRIDGE_PLAN.md` (the transport that already works, grpc-2/j2
+live-verified) and the polari-hardware-architecture direction (MCU +
+FPGA layered stack, Hardware Runtime register map).
+
+Correction recorded: there is **no JavaFX** anywhere in this stack —
+the host runtime is the headless Polari Hardware Bridge (generated
+Java app, grpc-j1); human eyes are the Angular frontend via STOMP.
+
+---
+
+## 1. The open-source simulator stack (the decision)
+
+| Layer | Tool | License | Role |
+|---|---|---|---|
+| MCU / SoC simulation | **Renode** | MIT | THE ORCHESTRATOR: CPUs, RAM, flash, SPI/UART/GPIO/DMA/interrupt controllers, whole boards (STM32, RP2040-class, RISC-V), multi-machine emulations |
+| FPGA logic | **Verilator** (or Amaranth's simulator for Amaranth designs) | LGPL/Artistic (tool boundary) | Renode does NOT simulate Verilog/VHDL — verilated models fill that hole |
+| Circuit / analog | **ngspice** (+ PySpice as the OO layer) | modified BSD / GPLv3 (worker boundary) | transistor/LED/power-electronics level; the target of the multiscale materials ladder |
+
+Key architectural fact: Renode ships a **first-class Verilator
+co-simulation integration** ("verilated peripherals") — an HDL block
+is compiled by Verilator into a shared object and attached to the
+Renode platform behind a bus/SPI/UART connector. So "MCU firmware
+writes SPI → Renode forwards the transaction → verilated FPGA
+registers update → response returns" is a supported flow, not an
+invention. Renode is the conductor; Verilator plays the FPGA part;
+ngspice sits below/beside for analog questions.
+
+Every layer of the resulting tower is open source:
+
+```
+Angular frontend (STOMP)          ← eyes
+Polari backend (object tree)      ← the OO simulation surface
+gRPC bridge (:3002, grpc-2)       ← proven transport
+Polari Hardware Bridge (Java)     ← headless host runtime, grpc-j1
+Renode                            ← MCU + orchestration
+Verilator                         ← FPGA logic
+ngspice                           ← circuits
+```
+
+---
+
+## 2. Where this bolts onto what already exists (REUSE, do not rebuild)
+
+- **`DevicePort` seam (grpc-j1)** — read packet / send packet, with
+  exactly two implementations today (`SimulatedDevice`,
+  `SerialCdcPort`). Renode's entry point is ALREADY BUILT: Renode
+  exposes a simulated MCU's UART as a **host pty**, and
+  `SerialCdcPort` is plain file I/O on a tty path. Flipping the
+  bridge's `source=serial` knob at a Renode pty (the "transition
+  rehearsal" named in GRPC_BRIDGE_PLAN grpc-j2) IS the Renode
+  integration, zero bridge changes expected. What's missing is only
+  the firmware inside Renode (phase hwsim-1).
+- **The `configure` knob act** (`/api/grpc/bridges/{name}`) — the
+  sim→Renode→real ladder is one knob per rung: `source: simulated`
+  (built-in synthetic MCU) → `serial` at a Renode pty → `serial` at
+  /dev/ttyACM0. Nothing above the seam changes; that property is the
+  whole point and was proven live 2026-07-10.
+- **"Send this object instance to the hardware and it acts"** — this
+  top-level semantic ALREADY WORKS: grpc-j2 proved REST row update →
+  Commands stream → device applied it → telemetry echoed the new
+  state. The object row is the device's digital twin; hardware
+  becomes a lightweight object-oriented simulation exactly as
+  intended. Renode/Verilator only deepen what sits behind the seam.
+- **Hardware Runtime register map** (hardware-architecture memory:
+  0x0000 Device ID … 0x1000 device data) — this is the vocabulary the
+  universal device interface (section 3) and grpc-4's
+  `HardwareSignalDefinition` (channel/register) already agree on.
+- **msci engines + EngineModelOperation + material objects** — the
+  multiscale ladder (section 4) is new LEVELS on existing machinery,
+  not a new framework. The wax-ferrite + CNT semiconductor study
+  (percolation, p/i/n frontier orbitals) is the natural seed dataset.
+- **Sidecar/worker pattern** — Renode (.NET/mono), Verilator
+  (C++ toolchain), ngspice are heavy deps: they ride Debian worker
+  services exactly like msci-engines / cad-engines (`/capability`
+  honesty, swarm-pinned), never the Alpine backend image.
+- **MUX intuition** (Dustin's note): a multiplexer = select bits
+  routing one of N inputs to an output. Our software mirrors: the
+  `transport_preference` knob is the select on {stomp, grpc, both};
+  the bridge `source` knob is the select on {simulated, serial(pty),
+  serial(real)}; an FPGA-side mode MUX (sim vs hardware inputs) is
+  the same idea in fabric and belongs in the hwsim-3 register block.
+
+---
+
+## 3. The universal hardware object model (the destination)
+
+One abstract interface, implemented by every backend — simulator or
+silicon — so nothing above it can tell the difference:
+
+```
+Device:
+    readRegister(address)  -> value
+    writeRegister(address, value)
+    sendPacket(packet)           # PolariPacket, the universal frame
+    receivePacket() -> packet
+    reset()
+```
+
+- **Two levels, cleanly split**: `DevicePort` (packets — transport)
+  stays as-is; `Device` adds register semantics (application level,
+  the Hardware Runtime map). A packet-only backend (today's
+  SimulatedDevice) simply refuses register calls honestly.
+- **Implementations over time**: `SimulatedDevice` (built-in, today) →
+  `RenodeDevice` (pty/Renode telnet-monitor) → `VerilatedDevice`
+  (register block behind Renode) → `SerialCdcPort` (real board) →
+  (eventually) own SKY130 silicon. Choose ANY iCE40 FPGA + MCU pair
+  per the hardware-tier table; the interface is the contract.
+- **Object coherence**: every device/simulator is a row in the object
+  tree (`RenodeMachineDefinition`, `VerilatedBlockDefinition`,
+  `SpiceCircuitDefinition`…), configured AT the object, exposed over
+  the same CRUDE/gRPC surfaces as everything else. Capabilities are
+  knobs + evidence-bearing suggestions, never auto-applied.
+
+---
+
+## 4. Multiscale electronics ladder (materials → SPICE)
+
+The second goal: simulated materials plug into semiconductor sims,
+those plug into LED/transistor sims, and the result is ABSTRACTED
+into something SPICE can run.
+
+```
+L: DFT/FEM material sims (msci, exists)      e.g. CNT p/i/n frontier orbitals
+      ↓ property extraction (bandgap, mobility, carrier conc., permittivity)
+L+1: semiconductor/junction models            diode & transistor physics
+      ↓ compact-model fitting
+L+2: SPICE .model card (an OBJECT on the material — object coherence)
+      ↓ ngspice via a PySpice worker engine
+L+3: circuit sims (LED driver, H-bridge, laser PSU) → results as objects
+      ↓
+L+4: the same circuits Renode/Verilator devices pretend to drive
+```
+
+Each rung is a derived representation LINKED to its source material
+row (like msci-28's detail view already links levels), with honest
+provenance: a .model card generated from simulated properties says
+so, and deviations between rungs are suggestions to re-derive, not
+silent overwrites. This makes "we simulated this wax-ferrite/CNT
+blend, here is the LED it could drive" a traceable chain.
+
+---
+
+## 5. Suggested phases (branch per phase, selftest green, live-verify)
+
+- **hwsim-1 — Renode MCU twin (the firmware gap)**: minimal open
+  firmware (C, later generated per grpc-j3's `<class>_packets.h`)
+  that speaks PolariPacket over UART; run it on a Renode STM32/RISC-V
+  platform; expose the UART as a pty; point the EXISTING sim-rig
+  bridge at it (`configure source=serial serialDevice=<pty>`).
+  Acceptance: the grpc-j2 loop repeats byte-for-byte but frames come
+  from REAL COMPILED FIRMWARE on a simulated MCU, and a Commands-down
+  write flips firmware state (visible in subsequent telemetry).
+- **hwsim-2 — Renode as data**: `renode-engines` Debian worker
+  (msci-engines idiom); `RenodeMachineDefinition` treeObject (platform
+  .repl, firmware image, pty path, running state) + generated .resc;
+  knob API `/api/hw/machines` (create/start/stop/download); honest
+  `/capability`.
+- **hwsim-3 — Verilator co-sim**: the Hardware Runtime register block
+  (0x0000 map) as a small Verilog/Amaranth design; verilated .so
+  attached to the Renode machine over SPI; firmware reads/writes FPGA
+  registers; register values ride the existing telemetry classes.
+  Include the sim/hardware-input mode MUX in the block.
+- **hwsim-4 — universal Device interface**: register-level abstraction
+  over {renode, verilated, serial}; binds grpc-4's
+  `HardwareSignalDefinition` (register → object field, deadband).
+  This phase merges with grpc-4 rather than duplicating it.
+- **hwsim-5 — SPICE ladder**: `spice-engines` worker (ngspice +
+  PySpice); `SpiceModelCard` derived from material sims (CNT/ferrite
+  seed); LED/diode I-V demo; results and cards as linked objects.
+
+Ordering note: hwsim-1 is the highest-leverage next step (it converts
+the proven j2 loop from synthetic packets to real firmware with ~zero
+bridge changes), but grpc-3/grpc-4 from GRPC_BRIDGE_PLAN.md remain
+valid parallel tracks — grpc-4's signal definitions are what hwsim-3/4
+bind to.
+
+## Open-source audit note
+Renode MIT; Verilator LGPL-3/Artistic-2 and ngspice modified-BSD /
+PySpice GPLv3 — all invoked as tools/worker services (process
+boundary), never linked into Polari; generated firmware/HDL stays
+ours under the repo license. Repos are PUBLIC — simulator configs and
+generated HDL must carry no secrets.
