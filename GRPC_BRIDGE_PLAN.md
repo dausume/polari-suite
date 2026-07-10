@@ -228,6 +228,99 @@ simulated device. LIVE across two swarm nodes.
 
 ---
 
+## PHASE grpc-j1..j3 — Java host bridge (no-code → Java, installs on Ubuntu)
+
+**Added 2026-07-09 from Dustin's hardware-interface conversation.** The
+host-side hardware runtime is the **"Polari Hardware Bridge"** — a
+lightweight headless Java app whose job is to let Polari communicate
+with hardware whenever it wants to. NOT a kernel module, NOT a GUI
+(no JavaFX). **Long-term this becomes an isle-app; temporarily it is
+internal SIMULATION software** — the generated bridge ships with a
+built-in simulated-MCU source and transitions to the real serial
+device later by flipping one knob (`source: simulated | serial`),
+nothing else changes. Standardize all three layers:
+
+- **Physical**: USB-C (USB 2.0, CDC-ACM → `/dev/ttyACM0`) computer↔MCU;
+  SPI MCU↔FPGA (the FPGA only sees digital signals; SPI is the
+  open-ecosystem sweet spot — every MCU speaks it, easy in FPGA logic,
+  low pin count).
+- **Transport**: ONE universal versioned binary packet for every board
+  (LED, CNC, laser, sensor): `magic u16 | version u8 | msg_type u8 |
+  device_id u16 | sequence u32 | payload_len u16 | payload | crc32` —
+  little-endian, CRC over header+payload. The OS just sees bytes; the
+  runtime interprets them.
+- **Application**: generated structs/Protocol Buffers mapping directly
+  to Java (later Python/Rust/C++) APIs — generated FROM the same
+  stabilization field_map the .proto came from, so firmware, Java, and
+  Polari agree by construction.
+
+The runtime is BIDIRECTIONAL — the same app serves both directions,
+in simulation today and against real hardware later:
+
+- **Telemetry up**: read packets from the device (`/dev/ttyACM0`, or
+  the built-in simulated MCU) → deserialize struct payloads →
+  convert to protobuf → `Push` over gRPC into Polari (grpc-2 server)
+  → object tree → STOMP fan-out.
+- **Commands down**: subscribe to the class's `Commands` server
+  stream over gRPC (Polari decides an operation whenever it wants) →
+  proto → struct payload → PolariPacket → write to the device over
+  USB. The MCU applies it (in simulation: the synthetic MCU updates
+  its state, which its NEXT telemetry frames reflect — the round
+  trip is provable without hardware).
+
+One seam makes the sim→real transition trivial: `DevicePort`
+(read packet / send packet). `SimulatedDevice` and `SerialCdcPort`
+are the only two implementations; everything above the seam is
+identical.
+
+- **grpc-j1 — the generator (THE no-code capability)**:
+  `HardwareBridgeDefinition` (treeObject, the knob: bridge name,
+  source `simulated | serial` (default simulated — the internal-sim
+  phase), serial device + baud (used when source=serial), exposed
+  classes, target gRPC endpoint, msg_type↔class map) +
+  `grpcbridge/java_bridge.py` (stdlib string templating, same idiom
+  as proto_gen) emits a COMPLETE buildable Maven project — the
+  Polari Hardware Bridge app:
+  `PolariPacket.java` (universal packet codec + CRC32, resync-safe
+  framing), per-class record + binary codec from the field_map
+  (int64/double LE, length-prefixed UTF-8 strings — the C-struct
+  twin), the two `DevicePort` implementations (`SimulatedDevice`:
+  synthetic telemetry AND command handling — a command packet
+  updates its state, reflected in subsequent telemetry;
+  `SerialCdcPort`: plain file I/O on ttyACM* + `stty` raw config —
+  no native deps), `BridgeMain` (the bidirectional loop),
+  `GrpcForwarder` (proto⇄struct conversion both directions: Push up,
+  Commands-stream down; reflectively loaded so the core has zero
+  gRPC deps), `pom.xml` (protobuf-maven-plugin + grpc-java, the
+  generated .protos embedded — bundled as ONE `polari_bridge.proto`:
+  shared messages once + every class message/service),
+  `install-ubuntu.sh` + `polari-hw-bridge.service` (systemd).
+  Downloadable as a tar.gz from the API. The contract service gains
+  `rpc Commands (WatchRequest) returns (stream <Class>)` in grpc-1
+  so the app can wire command-down the moment grpc-2 serves it.
+  Acceptance: selftest generates a project for a fake stabilized
+  class and COMPILES + RUNS the dependency-free core with javac when
+  available (skip honestly otherwise): loopback frame round-trip,
+  corrupted-CRC rejection, AND the command round-trip (send a
+  command packet to the simulated MCU → its next telemetry frame
+  reflects the commanded state); refusals inherit the stabilization
+  gate.
+- **grpc-j2 — live loop (still simulation)**: generated bridge runs
+  on Ubuntu (systemd), source=simulated streams synthetic packets →
+  bridge decodes → gRPC Push into prf-a (needs grpc-2) → object tree
+  → STOMP fan-out visible in the browser; and the reverse: touch a
+  row in Polari → Commands stream → bridge → simulated MCU state
+  changes → telemetry confirms. Measured frames/sec + bytes recorded
+  on the bridge row (res-3 idiom). Flipping source=serial against a
+  pty is the transition rehearsal; real hardware later changes
+  NOTHING in the app.
+- **grpc-j3 — firmware twin**: generate the matching C header
+  (`<class>_packets.h`, packed structs + CRC, nanopb-compatible
+  naming) from the SAME field_map + run the grpc-4 embeddability lint
+  on it, so "this contract runs on the SAMD21 tier" stays checkable.
+
+---
+
 ## Cross-phase notes
 - **The gate IS the feature**: only stabilized schemas get contracts;
   every OOPS (SchemaDeviationEvent) marks dependent contracts stale
