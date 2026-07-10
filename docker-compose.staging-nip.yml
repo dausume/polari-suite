@@ -379,10 +379,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384M
-          cpus: '0.4'
+          # Raised 384M -> 1024M (2026-07-10): in-backend pyscf DFT
+          # fragments (acene ladder, ~30 atoms) need the headroom; a
+          # cgroup OOM kill would down the API mid-request.
+          memory: 1024M
+          cpus: '0.8'
         reservations:
-          memory: 128M
+          memory: 256M
           cpus: '0.1'
     depends_on:
       pol-file-store:
