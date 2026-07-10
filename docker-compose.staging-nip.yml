@@ -318,9 +318,25 @@ services:
       # CORS_ORIGINS and PRF_API_URL will come from .env.staging file
       # INTERNAL_API_URL: For API profiler self-call rewriting (avoids hairpin NAT)
       - INTERNAL_API_URL=http://localhost:3000
+      # Object DB on the shared MariaDB + KeyDB table cache (the
+      # dbcombo path, proven on twin-B) — the sqlite exit. Drop
+      # DATABASE_TYPE to fall back to sqlite in the volume below.
+      - DATABASE_TYPE=mariadb
+      - MARIADB_HOST=pol-mariadb
+      - MARIADB_PORT=3306
+      - MARIADB_USER=polari
+      - MARIADB_PASSWORD=${POLARI_OBJECTS_DB_PASS:-polaripassword}
+      - MARIADB_DATABASE=polari_objects
+      - CACHE_BACKEND=keydb
+      - KEYDB_HOST=prf-keydb
+      - KEYDB_PORT=6379
+      - KEYDB_PASSWORD=${POLARI_KEYDB_PASS:-polari-keydb-password}
       # MinIO object storage
       - OBJECT_STORAGE_ENABLED=true
       - MINIO_ENDPOINT=pol-file-store:9000
+      # CAD import/export worker (shape-3): swarm service prf-cad-engines
+      # on a worker device, reached via the swarm routing mesh on the host.
+      - CAD_ENGINES_URL=http://192.168.0.210:9600
       # WebSocket (STOMP) notifications
       - WEBSOCKET_ENABLED=true
       - WEBSOCKET_PORT=3001
@@ -335,6 +351,10 @@ services:
       - "auth.${LOCAL_IP}.nip.io:host-gateway"
       - "files.${LOCAL_IP}.nip.io:host-gateway"
       - "s3.${LOCAL_IP}.nip.io:host-gateway"
+    volumes:
+      # Persistent app state (sqlite DB when DATABASE_TYPE is unset,
+      # file caches either way) — the backend is no longer stateless.
+      - prf_backend_data:/app/data
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/', timeout=5)"]
       interval: 10s
@@ -352,6 +372,23 @@ services:
     depends_on:
       pol-file-store:
         condition: service_healthy
+      pol-mariadb:
+        condition: service_healthy
+      prf-keydb:
+        condition: service_started
+
+  # KeyDB table cache for prf-backend (dbcombo path; mirrors the
+  # twin-B prf-b-keydb config).
+  prf-keydb:
+    image: eqalpha/keydb:latest
+    container_name: prf-keydb
+    command: ["keydb-server", "--appendonly", "no",
+              "--requirepass", "${POLARI_KEYDB_PASS:-polari-keydb-password}",
+              "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    restart: unless-stopped
+    networks:
+      - polari-network
+    mem_limit: 160m
 
 # ============================================
 # VOLUMES
@@ -360,6 +397,7 @@ volumes:
   pol_mariadb_data:
   pol_file_store_data:
   psc_redis_data:
+  prf_backend_data:
 
 # ============================================
 # NETWORKS

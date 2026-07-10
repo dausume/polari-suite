@@ -18,6 +18,7 @@ set -e
 
 KC_PASS="${KC_DB_PASSWORD:-kcpassword}"
 PSC_PASS="${PSC_DB_PASSWORD:-pscpassword}"
+POLARI_PASS="${POLARI_DB_PASSWORD:-polaripassword}"
 
 echo "[init.sh] Initializing databases and users..."
 
@@ -54,6 +55,19 @@ GRANT ALL PRIVILEGES ON psc.* TO 'psc-scorecard-server'@'%';
 GRANT ALL PRIVILEGES ON psc_scoring_db.* TO 'psc-scorecard-server'@'%';
 GRANT ALL PRIVILEGES ON psc_location_db.* TO 'psc-scorecard-server'@'%';
 GRANT SELECT ON mysql.* TO 'psc-scorecard-server'@'%';
+
+-- ==============================================================================
+-- POLARI FRAMEWORK OBJECT-STORE DATABASE AND USER
+-- ==============================================================================
+-- The polari user may create per-instance schemas (polari_objects,
+-- polari_objects_b, ...) — hence the polari_objects% grant pattern
+-- (mirrors polari-rf-node/prf-mariadb/init.sh).
+CREATE DATABASE IF NOT EXISTS polari_objects
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+
+CREATE USER IF NOT EXISTS 'polari'@'%' IDENTIFIED BY '${POLARI_PASS}';
+GRANT ALL PRIVILEGES ON \`polari_objects%\`.* TO 'polari'@'%';
 
 -- ==============================================================================
 -- APPLY PRIVILEGES
