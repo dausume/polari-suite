@@ -236,9 +236,23 @@ blend, here is the LED it could drive" a traceable chain.
   over {renode, verilated, serial}; binds grpc-4's
   `HardwareSignalDefinition` (register → object field, deadband).
   This phase merges with grpc-4 rather than duplicating it.
-- **hwsim-5 — SPICE ladder**: `spice-engines` worker (ngspice +
-  PySpice); `SpiceModelCard` derived from material sims (CNT/ferrite
-  seed); LED/diode I-V demo; results and cards as linked objects.
+- **hwsim-5 — SPICE ladder**: **✅ FIRST RUNG BUILT + LIVE 2026-07-10
+  (fw 89a71f6): the simplest device = the CNT-doped sol-gel composite
+  RESISTOR (current limiter for the FPGA-driven LED grid).**
+  `electrodevice/` module: ElectronicDeviceDefinition derives by
+  EXECUTING the msci percolation sim (cnt-solgel-percolation →
+  σ_eff 227.27 S/m @ 2 vol% → R = L/(σA) = 628.6 Ω), provenance +
+  the sim's validity note stamped on the row AND in the .subckt
+  comments (versioned SpiceModelCard rows). ngspice rides the Alpine
+  backend image (capability-honest); circuit 'fpga-pin-led' = one
+  branch per grid pin, pixels default to the LIVE LedMatrix4x4State
+  row. LIVE: the 0x8421 diagonal → 4 LEDs at 2.6123 mA each, verdict
+  all-leds-in-range, CircuitRunResult row; out-of-range yields a
+  geometry/volumeFraction knob suggestion. selftest 9/9 (real
+  ngspice legs). NEXT rungs: capacitor (dielectric sol-gel rows →
+  C = εA/d, RC + FPGA PWM transient), diode (doped-Si / CNT p-n from
+  the DFT frontier-orbital rows → .model D card), then PySpice
+  worker if in-backend ngspice ever outgrows Alpine.
 
 Ordering note: hwsim-1 is the highest-leverage next step (it converts
 the proven j2 loop from synthetic packets to real firmware with ~zero
