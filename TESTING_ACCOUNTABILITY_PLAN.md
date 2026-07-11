@@ -100,6 +100,35 @@ Every check is an OBJECT in the tree, not a line in a log:
   green, never silently missing.
 - Runners WRAP the existing suites (the 66-suite, api-sweep,
   selftests) — one registration layer, zero test duplication.
+- **Pipeline-readable YAML report (Dustin 2026-07-11)**: every
+  `CheckRun` also SERIALIZES to a `test-report.yaml` written to a
+  stable, volume-mountable path (`test-results/test-report.yaml`,
+  plus a timestamped copy per run) so a CI pipeline can read the
+  outcome without touching the API. The YAML is a faithful
+  projection of the same objects — never a second bookkeeping
+  system:
+
+  ```yaml
+  run:
+    id: <CheckRun id>
+    started_at / finished_at: <ISO-8601>
+    build: {kind: test, image: ..., git: {framework: <sha>, ng: <sha>}}
+    environment: {db_dialect: mariadb|sqlite, containers_up: [...]}
+    totals: {pass: N, fail: N, skip_honest: N, never_run: N}
+    blocking_green: true|false   # substrate+transport+twin verdict
+  checks:
+    - name: <CapabilityCheck name>
+      category: substrate|transport|format|twin|nocode|engine|module
+      criticality: blocking|informational
+      status: pass|fail|skip-honest
+      duration_ms: N
+      evidence: <assert detail / error / skip reason + suggestion>
+  ```
+
+  `blocking_green` is the single field a pipeline gates on; exit
+  code of the test-build runner mirrors it. Schema changes are
+  versioned (`report_version: 1` at the top) so later pipelines can
+  evolve without breaking older readers.
 
 ## 2. Phases
 
@@ -112,7 +141,9 @@ each no-code selftest). Acceptance: a TEST build renders the matrix
 with real statuses from one `CheckRun`; every existing test surface
 appears exactly once; an unrunnable check shows `skip-honest` +
 suggestion; a NORMAL build has no testing classes, tables, routes,
-or page (asserted — the absence is itself a pinned behavior).
+or page (asserted — the absence is itself a pinned behavior); the
+run emits `test-results/test-report.yaml` (schema above) and the
+runner's exit code mirrors `blocking_green`.
 
 ### acct-1 — substrate: databases + cache
 - **SQLite**: CRUD + auto-table-generation + polyTyping round-trip
