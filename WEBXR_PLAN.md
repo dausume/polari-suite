@@ -1,11 +1,14 @@
 # WebXR VR/AR Spaces — Plan (xr-1..5)
 
 **Written 2026-07-11 from Dustin's directive.
-STATUS 2026-07-11: xr-1 ✅ BUILT + LIVE-VERIFIED (see the xr-1
-section stamp); xr-2..4 not started — NEXT AGENT PICKS UP xr-2
-(controllers/hands/navigation; bundle BOTH input profiles —
-oculus-touch + vive wands). Branches: fw `dev-xr-1-engine`
-(9bc761c), ng `dev-xr-1-engine-ng` (61b7489+). NOT pushed.**
+STATUS 2026-07-11 (evening): xr-1 ✅ + xr-2 ✅ BUILT + LIVE-VERIFIED
+(see the section stamps) — NEXT AGENT PICKS UP xr-3 (the XR
+interface system: XrSurfaceModel, wrist radial rings growing from
+the xr-2 ring-0 seed, HTMLMesh spatial page-panels, target-based
+grip dispatch). Branches: fw `dev-xr-1-engine` (9bc761c; no backend
+changes in xr-2), ng `dev-xr-2-input-ng` (0759051, on top of the
+api-sweep protocol fixes). NOT pushed. Dustin headset review pending
+on BOTH devices (Quest 2 + Vive).**
 Goal: every 3D interface can be "entered" as a VR space through
 WebXR + three.js, with ONE engine carrying all XR capability (many 3D
 interfaces on screen must never each load VR machinery); controllers/
@@ -188,6 +191,47 @@ per-viewer XR loading (bundle assert); iwer spec green; existing 3D
 pages unregressed.
 
 ### xr-2 — seeing yourself: controllers, headset, hands
+
+**✅ BUILT + LIVE-VERIFIED 2026-07-11 (ng dev-xr-2-input-ng 0759051;
+frontend-only — the backend xr module already carried
+XrInterfaceVariant).** What shipped, all inside the sim-space-3d
+lazy chunk (initial bundle byte-comparable to base; the 5MB budget
+warning pre-exists): xr-input-rig (controller+hand models + rays;
+profiles BUNDLED LOCALLY under /assets/webxr-profiles — oculus-touch-
+v3 + htc-vive + two generic fallbacks + generic-hand, trimmed
+profilesList.json so matching never leaves the bundle); xr-navigation
+(the grip state machine below, all Q8 defaults as knobs);
+xr-entry-placement (framing-aware scale-relative entry, derived
+entry_scale persisted into XrInterfaceVariant on first entry);
+xr-nav-visuals (vignette + at-limit flash wearer-only via per-eye
+layers 1/2; anchor ghost + command vector visible in the mirror);
+xr-wrist-ui (ring-0 seed: EXIT/HOME/BACK + zoom indicator,
+handedness knob, hover blocks world gestures); xr-mirror-ghost
+(headset ghost on layer 3, enabled on the FLAT camera while bound,
+exact mask restored on exit — byte-identical now covers camera
+layers); engine + XrVariantService (real CRUDE protocol, merge
+preserves unknown config keys) + sidebar XR nav section (entry
+scale, vignette/snap/curve/wrist knobs, bookmarks w/ live goto).
+SEMANTIC DECISION pinned in code+spec: the OTHER grip cancels an
+ARMED shift (gestures dead until all grips release); both grips
+inside the debounce window = world-grab start, and releasing one
+grab hand never silently resumes a shift. Verified: 29/29 XR specs
+(16 new: pure nav state machine incl. midpoint invariance +
+clamp honesty + hysteresis; iwer session integration incl. iwer
+squeeze→shift end-to-end; CRUDE protocol pins; engine bookmark
+round-trip), 62/62 full frontend suite, live staging: 22/22 smoke,
+profile GLBs served over the TLS proxy (oculus 650KB / vive 1.1MB),
+full XrInterfaceVariant live round-trip (create 201 → bookmark
+merge → global-mode flip → variant BYTE-IDENTICAL → deliberate
+delete). Gotchas: replacing prf-frontend needs `docker network
+connect polari-suite_polari-network prf-frontend` before pol-proxy
+restarts (proxy lives on the suite network and dies on unresolvable
+upstream); tsconfig gained skipLibCheck (three's GLTF loader d.ts
+pulls three/webgpu, unresolvable under moduleResolution node).
+Remaining for Dustin's headset pass: haptic feel, drive-speed gain,
+exhibit pedestal height, wands' squeeze ergonomics.
+
+Original spec:
 - `XRControllerModelFactory` → real motion-controller models for the
   remotes (BUNDLE the webxr-input-profiles assets locally — the
   factory's default CDN fetch violates our self-contained deploys;
