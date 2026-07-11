@@ -89,6 +89,22 @@ Dustin's review: branch stack dev-xsim-1-refs→2-locks→3-read→
 4963d1f→6aedea6), staging runs the full stack, NOT pushed. Frontend
 tail (queue page, lock chips, ref inspector) not started.**
 
+**✅ modsplit-1+2 COMPLETE 2026-07-11 (Dustin's directive: frontend
+coordinates ALL backends; core tracks + tells what comes from where):
+framework `dev-modsplit-1` 20e1939 — POLARI_MODULES gating (each
+instance registers ONLY its modules' classes; one defClassList filter
+cascades to typing/CRUDE/seeds/restore; boot logs dropped modules) +
+GET /api/refs/directory (className→{module,instance,baseUrl} from
+ModuleAssignment + PeerNode browser URLs; disabled rows ignored).
+Angular `dev-modsplit-2` bb413e1 — ClassDirectoryService + per-class
+CRUDE routing w/ core fallback (redirects, never blocks). LIVE: m
+(msci-only, 64 classes) / n (aquaponics-only, 65) / core (155); CRUDE
+surfaces differ through browser vhosts (api.m/api.n); n with ZERO
+msci classes resolved m's ferrite (remote-api rung, path walk 'Fe');
+directory routed msci→m / aqp→n then reverted via the disabled knob.
+66-suite baseline-identical + 22/22 smoke. Demo m/n containers left
+running; demo assignments DISABLED so the live frontend reads core.**
+
 ## PICK UP HERE — execution context for a fresh session
 
 - **Branches**: polari-framework HEAD = `dev-msci-27-md-meso-ui`
