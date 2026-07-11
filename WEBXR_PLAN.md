@@ -227,11 +227,27 @@ multiple circles = tiered/paginated radial rings.
   control panel, snapshot evaluation equations, conformance findings,
   …) render in XR as FULL floating pages — each an independent quad
   the user spawns from the wrist menu, grabs, repositions, and
-  dismisses. Rendered from the same panel DEFINITIONS the flat app
-  uses (canvas-texture panel renderer over the panel's data — NOT
-  DOM capture, which browsers don't allow into WebGL); interactive
-  controls (step, play, scrub) fire the same service calls as their
-  flat twins.
+  dismisses.
+  **Why not real webviews (Dustin asked 2026-07-11)**: inside an
+  immersive session the browser composites ONLY the WebGL layer —
+  live DOM cannot appear in-scene (window.open windows surface only
+  after leaving immersion; DOM→texture capture is forbidden by the
+  security model; DOM Overlay = one flat screen-locked overlay,
+  AR-oriented; Layers API quads take WebGL/media, not DOM). This is
+  a platform boundary, not a design choice.
+  **Panel rendering ladder (best available fidelity, honestly
+  degraded)**:
+  1. **HTMLMesh rasterization of the REAL Angular panels** (three's
+     jsm HTMLMesh idiom: same-origin DOM → canvas texture +
+     controller-ray pointer events forwarded to the LIVE component)
+     — the floating page IS the actual panel component rendered
+     off-screen; behavior parity is automatic. Limits: same-origin
+     only, CSS subset, re-rasterize-on-change cost.
+  2. **Data-driven canvas renderer** for panels where rasterization
+     is too slow (high-frequency updates: live stepping traces) or
+     the CSS subset bites — draws from the same panel definitions.
+  Per-panel choice recorded in XrInterfaceVariant (a knob, with the
+  measured re-raster cost as its evidence — res-3 idiom).
 - **Clean transitions both directions**: entering XR maps currently
   open flat panels → spawned pages (restored placements from the
   space's XrInterfaceVariant); exiting persists page placements back
@@ -320,11 +336,12 @@ any appear outside sim-space-viewer.
    pagination is spatial (stacked rings up the forearm) or temporal
    (swipe between ring pages on one anchor). Handedness default:
    left wrist + right-hand pointer, flippable.
-7. **Panel content fidelity**: the canvas-texture panel renderer
-   redraws panel DATA (tables, values, equations, controls) — it is
-   not a pixel-perfect copy of the webview CSS. Acceptable, or should
-   heavy panels (e.g. equation displays) get bespoke XR layouts in
-   their XrInterfaceVariant from day one?
+7. **Panel rendering default**: RESOLVED direction 2026-07-11 —
+   HTMLMesh rasterization of the real Angular panels is the default
+   (real components, forwarded interaction), data-driven canvas
+   renderer as the per-panel fallback knob for update-heavy panels.
+   Remaining question: which panels ship on the fallback from day
+   one (candidates: live stepping traces, large equation grids)?
 8. **Navigation tuning**: debounce window length for the one-grip
    shift (default ~250ms?), dead-zone radius, response curve
    (linear vs expo), vignette default on/off, and whether hand
