@@ -105,6 +105,20 @@ directory routed msci→m / aqp→n then reverted via the disabled knob.
 66-suite baseline-identical + 22/22 smoke. Demo m/n containers left
 running; demo assignments DISABLED so the live frontend reads core.**
 
+**✅ modsplit-3 COMPLETE 2026-07-11 (fw `dev-modsplit-3` 201b72f, ng
+`dev-modsplit-3-ng` f5c8c0c): transport parity — the directory
+advertises wsUrl (browser-base-derived or identity_json override) +
+grpcTarget per module provider; competing exact assignments tie-break
+to the PeerNode-addressable instance (enable/disable = the routing
+knob, live-proven both ways). Frontend StompService = one lazy RxStomp
+client per owning backend, watch routes per class via the directory
+(core fallback). LIVE on m: polariTreeWs knob → CRUDE PUT → MESSAGE
+frame on m's OWN :3001; wss upgrade through the api.m vhost CONNECTED;
+gRPC :3002 with grpcbridge gated = FAILED_PRECONDITION naming the
+exposure knob (gate-is-the-feature verified). STOMP publishes were
+ALREADY per-instance (transport_mux); gRPC full contract routing =
+grpc-2's plan. 13/13 + baseline-identical 66-suite + 22/22 smoke.**
+
 ## PICK UP HERE — execution context for a fresh session
 
 - **Branches**: polari-framework HEAD = `dev-msci-27-md-meso-ui`
