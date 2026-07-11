@@ -57,8 +57,24 @@ refuses writes to rows locked by a's run), POST /api/refs/write
 the shared lock table, stale epoch fenced+journaled+row untouched.
 45/45 + 40/40, 66-suite baseline-identical, 22/22 smoke. v1
 limitation: no cross-object transactions (journal detects partial
-windows). NEXT: xsim-5 overlap advisor on `dev-xsim-5-advisor`, then
-xsim-6 remote-API rung + end-to-end rehearsal.**
+windows).**
+
+**✅ xsim-5 COMPLETE 2026-07-11 (framework `dev-xsim-5-advisor`
+4963d1f): overlap advisor — overlap_advisor.py disjointness engine on
+the LOCK selector vocabulary (manifest IS the lock manifest) +
+advisor_stages.py extraction (attempt-prefix ranges provably
+disjoint; engineModel's shared modelRef row = the real hazard;
+subModel recursion cycle-guarded; dynamic refs conservative).
+Surfacing: validate_composition warnings + writeAnalysis payload +
+stage-search pre-run 409 w/ acceptWarnings knob; stage manifest feeds
+the single-writer gate. LIVE: conflicting msim → warning + 409 +
+acceptWarnings run; wax-multiscale clean. 11/11 selftest, 66-suite
+baseline-identical, 22/22 smoke.
+NEXT: xsim-6 remote-API rung (topology address book, CRUDE GET/write
+via peer link + token headers — the owner-side validation shape
+already exists on /api/refs/write) + the end-to-end rehearsal (one
+multiscale sim spanning a+b, remote mutations journaled, queue
+holding a second sim until release) on `dev-xsim-6-rehearsal`.**
 
 ## PICK UP HERE — execution context for a fresh session
 
