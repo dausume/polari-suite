@@ -1,7 +1,54 @@
 # gRPC on Stabilized Objects — Bridge Plan
 
+## PICK UP HERE (stamped 2026-07-11) — next agent starts grpc-3
+
+- **STATE**: grpc-1 ✅, grpc-2 ✅ (see the phase-2 stamp below:
+  dev-grpc-2-serving, 23/23 + live 10/10 on :3002), grpc-j1 ✅,
+  grpc-j2 ✅ (sim-rig round trip live). **NEXT = grpc-3** (transport
+  parity + measured efficiency + peer↔peer Watch), then grpc-4
+  (hardware signal bridge), grpc-j3 (firmware twin header).
+- **NEW CONTEXT since the phases below were written (xsim/modsplit
+  work, 2026-07-10→11 — see CROSS_INSTANCE_SIM_PLAN.md):**
+  - `grpcbridge/transport_mux.py` is now ALSO the STOMP publish seam
+    for all CRUDE notifications (polariCRUDE delegates to
+    `publish_crude_change`); the per-class ws leg is the
+    `polariTreeWsEnabled` knob (default False, PUT /api-config/formats).
+  - **Module gating** (`POLARI_MODULES`, polariApiServer/
+    module_gating.py): grpcbridge's classes are gated like any domain
+    module — an instance without it serves NO contract services and
+    aborts FAILED_PRECONDITION naming the exposure knob (live-verified
+    on a module-scoped instance). Instances meant to serve contracts
+    need grpcbridge in their POLARI_MODULES (or the knob unset).
+  - **The class directory** (`GET /api/refs/directory`, polariRefs/
+    refs_api.py) advertises a per-module-provider `grpcTarget`
+    (declared via PeerNode.identity_json). grpc-3's peer↔peer Watch
+    should RESOLVE its target through this directory rather than
+    hardcoding addresses — that makes gRPC the third
+    directory-coordinated transport (CRUDE + STOMP already are).
+  - Cross-instance writes now carry fencing tokens
+    (X-Polari-Lease-Token; simulationLocks/lease.py validate_token,
+    remote_api.validate_epoch_for_owner). grpc-4's command-down path
+    for MUTATING commands should present the same token when the
+    mutation originates from a simulation run (the seam is
+    polariRefs/remote_writes.py — reuse, don't reinvent).
+  - Single-writer object locks: hardware telemetry Push lands as
+    object updates — `simulationLocks.object_locks.check_write` is the
+    enforcement seam CRUDE uses; grpc-4 Push should consult it too
+    (telemetry to a run-locked row = honest refusal, journal-worthy).
+- **Deploy/verify conventions**: suite-level
+  `docker-compose.staging-nip.yml --env-file .generated/.env.staging`;
+  after EVERY `up -d --build` run `docker exec pol-proxy nginx -s
+  reload` AND retry the first request (stale-upstream 504s; if they
+  persist `docker restart pol-proxy`). Backend boot ~150-200s. 66-test
+  suite in-container has 12 KNOWN pre-existing failures (8F+4E in
+  test_api_profiler/test_crude_api) — the bar is "identical list",
+  not green. Smoke: tests/live_api_smoke.py = 22/22. Branch per
+  phase off `dev-modsplit-3` (the current framework HEAD lineage:
+  dev-xsim-1-refs→…→dev-modsplit-3 201b72f). Repos PUBLIC — no
+  secrets; NOT pushed without Dustin.
+
 **Written 2026-07-09 as a durable, GPT-4-executable handoff (Dustin's
-directive; PLANNED, not built).** Goal: a **knob, not automation** —
+directive).** Goal: a **knob, not automation** —
 classes whose object schema has STABILIZED (see
 `polariDataTyping/schema_stability*`) can be exposed over gRPC for
 efficient binary transport, as a stand-in/parallel for the STOMP
