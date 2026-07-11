@@ -6,6 +6,19 @@ cross-instance + database/transport integrations (acct-0..3), THEN
 no-code capability + engines (acct-4..5), THEN unit-testing VIA
 no-code — the capability to test modules (acct-6).**
 
+**TEST-BUILD GATING (Dustin 2026-07-11): test objects are loaded and
+run ONLY in dedicated test builds — never in normal runtime.** All
+of acct-0..6 lives in a `testing/` module that is simply absent from
+a normal build's `POLARI_MODULES`: no CapabilityCheck/CheckRun/
+NoCodeTestCase classes registered, no tables created, no
+/api/accountability route, no frontend page, zero test machinery in
+production images. A TEST BUILD (compose profile + env knob, the
+Dockerfile.test lineage) includes the module and runs the full
+matrix — "full test suite" is a build target, not a runtime mode.
+The frontend Testing page registers only when the class directory
+reports the testing module (the modsplit directory idiom), so a
+normal frontend never shows a dead menu item.
+
 Goal: durable, runnable **accountability for critical functionality
 and integrations** — not a pile of ad-hoc scripts, but a capability
 matrix where every critical seam (KeyDB, MariaDB, SQLite, gRPC,
@@ -91,12 +104,15 @@ Every check is an OBJECT in the tree, not a line in a log:
 ## 2. Phases
 
 ### acct-0 — the spine + inventory
-Build `CapabilityCheck`/`CheckRun` + `/api/accountability` + the
+Build the `testing/` module (test-build-gated, see header):
+`CapabilityCheck`/`CheckRun` + `/api/accountability` + the
 registration layer; register the EXISTING suites as the first rows
 (66-suite categories, api-sweep, live smoke, each module selftest,
-each no-code selftest). Acceptance: the matrix renders with real
-statuses from one `CheckRun`; every existing test surface appears
-exactly once; an unrunnable check shows `skip-honest` + suggestion.
+each no-code selftest). Acceptance: a TEST build renders the matrix
+with real statuses from one `CheckRun`; every existing test surface
+appears exactly once; an unrunnable check shows `skip-honest` +
+suggestion; a NORMAL build has no testing classes, tables, routes,
+or page (asserted — the absence is itself a pinned behavior).
 
 ### acct-1 — substrate: databases + cache
 - **SQLite**: CRUD + auto-table-generation + polyTyping round-trip
@@ -214,14 +230,18 @@ acct-2's gRPC rows coordinate with grpc-3 (same seam, one
 implementation). Each phase: selftest green + matrix rows live +
 22/22 smoke unchanged before the next.
 
-## 4. Open questions for Dustin
-1. Matrix page placement: its own top-level "Accountability" menu, or
-   a tab under the existing module pages (msci idiom)?
-2. Should `CheckRun`s be schedulable (a knob for periodic runs on
-   staging), or manual-trigger only for now?
-3. acct-3 twin suite: run against throwaway compose instances every
-   time (clean but slow), or reuse a standing twin pair (fast but
-   stateful)? Default proposal: throwaway, with a knob.
-4. Criticality tiers: which rows should BLOCK a phase confirmation
-   (red = stop) vs inform (red = visible debt)? Proposal: substrate +
-   transport + twin block; nocode/engine inform until acct-6.
+## 4. Defaults chosen (say so if any should differ)
+Previously open questions — now resolved with stated defaults, all
+of them knobs:
+1. **Where the results page lives**: a top-level "Testing" menu item
+   that only exists in test builds (gating decides visibility, so
+   placement is uncontroversial).
+2. **When checks run**: only when a test build is launched — no
+   scheduling machinery. "Run the full suite" = start the test
+   build; it runs the matrix and reports.
+3. **How the twin suite gets its containers**: fresh throwaway
+   compose instances every run, torn down after (clean over fast).
+4. **What a red row means**: substrate, transport, and twin rows
+   must be green before a phase is called done; no-code and engine
+   rows are visible debt that doesn't block until acct-6 makes them
+   testable per module.
