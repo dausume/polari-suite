@@ -70,11 +70,24 @@ stage-search pre-run 409 w/ acceptWarnings knob; stage manifest feeds
 the single-writer gate. LIVE: conflicting msim → warning + 409 +
 acceptWarnings run; wax-multiscale clean. 11/11 selftest, 66-suite
 baseline-identical, 22/22 smoke.
-NEXT: xsim-6 remote-API rung (topology address book, CRUDE GET/write
-via peer link + token headers — the owner-side validation shape
-already exists on /api/refs/write) + the end-to-end rehearsal (one
-multiscale sim spanning a+b, remote mutations journaled, queue
-holding a second sim until release) on `dev-xsim-6-rehearsal`.**
+**✅ xsim-6 COMPLETE 2026-07-11 (framework `dev-xsim-6-rehearsal`
+6aedea6): rung 4 — remote_api.py (PeerNode address book, injectable
+transport) + owner-side /api/refs/apply-write (epoch validated
+against CORE via POLARI_CORE_URL / local lease; local locks
+respected; owner journals 'inbound'); shared-DB row-miss now falls
+through to rung 4; resolve endpoint serializes full tree-object
+fields (the rung-4 hydration body). LIVE REHEARSAL vs a real
+API-only instance c (sqlite, core→a): rung-4 read path-walk; a's
+gated run wrote c's row over HTTP (c validated epoch 6 against core
+a; BOTH journals) while sim B queued; stale epoch fenced, c's row
+untouched. 51/51+40/40+11/11 selftests, 66-suite
+baseline-identical, 22/22 smoke.
+
+ALL SIX PHASES COMPLETE — the workstream's build is done pending
+Dustin's review: branch stack dev-xsim-1-refs→2-locks→3-read→
+4-writes→5-advisor→6-rehearsal (02f394e→607a293→df98d6b→6c78905→
+4963d1f→6aedea6), staging runs the full stack, NOT pushed. Frontend
+tail (queue page, lock chips, ref inspector) not started.**
 
 ## PICK UP HERE — execution context for a fresh session
 
