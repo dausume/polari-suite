@@ -151,8 +151,51 @@ pages unregressed.
   headset ghost + controller/hand poses streamed from the session
   (pose → the existing viewer overlay seams). Multi-user presence
   over STOMP is xr-5, but the pose plumbing lands here.
-- Basic locomotion knob: teleport (controller ray + squeeze) and/or
-  orbit-at-scale; default teleport, both feature-flagged.
+- **Navigation has its own logic (Dustin 2026-07-11) — fast,
+  intuitive, dynamic. The grip buttons ARE navigation; triggers stay
+  selection** (one consistent split, documented on the wrist menu's
+  help ring):
+  - **Two-grip world-grab zoom**: both grips held — hands toward
+    each other = zoom OUT, hands apart = zoom IN (world-grab /
+    Earth-VR pattern). Implemented as scaling the user RIG about the
+    midpoint between hands (nausea-safe, world stays put). The
+    natural companions ride the same gesture: two-grip TRANSLATE
+    (move both hands together) and two-grip ROTATE about the
+    vertical axis (twist) — one gesture family, three degrees of
+    control.
+  - **One-grip push/pull**: a single grip press records the ORIGIN
+    pose; after a brief DEBOUNCE window (the "shift event" arms —
+    haptic tick marks it), the vector from origin to current hand
+    position drives translation — push the world away / pull it
+    toward you, magnitude growing with the vector. Pressing the
+    OTHER grip cancels the shift (haptic + visual origin marker
+    despawn). Dead-zone radius + response curve (linear/expo) are
+    knobs; the origin point renders as a small anchor ghost while
+    armed so the vector is visible.
+  - **Scale-relative everything**: push/pull speed AND the user's
+    INITIAL size scale from the space's extent (a molecule space and
+    a room space both feel person-sized on entry). Space extent
+    comes from the definition/snapshot bounds; initial user scale is
+    a per-space value in XrInterfaceVariant (auto-derived, then
+    editable — knob over magic).
+  - **Comfort + safety rails**: scale/translation soft clamps with
+    an honest at-the-limit indicator (never silent stops); optional
+    motion vignette (tunneling) during shifts, on by default,
+    knob-off; snap-turn knob for seated use; grips do NOT navigate
+    while the wrist menu is open or a panel is grabbed (input focus
+    rules — one interaction at a time).
+  - **Recenter + history**: a reset-view action (home pose + default
+    scale — the "I'm lost" escape), a navigation history stack
+    (jump back to previous viewpoints), and saveable viewpoint
+    bookmarks persisted per mode in XrInterfaceVariant; a subtle
+    scale indicator (current zoom vs space default) so deep zooms
+    stay oriented.
+  - **Exit XR is always reachable** (Dustin): three independent
+    paths — a fixed wrist-menu exit item on ring 0 (never paginated
+    away), the headset's system/menu button session-end (handled via
+    the XRSession 'end' event), and headset-removal auto-pause; ALL
+    of them restore the flat view through the same xr-1 exit path
+    (placements persisted, byte-identical flat return).
 
 ### xr-3 — the XR interface system: wrist menus + spatial page-panels
 (Dustin 2026-07-11.) The standardization phase: ONE declarative
@@ -282,6 +325,12 @@ any appear outside sim-space-viewer.
    not a pixel-perfect copy of the webview CSS. Acceptable, or should
    heavy panels (e.g. equation displays) get bespoke XR layouts in
    their XrInterfaceVariant from day one?
+8. **Navigation tuning**: debounce window length for the one-grip
+   shift (default ~250ms?), dead-zone radius, response curve
+   (linear vs expo), vignette default on/off, and whether hand
+   tracking (no grips) maps the same gestures to pinch-and-hold —
+   or navigation stays controller-only until xr-2 hand work
+   stabilizes.
 
 ## 5. Relation to existing work
 - sim-space renderer interface + factory = the seams; nothing outside
