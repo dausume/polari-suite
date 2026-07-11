@@ -1,6 +1,11 @@
 # WebXR VR/AR Spaces — Plan (xr-1..5)
 
-**Written 2026-07-11 from Dustin's directive; PLANNED, not built.**
+**Written 2026-07-11 from Dustin's directive.
+STATUS 2026-07-11: xr-1 ✅ BUILT + LIVE-VERIFIED (see the xr-1
+section stamp); xr-2..4 not started — NEXT AGENT PICKS UP xr-2
+(controllers/hands/navigation; bundle BOTH input profiles —
+oculus-touch + vive wands). Branches: fw `dev-xr-1-engine`
+(9bc761c), ng `dev-xr-1-engine-ng` (61b7489+). NOT pushed.**
 Goal: every 3D interface can be "entered" as a VR space through
 WebXR + three.js, with ONE engine carrying all XR capability (many 3D
 interfaces on screen must never each load VR machinery); controllers/
@@ -86,6 +91,35 @@ sim-space-3d/):**
 ## 2. Phases
 
 ### xr-1 — the engine + enter/exit (the foundation)
+
+**✅ BUILT + LIVE-VERIFIED 2026-07-11.** What shipped: backend `xr/`
+module (XrGlobalSettings singleton + seed, XrTypeDefault Q9 seeds,
+XrInterfaceVariant, cascade resolver w/ provenance + raw rungs,
+GET /api/xr/resolve, category/owning_module/xr_mode/xr_framing on
+SimSpaceDefinition + xr_mode/xr_framing on
+MultiScaleSimulationDefinition; xr = CORE package) — selftest
+31/31. Frontend: three-free XrSceneRegistryService +
+XrEngineService facade (dispose-on-exit) + capability probe +
+XrSettingsService (resolve + CRUDE multipart knob writes);
+lazy-chunk XrSessionRuntime (ONE renderer+session, rig-only scene
+mutation, local-floor→local fallback, scene-swap switch); viewer
+registers scenes + Enter-XR button (honesty matrix); sidebar XR
+section (provenance + per-space knobs); renderer seam
+getXrSceneHandle() (opaque — firewall intact). Verified: 13/13
+specs incl. iwer-emulated enter/switch/exit on one session +
+byte-identical restore (karma needed --enable-unsafe-swiftshader +
+iwer forceInstall vs headless Chrome's native navigator.xr); live
+staging — 22/22 smoke, 66-suite baseline-identical (8F/4E on the
+pre-xr image too), all four cascade levels proven over the real
+API, variant byte-identical through a full settings sweep,
+resolve served through the TLS proxy (api.prf host). Initial
+bundle unchanged; XR rides the sim-space-3d lazy chunk. Gotcha
+log: CRUDE writes are multipart polariId+updateData to
+/{ClassName} (per-id REST PUT 404s); staging compose needs
+--env-file .generated/.env.staging or the backend boots with a
+bad DB password and silently serves seeds-only.
+
+Original spec:
 XrEngineService + scene registry + Enter-XR per sim-space-viewer;
 `setAnimationLoop` under XR (viewer RAF untouched for flat);
 ViewHelper pass skipped in-session; reference-space `local-floor`
