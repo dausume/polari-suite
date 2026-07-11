@@ -154,13 +154,60 @@ pages unregressed.
 - Basic locomotion knob: teleport (controller ray + squeeze) and/or
   orbit-at-scale; default teleport, both feature-flagged.
 
-### xr-3 — interaction parity inside VR
-Controller-ray picking mapped onto the EXISTING renderer seams
-(`pickAt`/`setHighlight`/`setSelection`/`onObjectClick`) so selection
-behaves identically flat and immersed; a minimal in-VR label/HUD
-(sprite-based, no new heavy deps) surfacing the same object labels
-the flat overlays show; enter/exit UX polish (session-end events,
-tab-blur, device-sleep all restore honestly).
+### xr-3 — the XR interface system: wrist menus + spatial page-panels
+(Dustin 2026-07-11.) The standardization phase: ONE declarative
+surface model renders as docked webview chrome in flat mode and as
+wrist menus + floating pages in XR — clean, equivalent transitions
+both ways.
+
+**Terminology**: the "left-wrist circle menu" style is a
+**wrist-anchored radial menu** (a.k.a. pie menu / wrist menu);
+multiple circles = tiered/paginated radial rings.
+
+- **`XrSurfaceModel` — menus and panels as DATA** (the house
+  config-driven-rendering idiom): every piece of SimSpace-adjacent
+  chrome declares itself once —
+  `{kind: 'menu-item' | 'panel', id, label/icon, action or
+  panelContentRef, flatPlacement: right|top|bottom dock / tab,
+  xrPlacement: wrist-ring N / spawnable-page}` — and each mode's
+  renderer consumes the SAME model. No hand-maintained parallel
+  menus; parity is by construction.
+- **Wrist radial menus**: the flat UI's "shortened" docked menus
+  (right/top/bottom toolbars) re-style into left-wrist-anchored
+  radial rings — items packed ~6-8 per ring (comfort), overflow
+  iterating into further rings/pages exactly as Dustin described;
+  partial arcs when a ring is underfull. Ray/pinch to select;
+  handedness KNOB (left wrist assumes a right-hand pointer — must be
+  flippable). Wrist-anchoring follows the grip/hand pose from xr-2.
+- **Spatial page-panels — spend the infinite space**: the panels the
+  webview crams into side sections (details, stepping + simulation
+  control panel, snapshot evaluation equations, conformance findings,
+  …) render in XR as FULL floating pages — each an independent quad
+  the user spawns from the wrist menu, grabs, repositions, and
+  dismisses. Rendered from the same panel DEFINITIONS the flat app
+  uses (canvas-texture panel renderer over the panel's data — NOT
+  DOM capture, which browsers don't allow into WebGL); interactive
+  controls (step, play, scrub) fire the same service calls as their
+  flat twins.
+- **Clean transitions both directions**: entering XR maps currently
+  open flat panels → spawned pages (restored placements from the
+  space's XrInterfaceVariant); exiting persists page placements back
+  into the variant and restores the flat docks. The per-mode
+  placements are exactly what `XrInterfaceVariant.config_json`
+  stores (xr-1) — so a hydroponics space keeps its flat, VR, and AR
+  arrangements independently, never overwritten by mode switches.
+- **Interaction parity**: controller-ray picking mapped onto the
+  EXISTING renderer seams (`pickAt`/`setHighlight`/`setSelection`/
+  `onObjectClick`) so object selection behaves identically flat and
+  immersed; enter/exit UX polish (session-end, tab-blur,
+  device-sleep all restore honestly).
+
+**Acceptance**: surface-model parity assert (every flat menu item
+reachable in the wrist rings, count-exact; overflow paginates);
+iwer-driven spec spawns/moves/dismisses pages and round-trips
+placements through XrInterfaceVariant; stepping a simulation from an
+XR control page equals the flat control panel's effect; handedness
+knob flips the anchor wrist.
 
 ### xr-4 — AR: rooms, surroundings, distances (the destination)
 `immersive-ar` sessions on the SAME engine (session mode is a
@@ -225,6 +272,16 @@ any appear outside sim-space-viewer.
 5. Keep the XR renderer warm between sessions (faster re-entry, holds
    a GPU context) or dispose on exit (frees resources)? Default:
    dispose.
+6. **Wrist-menu ergonomics**: items per ring (default ~6-8), partial
+   arcs vs full circles for underfull rings, and whether ring
+   pagination is spatial (stacked rings up the forearm) or temporal
+   (swipe between ring pages on one anchor). Handedness default:
+   left wrist + right-hand pointer, flippable.
+7. **Panel content fidelity**: the canvas-texture panel renderer
+   redraws panel DATA (tables, values, equations, controls) — it is
+   not a pixel-perfect copy of the webview CSS. Acceptable, or should
+   heavy panels (e.g. equation displays) get bespoke XR layouts in
+   their XrInterfaceVariant from day one?
 
 ## 5. Relation to existing work
 - sim-space renderer interface + factory = the seams; nothing outside
