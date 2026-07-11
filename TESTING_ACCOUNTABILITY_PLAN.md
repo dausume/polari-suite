@@ -1,6 +1,36 @@
 # Testing Accountability — Plan (acct-0..6)
 
-## PICK UP HERE (updated 2026-07-11 late night) — acct-0..2 BUILT+VERIFIED; next agent starts acct-3 (twin)
+## PICK UP HERE (updated 2026-07-12) — acct-0..3 BUILT+VERIFIED; STOPPING HERE by Dustin's direction (base functionality covered); acct-4..6 remain for later
+
+- **STATE**: acct-3 (twin coherence) BUILT + VERIFIED on framework
+  `dev` 157c117 (branch marker dev-acct-3-twin; everything was
+  consolidated onto dev 2026-07-11 — all stacks fast-forwarded,
+  full matrix 111 pass/1 known fail/3 honest skips on merged dev).
+  `python3 -m testing.twin_rehearsal` = the xsim-6/modsplit manual
+  rehearsal as ONE command: throwaway core+m+n containers (current
+  source, fresh sqlite, own network) → gating separation, directory
+  addressable tie-break, rung-4 traversal, un-leased refusal
+  journaled, leased dual-journal write, evented break, zombie
+  fencing, guaranteed teardown. Lease handle = TwinLeaseAPI
+  /api/testing/lease, TEST-BUILD-ONLY (production keeps no HTTP
+  lease surface; absence probe pins it). Matrix row twin:rehearsal
+  (compose, blocking). Demo prf-xsim-m/n containers REMOVED — the
+  fixtures supersede them. PLUS the coverage knob:
+  POLARI_COVERAGE=true wraps every python subprocess check in
+  coverage --parallel-mode → test-results/coverage.json + additive
+  run.coverage block in the v1 YAML.
+  Evidence: rehearsal 29/29; --category twin 11/11
+  blocking_green=True; selftest_twin 6/6; absence 9/9; spine 39/39;
+  smoke 22/22.
+- **Base functionality is now covered**: substrate (acct-1),
+  transports/formats (acct-2), twin coherence (acct-3) — all
+  blocking categories green on the matrix. Dustin directed STOP
+  here; acct-4 (no-code matrix), acct-5 (engines), acct-6
+  (unit-testing via no-code) stay specified below for a later
+  session, plus the grpc-3 hook (flip the two placeholder transport
+  rows to blocking when it lands) and the frontend Testing page.
+
+## Previous stamp (2026-07-11 late night) — acct-0..2; next agent starts acct-3 (twin)
 
 - **STATE**: acct-2 (transports + formats) BUILT + VERIFIED on
   framework branch `dev-acct-2-transports` e0d188a (stacked on
