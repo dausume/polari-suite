@@ -1,5 +1,47 @@
 # Testing Accountability — Plan (acct-0..6)
 
+## PICK UP HERE (stamped 2026-07-11) — next agent starts acct-0
+
+- **STATE**: plan confirmed by Dustin (three directives folded in:
+  test-build-only gating, resolved defaults §4, pipeline YAML
+  report). NOTHING BUILT. Start acct-0 (the spine) on branch
+  `dev-acct-0-spine` in polari-framework (+ `-ng` twin only when the
+  Testing page lands — page work can trail the backend).
+- **THE THREE NON-NEGOTIABLES** (Dustin, this session):
+  1. Test objects load/run ONLY in test builds — `testing/` module
+     absent from normal `POLARI_MODULES`; a normal build's clean
+     absence is itself an asserted check (acct-0 acceptance).
+  2. Ordering: substrate → transports/formats → twin coherence
+     FIRST; no-code matrix + engines next; unit-testing-via-no-code
+     (acct-6) last.
+  3. Every CheckRun emits `test-results/test-report.yaml`
+     (versioned schema in §1; `blocking_green` is the pipeline gate;
+     runner exit code mirrors it).
+- **REUSE, don't re-invent**: wrap the existing suites (66-suite
+  `run_tests.py`/`testAll.py` + Dockerfile.test, `tests/
+  test_api_sweep.py`, `tests/live_api_smoke.py`, per-module
+  selftests, the seven `polariNoCode/selftest_*.py`). Module gating
+  = the modsplit `POLARI_MODULES` machinery. Accountability page =
+  the msci scale-presence matrix idiom. No-code test seed =
+  `polariNoCode/assertionEvaluator.py` (ExecutionStepAssertions ×
+  ExecutionTrace).
+- **Survey facts already verified 2026-07-11** (§0): Fibonacci
+  Turing litmus PASSES in `selftest_turing`; specialized formats in
+  `polariApiServer/apiFormatConfig.py` (polariTree/flatJson/
+  d3Column/geoJson); twin composes exist (docker-compose.twin-b.yml,
+  dbcombo); NO_CODE_FOUNDATIONS_AUDIT.md is STALE on loops/
+  validation/events (P1/P2 repaired) but current on FunctionCall
+  subroutines / frontend execution / display events / re-wrapping.
+- **Verify per phase**: phase selftest green in the TEST build +
+  normal-build absence assert + 22/22 `tests/live_api_smoke.py`
+  unchanged + the YAML report parses and `blocking_green` is
+  truthful. Branch-per-confirmed-phase; repos are PUBLIC — commit
+  locally, do NOT push.
+- **Parked in this workspace meanwhile**: WebXR xr-3 is the other
+  stamped next phase (WEBXR_PLAN.md); grpc-3 rows of acct-2
+  coordinate with GRPC_BRIDGE_PLAN.md's PICK UP HERE — one
+  implementation, not two.
+
 **Written 2026-07-11 from Dustin's directive. STATUS: PLAN ONLY —
 nothing built. Ordering (Dustin): FIRST base functionality +
 cross-instance + database/transport integrations (acct-0..3), THEN
