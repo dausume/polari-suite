@@ -44,9 +44,21 @@ on the shared MariaDB (own 41 materials under _instance_id='b'):
 scope refusal → approve agr-live-b → a read b's ferrite + path-walked
 its value; instance 'c' refused; bare refs untouched. selftests
 36/36+40/40, 66-suite baseline-identical, 22/22 smoke.
-NEXT: xsim-4 (automated remote WRITES under lease + WriteJournalEntry
-+ zombie-refusal live proof + cross-instance lock subset) on
-`dev-xsim-4-writes`.**
+**✅ xsim-4 COMPLETE 2026-07-11 (framework `dev-xsim-4-writes`
+6c78905): automated remote writes — write_journal.py (every attempt
+journaled: applied/refused-stale-token/refused-no-agreement/
+refused-write-failed) + remote_writes.py (token → agreement → lock
+coverage w/ lazy escalation → parameterized owner-scoped UPDATE →
+journal), managedDB.updateRowForInstance + getAllInTableAllScopes
+(ADDITIVE), check_write sweeps the SHARED lock table (instance b
+refuses writes to rows locked by a's run), POST /api/refs/write
+(header token presentation) + GET /api/refs/journal. LIVE: a's run
+(epoch 3) wrote b's ferrite (MariaDB-verified), b's own PUT 423'd via
+the shared lock table, stale epoch fenced+journaled+row untouched.
+45/45 + 40/40, 66-suite baseline-identical, 22/22 smoke. v1
+limitation: no cross-object transactions (journal detects partial
+windows). NEXT: xsim-5 overlap advisor on `dev-xsim-5-advisor`, then
+xsim-6 remote-API rung + end-to-end rehearsal.**
 
 ## PICK UP HERE — execution context for a fresh session
 
