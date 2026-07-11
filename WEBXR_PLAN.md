@@ -248,6 +248,41 @@ multiple circles = tiered/paginated radial rings.
      the CSS subset bites — draws from the same panel definitions.
   Per-panel choice recorded in XrInterfaceVariant (a knob, with the
   measured re-raster cost as its evidence — res-3 idiom).
+- **XR panels expand to CONTENT size (Dustin 2026-07-11)** — unlike
+  the cramped webview, an XR page grows to whatever it wants to be:
+  - The off-screen host mounts under an `.xr-panel-context` wrapper
+    class + provides an `XR_PANEL_CONTEXT` Angular injection signal.
+    A global stylesheet scoped to that class REACTIVELY lifts the
+    flat-view constraints (max-heights → none, scroll containers →
+    visible, width → max-content, virtual scrolling → render-all);
+    components that want structural changes (auto-expand accordions,
+    show-all rows) read the injection signal — one context, two
+    reaction levels (CSS for free, DI for deliberate).
+  - The quad's WORLD size follows the content size (space is
+    infinite; a tall panel is simply tall). Texture memory is NOT
+    infinite: content within the device texture cap renders 1:1;
+    beyond it the panel TILES across multiple quads seamlessly
+    (never silent downscaling into unreadability — the honest
+    degradation is more tiles, not blur).
+- **Grab the PANEL vs move the SPACE — target-based grip dispatch
+  (Dustin flagged the interaction needs thought; this is the
+  resolution)**: what a grip press does is decided by what the
+  controller ray targets AT PRESS TIME:
+  - Ray on a panel + grip → grab THAT panel (move it with the hand;
+    release drops it in place). Both grips on the same panel →
+    resize/rescale the panel (the world-grab metaphor at panel
+    scope — one mental model everywhere).
+  - Grip in empty space → world navigation exactly as specified in
+    xr-2 (zoom/shift). The xr-2 focus rule generalizes: the
+    press-time target OWNS the gesture until release; mid-gesture
+    retargeting never happens.
+  - **Affordance preview before commitment**: ray-hover outlines the
+    panel (hover glow) so the user always knows whether the next
+    grip grabs the page or the world — no guessing, no misfires.
+  - Optional comfort action (knob): point + grip-tap pulls a distant
+    panel to arm's length (distance-grab) rather than walking to it.
+  - Trigger stays selection INSIDE panels (forwarded pointer events
+    to the live component) — grips never click, triggers never move.
 - **Clean transitions both directions**: entering XR maps currently
   open flat panels → spawned pages (restored placements from the
   space's XrInterfaceVariant); exiting persists page placements back
