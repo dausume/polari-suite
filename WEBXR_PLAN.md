@@ -77,34 +77,67 @@ XrEngineService + scene registry + Enter-XR per sim-space-viewer;
 ViewHelper pass skipped in-session; reference-space `local-floor`
 with fallback; exit restores the flat view byte-identically.
 
-**The per-space mode KNOB (Dustin 2026-07-11): a sim-space is
-CONFIGURED as an AR space or a VR space** — many interfaces only
-make sense in one of the two (a hydroponics room layout is an AR
-space; an abstract simulation world is a VR space).
-[[object-coherence]]: the knob lives ON the definition —
-`SimSpaceDefinition.xr_mode: 'none' | 'vr' | 'ar' | 'both'`
-(framework field + migration-free default 'none'; editable through
-the definition's existing CRUDE/config surfaces like dimensionality
-is). The viewer renders the enter affordance FROM the knob:
-- 'vr' → Enter VR only; 'ar' → Enter AR only; 'both' → both buttons;
-  'none' → no XR affordance at all (flat-only spaces stay clean).
-- Honesty matrix = knob × device capability: a space configured 'ar'
+**The XR-mode SETTINGS CASCADE (Dustin 2026-07-11): different kinds
+of simulations default to VR or AR by TYPE, with a four-level
+override ladder — a directly-set lower level always beats a higher
+one.** Many interfaces only make sense in one mode (a hydroponics
+room layout is an AR space; an abstract simulation world is a VR
+space), so the defaults live at the type level and the exceptions at
+the instance level. Every value is
+`'unset' | 'none' | 'vr' | 'ar' | 'both'`; resolution walks
+individual → multiscale → type → global and takes the FIRST
+explicitly-set value; 'unset' means "inherit upward".
+
+| level | anchor row ([[object-coherence]]) | example |
+|---|---|---|
+| global | `XrGlobalSettings` singleton (framework treeObject) | force 'none' fleet-wide except chosen spaces |
+| type | `XrTypeDefault` rows keyed by simulation/space kind | "hydroponics-layout spaces default 'ar'"; "msim worlds default 'vr'" |
+| multiscale | `MultiScaleSimulationDefinition.xr_mode` | one msim's panels all VR |
+| individual | `SimSpaceDefinition.xr_mode` | this one space is 'both' |
+
+- The "global none except chosen" case falls out of the ladder: set
+  global='none', leave everything 'unset', and explicitly set 'vr'/
+  'ar' on the chosen spaces — direct-set-lower-wins does the rest.
+- The RESOLVED mode always carries provenance —
+  `{mode, resolvedFrom: individual|multiscale|type|global|builtin}` —
+  surfaced in the viewer's config UI so "why is there no VR button"
+  is always answerable (evidence, house style).
+- Type defaults are SEED rows (suggestions made durable), editable
+  like any row; the builtin fallback when the whole ladder is unset
+  is 'none' (XR is opt-in at some level, never ambient).
+- Honesty matrix = resolved mode × device capability: an 'ar' space
   on a VR-only headset shows the disabled button naming the missing
-  capability (and vice versa) — configuration says what the space IS,
-  capability says what this device CAN do, and the UI never conflates
-  the two.
-- The ENGINE is mode-agnostic (session mode is a request parameter,
-  one engine serves both) — xr-1 ships the knob + the VR leg;
-  the AR leg's session plumbing arrives with xr-4 but the knob,
-  affordances, and refusals are complete from xr-1 so AR-configured
+  capability — configuration says what the space IS, capability says
+  what this device CAN do, never conflated.
+- The ENGINE stays mode-agnostic (session mode is a request
+  parameter) — xr-1 ships the cascade + the VR leg; AR-configured
   spaces are honest ("AR arrives with xr-4") rather than silent.
 
+**Mode-specific interface configurations are SEPARATE from mode
+settings and are NEVER erased by them (Dustin 2026-07-11).** A
+space's interface can be configured DIFFERENTLY per presentation —
+e.g. the hydroponics UI has flat-3D, VR, and AR variants (panel
+layout, control placement, scale, locomotion, AR anchoring). These
+live as their own rows: `XrInterfaceVariant` (treeObject:
+subject space/definition ref, mode 'flat'|'vr'|'ar', config_json,
+notes). The cascade only decides which variants are OFFERED right
+now; flipping a setting (even global 'none') leaves every variant
+row intact and dormant — re-enable the mode and the configured
+interface comes back exactly as authored. Deleting a variant is a
+deliberate act on the variant row itself, never a side effect of a
+settings change. (Same preservation rule the per-phase textures and
+per-run retention follow: configuration is data, settings are
+visibility.)
+
 **Acceptance**: multi-scale page with N 3D panels → ONE engine, one
-session, enter/exit/switch between panels; xr_mode knob round-trips
-through CRUDE and drives the affordances (all four values); no
-per-viewer XR loading (bundle assert: XR code absent from initial +
-flat chunks); iwer-driven spec (below) green; existing 3D pages
-unregressed.
+session, enter/exit/switch between panels; cascade resolution proven
+at all four levels (direct-lower beats higher; provenance names the
+deciding level; global-none-except-chosen works); XrInterfaceVariant
+rows survive every settings flip (selftest: author variants, toggle
+global/type/individual settings through all values, variants
+byte-identical after); knob + variants round-trip through CRUDE; no
+per-viewer XR loading (bundle assert); iwer spec green; existing 3D
+pages unregressed.
 
 ### xr-2 — seeing yourself: controllers, headset, hands
 - `XRControllerModelFactory` → real motion-controller models for the
@@ -175,10 +208,12 @@ any appear outside sim-space-viewer.
 1. **Target devices**: Quest 2/3 browser first? Phone AR (Chrome
    Android) for the hydroponics layout use case, or Quest 3
    passthrough — or both?
-1b. **Default xr_mode for EXISTING sim spaces**: all start 'none'
-   (explicit opt-in per space), or should the seeds classify the
-   obvious ones (msim worlds → 'vr', aquaponics layout spaces →
-   'ar') as suggestions to accept?
+1b. **Type vocabulary for XrTypeDefault**: what IS the "kind" key —
+   SimSpaceDefinition's kind/dimensionality, the simulation intent
+   (observe/search/calibrate), the owning module (aquaponics/msim/
+   msci), or a new explicit space-kind field? The seeded type
+   defaults (msim worlds → 'vr', hydroponics layout → 'ar') need the
+   right anchor before xr-1 builds the rows.
 2. **Locomotion default**: teleport vs orbit-the-model (museum mode)
    — matters for sim spaces that are "objects on a table" vs "rooms".
 3. **Presence priority**: is seeing ANOTHER user's headset/hands
