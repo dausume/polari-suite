@@ -1,6 +1,36 @@
 # Testing Accountability — Plan (acct-0..6)
 
-## PICK UP HERE (updated 2026-07-11 night) — acct-0 + acct-1 BUILT+VERIFIED; next agent starts acct-2
+## PICK UP HERE (updated 2026-07-11 late night) — acct-0..2 BUILT+VERIFIED; next agent starts acct-3 (twin)
+
+- **STATE**: acct-2 (transports + formats) BUILT + VERIFIED on
+  framework branch `dev-acct-2-transports` e0d188a (stacked on
+  acct-1). New rows: `selftest:testing.formats` (category format,
+  blocking — golden shapes for polariTree/flatJson/d3Column/geoJson
+  incl. the [lng,lat] order pin + disabled-knob 404s),
+  `selftest:testing.stomp` (transport, blocking — the FIRST real
+  websocket round-trip against StompWebSocketServer; knob
+  silent-drop proven by ordering), `transport:stomp-live-connect` +
+  `transport:grpc-sidecar-reachability` (live probes against the
+  prf-backend sidecars :3001/:3002 — both green on staging; gRPC
+  reflection observed 5 polari.sync.* services), and
+  `transport:grpc-parity-measurement` / `transport:grpc-peer-watch`
+  REGISTERED as informational skip-honest rows — grpc-3 implements
+  them (one implementation, not two); FLIP THEM TO BLOCKING in
+  check_catalog CRITICALITY_OVERRIDES when grpc-3 lands.
+  Evidence: selftest_transports 10/10 (formats 15/15, stomp 6/6);
+  --category transport 12 pass + 1 known informational profiler
+  fail + 2 honest grpc-3 skips, blocking_green=True; --category
+  format 1/1; smoke 22/22.
+- **acct-3 next** (twin coherence): automate the manual xsim-6
+  rehearsal as a compose-driven suite — boot core+m+n from
+  POLARI_MODULES splits, directory correctness, foreign-write
+  refusal, 4-rung ref ladder traversal, remote writes + journal +
+  fencing under a competing writer, clean teardown (fold the
+  still-running demo prf-xsim-m / prf-xsim-n containers into
+  fixtures). See CROSS_INSTANCE_SIM_PLAN.md + xsim memory for the
+  behaviors; twin composes exist (docker-compose.twin-b.yml).
+
+## Previous stamp (2026-07-11 night) — acct-1 BUILT+VERIFIED; next agent starts acct-2
 
 - **STATE**: acct-1 (substrate) BUILT + VERIFIED on framework branch
   `dev-acct-1-substrate` 581d9bd (stacked on dev-acct-0-spine).
