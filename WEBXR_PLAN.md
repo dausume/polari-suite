@@ -349,8 +349,8 @@ Surface-by-surface (flat anchor → XR presentation → rendering rung):
   registry (SelectorOverlayOrchestrator + selection-overlay-registry)
   renders as in-scene billboards positioned by world transform
   instead of `getObjectScreenRect`.
-- **Pinned in-scene readouts** (proposed default — panels AND
-  billboards, per-object knob): any watched property can be PINNED
+- **Pinned in-scene readouts** (confirmed Dustin 2026-07-11 — panels
+  AND billboards, per-object knob): any watched property can be PINNED
   from the object radial as a small billboard AT its object. Pinning
   is deliberate, per-object, persisted in XrInterfaceVariant;
   default = none pinned. Panels remain the full data surfaces.
@@ -358,8 +358,8 @@ Surface-by-surface (flat anchor → XR presentation → rendering rung):
   wrist play item shows the batch spinner/status, there is no speed
   slider to port; steps-count + dt-override live on the full run
   page.
-- **Framing + entry scale (proposed default; rides the xr-1
-  ladder)**: a second cascaded value
+- **Framing + entry scale (confirmed Dustin 2026-07-11; rides the
+  xr-1 ladder)**: a second cascaded value
   `xr_framing: 'unset'|'inside'|'exhibit'` resolved
   individual→multiscale→type→global exactly like `xr_mode`, with
   provenance. 'inside' = person-scale entry within the space (rooms:
@@ -473,27 +473,25 @@ any appear outside sim-space-viewer.
    tracking (no grips) maps the same gestures to pinch-and-hold —
    or navigation stays controller-only until xr-2 hand work
    stabilizes.
-9. **Framing seeds** (proposed 2026-07-11, pending Dustin): the
-   `xr_framing` cascade defaults by type — hydroponics-layout +
+9. **Framing seeds**: RESOLVED (Dustin confirmed 2026-07-11) — the
+   `xr_framing` cascade defaults by type: hydroponics-layout +
    wind-volume spaces seed 'inside', object-like spaces (pendulum,
-   molecule, material lattice) seed 'exhibit'. Same anchor-vocabulary
-   question as 1b (what keys the type rows). OK?
-10. **msim gallery behavior**: arrangement default (arc around the
-   user vs ring vs row), and whether NON-promoted gallery scenes
-   keep live-updating during stepping (GPU cost with many scenes) or
-   freeze to their last snapshot with an updates-pending badge +
-   refresh-on-gaze. Proposed: arc + freeze-with-badge above ~4 live
-   scenes (knob).
-11. **Pinned readouts**: proposed default is panels + per-object
-   pinnable billboards (deliberate pin from the object radial, none
-   by default). Should pins ALSO render in the flat viewer (as
-   overlay chips) so the pin set is mode-independent data with
-   per-mode visibility — or stay XR-only?
-12. **Stepping quick-actions** (proposed): play/step + status glyph
-   pinned on wrist ring 0 next to exit, full run panel as a
-   spawnable page — quick actions never require finding a panel.
-   Alternative rejected for now: mapping play/step to spare
-   controller face buttons (burns buttons, needs a legend). OK?
+   molecule, material lattice) seed 'exhibit'. Only the
+   anchor-vocabulary part remains open (shared with 1b: what keys
+   the type rows).
+10. **msim gallery behavior**: RESOLVED (Dustin confirmed
+   2026-07-11) — arc around the user; non-promoted scenes
+   freeze-with-badge above ~4 live scenes (knob), refresh-on-gaze.
+11. **Pinned readouts**: RESOLVED (Dustin confirmed 2026-07-11) —
+   panels + per-object pinnable billboards, deliberate pin from the
+   object radial, none by default. Pins are mode-independent DATA
+   with per-mode visibility: they also render in the flat viewer as
+   overlay chips (same preservation rule as XrInterfaceVariant —
+   the pin set is configuration, mode decides presentation).
+12. **Stepping quick-actions**: RESOLVED (Dustin confirmed
+   2026-07-11) — play/step + status glyph pinned on wrist ring 0
+   next to exit, full run panel as a spawnable page. Controller
+   face-button mapping rejected (burns buttons, needs a legend).
 
 ## 5. Relation to existing work
 - sim-space renderer interface + factory = the seams; nothing outside
