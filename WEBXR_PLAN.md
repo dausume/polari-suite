@@ -105,7 +105,7 @@ explicitly-set value; 'unset' means "inherit upward".
 | level | anchor row ([[object-coherence]]) | example |
 |---|---|---|
 | global | `XrGlobalSettings` singleton (framework treeObject) | force 'none' fleet-wide except chosen spaces |
-| type | `XrTypeDefault` rows keyed by simulation/space kind | "hydroponics-layout spaces default 'ar'"; "msim worlds default 'vr'" |
+| type | `XrTypeDefault` rows keyed by SimSpace CATEGORY (new explicit field, Q1b: default category DERIVED from the owning module binding, editable; explicit wins) | "hydroponics-layout spaces default 'ar'"; "msim worlds default 'vr'" |
 | multiscale | `MultiScaleSimulationDefinition.xr_mode` | one msim's panels all VR |
 | individual | `SimSpaceDefinition.xr_mode` | this one space is 'both' |
 
@@ -156,8 +156,10 @@ pages unregressed.
 ### xr-2 — seeing yourself: controllers, headset, hands
 - `XRControllerModelFactory` → real motion-controller models for the
   remotes (BUNDLE the webxr-input-profiles assets locally — the
-  factory's default CDN fetch violates our self-contained deploys);
-  ray + grip spaces rendered.
+  factory's default CDN fetch violates our self-contained deploys;
+  include BOTH controller families for Dustin's devices:
+  oculus-touch (Quest 2) + htc-vive wands — wands have grip+trigger
+  so the navigation split maps cleanly); ray + grip spaces rendered.
 - `XRHandModelFactory` hand-tracking models when the device reports
   hands (feature-detected, falls back to controllers honestly).
 - **Headset visibility = the desktop mirror**: the wearer never sees
@@ -231,7 +233,10 @@ multiple circles = tiered/paginated radial rings.
   menus; parity is by construction.
 - **Wrist radial menus**: the flat UI's "shortened" docked menus
   (right/top/bottom toolbars) re-style into left-wrist-anchored
-  radial rings — items packed ~6-8 per ring (comfort), overflow
+  radial rings — items packed ~6-8 per ring MAX, with the actual
+  per-ring count CONTENT-ADAPTIVE (Q6 resolved: legibility is the
+  binding constraint — button text + purpose must read at wrist
+  distance, so long labels mean fewer, larger buttons); overflow
   iterating into further rings/pages exactly as Dustin described;
   partial arcs when a ring is underfull. Ray/pinch to select;
   handedness KNOB (left wrist assumes a right-hand pointer — must be
@@ -409,19 +414,26 @@ live here:
 - **Capture back into Polari (object-coherence)**: a framework-side
   `ArLayoutCapture` treeObject (points, measured distances, anchor
   transforms, placed-object refs, room label) POSTed via CRUDE; a
-  knob-guarded promotion turns a capture into a SimSpace definition
-  so simulations (hydroponics layout, construction) run against the
-  MEASURED room. This is where AR meets the sim stack.
+  completed capture shows a SUGGESTION CARD offering promotion to a
+  SimSpace definition (Q4 resolved: suggest, never auto-apply; the
+  manual promote knob remains underneath) so simulations
+  (hydroponics layout, construction) run against the MEASURED room.
+  This is where AR meets the sim stack. Device honesty: neither of
+  Dustin's current headsets (Quest 2, Vive) does usable passthrough
+  AR — this phase's live verify waits on phone AR or future
+  hardware; the honesty matrix names the gap on current devices.
 - DOM-overlay UI for the AR controls (supported on the target
   browsers; falls back to in-scene controls).
 
 ### xr-5 — later, explicitly out of scope now
 Full flat-rendering consolidation (one renderer + scissored
 viewports for ALL panels) only if context limits bite in practice;
-multi-user presence (headset/hand pose ghosts shared over STOMP —
-the directory already routes per-class notifications, so presence
-rows ride the existing transport); VR entry for OTHER 3D surfaces if
-any appear outside sim-space-viewer.
+VR entry for OTHER 3D surfaces if any appear outside
+sim-space-viewer. **Multi-user presence DROPPED (Dustin 2026-07-12:
+research app for building intuition about data, not a social app)**
+— the desktop-mirror ghost from xr-2 covers the demo-to-a-colleague
+case; if a collaboration story ever materializes, the STOMP
+per-class routing note from the original sketch still applies.
 
 ## 3. Verification strategy (no headset on the staging box)
 
@@ -430,49 +442,71 @@ any appear outside sim-space-viewer.
   hand pose playback, hit-test synthesis for the AR measure tool.
   This is the selftest idiom for XR — every phase ships specs that
   run headless in CI/karma.
-- Live verification on real hardware is Dustin-side (Quest browser →
-  https://prf.192.168.0.210.nip.io after /cert-trust); phases are
-  ordered so each ships something he can put on a headset.
+- Live verification on real hardware is Dustin-side, on BOTH
+  devices: Quest 2 browser → https://prf.192.168.0.210.nip.io after
+  /cert-trust, and the Vive via a SteamVR-backed desktop Chrome/Edge
+  opening the same URL (cert trust is the desktop browser's, easier).
+  Phases are ordered so each ships something he can put on a headset.
 
-## 4. Open questions for Dustin (answer before xr-2/xr-4)
+## 4. Open questions — ALL RESOLVED (Dustin 2026-07-11/12;
+   "other defaults are fine" confirms Q7-tail + Q8 at their stated
+   defaults). Nothing blocks xr-1.
 
-1. **Target devices**: Quest 2/3 browser first? Phone AR (Chrome
-   Android) for the hydroponics layout use case, or Quest 3
-   passthrough — or both?
-1b. **Type vocabulary for XrTypeDefault**: what IS the "kind" key —
-   SimSpaceDefinition's kind/dimensionality, the simulation intent
-   (observe/search/calibrate), the owning module (aquaponics/msim/
-   msci), or a new explicit space-kind field? The seeded type
-   defaults (msim worlds → 'vr', hydroponics layout → 'ar') need the
-   right anchor before xr-1 builds the rows.
-2. **Locomotion default**: teleport vs orbit-the-model (museum mode)
-   — matters for sim spaces that are "objects on a table" vs "rooms".
-3. **Presence priority**: is seeing ANOTHER user's headset/hands
-   (multi-user) wanted early, or is the desktop-mirror ghost enough
-   until the collaboration story matures?
-4. **AR capture promotion**: should a measured room auto-suggest a
-   SimSpace definition (suggestion card), or stay a manual promote
-   knob only?
-5. Keep the XR renderer warm between sessions (faster re-entry, holds
-   a GPU context) or dispose on exit (frees resources)? Default:
-   dispose.
-6. **Wrist-menu ergonomics**: items per ring (default ~6-8), partial
-   arcs vs full circles for underfull rings, and whether ring
-   pagination is spatial (stacked rings up the forearm) or temporal
-   (swipe between ring pages on one anchor). Handedness default:
-   left wrist + right-hand pointer, flippable.
-7. **Panel rendering default**: RESOLVED direction 2026-07-11 —
-   HTMLMesh rasterization of the real Angular panels is the default
-   (real components, forwarded interaction), data-driven canvas
-   renderer as the per-panel fallback knob for update-heavy panels.
-   Remaining question: which panels ship on the fallback from day
-   one (candidates: live stepping traces, large equation grids)?
-8. **Navigation tuning**: debounce window length for the one-grip
-   shift (default ~250ms?), dead-zone radius, response curve
-   (linear vs expo), vignette default on/off, and whether hand
-   tracking (no grips) maps the same gestures to pinch-and-hold —
-   or navigation stays controller-only until xr-2 hand work
-   stabilizes.
+1. **Target devices**: RESOLVED — Dustin owns a **Quest 2** AND an
+   **HTC Vive** (model TBD; every Vive variant reaches WebXR the
+   same way: PC-tethered, SteamVR as the OpenXR runtime, the session
+   served by desktop Chrome/Edge). BOTH must work; assume a full
+   headset for now (no phone AR yet). Implications: bundle
+   webxr-input-profiles for BOTH controller families (oculus-touch
+   + htc-vive wands — wands have grip+trigger, so the xr-2
+   navigation model maps cleanly); the Vive verify path is the
+   staging URL in a SteamVR-backed desktop browser. AR honesty:
+   NEITHER device offers usable passthrough AR — the xr-4 honesty
+   matrix will say so on these devices; AR arrives via phone or
+   future hardware, plan unchanged.
+1b. **Type vocabulary for XrTypeDefault**: RESOLVED — SimSpaces get
+   an explicit **category** field (define categories; they don't
+   exist today), with the owning MODULE binding supplying the
+   DERIVED default category (knobs-and-suggestions: module → 
+   suggested category, editable per definition; explicit category
+   always wins). `XrTypeDefault` (and the xr_framing seeds, Q9) key
+   on the category; a definition with no category and no module
+   binding resolves past the type level to global.
+2. **Locomotion default**: RESOLVED — ignore teleport for now; the
+   xr-2 grip navigation (world-grab + push/pull) is the only
+   locomotion.
+3. **Presence priority**: RESOLVED — NO multi-user presence. This is
+   a research app for helping researchers build intuition about
+   data, not a social app. The desktop-mirror ghost stays (it serves
+   the researcher demoing to a colleague at the screen); the xr-5
+   multi-user item is DROPPED from the roadmap.
+4. **AR capture promotion**: RESOLVED — show a suggestion card for
+   converting a measured room into a SimSpace definition (suggest,
+   never auto-apply; the manual promote knob remains underneath).
+5. **Renderer lifecycle**: RESOLVED — dispose on exit; re-entry
+   pays the moment of setup, resources freed between sessions.
+6. **Wrist-menu ergonomics**: RESOLVED — 6-8 per ring as the
+   starting point, but capacity is CONTENT-ADAPTIVE: the binding
+   constraint is LEGIBILITY — the button's text and purpose must be
+   readable at wrist distance — so rings pack fewer, larger buttons
+   when labels run long (measured label size drives per-ring count,
+   6-8 is the cap not the target). Pagination + handedness defaults
+   stand (swipeable ring pages on one anchor; left wrist +
+   right-hand pointer, flippable).
+7. **Panel rendering default**: RESOLVED 2026-07-11/12 — HTMLMesh
+   rasterization of the real Angular panels is the default (real
+   components, forwarded interaction), data-driven canvas renderer
+   as the per-panel fallback knob for update-heavy panels. Day-one
+   fallback list (defaults confirmed): the live graph panels
+   (msim-graph-panel + msim-family-graph-panel), the scrubber rail,
+   and live stepping trace rows; everything else ships on HTMLMesh.
+8. **Navigation tuning**: RESOLVED at defaults (confirmed
+   2026-07-12) — one-grip shift debounce ~250ms, modest dead-zone
+   radius, linear response curve to start (expo as the knob's other
+   value), vignette-on-shift default ON; navigation stays
+   controller-grip-only until the xr-2 hand-tracking work
+   stabilizes, then pinch-and-hold maps the same gestures. All of
+   these remain knobs.
 9. **Framing seeds**: RESOLVED (Dustin confirmed 2026-07-11) — the
    `xr_framing` cascade defaults by type: hydroponics-layout +
    wind-volume spaces seed 'inside', object-like spaces (pendulum,
