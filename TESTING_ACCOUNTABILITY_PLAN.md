@@ -1,6 +1,34 @@
 # Testing Accountability — Plan (acct-0..6)
 
-## PICK UP HERE (updated 2026-07-11 evening) — acct-0 BUILT+VERIFIED; next agent starts acct-1
+## PICK UP HERE (updated 2026-07-11 night) — acct-0 + acct-1 BUILT+VERIFIED; next agent starts acct-2
+
+- **STATE**: acct-1 (substrate) BUILT + VERIFIED on framework branch
+  `dev-acct-1-substrate` 581d9bd (stacked on dev-acct-0-spine).
+  Six live substrate rows: mariadb reachability / credential-honesty
+  (wrong password refused — dbcombo gotcha pinned) / auto-tables
+  (203 on staging) / keydb PolariCache round-trip / dialect parity
+  (parity_probe: hasDB=True auto-table+upsert+read-back, identical
+  columns both dialects — the first draft was VACUOUS, hasDB=False
+  never touched a DB; the probe fails loudly if a leg doesn't reach
+  its DB) / restart-persistence (opt-in POLARI_ALLOW_DISRUPTIVE;
+  live-proven once — marker survived a real pol-mariadb bounce).
+  New 'callable' runner kind (runner_ref 'module:function').
+  Evidence: selftest_substrate 13/13; --category substrate 9 pass +
+  1 honest skip, blocking_green=True; unplug-flips-red live-proven;
+  smoke 22/22; spine selftest 39/39 still green.
+- **acct-2 next** (transports + formats): JSON/CRUDE rows already
+  exist (api-sweep); add per-format golden shapes (polariTree/
+  flatJson/d3Column/geoJson in polariApiServer/apiFormatConfig.py)
+  + STOMP connect/subscribe/notify round-trip; gRPC rows land WITH
+  grpc-3 (GRPC_BRIDGE_PLAN.md PICK UP HERE) — acct-2 registers the
+  names, grpc-3 implements the meat.
+- **Host gotchas fixed this session** (also in memory): wrong `jwt`
+  package shadowed PyJWT (replaced w/ PyJWT[crypto]==2.10.1);
+  root-owned test-results/ + data/ dirs from old container runs
+  (recreated user-owned); host now has PyMySQL/redis matching
+  requirements pins.
+
+## Previous stamp (2026-07-11 evening) — acct-0 BUILT+VERIFIED
 
 - **STATE**: acct-0 (the spine) is BUILT + VERIFIED on framework
   branch `dev-acct-0-spine` (`testing/` module, 10 small files).
