@@ -36,6 +36,20 @@ Branch per phase (`dev-xr-1-engine`, …) in polari-platform-angular
 - WebXR requires a SECURE context — staging already serves TLS
   (nip.io certs; the /cert-trust page is the headset trust hurdle
   helper).
+- **One viewer hosts EVERY 3D space (survey 2026-07-11)**:
+  `sim-space-viewer` is the sole 3D host — pendulum, wind,
+  solid-materials selection etc. are `SimSpaceDefinition` rows
+  rendered through it, not bespoke pages. Its chrome is a fixed set
+  of overlays (axis legend, run panel, scene legend, scrubber,
+  evaluation HUD, right-docked editor sidebar) + hover tooltip.
+  The msim page's panels are already config-driven components in
+  `DISPLAY_COMPONENT_REGISTRY` (msim-display-components.ts), laid
+  out by the Display grid model (models/dashboards/Display*.ts).
+  Renderer seams for picking exist: `pickAt`/`setHighlight`/
+  `setSelection`/`getObjectScreenRect` + `setOnClick`/
+  `setOnHoverChange` (sim-space-renderer.interface.ts:125-195).
+  "Play" is a BATCH of backend steps (`SimulationRunService.
+  runBatch`) — no continuous clock, no speed slider.
 
 ## 1. The single-engine design (Dustin's requirement, confirmed)
 
@@ -296,12 +310,88 @@ multiple circles = tiered/paginated radial rings.
   immersed; enter/exit UX polish (session-end, tab-blur,
   device-sleep all restore honestly).
 
+**The sim-space interface map (worked 2026-07-11 from the live
+frontend inventory — §0 last bullet)** — the concrete answer to
+"what are the XR interfaces for the simulation spaces".
+
+The pivot: `XrSurfaceModel` does NOT invent a panel catalog. The
+catalog already exists — `DISPLAY_COMPONENT_REGISTRY` entries + the
+viewer's fixed chrome — so the surface model DECORATES existing
+registry entries with `xrPlacement`, and the Display grid config is
+the flat-placement side of the same mapping. Panel identity is
+`(componentName, inputs)` in both worlds; flat placement stays in
+the Display config exactly as today, XR placement lives in
+`XrInterfaceVariant`. Parity by construction, no parallel catalog
+to drift.
+
+Surface-by-surface (flat anchor → XR presentation → rendering rung):
+
+| flat surface | XR presentation | rung |
+|---|---|---|
+| editor sidebar (icon rail → View / Solutions / Axis labels / Scene info accordion) | wrist ring 1 = the four sections as category items; each spawns its section as a page; the View overlay toggles flatten to ring toggle-items | HTMLMesh (occasional) |
+| simulation run panel (run picker, New Run, ICs, Step Once, batch Run…, traces) | SPLIT: play/step + run-status glyph pinned on wrist ring 0 (beside exit); the full panel incl. IC editor + solution traces = spawnable page | HTMLMesh; trace rows → canvas if re-raster bites |
+| scrubber (timeline) | a grabbable timeline RAIL world-anchored at the space's base — trigger-drag the puck; duplicated on the run page | canvas (per-drag live) |
+| axis legend | rendered AT the axes in-scene (the label lives at the thing it describes — [[object-coherence]]); wrist toggle hides it | in-scene text, not a panel |
+| scene-contents legend | spawnable page | HTMLMesh |
+| evaluation selector + overlay | spawnable page(s); equation grids are a named canvas-fallback candidate (§4 Q7) | HTMLMesh→canvas |
+| hover tooltip (DOM overlay today) | in-scene billboard at the hovered object (DOM can't appear in-session) | canvas billboard |
+| error/warning banners, scrub hint | brief head-locked toast (seconds), then a wrist notification pip — never a permanent HUD | canvas |
+| msim run-control bar (Run select, Steps, Play, Step Once) | the SAME wrist ring 0 items — one stepping surface in both contexts | — |
+| msim panels (IC, explainer, formulation search, family graph, graph, conformance, stage strip) | each = spawnable page straight from its registry entry; graph + family-graph are per-step live → canvas rung; the stage strip's gate glyphs also mirror as a compact wrist-ring badge | per-entry knob |
+| configure editors (spaces/stages/couplings/ics/panels) | spawnable pages (static config — the natural HTMLMesh case) | HTMLMesh |
+| class-main-page (the click-navigate target) | NEVER a route navigation in-session (it would tear down the world). Selection spawns the object's page as a floating panel instead | HTMLMesh |
+
+- **Selection in XR**: trigger-select through the existing `pickAt`
+  seam; `clickNavigates` is forced OFF in-session. A selected object
+  gets an **object radial** (same radial idiom as the wrist,
+  anchored at the object): open details (floating class-main-page
+  panel), pin a readout, highlight/isolate. The selection-overlay
+  registry (SelectorOverlayOrchestrator + selection-overlay-registry)
+  renders as in-scene billboards positioned by world transform
+  instead of `getObjectScreenRect`.
+- **Pinned in-scene readouts** (proposed default — panels AND
+  billboards, per-object knob): any watched property can be PINNED
+  from the object radial as a small billboard AT its object. Pinning
+  is deliberate, per-object, persisted in XrInterfaceVariant;
+  default = none pinned. Panels remain the full data surfaces.
+- **Stepping semantics**: "play" is a batch of backend steps — the
+  wrist play item shows the batch spinner/status, there is no speed
+  slider to port; steps-count + dt-override live on the full run
+  page.
+- **Framing + entry scale (proposed default; rides the xr-1
+  ladder)**: a second cascaded value
+  `xr_framing: 'unset'|'inside'|'exhibit'` resolved
+  individual→multiscale→type→global exactly like `xr_mode`, with
+  provenance. 'inside' = person-scale entry within the space (rooms:
+  hydroponics layout, wind volume); 'exhibit' = the space presents
+  as a pedestal-scale model you orbit/world-grab (pendulum,
+  molecule, lattice). Both are only the INITIAL rig scale+pose — the
+  xr-2 world-grab moves freely between them afterward.
+- **The msim multi-space presentation (the new thing XR buys)**: the
+  multi-scale page mounts N scene panels that flat mode crams into
+  grid cells. In XR the N registered scenes present as a **gallery**
+  of live exhibits arranged around the user — each on its own stand,
+  labeled from its panel title, stage-gate glyphs on the stand.
+  Pointing + entering one PROMOTES it to the world ('inside' at its
+  resolved scale); the gallery is reachable back through the wrist
+  ring. Scene promotion is the xr-1 registry scene-swap — never a
+  second session. The comparison-run twin scene stands NEXT to its
+  primary for side-by-side. Gallery arrangement (arc radius, stand
+  height, per-space placement) persists in the msim's
+  XrInterfaceVariant.
+
 **Acceptance**: surface-model parity assert (every flat menu item
 reachable in the wrist rings, count-exact; overflow paginates);
 iwer-driven spec spawns/moves/dismisses pages and round-trips
 placements through XrInterfaceVariant; stepping a simulation from an
 XR control page equals the flat control panel's effect; handedness
-knob flips the anchor wrist.
+knob flips the anchor wrist. Sim-space map: every registered msim
+display component spawnable as a page (registry-driven,
+count-exact); `clickNavigates` suppressed in-session with the object
+radial offered instead; `xr_framing` resolution proven at type +
+individual levels with provenance; msim gallery round-trip (N scenes
+→ gallery → promote one → return to gallery) stays in ONE session
+with placements persisted.
 
 ### xr-4 — AR: rooms, surroundings, distances (the destination)
 `immersive-ar` sessions on the SAME engine (session mode is a
@@ -383,10 +473,34 @@ any appear outside sim-space-viewer.
    tracking (no grips) maps the same gestures to pinch-and-hold —
    or navigation stays controller-only until xr-2 hand work
    stabilizes.
+9. **Framing seeds** (proposed 2026-07-11, pending Dustin): the
+   `xr_framing` cascade defaults by type — hydroponics-layout +
+   wind-volume spaces seed 'inside', object-like spaces (pendulum,
+   molecule, material lattice) seed 'exhibit'. Same anchor-vocabulary
+   question as 1b (what keys the type rows). OK?
+10. **msim gallery behavior**: arrangement default (arc around the
+   user vs ring vs row), and whether NON-promoted gallery scenes
+   keep live-updating during stepping (GPU cost with many scenes) or
+   freeze to their last snapshot with an updates-pending badge +
+   refresh-on-gaze. Proposed: arc + freeze-with-badge above ~4 live
+   scenes (knob).
+11. **Pinned readouts**: proposed default is panels + per-object
+   pinnable billboards (deliberate pin from the object radial, none
+   by default). Should pins ALSO render in the flat viewer (as
+   overlay chips) so the pin set is mode-independent data with
+   per-mode visibility — or stay XR-only?
+12. **Stepping quick-actions** (proposed): play/step + status glyph
+   pinned on wrist ring 0 next to exit, full run panel as a
+   spawnable page — quick actions never require finding a panel.
+   Alternative rejected for now: mapping play/step to spare
+   controller face buttons (burns buttons, needs a legend). OK?
 
 ## 5. Relation to existing work
 - sim-space renderer interface + factory = the seams; nothing outside
   sim-space-3d/ touches three (firewall preserved).
+- `DISPLAY_COMPONENT_REGISTRY` + the Display grid model = the flat
+  side of XrSurfaceModel; msim-display-components.ts (and the msci
+  twin) are the ready-made panel catalogs the wrist menu enumerates.
 - aquaponics/mathshapes geometry = the AR-placeable objects.
 - STOMP per-class routing (modsplit-3) = the presence/pose transport
   when xr-5 arrives.
