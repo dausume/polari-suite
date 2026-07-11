@@ -72,14 +72,39 @@ sim-space-3d/):**
 ## 2. Phases
 
 ### xr-1 — the engine + enter/exit (the foundation)
-XrEngineService + scene registry + Enter-VR per sim-space-viewer;
+XrEngineService + scene registry + Enter-XR per sim-space-viewer;
 `setAnimationLoop` under XR (viewer RAF untouched for flat);
 ViewHelper pass skipped in-session; reference-space `local-floor`
 with fallback; exit restores the flat view byte-identically.
+
+**The per-space mode KNOB (Dustin 2026-07-11): a sim-space is
+CONFIGURED as an AR space or a VR space** — many interfaces only
+make sense in one of the two (a hydroponics room layout is an AR
+space; an abstract simulation world is a VR space).
+[[object-coherence]]: the knob lives ON the definition —
+`SimSpaceDefinition.xr_mode: 'none' | 'vr' | 'ar' | 'both'`
+(framework field + migration-free default 'none'; editable through
+the definition's existing CRUDE/config surfaces like dimensionality
+is). The viewer renders the enter affordance FROM the knob:
+- 'vr' → Enter VR only; 'ar' → Enter AR only; 'both' → both buttons;
+  'none' → no XR affordance at all (flat-only spaces stay clean).
+- Honesty matrix = knob × device capability: a space configured 'ar'
+  on a VR-only headset shows the disabled button naming the missing
+  capability (and vice versa) — configuration says what the space IS,
+  capability says what this device CAN do, and the UI never conflates
+  the two.
+- The ENGINE is mode-agnostic (session mode is a request parameter,
+  one engine serves both) — xr-1 ships the knob + the VR leg;
+  the AR leg's session plumbing arrives with xr-4 but the knob,
+  affordances, and refusals are complete from xr-1 so AR-configured
+  spaces are honest ("AR arrives with xr-4") rather than silent.
+
 **Acceptance**: multi-scale page with N 3D panels → ONE engine, one
-session, enter/exit/switch between panels; no per-viewer XR loading
-(bundle assert: XR code absent from initial + flat chunks);
-iwer-driven spec (below) green; existing 3D pages unregressed.
+session, enter/exit/switch between panels; xr_mode knob round-trips
+through CRUDE and drives the affordances (all four values); no
+per-viewer XR loading (bundle assert: XR code absent from initial +
+flat chunks); iwer-driven spec (below) green; existing 3D pages
+unregressed.
 
 ### xr-2 — seeing yourself: controllers, headset, hands
 - `XRControllerModelFactory` → real motion-controller models for the
@@ -106,7 +131,9 @@ tab-blur, device-sleep all restore honestly).
 
 ### xr-4 — AR: rooms, surroundings, distances (the destination)
 `immersive-ar` sessions on the SAME engine (session mode is a
-parameter, not a second engine):
+parameter, not a second engine); this phase lights up the 'ar' leg
+of the xr-1 mode knob — AR-configured spaces' Enter-AR button goes
+live here:
 - **hit-test** + **anchors** (+ plane detection and depth where the
   device offers them; every feature detected + degraded honestly).
 - **Measure tool**: two-point (and chained) real-world distance
@@ -148,6 +175,10 @@ any appear outside sim-space-viewer.
 1. **Target devices**: Quest 2/3 browser first? Phone AR (Chrome
    Android) for the hydroponics layout use case, or Quest 3
    passthrough — or both?
+1b. **Default xr_mode for EXISTING sim spaces**: all start 'none'
+   (explicit opt-in per space), or should the seeds classify the
+   obvious ones (msim worlds → 'vr', aquaponics layout spaces →
+   'ar') as suggestions to accept?
 2. **Locomotion default**: teleport vs orbit-the-model (museum mode)
    — matters for sim spaces that are "objects on a table" vs "rooms".
 3. **Presence priority**: is seeing ANOTHER user's headset/hands
