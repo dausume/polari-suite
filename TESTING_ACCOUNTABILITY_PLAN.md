@@ -1,12 +1,38 @@
 # Testing Accountability — Plan (acct-0..6)
 
-## PICK UP HERE (stamped 2026-07-11) — next agent starts acct-0
+## PICK UP HERE (updated 2026-07-11 evening) — acct-0 BUILT+VERIFIED; next agent starts acct-1
 
-- **STATE**: plan confirmed by Dustin (three directives folded in:
-  test-build-only gating, resolved defaults §4, pipeline YAML
-  report). NOTHING BUILT. Start acct-0 (the spine) on branch
-  `dev-acct-0-spine` in polari-framework (+ `-ng` twin only when the
-  Testing page lands — page work can trail the backend).
+- **STATE**: acct-0 (the spine) is BUILT + VERIFIED on framework
+  branch `dev-acct-0-spine` (`testing/` module, 10 small files).
+  Dustin review pending; NOT pushed. Next agent starts acct-1
+  (substrate) on `dev-acct-1-substrate` off it. Frontend Testing
+  page still trails (no `-ng` branch yet).
+- **acct-0 evidence (2026-07-11)**: phase selftest
+  `python3 -m testing.selftest_testing` 39/39; FULL 101-check
+  matrix run: 100 pass / 1 fail (`suite:api-profiler` —
+  pre-existing matcher drift, criticality=informational) →
+  `blocking_green=True`, runner exit 0; absence gate + Turing
+  litmus + live:api-smoke (22/22 on staging) green in the same
+  CheckRun; `test-results/test-report.yaml` (report_version 1)
+  emitted + timestamped copy.
+- **acct-0 shape (what acct-1 builds on)**: catalog is
+  DISCOVERY-driven (`testing/check_catalog.py` — 9 tests/ suites +
+  90 selftests + live + absence = 101 rows; new files auto-appear;
+  refine a row's category/criticality in the maps there). Gating:
+  `testing` is in `OPT_IN_PACKAGES` (module_gating.py) — loads ONLY
+  under `POLARI_TEST_BUILD=true` (set in Dockerfile.test +
+  docker-compose.test.yml, whose command is now
+  `python3 -m testing.run_matrix`) or explicit POLARI_MODULES
+  entry. API: GET /api/accountability (+/runs, POST /run —
+  unfiltered run REFUSES unless `{'all': true}`; the api-sweep
+  probes every route with minimal bodies and recursed into a
+  nested full matrix before that guard — keep it).
+- **acct-1 note**: substrate category currently = suite:object-tree
+  + polariDBmanagement/polariDataTyping selftests (4 rows, all
+  green in-process). acct-1 adds the LIVE substrate checks
+  (MariaDB reachability/credential-honesty, dialect parity re-run,
+  KeyDB round-trip, restart persistence) as new named checks —
+  new runner kinds (compose) belong in check_runners.py.
 - **THE THREE NON-NEGOTIABLES** (Dustin, this session):
   1. Test objects load/run ONLY in test builds — `testing/` module
      absent from normal `POLARI_MODULES`; a normal build's clean
