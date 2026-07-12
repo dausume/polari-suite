@@ -11,8 +11,11 @@ NEXT: **xr-3-min** (scoped by Dustin 2026-07-13 — see the section
 BEFORE the full xr-3 spec): the FIRST ring layer of the wrist
 radial menu spawning HTMLMesh panels for stepping / initial
 conditions / play+scrubber — STOP LINE = "able to view (play/scrub)
-a calculated simulation in VR". Plan checked + adjusted; awaiting
-Dustin's go. NOT pushed.**
+a calculated simulation in VR". Plan checked + adjusted, all three
+open questions RESOLVED (playback-only stop line; world-anchored
+rail; steppers-first IC editing) — BUILD NOT STARTED by Dustin's
+explicit instruction; next XR session begins at xr-3-min on his go.
+NOT pushed.**
 Goal: every 3D interface can be "entered" as a VR space through
 WebXR + three.js, with ONE engine carrying all XR capability (many 3D
 interfaces on screen must never each load VR machinery); controllers/
@@ -343,16 +346,18 @@ specs (ring spawn, HTMLMesh presence + forwarded click, scrub
 drives the temporal index); flat suite untouched; placements
 survive exit/re-enter.
 
-Open questions flagged for Dustin before build:
-- **Q-A (play semantics)**: is playing back an ALREADY-calculated
-  run the stop line (plan default), with triggering runBatch from
-  VR allowed but its progress display crude?
-- **Q-B (scrubber home)**: world-anchored grabbable rail (plan
-  default) vs wrist-anchored?
-- **Q-C (IC editing input)**: rasterized DOM text fields may not
-  summon the system keyboard in Wolvic — day one, IC editing in VR
-  should lean on steppers/sliders/increment controls; free-text
-  entry stays a flat-mode task until proven. Acceptable?
+Open questions — ALL RESOLVED by Dustin 2026-07-13:
+- **Q-A (play semantics): YES** — playback of an ALREADY-calculated
+  run IS the stop line; triggering runBatch from VR allowed, its
+  progress display may be crude.
+- **Q-B (scrubber home): YES** — world-anchored grabbable rail.
+- **Q-C (IC editing input): YES, acceptable** — IC editing in VR
+  leans on steppers/sliders/increment controls day one; free-text
+  entry stays a flat-mode task until keyboard support is proven.
+
+**PLANNING COMPLETE (2026-07-13). NOT STARTED — Dustin explicitly
+held the build ('do not start building'). The next XR session
+begins here on his go.**
 
 ### xr-3 — the XR interface system: wrist menus + spatial page-panels
 (Dustin 2026-07-11.) The standardization phase: ONE declarative
