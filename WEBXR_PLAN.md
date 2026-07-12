@@ -7,17 +7,17 @@ in Sim Radii, expo fine control, pad-click grip backup, R-HUD w/
 vector-equation position + rotation matrix, zoom cap 10^1.5,
 fail-safe comfort-visual colors, /xr lobby + session prompt).
 Everything consolidated on ng `dev` (tag 'nav-8 visuals').
-**xr-3-min ✅ BUILT 2026-07-12 on Dustin's go** (see the xr-3-min
-section for the full manifest): wrist ring-1 RUN/CONDITIONS/SCRUB
-from the XrSurfaceModel seed, HTMLMesh page-panels of the REAL
-run-panel + IC components (off-screen host in the /xr slim view,
-XR_PANEL_CONTEXT run-cycler + ±steppers), world-anchored canvas
-scrub rail, target-based grip dispatch (grab quad vs navigate
-world), per-quad ✕, placements + raster cost persisted in
-XrInterfaceVariant. 6 new iwer specs, suite 82/82. ng branch
-`dev-xr-3-min-ng` f79476e, deployed to staging (build tag
-'xr3min panels'). STOP LINE (play/scrub a calculated sim
-in-headset) awaits Dustin's Wolvic/Quest session. NOT pushed.**
+**xr-3-min ⚠️ IMPLEMENTED but NOT WORKING ON DEVICE (2026-07-12)**:
+the full slice was built + deployed (see the xr-3-min section
+manifest — ring-1, HTMLMesh run/IC panels, canvas scrub rail, grip
+dispatch, persistence; ng branch `dev-xr-3-min-ng` f79476e, staging
+build tag 'xr3min panels', 6 new iwer specs, suite 82/82) — but
+**Dustin's session found the scrubber and MOST of the implemented
+features do not actually work in practice. DEBUGGING is the next
+xr work item.** Same lesson-shape as the nav-3..5 arc: the iwer
+harness passing does NOT mean the device behaves. Do NOT merge
+`dev-xr-3-min-ng` → dev until the debug pass proves the stop line
+(play/scrub a calculated sim in-headset). NOT pushed.**
 Goal: every 3D interface can be "entered" as a VR space through
 WebXR + three.js, with ONE engine carrying all XR capability (many 3D
 interfaces on screen must never each load VR machinery); controllers/
@@ -357,9 +357,13 @@ Open questions — ALL RESOLVED by Dustin 2026-07-13:
   leans on steppers/sliders/increment controls day one; free-text
   entry stays a flat-mode task until keyboard support is proven.
 
-**✅ BUILT 2026-07-12 (Dustin's go: "implementing being able to
-actually play preexisting simulations and run simple presets/defaults
-for simulation runs in VR"). ng branch `dev-xr-3-min-ng` f79476e.**
+**⚠️ IMPLEMENTED 2026-07-12 (Dustin's go: "implementing being able
+to actually play preexisting simulations and run simple
+presets/defaults for simulation runs in VR"), ng branch
+`dev-xr-3-min-ng` f79476e — but Dustin reports the scrubber and
+MOST of what follows DOES NOT WORK in practice; a DEBUGGING pass is
+required before this section can be stamped working. The manifest
+below documents what exists in code and where.**
 What shipped, per build item:
 1. Ring-1 grows from ring-0's anchor (xr-wrist-ui): RUN / CONDITIONS
    / SCRUB from the `XR_SURFACE_SEED` rows
