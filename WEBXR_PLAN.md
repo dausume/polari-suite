@@ -1,14 +1,18 @@
 # WebXR VR/AR Spaces — Plan (xr-1..5)
 
-**Written 2026-07-11 from Dustin's directive.
-STATUS 2026-07-11 (evening): xr-1 ✅ + xr-2 ✅ BUILT + LIVE-VERIFIED
-(see the section stamps) — NEXT AGENT PICKS UP xr-3 (the XR
-interface system: XrSurfaceModel, wrist radial rings growing from
-the xr-2 ring-0 seed, HTMLMesh spatial page-panels, target-based
-grip dispatch). Branches: fw `dev-xr-1-engine` (9bc761c; no backend
-changes in xr-2), ng `dev-xr-2-input-ng` (0759051, on top of the
-api-sweep protocol fixes). NOT pushed. Dustin headset review pending
-on BOTH devices (Quest 2 + Vive).**
+**STATUS 2026-07-12/13: xr-1 ✅ + xr-2 ✅ — and Dustin OFFICIALLY
+marked VR MOVEMENT WORKING on the Vive (Wolvic): "smooth and
+intuitive" (after the nav-1..8 tuning arc: continuous drive re-unit
+in Sim Radii, expo fine control, pad-click grip backup, R-HUD w/
+vector-equation position + rotation matrix, zoom cap 10^1.5,
+fail-safe comfort-visual colors, /xr lobby + session prompt).
+Everything consolidated on ng `dev` (tag 'nav-8 visuals').
+NEXT: **xr-3-min** (scoped by Dustin 2026-07-13 — see the section
+BEFORE the full xr-3 spec): the FIRST ring layer of the wrist
+radial menu spawning HTMLMesh panels for stepping / initial
+conditions / play+scrubber — STOP LINE = "able to view (play/scrub)
+a calculated simulation in VR". Plan checked + adjusted; awaiting
+Dustin's go. NOT pushed.**
 Goal: every 3D interface can be "entered" as a VR space through
 WebXR + three.js, with ONE engine carrying all XR capability (many 3D
 interfaces on screen must never each load VR machinery); controllers/
@@ -290,6 +294,65 @@ Original spec:
     the XRSession 'end' event), and headset-removal auto-pause; ALL
     of them restore the flat view through the same xr-1 exit path
     (placements persisted, byte-identical flat return).
+
+### xr-3-min — FIRST ring + the three viewing panels (Dustin's scope, 2026-07-13)
+
+The minimum slice of xr-3, planned against the LIVE frontend (all
+three flat components already exist standalone):
+`sim-space-simulation-run-panel.component` (run select + play/
+runBatch), `run-initial-conditions-editor.component` (ICs),
+`sim-space-scrubber.component` (temporal scrub — the viewer already
+exposes `hasTemporal`/`temporalSampleCount` + scrub index seams).
+
+**STOP LINE: "able to view the simulations"** — in the headset, on
+a space with a CALCULATED run: open the ring → set/inspect initial
+conditions → select a run → play → scrub through recorded time
+points while the 3D state animates. Everything past that is full
+xr-3 (below) and explicitly deferred.
+
+Build items:
+1. **Ring-1** growing from ring-0's anchor (EXIT/RE-CENTER/HELP
+   untouched): three items — RUN, CONDITIONS, SCRUB. Hardcoded seed
+   list SHAPED as XrSurfaceModel rows (same fields: id, label,
+   xrPlacement, panelContentRef) so the later registry decoration
+   is a data move, not a rewrite. ≤3 items ⇒ no pagination/tiering
+   yet; content-adaptive sizing rules apply.
+2. **HTMLMesh panels for RUN + CONDITIONS**: the slim /xr view page
+   mounts the REAL Angular components in an off-screen host under
+   `.xr-panel-context`; three's HTMLMesh renders each as a floating
+   quad at a fixed comfortable spawn offset; TRIGGER = forwarded
+   pointer events to the LIVE component (behavior parity is
+   automatic). Re-raster cost measured + recorded in the variant
+   (res-3 idiom); the canvas fallback ladder stays available but is
+   NOT built unless these two panels prove too slow.
+3. **Scrubber = canvas rail, not HTMLMesh** (update-heavy — already
+   on the plan's day-one fallback list): a world-anchored rail
+   drawing from the same temporal seams the flat scrubber uses;
+   ray + trigger drags the puck. Play/pause rides the RUN panel.
+4. **Interaction (minimum dispatch)**: panels are UI surfaces like
+   the wrist ring — ray-hover glow, uiEngaged blocks world gestures
+   while hovering, triggers click INSIDE panels, ONE-grip drag on a
+   hovered panel repositions it. Two-grip resize, distance-grab,
+   texture-cap tiling, flat↔XR open-panel transitions: DEFERRED to
+   full xr-3. Placements persist per mode via the existing
+   XrInterfaceVariant merge.
+5. **Dismiss**: each panel carries a small ✕; its ring item toggles.
+
+Acceptance: the stop-line scenario end-to-end on staging + iwer
+specs (ring spawn, HTMLMesh presence + forwarded click, scrub
+drives the temporal index); flat suite untouched; placements
+survive exit/re-enter.
+
+Open questions flagged for Dustin before build:
+- **Q-A (play semantics)**: is playing back an ALREADY-calculated
+  run the stop line (plan default), with triggering runBatch from
+  VR allowed but its progress display crude?
+- **Q-B (scrubber home)**: world-anchored grabbable rail (plan
+  default) vs wrist-anchored?
+- **Q-C (IC editing input)**: rasterized DOM text fields may not
+  summon the system keyboard in Wolvic — day one, IC editing in VR
+  should lean on steppers/sliders/increment controls; free-text
+  entry stays a flat-mode task until proven. Acceptable?
 
 ### xr-3 — the XR interface system: wrist menus + spatial page-panels
 (Dustin 2026-07-11.) The standardization phase: ONE declarative
