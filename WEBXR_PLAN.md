@@ -7,15 +7,17 @@ in Sim Radii, expo fine control, pad-click grip backup, R-HUD w/
 vector-equation position + rotation matrix, zoom cap 10^1.5,
 fail-safe comfort-visual colors, /xr lobby + session prompt).
 Everything consolidated on ng `dev` (tag 'nav-8 visuals').
-NEXT: **xr-3-min** (scoped by Dustin 2026-07-13 — see the section
-BEFORE the full xr-3 spec): the FIRST ring layer of the wrist
-radial menu spawning HTMLMesh panels for stepping / initial
-conditions / play+scrubber — STOP LINE = "able to view (play/scrub)
-a calculated simulation in VR". Plan checked + adjusted, all three
-open questions RESOLVED (playback-only stop line; world-anchored
-rail; steppers-first IC editing) — BUILD NOT STARTED by Dustin's
-explicit instruction; next XR session begins at xr-3-min on his go.
-NOT pushed.**
+**xr-3-min ✅ BUILT 2026-07-12 on Dustin's go** (see the xr-3-min
+section for the full manifest): wrist ring-1 RUN/CONDITIONS/SCRUB
+from the XrSurfaceModel seed, HTMLMesh page-panels of the REAL
+run-panel + IC components (off-screen host in the /xr slim view,
+XR_PANEL_CONTEXT run-cycler + ±steppers), world-anchored canvas
+scrub rail, target-based grip dispatch (grab quad vs navigate
+world), per-quad ✕, placements + raster cost persisted in
+XrInterfaceVariant. 6 new iwer specs, suite 82/82. ng branch
+`dev-xr-3-min-ng` f79476e, deployed to staging (build tag
+'xr3min panels'). STOP LINE (play/scrub a calculated sim
+in-headset) awaits Dustin's Wolvic/Quest session. NOT pushed.**
 Goal: every 3D interface can be "entered" as a VR space through
 WebXR + three.js, with ONE engine carrying all XR capability (many 3D
 interfaces on screen must never each load VR machinery); controllers/
@@ -355,9 +357,46 @@ Open questions — ALL RESOLVED by Dustin 2026-07-13:
   leans on steppers/sliders/increment controls day one; free-text
   entry stays a flat-mode task until keyboard support is proven.
 
-**PLANNING COMPLETE (2026-07-13). NOT STARTED — Dustin explicitly
-held the build ('do not start building'). The next XR session
-begins here on his go.**
+**✅ BUILT 2026-07-12 (Dustin's go: "implementing being able to
+actually play preexisting simulations and run simple presets/defaults
+for simulation runs in VR"). ng branch `dev-xr-3-min-ng` f79476e.**
+What shipped, per build item:
+1. Ring-1 grows from ring-0's anchor (xr-wrist-ui): RUN / CONDITIONS
+   / SCRUB from the `XR_SURFACE_SEED` rows
+   (models/xr/xr-surface-model.ts — id/label/xrPlacement/
+   panelContentRef, exactly the registry-decoration shape); items lit
+   while their quad is open; HUD + help lifted above the new ring.
+2. HTMLMesh panels: `xr-panel-host.component` (mounted by the /xr
+   slim view) hosts the REAL run-panel + IC-editor components
+   off-screen under `.xr-panel-context` and registers an
+   `XrSurfaceProvider` with the engine; `XrPanelSystem` (lazy chunk)
+   spawns HTMLMesh quads of those live elements, forwards
+   trigger→mousedown/up/click at the ray UV, measures + records
+   raster cost in the variant, and REBUILDS the mesh when the live
+   element's size changes (HTMLMesh freezes its canvas at first
+   capture — growth would clip). Discovered platform constraint:
+   mat-select opens in the cdk overlay at document.body — outside
+   the rasterized element — so the run picker renders as a ◀ ▶
+   cycler under the `XR_PANEL_CONTEXT` DI token, and the IC editor
+   grows ±decade steppers on numeric fields + dt (Q-C). The RUN
+   quad hides its embedded IC accordion (the CONDITIONS quad owns
+   that surface; both wire into ONE run-panel instance's state).
+3. Scrub rail: `XrScrubRail` canvas quad on the provider's temporal
+   seams; trigger press/hold drags the puck; honest "record ≥2
+   steps" message when no timeline exists.
+4. Dispatch: ray-hover glow frame; uiEngaged() blocks world gestures
+   (nav's focus gate now includes panels); ONE-grip drag repositions
+   a hovered quad (press-time target owns the gesture; drag-start
+   interrupts any same-frame nav gesture); drop flattens to upright
+   yaw-only and persists world placement via the variant merge;
+   placements restore on spawn.
+5. Dismiss: per-quad ✕ + ring-item toggle.
+Acceptance: 6 iwer specs (ring spawn incl. no-surfaces negative,
+HTMLMesh-of-the-live-element + byte-identical toggle-off, forwarded
+click, rail center→range midpoint, grip-drags-quad-not-world +
+persistence, placement restore) — suite 82/82. Staging deploy + the
+in-headset stop-line run: see the status line at the top of this
+file / the memory log.
 
 ### xr-3 — the XR interface system: wrist menus + spatial page-panels
 (Dustin 2026-07-11.) The standardization phase: ONE declarative
