@@ -251,6 +251,9 @@ services:
       # MinIO connection (internal Docker network)
       - MINIO_ENDPOINT=http://pol-file-store:9000
       - MINIO_BUCKET=legislation
+      # Polari scoring backend — server-to-server sync target for
+      # PolariVoteTopic (2026-07-14 ballot-hosting architecture move).
+      - POLARI_API_URL=http://prf-backend:3000
     extra_hosts:
       # Allow container to reach host machine via nip.io domains
       # Uses ${LOCAL_IP} from --env-file .generated/.env.staging

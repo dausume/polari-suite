@@ -105,6 +105,15 @@
         "clientRole": false,
         "containerId": "89124d42-552a-4123-8cc2-e16f4b5e68c1",
         "attributes": {}
+      },
+      {
+        "id": "c1be847f-372c-4855-8f89-9f18473a20dc",
+        "name": "policy-voting-admin",
+        "description": "Can submit official PolicyVote records citing a government source (2026-07-14 PolicyVote dual-path submission).",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "89124d42-552a-4123-8cc2-e16f4b5e68c1",
+        "attributes": {}
       }
     ],
     "client": {
