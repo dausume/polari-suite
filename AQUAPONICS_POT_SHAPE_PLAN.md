@@ -1091,7 +1091,1169 @@ Frontend (all reference points only — nothing built yet):
 - `components/sim-space/sim-space-viewer/sim-space-editor-sidebar.component.ts` —
   `overlayVisible` toggle pattern to mirror for phase 5.
 
+## Transparency defaults flipped + Phase 3 (water-flow visualization) — DONE + VERIFIED (2026-07-15)
+
+Dustin, after confirming phases 1/2/4/5's only remaining visual issue
+was "the hole cylinders not being fully transparent by default":
+*"Continue work on the water simulation and visualization in the pot
+(default cylinders for holes to fully transparent, the pots and soil
+only mostly transparent so we can see the water flow) this simulation
+should be separate from the pot with soil that lacks water flowing
+through."* — resolving phase 3's only open question (approximate
+repeated-steady-state vs true-transient) in favor of the simpler
+option the plan itself already flagged as the pragmatic first pass.
+
+**Transparency defaults**: `PotDefinition.wall_transparent`/
+`soil_transparent` now default `True` (were `False`) — a fresh pot is
+see-through by default, opaque is the opt-out. Holes get a NEW
+dedicated `matte-gray-transparent` Material3D row (opacity 0.08) and
+`pot_scene.py`'s `HOLE_STYLE_REF` now points at it UNCONDITIONALLY —
+holes were never gated by either toggle before and still aren't, they
+just render at the transparent variant now instead of opaque. Kept as
+its own row rather than lowering the shared `matte-gray`'s own
+default, which other non-pot scenes use at full opacity. **Real gotcha
+hit and fixed**: flipping the class default only affects NEW rows —
+the already-seeded `demo-herb-pot`/`demo-broken-pot` had `False`
+persisted from when they were first created under the old default;
+fixed with an explicit CRUDE PUT on both live rows (confirmed via
+`from-pot` re-derive afterward that both now report `wallTransparent`/
+`soilTransparent: true`). Worth remembering for any future default
+flip on an already-seeded class.
+
+**Phase 3 — water-flow visualization, a SEPARATE scene**:
+`ensure_pot_water_viz_scene()` (`mathshapes/pot_scene.py`) builds
+`{pot_name}-water-viz` as a genuinely different `SimSpaceDefinition`
+row from the static `{pot_name}-viz` (confirmed live: editing one
+never touches the other) — ALWAYS renders shell/soil transparent
+regardless of the pot's own toggles (seeing the water is this scene's
+whole point), plus one new freestanding entry for the live water
+slice. Both scenes are reachable through the existing generic
+`/sim-spaces/:name` route with zero new routing — `{pot}-viz` and
+`{pot}-water-viz` are just two different SimSpace names.
+
+**The water mesh itself**: `aquaponics/hydraulics.py::water_slice_mesh()`
+runs the existing steady-state Darcy solve and 3-D-positions the
+result as a flat plane through the pot's real input→output azimuth
+line, in the SAME (cm, z-through-center) frame the pot's own wall/
+soil/hole meshes already render in — no extra transform needed on the
+frontend. **Stated plainly, not hidden**: this is a flat 2-D
+cross-section (the Darcy engine's own documented fidelity ceiling),
+not a full 3-D volume, and "time-stepping" is repeated independent
+steady-state solves at a rising `water_level_mm` — NOT a true
+transient formulation. `darcy_engine.py` (+ its worker twin
+`msci-engines/darcy_solver.py`, kept in sync per the module's own
+instruction) now also returns `headFieldTriangles` (mesh.t
+connectivity) — needed to have a real triangulated surface at all,
+previously only scattered points were exposed.
+
+New route: `GET /api/aquaponics/pots/{name}/water-slice?waterLevelMm=
+&refine=`. Frontend: `WaterSliceGeometryLibraryService` (mirrors
+`MathShapeGeometryLibraryService`'s deferred-population trick, keyed
+by pot name so the SAME BufferGeometry updates in place across ticks
+rather than reallocating), a new `waterslice:` shapeRef prefix in
+`ThreeSimSpaceRenderer.buildMeshFor`, and a self-contained fill
+animation (`startWaterAnimation`, `ThreeSimSpaceRenderer` itself, NOT
+the generic viewer component — same architectural call as the
+shapeRef-prefix dispatch already living there) that ramps
+`water_level_mm` 0 → the maintained level over ~2.8s the moment a
+`waterslice:` object appears in a snapshot, then holds — a
+self-watering pot's reservoir fills once and stays maintained, it
+doesn't repeatedly fill/drain, so this deliberately animates once per
+scene view rather than looping.
+
+**Verified live, full chain**: backend selftests 48/48 (17
+`selftest_pot_transparency` — rewritten for the new default direction
++ new water-scene coverage; 31 `selftest_hydraulics` — 8 new
+`water_slice_mesh` checks including hand-verified 3-D positioning
+math), run both against the mocked engine AND the REAL local skfem
+solver (81 nodes / 128 triangles for `demo-herb-pot` at refine=4, a
+genuine triangulated mesh, not empty). Live curl against the running
+backend: `water-slice` endpoint returns real geometry
+(`waterLevelMm: 200`, real `outflowRateMlS`); `from-pot` on the live
+`demo-herb-pot` confirms both scenes exist with the exact expected
+per-layer styles (holes transparent in BOTH scenes; shell/soil opaque
+in the static scene per its own toggle, transparent in the water
+scene regardless). Frontend: full `ng build` clean, `prf-frontend`
+redeployed, both `/sim-spaces/demo-herb-pot-viz` and `.../demo-herb-
+pot-water-viz` serve 200, new code (`startWaterAnimation`,
+`WaterSliceGeometryLibraryService`) confirmed present in the deployed
+bundle, CORS confirmed correct on the new endpoint.
+
+**Not yet done — no browser available in this environment**: the
+actual visual result (does the fill animation read as "water flowing"
+rather than a static plane, is the flat 2-D slice's honest
+simplification acceptable in practice, does the pot look right at
+"mostly transparent") is unverified beyond automated
+build/deploy/API-shape checks — same standing caveat as every other
+phase of this plan. This is the one thing that most needs Dustin's
+own eyes on a headset-free screen next.
+
+## Phase 6 — plant growth simulation (normalized growth + animation-bones skeleton), DONE + VERIFIED (2026-07-15)
+
+Dustin, after confirming the water simulation's input-hole-in /
+output-hole-out / re-solved-per-frame model was correct: *"What we
+want to do after this... would be simulating a plant actually being
+put into the pot... simulate the growth of the plant over time and
+simulate based on the conditions of the constraints of the pot and
+the conditions of the soil and amount of water available."* Refined
+across several more rounds of direction (verbatim quotes kept in
+`aquaponics/plant_growth_normalized.py`'s own module docstring, since
+they're load-bearing for the whole design): species-level "Free Soil
+Constants" first, "Constrained Limits" (does it survive stabilizing
+growth in THIS pot) second; normalized growth (a 0-1 volume fraction)
+replacing age, with a hard sane-ceiling safety valve; growth tracked
+PER PLANT PART, not one whole-plant scalar; an "animation bones"
+vector-graph geometry representation (chosen specifically so a future
+real-scan reverse-mapping function has a well-posed target); explicit
+SHAPE-equation vs GROWTH-equation split, both part-specific. The
+stress-TYPE-differentiated matrix-equation layer (atmospheric/soil/
+water multivariable space) Dustin described in the same conversation
+is deliberately NOT built here — flagged as its own dedicated design
+pass, to be done after this checkpoint.
+
+**New/changed files**:
+- `plant_morphology/organ_basis.py` — `RootSystemModel` gained
+  `soil_root_density_g_per_cm3`, `root_core_diameter_mm`,
+  `root_taper_exponent`, `root_hair_diameter_mm` (Free Soil Constants
+  additions).
+- `aquaponics/plant_basis.py` — `PlantDefinition` gained
+  `normalized_growth_rate_per_day` (a FALLBACK rate only, used when a
+  part has no `PlantGrowthModel` row of its own — aqp-8's existing
+  per-part `growth_rate` is the primary source).
+- `aquaponics/plant_growth_normalized.py` (new) — `free_soil_constants()`
+  (Stage 1, read straight off existing rows), `constrained_limits()`
+  (Stage 2, reuses `plant_morphology.morphology_analysis.
+  confinement_assessment()` unchanged), `PotPlanting` (the missing
+  instance state — `part_growth_json` per part, `random_seed` for
+  reproducible geometry), `advance_growth()` (closed-form
+  logistic-with-ceiling solve per part, real conditions control RATE,
+  confinement controls CEILING — two separate knobs, never collapsed),
+  `current_root_profile()`/`current_canopy_profile()` (the SHAPE
+  equations).
+- `aquaponics/plant_skeleton.py` (new) — `generate_skeleton()`: two
+  independent recursive walks (roots down, canopy up) off one shared
+  core point, reusing `RootSystemModel.pattern`/`OrganModel.
+  arrangement` as branching-behavior knobs, `random.Random(seed)` for
+  reproducibility, two independent hard caps
+  (`max_generations`/`max_bones`) as a computational safety valve
+  distinct from `SANE_MAX_LINEAR_MM`'s physical-dimension cap — both
+  reported in the response, never silently truncated.
+- `aquaponics/plant_growth_normalized_seed.py` (new) — one real demo
+  `PotPlanting` (`demo-herb-pot-basil-1`, sweet-basil in
+  demo-herb-pot, `random_seed=8241`), reusing real seeded rows across
+  every module this feature spans rather than fixture-only data.
+- `aquaponics/plant_growth_normalized_api.py` (new) — the HTTP
+  surface: `GET .../plants/{name}/free-soil-constants`,
+  `GET .../pots/{name}/plants/{plant_name}/constrained-limits`,
+  `GET .../plantings/{name}` (overall + both shape profiles),
+  `POST .../plantings/{name}/advance` (the one mutating action),
+  `GET .../plantings/{name}/skeleton`.
+- `polariApiServer/polariServer.py` — `PotPlanting` registered in both
+  `defClassList` AND `seed_pairs` (the standing "registered in only
+  one of the two = silent 404s" lesson applied); the new API endpoint
+  class instantiated alongside the other aquaponics endpoints.
+- `aquaponics/selftest_plant_growth_normalized.py` (new) — 38 checks
+  against REAL seed data (sweet-basil / demo-herb-pot, not
+  fixture-only rows), covering both stages, the safety ceiling,
+  per-part `advance_growth` (including the never-collapsed
+  rate-vs-ceiling distinction), both shape equations, and the bone
+  generator (connectivity, direction, reproducibility, the two
+  independent caps). 38/38 passing.
+
+**Three real bugs found + fixed while writing/running the selftest**
+(the same "write the test, let it find real bugs" discipline as every
+prior phase):
+1. `constrained_limits()` read `confinement['indefinite']`, but
+   `confinement_assessment()` actually returns
+   `canKeepIndefinitely` — a `KeyError` on every real call, caught
+   immediately by the first Stage-2 test.
+2. `plant_skeleton.generate_skeleton()`'s terminal-organ (leaf/flower/
+   fruit) attachment looked organs up by `organs_by_part[part_name]`
+   where `part_name` was the STRUCTURAL AXIS's own part (`'stem'`) —
+   but a leaf organ's growth-tracking part is `'leaf'`, never
+   `'stem'`, so the lookup could never find it; worse, it was
+   self-matching the stem organ onto itself. Fixed by attaching ALL
+   non-axis organs (not filtered by matching part name) along every
+   bone of the one structural axis, with each organ's `currentCount`
+   pre-divided by a geometric-series estimate of the axis's total bone
+   count (`_estimate_axis_bone_count`) so the sum across the whole
+   axis approximates the real plant-wide count instead of placing the
+   full count at every single bone.
+3. The seed fixture (`plant_growth_normalized_seed.py`) initially
+   omitted `part_growth_json`/`condition`/etc. — since selftests build
+   `SimpleNamespace(**row)` directly (bypassing `PotPlanting.__init__`
+   entirely), an omitted key is a missing ATTRIBUTE, not a
+   silently-applied constructor default. Same standing lesson as the
+   pot-transparency fixture bug in phase 3 — now stated explicitly
+   in-file so it isn't rediscovered a third time.
+
+**Route-naming gotcha, new this phase**: Falcon's compiled router
+requires the SAME field name for every route sharing a trie node.
+`plant_growth_normalized_api.py`'s first draft used `{plant_name}`/
+`{pot_name}` where `plant_api.py`/`pot_api.py`/`hydraulics_api.py`
+already use `{name}` at the same `plants/`/`pots/` path level — this
+crashed the ENTIRE backend at boot with
+`falcon.routing.compiled.UnacceptableRouteError`, not a per-route
+404. Fixed by matching the existing `{name}` convention at both outer
+segments (the deeper, previously-unused `plants/{plant_name}` segment
+under `pots/{name}/` didn't need to change). Worth remembering for any
+future aquaponics endpoint: check what field name existing routes
+already use at that path prefix before picking a new one.
+
+**Live-verified against the running `prf-backend`** (not just the
+selftest): all 4 GET endpoints curled successfully with real
+DB-backed data (`free-soil-constants`/`constrained-limits` off the
+real `sweet-basil`/`demo-herb-pot` rows; `/plantings/{name}` and its
+`/skeleton` off the real seeded `demo-herb-pot-basil-1` — the
+skeleton response showed a real connected bone graph rooted at
+`coreOriginMm: [0, 0, -125]`, matching demo-herb-pot's known
+floor height). The mutating `POST .../advance` endpoint was called,
+its effect confirmed via a SEPARATE follow-up GET (proving the write
+round-tripped through the real MariaDB, not just in-process state),
+then the demo planting was reset back to its pristine seed state via
+CRUDE PUT (`part_growth_json: '{}'`, `condition: 'healthy'`,
+`last_advanced_at: ''`) so it stays a clean starting point for future
+frontend work.
+
+**Not yet done**: the frontend geometry layer (a pot-plant SimSpace
+view consuming `/skeleton`'s bone graph — same "live-computed, not a
+stored shape row" pattern as the water slice) — explicitly deferred,
+this checkpoint was scoped to the backend engine + API + live
+verification only. Also explicitly deferred per Dustin's own framing:
+the stress-type-differentiated matrix-equation layer + a diagnostic/
+evaluation interface for inspecting shape/growth equations per part
+at different ages — a substantial enough addition to warrant its own
+dedicated design pass rather than being folded into this checkpoint.
+
+## Phase 7 — stress-type-differentiated growth equations, DONE + LIVE-VERIFIED (2026-07-15)
+
+Dustin, immediately after phase 6's checkpoint: *"these equations can
+vary based on different kinds of stress conditions... an interface
+specifically for looking through and evaluating how these are
+functioning... these should be interconnected matrix equations that
+define multivariable spaces based on atmospheric and soil and water
+inputs."* Researched first (forked, read-only) whether this codebase
+already had reusable no-code equation infrastructure before designing
+anything — it does: `matrices/matrix_equation_definition.py`
+(`MatrixEquationDefinition`) + `matrices/matrix_equation_executor.py`
+(`evaluate_equation(eq_def, binding_values, manager)`) is a real,
+general, already-built multivariable equation engine (operands can be
+matrices, other matrix-equations, or scalar `EquationDefinition`s;
+`{"kind": "expr", "expr": "..."}` runs a sandboxed NumPy expression
+over named bindings) — reused directly rather than reinventing a
+second equation system. Also confirmed real atmosphere/soil/water data
+already exists (`AtmosphereDefinition`: co2_ppm/o2_pct/temperature_c/
+relative_humidity_pct/light_ppfd_umol_m2_s/...; `WaterDefinition`:
+temperature_c/ph/electrical_conductivity_ds_m/dissolved_oxygen_mg_l/
+...) — no new atmospheric/water fields needed for a first pass.
+
+**Two-tier design** (`aquaponics/plant_stress.py`, new): TIER A — a
+`StressResponseCurve` row's min/optimalLow/optimalHigh/max fields
+define a standard trapezoidal response over ONE real scalar (the same
+shape real crop models like DSSAT/APSIM use) — always available, no
+equation authoring required, so every species gets a real answer on
+day one. TIER B — a curve can instead set `equation_ref` (a real
+`MatrixEquationDefinition` name) + `input_bindings_json` (symbol ->
+{source, field}) for genuine multivariable/interconnected behavior,
+falling back to Tier A if unset. Curves are keyed by (plant_name,
+part, stress_type) — Dustin's "vary based on the plant part" applies
+for real: sweet-basil's ROOT curves read WATER fields (oxygen/pH/
+salinity), its STEM/LEAF curves read ATMOSPHERE fields (temperature/
+humidity/light/CO2) — never the same equation forced onto every part;
+LEAF even gets its OWN (tighter) temperature curve, separate from
+STEM's.
+
+**Combining stress types**: Liebig's Law of the Minimum (`min()`
+across whatever stress-type curves resolved for that part) — a
+standard plant-physiology principle for co-limiting factors, and a
+deliberate correction from the OLD `water_supply_factor *
+soil_supply_factor` product model (a product punishes several mildly-
+suboptimal-but-not-actually-limiting factors far more harshly than
+real plants do).
+
+**Wiring into `advance_growth()`** (`aquaponics/plant_growth_normalized.py`):
+signature changed from `water_supply_factor=1.0, soil_supply_factor=1.0`
+to `=None, =None` — an explicit override still wins exactly like
+before (manual, uniform-across-parts, 100% behavior-preserving for
+every existing call site); when NEITHER is passed and the planting's
+NEW `PotPlanting.system_name` field (references a real
+`aquaponics.pot_system.PotSystemDefinition`) is set, PER-PART stress
+factors are auto-computed from that system's real atmosphere/water/
+soil rows instead — genuinely different parts can now get genuinely
+different growth rates from the same tick. No system_name -> honest
+1.0 for every part, never a guessed penalty.
+
+**Demo data**: reused the REAL, already-seeded `aquaponics.
+pot_system_seed`'s contrasting pair (`basil-aquaponic-tent` healthy-
+ventilated vs `basil-aquaponic-sealed` degraded — aqp-6 built this
+pair specifically "so survival + impact have a live pass/fail
+contrast"). Added a SECOND demo `PotPlanting`
+(`demo-herb-pot-basil-sealed`, same pot/plant, bound to the sealed
+system) alongside the existing `demo-herb-pot-basil-1` (now bound to
+the healthy system) so a live check can compare them side by side.
+8 real `StressResponseCurve` rows seeded for sweet-basil across its 3
+parts (`aquaponics/plant_stress_seed.py`) — checked against the two
+systems' REAL numbers, not designed to force a contrived result: ROOT
+and STEM come out IDENTICAL between the two systems (they only read
+fields that don't differ, or read the shared water row); LEAF
+genuinely differs (light 250 vs 350 PPFD, CO2 800 vs 420 ppm — both
+mildly limiting in the sealed chamber, light the worse of the two).
+
+**New HTTP surface** (`aquaponics/plant_growth_normalized_api.py`):
+`GET .../plantings/{name}/stress` (every part's full per-stress-type
+breakdown against the bound system — the diagnostic view), `GET
+.../stress-curves/{name}/sweep?steps=<n>` (Tier-A curves only —
+samples factor-vs-input across the curve's own range, independent of
+any live data row; Tier-B equations are diagnosed via the no-code
+matrix-equation editor's own existing run-overlay instead of
+duplicating that UI here).
+
+**New Falcon route-trie gotcha, same class as phase 6's**: no new
+conflicts this time (checked `{name}` at every shared segment before
+writing routes), but worth restating since it WILL recur: any new
+route sharing a literal path prefix with an existing one MUST reuse
+that existing field name.
+
+**One real repeat of the phase-3/6 "new field on an existing seeded
+row" gotcha**: `demo-herb-pot-basil-1` already existed from the phase-6
+deploy (seeding is idempotent-by-name — it does NOT retroactively
+apply newly-added seed-dict fields to an already-persisted row), so
+its brand-new `system_name` field stayed empty after this deploy even
+though the seed file said `'basil-aquaponic-tent'` — caught
+immediately via the live `/stress` endpoint returning `mode:
+"no-linkage"` when `"stress-equations"` was expected. Fixed with the
+same CRUDE PUT pattern as before. **Third occurrence of this exact
+class of gotcha this session — worth internalizing as a standing
+habit: after ANY seed-dict field addition to an existing named row,
+always CRUDE-PUT the live row too, don't assume the new deploy alone
+covers it.**
+
+**Selftests**: `aquaponics/selftest_plant_stress.py` (new, 32/32) —
+trapezoid math (including a genuine near-zero-span division-guard
+case, not a provably-unreachable one), Tier-A against real seeded
+rows, Tier-B against a REAL `MatrixEquationDefinition` (including its
+own clamp actually engaging on an unclamped raw ratio > 1), Liebig's-
+Law combination, the real root/stem-identical vs leaf-different
+contrast, the sweep diagnostic, and `advance_growth`'s three modes
+(manual/stress-equations/no-linkage). `selftest_plant_growth_
+normalized.py` re-run clean at 38/38 with zero changes needed (the
+manual-override path is untouched; the one call using neither factor
+now takes the no-linkage fallback since that test's fixture has no
+`PotSystemDefinition` table, exercised gracefully). Zero regressions
+across all 8 suites touched this session.
+
+**Live-verified against the running `prf-backend`**: `GET .../stress`
+on both real demo plantings after the system_name fix — leaf
+`combinedFactor` 1.0 (healthy) vs 0.85 (sealed, `limitingStressType:
+"light"`), root `combinedFactor` 1.0 for BOTH (same water row); `GET
+.../stress-curves/{name}/sweep` returned a real 8-point trapezoid
+sample set; `POST .../advance` on both real plantings showed the
+sealed planting's leaf growing measurably less (0.07366 vs 0.0918
+normalizedGrowth over the same 10 days) while root growth was
+IDENTICAL between them (0.07643 both) — real per-part physics
+reaching the actual growth numbers, not just reported diagnostics.
+Both plantings reset to pristine `part_growth_json: '{}'` afterward,
+`system_name` bindings left in place.
+
+**Not yet done**: the frontend diagnostic UI (a plant-growth-specific
+wrapper around the existing matrix-equation run-overlay, pre-
+populating operand bindings from a planting's bound system) —
+explicitly lower priority per Dustin's own softer phrasing ("would be
+a good idea," not a requirement) and consistent with this session's
+established rhythm of shipping the backend solidly first. A genuine
+range/plot-over-a-range UI for Tier-B equations also doesn't exist yet
+anywhere in this codebase (the no-code editor's run-overlay only
+evaluates one binding set at a time) — would be new UI work, not a
+reuse of an existing sweep view, if ever built.
+
+## Phase 6b — plant skeleton visualization (the geometry payoff), DONE + LIVE-VERIFIED (2026-07-15)
+
+Immediately after phase 7's checkpoint — the growth engine's output
+was still only visible as API JSON, and Dustin's ORIGINAL framing for
+this whole thread was "What will that growth look like?" — so the
+next piece was giving `generate_skeleton()`'s bone graph an actual 3D
+home, mirroring the water-flow visualization pattern exactly (a THIRD
+`shapeRef` resolution scheme, alongside `mathshape:`/`waterslice:`).
+
+**Backend** (`mathshapes/pot_scene.py`): new
+`ensure_pot_plant_viz_scene(manager, planting_name, pot_name, ...)` —
+creates/refreshes `{planting_name}-plant-viz`, deliberately keyed by
+PLANTING not pot: a pot can have more than one `PotPlanting` bound to
+it (this session's own real seed data does — the same demo-herb-pot
+under two different what-if `PotSystemDefinition`s), and two plants
+can't physically occupy one pot, so a pot-keyed scene would be
+ambiguous the moment a second planting exists. Same always-transparent
+shell/soil as the water-viz scene (seeing the plant/roots through the
+pot is the point) plus one `plantskeleton:{planting_name}` freestanding
+entry. `mathshapes/shape_api.py`'s `on_post_from_pot` now creates one
+plant-viz scene per `PotPlanting` bound to the re-derived pot
+(`result['plantSimSpaces']`, a list) — never fails the whole re-derive
+if a planting is malformed, an honest per-planting gap. New
+`plant-green` material (`simSpace3D/seed_data.py`, opaque `#43a047`).
+
+**Frontend** (`plant-skeleton-geometry-library.service.ts`, new): same
+deferred-population `THREE.BufferGeometry` cache pattern as
+`WaterSliceGeometryLibraryService` — but a skeleton isn't a
+pre-triangulated mesh, it's a LIST OF BONES (start/end point + radius,
+mm), so this is the first geometry-library service that actually
+BUILDS a mesh rather than just loading backend-provided vertices: one
+`THREE.CylinderGeometry` per bone (rotated from +Y onto the bone's real
+direction via `Quaternion.setFromUnitVectors`, translated to its
+midpoint), merged into a single geometry via three's own
+`BufferGeometryUtils.mergeGeometries` (reused, not hand-rolled vertex
+merging). Bone points are mm; the pot's own meshes are cm
+(`water_slice_mesh`'s own convention) — divided by 10 so a skeleton
+drops into the same scene with no separate transform. `three-renderer.
+service.ts` gained a `plantskeleton:` prefix branch (single-sided,
+unlike the two plane/shell branches above it — bones are real solid
+volumes) and `sim-space-renderer-factory.service.ts` threads the new
+service through the constructor, matching the existing pattern exactly.
+
+**A genuine pre-existing test bug found via the regression sweep, not
+introduced this phase**: `mathshapes/selftest_shape2.py`'s "re-deriving
+refreshes not duplicates" check asserted `len(SimSpaceDefinition) == 1`
+— stale since phase 3 added the SEPARATE `{pot}-water-viz` scene (should
+have been `== 2` from that point on) but was never caught because this
+test file wasn't part of phase 3's own verification sweep. Fixed
+(`== 2`, exact key-set check) and extended with real positive/negative
+plant-viz-scene coverage. 51/51 passing (was 47).
+
+**Live-verified against the running `prf-backend` + rebuilt
+`prf-frontend`**: `POST /api/shapes/from-pot/demo-herb-pot` returned
+`plantSimSpaces: ['demo-herb-pot-basil-1-plant-viz', 'demo-herb-pot-
+basil-sealed-plant-viz']` — one real scene per real demo planting;
+fetched `demo-herb-pot-basil-1-plant-viz`'s stored definition directly
+and confirmed the exact expected freestanding list (transparent shell/
+soil/holes + one `plantskeleton:demo-herb-pot-basil-1` entry, styled
+`plant-green`). `ng build` clean (zero new errors beyond the
+pre-existing unrelated baseline), `prf-frontend` redeployed (copied
+around a busy bind-mount at `assets/runtime-config.json` — copied every
+other path individually instead of the whole tree), confirmed the new
+`PlantSkeletonGeometryLibraryService`/`plantskeleton` code is present
+in the actual served JS chunk via a real HTTP GET (not just a file
+read), and `/sim-spaces/demo-herb-pot-basil-1-plant-viz` serves 200.
+
+**Still not visually verified — no browser in this environment.**
+Same standing caveat as every other phase: build/deploy/API-shape
+verified, not eyes-on. This is now the single most valuable thing left
+for Dustin's own screen time across the WHOLE plant-growth-sim thread
+— does a rendered skeleton actually read as a recognizable root/stem/
+leaf plant shape, do the tapered cylinders look reasonable at typical
+seedling sizes (very thin radii — MIN_RENDER_RADIUS_MM=0.15mm/10=
+0.015cm floor exists specifically so a just-germinated plant doesn't
+render as literally invisible slivers), does the always-transparent
+pot read as "look, there's a plant in there" the way it's intended to.
+
+## Phase 8 — direct-light field simulation, DONE + LIVE-VERIFIED (2026-07-15)
+
+Dustin, immediately after phase 6b's checkpoint: *"something I forgot
+to account for here was sunlight, or light simulation in general via
+FEM. We should define the direction of sunlight or a growth light in
+general and be able to convert its incidence on a plant into a value
+it absorbs and applies to growth equation. We should have an
+independent capability to simulate light vector fields of both
+particular wavelengths, and defined spectrum equations of light (like
+the standard light from the sun on the surface of the earth for
+example)."* Researched first (forked): `PhotoAbsorberDefinition`/
+`SolarLayerDefinition`/`SolarStackDefinition` (electrodevice/) turned
+out to be a false lead — photovoltaic bandgap/absorption-edge
+matching, not a spatial light field. But `electrodevice/
+photo_derive.py` had a genuinely reusable numeric TECHNIQUE: a
+blackbody-photon-flux quadrature (`E^2/(exp(E/kT)-1)`-style
+integration) already proven for solar-cell efficiency math. Also
+found: the codebase's generic FEM engine (`materialsScience/engines/
+fem_engine.py`) solves DIFFUSION PDEs — the right tool for scattered/
+diffuse skylight through a dense canopy, but the WRONG tool for direct
+sunlight, which is a straight-line vector/occlusion problem. Proposed
+this distinction to Dustin explicitly rather than mislabel vector math
+as "FEM"; he confirmed: *"doing it via direct light would be much
+simpler for now, later on we will also need to be able to do diffuse
+light however. So perhaps both. We should start with direct as you
+proposed and account for the shapes of the different plant parts in
+that as well later."* — direct light now (this phase), diffuse
+(FEM-based, reusing fem_engine.py) and per-part-SHAPE-specific
+incidence (a real leaf-blade normal instead of the cylinder-projection
+proxy below) both EXPLICITLY deferred, not silently skipped.
+
+**Data model** (`aquaponics/light_basis.py`, new): `LightSpectrumDefinition`
+— 'monochromatic' (a specific wavelength ± bandwidth, e.g. a red LED)
+or 'blackbody' (a Planck's-law thermal curve at temperature_k — THE
+standard model for "sunlight at Earth's surface," 5778K default, the
+same constant photo_derive.py's own solar-cell math uses). Both are
+Tier-A/always-available — a custom equation-driven spectrum
+(`equation_ref`, mirroring phase 7's Tier-B pattern) is real future
+work, deliberately NOT built this pass per Dustin's own "much simpler
+for now." `LightSourceDefinition` — 'directional' (sun-like, azimuth/
+elevation, parallel rays) or 'point' (a grow light, a fixed position —
+no inverse-square falloff modeling yet, an honest stated
+simplification), a broadband intensity_w_m2 magnitude, a spectrum
+reference. `PotSystemDefinition` gains an optional `light_source_name`
+(mirroring how it already binds atmosphere/water/soil).
+
+**Engine** (`aquaponics/light_field.py`, new) — three independently
+testable pieces:
+  1. `spectrum_ppfd()` — a source's broadband W/m^2, filtered through
+     its spectrum, converted to a REAL PPFD (umol/m^2/s) via PHOTON
+     COUNTING (adapting photo_derive.py's exact quadrature technique
+     from eV/bandgap-threshold framing to nm/PAR-band framing) — not
+     an approximate energy-to-photon fudge constant. For a 5778K
+     blackbody this gives a PAR energy fraction of ~36.75%, a
+     physically sane number matching the well-known solar-PAR-fraction
+     ballpark (computed, not looked up).
+  2. `cylinder_incidence_factor()` — since plant-part bones have no
+     flat face/normal today (plain tapered cylinders), incidence is
+     modeled as sin(angle between the bone's own axis and the light
+     direction) — the correct projected-area law for a CYLINDER
+     (broadside-on intercepts the most light, edge-on almost none).
+     Explicitly flagged as the thing to replace once real per-part
+     shapes exist.
+  3. `self_shading_factor()` — a reduced-fidelity check: every OTHER
+     bone is a bounding SPHERE at its own midpoint; an occluded target
+     gets `AMBIENT_SHADE_FRACTION` (0.15), never a hard 0 — a real
+     shaded leaf still receives scattered light, an honest bridge to
+     the future diffuse-light phase rather than an unphysical cliff.
+`per_part_absorption()` combines all three against a planting's REAL,
+freshly-generated skeleton (same "always live-computed" pattern as
+`water_slice_mesh`) into a per-part absorbed-PPFD value. **Documented
+known limitation**: self-shading only checks OTHER BONES, not soil —
+a root bone underground shows a nonzero computed incidence despite
+being physically shielded by opaque soil; this has NO growth effect
+today because no species seeds a 'light' `StressResponseCurve` for its
+'root' part (roots aren't light-sensitive in the first place), but the
+raw per-bone numbers shouldn't be read as physically accurate for
+buried parts. Interestingly, live data showed root bones getting a
+LOW (0.15, shaded) factor anyway — an emergent, not-designed-in
+coincidence: the stem's own base bones near the shared core point
+happen to occlude the downward ray to most root bones.
+
+**Wired into `advance_growth()`** (`aquaponics/plant_growth_normalized.py`):
+when a bound system names a `light_source_name`, `per_part_absorption()`
+runs ONCE per tick (not per-part — one skeleton walk computes every
+part's absorption together), then overrides just the 'light' stress
+type's input value for `plant_stress.evaluate_curve()` — a new
+`light_value_override` parameter, applied ONLY to `stress_type ==
+'light'` curves without an `equation_ref`, everything else completely
+unchanged. Explicit `water_supply_factor`/`soil_supply_factor`
+overrides still bypass this entirely (backward compatible with every
+existing call).
+
+**Demo data**: `sunlight-5778k` (blackbody) + `red-led-660nm`
+(monochromatic) spectra; `demo-herb-pot-grow-light` (a point source
+40cm overhead demo-herb-pot). `intensity_w_m2` (207.71) was NOT a
+guess — solved from the real `spectrum_ppfd()` computation to land at
+~350 PPFD, matching the healthy system's existing static
+`AtmosphereDefinition.light_ppfd_umol_m2_s` so the two independent
+light-modeling paths (static field vs computed field) tell a
+consistent story. Bound only to `basil-aquaponic-tent` (the healthy
+system) — `basil-aquaponic-sealed` deliberately left unbound, so its
+planting keeps using the OLD static-field path unchanged, a real,
+live A/B demonstration that the override is optional and backward
+compatible, not a forced migration.
+
+**New HTTP surface** (`aquaponics/light_field_api.py`, new):
+`GET .../plantings/{name}/light-absorption` (the full per-bone +
+per-part breakdown, auto-resolving the planting's own bound source or
+accepting an explicit `?lightSource=` override) and
+`GET .../light-spectra/{name}/ppfd?intensityWm2=<n>` (a spectrum's
+real computed PPFD at a given magnitude — the "how much usable light
+does this spectrum actually deliver" diagnostic).
+
+**Same recurring gotcha, applied proactively this time**: `basil-
+aquaponic-tent` already existed from an earlier phase, so its new
+`light_source_name` field stayed empty after deploy — this time
+checked and CRUDE-PUT immediately rather than discovered via a failed
+live-verify call, applying the standing lesson
+([[seed-field-addition-gotcha]] memory) instead of relearning it a
+fourth time.
+
+**Selftests**: `aquaponics/selftest_light_field.py` (new, 28/28) —
+real photon-counting math (including the PAR-boundary-straddling
+partial-fraction case), pure vector-geometry sanity checks (overhead
+light points straight down, perpendicular-vs-parallel incidence),
+self-shading (occluder between/behind/off-axis), the full pipeline
+against real seed data, and `advance_growth`'s three-way behavior
+(light-field-bound / static-field-fallback / manual-override-bypass).
+Zero regressions across all 8 other suites touched this session
+(258+ total checks).
+
+**Live-verified against the running `prf-backend`**: both spectrum
+PPFD endpoints (207.71 W/m^2 blackbody -> 349.99 PPFD, matching the
+solved target within rounding; the LED spectrum's full-PAR-overlap
+case); the light-absorption endpoint against the real
+`demo-herb-pot-basil-1` planting showed real per-bone incidence/
+shading/absorption numbers, root bones naturally low (the emergent
+shading noted above); `POST .../advance` showed 'light' as the REAL
+live-computed limiting stress type for leaf growth (factor 0.5028,
+genuinely lower than temperature/co2's 1.0) — the full pipeline
+reaching actual growth numbers, not just a diagnostic. Planting reset
+to pristine state afterward.
+
+**Not yet done, explicitly deferred per Dustin's own confirmed
+sequencing**: diffuse/scattered light (would reuse
+`materialsScience/engines/fem_engine.py`'s existing diffusion solver —
+the RIGHT tool for that specific problem, unlike direct light);
+per-part-SHAPE-specific incidence (a real leaf-blade normal for
+Lambert's cosine law, replacing the cylinder-projection proxy); a
+Tier-B custom equation-driven spectrum; soil occlusion for buried
+parts; inverse-square falloff for point sources; a frontend light-
+source editor/diagnostic view.
+
+## Phase 9 — source-sink nutrient TRANSPORT + one-model consolidation, DONE + LIVE-VERIFIED (2026-07-15)
+
+Dustin: *"Are there nutrient propagation mechanisms from part to part
+inside the plant we may not yet be accounting for?"* Audited first
+(forked, read every real growth-related file rather than trusting
+memory): confirmed NO — every part's growth was fully independent
+(own rate × own local stress factor × own ceiling), in BOTH growth
+pipelines that existed (this session's `plant_growth_normalized.py`
+AND the older aqp-8 `plant_growth.py`, which turned out to already
+have a labeled-but-INERT hint of the right idea — a `PART_INTERACTIONS`
+table naming "root uptake supports shoot growth" etc., computed only
+as a post-hoc report, never fed back into the simulation). Dustin's
+response set TWO directives at once: *"source, sink model would be
+appreciated"* AND *"we should have only one model for plant growth and
+it should be the more robust one which I think would be normalized
+plant growth... The other plant growth model may be the 'simplified
+model'... for mass evaluations at higher scales, where we are taking
+constants that are based on the real growth model, and simplify them."*
+
+**Part A — real source-sink transport, built into
+`plant_growth_normalized.py`** (`transport_factor()`, new): real
+plants are ONE coupled transport system — XYLEM carries water/minerals
+ROOT → shoot, PHLOEM carries photosynthate LEAF → every sink tissue
+(including roots, which don't photosynthesize for themselves). Modeled
+as a SEED-RESERVE-FLOORED Liebig's-Law minimum of a root CAPACITY
+(driven by current root SIZE only) and a leaf CAPACITY (driven by
+current leaf SIZE × REAL absorbed light, phase 8's `light_field`,
+distinct from the 'light' stress CURVE's 0-1 optimality read — this is
+a magnitude signal, "how much sugar is actually being made"),
+multiplying EVERY part's effective rate this tick — not replacing each
+part's own local stress factor, a genuinely separate whole-plant
+bottleneck layered on top. `SEED_RESERVE_FLOOR` (0.15) exists because
+without it a fresh planting could never leave epsilon (both root and
+leaf start tiny, so their capacities are both ~0) — a real seed's own
+stored reserves bootstrap initial growth before root/leaf apparatus
+exists, a genuine botanical fact, not an arbitrary patch. Deliberately
+NOT double-counting: root capacity is SIZE-only (root's own oxygen/pH/
+salinity stress is already applied separately, in the per-part loop).
+Real, stated v1 simplifications: all minerals lumped into one
+undifferentiated root-capacity number; water/mineral capacity has no
+live soil-moisture-magnitude driver yet (the same gap phase 6b already
+flagged); allocation across sink parts is UNIFORM, not priority-
+ordered (real plants favor roots/leaves over fruit under scarcity) —
+future work, not built here. Scoped to `stress-equations` mode only
+(a bound `PotSystemDefinition`), same precedent as the light field —
+manual-override and no-linkage modes are 100% unchanged.
+
+**A real evidence-naming ambiguity found + fixed while writing the
+selftest**: the first cut conflated "which capacity was smaller" with
+"was the floor actually applied," so a badly-stunted part's identity
+got silently replaced by a generic `'seed-reserve-floor'` label
+whenever the floor engaged — losing real information. Fixed by
+reporting both independently: `limitingCapacity` (which raw capacity
+was smaller, always named) and `flooredBySeedReserve` (a separate
+boolean).
+
+**Part B — ONE real growth model, the old one redefined + rebuilt**
+(`aquaponics/plant_growth_simplified.py`, `git mv`'d from
+`plant_growth.py` to preserve history): audited EVERY real consumer
+first (forked) before touching anything — 3 real backend routes
+depended on it (`aquaponics/plant_growth_simplified_api.py`'s
+`/grow`+`/interactions`, `mathshapes/growth_prediction.py`'s
+`tower_growth_forecast` — genuinely already the exact "mass evaluation
+at scale, many tower tiers" use case Dustin described — and
+`nutrition/harvest_analysis.py`'s `harvest_mass_g`, which has a
+concrete field-shape dependency on the return value). None had a
+frontend caller (safe to reshape return fields where the new semantics
+genuinely differ). The rebuilt module has NO independent growth model
+of its own anymore — it pulls per-part rate/ceiling CONSTANTS straight
+from `plant_growth_normalized.free_soil_constants()` and evaluates
+`plant_growth_normalized.closed_form_logistic()` (promoted from a
+private helper to public, since this reuse is now deliberate and
+sanctioned) DIRECTLY at each requested age — mathematically EXACT
+(the closed form is time-invariant/autonomous), not approximated, and
+far cheaper than iterating since every age point is one independent
+closed-form call, matching Dustin's own framing exactly: *"we can know
+from the original model that after a certain amount of time it most
+likely is fully grown, and the simplified model pulls from the
+isolated single-plant model what the average constants would be at
+different ages."* `supply_factor`/`supply_factor_by_part` became
+simple overall 0-1 scalars (not the detailed model's per-species-flux
+machinery) and a new `count` parameter scales one representative
+trajectory across a POPULATION — *"if we had a whole forest of these
+fully grown, what yield are we getting based on what we know about the
+singular case."* The old `PART_INTERACTIONS`/`estimate_interactions()`
+volume-scaled priors were KEPT (still a cheap aggregate-scale sanity
+check) but their own docstring/note now explicitly says they are NOT
+the real mechanism, pointing at `transport_factor()` for that.
+
+**All 3 real consumers updated** to the new module path + new
+field/param names (`supplyFactor`/`supplyFactorByPart`/`count` over
+the old `supply`/`supply_by_part`; `failureSummary[].reason`, a human
+string, over the old per-species `limitingSpecies`/`day` pair, since
+that granularity now genuinely lives in the detailed model). A
+genuine, pre-existing test-fixture gap surfaced by the consolidation
+(not introduced by it): `mathshapes/selftest_shape4.py`'s manager
+fixture never seeded a `PlantDefinition` row (the old model didn't
+need one; `free_soil_constants()` does) — fixed by adding one
+per species, each using `PlantDefinition.normalized_growth_rate_per_
+day` as its fallback rate (deliberately keeping this fixture
+independent of `PlantGrowthModel`/aqp-8 specifics). `tests/
+test_mathshapes.py`'s `GrowthForecastTests` needed no changes (already
+used real seed data with a real `PlantDefinition`).
+
+**Selftests**: `aquaponics/selftest_plant_transport.py` (new, 15/15)
+— the pure `transport_factor()` geometry/capacity math, the real
+light-magnitude driver, and THE key integration proof: a stunted leaf
+measurably slows STEM growth (a THIRD, unrelated part) through
+`advance_growth`, with root equally affected by the SAME shared
+factor — genuine whole-plant coupling, not each part still suffering
+independently. One real, informative finding surfaced while writing
+this test (not a bug): the real demo grow-light's computed absorption
+(after incidence/self-shading losses) is low enough relative to
+`REFERENCE_SATURATING_PPFD` (600) that the seed-reserve floor is
+almost always the active constraint for THAT specific light source —
+worth revisiting if `demo-herb-pot-grow-light`'s intensity is ever
+retuned. `aquaponics/selftest_plant_growth_simplified.py` (rewritten,
+19/19, was 15) — constants genuinely equal the real detailed model's
+own numbers, the closed-form evaluation is bit-for-bit identical to a
+hand-computed call, `count` scales exactly and `fractionOfMax` stays
+population-invariant. Zero regressions across every other suite
+touched this session (331+ total checks, 13 suites + the
+`tests/test_mathshapes.py` unittest module).
+
+**Live-verified against the running `prf-backend`**: `POST /api/
+aquaponics/plants/sweet-basil/grow` with `count=500` returned exactly
+500× a single plant's volumes; `GET /api/aquaponics/towers/demo-herb-
+tower/growth-forecast` (the real tower consumer) returned a real
+per-tier verdict summary; `POST .../advance` on the real demo planting
+showed a real, live-computed `transport` block (`limitingCapacity:
+"leaf-photosynthesis"`, `transportFactor: 0.15`) applied identically
+to both root and stem's `transportFactor`. Planting reset to pristine
+state afterward.
+
+## Phase 10 — water batching + real nutrient uptake, DONE + LIVE-VERIFIED (2026-07-15)
+
+Dustin: *"a robust frontend simulation accounting for this sort of
+growth and deriving nutrients from different nutrient rich water
+sources needs to be derived and accounted for. as well as the option
+to have varying water source options, and batching/controlling water
+flow into the pots... we simulate this at the per pot level to prepare
+for the tower level where one type of water goes through the whole
+system via gravity at a time and we batch different water sources to
+optimize growth or purposefully stress plants in particular ways
+without killing them."* Researched first (forked): confirmed real,
+structured nutrient-concentration data already existed
+(`NutrientProfile.concentrations_json`, mg/L, aqp-2) with TWO real
+water sources already carrying genuinely different profiles
+(`hydroponic-reservoir` rich, `tilapia-aquaponic-loop` deliberately
+Fe-deficient — "the classic aquaponic gap," per its own seed
+description) — but nothing anywhere connected that concentration data
+to actual root uptake; also confirmed the frontend already has a
+fully generic time-scrubber component with zero sim-specific coupling
+(`sim-space-scrubber.component.ts`), directly reusable for a future
+growth-over-time view without building new timeline UI. Proposed a
+time-window water-batching design; Dustin corrected it: *"water
+batching should be 'go until full' then leave to sit for N hours
+and/or N days."* — a real fill/hold/drain cycle, which maps cleanly
+onto the pot's ALREADY-established "full" convention (the input hole
+height, `build_darcy_payload`'s own default) rather than needing a new
+target-level field.
+
+**Built, backend only this pass** (frontend simulation explicitly
+NOT started — see "Not yet done" below):
+
+1. **`aquaponics/water_batch.py`** (new) — `WaterBatchSchedule`: an
+   ORDERED, optionally-repeating cycle of `{waterName, holdHours,
+   holdDays}` batches. `active_batch()` resolves which source governs
+   a pot at a given elapsed time, wrapping around on repeat or holding
+   at the final batch otherwise. Deliberately schedule-name-agnostic
+   (not hardcoded to one pot) so a future TOWER-level binding — one
+   schedule shared across every tier, since gravity means one water
+   type flows through the whole cascade at a time — can reuse this
+   resolver directly rather than needing a second one; the tower class
+   itself (`AquaponicTowerDefinition`) was confirmed purely geometric
+   with zero water-flow hooks today, so that binding is real future
+   work, not started.
+
+2. **`aquaponics/nutrient_uptake.py`** (new) — real, concentration-
+   driven root uptake: `NutrientProfile.concentrations_json` (mg/L) ×
+   the pot's own real standing water volume (reusing the same formula
+   `plant_morphology.morphology_analysis._pot_inner_volume_l` already
+   uses for confinement math) gives an available mg per species,
+   compared against `PlantPart.flux_json`'s existing `needed` mg/day
+   — Liebig's Law across whatever species both datasets name. **A real
+   mid-build correction**: the first version used
+   `WaterDefinition.flow_rate_l_per_hr × 24` (daily throughput) as the
+   available-mass basis — discovered via the selftest that this always
+   saturates to 1.0 regardless of water source, because a single small
+   basil root's real daily nutrient need is tiny relative to ANY
+   realistic day's continuous flow volume. Switched to the pot's
+   standing water volume (a STOCK, not a FLOW) — physically correct
+   for "go until full, then sit," where the root draws on what's
+   ALREADY in the pot, not a full day's throughput.
+
+3. **A second, real, honestly-documented finding**: even with the
+   corrected stock-based basis, sweet-basil's real aqp-4 `needed`
+   values (e.g. iron-fe = 0.3 mg/day) are small enough relative to
+   typical aqp-2 mg/L concentrations that BOTH real demo water sources
+   currently saturate to factor 1.0 for every species — a genuine
+   calibration mismatch between two independently-seeded datasets from
+   EARLIER phases, not a bug in this new code. Stated plainly in
+   `nutrient_availability_factor()`'s own docstring rather than hidden
+   or papered over; a synthetic, realistically-scaled selftest
+   scenario proves the underlying Liebig's-Law logic itself correctly
+   discriminates (iron-fe correctly named as the limiting species for
+   the deficient source) once given demand numbers at a comparable
+   scale — future work: recalibrate `flux_json` needed values or the
+   `NutrientProfile` concentration scale so real deficiencies bind for
+   small pot-grown herbs specifically.
+
+4. **Wired into `plant_growth_normalized.py`**: `PotSystemDefinition`
+   gains `water_batch_schedule_name` (mirrors `light_source_name`'s
+   pattern) — when bound, `advance_growth()` resolves the pot's
+   elapsed time (`planted_at` to `now`, computed once and reused for
+   both this resolution and the final persistence stamp) through the
+   schedule, and the RESOLVED active water source feeds BOTH the
+   existing water-quality stress curves (phase 7, pH/EC/DO) AND the
+   new nutrient factor — the same water governs both effects, since
+   physically it's the same water in the pot. The nutrient factor
+   feeds `transport_factor()`'s root capacity as a THIRD input
+   alongside root size (already present) — `rootNutrientFactor`, a new
+   evidence field, multiplying root capacity the same way leaf
+   capacity already combines size with real light magnitude (phase 8).
+   No schedule bound → falls back to the static `water_name` exactly
+   as before, 100% backward compatible with phases 6-9.
+
+**Demo data**: `basil-fe-stress-cycle` (4 days rich `hydroponic-
+reservoir`, 1 day deliberately Fe-deficient `tilapia-aquaponic-loop`,
+repeating) — exactly "optimize growth or purposefully stress plants...
+without killing them." Bound to a THIRD demo system,
+`basil-water-batched` (not overloading the existing healthy/sealed
+pair, which have their own distinct roles) — same pot/plant/atmosphere
+/light as the healthy reference, water source cycling instead of
+static. A third matching demo planting,
+`demo-herb-pot-basil-batched`.
+
+**Selftests**: `aquaponics/selftest_water_batch.py` (new, 26/26) — the
+fill/hold/repeat cycle resolution (including wraparound at large
+elapsed times and holding at the final batch when `repeat=False`),
+real nutrient computation against real seed data (including the
+honestly-asserted saturation finding), the synthetic-scale Liebig's-
+Law logic proof, and `advance_growth`'s full wiring (batch-resolved
+`activeWaterName`, `nutrientAvailability`, `rootNutrientFactor`
+reaching the transport evidence). Zero regressions across every other
+suite touched this session (353+ total checks).
+
+**Live-verified against the running `prf-backend`**: `GET .../water-
+batches/basil-fe-stress-cycle/active` at elapsedDays=0 and 4.5 showed
+the correct batch switch (rich → Fe-deficient); `GET .../nutrient-
+availability` on the real `demo-herb-pot-basil-batched` planting
+(real elapsed time since its real `planted_at`) correctly resolved to
+whichever water source the schedule says should be active RIGHT NOW;
+`POST .../advance` showed `activeWaterName`, a real
+`nutrientAvailability` factor, and `rootNutrientFactor` all reaching
+the actual transport computation. Planting reset to pristine state
+afterward.
+
+**Not yet done, explicitly separate from this pass**: the frontend
+simulation (Dustin's own first-listed ask) — reusing the confirmed-
+generic `sim-space-scrubber.component.ts` to drive `advance_growth`-
+equivalent state at each scrub position needs a new NON-MUTATING
+"preview trajectory" function (running the real per-tick stress/
+light/transport physics forward in memory without touching persisted
+state — distinct from both `advance_growth`, which persists, and the
+phase-9 simplified model, which deliberately skips per-tick realism)
+— scoped but not built this pass, since the backend batching/nutrient
+piece was substantial enough on its own. Also not built: tower-level
+water propagation (the gravity-cascade, one-source-through-the-whole-
+system-at-a-time mechanism) — explicitly deferred per Dustin's own
+"prepare for the tower level" framing, though `active_batch()`'s
+schedule-agnostic design means the resolver itself won't need
+rework when that's built; a live water-LEVEL decay signal during a
+batch's hold period (reusing `aquaponics.hydraulics.reservoir_model`'s
+existing outflow math) — a natural, ready-to-wire extension, flagged
+but not built, since the explicit ask was nutrient availability, not
+yet a new water-level-driven stress type.
+
+## Phase 11 — decomposed water-level trajectory (drainage/evaporation/transpiration), DONE + LIVE-VERIFIED (2026-07-15)
+
+Dustin, immediately after phase 10: *"so we can see how long it takes
+it to be absorbed or dissapate due to heat and atmosphere or other
+factors and the plant absorbing the water obviously."* — exactly the
+"ready-to-wire, not built" item phase 10's own docs had flagged.
+Built it: `aquaponics/water_level.py`, a real water-LEVEL trajectory
+during a batch's hold period, decomposed into THREE independently-
+computed, separately-reported loss mechanisms (never one lumped
+"water disappears" number):
+
+  1. **Drainage** — reuses `aquaponics.hydraulics.reservoir_model()`/
+     `build_darcy_payload()` completely unchanged, re-evaluated at
+     each simulated level — the exact same gravity-through-the-output-
+     hole physics the water-flow visualization (phase 3) already uses.
+  2. **Evaporation** — from the standing water's own surface, driven
+     by REAL vapour-pressure-deficit. Found and reused
+     `aquaponics.atmosphere_analysis.saturation_vapour_pressure_kpa`
+     (Tetens equation) — VPD was ALREADY computed elsewhere in this
+     codebase (as a finding driver in `atmosphere_state()`), just never
+     used as a rate driver before; reused directly rather than
+     re-derived.
+  3. **Transpiration** — "the plant absorbing the water," modeled as
+     a genuine volumetric term: the SAME VPD, scaled by the plant's
+     REAL current leaf surface area (`current_canopy_profile()`) and
+     gated by a real light-driven stomatal-activity proxy (reusing
+     phase 8's light_field absorption — stomata open in response to
+     light) — ties phase 9's own "XYLEM transport" docstring language
+     to an actual computed volume for the first time.
+
+1mm of depth over 1m² of surface = 1L exactly — the standard
+agronomic ET/irrigation shortcut, used throughout instead of a
+separate conversion constant. `EVAPORATION_MM_PER_DAY_PER_KPA`/
+`TRANSPIRATION_MM_PER_DAY_PER_KPA` are documented, approximate
+empirical coefficients (real agronomic ballparks, not a full Penman-
+Monteith energy-balance solve, which would need wind/radiation data
+this codebase doesn't model) — stated plainly, not hidden.
+
+**`current_water_level_fraction()`** resolves a planting's bound
+batch schedule's elapsed hold time (reusing `active_batch()`'s own
+`timeIntoBatchDays`) and simulates forward from a fresh "full" fill
+for that long, giving "how full is the pot RIGHT NOW" as a real,
+live-computed fraction. **A real logic gap found + fixed while
+testing**: the first version always ran a (near-instant) trajectory
+even when no batch schedule was bound, instead of short-circuiting to
+the honest neutral default — meaning an unbatched planting got a
+technically-real-but-pointless ~1.0 read instead of a clean "not
+modeled here" `None`. Fixed to check `schedule_name` first.
+
+**Wired into `transport_factor()`** as a FOURTH input to root
+capacity (`water_level_factor`), alongside size, nutrient factor
+(phase 10), all multiplied together — a root sitting in a nearly-
+empty pot has less to draw from regardless of that water's nutrient
+concentration or the root's own size, a genuinely separate axis.
+Scoped to only compute when a `water_batch_schedule_name` is actually
+bound (same precedent as light/nutrient) — no schedule means no water-
+level computation at all, not just a hidden 1.0.
+
+**New HTTP surface**: `GET .../plantings/{name}/water-level?hours=&
+sampleHours=` — the full decomposed trajectory, exactly what Dustin
+asked to "see."
+
+**Selftests**: `aquaponics/selftest_water_level.py` (new, 21/21) —
+real decomposed physics against real demo-herb-pot geometry (level
+decreases, drainage/evaporation/transpiration all named + non-
+negative, a fresh seedling's transpiration is proportionally tiny
+since it has almost no leaf area yet — proving the plant-absorption
+term genuinely depends on real leaf area rather than a fixed
+constant), a long-horizon empties the pot with `timeToEmptyHours`
+honestly reported, the real logic-gap fix, and `advance_growth`'s
+full wiring (`rootWaterLevelFactor` reaching the transport evidence,
+manual/no-schedule modes unaffected). Zero regressions across every
+other suite touched this session (374+ total checks).
+
+**Live-verified against the running `prf-backend`**: `GET .../water-
+level` on the real batched planting returned a real trajectory
+(200mm → 188mm over 24h, drainage 205.74mL / evaporation 113.71mL /
+transpiration 0.19mL — drainage dominant for this self-watering pot,
+exactly as physically expected); `POST .../advance` showed
+`rootWaterLevelFactor: 0.9465` — a real, live-computed value reaching
+the actual transport computation, not just a diagnostic. Planting
+reset to pristine state afterward.
+
+**Not yet done**: tower-level water-level propagation (still explicitly
+deferred, same as phase 10); the frontend simulation (still the same
+scoped-but-not-built item from phase 10 — a non-mutating preview-
+trajectory function feeding the existing generic scrubber); a full
+Penman-Monteith energy-balance evaporation model (would need wind-
+speed/radiation data not modeled anywhere in this codebase today).
+
+## Phase 12 — a second full-parity species (dwarf-pepper), DONE + LIVE-VERIFIED (2026-07-15)
+
+Dustin: *"do we have full growth and growth rate under optimum
+conditions and equations for animation bones defined for all of our
+plants we have currently?"* Audited every real seed file directly
+(not memory) before answering: THREE species existed at the
+morphology layer (`RootSystemModel`, morph-1 era) — sweet-basil,
+dwarf-pepper, everbearing-strawberry — but `PlantDefinition`/
+`PlantPart` (aqp-4) and `PlantGrowthModel` (aqp-8), the rows
+`free_soil_constants()` actually requires, existed ONLY for sweet-
+basil. `free_soil_constants('dwarf-pepper')` refused immediately. A
+second, independent gap: `OrganModel` was missing a stem/branch axis
+organ for BOTH other species — `generate_skeleton()`'s canopy walk
+needs one to build any above-ground bones at all, so even with growth
+data neither would ever produce a canopy. Answer: **only sweet-basil
+had the full pipeline.** Dustin: *"let's try to have at least two
+robust variants that we can compare against each other."*
+
+**Brought dwarf-pepper to full parity** (chosen over everbearing-
+strawberry — it already had richer morphology data: 2 organs
+including fruit, a distinct taproot pattern, a distinct confinement
+tolerance, needing the least genuinely-new invented data for the
+richest comparison):
+
+- **`aquaponics/plant_seed.py`** — a real `PlantDefinition`
+  (perennial, `normalized_growth_rate_per_day=0.03`, deliberately
+  SLOWER than basil's 0.045 — a woodier perennial vs a fast annual
+  herb, not a rescaled copy) + 4 `PlantPart` rows (root/stem/leaf +
+  **fruit**, the first species in this codebase to actually use that
+  `PLANT_PARTS` entry). Volumes scaled from the REAL RootSystemModel
+  geometry ratio vs basil (depth x spread², ~3.4x). Fates
+  DELIBERATELY differ, not just numbers: pepper's root/stem are
+  `standing-permanent` (a perennial's structure persists) vs basil's
+  `soil-incorporated`/`harvested` (an annual's doesn't) — a real,
+  meaningful contrast, not cosmetic.
+- **`aquaponics/plant_growth_seed.py`** — 4 matching `PlantGrowthModel`
+  rows, `max_volume_cm3` mirroring each `PlantPart` exactly (basil's
+  own convention), growth rates slower across every part.
+- **`plant_morphology/morphology_seed.py`** — the missing
+  `dwarf-pepper-stem-organ` (closes the animation-bones gap directly).
+- **`aquaponics/pot_system_seed.py`** — `dwarf-pepper-tent`, bound to
+  the SAME pot/soil/water/atmosphere/light as `basil-aquaponic-tent`
+  — isolating the species variable for a genuine apples-to-apples
+  comparison, not a confound of also-different conditions.
+- **`aquaponics/plant_growth_normalized_seed.py`** —
+  `demo-herb-pot-pepper-1`, same `planted_at` as basil's reference
+  planting, for a fair same-starting-point comparison.
+
+**A second, deeper gap found while writing the comparison selftest**:
+dwarf-pepper had ZERO `StressResponseCurve` rows — `combined_stress_
+factor()` found nothing to evaluate and silently returned a PERFECT
+1.0 every tick, an unfair advantage that would have made pepper look
+artificially more robust than basil for the wrong reason (no stress
+modeling, not real resilience). Fixed by adding pepper's own 8 curves
+(`aquaponics/plant_stress_seed.py`) — bounds shifted warmer + higher-
+light than basil's own (a real Capsicum/fruiting-plant preference),
+not a rescaled copy. Once both species had real, comparable stress
+modeling, the growth-rate comparison flipped to the physically correct
+result (basil genuinely faster).
+
+**Selftests**: `aquaponics/selftest_plant_species_comparison.py` (new,
+14/14) — `free_soil_constants` resolves for pepper where it refused
+before; a real, non-contrived contrast in root volume/rate/confinement
+tolerance/prune-cadence between the two species; `generate_skeleton`
+produces a real canopy for pepper (not just roots) with a genuinely
+different root-branching SHAPE (taproot vs fibrous); `advance_growth`
+under IDENTICAL conditions shows basil measurably outpacing pepper —
+a real growth-rate comparison, not a labeled diagnostic. One real test
+-logic fix found along the way: a fresh seedling genuinely has zero
+fruit yet (`currentCount` rounds to 0 at `GROWTH_SEED_EPSILON`) — not
+a bug, real biology, matching pepper's own `growth_stages_json` not
+calling its 'fruiting' stage until day 120; the fruit-bone check now
+runs after a realistically longer horizon. Zero regressions across
+every other suite touched this session (388+ total checks).
+
+**Live-verified against the running `prf-backend`**: `GET .../plants/
+dwarf-pepper/free-soil-constants` returns real `partRefs` for all 4
+parts (previously would have 404'd); `GET .../constrained-limits`
+shows a real lower ceiling + a real 365-day root-prune cadence (basil
+names none); `GET .../plantings/demo-herb-pot-pepper-1/skeleton`
+returns a real 132-bone graph with BOTH root and stem/canopy parts
+present, taproot pattern; `POST .../advance` on both real plantings
+under identical conditions showed basil (0.02532) growing measurably
+faster than pepper (0.02141) over the same 20 days — the actual
+comparison this whole phase was built to enable. Both plantings reset
+to pristine state afterward.
+
+**Not yet done**: everbearing-strawberry is still incomplete (only
+has a leaf `OrganModel`, no `PlantDefinition`/`PlantPart`/
+`PlantGrowthModel`/stem organ either) — a natural third species to
+complete later if a broader comparison set is wanted, using the exact
+same recipe this phase just established.
+
+## Phase 13 — real per-organ shapes + root-tip tessellation, DONE +
+LIVE-VERIFIED (2026-07-15)
+
+Dustin, verbatim: "Have we properly defined the leaves for these
+plants as math shapes? Also what are the cones at the bottom of the
+roots? They look abnormal and out of place, there may be a legitimate
+reason for them but it is not clear." A third request in the same
+message (two alternate plant views — a technical/hoverable one and a
+realistic one) was explicitly SCOPED OUT of this phase and left for a
+follow-up (see Related below) — the leaf-shape gap and the root-cone
+artifact were the concrete, immediately-fixable half of the ask, and
+both turned out to share one root cause.
+
+**The gap**: every `OrganModel` row already carries a real
+`shape_primitive` field (`lamina`/`ellipsoid`/`cone`/`cylinder` —
+sweet-basil-leaf='lamina', dwarf-pepper-leaf='ellipsoid',
+dwarf-pepper-fruit='cone') and `current_canopy_profile` (phase 6) was
+already computing it per organ — but `plant_skeleton.py`'s
+`_attach_organs` discarded it, so EVERY organ rendered as the same
+generic tapered cylinder regardless of what it actually was. The
+"cones at the bottom of the roots" are real root-tip bones (correctly
+tapered, correctly `cylinder`) rendered with only 6 radial segments
+(`RADIAL_SEGMENTS` in `PlantSkeletonGeometryLibraryService`) — a
+steeply-tapered short hexagonal cylinder visually reads as a literal
+geometric cone rather than an organic root tip.
+
+**Fix — backend** (`aquaponics/plant_skeleton.py`): `_BoneBuilder.add`
+gained a `shape_primitive` parameter (default `'cylinder'` — root/
+stem/branch AXIS bones always pass this explicitly, a real physical
+taper); `_attach_organs` now reads the organ's own real
+`organ.get('shapePrimitive', 'ellipsoid')` instead of discarding it.
+One field threaded through, no new computation.
+
+**Fix — frontend** (`PlantSkeletonGeometryLibraryService`):
+`buildBoneGeometry` now dispatches on `bone.shapePrimitive` — lamina
+-> a real flat `BoxGeometry` blade (width x length x thin constant
+thickness), ellipsoid -> a `SphereGeometry` stretched non-uniformly
+into an ellipsoid, cone -> `ConeGeometry` (apex at the bone's tip,
+base at its attachment point), cylinder (unchanged) -> the existing
+tapered `CylinderGeometry` path. `RADIAL_SEGMENTS` bumped 6 -> 10 so
+root-tip cylinders read as organic tapers, not geometric cones — the
+real taper DATA is untouched, only tessellation smoothness changed.
+
+**New selftest assertions** (`selftest_plant_species_comparison.py`,
+now 18/18): stem axis bones are explicitly `'cylinder'`; a matured
+pepper's fruit bones are explicitly `'cone'`; pepper's leaf bones are
+explicitly `'ellipsoid'`; basil's leaf bones are explicitly
+`'lamina'` — a genuinely different real shape from pepper's leaves,
+proving the fix isn't a coincidence of shared defaults. Full
+regression sweep (388+ checks across every touched suite) still
+100% passing, zero regressions.
+
+**Live-verified against the running `prf-backend`**: `GET .../
+plantings/demo-herb-pot-pepper-1/skeleton` returns leaf bones as
+`ellipsoid`, root/stem as `cylinder`; the SAME endpoint for
+`demo-herb-pot-basil-1` returns leaf bones as `lamina` — a real,
+observable difference between the two species' actual API responses,
+not just internal state. Advancing pepper 200 days and re-fetching
+the skeleton shows fruit bones as `cone`. Planting reset to pristine
+state via CRUDE PUT afterward (found the CRUDE route is bare
+`/PotPlanting`, keyed by the internal `id`, not `/api/aquaponics/...`
+— looked this up via `?filter_name=` since the polariId is NOT the
+seed row's own `name` field). All 4 `{planting}-plant-viz` SimSpace
+scenes re-derived (`POST /api/shapes/from-pot/demo-herb-pot`) so the
+live scenes reflect the new geometry.
+
+**Deploy detour, worth recording**: the frontend rebuild
+(`polari-rf-node/rebuild-staging.sh frontend`) repeatedly failed/
+hung — root-caused to TWO real, unrelated bugs found along the way,
+both now fixed (see [[disk-space-audit]] for the full writeup):
+(1) `polari-platform-angular/.dockerignore` didn't exclude `.angular`
+(Angular's own incremental-build cache, found at 5.9GB and growing),
+so every build shipped gigabytes of irrelevant cache into the docker
+build context — fixed by excluding `.angular`/`dist`/`coverage`;
+(2) `rebuild-staging.sh` targets `polari-rf-node/docker-compose.
+staging-nip.yml`, a DIFFERENT, non-live compose stack from the one
+actually running the suite (`/home/user/Desktop/polari-suite/
+docker-compose.staging-nip.yml`, service names `prf-frontend`/
+`prf-backend`) — a real frontend container swap needs the suite-level
+compose file directly, not the rf-node script. Backend hot-fixes
+(`docker cp` + `docker restart`) were unaffected since they bypass
+compose entirely. Disk pressure (83% -> 54%, 20G -> 52G free) cleared
+as a side effect of the .dockerignore fix + a scoped prune.
+
 ## Related
+
+The technical/hoverable-vector-view vs realistic-plant-view split
+Dustin also asked for in the same message is a genuinely separate,
+larger piece of work (per-bone pickability needs the skeleton mesh
+restructured from one merged geometry into individually-hoverable
+sub-meshes, plus a tooltip UI) — explicitly NOT built this phase,
+flagged as the next natural step. The existing hover/click/pick
+infrastructure in `three-renderer.service.ts` (`onHoverChange`/
+`onClick`/`mesh.userData['polariSimSpaceId']`) is confirmed already
+generic enough to support it without new plumbing.
 
 Unfinished from the PRIOR session, deliberately shelved (not part of
 this thread): WebXR pointer/HUD fixes + EQUATIONS/LEGEND/NO-CODE
@@ -1099,3 +2261,146 @@ panels + direct-entry route + 2D-as-HTMLMesh — see
 [[webxr-plan]] memory, branch `dev-xr-3-min-ng`, all uncommitted,
 awaiting Dustin's next headset session (unrelated to this pot work,
 just also mid-flight).
+
+## Phase 14 — root geometry hard-clamped to the real pot interior, DONE + LIVE-VERIFIED (2026-07-16)
+
+Dustin, looking at the phase-13 screenshots: "the growth seems strange
+and they look like they are growing according to an 'ideal conditions
+with infinite ground' scenario, rather than a real constrained pot
+scenario... those seem to be straight down 'tap roots' at the
+bottom." Confirmed with real numbers before touching any code (not
+guessed): sweet-basil's `constrained_limits` returned
+`normalizedGrowthCeiling` (dwarfFactor) = **1.0** — "not confined at
+all" — even though its free-soil root spread radius (120mm) is
+LARGER than the pot's own physical inner radius (~92mm). Dwarf-pepper
+scored 0.865 (some dwarfing) but its constrained root depth (259.5mm)
+STILL exceeded the pot's real usable depth (220mm = 40mm reservoir +
+180mm soil).
+
+**Root cause, two distinct bugs**: (1) `confinement_assessment`'s
+dwarf factor is a BIOLOGICAL estimate (dense root-BALL material
+volume vs container volume — "will this become root-bound") — a
+valid question, but NOT the same question as "does the root's actual
+SPATIAL ENVELOPE fit the container," so a sparse, wide-spreading free
+-soil root system can score as fully unconfined by that metric while
+its rendered spread/depth is far larger than the physical pot. This
+metric was left AS-IS (it's answering a real, different, legitimate
+question about root-bound survival, not wrong on its own terms).
+(2) The skeleton's seed/core origin was the pot's ABSOLUTE floor
+(`-height_mm/2`, which doesn't even account for `base_thickness_mm`
+— literally placing the origin inside the solid base slab), so canopy
+had to visually tunnel through the ENTIRE water+soil column before
+"emerging" above ground, and root had nowhere further down to go
+without exiting the container through the bottom.
+
+**Fix** (`aquaponics/plant_skeleton.py`): replaced `_pot_core_point_cm`
+with `_pot_planting_geometry_mm`, which places the origin at the SOIL
+SURFACE (interior floor + reservoir_height_mm + soil_fill_height_mm,
+using the real `wall_bottom_z` from `_pot_core_dimensions` — the
+already-existing shared pot-geometry helper, not a new computation)
+and returns `maxRootDepthMm`/`maxRootRadiusMm` as HARD geometric
+ceilings, independent of whatever the growth/dwarf math wants.
+`_walk_root` gained a new `_clip_length_to_container` check (solves
+for where a bone's path crosses the pot's inner radius — a quadratic
+in the travel parameter — or its floor — a straight z check) applied
+to EVERY bone before it's added; a bone that gets clipped stops
+recursing (real roots deflect at a wall, they don't punch through
+solid material and keep branching). `generate_skeleton` also clamps
+the OVERALL root-depth budget passed into the walk, and reports
+`rootDepthClampedToContainer` honestly (never a silent clamp) plus
+the real `maxRootDepthMm`/`maxRootRadiusMm` used.
+
+Canopy was deliberately left UNCLAMPED horizontally — real above-
+ground foliage genuinely does spread wider than its own pot; that
+part of the original shape was correct, not a bug, and Dustin's own
+message flagged it as "maybe it is correct" rather than as a
+complaint.
+
+**New assertions** (`selftest_plant_species_comparison.py`, now
+24/24, was 18/18): `_pot_planting_geometry_mm`'s numbers match the
+pot's real dimensions exactly (220mm depth, not a guess); EVERY root
+bone endpoint for BOTH species stays within the pot's real physical
+radius/floor, including basil specifically DESPITE its dwarfFactor=
+1.0 "unconfined" biological score — proving the geometric clamp is
+independent of and stronger than that metric; the seed origin is
+now measurably above the floor (at the soil surface). Full regression
+sweep (410+ checks across every touched suite) still 100% passing,
+zero regressions.
+
+**Live-verified against the running `prf-backend`**: real demo
+plantings now show `coreOriginMm` z=107mm (the real soil surface, was
+-125mm/the absolute floor before this fix) and root bones whose
+minimum z lands EXACTLY at the pot's real interior floor (-113mm,
+also corrected from the old -125mm which ignored `base_thickness_mm`)
+— a bone that reaches the boundary stops there rather than continuing
+through solid material. Both `{planting}-plant-viz` scenes
+re-derived.
+
+**Side effect, worth noting**: moving the origin to the soil surface
+also resolves the earlier phase-13 observation that some leaf organs
+were attaching below ground (inside the water/soil column) — the
+canopy's generation-0 bone now starts exactly at ground level instead
+of at the pot's old, incorrect sub-floor origin, so there's no more
+below-ground canopy segment for organs to attach to in the first
+place.
+
+**Not built this phase**: a per-part (rather than whole-plant)
+confinement response — `constrained_limits`'s own docstring already
+flags this as future work, unrelated to today's geometric fix.
+
+## Phase 14b — taproot lateral branching + chain-reach length budgeting, DONE + LIVE-VERIFIED (2026-07-16)
+
+Dustin, immediately after seeing phase 14's containment fix: "for the
+peppers, is the behavior of only a single root straight down really
+accurate?" Confirmed via direct code + data inspection (not assumed):
+`ROOT_PATTERN_KNOBS['taproot']['children']` was hardcoded to `1`, and
+`_walk_root`'s "reduce children by 1 sometimes" mechanic bottoms out
+at `max(1, 1-1)=1` — meaning a taproot pattern was STRUCTURALLY
+incapable of ever branching, by construction, regardless of
+randomness. Real pepper roots do put out lateral roots off the
+primary taproot as they mature — a permanently-unbranched single line
+understates real root architecture.
+
+**A second, deeper interaction found while fixing it**: even after
+adding lateral-branch support, dwarf-pepper's live skeleton STILL
+showed only 1 bone. Root-caused: phase 14's depth clamp feeds the
+FULL depth budget into generation 0 as ONE bone; every later
+generation (primary continuation AND any new lateral) starts from
+THAT bone's tip, already sitting exactly at the container floor, so
+its own length immediately clips to 0 and vanishes. This was a LATENT
+issue in the whole recursive length model (every pattern's total
+reach was always somewhat larger than any one generation's stated
+length, via chained tip-to-tip extension) that only became visible
+once a hard floor made "gen-0 alone reaching the boundary" a real,
+common case for taproot's single-chain shape specifically. Basil's
+fibrous pattern wasn't affected (children=3 at every generation means
+plenty of branches exist well before any one of them individually
+hits a boundary) — confirmed by NOT touching fibrous/spreading/
+rhizomatous at all, avoiding any regression risk to the already-
+approved basil look.
+
+**Fix** (`aquaponics/plant_skeleton.py`): (1) `ROOT_PATTERN_KNOBS
+['taproot']` gained `lateralChance`/`lateralLengthFrac`/
+`lateralAngleDeg`/`lateralDownwardBias` — `_walk_root` now spawns a
+real, thinner, more-horizontal side root at a per-generation
+probability (0.55), independent of and in addition to the primary
+tap's own `children` continuation; the lateral recurses through the
+SAME `_walk_root`, so it can spawn its own finer sub-laterals too,
+same as a real root system. (2) new `_chain_reach_factor` (geometric
+series in `lengthFrac`, same technique `_estimate_axis_bone_count`
+already used for canopy organ counts) — for single-chain patterns
+only (`children==1`), generation-0's own length is now the total
+depth budget DIVIDED by the chain's reach factor, so the WHOLE
+chain's cumulative reach (not gen-0 alone) lands on the real budget,
+leaving genuine room for the primary continuation and laterals to
+exist before hitting the floor.
+
+**Live-verified**: pepper's real demo planting (advanced well past
+its own confinement ceiling) now shows 13 root bones with 4 real
+branch points (was 1 bone, 0 branches) — still fully within the
+pot's real physical bounds (phase 14's containment guarantee holds
+simultaneously with the new branching). New assertions
+(`selftest_plant_species_comparison.py`, now 26/26, was 24/24) prove
+a real branch point exists on a well-grown pepper taproot AND that
+the branched system stays within container bounds. Full regression
+sweep still 100% passing, zero regressions. Scene re-derived.
