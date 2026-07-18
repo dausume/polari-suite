@@ -1,3 +1,137 @@
+# Next-agent handoff — 2026-07-16 (THE BIG DAY: ncg-0..7 + DMV/scorecard epistemics stack)
+
+## ⚡ XR ZONE CAPTURE — PARKED 2026-07-17 (Dustin moving topics). PICK-UP GUIDE.
+Read AR_ZONE_CAPTURE_PLAN.md (status header carries the full pass
+history) + memory [[ar-zone-capture]] (every gotcha). Where it stands:
+- **WORKS ON DEVICE (Quest 2, built-in browser, hands + passthrough):**
+  AR session grants, grayscale passthrough (normal for Quest 2), pinch
+  point placement in the air, dot spheres + connecting lines + distance
+  labels, HUD, wrist ring menu, 20 s auto-finalize countdown, commit
+  reaches the backend (zone rows persist).
+- **BACKEND: solid.** zones/ module selftest 45/45 + live on staging:
+  planar (avg-height plane→floor extrusion) / hull (direct-3D) / prism
+  models, calibration, rooms-vs-selections (rooms shared, selections
+  tied to a simulation via simulation_ref), cube packing (lattice),
+  room/site summaries (both volumes), zone→simulation bridge
+  (SimSpaceDefinition '<zone>-space' + InitialConditionInterface
+  'zone-ic--<zone>' carrying real constraints as setParams), AR
+  Required Simulations (SimulationDefinition.xr_requirement; sample
+  sim 'zone-block-filling' seeded), /display/zones + /zones-board.
+- **JUST FIXED, NOT YET DEVICE-VERIFIED** (the last fix pass after
+  Dustin's 2nd session found regressions): (1) hands-only point
+  placement landed every dot at origin-on-floor — root cause: hand
+  inputs have NO gripSpace so the grip Group never poses; placement
+  now reads the index-finger-tip joint (hands) / target-ray pose
+  (controllers). (2) Ring menu vanished when reaching toward it —
+  root cause: ring parented to the hand WRIST JOINT, which three.js
+  hides on any untracked frame and Quest drops the hand source on
+  occlusion (reaching across causes exactly that); now sticky
+  (fingertip-near OR 2 s grace). Also poke lateral tolerance widened.
+  **NEXT HEADSET SESSION = verify these two fixes + first-ever look at
+  the zone SHELL (cyan walls floor→plane, renders at commit) + pack
+  outcome HUD line (silent zero-cube outcomes now always explained).**
+- **KNOWN GAPS (not bugs):** hands can't cycle point kind (pad-click
+  only — poke-able ring item would fix); Vive XR Elite has NO
+  WebXR-AR browser path today (Vive Browser lacks immersive-ar, store
+  Wolvic is Gecko, wolvic.com/dl has no Vive Chromium build — the
+  in-app ar-unavailable-notice explains all this per-device);
+  zone-block-filling sim is definition+ICs only (no SimState stepping
+  yet — the packed lattice is its v1 output).
+- **XR file reality check:** xr-zone-capture-runtime.ts/-page.ts are
+  UNTRACKED (no git history); the recent-pass diffs on xr-wrist-ui.ts
+  / xr-panel-system.ts are uncommitted. Poke seam (pokeFrom) and
+  hand-wrist attach are opt-in — sim-space XR pages are untouched.
+  Hands additions are ADDITIVE per Dustin: never override controller
+  interactions.
+
+## ⚡⚡ REVIEW GATE (2026-07-17): EVERYTHING below awaits Dustin's review.
+ALL of tonight's work — authority capability, mock retirement, 9 no-code
+module pages, epistemics routes + PSC pages (/survival, /court-cases,
+/epistemics/*), governance CREATE UIs (/governance), staff-auth
+browse/revoke, and the /worldview-scorer replacement (legacy scorer
+DELETED) — is live on staging, UNCOMMITTED, and needs Dustin's browser
+review + commit pass before further building. NEXT PLANNED WORK (do not
+start before the review): **AR_ZONE_CAPTURE_PLAN.md** — capture 3D
+zones in AR (point placement → real-distance estimation → ground area +
+volume → 0.25 m cube packing with stacking → populate the zone in
+AR/VR). Plan is written, phased arz-1..6, headset needed only for the
+final stop line.
+
+## ⚡ 2026-07-16/17 (latest): GROUP↔INSTANCE AUTHORITY + mock retirement + 9 no-code pages
+Read **GROUP_AUTHORITY_PLAN.md** + memory [[group-authority]]. Built + LIVE
+E2E-verified on staging, ALL UNCOMMITTED: (1) Polari scoring/group_authority
+(grants/bindings/term-availability signals, 38/38 selftest, routes under
+/api/scoring/authority/*); (2) PSC backend /api/authority/* (instance
+registry, both-sides bindings, signal admission → term + provenance rows,
+bearer-forwarding proxies) + /api/groups/directory + /api/terms/categories;
+(3) PSC /authority hub UI + provenance badges; (4) ALL 7 PSC mock sites
+retired to real data; (5) generic class-rows-table/api-json-panel display
+components + seeded no-code pages: /display/{nutrition,vermicompost,tanks,
+biomining,microalgae,wax-supply,supply-chain,plant-morphology,authority}.
+Staging compose gotcha that BIT HARD: always `--env-file
+.generated/.env.staging` AND `--no-deps` on any up -d --build; after a
+backend recreate, `docker restart pol-proxy` (stale nginx upstream →
+502). Keycloak realms differ (Political-Scorecard vs Polari) →
+cross-side identity is payload-unverified until realms unify (Dustin
+decision).
+
+SECOND PASS same night (Dustin: "keep going on psc frontend"): the
+epistemics stack is SURFACED — scoring/epistemics_api.py (29 GET routes
+over the unrouted 2026-07-16 modules, live-verified), PSC court-case
+proxy /api/court-cases, and PSC pages /survival + /court-cases +
+/epistemics{,/proofs,/term-competition,/credibility,/sources,
+/legislation} — all 200 on staging. Memory [[group-authority]] carries
+the full detail.
+
+THIRD PASS same night: mechanism-C CREATE UIs (/governance page +
+/api/governance vote/ballot/edge creation; staff-auth browse/revoke +
+admin list on /policy-votes) and the LEGACY CLIENT-SIDE WORLDVIEW SCORER
+IS RETIRED — deleted outright, replaced by /worldview-scorer (front and
+center on the home page): group-hosted concept sets + elected weights
+read from ScoreGroup rows, per-concept readings + server-side
+/groups/{name}/aggregate from Polari's real engine, what-if reweighting
+clearly labeled local preview, group-asserted-term provenance inline.
+All live-verified. Memory [[group-authority]] third-pass section.
+
+## ⚡ POSTURE CHANGE (2026-07-16, later): NO aggressive building.
+Dustin is doing a debugging + review pass. **FRONTEND_WORK_MAP.md** (suite
+root) maps every missing/broken/mock-backed frontend surface across all
+workstreams — work from that, at Dustin's direction. Correction: the
+2026-07-09 claim below that aqp-3/7/8 have no frontend is STALE — aqp-3
+(water-slice viz) and aqp-8 (plant-skeleton viz) exist and were verified;
+only aqp-7 vermicompost has no UI.
+
+## ⚡ READ FIRST
+Two massive workstreams built TODAY, ALL UNCOMMITTED (55 files, framework
+branch lineage dev-ncg-0-nocode-matrix → dev-ncg-5-breadboard off Dustin's
+dev checkpoint), all selftest-green on 3 machines + live on staging:
+
+1. **ncg-0..7 (no-code generalization)** — read NOCODE_GENERALIZATION_PLAN.md
+   PICK UP HERE. graph_builder/graph_compilers seam; judicial CourtCase LIVE;
+   hwdigital→iCE40 bitstreams; circuits/breadboards as rows (2.6123 mA
+   regression); level bridge LIVE; NoCodeTestCase packs; module gating +
+   PolariModule objects; 5-agent adversarial review, ~35 fixes pinned.
+2. **DMV cost-of-living + scorecard epistemics** — read
+   political-scorecard-node/DMV_COST_OF_LIVING_DATA_PLAN.md +
+   DEMOCRATIC_SCORECARD_REVAMP_PLAN.md appendices (everything after the
+   2026-07-16 sections). Source catalogs (verified URLs) + col-1/2 seeded
+   LIVE; GovSource + 4 legal source types; cross-validation trust stack;
+   profiler drift/discovery; policy drafts; venue patterns; legislation
+   tracking; term competition; democratic proofs (18-pattern manipulation
+   catalog); credibility bases + relevance voting.
+
+Memory: [[nocode-generalization]] + [[dmv-cost-of-living]] carry every
+gotcha. Matrix: format category = 6 blocking rows, nocode = 51.
+
+**WAITING ON DUSTIN**: review/commit pass; API keys (POLARI_CENSUS_API_KEY,
+POLARI_CONGRESS_API_KEY, POLARI_VA_LIS_API_KEY) for live pulls (col-3);
+acct-0..3 review; manual browser pass; SEED_TERM_PROOFS demo-content pass;
+model gaps (ContextualizedValue MOE fields, definition versioning, rollup
+lineage, usage records). Pre-existing red: aquaponics.system 12/13 (NOT
+from today's work). DO NOT COMMIT WITHOUT DUSTIN'S EXPLICIT ASK.
+
+---
+
 # Next-agent handoff — 2026-07-09 (AQUAPONICS PHASE 2 BUILT — tail below)
 
 ## ⚡ UPDATE 2026-07-09 (later session): aqp-3 / aqp-7 / aqp-8 ALL BUILT

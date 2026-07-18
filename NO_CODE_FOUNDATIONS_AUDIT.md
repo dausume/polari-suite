@@ -1,5 +1,36 @@
 # GAP REPORT: Polari No-Code Foundations Audit
 
+## STATE NOW (re-stamped 2026-07-16, ncg-0) — the 2026-07-03 findings below are HISTORICAL
+
+The fix phases this audit proposed are **P1–P5 ALL LANDED on dev** (P5 committed
+by Dustin); the body below documents what WAS broken and why the phases exist.
+Current, verified state:
+
+- **Turing gap CLOSED (P2)**: real loop frames/back-edges, Break/Continue,
+  Filter/Map/ReduceList + CollectionOperation. `selftest_turing` 16/16
+  (iterative + recursive Fibonacci litmus).
+- **Composition EXISTS (P3)**: `SolutionInvocation` with contracts, fresh callee
+  context, depth-16 guard, definer/invoker rights. `selftest_composition` 12/12.
+  `FunctionCall` retired loudly.
+- **Display events/validation REPAIRED (P4)**: real forms, verdict-gated
+  routing (invalid can never route down "All Valid"), StateChangeCommit,
+  event bus. `selftest_display_flow` green.
+- **Frontend execution REAL (P5)**: TS engine mirror
+  (`solution-engine/` in the Angular repo) interprets the same stored
+  SolutionDefinition JSON; capability partitioning routes backend-only nodes.
+  Shared parity vectors pass BOTH engines: `selftest_parity` 69/69 (Python),
+  `npm run parity` 69/69 (TypeScript).
+- **Permanent drift visibility (ncg-0)**: the accountability matrix now carries
+  one `nocode:variant-<Class>` row per node type (registry ∪ engine dispatch,
+  36 classes) + a blocking `nocode:variant-sweep` summary + a blocking
+  `nocode:ts-parity` row; the seven engine selftests are blocking regression
+  gates. Current sweep: 36 classes, 0 drift, 0 anomalies.
+- **REMAINING (open)**: P6 node families (auth/authz, error handling,
+  data-access CRUD, external I/O, event triggers, string/date/seeded-random,
+  persistent solution state, fork/join) — parked, catalog in §P6 below.
+  Codegen remains a reference view by design (Dustin's P5 ruling: the
+  configuration is the artifact).
+
 _2026-07-03. Read-only audit of `polari-framework/polariNoCode/` (engine),
 `polari-framework/polariApiServer/` (solution APIs), and
 `polari-platform-angular/src/app/` (editor, services, display rendering), commissioned by
