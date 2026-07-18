@@ -128,7 +128,9 @@ services:
         reservations:
           memory: 64M
           cpus: '0.05'
-    command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
+    # Keep the image's conf (ACL users the backend authenticates with) and cap
+    # memory on top. keydb-server, not redis-server — the image is KeyDB.
+    command: keydb-server /etc/keydb/keydb.conf --maxmemory 96mb --maxmemory-policy allkeys-lru
 
   # ============================================
   # PRODUCTION PROXY (subdomain routing)

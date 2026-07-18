@@ -1,5 +1,119 @@
 # Next-agent handoff — 2026-07-16 (THE BIG DAY: ncg-0..7 + DMV/scorecard epistemics stack)
 
+## ⚡⚡⚡ NEXT WORK (Dustin 2026-07-17): TOPOLOGY/TECH-TREE, then BLCNC+PVD
+**This is the queued build, in Dustin's stated order — start here once the
+push below lands.**
+1. **Topology revamp + Tech Tree** — read `TECH_TREE_TOPOLOGY_PLAN.md`
+   end-to-end. Phases tt-1..tt-7 (backend reverse-edge/transient computation →
+   circle/nesting renderer → TechTree data model + completion rollup →
+   4-segment render mode → seed the OSEB tree → real/business/politics
+   objects → module-display convergence). Topology + tech tree are the
+   cheaper build and come FIRST. Its §Open-questions list needs Dustin's
+   answers (segment colors, 4-segment reading, completion gates) — ask
+   or take the plan's defaults, which are marked.
+2. **BLCNC + PVD proofing** — read `BLCNC_PVD_ROADMAP.md` (5 intertwined
+   phases: ideal melt-voxel → theoretical chip via PVD+melt-voxel cycle →
+   stochastic feasibility (locked by OS-PVD; 3.1 priors can start early) →
+   BLCNC hardware in parallel → combined microfab device) + `BLCNC_PLAN.md`
+   for the melt-voxel engine detail. Reuses the waxprint voxel/optimizer/
+   no-code-command pattern (wp-1..8) — a `LaserOperation` twin of
+   `WaxPrintOperation`.
+3. **Why this matters (keep it front of mind):** BLCNC + PVD open sourcing
+   is a CRITICAL part of the **Open Source Economic Baseline (OSEB)** — the
+   overall end goal of the whole Polari project. The BLCNC/PVD phases are
+   the worked example that flushes out the real OSEB tech tree (plan §B5):
+   each phase lands as a TechNode whose theory segment is its sim modules
+   and whose real segment is the Phase-4/5 CAD/hardware. Build tt-* so that
+   seeding those nodes is the acceptance test.
+
+**State for Dustin's manual push (2026-07-17):** every repo is on its local
+`dev` with ALL work committed (bring-up fixes included, innermost-first:
+polari-framework d427fdb, polari-platform-angular 2261e17, psc-frontend
+3d9511f, psc-backend e0b28fd, polari-rf-node 70c300a,
+political-scorecard-node 9d4f13c, suite = this commit); working trees clean;
+only scratch/ + rescue/ snapshot branches sit outside dev (intentional).
+Repos are PUBLIC — Dustin pushes manually.
+
+## ⚡⚡ FLAWLESS BRING-UP — new workstream (2026-07-17). GOAL + open issues.
+**Dustin's directive:** bringing up EVERY variation of the app must be
+flawless across every route a person (or agent) might try, and it must be
+*obvious* what the correct thing to do is. This is a first-class workstream,
+not a cleanup afterthought.
+
+**Canonical answer now documented (DONE 2026-07-17):** root **`README.md`**
+(authoritative build/run/test guide) + root **`CLAUDE.md`** (short, auto-loaded
+by instances). Both say: **use the `pol` CLI** (`polari-cli/`, installed via
+`polari-cli/shells/install-cli.sh`) — do NOT hand-roll `docker compose`/`mvn`/`ng`.
+Any new bring-up knowledge goes into these two files so it stays discoverable.
+
+**The "all routes" mandate.** For every stack variation, the routes below must
+each either JUST WORK or fail with a one-line pointer to the correct route:
+- `pol` CLI (canonical): `pol security setup` → `pol suite up --env <tier>` /
+  `pol node up --env dev|test|staging|prod|stateless`.
+- Root shell launchers: `./start-staging.sh`, `./start-prod.sh`,
+  `./setup-polari-security.sh`.
+- Raw `docker compose -f …` (people will try this — it must work or refuse
+  clearly).
+- Native `npm run build` / `ng test` / `mvn` (fallback only; must not be a trap).
+Acceptance: node {dev,test,staging,prod,stateless} + suite {dev,staging,prod} +
+engines/twin/dask each come up clean via the documented route; test suites run;
+**no route ever leaves root-owned artifacts on the host**; wrong routes give a
+guided error, never a silent breakage.
+
+**✅ ALL THREE OPEN ISSUES FIXED + LIVE-VERIFIED 2026-07-17 (this session,
+per Dustin's directive "full build easy for anyone; keydb swapped in on the
+political scorecard"). End-to-end proof: PSC test stack built + ran beside
+the live suite (scratch `ports: !override []` overlay, port 8081 was taken
+by prf-b-backend), `mvn clean verify` BUILD SUCCESS, 3/3 tests green,
+`target/` fully HOST-owned. Detail:**
+1. **psc-redis → KeyDB: DONE.** `redis/Dockerfile` + `Dockerfile.test` now
+   build on `eqalpha/keydb` (same family as prf-keydb); the PSC confs carry
+   over untouched (KeyDB reads the same ACL `user` directives — verified:
+   authed PONG as psc-server-test, db-index write OK, unauthed refused).
+   Bitnami startup scripts + empty ACL file deleted; redis/README rewritten.
+   ⚠️ staging/prod compose `command:` was `redis-server --maxmemory…` — under
+   the old swallowed-ENTRYPOINT it never ran; now fixed to
+   `keydb-server /etc/keydb/keydb.conf --maxmemory…` so ACL auth survives the
+   memory-cap override. Next staging up will rebuild psc-redis on KeyDB.
+2. **Entrypoint mismatch: DONE.** Dockerfile + Dockerfile.suite use CMD (not
+   ENTRYPOINT), so compose `command:` really runs. TRAP DEFUSED: three
+   composes passed `command: ./startup_shell/startup_shell.sh` — a script
+   that DOESN'T EXIST (silently swallowed before) — all now point at
+   `dev_startup_shell.sh`. Host script exec bits fixed (`ug+x`; owner had
+   no x-bit, which would have broken the UID-mapped container).
+3. **Standalone test config: DONE.** test profile (both application-test.yml
+   copies, now truly in sync — they had drifted) gains: stubbed
+   `app.keycloak-admin.*` + lazy `jwk-set-uri` (no live Keycloak needed;
+   env-overridable), and `app.datasource.minio.*` pointing at a NEW
+   ephemeral `psc-minio-test` container in docker-compose-test.yml —
+   required because DatabaseInitializer BLOCKS startup until MinIO responds
+   (InitializationState.waitForDatabaseInitializations waits on the minio
+   flag; a stub endpoint would hang forever, not fail).
+
+**Already fixed + verified this session (DONE):**
+- **Root-owned build artifacts.** `*-test` compose files bind-mount the repo and
+  ran the build as **root**, leaving root-owned `target/` that then broke
+  host-native `mvn` with "Permission denied". Fixed in
+  `political-scorecard-backend/docker-compose-test.yml` with
+  `user: "${UID:-1000}:${GID:-1000}"` (+ writable Maven `HOME`); verified the
+  Maven build now writes `target/` (119 files incl. the file that used to fail)
+  as **host-owned**, deletable without sudo. **✅ AUDIT DONE 2026-07-17:** every
+  writable bind mount in every compose is covered — framework
+  `docker-compose.test.yml` (test-results/) + angular `docker-compose.test.yml`
+  and rf-node `docker-compose.fullstack-test.yml` (coverage/) now chown their
+  output back to the host user via an EXIT trap (those tests must run as root:
+  Chrome + image-owned /app); the PSC dev routes (suite/node/standalone
+  backend = mvn, frontends = npm writing .angular/) now run as the host UID
+  with in-container HOME. prf-backend dev was left as root deliberately — its
+  persistent writes go to the prf_backend_data named volume, not the host.
+  staging/prod composes have no writable source mounts (verified).
+- **Frontends build clean:** psc-frontend + polari-platform-angular both
+  `ng build` green (exit 0).
+- Note: a full live suite was running during this work (15 containers, incl. a
+  twin-B stack on 8081/8082/8083) — bring-up tests must route around live ports
+  (verification used a scratch `ports: !override []` overlay) and never disturb
+  a running stack.
+
 ## ⚡ XR ZONE CAPTURE — PARKED 2026-07-17 (Dustin moving topics). PICK-UP GUIDE.
 Read AR_ZONE_CAPTURE_PLAN.md (status header carries the full pass
 history) + memory [[ar-zone-capture]] (every gotcha). Where it stands:

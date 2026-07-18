@@ -173,10 +173,15 @@ services:
     volumes:
       - ./political-scorecard-node/political-scorecard-frontend:/app
       - /app/node_modules
+    # Run as the HOST user so files written through the source bind mount
+    # (.angular/ cache etc.) stay host-owned instead of root-owned. HOME gives
+    # the mapped user a writable npm/ng home inside the container.
+    user: "${UID:-1000}:${GID:-1000}"
     env_file:
       - ./political-scorecard-node/political-scorecard-frontend/.env
     environment:
       - PRF_FRONTEND_URL=https://localhost:2087
+      - HOME=/tmp/npmhome
     command: npm run start
     depends_on:
       - psc-backend
@@ -198,11 +203,16 @@ services:
       # Resolved from suite-root .env (written by setup-polari-security.sh
       # from pol-mariadb/mariadb.env); default matches legacy dev volumes.
       - SPRING_DATASOURCE_PASSWORD=${PSC_DB_PASSWORD:-pscpassword}
+      - HOME=/tmp/mvnhome   # writable Maven home for the non-root mapped user
     env_file:
       - ./pol-keycloak/keycloak-admin.env
     volumes:
       - ./political-scorecard-node/political-scorecard-backend:/app
-    command: ./startup_shell/startup_shell.sh
+    # Run as the HOST user so Maven's target/ lands host-owned through the
+    # bind mount — as root it left root-owned target/ that broke host-native
+    # builds with "Permission denied".
+    user: "${UID:-1000}:${GID:-1000}"
+    command: ./startup_shell/dev_startup_shell.sh
     depends_on:
       pol-mariadb:
         condition: service_healthy
