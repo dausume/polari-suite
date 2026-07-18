@@ -26,13 +26,15 @@ push below lands.**
    and whose real segment is the Phase-4/5 CAD/hardware. Build tt-* so that
    seeding those nodes is the acceptance test.
 
-**State for Dustin's manual push (2026-07-17):** every repo is on its local
-`dev` with ALL work committed (bring-up fixes included, innermost-first:
-polari-framework d427fdb, polari-platform-angular 2261e17, psc-frontend
-3d9511f, psc-backend e0b28fd, polari-rf-node 70c300a,
-political-scorecard-node 9d4f13c, suite = this commit); working trees clean;
-only scratch/ + rescue/ snapshot branches sit outside dev (intentional).
-Repos are PUBLIC — Dustin pushes manually.
+**✅ REPO STATE: ALL GOOD — verified 2026-07-17 (late).** Every one of the 8
+repos is on `dev`, working tree clean, and **0 ahead / 0 behind origin/dev**
+— everything is pushed, all submodule pointers resolve on origin. Branch
+hygiene done: all scratch/, rescue/, and merged feature branches deleted
+after verifying their content landed on dev (each repo now carries only
+`dev`, plus `main` where it existed). A fresh clone of origin/dev is the
+complete, working state — the bring-up fixes above are all in it. Nothing
+is waiting on a commit or push; next agent starts clean on the NEXT WORK
+list at the top of this file.
 
 ## ⚡⚡ FLAWLESS BRING-UP — new workstream (2026-07-17). GOAL + open issues.
 **Dustin's directive:** bringing up EVERY variation of the app must be
