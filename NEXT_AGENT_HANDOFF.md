@@ -1,5 +1,342 @@
 # Next-agent handoff — 2026-07-16 (THE BIG DAY: ncg-0..7 + DMV/scorecard epistemics stack)
 
+## 🎯🎯 CURRENT STATE (Dustin 2026-07-19): MODULE PROJECTS DONE + EVERYTHING ON dev
+**GRACEFUL_MOBILITY_PLAN.md is SHELVED for now (Dustin's call) — do
+NOT start gm-1..6 until Dustin re-opens it.**
+Module Projects mp-2+mp-3+mp-4 are EXECUTED, not just prepped —
+Dustin ran the module-projects/ batches himself:
+- ALL 22 feature modules live in modules/ (waves 1-6, pure renames,
+  register paths updated) AND each is split to its own PUBLIC repo
+  https://github.com/dausume/polari-module-<name> — remote main ==
+  local `git subtree split` hash VERIFIED for all 22. In-tree copies
+  stay AUTHORITATIVE; `pol modules publish <m>` re-pushes.
+- Staging rebuilt on the full new layout: ~65 suites green; 3 reds
+  triaged (aquaponics 12/13 = known pre-existing; testing double-
+  import via the modules. namespace prefix = fixed; resources
+  topology-character drift = re-pinned to tanks).
+- **EVERYTHING IS MERGED TO dev in every repo** (2026-07-19, at
+  Dustin's direction): framework dev = 3c1a28c (tt-1..15 backend +
+  mp-1..4 + fixes, 29 commits ff), angular dev = aaa56f6 (tt-2..15
+  UI, 12 commits ff), cli dev = c3f9892 (tt-12 apps + mp rails),
+  rf-node dev carries both pointers (d6d870a), suite dev carries
+  the batch scripts + plans. The old review-gate branch stacks are
+  now redundant with dev (safe to delete after push). NOT pushed to
+  origin — push is Dustin's manual step, repos are PUBLIC.
+- Follow-ups parked for later phases: in-tree retirement of split
+  modules (makes get/drop the real workflow), db_backend/rows
+  reconcile, twin+dask stacks still DOWN, staging-nip parity diff.
+
+## ⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡ 2026-07-18 (earlier): mp-2/mp-3 PREP + module-projects/ BATCHES — BUILT+LIVE
+Dustin's ask: do all Module-Projects preparation an agent can, then
+hand over SMALL BATCHED COMMAND FILES for the git/GitHub/deploy steps
+only a human should run. Both delivered — read the STATUS block atop
+**MODULE_PROJECTS_PLAN.md** (full detail) and
+**`module-projects/README.md`** (the batch order Dustin runs).
+Short version:
+- **mp-3 lazy core BUILT+LIVE**: polariServer's 113 feature-module
+  imports → 30 guarded blocks (absent code stubs SEED_*→[]/None +
+  honest [ModuleLoading] boot line; downloaded-but-broken still
+  raises); feature endpoints gate on feature_available; /modules +
+  detail + Polari-Apps plans answer 'not downloaded — pol modules
+  get <m>'. Seam: moduleService/module_loading.py. Drift guard
+  selftest_lazy_imports 15/15 (ast-pins imports↔stubs). PROOF:
+  in-container import of polariApiServer.polariServer with
+  modules/biomining hidden succeeds.
+- **Register FILLED**: all 20 feature modules + waves 1-6 +
+  requires (cross-import survey) + required_by_core (xr, resources).
+- **mp-2 rails BUILT**: pol modules publish (subtree split+push,
+  prints its git) / register (--vendor) / get-drop refusals
+  (requires + required_by_core) / sizes in registry.
+- **module-projects/ batches (Dustin runs)**: 00-preflight →
+  01-split-already-moved → 10-wave.sh <1..6> → 20-split-module.sh →
+  90-verify-all.sh. env-file + pol-proxy gotchas baked in. gh is NOT
+  authed on this machine (gh auth login is step one).
+- **Two pre-existing reds found+fixed while verifying**: (1)
+  SimulationDefinition.xr_requirement was assigned but never a
+  parameter — EVERY SimulationDefinition CREATE raised NameError
+  (5 seed sims failed every boot since the zones work); (2)
+  managedFiles.openFile ignored self.Path — 304 'outside of path
+  scope' boot lines, now 0.
+- Branches: framework `dev-mp-3-lazy-core` (off
+  dev-mp-1-module-projects), cli `dev-mp-2-publish-cli` (off
+  dev-mp-1-modules-cli). NOT on dev, NOT pushed (review gate).
+  GRACEFUL_MOBILITY_PLAN gm-1..6 remains queued after this.
+
+## 🎯 NEXT AGENT STARTS HERE (Dustin 2026-07-18, end of session)
+**⚠️ SUPERSEDED by the 2026-07-19 block above: item 1 (graceful
+mobility) is SHELVED; item 2 (module projects) is DONE.**
+Module moves between containers are smooth and CONFIRMED by Dustin.
+The queued build, in order:
+1. **GRACEFUL_MOBILITY_PLAN.md** (NEW — read end-to-end): move
+   ENGINES / INFRASTRUCTURE (keydb, minio, mariadb, owned-sqlite
+   instances) / AUTH (keycloak) between devices with warm-swap
+   discipline (start new → ready-gate → swap refs/ports → quiesce,
+   no in-flight actions, no data loss → retire old). gm-1 engine
+   blue-green (swarm start-first) → gm-2 quiesce seam +
+   MoveOperation receipts → gm-3 keydb/minio → gm-4 keycloak →
+   gm-5 mariadb/sqlite → gm-6 kind-aware UI flows. Every phase ends
+   with the ping/selftest verification paint.
+2. **MODULE_PROJECTS_PLAN.md mp-2..mp-5** (EXECUTION APPENDIX added):
+   subtree-split each moved module into polari-module-<name> repos
+   (PUBLIC — no secrets), fill registry repo fields (get/drop rails
+   go live automatically), `pol modules publish`, mp-3 lazy
+   seed/endpoint imports so the CORE boots without downstream, then
+   the mp-4 migration waves in the listed leaf-first order.
+Both plans build on live, verified substrate — sixteen tt/mp phases
+deployed on staging today, all on the review branch stacks below,
+NOTHING on dev, NOTHING pushed (Dustin's review gate stands).
+
+## ⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡ 2026-07-18: mp-1 MODULE PROJECTS SLICE 1 — LIVE
+**Read MODULE_PROJECTS_PLAN.md** (new, suite root) — Dustin's
+direction: the project is getting enormous; keep the basis, make
+downstream modules their own downloadable sub-projects; feature
+modules outside modules/ was a mistake — move them iteratively.
+Slice 1 BUILT+LIVE:
+- modules/ is a second IMPORT ROOT (server insert + sitecustomize +
+  PYTHONPATH=/app/modules in the backend image) — moved modules keep
+  their import names, zero import rewrites.
+- FIRST MOVES: biomining + microalgae → modules/ (git mv, history
+  kept). Live: import from /app/modules, 44 rows seeded, pol modules
+  selftest biomining 33/33 from the new home.
+- REGISTER: modules/polari-modules.json — kind official|vendor|self,
+  repo ('' until mp-2 split), downloaded flag RE-DERIVED from the
+  filesystem every read. moduleService/module_registry.py; user
+  Create-Module flow auto-registers kind 'self'; GET
+  /modules/registry; `pol modules registry` prints it; `pol modules
+  get|drop` = the git rails (honest refusal until repos split in
+  mp-2; drop refuses on uncommitted work).
+- All discovery dual-root: selftest discovery, pip-suggest
+  exclusions, /modules list + drill-in, pol modules list/selftest.
+- KNOWN COSMETIC: 'File Instance ... outside of path scope' log
+  lines for modules-dir classes (source-file tracker only knows the
+  framework root — fix alongside mp-3).
+NEXT: mp-2 repo split (per-module git repos + registry repo fields +
+real get/drop/publish), mp-3 lazy seed/endpoint imports so the CORE
+boots without downstream. Branches: framework
+`dev-mp-1-module-projects`, cli `dev-mp-1-modules-cli` (stack tops).
+
+## ⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡ 2026-07-18: tt-15 MOVE-BUTTON FIX — LIVE
+Dustin's bug ('move aquaponics to prf-b — nothing happens'): the
+drawer's move only worked on /topology; /testing + Module Management
+embed the same drawer with no listener → silent no-op. Fixed:
+topology-graph-view EXECUTES the move itself (inline outcome in the
+drawer, self-refetch so the circle moves immediately, (moved) event
+for hosts — wired on all three pages). Live round trip verified:
+aquaponics → prf-b (ghost at prf-a) → back to prf-a (ghost at
+prf-b, left visible). Drawer states runtime semantics honestly:
+same-image moves need NO container replacement (both backends carry
+the code; routing follows rows instantly).
+**ROADMAP (Dustin's ask, NOT built): graceful blue-green module
+handover** — for engine relocations / module-gated builds: start the
+new container, warm it, swap references/ports the moment it's ready,
+quiesce in-flight actions on the old one (no data loss/lag), then
+retire it. Candidate tt-16; touches swarm deploy + provider routing
++ a drain seam in polariServer.
+Branch: angular `dev-tt-15-move-fix` (stack top).
+
+## ⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡ 2026-07-18: tt-14 TOPOLOGY COHERENCE + VISIBILITY — LIVE
+Dustin's semantic corrections (screenshots) encoded end-to-end:
+- **Placement coherence**: only POLARI instances receive modules
+  (workers/engines ARE Polari — a Polari wrapped the engine from the
+  beginning); psc + infra + AUTH containers are non-adaptive
+  integrated apps — placement_check refuses them in plan_move AND
+  /assign; engine capabilities (msci fem/dft,
+  ENGINE_CAPABILITY_MODULES) restrict to engine/worker hosts; the
+  move picker only OFFERS coherent targets (device moves = engine
+  modules only; sim machine rows excluded; live-verified: move to
+  psc-a refused with the honest sentence).
+- **Visibility**: appKind category colors (polari indigo /
+  integrated-app teal / auth purple / infra brown) + per-container
+  service DOTS (keycloak purple, mariadb/keydb amber, frontend vs
+  backend distinguishable) + legend; NAMED storage identity per
+  Polari card ('sqlite-<name> (owned)' vs 'pol-mariadb (shared)');
+  /modules/{id} + module-details show WHICH database each class's
+  rows live on. FOUND LIVE: prf-a's row claimed sqlite while the
+  backend runs mariadb:polari_objects — corrected to combo; the
+  other instance rows' db_backend may drift the same way
+  (observation-reconcile is a follow-up).
+- **Machine pings fixed**: isle-core now pings GREEN (node-addressed
+  http://192.168.0.25:9500/capability); lightweight row corrected to
+  swarm worker + honestly 'unpingable — nothing serving' instead of
+  a scary 404; sim rows marked synthetic.
+- **UI fixes**: light-mode white-on-white text swept to explicit
+  dark colors (topology/testing/tech-tree/apps); wrapped-label
+  packing pads for WIDTH so labels can't collide; machines endpoint
+  500 fixed (junk roles_json).
+DEFERRED (Dustin's asks, planned not built): sqlite dive-in
+(per-file object inventory across containers), fe↔be login
+capability matrix, cross-instance per-class DB map, class ownership
+across modules (transient coherence of classes).
+Branches: framework `dev-tt-14-coherence`, angular
+`dev-tt-14-coherence-ui` (stack tops). selftests 45+19+52
+in-container.
+
+## ⚡⚡⚡⚡⚡⚡⚡⚡⚡ 2026-07-18: tt-13 DYNAMIC TOPOLOGY MOVES — LIVE
+Click any module circle on /topology → drawer shows where it lives
+(container + host + state) + a Move picker. plan_move knows MOVING
+AN ENGINE ≠ MOVING A MODULE: container target = module reassignment
+(former enabled placements become 'transient' GHOSTS — new
+ASSIGNMENT_STATES entry, dashed+faded in the graph, EXCLUDED from
+resolution/tests, one click back); device target = engine relocation
+(the single-purpose provider instance re-pins machine+constraint;
+stack redeploy stays the human pol command, returned as text);
+device target for a multi-home module refused honestly. POST
+/api/topology/move ({plan:true} previews). PERSISTENCE PROVEN LIVE:
+moved mathshapes prf-a→prf-b (ghost left at prf-a — VISIBLE NOW on
+/topology for review), restarted prf-backend, rows came back exactly
+(and engines stayed pinned to isle-core). Engine-relocation
+correctly plans engines isle-core→lightweight (plan-only, not
+executed). selftests 33/33+19/19+52/52 in-container. Branches:
+framework `dev-tt-13-dynamic-moves`, angular `dev-tt-13-moves-ui`
+(stack tops).
+
+## ⚡⚡⚡⚡⚡⚡⚡⚡ 2026-07-18: tt-12 POLARI-APPS + ISLE-CORE SWARM SPLIT — LIVE
+Two things, both live on staging:
+- **Swarm split across isle-core + staging-a (Dustin's ask).** All
+  stacks brought down; isle-core (dustin-etts-mesh-core — was
+  ALREADY a swarm node) labeled polari.machine=isle-core; the 4.5GB
+  prf-msci-engines:staging image shipped lightweight→isle-core
+  (gzip ssh pipe, 3m51s); InstanceDefinition 'engines' repointed
+  (machine_name=isle-core + constraint) via the topology API;
+  redeployed via POL_STACK_CONSTRAINTS + pol swarm deploy (NOTE:
+  bare `pol swarm deploy engines` does NOT read stacks.yml — the
+  constraint env comes from pol topology apply / pol allocate
+  paths). RESULT: the cross-dependent pair is SPLIT between hosts —
+  multiscale@prf-a (staging-a) → fem/dft on isle-core, ping-green
+  through the routing mesh at :9500 (http, plaintext notated).
+  Suite back up on staging-a; twin + dask stacks left DOWN.
+  ⚠️ `pol topology render` shows a PRE-EXISTING suite-bundle PARITY
+  DIFF on docker-compose.staging-nip.yml — check with Dustin.
+- **tt-12 Polari-Apps.** polariapps/ + /api/apps + `pol apps` +
+  /apps page: an app = a module configuration for a use-case;
+  deployment is PLAN-FIRST + EXPORTABLE (polari-app-package JSON;
+  `pol apps deploy <file.json>`), apply writes ModuleAssignment
+  rows ONLY. Seeded: wax-print-shop (wax sims + auger shapes via
+  mathshapes), judicial-lean, dmv-policy-analysis. LIVE round trip
+  proven: plan 33% → export → deploy file → rows written
+  (waxprint/mathshapes/waxsupply/supplychain → prf-a) → plan 100%.
+  selftest_apps 20/20. Branches: framework `dev-tt-12-apps`, cli
+  `dev-tt-12-apps-cli`, angular `dev-tt-12-apps-ui` (stack tops).
+
+## ⚡⚡⚡⚡⚡⚡⚡ 2026-07-18: tt-11 TESTING OVER TOPOLOGY — BUILT+LIVE
+Dustin: tie testing into topology so the graph visualizes test
+progress. Built + deployed:
+- **Backend** topology/topology_testing{,_api}.py: TopologyTestRun
+  (subprocess selftest runs, parsed X/Y tallies, output tails) +
+  IntegrationPing (FOUNDATIONAL connectivity only — machines via
+  system_info_url, dep edges via top-7 provider routing = the real
+  cross-node check, config-artifact connections honestly
+  'static-artifact') — protocol + secured/how notated on every row.
+  GET /api/topology/testing + POST run {module|all} + POST ping.
+  selftest_testing 19/19. Module states: pass/fail/never-run/
+  no-suites; partial runs are NOT green; instance/host rollups.
+- **/testing page** (route+nav): wraps topology-graph-view with
+  [testing] — modules/hosts red on fail, green on all-pass; pinged
+  edges recolor + '· http ⚠'/'· https 🔒' labels; run/ping controls +
+  suites/links tables. LIVE-verified: topology suites 3/3 pass
+  in-container via the API; engines dep-edges ping OK cross-node
+  (http, plaintext notated); isle-core/lightweight system-info URLs
+  honestly FAIL 404 (real finding for Dustin); 18 links recorded.
+- **Layout (Dustin review feedback)**: connector limit TRIPLED
+  (gutter cap 6× largest circle diameter, gaps rewidened);
+  module/engine labels WORD-WRAP (≤3 lines) with packing padded so
+  labels never collide.
+- **Module Management fix (Dustin's screenshots — 'only two modules
+  configurable')**: GET /modules now lists ALL 39 modules (37
+  boundary ones with classes/rows + boundary flag → card shows
+  'loaded in-process · placement → Topology' instead of a dead
+  toggle). Also KILLED the bogus '24 missing packages: pip install
+  aquaponics ... topology' suggestion (framework dirs excluded from
+  installable candidates; dependency selftest 14/14).
+Branches (stack tops): framework `dev-tt-11-testing`, angular
+`dev-tt-11-testing-ui`.
+
+## ⚡⚡⚡⚡⚡⚡ 2026-07-18 (later): tt-9 CROSS-TREE ZOOM + tt-10 MODULE DRILL-IN — BUILT+LIVE
+Dustin's follow-ups, all deployed to staging:
+- **tt-9 cross-tree refs (NO edges)**: TechNode.cross_refs_json →
+  dotted '↗ node · tree' chips + drawer rows naming the ref's HOME
+  TREE; click = switch tree + center/select the target (focusNode/
+  zoomRef seam). 18 refs seeded both directions across electronics ↔
+  raw-supply-chain (+economy→3d-printing); boot backfill stamped
+  pre-tt-9 rows (live: filled 18). Dangling refs = warn findings,
+  red-dotted unclickable chips.
+- **topology parity + layout (Dustin's connector complaint)**: dep
+  connectors now run module circle → OWN CONTAINER BORDER → partner
+  border → circle (modules stay physically inside; only the
+  border-to-border run is external); inter-host gutter capped at 2×
+  the largest module circle's diameter; instances barycenter-ordered
+  + hosts vertically shifted to align with partners. Clicking a
+  dashed transient copy zooms to the instance holding the primary.
+- **tt-10 drill-in**: GET /modules/{id} now serves EVERY framework
+  directory module (boundary fallback — registry only knew 2 legacy
+  modules) with pages / real apiRoutes (text-scanned add_route, both
+  spellings) / selftests + per-class row counts. module-details page
+  gains a 'Navigate' tab (Pages/Data/Functionality/Selftests);
+  topology drawer module chips + tech-tree theory ✓-chips (moduleId
+  from PolariModule.source_ref) deep-link there. Live-verified:
+  aquaponics 19cls/78rows/36routes, topology, techtree, waxprint.
+Branches (stack tops): framework `dev-tt-10-module-map` ←
+`dev-tt-9-cross-refs` ← `dev-tt-8-domain-trees`; angular
+`dev-tt-10-drillin-ui` ← `dev-tt-9-zoomto` ← `dev-tt-8-domains-ui`.
+selftest_techtree 50/50 in-container; builds green; pages 200.
+
+## ⚡⚡⚡⚡⚡ 2026-07-18: tt-8 DOMAIN TREES — Dustin's revision, BUILT+LIVE
+The single tech tree split into THREE DOMAIN TREES whose combination
+is the OSEB (see the 2026-07-18 STATUS block atop
+TECH_TREE_TOPOLOGY_PLAN.md for the full node list + numbers):
+electronics 'Electronics / Microelectronics' (24 nodes; PVD is now
+ITS OWN roadmap — OSPVD_ROADMAP.md — needing vacuum-pump +
+piezoelectric-sputter prerequisites; expandable dielectrics →
+Precision Laser Apparatus required by BOTH real-BLCNC and first-class
+LASiS; CNT production via CO reduction; silicon refinement
+grade-scale), raw-supply-chain 'Raw Supply Chain' (15 shells incl.
+nanoparticle/CNT/p-doped/n-doped/silicon-grade/sol-gel/geopolymer/
+wax/wax-nanocomposite supply streams), os-economy-politics 'Open
+Source Economy & Politics' (4 shells: judicial, policy tracking,
+business-logic models, micro-business tailoring). GET
+/api/techtree/baseline + baseline strip on /tech-tree = the combined
+OSEB (LIVE: 54.5%; electronics 51.7 / economy 75 / supply 36.7).
+Legacy 'oseb' rows retired at boot (live: 78 rows removed, 14 hints
+remapped; idempotent). 46/46 selftest in-container; deployed to
+staging; pages 200. Branches: framework `dev-tt-8-domain-trees`,
+angular `dev-tt-8-domains-ui` (both HEAD of their stacks).
+
+## ⚡⚡⚡⚡ 2026-07-17: TOPOLOGY REVAMP + TECH TREE — tt-1..tt-7 ALL BUILT
+Read the STATUS block atop **TECH_TREE_TOPOLOGY_PLAN.md** (branches,
+defaults taken, live-verify detail) + memory [[topology-techtree-build]].
+Short version:
+- **tt-1** module graph: reverse edges/degrees, consumer/provider/
+  hybrid/independent/data-only classification, STABLE transient/primary
+  designation on ModuleDependencyEdge; PolariModule gained data_only +
+  tech_node_ref; boundary_graph bidirectional; GET
+  /api/topology/module-graph (26/26).
+- **tt-2** renderer revamp: module CIRCLES packed in instance rects in
+  HOST rects (toggle), deps nested in circles (depth 2), dashed =
+  transient copy, connections = thin colored lines, dep edges anchor
+  to circles. Pure geometry in topology-graph-layout.ts.
+- **tt-3** techtree/ module: 5 data classes, DERIVED completion rollup
+  (first-cut done-tests, evidence-bearing gaps), /api/techtree/* (37/37
+  incl. tt-5/6 suites).
+- **tt-4** /tech-tree page: segment-banded technology rects (blue/red/
+  yellow/purple, only-if-populated, weight-sized, completion-filled),
+  completion rings, dashed transient edges + dep chips, gaps table.
+- **tt-5** OSEB seed: 19 nodes (13 domains + OS-PVD + BLCNC/PVD P1-P5
+  per BLCNC_PVD_ROADMAP), theory wired to 14 genuinely-installed
+  PolariModule rows; unbuilt 'blcnc'/'ospvd' refs stay honest gaps.
+  **Baseline computes 62.7%.**
+- **tt-6** RealArtifact/BusinessModelDefinition/BusinessOutcome/
+  PolicyDefinition + honest examples filling all 4 segments on
+  oseb/3d-printing (25% — unproven printer, unevidenced model+policy).
+- **tt-7** Module Management embeds the circle/nesting renderer;
+  /tech-tree gains per-org '+ new tree' creation.
+**LIVE on staging NOW** (prf-backend+frontend rebuilt via `pol suite
+build`/`up`, cold-seed + pol-proxy-restart gotchas both hit and
+handled): /topology, /tech-tree, module-graph + techtree APIs all 200.
+⚠️ REVIEW GATE: Dustin's browser pass pending (esp. tt-2 circles +
+tt-4 bands). NOT merged to dev, NOT pushed — branch stacks in plan
+STATUS block. NEXT after review: BLCNC_PVD_ROADMAP.md P1 (the blcnc
+module — its TechNode + theory assignment already wait in the seed).
+
 ## ⚡⚡⚡ NEXT WORK (Dustin 2026-07-17): TOPOLOGY/TECH-TREE, then BLCNC+PVD
 **This is the queued build, in Dustin's stated order — start here once the
 push below lands.**

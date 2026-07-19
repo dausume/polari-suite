@@ -1,6 +1,52 @@
 # Tech Trees + Topology Revamp — Planning
 
-**Status: PLANNING ONLY — baton hand-off.** Scopes (A) a visual + semantic
+> **STATUS 2026-07-18 (tt-8, Dustin's revision): THREE DOMAIN TREES.**
+> The single 'oseb' tree split into domain trees — the larger
+> containment: **electronics** ('Electronics / Microelectronics', 24
+> nodes — + PVD as its own roadmap w/ vacuum-pump + piezoelectric
+> prerequisites (OSPVD_ROADMAP.md), expandable dielectrics →
+> Precision Laser Apparatus required by BOTH real-BLCNC and the new
+> first-class LASiS node, CNT-production-via-CO-reduction, silicon
+> refinement grade-scale), **raw-supply-chain** ('Raw Supply Chain',
+> 15 shell nodes — aquaponics/household nutrition, agroforestry,
+> biomining, carbon management + the raw-material streams:
+> nanoparticle supply, CNT / p-doped / n-doped CNT, silicon raw →
+> PV-grade → semiconductor-grade, sol-gel, geopolymer composites,
+> wax, wax nanocomposite layers), **os-economy-politics** ('Open
+> Source Economy & Politics', 4 shells — judicial systems, policy
+> tracking, business-logic models, micro-business tailoring).
+> Reaching the end of ALL THREE, combined, = the OSEB:
+> `baseline_report` / GET /api/techtree/baseline + a baseline strip
+> on /tech-tree. Legacy 'oseb' rows retired at boot (live-verified:
+> 1+19+37+21 rows removed, 14 hints remapped). LIVE numbers:
+> electronics 51.7%, economy&politics 75% (scorecard genuinely
+> enabled on staging), raw supply 36.7% → **combined OSEB 54.5%**.
+> selftest_techtree 46/46 (in-container too); builds green; pages
+> 200. New branches on the stacks: framework `dev-tt-8-domain-trees`
+> (HEAD), angular `dev-tt-8-domains-ui` (HEAD).
+>
+> **STATUS 2026-07-17 (build pass): tt-1..tt-7 ALL BUILT + live on
+> staging, awaiting Dustin's review.** Selftests: topology 52/52 +
+> module-graph 26/26 + techtree 37/37 (all also green in-container);
+> both Angular builds exit 0; live-verified on the running staging
+> suite (`/api/topology/module-graph`, `/api/techtree/*`, /topology +
+> /tech-tree pages 200 via pol-proxy). Seeded OSEB baseline computes
+> **62.7%**; 3d-printing carries all four segments (25%, honest
+> gaps). Branch stacks, NOT merged to dev, NOT pushed:
+> polari-framework `dev-tt-1-module-graph` → `dev-tt-3-techtree` →
+> `dev-tt-5-oseb-seed` → `dev-tt-6-segment-content` (HEAD);
+> polari-platform-angular `dev-tt-2-graph-revamp` →
+> `dev-tt-4-techtree-render` → `dev-tt-7-convergence` (HEAD).
+> Open-question defaults taken (session ran unattended): 4 segments
+> w/ politics=PURPLE, first-cut done-tests (gates can tighten later
+> via `_ASSIGNMENT_TESTS`), PolariModule gained data_only +
+> tech_node_ref, host▸container▸module triple nesting (hosts
+> toggleable). tt-4 note: tech-dep "nesting" rendered as in-node dep
+> CHIPS (dashed=transient) rather than recursive containers — call
+> it out in review if the recursive reading is wanted.
+
+**Status: PLANNING ONLY — baton hand-off.** *(superseded by the
+status block above)* Scopes (A) a visual + semantic
 revamp of the existing topology graph and (B) a new, generalizable **Tech
 Tree** that is an expansion of topology — for tracking the full set of
 technologies an org depends on, split Theoretical / Real (/ Business /

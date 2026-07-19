@@ -16,19 +16,20 @@ topology:
   notes: Seeded by top-1 to mirror the live 2026-07-09 deployment; becomes the first
     portable package (topologies/staging-a.topology.yml, top-3).
 machines:
-- name: lightweight
-  ssh_alias: lightweight
+- name: isle-core
+  ssh_alias: isle-core
   arch: x86_64
-  mem_gb: 7.5
-  roles_json: '["engines", "remote-worker"]'
-  swarm_role: worker
+  mem_gb: 7.59
+  roles_json: '["engines", "remote-worker", "node"]'
+  swarm_role: none
   repo_dir: ~/polari-suite
   source: nodes.yml
-  notes: "N95 4-core / 7.5G; suspend disabled 2026-07-08 \u2014 safe headless target."
+  notes: 6-core i5 / 7.6G; also runs the Isle-Mesh project. system_info_url -> the
+    cad-engines service pinned here.
 - name: staging-a
   ssh_alias: ''
   arch: x86_64
-  mem_gb: 0.0
+  mem_gb: 15.51
   roles_json: '["core", "suite", "swarm-manager"]'
   swarm_role: manager
   repo_dir: ~/Desktop/polari-suite
@@ -41,8 +42,8 @@ instances:
   service_kinds_json: '["prf-msci-engines"]'
   replicas: 1
   env_tier: staging
-  machine_name: lightweight
-  placement_constraint: ''
+  machine_name: isle-core
+  placement_constraint: node.labels.polari.machine == isle-core
   db_backend: sqlite
   image_tag: staging
   orchestration_target: swarm
@@ -128,24 +129,12 @@ assignments:
   state: enabled
   topology_name: staging-a
   notes: DFT engine capability on the engines worker.
-- name: materialsScience.dft@prf-dask
-  module_name: materialsScience.dft
-  instance_name: prf-dask
-  state: disabled
-  topology_name: staging-a
-  notes: created via /api/topology/assign
 - name: materialsScience.fem@engines
   module_name: materialsScience.fem
   instance_name: engines
   state: enabled
   topology_name: staging-a
   notes: FEM engine capability on the engines worker.
-- name: materialsScience.fem@prf-dask
-  module_name: materialsScience.fem
-  instance_name: prf-dask
-  state: disabled
-  topology_name: staging-a
-  notes: created via /api/topology/assign
 - name: materialsScience.multiscale@prf-a
   module_name: materialsScience.multiscale
   instance_name: prf-a

@@ -13,7 +13,7 @@ actions:
   command: pol compose suite up
 - order: 2
   group: engines-stack
-  machine: lightweight
+  machine: isle-core
   remote: true
   instances:
   - engines
