@@ -1,0 +1,563 @@
+{
+  "_comment": "Seed-ready DigitizedDataset rows for PSPP_MATERIALS_PLAN.md pspp-7. Transcribed 2026-07-18 by Claude from Dustin's photographs of Davidovits, 'Geopolymer Chemistry and Applications', Chapter 5 (title confirmed by Dustin 2026-07-18; edition still to note) (running heads: 'Structure of poly(siloxonate) solutions, soluble alkali silicates' / 'Poly(siloxonate) and polysilicate, soluble silicate, Si:Al=1:0' \u2014 Davidovits-style terminology; exact edition citation TO CONFIRM with Dustin before the module repo goes public). Tables are exact transcriptions; figure reads are marked by digitization_method and error. Extrapolation policy is UNSUPPORTED everywhere per plan invariant I6.",
+  "datasets": [
+    {
+      "name": "na-silicate-solution-polymerization-vs-mr",
+      "source_reference": "Geopolymer book Ch.5, Table 5.4, p.101 (after Engler 1974)",
+      "version": 1,
+      "independent_variables": [
+        "molar_ratio_MR_SiO2_Na2O"
+      ],
+      "dependent_variables": [
+        "mean_molecular_weight_SiO2_n",
+        "degree_of_polymerization_n"
+      ],
+      "units": {
+        "molar_ratio_MR_SiO2_Na2O": "mol/mol",
+        "mean_molecular_weight_SiO2_n": "g/mol",
+        "degree_of_polymerization_n": "dimensionless"
+      },
+      "source_conditions": {
+        "system": "Na-silicate aqueous solution",
+        "note": "Equilibrium values; p.101 text: an equilibrium develops for any given solution composition; rapid rearrangement of polymer species occurs when the solution is diluted or extra alkali is added; equilibrium is reached more quickly for lower-MR solutions."
+      },
+      "interpolation_policy": "linear",
+      "extrapolation_policy": "UNSUPPORTED",
+      "validity_domain": {
+        "molar_ratio_MR_SiO2_Na2O": [
+          0.48,
+          3.3
+        ]
+      },
+      "digitization_method": "exact table transcription from photograph",
+      "digitization_error": "none (printed table values)",
+      "points": [
+        {
+          "MR": 0.48,
+          "molecular_weight": 60,
+          "polymerization_n": 1
+        },
+        {
+          "MR": 1.01,
+          "molecular_weight": 90,
+          "polymerization_n": 1.5
+        },
+        {
+          "MR": 1.69,
+          "molecular_weight": 120,
+          "polymerization_n": 2
+        },
+        {
+          "MR": 2.09,
+          "molecular_weight": 160,
+          "polymerization_n": 2.6
+        },
+        {
+          "MR": 2.62,
+          "molecular_weight": 265,
+          "polymerization_n": 4.4
+        },
+        {
+          "MR": 3.3,
+          "molecular_weight": 320,
+          "polymerization_n": 5.3
+        }
+      ]
+    },
+    {
+      "name": "k-silicate-solution-polymerization-vs-mr",
+      "source_reference": "Geopolymer book Ch.5, Table 5.5, p.101 (after Engler 1974)",
+      "version": 1,
+      "independent_variables": [
+        "molar_ratio_MR_SiO2_K2O"
+      ],
+      "dependent_variables": [
+        "mean_molecular_weight_SiO2_n",
+        "degree_of_polymerization_n"
+      ],
+      "units": {
+        "molar_ratio_MR_SiO2_K2O": "mol/mol",
+        "mean_molecular_weight_SiO2_n": "g/mol",
+        "degree_of_polymerization_n": "dimensionless"
+      },
+      "source_conditions": {
+        "system": "K-silicate aqueous solution",
+        "note": "Same Engler (1974) source and equilibrium caveats as Table 5.4."
+      },
+      "interpolation_policy": "linear",
+      "extrapolation_policy": "UNSUPPORTED",
+      "validity_domain": {
+        "molar_ratio_MR_SiO2_K2O": [
+          0.6,
+          3.97
+        ],
+        "note": "Steep jump between MR 3.62 (n=5.3) and 3.97 (n=14.1) \u2014 linear interpolation in that last interval is questionable; interpolation there should carry a wide band."
+      },
+      "digitization_method": "exact table transcription from photograph",
+      "digitization_error": "none (printed table values)",
+      "points": [
+        {
+          "MR": 0.6,
+          "molecular_weight": 60,
+          "polymerization_n": 1
+        },
+        {
+          "MR": 1.75,
+          "molecular_weight": 90,
+          "polymerization_n": 1.5
+        },
+        {
+          "MR": 2.5,
+          "molecular_weight": 120,
+          "polymerization_n": 2
+        },
+        {
+          "MR": 2.8,
+          "molecular_weight": 160,
+          "polymerization_n": 2.6
+        },
+        {
+          "MR": 3.31,
+          "molecular_weight": 265,
+          "polymerization_n": 4.4
+        },
+        {
+          "MR": 3.62,
+          "molecular_weight": 320,
+          "polymerization_n": 5.3
+        },
+        {
+          "MR": 3.97,
+          "molecular_weight": 848,
+          "polymerization_n": 14.1
+        }
+      ]
+    },
+    {
+      "name": "na-siloxonate-glass-to-solution-q-depolymerization",
+      "source_reference": "Geopolymer book Ch.5, Table 5.6, p.103",
+      "version": 1,
+      "independent_variables": [
+        "molar_ratio_MR_SiO2_Na2O",
+        "physical_state"
+      ],
+      "dependent_variables": [
+        "Q0_pct",
+        "Q1_pct",
+        "Q2_pct",
+        "Q3_pct",
+        "Q4_pct"
+      ],
+      "units": {
+        "molar_ratio_MR_SiO2_Na2O": "mol/mol",
+        "Q_fractions": "percent of Si sites"
+      },
+      "source_conditions": {
+        "system": "Na-siloxonate: parent alkali glass vs the aqueous solution obtained by dissolving it",
+        "caveat_q4_artifact": "Fig 5.12 caption (same page): in liquid-state 29Si NMR of sodium silicate + NaOH at MR=1.6, the Q4 specie is an equipment artifact. Solution Q4 values from liquid NMR must carry this provenance warning \u2014 note the nonzero Q4=7% for MR 3.28 solution below.",
+        "mechanism_context": "Section 5.6.3: dissolution depolymerizes higher-Q glass species into lower-Q soluble Na-siloxonate molecules.",
+        "sum_anomaly": "AS PRINTED, two solution rows do not sum to 100%: MR 1.0 solution = 92, MR 2.0 solution = 110 (photo re-checked 2026-07-18, digits confirmed). All glass rows sum to exactly 100. Either the book rounds/omits minor species or the book has a typo \u2014 verify against another copy before normalizing; never silently rescale."
+      },
+      "interpolation_policy": "none \u2014 fixed reference mappings at the listed MRs only (no general kinetic law in source)",
+      "extrapolation_policy": "UNSUPPORTED",
+      "validity_domain": {
+        "molar_ratio_MR_SiO2_Na2O": [
+          1.0,
+          3.28
+        ],
+        "note": "Discrete rows only; do NOT interpolate between MRs without marking the output estimated."
+      },
+      "digitization_method": "exact table transcription from photograph",
+      "digitization_error": "none (printed table values)",
+      "points": [
+        {
+          "MR": 1.0,
+          "physical_state": "glass",
+          "Q0": 1,
+          "Q1": 14,
+          "Q2": 68,
+          "Q3": 17,
+          "Q4": 0
+        },
+        {
+          "MR": 1.0,
+          "physical_state": "solution",
+          "Q0": 20,
+          "Q1": 31,
+          "Q2": 41,
+          "Q3": 0,
+          "Q4": 0
+        },
+        {
+          "MR": 1.33,
+          "physical_state": "glass",
+          "Q0": 0,
+          "Q1": 2,
+          "Q2": 52,
+          "Q3": 46,
+          "Q4": 0
+        },
+        {
+          "MR": 1.33,
+          "physical_state": "solution",
+          "Q0": 12,
+          "Q1": 25,
+          "Q2": 58,
+          "Q3": 6,
+          "Q4": 0
+        },
+        {
+          "MR": 2.0,
+          "physical_state": "glass",
+          "Q0": 0,
+          "Q1": 0,
+          "Q2": 13,
+          "Q3": 75,
+          "Q4": 12
+        },
+        {
+          "MR": 2.0,
+          "physical_state": "solution",
+          "Q0": 0,
+          "Q1": 25,
+          "Q2": 60,
+          "Q3": 25,
+          "Q4": 0
+        },
+        {
+          "MR": 3.28,
+          "physical_state": "glass",
+          "Q0": 0,
+          "Q1": 0,
+          "Q2": 2,
+          "Q3": 55,
+          "Q4": 43
+        },
+        {
+          "MR": 3.28,
+          "physical_state": "solution",
+          "Q0": 1,
+          "Q1": 7,
+          "Q2": 33,
+          "Q3": 53,
+          "Q4": 7
+        }
+      ]
+    },
+    {
+      "name": "silicate-solution-viscosity-vs-temperature",
+      "source_reference": "Geopolymer book Ch.5, Figure 5.20, p.110",
+      "version": 1,
+      "independent_variables": [
+        "temperature_C",
+        "series"
+      ],
+      "dependent_variables": [
+        "viscosity_cP"
+      ],
+      "units": {
+        "temperature_C": "degC",
+        "viscosity_cP": "cP (mPa.s)"
+      },
+      "source_conditions": {
+        "na_series": "Na-silicate MR=2",
+        "k_series": "K-silicate MR=2.2",
+        "concentration": "SAME concentration for both series, but the value is NOT stated on the photographed page \u2014 treat as relative/reference curves, not absolute predictions for arbitrary solutions",
+        "page_text": "p.110: at the same MR, viscosity of potassium silicate solutions is 10x lower than sodium silicate solutions."
+      },
+      "interpolation_policy": "linear on log(viscosity) recommended",
+      "extrapolation_policy": "UNSUPPORTED",
+      "validity_domain": {
+        "temperature_C": [
+          5,
+          30
+        ]
+      },
+      "digitization_method": "printed point-value labels read from photograph (each marker carries its numeric label in the figure) \u2014 NOT a curve trace",
+      "digitization_error": "labels exact; temperature positions read from axis gridlines, est. +/-1 degC",
+      "points": [
+        {
+          "series": "Na-silicate MR=2",
+          "temperature_C": 5,
+          "viscosity_cP": 5000
+        },
+        {
+          "series": "Na-silicate MR=2",
+          "temperature_C": 10,
+          "viscosity_cP": 4500
+        },
+        {
+          "series": "Na-silicate MR=2",
+          "temperature_C": 15,
+          "viscosity_cP": 3000
+        },
+        {
+          "series": "Na-silicate MR=2",
+          "temperature_C": 20,
+          "viscosity_cP": 2000
+        },
+        {
+          "series": "Na-silicate MR=2",
+          "temperature_C": 25,
+          "viscosity_cP": 1500
+        },
+        {
+          "series": "Na-silicate MR=2",
+          "temperature_C": 30,
+          "viscosity_cP": 1000
+        },
+        {
+          "series": "K-silicate MR=2.2",
+          "temperature_C": 5,
+          "viscosity_cP": 420
+        },
+        {
+          "series": "K-silicate MR=2.2",
+          "temperature_C": 10,
+          "viscosity_cP": 400
+        },
+        {
+          "series": "K-silicate MR=2.2",
+          "temperature_C": 15,
+          "viscosity_cP": 270
+        },
+        {
+          "series": "K-silicate MR=2.2",
+          "temperature_C": 20,
+          "viscosity_cP": 200
+        },
+        {
+          "series": "K-silicate MR=2.2",
+          "temperature_C": 25,
+          "viscosity_cP": 160
+        },
+        {
+          "series": "K-silicate MR=2.2",
+          "temperature_C": 30,
+          "viscosity_cP": 120
+        }
+      ]
+    },
+    {
+      "name": "na-siloxonate-solubility-vs-temperature",
+      "source_reference": "Geopolymer book Ch.5, Figure 5.22, p.112",
+      "version": 1,
+      "status": "PROVISIONAL-LOW-CONFIDENCE \u2014 needs re-digitization from a straight-on photo or scan before any engine consumes it",
+      "independent_variables": [
+        "temperature_C",
+        "series"
+      ],
+      "dependent_variables": [
+        "solubility_g_per_L"
+      ],
+      "units": {
+        "temperature_C": "degC",
+        "solubility_g_per_L": "g/liter"
+      },
+      "source_conditions": {
+        "mr1_series": "MR=1, Na-metasilicate pentahydrate",
+        "mr2_series": "MR=2, Na-disilicate, 17% water",
+        "mr33_series": "MR=3.3, Na-trisilicate, 17% water"
+      },
+      "interpolation_policy": "linear",
+      "extrapolation_policy": "UNSUPPORTED",
+      "validity_domain": {
+        "temperature_C": [
+          10,
+          90
+        ],
+        "solubility_g_per_L": [
+          300,
+          900
+        ]
+      },
+      "digitization_method": "coarse visual curve read from an angled photograph \u2014 shape and axis ranges reliable, individual point values NOT",
+      "digitization_error": "est. +/-50 g/L and +/-5 degC; RE-SHOOT REQUESTED",
+      "points": [],
+      "qualitative_shape": "All three series increase with temperature over 10-90 degC within the 300-900 g/L axis range. The MR=1 (metasilicate pentahydrate) and MR=2 (disilicate) curves lie substantially above the MR=3.3 (trisilicate) curve and cross each other in the mid-temperature region; MR=3.3 stays lowest throughout. Numeric points intentionally omitted pending re-digitization."
+    }
+  ],
+  "qualitative_claims": [
+    {
+      "claim": "Solution polymer-species equilibrium rearranges rapidly on dilution or extra alkali addition; equilibrium is reached more quickly for lower-MR solutions.",
+      "source": "p.101",
+      "use": "provenance caveat on any engine treating Tables 5.4/5.5 values as fixed for a modified solution"
+    },
+    {
+      "claim": "Liquid-state 29Si NMR Q4 peak at MR=1.6 (Na silicate + NaOH) is an equipment artifact.",
+      "source": "Fig 5.12 caption, p.103",
+      "use": "EvidenceMethod warning attached to solution Q4 values from liquid NMR"
+    },
+    {
+      "claim": "Commercial alkali-silicate solutions have pH 10.9-13.5; MR=1 Na-metasilicates exhibit pH above 13.5 and are corrosive in solutions above 5% content; alkali silicate solutions have very high buffer capacity (sharp pH change only after neutralization of the alkali); pH is the most important characteristic determining stability of high-modulus silicate solutions (inclination to gel or coagulation); stability increases steadily as pH increases.",
+      "source": "Section 5.9, p.110",
+      "use": "activator-solution admissibility constraints + safety notes for mixing-process definitions"
+    },
+    {
+      "claim": "pH of an alkali silicate solution depends on MR and above all on M2O concentration (Figure 5.21, not yet photographed).",
+      "source": "Section 5.9, p.110",
+      "use": "marks Fig 5.21 as a future digitization target"
+    },
+    {
+      "claim": "Na-metasilicate (MR=1) exists in four forms: anhydrous Na2O.SiO2 (manufactured at 900 degC in the furnace) and hydrous pentahydrate (5H2O), hexahydrate (6H2O), nonahydrate (9H2O); hydrous forms produced hydrothermally or by blending higher-MR solutions with NaOH; concentrated Na-metasilicate solutions are inherently unstable and liable to crystallize, hence metasilicates are supplied in dry form (rotary-bed crystallization or belt technique).",
+      "source": "Section 5.11, p.112",
+      "use": "commercial-precursor presets for CompositionNormalizer (pspp-6): hydrate identity fixes the oxide+water composition exactly"
+    },
+    {
+      "claim": "Powdered hydrous alkali silicate powders are produced by spray-drying poly(siloxonate) solutions of the desired MR.",
+      "source": "Section 5.10, p.110",
+      "use": "precursor-form vocabulary (solid silicate powder as activator form)"
+    },
+    {
+      "claim": "MR = 1.032 x WR for sodium silicate; MR = 1.568 x WR for potassium silicate; practical MR range for sodium silicates in praxis is 0.4-4.0.",
+      "source": "p.84",
+      "use": "encoded + selftest-pinned in pspp.composition_math (mr_from_wr, PRACTICAL_MR_RANGE_NA)"
+    },
+    {
+      "claim": "Table 5.1 commercial silicate MRs: sodium orthosilicate Na4SiO4 = 0.5, sodium metasilicate Na2SiO3 = 1.0, sodium disilicate Na2Si2O5 = 2.0, sodium polysilicate Na2O.3.3SiO2 = 3.30.",
+      "source": "Table 5.1, p.84",
+      "use": "COMMERCIAL_SILICATE_MR presets in pspp.composition_math"
+    },
+    {
+      "claim": "Manufacture routes (Fig 5.1, after Crosfield 1997): furnace route (sand + soda ash -> alkali glass -> milling/agglomeration -> dissolving -> blending -> waterglass solutions -> spray drying/compaction -> powdered/granular silicates) and hydrothermal route (sand + caustic soda -> silicate liquor -> rotary crystallisation -> pentahydrate; belt crystallisation -> nonahydrate). Silica glass converts to poly(siloxonate) by stepwise Si-O-Si cleavage: bridging oxygens -> non-bridging Si-ONa (Section 5.3.1).",
+      "source": "pp.84-85, Fig 5.1",
+      "use": "process-vocabulary evidence for pspp-4 MaterialProcessDefinition rows (real manufacture graph example)"
+    },
+    {
+      "claim": "Q-species distribution curves for Na-silicate glasses (Fig 5.4) and K-silicate glasses (Fig 5.5) vs MR, adapted from Maekawa et al. (1991); anchor text: MR=1 metasilicate -> almost completely Q2 (small Q1+Q3); MR=2 disilicate -> virtually only Q3 (small Q2+Q4); MR=4 tetrasilicate -> Q3 and Q4 at 50% each. Na curves cross-confirm Table 5.6 glass rows exactly.",
+      "source": "Figs 5.4/5.5 + text, p.90",
+      "use": "digitized into modules/pspp datasets_seed (na/k-glass-q-distribution-vs-mr) \u2014 Tier 2 UNBLOCKED, q_glass_distribution engine live"
+    },
+    {
+      "claim": "Industrial silicate glasses are phase MIXTURES at eutectic-anchored compositions: neutral Na-glass 76.5 wt% SiO2 (beta-IV disilicate + VII quartz), alkaline Na-glass 66 wt% SiO2 (III metasilicate + beta-IV disilicate), K-glass 71 wt% SiO2 (phase III tetrasilicate). Eutectic points: 66% and 76% SiO2 (Na), 71% SiO2 (K). Fabrication-parameter changes strongly affect nominal composition and geopolymeric properties. Fig 5.3 = K2O.SiO2 phase diagram (Kracek et al. 1937), phases I K2SiO3 / II K2O.2SiO2 / III K2O.4SiO2 / IV tridymite / V quartz / VI cristobalite.",
+      "source": "Fig 5.3 + text, p.88",
+      "use": "industrial-glass composition presets; Fig 5.3 liquidus curves = future digitization target only if phase modeling needs them"
+    },
+    {
+      "claim": "Hydrothermal route: direct dissolution of sand/siliceous products in caustic NaOH/KOH inside autoclaves (aggressive conditions); industrially restricted to hydrated metasilicate MR=1. Silica-fume dissolution in alkaline solution is a lab-scale alternative route; adding NaOH to lower the modulus of a high-modulus solution at the customer's site is NOT generally recommended \u2014 adjust during blending at the chemical plant.",
+      "source": "Sections 5.3.3/5.3.4, p.89",
+      "use": "pspp-4 process definitions: route constraints + admissibility notes for activator preparation"
+    },
+    {
+      "claim": "MAS-NMR: alkali silicate glass composition is not entirely random. Molecular structure: triple-helix poly(siloxonate)/poly(siloxo) SiO2 chains; alkaline attack starts at the weaker inter-helix siloxane bonds, leaving individual helices intact to a degree; alkalination forms Si-ONa terminal units (NBO) at the surface.",
+      "source": "Sections 5.4/5.4.1, pp.89-90",
+      "use": "mechanistic context for dissolution reaction rules (competing-hypothesis register, never hardcoded)"
+    },
+    {
+      "claim": "Fig 8.21 two-phase transport selection: Phase 1 outer faces/edges reaction with Na+/K+/OH- AND Q0-Q3 siloxonates -> albite pathway (Si:Al=3); Phase 2 inner particulate reaction with ONLY Na+/K+/OH- (interlayers swell; even Q0 too big to penetrate) -> nepheline pathway (Si:Al=1). R\u00fcscher 2010 molybdate: polymeric silicate chains condense first from waterglass, then slow alumino-silicate 3D network surrounds them.",
+      "source": "p.184 Fig 8.21 + \u00a78.5.1/8.5.2 pp.186-187",
+      "use": "encoded as site-constrained ReactionRule rows (surface-only vs interior-only) in pspp.reaction_network"
+    },
+    {
+      "claim": "Phillipsite route (\u00a78.5.3, pp.188-189): ideal Na-PSS structure NaAlSi2O6 (Si:Al=2) via monomeric ortho-siloxonate Q0; Q0 obtained by mild depolymerization of Q1/Q2 ONLY when the Na-silicate solution has MR < 1.20; two alternative condensation paths 6a (Q0+ortho-sialate -> linear -> branched quadratic) and 6b (2 ortho-sialates -> quadratic di-sialate + 2 Q0 -> same branched quadratic); phillipsite is zeolitic (micro-porosity, higher zeolitic water).",
+      "source": "pp.188-189",
+      "use": "encoded as ReactionRule rows; MR<1.20 threshold noted pending a threshold-shaped ReactionWindow variant"
+    },
+    {
+      "claim": "US Patent 4,349,386 / FR 79.22041 Table A reactant-mixture ranges for (Na,K)-PSS: (Na2O,K2O)/SiO2 0.20-0.28, SiO2/Al2O3 3.5-4.5 (deliberately above stoichiometric 2), H2O/(Na2O,K2O) 15-17.5, (Na2O,K2O)/Al2O3 0.8-1.20. US Patent 4,472,199 Table C for kaliophilite-related K-PS: K2O/SiO2 0.25-0.48, SiO2/Al2O3 3.3-4.5, H2O/Al2O3 10-25. K-PS formula K2O:2SiO2:Al2O3:H2O; anhydrous feldspathoid Kn(-Si-O-Al-O-)n.wH2O, w in [0,1]. TGA discriminator: K-PS <=5% water loss to 325C (thermal-shock resistant, hard 5 Mohs, brittle) vs (Na,K)-PSS 21-29% loss 100-500C (zeolitic water; dehydroxylate <=400C before high-T use). A 'preferably...' clause on p.191 was cut off in the photo \u2014 re-shoot if finer grading wanted.",
+      "source": "pp.191-192",
+      "use": "SEEDED as 7 ReactionWindow rows (binary-range semantics); TGA discriminator on framework-kaliophilite species notes"
+    },
+    {
+      "claim": "p.193 GRADED window detail (US 4,472,199 excerpt): preferably K2O/Al2O3 ~1.3-1.52 and SiO2/Al2O3 ~4.0-4.2; higher ratios induce a free potassium-silicate phase + K-silicate migration disturbing physical/mechanical properties; K2O/Al2O3 < 1.1 and SiO2/Al2O3 < 3.7 -> numerous cracks, unusable for molded objects. Table C 4th row: K2O/Al2O3 0.9-1.60.",
+      "source": "p.193",
+      "use": "recorded on the k-ps ReactionWindow rows; asymmetric ideal/acceptable/failure bands await a threshold-shaped window variant"
+    },
+    {
+      "claim": "K analogues prove rule generality (pp.194-196): steps 1-5 identical to Na (with K+); kalsilite via condensation of THREE ortho-sialates -> hexagonal cyclo-tri-sialate (KOH regenerated); leucite via Q0 + two ortho-sialates -> cyclo-di-sialate-siloxo, Q0 again requiring mild Q1/Q2 depolymerization at MR<1.20 (same threshold as Na). Kriven leucite-ceramic route: crush K2O.Al2O3.4SiO2.7.5H2O geopolymer, die-press, sinter 1200C/12h (~3um leucite grains in remnant amorphous geopolymer matrix), anneal 1400C/5h. Crystallization studies: Barbosa/MacKenzie 2003 (leucite+kalsilite signs at 1000C, melting to 1400C), Trautman 2005 (-> kalsilite), Duxson 2005a (kaliophilite/kalsilite + leucite above 700C).",
+      "source": "pp.194-196",
+      "use": "encoded as K-route ReactionRule rows; Kriven route = future MaterialProcessDefinition chain example"
+    },
+    {
+      "claim": "Steps 1-5 mechanism detail (pp.181-182): Step 1 alkalination forms tetravalent-Al side group O3-Si-O-Al-(OH)3(-)Na+ (Al(V) alumoxyl -Al=O route \u00a78.3.1, or Al-O-Al cleavage + hydroxylation \u00a78.3.2); steps 2-4 cleave the poly(siloxo) layer, isolating the ortho-sialate; step 5 reacts basic siloxo Si-O(-) with Na+/K+ -> Si-ONa/Si-OK terminals. Na vs K kinetics differ slightly (K+ larger); MK-750 poly(siloxo) backbone remains practically intact.",
+      "source": "pp.181-182",
+      "use": "ortho-sialate-formation rule upgraded to book-supported with this topology detail"
+    },
+    {
+      "claim": "Al-coordination reaction roles (pp.176-178): Al(V) reacts first (rapid exotherm 1, 1h hardening); Al(IV) slower kinetics (2h peak; major in fly-ash systems); Al(VI) needs most energy/time (4-4.5h peak, highest strength). Chamotte (kaolinitic clays calcined 1050-1100C): high Al(IV), NO Al(V) -> very slow reaction, exotherm undetectable. Metakaolin calcination temperature (1000-1100C) converts Al(V) toward Al(IV)=Al(VI) and slows geopolymerization. Setting-vs-MR classes and cure-temperature exotherm ladder encoded as datasets.",
+      "source": "pp.176-180",
+      "use": "Al-speciation descriptors for pspp-3 structure rows + process admissibility notes"
+    }
+  ],
+  "benchmark_cases": [
+    {
+      "name": "mk750-na-pss-mr182",
+      "source": "Davidovits pp.183-185 (\u00a78.4-8.5) + Table 8.7 p.186",
+      "inputs": {
+        "precursor": "metakaolin MK-750 (Si:Al=1)",
+        "activator": "Na-silicate solution MR=1.82",
+        "printed_oxide_ratios": {
+          "Na2O/SiO2": 0.28,
+          "SiO2/Al2O3": 4.02,
+          "H2O/Na2O": 17.2,
+          "Na2O/Al2O3": 1.1
+        },
+        "printed_formula": "1.1Na2O:4SiO2:Al2O3:17H2O, Si:Al=2, Na-poly(sialate-siloxo)",
+        "as_printed_discrepancy": "formula implies H2O/Na2O = 15.45 but the ratio list prints 17.20 \u2014 both kept, never reconciled silently",
+        "slurry_viscosity": "resin-like, 100-200 centipoise (p.184)"
+      },
+      "observed_outcomes": {
+        "ph_evolution": "drastic drop pH 10.5-11 -> ~7.5 neutral (Zoulgami 2002, p.185)",
+        "phases_after_750C": "nepheline (NaAlSiO4, Si:Al=1) + albite (NaAlSi3O8, Si:Al=3) coexisting ~50/50; bulk = NaAlSi2O6 (Si:Al=2); solid solution at nano scale; XRD-crystalline only after heat treatment >500C",
+        "eds_750C_atomic_pct": [
+          {
+            "O": 59.08,
+            "Na": 10.91,
+            "Al": 9.64,
+            "Si": 20.37
+          },
+          {
+            "O": 58.68,
+            "Na": 11.11,
+            "Al": 9.64,
+            "Si": 20.57
+          },
+          {
+            "O": 59.07,
+            "Na": 10.91,
+            "Al": 9.63,
+            "Si": 20.39
+          }
+        ],
+        "global_formula": "Na4.54Al4.5Si9.04O27.11 i.e. NaAlSi2O6",
+        "duxson_2005a": "above 500C nepheline forms with Na plus a not-well-defined component instead of albite",
+        "favier_2013_two_step": "step 1 (<15 min): Si:Al 2-3 aluminosilicates at grain boundaries, solution still Q0-Q3 oligomers; step 2: hardening, second modulus rise, Si:Al=1 chemistry with only NaOH, no siloxonates",
+        "mr_speciation": "MR=1.0 generates more Q0 and less Q2-Q3 than MR=1.82 (p.190)"
+      },
+      "use": "the first PSPP benchmark validation case: composition_math reproduces the ratios (selftest-pinned); grade_composition places it inside ALL four Table A patent windows (selftest-pinned); framework branching per pp.184-189 mechanism rules"
+    },
+    {
+      "name": "mk750-na-silicate-mr170-curing-series",
+      "source": "Davidovits pp.177-179 (Fig 8.18)",
+      "inputs": {
+        "recipe": "Na-silicate MR SiO2:Na2O=1.70 100g + MK-750 63.47g (Na:Al=1), NO mineral fillers",
+        "procedure": "planetary blender 300 RPM 10 min at 20C; cast small cylinders; oven 80C 15-20 min after mixing start; covered during setting; strength measured immediately after hot demolding, no drying",
+        "reactivity_reference": "commercial MK-750 (Metamax) + Na-silicate: exotherm peak at 35 min, hardening complete at 60 min"
+      },
+      "observed_outcomes": {
+        "strength_series": "encoded as dataset mk750-strength-ph-vs-curing-time (2.83@1h Al(V), 5.66@2h Al(IV), 6.80/6.83@4-4.5h Al(VI), dip 4.26@8h, plateau 6.90@20h)",
+        "ph_mirror": "pH anticorrelates with strength (12.38/12.51/12.44/12.22); dip = alkaline depolymerization then re-polymerization; free water sustains the equilibrium \u2014 drying stops it",
+        "al_speciation_bele\u00f1a": "room-T: 10 min -> AlQ1(1Si)+AlQ2(2Si)+AlQ3(3Si); 90 min -> Q1/Q2 diminish; 4h -> all AlQ3(3Si); 1 day -> AlQ4(4Si) reticulation (steps 4-5 = AlQ1; steps 6-7 = AlQ2/AlQ3)"
+      },
+      "use": "ReactionProgressModel v1 measured-curve calibration + performance-scenario validation"
+    },
+    {
+      "name": "mk750-k-silicate-kalsilite-mixture",
+      "source": "Davidovits p.193 \u00a78.6.1",
+      "inputs": {
+        "recipe": "MK-750 + K-silicate solution MR=1.80; mixture = solid solution of K-PS (kaliophilite/kalsilite type) + potassium polysilicate; low-molecular K-polysilicate neutralized with 4.9% Ca(OH)2 (Dan Perera & Trautman 2005/2006)",
+        "oxide_ratios": {
+          "K2O/SiO2": 0.36,
+          "SiO2/Al2O3": 4.12,
+          "H2O/Al2O3": 16,
+          "K2O/Al2O3": 1.51
+        }
+      },
+      "observed_outcomes": {
+        "windows": "sits inside ALL Table C claimed ranges AND inside the p.193 preferred bands (SiO2/Al2O3 4.0-4.2, K2O/Al2O3 1.3-1.52)",
+        "thermal_evolution": "encoded as dataset k-geopolymer-porosity-phases-vs-temperature (Table 8.8)"
+      },
+      "use": "K-family window validation + thermal phase-evolution benchmark"
+    }
+  ]
+}

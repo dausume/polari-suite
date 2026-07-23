@@ -1,3 +1,185 @@
+# ⚡ PSPP HANDOFF — 2026-07-19 (READ THIS SECTION FIRST)
+
+## ⚡⚡ UPDATE 2026-07-19 (later session): pspp-8 FULL + THRESHOLD WINDOWS BUILT
+Handoff items 3+4 below are DONE (the geopolymer-simulation +
+experiment-guidance capability). Framework branch
+`dev-pspp-8-network-stepping` (off the pspp-5 head c651f39), NOT
+merged/pushed — review gate stands. 340 checks green across 17 pspp
+suites (4 new: threshold_windows 36, network_stepping 37,
+cure_checkpoints 20, experiment_guidance 14); lazy-imports guard
+15/15. Full detail: 2026-07-19 UPDATE block atop PSPP_MATERIALS_PLAN.
+Short version:
+- `threshold_windows.py` ThresholdReactionWindow: banded asymmetric
+  grading (p.193 preferred bands + crack thresholds seeded, supersede
+  the binary patent rows in merged grading) + condition-GATE rows
+  (MR<1.20 Q0 threshold as data).
+- `network_stepping.py` (pspp-8 full): solution_inventory from
+  Table 5.6 (Q motifs = dynamic resources), applicable_rules
+  (species/site/cation/gate — NEW cation_family + condition_windows_json
+  on ReactionRule), stoichiometric step_once, kinetics-free
+  reachable_frameworks (rule chains, hypothesis floors, competing
+  branches). I5 stands — rates still refuse.
+- `cure_checkpoints.py`: plan-first promotion of measured cure
+  completions → TRANSFORMATIVE execution edge + MaterialState +
+  reactionExtent StructureClaim; apply is the explicit knob.
+- `experiment_guidance.py` + API: POST /api/pspp/guide (grade +
+  pathways + cure + gap-list-as-experiment-plan), GET
+  /api/pspp/pathways, POST /api/pspp/checkpoint.
+- Verify: add these to the loop below —
+  `threshold_windows network_stepping cure_checkpoints
+  experiment_guidance`.
+- NOT deployed to staging yet (backend rebuild needed for the new
+  routes/class; seeds are idempotent-by-name — new rows only, no
+  changed rows, so no volume surgery needed).
+- Remaining NEXT (order): Dustin review · V3 visuals · pspp-11 wax
+  half · pspp-6 split decision · new data asks (a K glass→solution
+  table would light up K pathways; calibrated kinetics rows would
+  unlock time-resolved stepping — both refuse with those exact asks
+  today).
+
+### ⚡⚡⚡ SAME DAY, 3rd pass: V3 VISUALS + pspp-11 WAX HALF BUILT (rough-
+### functionality mode per Dustin: "foundational approach, debug later")
+Backend (framework `dev-pspp-8-network-stepping`, +commit 70fbb4f):
+- `wax_states.py` (pspp-11 wax half): every WaxFeedstockDefinition
+  derives its 4-stage VIRTUAL state route (solid→softened→melt→
+  superheated) from its own temperatures — zero writes, zero behavior
+  change; GET /api/pspp/wax-states. selftest 10/10.
+- `benchmark_cases.py` (V3): 3 Ch.8 BenchmarkCase rows + measured-vs-
+  predicted overlay — windows + framework reachability genuinely
+  predict (all 3 cases verdict MATCH incl. kalsilite via the NEW
+  ortho-sialate-formation-k twin rule; phillipsite/leucite correctly
+  absent — Q0 gate); strength/cure refuse per I5. GET
+  /api/pspp/benchmarks + /{name}/overlay. selftest 12/12.
+Frontend (angular `dev-pspp-v3-visuals` off dev-pspp-v-visual-
+proofing, commit 1be9165, ng build green):
+- /pspp/benchmarks (overlay wall, verdict chips), /pspp/guide
+  (experiment-guide form; gap list = experiment plan), /pspp/states
+  (state-DAG SVG viewer + wax routes dropdown; `pspp-state-dag` also
+  registered as a mountable no-code component with [material]).
+- Grader renders BANDED p.193 gauges (per-band colors) + edit links;
+  network detail panel links to ReactionRule/ChemicalSpecies CRUDE
+  pages — "editable on canvas" v1 = riding /class-main-page/:class.
+- Service +pathways/guide/checkpoint/benchmarks/waxStates; routes +
+  registry entries added.
+⚠ ROUGH-BUILD CAVEATS (debug list): NOT deployed/live-verified (no
+browser pass, no staging rebuild); benchmark JSON panels are raw
+pretty-print; state-DAG layout is naive depth-columns; guide K-cation
+pathway section refuses by design (Na-only Table 5.6); banded gauge
+untested against live payload shapes. Total pspp checks now 362
+across 19 suites (all green at commit time).
+
+**⚠ PSPP PARKED HERE (Dustin 2026-07-19, moving topics). Architecture
+is CLOSED for geopolymers — every remaining gap is data entry, an
+engine behind a registered seam, or debug/polish. THE canonical
+to-address list is PSPP_MATERIALS_PLAN.md §4b GAP REGISTER:
+A1-A5 engine gaps (kinetics execution, gel-structure evolution,
+degradation engines, strength-as-selectable-model, amount-weighted
+reachability) · B1-B6 data asks (K solution table, kinetics
+calibrations, Fig 5.22 re-shoot, Ch.6/7/CMC pages, setting-class
+completions, p.191 cut-off text) · C1-C7 debug/polish (staging
+deploy + browser pass first) · D1-D3 Dustin decisions (pspp-6 split,
+spatial sims, UQ). Pick up with C1, then work the register.**
+
+## What PSPP is
+A **generic reactive-material engine** inside Polari (module `pspp`), built
+2026-07-18/19 from a three-way design dialogue (Dustin ↔ Claude ↔ ChatGPT, which
+ingested Davidovits *Geopolymer Chemistry and Applications* + a CMC book ToC).
+Core thesis: a material is NOT a property sheet — it is an identity with a DAG of
+durable states; processes are edges; chemistry is a library of species +
+graph-rewrite rules (competing hypotheses, cited, kinetics-free until calibrated);
+book figures live as DigitizedDataset rows that every chart derives from.
+Swap the library (sol-gel, cement, oxidation…) — never redesign the engine.
+
+## Read these, in order
+1. `PSPP_MATERIALS_PLAN.md` (suite root) — architecture, 8 invariants (I1 canonical
+   state, I2 declared ExecutionEffect, I5 no invented kinetics, I6 curves-as-data…),
+   phase table with status.
+2. `PSPP_VISUAL_PROOFING_PLAN.md` — the visuals/no-code slice (V1 done, V2 done,
+   V3 = next).
+3. `PSPP_DIGITIZED_DATASETS.json` (suite root) — the book transcription RECORD:
+   20 qualitative claims, 3 benchmark cases, as-printed anomalies (Table 5.6 sums,
+   H2O/Na2O 17.20-vs-15.45). Operational form = `modules/pspp/datasets_seed.py`.
+4. `polari-rf-node/polari-framework/modules/pspp/` — 30 small files, one concern
+   each; every `selftest_*.py` runs via
+   `PYTHONPATH=modules python3 -m pspp.selftest_<name>` from polari-framework/
+   (sitecustomize covers server entrypoints only, NOT host `-m` runs).
+5. Memory: `pspp-materials.md` (+ MEMORY.md index) has the compressed history.
+
+## Branch topology (NOT merged, NOT pushed — Dustin's review gate)
+polari-framework, stacked off dev:
+`dev-pspp-1-evidence-claims` → `2-material-states` → `3-structure-layer` →
+`7-q-distribution` → `4-process-layer` → `v-visual-proofing` →
+`5-scale-transfers` (head also carries pspp-9 + pspp-11 commits: c651f39).
+polari-platform-angular: `dev-pspp-v-visual-proofing` (1 commit, ng build green).
+⚠ Branch names lag content after pspp-4 — commits landed on the current head
+branch rather than new ones per phase. Verify with `git log --oneline dev..HEAD`.
+
+## What is DONE (all selftested, 233 checks green total)
+- Evidence/claims/EvidenceMethod vocabulary; DigitizedDataset + ONE generic
+  interpolation engine (bands, UNSUPPORTED extrapolation refusals).
+- 13 datasets (Ch.5 tables/figures incl. Figs 5.4/5.5 Q-curves, Fig 5.20/5.21/5.22,
+  Tables 5.4/5.5/5.6/5.8; Ch.8 curing kinetics trio + Table 8.8 thermal phases).
+- MaterialState DAG (implicit-virtual canonical `#as-defined`, sync-on-need, NO
+  boot backfill); ProcessingStage rows; `state_resolution` = THE name→state path.
+- Structure layer (5-descriptor mandatory core incl. reactionExtent∈[0,1]; L2
+  multi-domain; `require_descriptors` gate).
+- composition_math (book-pinned MR/WR 1.032/1.568, Baumé, oxide ratios incl.
+  H2O/Al2O3); reaction_windows (8 patent rows, Tables A/C; p.193 graded bands
+  recorded in notes — asymmetric variant NOT yet modeled).
+- Process layer (ExecutionEffect I2, heating deposition models, thermal-window
+  admissibility) + reaction network as data (17 rules: Na two-phase Fig 8.21
+  surface→albite / interior→nepheline, phillipsite 6a/6b, K kalsilite/leucite
+  analogues; site_constraint; competing hypotheses).
+- q_distribution engines; progress_engine v1 (measured curves only, refusals name
+  the dataset to enter); scale transfers (wax retrofit rows cite live msim models);
+  exposure + performance scenarios v1 (elastic-bounds via mixture_bounds,
+  water-transport via descriptors→Darcy pointer); CMC library through EXISTING
+  classes (the zero-schema-change generality proof).
+- `/api/pspp/*` (6 endpoints) + Angular `/pspp` pages (proofing chart wall from
+  rows via Observable Plot, reaction-network SVG where styling=evidence, grader,
+  progress) + no-code registry + seeded published page (module_id `pspp`).
+
+## Verify before building anything
+```
+cd polari-rf-node/polari-framework
+for t in evidence_claims digitized_datasets material_states material_structure \
+  composition_math reaction_windows q_distribution material_processes \
+  reaction_network pspp_views scale_transfers performance_scenarios cmc_library; \
+  do PYTHONPATH=modules python3 -m pspp.selftest_$t | tail -1; done
+cd ../polari-platform-angular && npm run build   # green, pre-existing warnings only
+```
+Live proofing: bring the stack up (`pol node up --env staging`), open
+`/pspp/proofing` with the book — charts should match Figs 5.4/5.5, 8.18, 8.20,
+5.20, 5.22, Tables 5.4/5.5/8.8.
+
+## NEXT work, in priority order
+1. **Dustin's review of the stack** — nothing merges until then.
+2. **V3 visuals**: benchmark measured-vs-predicted overlays (3 benchmark cases in
+   the JSON → rows), state-DAG + transfers view on the material detail page,
+   no-code editing of rules/windows on the canvas.
+3. **Threshold/asymmetric ReactionWindow variant** (p.193 preferred bands 1.3-1.52
+   / 4.0-4.2 + crack thresholds <1.1 / <3.7 — currently notes only).
+4. **pspp-8 full**: reaction-network stepping (rules consume/produce species,
+   Q-distribution as dynamic resource), promote cure checkpoints to MaterialState
+   rows via TRANSFORMATIVE executions.
+5. **pspp-11 wax half**: map waxprint feedstocks onto states (wax ProcessingStages
+   already seeded), zero behavior change.
+6. **pspp-6 remainder**: geopolymer module glue (`modules/geopolymer/` was folded
+   into `modules/pspp` — decide whether to split per module-projects idiom).
+7. Data asks (only if Dustin photographs more): Ch.6 Fig 6.6 molecule types,
+   Ch.7 kaolinite steps 1-7 pages, CMC chapter equations.
+
+## Gotchas
+- Never rescale as-printed book anomalies (Table 5.6 sums 92/110; H2O discrepancy).
+- `pspp` imports as TOP-LEVEL package (modules/ is an import root).
+- Seeds are idempotent-by-name: changed seed content needs row deletion + restart
+  on existing volumes (standing gotcha).
+- All 8 repos are PUBLIC — book data enters as cited transcriptions only, never
+  scanned pages.
+- Keep every capability = knob + evidence-bearing refusal; absence is honest data.
+
+---
+
 # Next-agent handoff — 2026-07-16 (THE BIG DAY: ncg-0..7 + DMV/scorecard epistemics stack)
 
 ## 🎯🎯 CURRENT STATE (Dustin 2026-07-19): MODULE PROJECTS DONE + EVERYTHING ON dev
