@@ -1,0 +1,10 @@
+{
+  "_comment": "Default (dev / fallback) project URLs for the Polari hub. Staging and prod mount a generated per-environment override at this same path — see nip-staging-setup.sh (pol-hub-runtime-config.json) and prod-setup.sh (pol-hub-runtime-config.prod.json). Read at load time by assets/app.js.",
+  "env": "dev",
+  "links": {
+    "prf": "docs.html",
+    "dps": "docs.html",
+    "mesh": "docs.html",
+    "oseb": "docs.html"
+  }
+}

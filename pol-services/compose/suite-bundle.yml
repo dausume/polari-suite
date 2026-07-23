@@ -132,6 +132,7 @@
 # {% include 'pol-services/compose/services/psc-backend.yml.j2' %}
 # {% include 'pol-services/compose/services/prf-frontend.yml.j2' %}
 # {% include 'pol-services/compose/services/prf-backend.yml.j2' %}
+# {% include 'pol-services/compose/services/pol-hub-frontend.yml.j2' %}
 ## variation: env — tail (networks/volumes) differs per tier: dev | staging+prod
 # {% if env_name == 'dev' %}
 # 
@@ -168,7 +169,9 @@
 #   pol_mariadb_data:
 #   pol_file_store_data:
 #   psc_redis_data:
-# 
+#   # PRF framework object DB (SQLite at /app/data) — persist across recreates.
+#   prf_backend_data:
+#
 # # ============================================
 # # NETWORKS
 # # ============================================

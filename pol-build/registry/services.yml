@@ -176,6 +176,13 @@ services:
     config: {generated: [.generated/prf-runtime-config*.json]}
     connects_to: {prf-backend: prf-runtime-config, prf-keycloak: prf-runtime-config}
 
+  - kind: pol-hub
+    context: pol-hub/
+    appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml]
+    config: {static: "committed static files — no env files or generated config"}
+    connects_to: {}
+    variations: "lightweight informational front door: links out to the heavier prf/psc apps + hosts Mermaid docs; static nginx image, no backend"
+
   - kind: prf-mariadb
     context: polari-rf-node/prf-mariadb/
     appears_in: [polari-rf-node/docker-compose.yml, polari-rf-node/docker-compose.staging-nip.yml,

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en" data-theme="">
+<head>
+  <meta charset="utf-8" />
+  <title>Polari — documentation</title>
+  <base href="/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="How the Polari projects fit together — a light, open documentation front for the research framework, the scorecard, Isle-Mesh, and the Open Source Economic Baseline." />
+  <link rel="icon" type="image/png" href="assets/polari-mark.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="index.html"><img src="assets/polari-mark.png" alt="" /> Polari</a>
+      <nav class="navlinks">
+        <a href="index.html" class="hide-sm">Home</a>
+        <a href="docs.html" class="active">Docs</a>
+        <button class="theme-toggle" type="button">Theme</button>
+      </nav>
+    </div>
+  </div>
+
+  <section>
+    <div class="wrap doc">
+      <span class="eyebrow">Documentation</span>
+      <h1 style="font-size:clamp(2rem,5vw,3rem); letter-spacing:-0.03em; margin:0.8rem 0 0;">How Polari fits together</h1>
+      <p class="lede">A light, open documentation front. Diagrams are rendered client-side with
+        <a href="https://mermaid.js.org" target="_blank" rel="noopener">Mermaid</a> — an open-source, text-to-diagram
+        tool — so the docs stay cheap to host and easy to edit. For the deep, interactive tools, follow the links
+        into the <a href="index.html#projects">full apps</a>.</p>
+
+      <h2>The four projects</h2>
+      <p>Three concrete projects plus the map that indexes them. The mesh is the fabric the others can run across;
+        the baseline (OSEB) is where each capability is catalogued as a runnable module.</p>
+      <div class="mermaid">
+graph TD
+  OSEB["OSEB — the map / tech tree"]
+  PRF["Polari Research Framework"]
+  DPS["Democratic Political Scorecard"]
+  MESH["Isle-Mesh — networking fabric"]
+  OSEB --> PRF
+  OSEB --> DPS
+  OSEB --> MESH
+  MESH -. runs across .-> PRF
+  MESH -. runs across .-> DPS
+      </div>
+
+      <h2>The suite at a glance</h2>
+      <p>Everything sits behind one reverse proxy. This site (<code>pol-hub</code>) is the lightweight front
+        door; the heavier apps have their own frontends and backends.</p>
+      <div class="mermaid">
+graph LR
+  U["Visitor"] --> PX["pol-proxy"]
+  PX --> WWW["pol-hub<br/>(this site — static, low-load)"]
+  PX --> PRFfe["prf-frontend"]
+  PX --> PSCfe["psc-frontend"]
+  PRFfe --> PRFbe["prf-backend"]
+  PSCfe --> PSCbe["psc-backend"]
+      </div>
+
+      <h2>What each project is for</h2>
+      <h3>Polari Research Framework</h3>
+      <p>No-code research and simulation: agroforestry, hydroponics, materials science, multi-scale simulation
+        (FEM, DFT, MD), and FPGA/hardware — all as configurable objects.</p>
+      <h3>Democratic Political Scorecard</h3>
+      <p>Evidence-first scoring of policy, legislation, judicial decisions, and groups, with every score traceable
+        to its sources and the scoring rules in the open.</p>
+      <h3>Isle-Mesh</h3>
+      <p>Local-first mesh networking that keeps nodes connected without depending on centralized infrastructure.</p>
+      <h3>Open Source Economic Baseline</h3>
+      <p>A generalizable tech tree of the knowledge and tools an open economy needs — each node a working module,
+        not just a description.</p>
+
+      <p style="margin-top:2.5rem;"><a href="index.html">← Back to the hub</a></p>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="brand-foot"><img src="assets/polari-mark.png" alt="" /> Polari</div>
+      <p class="foot-note">Free and <span class="em">open source</span>, GPLv3. Docs rendered with Mermaid.</p>
+    </div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+  <!-- Mermaid from CDN. For a fully self-hosted / offline build, vendor
+       mermaid.esm.min.mjs into assets/ and point the import below at it. -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    const t = document.documentElement.getAttribute('data-theme')
+      || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    mermaid.initialize({ startOnLoad: true, theme: t === 'dark' ? 'dark' : 'default', securityLevel: 'strict' });
+  </script>
+</body>
+</html>

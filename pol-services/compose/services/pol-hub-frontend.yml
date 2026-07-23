@@ -1,0 +1,66 @@
+# jinja-start
+## SERVICE: pol-hub — annotated source (see suite-bundle.yml).
+## The lightweight informational hub: static nginx, links out to the heavier
+## prf/psc apps + hosts Mermaid docs. Rendered per env by suite-bundles.yml.
+## variation: env — build path identical across tiers (static site);
+## staging/prod add a small resource budget (32M / 0.1 cpu).
+# {% if env_name == 'dev' %}
+#
+#   # ============================================
+#   # POLARI WWW — informational hub (static, low-load front door)
+#   # ============================================
+#   pol-hub:
+#     build:
+#       context: ./pol-hub
+#     container_name: pol-hub
+#     image: pol-hub:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+# {% elif env_name == 'staging' %}
+#
+#   # ============================================
+#   # POLARI WWW — informational hub (static, low-load front door)
+#   # ============================================
+#   pol-hub:
+#     build:
+#       context: ./pol-hub
+#     container_name: pol-hub
+#     image: pol-hub:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+#     volumes:
+#       # Per-env project URLs (prf / dps / mesh / oseb), read by the site JS.
+#       - ./{{ pol_hub_runtime_config }}:/usr/share/nginx/html/assets/runtime-config.json:ro
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 32M
+#           cpus: '0.1'
+#         reservations:
+#           memory: 16M
+#           cpus: '0.02'
+# {% elif env_name == 'prod' %}
+#
+#   # ============================================
+#   # POLARI WWW — informational hub (static, low-load front door)
+#   # ============================================
+#   pol-hub:
+#     build:
+#       context: ./pol-hub
+#     container_name: pol-hub
+#     image: pol-hub:{{ suite_image_tag }}
+#     networks:
+#       - polari-network
+#     volumes:
+#       # Per-env project URLs (prf / dps / mesh / oseb), read by the site JS.
+#       - ./{{ pol_hub_runtime_config }}:/usr/share/nginx/html/assets/runtime-config.json:ro
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 32M
+#           cpus: '0.1'
+#         reservations:
+#           memory: 16M
+#           cpus: '0.02'
+# {% endif %}
+# jinja-end

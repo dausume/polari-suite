@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en" data-theme="">
+<head>
+  <meta charset="utf-8" />
+  <title>Polari — an open-source economic baseline</title>
+  <base href="/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Polari is the connective substrate for a family of open-source projects: the research framework, the democratic political scorecard, Isle-Mesh, and the Open Source Economic Baseline." />
+  <link rel="icon" type="image/png" href="assets/polari-mark.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <canvas id="mesh" aria-hidden="true"></canvas>
+    <div class="wrap">
+      <div class="topbar">
+        <a class="brand" href="index.html"><img src="assets/polari-mark.png" alt="" /> Polari</a>
+        <nav class="navlinks">
+          <a href="#projects" class="hide-sm">Projects</a>
+          <a href="docs.html">Docs</a>
+          <a href="#open" class="hide-sm">Open source</a>
+          <button class="theme-toggle" type="button">Theme</button>
+        </nav>
+      </div>
+
+      <div class="hero-inner">
+        <span class="eyebrow">Open-source economic baseline</span>
+        <h1 class="title">Polari</h1>
+        <p class="thesis">An operating environment for the tools a self-reliant community needs —
+          <span class="em">to research, to decide, to stay connected,</span> and to map the whole thing.</p>
+        <div class="coords mono">
+          <span><b>4</b> projects</span>
+          <span><b>1</b> shared substrate</span>
+          <span><b>GPLv3</b> · all repos public</span>
+          <span><b>no-code</b> · local-first</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section id="about">
+    <div class="wrap">
+      <span class="eyebrow">What Polari is</span>
+      <p class="lede">Polari is the connective substrate for a family of open-source projects. Each is useful on
+        its own — but together they form a working <span class="em">baseline</span>: the knowledge, tooling, and
+        infrastructure a community needs to build things, make decisions in the open, keep its network alive, and
+        sustain itself without depending on closed platforms. This site is the front door — it links out to the
+        full apps and hosts the docs, so the heavier tools stay free for the people doing serious work.</p>
+    </div>
+  </section>
+
+  <section id="projects">
+    <div class="wrap">
+      <div class="sec-head">
+        <div>
+          <span class="eyebrow">The projects</span>
+          <h2>Four modules, one system</h2>
+        </div>
+        <p class="mono" style="font-size:0.75rem; letter-spacing:0.12em; color:var(--ink-45);">SELECT A MODULE →</p>
+      </div>
+
+      <div class="grid">
+        <a class="module" href="#" data-link="prf">
+          <span class="id"><span class="node"></span>PRF</span>
+          <h3>Polari Research Framework</h3>
+          <div class="kicker">No-code research &amp; simulation</div>
+          <p>A multi-node environment where research becomes configurable objects: agroforestry and hydroponics,
+            materials science, multi-scale simulation across FEM, DFT and molecular dynamics, and FPGA and hardware
+            workflows — built without writing code.</p>
+          <span class="go">Open the framework <span class="arrow">→</span></span>
+        </a>
+
+        <a class="module amber" href="#" data-link="dps">
+          <span class="id"><span class="node"></span>DPS</span>
+          <h3>Democratic Political Scorecard</h3>
+          <div class="kicker">Evidence-first political scoring</div>
+          <p>Score policy, legislation, judicial decisions, and groups on the issues you actually care about — with
+            every score traceable back to its sources, and the scoring rules kept in the open rather than behind a
+            curtain.</p>
+          <span class="go">Open the scorecard <span class="arrow">→</span></span>
+        </a>
+
+        <a class="module" href="#" data-link="mesh">
+          <span class="id"><span class="node"></span>MESH</span>
+          <h3>Isle-Mesh</h3>
+          <div class="kicker">Local-first mesh networking</div>
+          <p>Resilient networking that keeps nodes connected and useful without leaning on centralized
+            infrastructure — the fabric the rest of Polari can run across when the wider internet is slow, costly,
+            or gone.</p>
+          <span class="go">Read about the mesh <span class="arrow">→</span></span>
+        </a>
+
+        <a class="module map" href="#" data-link="oseb">
+          <div class="map-copy">
+            <span class="id"><span class="node"></span>OSEB</span>
+            <h3>Open Source Economic Baseline</h3>
+            <div class="kicker">The map that indexes the rest</div>
+            <p>A generalizable tech tree of the knowledge and tools an open economy needs — where each node isn't
+              just a description but a working, runnable module. It's the index the other three projects plug into.</p>
+            <span class="go">Open the baseline <span class="arrow">→</span></span>
+          </div>
+          <svg class="diagram" viewBox="0 0 210 150" aria-hidden="true">
+            <line x1="105" y1="75" x2="40" y2="30" /><line x1="105" y1="75" x2="175" y2="35" />
+            <line x1="105" y1="75" x2="35" y2="120" /><line x1="105" y1="75" x2="170" y2="118" />
+            <line x1="40" y1="30" x2="175" y2="35" /><line x1="35" y1="120" x2="170" y2="118" />
+            <circle class="core" cx="105" cy="75" r="9" />
+            <circle cx="40" cy="30" r="6" /><circle cx="175" cy="35" r="6" />
+            <circle cx="35" cy="120" r="6" /><circle cx="170" cy="118" r="6" />
+            <text x="118" y="72">OSEB</text>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section id="baseline">
+    <div class="wrap">
+      <span class="eyebrow">The through-line</span>
+      <p class="lede">Every part of Polari holds to the same commitments: <span class="em">no-code where it can
+        be</span>, so people who aren't engineers can still build and decide; <span class="em">evidence you can
+        trace</span>, so claims and scores hold up to scrutiny; <span class="em">local-first</span>, so the tools
+        work close to the ground; and <span class="em">open source</span>, end to end, so the baseline belongs to
+        everyone who uses it. <a href="docs.html">Read the docs →</a></p>
+    </div>
+  </section>
+
+  <footer id="open">
+    <div class="wrap">
+      <div class="foot-grid">
+        <div>
+          <div class="brand-foot"><img src="assets/polari-mark.png" alt="" /> Polari</div>
+          <p class="foot-note">Free and <span class="em">open source</span>, GPLv3. Every repository is public —
+            the framework, the scorecard, the mesh, and the baseline that maps them.</p>
+        </div>
+        <div class="foot-links">
+          <div class="col-h">Projects</div>
+          <a href="#" data-link="prf">Polari Research Framework</a>
+          <a href="#" data-link="dps">Democratic Political Scorecard</a>
+          <a href="#" data-link="mesh">Isle-Mesh</a>
+          <a href="#" data-link="oseb">Open Source Economic Baseline</a>
+        </div>
+        <div class="foot-links">
+          <div class="col-h">This site</div>
+          <a href="docs.html">Documentation</a>
+          <a href="#projects">Projects</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
