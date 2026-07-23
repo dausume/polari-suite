@@ -33,8 +33,14 @@ CA_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${DRY_RUN:=false}"
 : "${NON_INTERACTIVE:=false}"
 
-# Renew a cert when it expires within this many seconds (30 days).
-: "${CERT_RENEW_WINDOW_SECONDS:=2592000}"
+# Renew a cert when it expires within this many seconds (10 days = 1/3 of the
+# default 720h/30d leaf lifetime — CERT_NOT_AFTER in issue-internal-certs.sh).
+# MUST stay well below the leaf lifetime: if this window >= the cert's total
+# lifetime, `openssl x509 -checkend` can never pass ("valid in N seconds from
+# now" is false the instant a cert this short-lived is issued), so cert_status
+# would report "expiring" immediately and forever, defeating the whole point
+# of the idempotency check below.
+: "${CERT_RENEW_WINDOW_SECONDS:=864000}"
 
 # ------------------------------------------------------------------------------
 # Environment — REUSE the app's existing per-environment convention; do not

@@ -63,6 +63,18 @@ ROW_ISSUER="$(manifest_rows letsencrypt | awk -F'\t' -v n="$LE_CERT_NAME" '$1==n
     "Manifest row '$LE_CERT_NAME' is not issuer=letsencrypt." \
     "The edge cert must be a letsencrypt row in $MANIFEST_FILE."
 
+# Refuse malformed SANs BEFORE ever calling certbot — e.g. a templated host
+# whose ${VAR} resolved empty ('www.'), or a leftover '${...}'. Let's Encrypt
+# is rate-limited; better to fail loudly here than waste a real attempt on
+# garbage domains. Mirrors issue-internal-certs.sh's identical guard.
+while IFS= read -r _san; do
+    if [[ "$_san" == *'${'* || "$_san" == .* || "$_san" == *. || "$_san" == *..* ]]; then
+        die "Cert '$LE_CERT_NAME' has a malformed SAN: '$_san' (an unresolved/empty hostname variable?)." \
+            "Set the base hostname the way the app defines it, then re-run:" \
+            "  prod: BASE_DOMAIN=<your-domain>   (or .generated/.env.prod with PROD_DOMAIN)"
+    fi
+done < <(_split_sans "$SANS")
+
 CERTBOT_D_ARGS="$(certbot_d_args "$SANS")"
 log_ok "SANs: $(_split_sans "$SANS" | paste -sd', ')"
 echo "  certbot -d args: $CERTBOT_D_ARGS"

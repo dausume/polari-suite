@@ -745,6 +745,26 @@ if [[ -n "$CERT_BACKEND" || "$PUBLIC_EDGE" == "letsencrypt" ]]; then
             echo "-> ca/setup-letsencrypt.sh"
             bash "$CA_SUBSHELL_DIR/setup-letsencrypt.sh" $CA_FLAGS
         fi
+
+        # ---- Integration glue: pol-proxy's Dockerfile COPY-bakes its cert
+        # from $PROXY_CERTS_DIR/pol-proxy.{crt,key} (no runtime mount for
+        # prod). Phase 3's issuers write elsewhere (ca/issued/ for step-ca,
+        # ca/.generated/letsencrypt/live/... for LE) — redirect whichever one
+        # actually produced the public-edge cert into that same host path so
+        # the NEXT image build picks it up. No compose/Dockerfile changes.
+        LE_LIVE_CERT="$CA_SUBSHELL_DIR/.generated/letsencrypt/live/pol-proxy-public/fullchain.pem"
+        LE_LIVE_KEY="$CA_SUBSHELL_DIR/.generated/letsencrypt/live/pol-proxy-public/privkey.pem"
+        STEP_ISSUED_CERT="$CA_SUBSHELL_DIR/issued/pol-proxy-public.crt"
+        STEP_ISSUED_KEY="$CA_SUBSHELL_DIR/issued/pol-proxy-public.key"
+        if [[ -f "$LE_LIVE_CERT" && -f "$LE_LIVE_KEY" ]]; then
+            cp "$LE_LIVE_CERT" "$PROXY_CERTS_DIR/pol-proxy.crt"
+            cp "$LE_LIVE_KEY" "$PROXY_CERTS_DIR/pol-proxy.key"
+            echo "   Public edge cert (Let's Encrypt) -> $PROXY_CERTS_DIR/pol-proxy.crt"
+        elif [[ -f "$STEP_ISSUED_CERT" && -f "$STEP_ISSUED_KEY" ]]; then
+            cp "$STEP_ISSUED_CERT" "$PROXY_CERTS_DIR/pol-proxy.crt"
+            cp "$STEP_ISSUED_KEY" "$PROXY_CERTS_DIR/pol-proxy.key"
+            echo "   Public edge cert (step-ca) -> $PROXY_CERTS_DIR/pol-proxy.crt"
+        fi
     fi
     echo ""
 fi
@@ -784,6 +804,18 @@ if [[ "$ENV_ONLY" != "true" ]]; then
 fi
 
 echo ""
+if [[ -n "$CERT_BACKEND" || "$PUBLIC_EDGE" == "letsencrypt" ]]; then
+    if [[ "$PUBLIC_EDGE" == "letsencrypt" ]]; then
+        echo "Public edge: Let's Encrypt (browser-trusted, zero import for remote users)."
+    fi
+    if [[ "${CERT_BACKEND:-step-ca}" == "step-ca" ]]; then
+        echo "Internal services: step-ca (one root). Trust it on dev/admin machines:"
+        echo "  $CA_SUBSHELL_DIR/root_ca.crt"
+        [[ -x "$CA_SUBSHELL_DIR/walkthrough.sh" || -f "$CA_SUBSHELL_DIR/walkthrough.sh" ]] && \
+            bash "$CA_SUBSHELL_DIR/walkthrough.sh" "$CA_SUBSHELL_DIR/root_ca.crt"
+    fi
+    echo ""
+fi
 echo "Next steps:"
 echo "  1. Review the generated credentials"
 echo "  2. Run: docker compose -f docker-compose.yml -f docker-compose.prod-limits.yml --profile prod up -d --build"

@@ -103,16 +103,21 @@ while IFS=$'\t' read -r name issuer sans; do
     #   online  (prod, multi-node) — talk to the running step-ca daemon (ACME).
     pw_args=()
     [[ -f "$STEP_PASSWORD_FILE" ]] && pw_args=(--password-file "$STEP_PASSWORD_FILE")
+    # --force: this function already decided issue/renew via cert_status above
+    # (that's the confirmation) — without it, `step ca certificate` prompts
+    # "overwrite?" on every re-issue/renew of an existing file, which hangs
+    # with "error allocating terminal" whenever there's no TTY (any scripted
+    # or automated run, --non-interactive or not).
     # shellcheck disable=SC2086  # $san_args must word-split into --san flags
     if [[ "$CA_ISSUANCE_MODE" == "offline" ]]; then
         run step ca certificate "$cn" "$crt" "$key" \
-            --offline --provisioner "$STEP_JWK_NAME" \
+            --offline --provisioner "$STEP_JWK_NAME" --force \
             ${pw_args[@]+"${pw_args[@]}"} \
             --not-after "$CERT_NOT_AFTER" \
             $san_args
     else
         run step ca certificate "$cn" "$crt" "$key" \
-            --provisioner "$STEP_JWK_NAME" \
+            --provisioner "$STEP_JWK_NAME" --force \
             --not-after "$CERT_NOT_AFTER" \
             $san_args
     fi

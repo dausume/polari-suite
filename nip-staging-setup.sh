@@ -84,6 +84,37 @@ if ! [[ $LOCAL_IP =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     exit 1
 fi
 
+# ---------------------------------------------------------------------------
+# Base domain for staging. Defaults to this machine's nip.io wildcard; set
+# POLARI_STAGING_DOMAIN (e.g. polari-staging.test) for a custom local domain.
+# A custom domain has no public DNS, so STEP 6b adds it to /etc/hosts, mapping
+# it (and every subdomain) at this machine.
+# ---------------------------------------------------------------------------
+BASE_DOMAIN="${POLARI_STAGING_DOMAIN:-${LOCAL_IP}.nip.io}"
+if [[ "$BASE_DOMAIN" == *.nip.io ]]; then IS_CUSTOM_DOMAIN=false; else IS_CUSTOM_DOMAIN=true; fi
+if [ "$IS_CUSTOM_DOMAIN" = true ]; then
+    echo -e "  Base domain: ${GREEN}${BASE_DOMAIN}${NC} (custom — local /etc/hosts resolution will be added)"
+else
+    echo -e "  Base domain: ${GREEN}${BASE_DOMAIN}${NC}"
+fi
+
+# ---------------------------------------------------------------------------
+# Cert trust model. self-signed (default): today's plain openssl leaf signed
+# by pol-ca — zero new dependencies, unchanged behavior. step-ca: issue the
+# same leaf from the suite's step-ca (ca/) instead — one unified internal
+# root shared with every other step-ca-issued service, same guided-import
+# walkthrough either way. There is no "web"/Let's Encrypt option here: a
+# .test or nip.io BASE_DOMAIN can never get a publicly-issued cert (no real
+# DNS to validate) — see CERT_MODE=web in prod-setup.sh instead.
+# ---------------------------------------------------------------------------
+CERT_MODE="${CERT_MODE:-self-signed}"
+case "$CERT_MODE" in
+    self-signed|step-ca) ;;
+    *) echo -e "${RED}ERROR: CERT_MODE must be 'self-signed' or 'step-ca' (got '$CERT_MODE').${NC}"
+       exit 1 ;;
+esac
+echo -e "  Cert mode:   ${GREEN}${CERT_MODE}${NC}"
+
 # ==============================================================================
 # STEP 2: Generate nginx configuration
 # ==============================================================================
@@ -100,8 +131,12 @@ if [ ! -f "$TEMPLATE_FILE" ]; then
     exit 1
 fi
 
-# Replace ${LOCAL_IP} placeholder with actual IP
-sed "s/\${LOCAL_IP}/$LOCAL_IP/g" "$TEMPLATE_FILE" > "$OUTPUT_FILE"
+# Render the proxy conf for this base domain. The template carries
+# ${LOCAL_IP}.nip.io host tokens: collapse the whole host to the base domain
+# first (prf.${LOCAL_IP}.nip.io -> prf.$BASE_DOMAIN), then fill any bare
+# ${LOCAL_IP}. For the nip.io default the two passes are equivalent.
+sed -e "s/\${LOCAL_IP}\.nip\.io/$BASE_DOMAIN/g" -e "s/\${LOCAL_IP}/$LOCAL_IP/g" \
+    "$TEMPLATE_FILE" > "$OUTPUT_FILE"
 
 echo -e "  Generated: ${GREEN}$OUTPUT_FILE${NC}"
 
@@ -109,15 +144,34 @@ echo -e "  Generated: ${GREEN}$OUTPUT_FILE${NC}"
 # STEP 3: Generate SSL certificates for nip.io
 # ==============================================================================
 echo ""
-echo -e "${YELLOW}[3/6] Generating SSL certificates for *.${LOCAL_IP}.nip.io...${NC}"
+echo -e "${YELLOW}[3/6] Generating SSL certificates for *.${BASE_DOMAIN}...${NC}"
 
 mkdir -p "$NIP_CERTS_DIR"
 
 CA_CERT="$CERTS_DIR/ca/pol-ca.crt"
 CA_KEY="$CERTS_DIR/ca/pol-ca.key"
 
+if [ "$CERT_MODE" = "step-ca" ]; then
+    echo "  Using step-ca (unified internal CA) — see CENTRALIZED_CA_PLAN.md..."
+    CA_FLAGS=""
+    [ "${POLARI_CA_NON_INTERACTIVE:-}" = "yes" ] && CA_FLAGS="--non-interactive"
+
+    CA_ENV=staging BASE_DOMAIN="$BASE_DOMAIN" bash "$SCRIPT_DIR/ca/setup-step-ca.sh" $CA_FLAGS
+    CA_ENV=staging BASE_DOMAIN="$BASE_DOMAIN" bash "$SCRIPT_DIR/ca/issue-internal-certs.sh" $CA_FLAGS
+
+    ISSUED_CRT="$SCRIPT_DIR/ca/issued/pol-proxy-public.crt"
+    ISSUED_KEY="$SCRIPT_DIR/ca/issued/pol-proxy-public.key"
+    if [ ! -f "$ISSUED_CRT" ] || [ ! -f "$ISSUED_KEY" ]; then
+        echo -e "${RED}ERROR: step-ca did not produce pol-proxy-public.{crt,key} at $SCRIPT_DIR/ca/issued/${NC}"
+        exit 1
+    fi
+    # Redirect the SAME path pol-proxy already mounts — no compose changes.
+    cp "$ISSUED_CRT" "$NIP_CERTS_DIR/server.crt"
+    cp "$ISSUED_KEY" "$NIP_CERTS_DIR/server.key"
+    STEP_CA_ROOT="$SCRIPT_DIR/ca/root_ca.crt"
+    echo -e "  Certificate signed by: ${GREEN}step-ca${NC} (unified root: $STEP_CA_ROOT)"
 # Check if we have the CA
-if [ -f "$CA_CERT" ] && [ -f "$CA_KEY" ]; then
+elif [ -f "$CA_CERT" ] && [ -f "$CA_KEY" ]; then
     echo "  Using existing CA to sign certificate..."
 
     # Generate private key
@@ -138,21 +192,21 @@ ST = State
 L = City
 O = Polari Systems
 OU = Development
-CN = *.${LOCAL_IP}.nip.io
+CN = *.${BASE_DOMAIN}
 
 [req_ext]
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = *.${LOCAL_IP}.nip.io
-DNS.2 = ${LOCAL_IP}.nip.io
-DNS.3 = auth.${LOCAL_IP}.nip.io
-DNS.4 = psc.${LOCAL_IP}.nip.io
-DNS.5 = api.psc.${LOCAL_IP}.nip.io
-DNS.6 = prf.${LOCAL_IP}.nip.io
-DNS.7 = api.prf.${LOCAL_IP}.nip.io
-DNS.8 = files.${LOCAL_IP}.nip.io
-DNS.9 = s3.${LOCAL_IP}.nip.io
+DNS.1 = *.${BASE_DOMAIN}
+DNS.2 = ${BASE_DOMAIN}
+DNS.3 = auth.${BASE_DOMAIN}
+DNS.4 = psc.${BASE_DOMAIN}
+DNS.5 = api.psc.${BASE_DOMAIN}
+DNS.6 = prf.${BASE_DOMAIN}
+DNS.7 = api.prf.${BASE_DOMAIN}
+DNS.8 = files.${BASE_DOMAIN}
+DNS.9 = s3.${BASE_DOMAIN}
 EOF
 
     # Generate CSR
@@ -183,8 +237,8 @@ else
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
         -keyout "$NIP_CERTS_DIR/server.key" \
         -out "$NIP_CERTS_DIR/server.crt" \
-        -subj "/C=US/ST=State/L=City/O=Polari Systems/OU=Dev/CN=*.${LOCAL_IP}.nip.io" \
-        -addext "subjectAltName=DNS:*.${LOCAL_IP}.nip.io,DNS:${LOCAL_IP}.nip.io,DNS:files.${LOCAL_IP}.nip.io,DNS:s3.${LOCAL_IP}.nip.io" \
+        -subj "/C=US/ST=State/L=City/O=Polari Systems/OU=Dev/CN=*.${BASE_DOMAIN}" \
+        -addext "subjectAltName=DNS:*.${BASE_DOMAIN},DNS:${BASE_DOMAIN},DNS:files.${BASE_DOMAIN},DNS:s3.${BASE_DOMAIN}" \
         2>/dev/null
 
     echo -e "  ${YELLOW}Note: Self-signed certificate generated${NC}"
@@ -223,33 +277,35 @@ cat > "$ENV_FILE" << EOF
 # ==============================================================================
 
 LOCAL_IP=${LOCAL_IP}
+# Base staging domain (nip.io wildcard by default, or a custom .test domain)
+BASE_DOMAIN=${BASE_DOMAIN}
 
 # Base domain
-NIP_DOMAIN=${LOCAL_IP}.nip.io
+NIP_DOMAIN=${BASE_DOMAIN}
 
 # Service URLs
-AUTH_URL=https://auth.${LOCAL_IP}.nip.io
-PSC_URL=https://psc.${LOCAL_IP}.nip.io
-PSC_API_URL=https://api.psc.${LOCAL_IP}.nip.io
-PRF_URL=https://prf.${LOCAL_IP}.nip.io
-PRF_API_URL=https://api.prf.${LOCAL_IP}.nip.io
-MINIO_CONSOLE_URL=https://files.${LOCAL_IP}.nip.io
-MINIO_S3_URL=https://s3.${LOCAL_IP}.nip.io
+AUTH_URL=https://auth.${BASE_DOMAIN}
+PSC_URL=https://psc.${BASE_DOMAIN}
+PSC_API_URL=https://api.psc.${BASE_DOMAIN}
+PRF_URL=https://prf.${BASE_DOMAIN}
+PRF_API_URL=https://api.prf.${BASE_DOMAIN}
+MINIO_CONSOLE_URL=https://files.${BASE_DOMAIN}
+MINIO_S3_URL=https://s3.${BASE_DOMAIN}
 
 # CORS Origins (comma-separated)
-CORS_ORIGINS=https://psc.${LOCAL_IP}.nip.io,https://prf.${LOCAL_IP}.nip.io,https://auth.${LOCAL_IP}.nip.io,https://files.${LOCAL_IP}.nip.io
+CORS_ORIGINS=https://psc.${BASE_DOMAIN},https://prf.${BASE_DOMAIN},https://auth.${BASE_DOMAIN},https://files.${BASE_DOMAIN}
 # Spring Boot reads this env var for CORS allowed origins
-APP_CORS_ALLOWED_ORIGINS=https://psc.${LOCAL_IP}.nip.io,https://prf.${LOCAL_IP}.nip.io,https://auth.${LOCAL_IP}.nip.io,https://files.${LOCAL_IP}.nip.io
+APP_CORS_ALLOWED_ORIGINS=https://psc.${BASE_DOMAIN},https://prf.${BASE_DOMAIN},https://auth.${BASE_DOMAIN},https://files.${BASE_DOMAIN}
 
 # Keycloak — shared
-KC_HOSTNAME=auth.${LOCAL_IP}.nip.io
+KC_HOSTNAME=auth.${BASE_DOMAIN}
 
 # Keycloak — PSC realm (issuer URI is the public-facing URL clients see in token claims)
-KEYCLOAK_ISSUER_URI=https://auth.${LOCAL_IP}.nip.io/realms/Political-Scorecard
+KEYCLOAK_ISSUER_URI=https://auth.${BASE_DOMAIN}/realms/Political-Scorecard
 
 # Keycloak — Polari realm
-# Public issuer (matches `iss` claim) — used by the PRF backend to validate JWTs.
-POLARI_KEYCLOAK_ISSUER_URI=https://auth.${LOCAL_IP}.nip.io/realms/Polari
+# Public issuer (matches the 'iss' claim) — used by the PRF backend to validate JWTs.
+POLARI_KEYCLOAK_ISSUER_URI=https://auth.${BASE_DOMAIN}/realms/Polari
 # JWKS endpoint — public-key set the backend pulls to verify token signatures
 # without round-tripping Keycloak on every request. Uses the in-network HTTP
 # URL because the backend container reaches Keycloak via the docker network.
@@ -294,17 +350,17 @@ cat > "$PRF_CONFIG_FILE" << EOF
   "backend": {
     "http": {
       "protocol": "http",
-      "url": "api.prf.${LOCAL_IP}.nip.io",
+      "url": "api.prf.${BASE_DOMAIN}",
       "port": "80"
     },
     "https": {
       "protocol": "https",
-      "url": "api.prf.${LOCAL_IP}.nip.io",
+      "url": "api.prf.${BASE_DOMAIN}",
       "port": "443"
     },
     "ws": {
       "protocol": "ws",
-      "url": "api.prf.${LOCAL_IP}.nip.io",
+      "url": "api.prf.${BASE_DOMAIN}",
       "port": "3001"
     },
     "preferHttps": true
@@ -313,12 +369,12 @@ cat > "$PRF_CONFIG_FILE" << EOF
   "frontend": {
     "http": {
       "protocol": "http",
-      "url": "prf.${LOCAL_IP}.nip.io",
+      "url": "prf.${BASE_DOMAIN}",
       "port": "80"
     },
     "https": {
       "protocol": "https",
-      "url": "prf.${LOCAL_IP}.nip.io",
+      "url": "prf.${BASE_DOMAIN}",
       "port": "443"
     }
   },
@@ -330,14 +386,14 @@ cat > "$PRF_CONFIG_FILE" << EOF
   },
 
   "keycloak": {
-    "authority": "https://auth.${LOCAL_IP}.nip.io/realms/Polari",
+    "authority": "https://auth.${BASE_DOMAIN}/realms/Polari",
     "clientId": "polari-frontend",
     "realm": "Polari",
-    "redirectUri": "https://prf.${LOCAL_IP}.nip.io",
-    "postLogoutRedirectUri": "https://prf.${LOCAL_IP}.nip.io",
+    "redirectUri": "https://prf.${BASE_DOMAIN}",
+    "postLogoutRedirectUri": "https://prf.${BASE_DOMAIN}",
     "responseType": "code",
     "scope": "openid profile email roles",
-    "silentRedirectUri": "https://prf.${LOCAL_IP}.nip.io/silent-refresh.html"
+    "silentRedirectUri": "https://prf.${BASE_DOMAIN}/silent-refresh.html"
   },
 
   "features": {
@@ -357,22 +413,76 @@ cat > "$PSC_CONFIG_FILE" << EOF
   "_generated": "$(date)",
   "_ip": "${LOCAL_IP}",
 
-  "backendUri": "https://api.psc.${LOCAL_IP}.nip.io/",
-  "backendHttpsUri": "https://api.psc.${LOCAL_IP}.nip.io/",
+  "backendUri": "https://api.psc.${BASE_DOMAIN}/",
+  "backendHttpsUri": "https://api.psc.${BASE_DOMAIN}/",
 
   "keycloak": {
-    "authority": "https://auth.${LOCAL_IP}.nip.io/realms/Political-Scorecard",
+    "authority": "https://auth.${BASE_DOMAIN}/realms/Political-Scorecard",
     "clientId": "political-scorecard-frontend",
     "realm": "Political-Scorecard",
-    "redirectUri": "https://psc.${LOCAL_IP}.nip.io",
-    "postLogoutRedirectUri": "https://psc.${LOCAL_IP}.nip.io",
+    "redirectUri": "https://psc.${BASE_DOMAIN}",
+    "postLogoutRedirectUri": "https://psc.${BASE_DOMAIN}",
     "responseType": "code",
     "scope": "openid profile email roles",
-    "silentRedirectUri": "https://psc.${LOCAL_IP}.nip.io/silent-refresh.html"
+    "silentRedirectUri": "https://psc.${BASE_DOMAIN}/silent-refresh.html"
   }
 }
 EOF
 echo -e "  Generated: ${GREEN}$PSC_CONFIG_FILE${NC}"
+
+# pol-hub (informational hub) runtime-config.json — the outbound project links.
+# prf/dps/oseb resolve to real staging URLs; oseb is PRF's tech-tree route.
+# Isle-Mesh has no suite service, so mesh points at the hub's own docs (or an
+# ISLE_MESH_URL override) — always a valid URL for this environment.
+HUB_CONFIG_FILE="$GENERATED_DIR/pol-hub-runtime-config.json"
+HUB_MESH_URL="${ISLE_MESH_URL:-https://${BASE_DOMAIN}/docs.html}"
+cat > "$HUB_CONFIG_FILE" << EOF
+{
+  "_comment": "STAGING: Generated by nip-staging-setup.sh — per-env project URLs for the Polari hub",
+  "_generated": "$(date)",
+  "_ip": "${LOCAL_IP}",
+  "env": "staging",
+  "links": {
+    "prf": "https://prf.${BASE_DOMAIN}",
+    "dps": "https://psc.${BASE_DOMAIN}",
+    "mesh": "${HUB_MESH_URL}",
+    "oseb": "https://prf.${BASE_DOMAIN}/tech-tree"
+  }
+}
+EOF
+echo -e "  Generated: ${GREEN}$HUB_CONFIG_FILE${NC}"
+
+# ==============================================================================
+# STEP 6b: Local DNS resolution (custom domains only)
+# ==============================================================================
+# A custom staging domain does not resolve via public DNS. Point it (and every
+# subdomain the proxy serves) at this machine so `https://<domain>` works here.
+# nip.io domains already resolve via public DNS, so this is skipped for them.
+if [ "$IS_CUSTOM_DOMAIN" = true ]; then
+    echo ""
+    echo -e "${YELLOW}[6b/6] Configuring local resolution: ${BASE_DOMAIN} -> 127.0.0.1...${NC}"
+    HOSTS_FILE="/etc/hosts"
+    MARK_BEGIN="# >>> polari-staging: ${BASE_DOMAIN} >>>"
+    MARK_END="# <<< polari-staging: ${BASE_DOMAIN} <<<"
+    HOST_NAMES="${BASE_DOMAIN} www.${BASE_DOMAIN} auth.${BASE_DOMAIN} psc.${BASE_DOMAIN} api.psc.${BASE_DOMAIN} prf.${BASE_DOMAIN} api.prf.${BASE_DOMAIN} files.${BASE_DOMAIN} s3.${BASE_DOMAIN}"
+
+    HOSTS_BLOCK="$MARK_BEGIN"
+    for h in $HOST_NAMES; do HOSTS_BLOCK="$HOSTS_BLOCK"$'\n'"127.0.0.1   $h"; done
+    HOSTS_BLOCK="$HOSTS_BLOCK"$'\n'"$MARK_END"
+
+    # Idempotent: strip any prior block for this domain, then append the fresh
+    # one, written atomically. sudo may prompt for your password.
+    TMP_HOSTS="$(mktemp)"
+    sed "\|$MARK_BEGIN|,\|$MARK_END|d" "$HOSTS_FILE" > "$TMP_HOSTS" 2>/dev/null || cp "$HOSTS_FILE" "$TMP_HOSTS"
+    printf '%s\n' "$HOSTS_BLOCK" >> "$TMP_HOSTS"
+    if sudo cp "$TMP_HOSTS" "$HOSTS_FILE"; then
+        echo -e "  ${GREEN}Local resolution set for:${NC} $HOST_NAMES"
+    else
+        echo -e "${RED}  Could not write ${HOSTS_FILE}. Add these lines yourself:${NC}"
+        printf '%s\n' "$HOSTS_BLOCK"
+    fi
+    rm -f "$TMP_HOSTS"
+fi
 
 # ==============================================================================
 # STEP 6: Verify MinIO configuration
@@ -406,20 +516,25 @@ echo -e "${GREEN}  Setup Complete!${NC}"
 echo -e "${GREEN}============================================${NC}"
 echo ""
 echo -e "Your staging URLs:"
-echo -e "  ${BLUE}Landing:${NC}        https://${LOCAL_IP}.nip.io"
-echo -e "  ${BLUE}Keycloak:${NC}       https://auth.${LOCAL_IP}.nip.io"
-echo -e "  ${BLUE}PSC Frontend:${NC}   https://psc.${LOCAL_IP}.nip.io"
-echo -e "  ${BLUE}PSC API:${NC}        https://api.psc.${LOCAL_IP}.nip.io"
-echo -e "  ${BLUE}PRF Frontend:${NC}   https://prf.${LOCAL_IP}.nip.io"
-echo -e "  ${BLUE}PRF API:${NC}        https://api.prf.${LOCAL_IP}.nip.io"
-echo -e "  ${BLUE}MinIO Console:${NC}  https://files.${LOCAL_IP}.nip.io"
-echo -e "  ${BLUE}MinIO S3 API:${NC}   https://s3.${LOCAL_IP}.nip.io"
+echo -e "  ${BLUE}Landing:${NC}        https://${BASE_DOMAIN}"
+echo -e "  ${BLUE}Keycloak:${NC}       https://auth.${BASE_DOMAIN}"
+echo -e "  ${BLUE}PSC Frontend:${NC}   https://psc.${BASE_DOMAIN}"
+echo -e "  ${BLUE}PSC API:${NC}        https://api.psc.${BASE_DOMAIN}"
+echo -e "  ${BLUE}PRF Frontend:${NC}   https://prf.${BASE_DOMAIN}"
+echo -e "  ${BLUE}PRF API:${NC}        https://api.prf.${BASE_DOMAIN}"
+echo -e "  ${BLUE}MinIO Console:${NC}  https://files.${BASE_DOMAIN}"
+echo -e "  ${BLUE}MinIO S3 API:${NC}   https://s3.${BASE_DOMAIN}"
 echo ""
 echo -e "To start the environment:"
 echo -e "  ${YELLOW}sudo docker compose -f docker-compose.staging-nip.yml --env-file .generated/.env.staging up -d --build${NC}"
 echo ""
-if [ -f "$CA_CERT" ]; then
+if [ "$CERT_MODE" = "step-ca" ] && [ -f "$SCRIPT_DIR/ca/root_ca.crt" ]; then
+    echo -e "${YELLOW}Trust the CA certificate${NC} (one root covers every step-ca-issued Polari service):"
+    bash "$SCRIPT_DIR/ca/walkthrough.sh" "$SCRIPT_DIR/ca/root_ca.crt"
+elif [ -f "$CA_CERT" ]; then
     echo -e "${YELLOW}TIP:${NC} If you haven't already, trust the CA certificate in your browser:"
     echo -e "  ${BLUE}$CA_CERT${NC}"
+    echo -e "  (or re-run with ${BLUE}CERT_MODE=step-ca${NC} for a guided multi-OS/browser walkthrough"
+    echo -e "   and one unified root shared with every other step-ca-issued service)"
 fi
 echo ""
