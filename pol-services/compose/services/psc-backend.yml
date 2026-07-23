@@ -60,15 +60,15 @@
 #       - MINIO_BUCKET=legislation
 #     extra_hosts:
 #       # Allow container to reach host machine via nip.io domains
-#       # Uses ${LOCAL_IP} from --env-file .generated/.env.{{ gen_env }}
-#       - "${LOCAL_IP}.nip.io:host-gateway"
-#       - "api.prf.${LOCAL_IP}.nip.io:host-gateway"
-#       - "api.psc.${LOCAL_IP}.nip.io:host-gateway"
-#       - "prf.${LOCAL_IP}.nip.io:host-gateway"
-#       - "psc.${LOCAL_IP}.nip.io:host-gateway"
-#       - "auth.${LOCAL_IP}.nip.io:host-gateway"
-#       - "files.${LOCAL_IP}.nip.io:host-gateway"
-#       - "s3.${LOCAL_IP}.nip.io:host-gateway"
+#       # Uses ${BASE_DOMAIN} from --env-file .generated/.env.{{ gen_env }}
+#       - "${BASE_DOMAIN}:host-gateway"
+#       - "api.prf.${BASE_DOMAIN}:host-gateway"
+#       - "api.psc.${BASE_DOMAIN}:host-gateway"
+#       - "prf.${BASE_DOMAIN}:host-gateway"
+#       - "psc.${BASE_DOMAIN}:host-gateway"
+#       - "auth.${BASE_DOMAIN}:host-gateway"
+#       - "files.${BASE_DOMAIN}:host-gateway"
+#       - "s3.${BASE_DOMAIN}:host-gateway"
 #     deploy:
 #       resources:
 #         limits:

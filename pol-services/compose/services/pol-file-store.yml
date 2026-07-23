@@ -43,8 +43,8 @@
 #       - ./pol-file-store/minio.env
 #     environment:
 #       # Tell MinIO its external URLs so presigned URLs and console redirects work
-#       - MINIO_SERVER_URL=https://s3.${LOCAL_IP}.nip.io
-#       - MINIO_BROWSER_REDIRECT_URL=https://files.${LOCAL_IP}.nip.io
+#       - MINIO_SERVER_URL=https://s3.${BASE_DOMAIN}
+#       - MINIO_BROWSER_REDIRECT_URL=https://files.${BASE_DOMAIN}
 #     volumes:
 #       - pol_file_store_data:/data
 #     healthcheck:

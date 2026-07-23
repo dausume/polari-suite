@@ -128,6 +128,7 @@ services:
       - psc-frontend
       - psc-backend
       - prf-frontend
+      - pol-hub
       - prf-backend
 
   # ============================================
@@ -173,15 +174,10 @@ services:
     volumes:
       - ./political-scorecard-node/political-scorecard-frontend:/app
       - /app/node_modules
-    # Run as the HOST user so files written through the source bind mount
-    # (.angular/ cache etc.) stay host-owned instead of root-owned. HOME gives
-    # the mapped user a writable npm/ng home inside the container.
-    user: "${UID:-1000}:${GID:-1000}"
     env_file:
       - ./political-scorecard-node/political-scorecard-frontend/.env
     environment:
       - PRF_FRONTEND_URL=https://localhost:2087
-      - HOME=/tmp/npmhome
     command: npm run start
     depends_on:
       - psc-backend
@@ -203,16 +199,11 @@ services:
       # Resolved from suite-root .env (written by setup-polari-security.sh
       # from pol-mariadb/mariadb.env); default matches legacy dev volumes.
       - SPRING_DATASOURCE_PASSWORD=${PSC_DB_PASSWORD:-pscpassword}
-      - HOME=/tmp/mvnhome   # writable Maven home for the non-root mapped user
     env_file:
       - ./pol-keycloak/keycloak-admin.env
     volumes:
       - ./political-scorecard-node/political-scorecard-backend:/app
-    # Run as the HOST user so Maven's target/ lands host-owned through the
-    # bind mount — as root it left root-owned target/ that broke host-native
-    # builds with "Permission denied".
-    user: "${UID:-1000}:${GID:-1000}"
-    command: ./startup_shell/dev_startup_shell.sh
+    command: ./startup_shell/startup_shell.sh
     depends_on:
       pol-mariadb:
         condition: service_healthy
@@ -254,6 +245,9 @@ services:
       - MODULE_MATERIALS_SCIENCE_ENABLED=false
       - OBJECT_STORAGE_ENABLED=true
       - MINIO_ENDPOINT=pol-file-store:9000  # Internal Docker network address
+      # Browser-reachable base URL for video-1 playback links (dev exposes
+      # MinIO directly on the host — see pol-file-store dev ports).
+      - MINIO_PUBLIC_URL=http://localhost:9000
       - WEBSOCKET_ENABLED=true
       - WEBSOCKET_PORT=3001
     ports:
@@ -264,6 +258,17 @@ services:
     depends_on:
       pol-file-store:
         condition: service_healthy
+#
+  # ============================================
+  # POLARI WWW — informational hub (static, low-load front door)
+  # ============================================
+  pol-hub:
+    build:
+      context: ./pol-hub
+    container_name: pol-hub
+    image: pol-hub:latest
+    networks:
+      - polari-network
 
 # ============================================
 # VOLUMES

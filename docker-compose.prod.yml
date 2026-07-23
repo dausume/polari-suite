@@ -128,8 +128,9 @@ services:
         reservations:
           memory: 64M
           cpus: '0.05'
-    # Keep the image's conf (ACL users the backend authenticates with) and cap
-    # memory on top. keydb-server, not redis-server — the image is KeyDB.
+    # KeyDB (eqalpha/keydb) ships keydb-server, NOT redis-server — and the
+    # conf carries the ACL users the Spring backend authenticates with, so it
+    # must be loaded. Keep the Dockerfile's config + add the memory caps.
     command: keydb-server /etc/keydb/keydb.conf --maxmemory 96mb --maxmemory-policy allkeys-lru
 
   # ============================================
@@ -320,14 +321,22 @@ services:
       # MinIO object storage
       - OBJECT_STORAGE_ENABLED=true
       - MINIO_ENDPOINT=pol-file-store:9000
+      # Browser-reachable base URL for video-1 playback links — reuses
+      # the generated MINIO_S3_URL (https://s3.<domain>) from the env-file.
+      - MINIO_PUBLIC_URL=${MINIO_S3_URL}
       # WebSocket (STOMP) notifications
       - WEBSOCKET_ENABLED=true
       - WEBSOCKET_PORT=3001
+    volumes:
+      # Persist the framework object DB (SQLite at /app/data) across recreates
+      # — without this, all module/user data lives in the container layer and
+      # is wiped on every down/recreate. Mirrors the dev prf_backend_data mount.
+      - prf_backend_data:/app/data
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/', timeout=5)"]
       interval: 10s
       timeout: 10s
-      start_period: 45s
+      start_period: 900s   # cold first-boot DB seed is ~10-15 min (verbose per-instance logging); keep container in "starting" so a one-pass `up` waits it out
       retries: 5
     deploy:
       resources:
@@ -340,6 +349,28 @@ services:
     depends_on:
       pol-file-store:
         condition: service_healthy
+#
+  # ============================================
+  # POLARI WWW — informational hub (static, low-load front door)
+  # ============================================
+  pol-hub:
+    build:
+      context: ./pol-hub
+    container_name: pol-hub
+    image: pol-hub:prod
+    networks:
+      - polari-network
+    volumes:
+      # Per-env project URLs (prf / dps / mesh / oseb), read by the site JS.
+      - ./.generated/pol-hub-runtime-config.prod.json:/usr/share/nginx/html/assets/runtime-config.json:ro
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: '0.1'
+        reservations:
+          memory: 16M
+          cpus: '0.02'
 
 # ============================================
 # VOLUMES
@@ -348,7 +379,9 @@ volumes:
   pol_mariadb_data:
   pol_file_store_data:
   psc_redis_data:
-
+  # PRF framework object DB (SQLite at /app/data) — persist across recreates.
+  prf_backend_data:
+#
 # ============================================
 # NETWORKS
 # ============================================

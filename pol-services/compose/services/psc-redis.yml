@@ -33,6 +33,9 @@
 #         reservations:
 #           memory: 64M
 #           cpus: '0.05'
-#     command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru
+#     # KeyDB (eqalpha/keydb) ships keydb-server, NOT redis-server — and the
+#     # conf carries the ACL users the Spring backend authenticates with, so it
+#     # must be loaded. Keep the Dockerfile's config + add the memory caps.
+#     command: keydb-server /etc/keydb/keydb.conf --maxmemory 96mb --maxmemory-policy allkeys-lru
 # {% endif %}
 # jinja-end

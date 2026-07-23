@@ -64,7 +64,6 @@ services:
       --innodb-buffer-pool-size=128M
       --innodb-log-file-size=32M
       --max-connections=50
-      --table-definition-cache=2000
       --query-cache-size=0
       --tmp-table-size=16M
       --max-heap-table-size=16M
@@ -83,8 +82,8 @@ services:
       - ./pol-file-store/minio.env
     environment:
       # Tell MinIO its external URLs so presigned URLs and console redirects work
-      - MINIO_SERVER_URL=https://s3.${LOCAL_IP}.nip.io
-      - MINIO_BROWSER_REDIRECT_URL=https://files.${LOCAL_IP}.nip.io
+      - MINIO_SERVER_URL=https://s3.${BASE_DOMAIN}
+      - MINIO_BROWSER_REDIRECT_URL=https://files.${BASE_DOMAIN}
     volumes:
       - pol_file_store_data:/data
     healthcheck:
@@ -118,8 +117,9 @@ services:
         reservations:
           memory: 64M
           cpus: '0.05'
-    # Keep the image's conf (ACL users the backend authenticates with) and cap
-    # memory on top. keydb-server, not redis-server — the image is KeyDB.
+    # KeyDB (eqalpha/keydb) ships keydb-server, NOT redis-server — and the
+    # conf carries the ACL users the Spring backend authenticates with, so it
+    # must be loaded. Keep the Dockerfile's config + add the memory caps.
     command: keydb-server /etc/keydb/keydb.conf --maxmemory 96mb --maxmemory-policy allkeys-lru
 
   # ============================================
@@ -253,20 +253,17 @@ services:
       # MinIO connection (internal Docker network)
       - MINIO_ENDPOINT=http://pol-file-store:9000
       - MINIO_BUCKET=legislation
-      # Polari scoring backend — server-to-server sync target for
-      # PolariVoteTopic (2026-07-14 ballot-hosting architecture move).
-      - POLARI_API_URL=http://prf-backend:3000
     extra_hosts:
       # Allow container to reach host machine via nip.io domains
-      # Uses ${LOCAL_IP} from --env-file .generated/.env.staging
-      - "${LOCAL_IP}.nip.io:host-gateway"
-      - "api.prf.${LOCAL_IP}.nip.io:host-gateway"
-      - "api.psc.${LOCAL_IP}.nip.io:host-gateway"
-      - "prf.${LOCAL_IP}.nip.io:host-gateway"
-      - "psc.${LOCAL_IP}.nip.io:host-gateway"
-      - "auth.${LOCAL_IP}.nip.io:host-gateway"
-      - "files.${LOCAL_IP}.nip.io:host-gateway"
-      - "s3.${LOCAL_IP}.nip.io:host-gateway"
+      # Uses ${BASE_DOMAIN} from --env-file .generated/.env.staging
+      - "${BASE_DOMAIN}:host-gateway"
+      - "api.prf.${BASE_DOMAIN}:host-gateway"
+      - "api.psc.${BASE_DOMAIN}:host-gateway"
+      - "prf.${BASE_DOMAIN}:host-gateway"
+      - "psc.${BASE_DOMAIN}:host-gateway"
+      - "auth.${BASE_DOMAIN}:host-gateway"
+      - "files.${BASE_DOMAIN}:host-gateway"
+      - "s3.${BASE_DOMAIN}:host-gateway"
     deploy:
       resources:
         limits:
@@ -324,94 +321,70 @@ services:
       # CORS_ORIGINS and PRF_API_URL will come from .env.staging file
       # INTERNAL_API_URL: For API profiler self-call rewriting (avoids hairpin NAT)
       - INTERNAL_API_URL=http://localhost:3000
-      # Object DB on the shared MariaDB + KeyDB table cache (the
-      # dbcombo path, proven on twin-B) — the sqlite exit. Drop
-      # DATABASE_TYPE to fall back to sqlite in the volume below.
-      - DATABASE_TYPE=mariadb
-      # Shared-DB mode: polari_objects holds MANY instances' rows
-      # (_instance_id discriminator + composite PKs — schema migrated
-      # 2026-07-09 via polariDBmanagement.migrate_shared_db).
-      - POLARI_SHARED_OBJECT_DB=1
-      - POLARI_INSTANCE_ID=a
-      - MARIADB_HOST=pol-mariadb
-      - MARIADB_PORT=3306
-      - MARIADB_USER=polari
-      - MARIADB_PASSWORD=${POLARI_OBJECTS_DB_PASS:-polaripassword}
-      - MARIADB_DATABASE=polari_objects
-      - CACHE_BACKEND=keydb
-      - KEYDB_HOST=prf-keydb
-      - KEYDB_PORT=6379
-      - KEYDB_PASSWORD=${POLARI_KEYDB_PASS:-polari-keydb-password}
       # MinIO object storage
       - OBJECT_STORAGE_ENABLED=true
       - MINIO_ENDPOINT=pol-file-store:9000
-      # CAD import/export worker (shape-3): swarm service prf-cad-engines
-      # on a worker device, reached via the swarm routing mesh on the host.
-      - CAD_ENGINES_URL=http://192.168.0.210:9600
+      # Browser-reachable base URL for video-1 playback links — reuses
+      # the generated MINIO_S3_URL (https://s3.<domain>) from the env-file.
+      - MINIO_PUBLIC_URL=${MINIO_S3_URL}
       # WebSocket (STOMP) notifications
       - WEBSOCKET_ENABLED=true
       - WEBSOCKET_PORT=3001
-      # gRPC object-sync sidecar (grpc-2) — serves only classes with
-      # an enabled+current GrpcExposure row (the per-class knob).
-      - GRPC_ENABLED=true
-      - GRPC_PORT=3002
-    ports:
-      # gRPC published to the host so hardware bridges (grpc-j2: the
-      # Polari Hardware Bridge Java app) can connect from outside the
-      # compose network. REST/STOMP stay proxy-fronted as before.
-      - "3002:3002"
+    volumes:
+      # Persist the framework object DB (SQLite at /app/data) across recreates
+      # — without this, all module/user data lives in the container layer and
+      # is wiped on every down/recreate. Mirrors the dev prf_backend_data mount.
+      - prf_backend_data:/app/data
     extra_hosts:
       # Allow container to reach host machine via nip.io domains
-      # Uses ${LOCAL_IP} from --env-file .generated/.env.staging
-      - "${LOCAL_IP}.nip.io:host-gateway"
-      - "api.prf.${LOCAL_IP}.nip.io:host-gateway"
-      - "api.psc.${LOCAL_IP}.nip.io:host-gateway"
-      - "prf.${LOCAL_IP}.nip.io:host-gateway"
-      - "psc.${LOCAL_IP}.nip.io:host-gateway"
-      - "auth.${LOCAL_IP}.nip.io:host-gateway"
-      - "files.${LOCAL_IP}.nip.io:host-gateway"
-      - "s3.${LOCAL_IP}.nip.io:host-gateway"
-    volumes:
-      # Persistent app state (sqlite DB when DATABASE_TYPE is unset,
-      # file caches either way) — the backend is no longer stateless.
-      - prf_backend_data:/app/data
+      # Uses ${BASE_DOMAIN} from --env-file .generated/.env.staging
+      - "${BASE_DOMAIN}:host-gateway"
+      - "api.prf.${BASE_DOMAIN}:host-gateway"
+      - "api.psc.${BASE_DOMAIN}:host-gateway"
+      - "prf.${BASE_DOMAIN}:host-gateway"
+      - "psc.${BASE_DOMAIN}:host-gateway"
+      - "auth.${BASE_DOMAIN}:host-gateway"
+      - "files.${BASE_DOMAIN}:host-gateway"
+      - "s3.${BASE_DOMAIN}:host-gateway"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/', timeout=5)"]
       interval: 10s
       timeout: 10s
-      start_period: 45s
+      start_period: 900s   # cold first-boot DB seed is ~10-15 min (verbose per-instance logging); keep container in "starting" so a one-pass `up` waits it out
       retries: 5
     deploy:
       resources:
         limits:
-          # Raised 384M -> 1024M (2026-07-10): in-backend pyscf DFT
-          # fragments (acene ladder, ~30 atoms) need the headroom; a
-          # cgroup OOM kill would down the API mid-request.
-          memory: 1024M
-          cpus: '0.8'
+          memory: 384M
+          cpus: '0.4'
         reservations:
-          memory: 256M
+          memory: 128M
           cpus: '0.1'
     depends_on:
       pol-file-store:
         condition: service_healthy
-      pol-mariadb:
-        condition: service_healthy
-      prf-keydb:
-        condition: service_started
-
-  # KeyDB table cache for prf-backend (dbcombo path; mirrors the
-  # twin-B prf-b-keydb config).
-  prf-keydb:
-    image: eqalpha/keydb:latest
-    container_name: prf-keydb
-    command: ["keydb-server", "--appendonly", "no",
-              "--requirepass", "${POLARI_KEYDB_PASS:-polari-keydb-password}",
-              "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
-    restart: unless-stopped
+#
+  # ============================================
+  # POLARI WWW — informational hub (static, low-load front door)
+  # ============================================
+  pol-hub:
+    build:
+      context: ./pol-hub
+    container_name: pol-hub
+    image: pol-hub:staging
     networks:
       - polari-network
-    mem_limit: 160m
+    volumes:
+      # Per-env project URLs (prf / dps / mesh / oseb), read by the site JS.
+      - ./.generated/pol-hub-runtime-config.json:/usr/share/nginx/html/assets/runtime-config.json:ro
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: '0.1'
+        reservations:
+          memory: 16M
+          cpus: '0.02'
 
 # ============================================
 # VOLUMES
@@ -420,8 +393,9 @@ volumes:
   pol_mariadb_data:
   pol_file_store_data:
   psc_redis_data:
+  # PRF framework object DB (SQLite at /app/data) — persist across recreates.
   prf_backend_data:
-
+#
 # ============================================
 # NETWORKS
 # ============================================

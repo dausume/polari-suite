@@ -30,6 +30,7 @@
 #       - psc-frontend
 #       - psc-backend
 #       - prf-frontend
+#       - pol-hub
 #       - prf-backend
 # {% elif env_name == 'staging' %}
 # 
