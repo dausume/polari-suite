@@ -92,3 +92,25 @@ CLAUDE.local.md
 # Generated mirror trees (pol build render --project suite)
 jinja-build/
 jinja-templates/
+
+# ==============================================================================
+# LOCAL / PRIVATE RUNTIME STATE — keep private
+# ==============================================================================
+# MCP adapter local config, tokens, logs, and any local memory/scratch dumps.
+# (.env, .claude/, and *.log are already ignored above; these are extra guards
+#  so private/local information never gets tracked.)
+polari-mcp/.env
+polari-mcp/*.local.json
+polari-mcp/logs/
+**/*.secrets.json
+**/*.memory.local
+**/memory.local/
+mcp-local-*.json
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# WireGuard remote-access artifacts (private keys) — keep private
+.remote-wg/
+**/.remote-wg/

@@ -1,0 +1,106 @@
+{
+  "spec": "polari-mcp-ai-conventions",
+  "version": "1.0.0",
+  "status": "committed-standard (NOT git-ignored)",
+  "purpose": "The single standard approach EVERY AI — Claude or any other provider — must follow when using the Polari MCP server to inspect and manipulate no-code logic, displays, connectors, topology, and application navigation. Written in JSON so it is both machine-consumable by the AI and human-analyzable: a person can read this file, and the provenance log, to see exactly how an AI is changing Polari's interfaces.",
+  "why_json": "All interface manipulation flows through typed JSON proposals and a JSON-lines audit log. A reviewer never has to guess what the AI did: every proposed and executed change is a JSON object naming the operation, the authority level, the exact request sent to Polari, and the outcome.",
+
+  "principles": [
+    "The AI proposes; a deterministic kernel disposes. The model emits a typed proposal; the server's authority kernel classifies and gates it. The model cannot raise its own authority.",
+    "No side effect without confirmation. Every mutation is two-step: a propose_* tool returns a dry-run proposal, and nothing changes until polari_execute_proposal(proposal_id, confirm=true).",
+    "Incremental over wholesale. Change displays and no-code one reviewable patch at a time, not by replacing whole definitions.",
+    "Read before you write. Inspect the current state of a display / solution / simulation before proposing a change to it, and reference the real ids you read.",
+    "Everything is auditable. Every proposal and execution is appended to logs/provenance.jsonl as one JSON object per line.",
+    "Target by id, never by ambiguous query. Attribute queries can resolve to many instances; mutations address a single id."
+  ],
+
+  "authority_ladder": {
+    "0": "observation (read-only)",
+    "1": "advice (text only)",
+    "2": "reversible-workspace (create scratch instance, step a simulation)",
+    "3": "reversible-system (update config, wire a display, add a connector)",
+    "4": "network / public-service (out-of-band approval required)",
+    "5": "physical-system (never auto)",
+    "6": "financial / legal / governance (never auto)",
+    "7": "irreversible (delete, destructive migration — out-of-band approval required)"
+  },
+  "auto_execute_threshold": "Levels <= POLARI_AUTO_MAX_LEVEL (default 3) execute once confirm=true is passed. Higher levels are refused unless an out-of-band grant (POLARI_ALLOW_HIGH_AUTHORITY) is active. The AI can never self-approve above the threshold.",
+
+  "mutation_protocol": {
+    "steps": ["inspect", "propose", "review", "confirm", "execute", "observe"],
+    "propose_returns": {
+      "proposal_id": "opaque id to confirm against",
+      "operation": "read|create|update|delete|event|sim_step|connect|display_update|bind_event",
+      "authority_level": "integer 0-7",
+      "authority_label": "human label for the level",
+      "summary": "one line a human can read to understand the intent",
+      "request": "the exact payload that will be sent to Polari (fully human-analyzable)",
+      "gate": "{executable, reason}",
+      "dry_run": true
+    },
+    "execute": "polari_execute_proposal(proposal_id, confirm=true) — applies the proposal iff the gate allows it; records the outcome to provenance."
+  },
+
+  "interfaces": {
+    "topology_awareness": {
+      "intent": "Know the modules, nodes, connections, and shape of the running Polari instance before acting.",
+      "read_tools": ["polari_topology", "polari_list_modules", "polari_service_connections", "polari_instance_counts", "polari_list_object_types"]
+    },
+    "nocode_playthrough": {
+      "intent": "Detect the no-code context and play a scenario through it, analyzing the state at each step.",
+      "read_tools": ["polari_list_solutions", "polari_list_simulations", "polari_sim_runs", "polari_sim_state"],
+      "mutate_tools": ["polari_propose_sim_step"],
+      "pattern": "list runs -> read current-state -> propose a step -> confirm -> read current-state again -> compare. The state before/after each step is the play-through record."
+    },
+    "connectors": {
+      "intent": "Wire connectors between no-code / service elements.",
+      "mutate_tools": ["polari_propose_connector"],
+      "note": "Creates a ServiceConnection (or coupling) linking two elements; reversible-system (level 3)."
+    },
+    "displays": {
+      "intent": "Make displays functional and reactive: inspect them, patch them incrementally, and bind events so they react to state.",
+      "read_tools": ["polari_list_displays", "polari_get_display"],
+      "mutate_tools": ["polari_propose_display_update", "polari_propose_bind_event"],
+      "pattern": "get_display(id) -> propose_display_update(id, patch) with only the fields that change -> confirm. To make a display react to state, propose_bind_event(id, event_spec) wiring a data/equation source or event to the display config."
+    },
+    "navigation": {
+      "intent": "Assist a human moving through the application by reporting what exists and where, using ids and class names the UI understands.",
+      "read_tools": ["polari_list_object_types", "polari_instance_counts", "polari_read_class"],
+      "note": "Navigation is read/advice (level 0-1): report locations and ids; never mutate to 'navigate'."
+    },
+    "political_scorecard": {
+      "intent": "Help a person understand and navigate the scorecard: scoring structure and contexts, policies, judicial/decision context, groups and their authority, data sources, and geographic/map context — then score the issues they care about and refine data against policy.",
+      "read_tools": ["polari_psc_overview", "polari_psc_scoring", "polari_psc_policies", "polari_psc_judicial", "polari_psc_groups", "polari_psc_sources", "polari_psc_maps", "polari_psc_search"],
+      "mutate_tools": ["polari_propose_score_assertion", "polari_propose_pull_and_assert"],
+      "pattern": "overview -> search for the issue -> read the relevant scoring/policy/source -> propose a score assertion or a pull-and-assert-against-policy -> confirm. Start with polari_psc_overview to orient; use polari_psc_search to jump to an issue the user cares about."
+    },
+    "object_storage": {
+      "intent": "Access files in object storage (MinIO) and the managed-file layer.",
+      "read_tools": ["polari_storage_status", "polari_storage_buckets", "polari_list_files"],
+      "mutate_tools": ["polari_propose_storage_connect"],
+      "note": "Connecting storage is level 4 (network-service) — the AI cannot self-approve it; credentials come from a human."
+    },
+    "reasoning_providers": {
+      "intent": "Automate selecting and validating the reasoning provider (null / anthropic / openai / any OpenAI-compatible local or hosted endpoint). Detection reports what each provider needs to be ready.",
+      "read_tools": ["polari_reasoning_providers", "polari_reasoning_validate"],
+      "mutate_tools": ["polari_propose_select_provider"],
+      "note": "The AI may read status, propose a selection (level 3), and validate — but MUST NOT set credentials. Secrets are entered by a human directly through the backend (/ai/providers set_auth) so they never enter an AI tool call or the provenance log. Secrets are stored git-ignored (chmod 600) and never returned by any read."
+    }
+  },
+
+  "audit": {
+    "provenance_log": "logs/provenance.jsonl",
+    "format": "one JSON object per line: {phase, proposal_id, operation, authority_level, summary, request, result|error, clock}",
+    "human_use": "Read this file to review, in order, every interface change an AI proposed and applied."
+  },
+
+  "output_contract": {
+    "envelope": {
+      "ok": "boolean success",
+      "status": "HTTP status from Polari (or null on connection failure)",
+      "url": "the endpoint hit",
+      "data": "the Polari response body"
+    },
+    "note": "All tool results are JSON envelopes; mutating tools add operation, authority_level, and proposal_id so a human can trace intent -> gate -> outcome."
+  }
+}
