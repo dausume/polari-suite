@@ -1,9 +1,8 @@
 # ⚡⚡⚡ HANDOFF — 2026-07-26 (READ THIS SECTION FIRST; supersedes below)
 
-**✅ REVIEW PASSED (Dustin, 2026-07-26).** Everything below is
-approved. Still UNCOMMITTED on disk — committing is the FIRST action
-next session (see Commit note). Prepared for a context clear: this
-section + the plan files + the memory entries are the full pick-up.
+**✅ REVIEW PASSED (Dustin) + ✅ ALL COMMITTED (later same day) +
+✅ mtt-2 SOL-GEL BUILT.** Prepared for a context clear: this section
++ the plan files + the memory entries are the full pick-up.
 
 The live target is a SWARM-based msci-focused instance, NOT the
 compose suite. Full state in memory: [[swarm-msci-instance]],
@@ -13,13 +12,44 @@ MATERIALS_TECH_TREE_PLAN.md, MTT2_SOLGEL_SINTERING_PLAN.md,
 GEOPOLYMER_STRUCTURE_SAMPLING_PLAN.md, FRONTEND_THEMING_PLAN.md,
 MODULE_LAZY_BOOT_PLAN.md.
 
-## FIRST ACTION next session: commit the approved work
-Review is done — the only reason it's uncommitted is the clear. Do
-branch-per-phase off the ssp/pspp stack, innermost-first
-(framework/angular submodules → then superproject pointer), across the
-8 repos. Suggested branches: theming, gsp (1..5+2b), materials-tree
-(mtt-1+smt-1). Do NOT push until Dustin says; commit locally so the
-work is safe and organized. Then start mtt-2.
+## ✅ COMMITS DONE 2026-07-26 (branch-per-phase, innermost-first, NOT pushed)
+- framework (off dev-ssp-3-symmetry-xrd): `dev-gsp-structure` →
+  `dev-mtt-1-materials-tree` → `dev-mtt2-solgel` (stack top).
+- angular (off dev-ssp-2-lattice-view): `dev-sty-2-theming` →
+  `dev-gsp-structure-ui` (stack top).
+- rf-node: `dev-swarm-msci-deploy` (swarm nginx/grace fixes + both
+  submodule pointer bumps). suite: `dev-swarm-msci-deploy`
+  (stackify swarm-schema fix + session plans + rf-node pointer).
+- Do NOT push — Dustin's manual step, repos are PUBLIC.
+
+## ✅ mtt-2 Part A SOL-GEL BUILT (framework `dev-mtt2-solgel`, 6e9c188)
+sg-1..5 per MTT2_SOLGEL_SINTERING_PLAN.md — a pure DATA library
+(CMC-seed precedent), ZERO schema changes (condition gates already
+key on arbitrary descriptors; the pH gate is just window rows):
+- solgel_network.py: alkoxide species (generic Si(OR)4 + TEOS/TMOS;
+  Al/Ti/Zr honest species-only), hydrolysis + water/alcohol
+  condensation + growth rules on the SHARED siloxonate-q0..q4 ledger;
+  pH catalysis-fork gates (acid→polymeric/spinnable,
+  base→colloidal/dense; coarse neutral boundary, noted) + R gate +
+  spinnability quality window; solgel_inventory (stoichiometry).
+- solgel_process.py: sol→gel-point→aging→xerogel/aerogel FORK→
+  densified-glass stages; 3 POINTS-EMPTY provisional Brinker datasets
+  (gel-time-vs-pH, NMR Qn-vs-time, shrinkage-vs-T) that REFUSE until
+  photographed — the refusal names the data ask.
+- solgel_structure.py: stepped Q-groups under {pH,R} gates (shared
+  new helper structure_groups.inventory_q_fractions); acid/base route
+  demos through the gsp sampler/halo — acid Q4 0.0 vs base 0.5,
+  polymeric XOR colloidal reachability, halo present both.
+- API: GET /api/pspp/solgel/routes (+?route=acid|base), POST
+  /api/pspp/solgel/stepped. polariServer seeds concatenate SOLGEL_*
+  (guarded imports + stubs; drift guard 15/15).
+- 58 new checks (24+15+19) green host AND in-container; full pspp
+  sweep green; fixed pre-existing selftest_pspp_views red (rule count
+  pinned 17 → tracks seed list). techtree sol-gel node SHELL→BUILT
+  (⚠ changed seed row: live volumes keep the old text until row
+  deletion + restart — cosmetic).
+- Backend rebuilt + swarm service updated same day (cold seed ~10-15
+  min; verify GET /api/pspp/solgel/routes?sample=false answers).
 
 ## The running system (verify first: `docker service ls`)
 - Swarm stacks: `polari-node` (all services pinned staging-a) +
@@ -67,11 +97,15 @@ work is safe and organized. Then start mtt-2.
    techtree selftest 52/52.
 
 ## NEXT (Dustin's stated order)
-- **mtt-2**: MTT2_SOLGEL_SINTERING_PLAN.md — SOL-GEL first (cheap,
-  pspp reuse, one new pH gate), THEN CERAMIC SINTERING engine (new;
-  start from the analytic Master Sintering Curve). The plan is the
-  "what to reference/know in advance" brief for both. Then remaining
-  mtt-2 cores (glass windows, CNT builder, silicon grades).
+- **mtt-2 Part B**: CERAMIC SINTERING engine (the genuinely-new one) —
+  MTT2_SOLGEL_SINTERING_PLAN.md Part B: start from the analytic
+  Master Sintering Curve (sinter-1), then mean-field grain growth,
+  then write grain/pore/rho descriptors onto L2 rows. The sol-gel
+  shrinkage-vs-T dataset row is also its calibration seam. Then
+  remaining mtt-2 cores (glass windows, CNT builder, silicon grades).
+- Sol-gel data asks (each unlocks a refusal): photograph
+  gel-time-vs-pH, 29Si NMR Qn-vs-time (one acid + one base run),
+  xerogel shrinkage-vs-T; digitize + status=ready.
 - then variant layers: carbon-negative (geopolymer) → magnetic/
   conductive → thermal → structural → nanocomposite semiconductors.
 - Open decisions for Dustin: sub-domain labels (statistical/discrete
@@ -79,9 +113,8 @@ work is safe and organized. Then start mtt-2.
   mlb lazy-boot (MODULE_LAZY_BOOT_PLAN.md) gets built.
 
 ## Commit note
-Review PASSED — commit locally (branch-per-phase, innermost-first
-across the 8 repos) as the first action next session; do NOT push
-until Dustin says. See "FIRST ACTION" at top.
+✅ DONE — see "COMMITS DONE" at top. Nothing is pushed; pushing is
+Dustin's manual step (repos are PUBLIC).
 
 ---
 
