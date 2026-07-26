@@ -48,6 +48,11 @@ for svc in (doc.get("services") or {}).values():
     if mem is not None:
         limits = svc.setdefault("deploy", {}).setdefault("resources", {}).setdefault("limits", {})
         limits.setdefault("memory", str(mem))
+    # compose config emits cpus as floats; the stack schema requires strings.
+    for section in ("limits", "reservations"):
+        res = svc.get("deploy", {}).get("resources", {}).get(section)
+        if res and "cpus" in res and not isinstance(res["cpus"], str):
+            res["cpus"] = str(res["cpus"])
     dep = svc.get("depends_on")
     if isinstance(dep, dict):
         svc["depends_on"] = sorted(dep.keys())
@@ -63,5 +68,10 @@ for net in (doc.get("networks") or {}).values():
     if isinstance(net, dict) and net.pop("external", False):
         net["driver"] = "overlay"
         net.pop("name", None)
+    elif isinstance(net, dict):
+        # swarm services can only attach to swarm-scoped networks;
+        # compose bundles declare plain bridge networks — promote them.
+        if net.get("driver") in (None, "bridge"):
+            net["driver"] = "overlay"
 
 yaml.safe_dump(doc, sys.stdout, sort_keys=False, default_flow_style=False)
