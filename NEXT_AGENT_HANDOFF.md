@@ -123,16 +123,35 @@ precursor/route, never a gate that hides one.
 5. smt-1: new `simulation-methods` tech tree, 9 method nodes. Live.
    techtree selftest 52/52.
 
+## ✅ mtt-2 tech-tree DATA GAPS + Part B SINTERING ENGINE BUILT (dev-mtt2-solgel, 8ddf80e + 4f49cdc)
+- GAPS ACCOUNTING (Dustin: account for the gaps in the tech tree):
+  structural (theory) completion vs DATA completeness are now SEPARATE
+  axes. Every sol-gel/community data ask is a first-class provisional
+  DigitizedDataset; TechNode.data_dependencies_json + techtree_analysis
+  .node_data_gaps DERIVE a warn gap for any referenced dataset that is
+  missing/provisional/points-empty (carries the dataset's DATA ASK;
+  digitize -> gap auto-clears; does NOT move completionLevel). sol-gel
+  node declares 6 datasets, ceramics node 2. techtree 59 checks.
+- SINTERING ENGINE (the genuinely-new Part B one): pspp/sintering_
+  engine.py analytic Master Sintering Curve. Θ = ∫(1/T)exp(−Q/RT)dt
+  (holds exact, ramps Simpson; isothermal closed form self-check);
+  relative_density Θ->ρ via a master-curve DigitizedDataset (returns Θ,
+  REFUSES ρ without a ready curve / in-range Θ); grain_size mean-field
+  d^n law. HONEST SPLIT: Θ pure math, ρ(Θ)+kinetics are calibration
+  data that refuse — no invented Q/curve/kinetics. sintering_structure
+  .py plan-first L2 rows (grain-domain+pore-network) feeding the gsp-4
+  seam. API POST /api/pspp/sinter/fire + GET /sinter/master-curves. 35
+  new checks.
+
 ## NEXT (Dustin's stated order)
-- **mtt-2 Part B**: CERAMIC SINTERING engine (the genuinely-new one) —
-  MTT2_SOLGEL_SINTERING_PLAN.md Part B: start from the analytic
-  Master Sintering Curve (sinter-1), then mean-field grain growth,
-  then write grain/pore/rho descriptors onto L2 rows. The sol-gel
-  shrinkage-vs-T dataset row is also its calibration seam. Then
-  remaining mtt-2 cores (glass windows, CNT builder, silicon grades).
-- Sol-gel data asks (each unlocks a refusal): photograph
-  gel-time-vs-pH, 29Si NMR Qn-vs-time (one acid + one base run),
-  xerogel shrinkage-vs-T; digitize + status=ready.
+- Remaining mtt-2 cores: glass windows, CNT builder, silicon grades.
+- sinter-5 (phase-field/kMC spatial microstructure) DEFERRED per plan
+  — only if mean-field proves insufficient.
+- DATA ASKS that turn refusals into predictions (each is now a tree
+  data gap): alumina/zirconia densification master curve + fitted Q
+  (unlocks sinter ρ); grain-growth (n,k0,Qg); sol-gel gel-time-vs-pH,
+  29Si NMR Qn-vs-time, xerogel shrinkage-vs-T (also sinter calib),
+  sodium-silicate morphology-vs-pH, ricehusk yield, lemon acid content.
 - then variant layers: carbon-negative (geopolymer) → magnetic/
   conductive → thermal → structural → nanocomposite semiconductors.
 - Open decisions for Dustin: sub-domain labels (statistical/discrete
