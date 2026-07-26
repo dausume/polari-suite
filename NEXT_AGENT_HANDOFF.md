@@ -51,6 +51,33 @@ key on arbitrary descriptors; the pH gate is just window rows):
 - Backend rebuilt + swarm service updated same day (cold seed ~10-15
   min; verify GET /api/pspp/solgel/routes?sample=false answers).
 
+## ✅ mtt-2 sg-community BUILT + deployed (framework `dev-mtt2-solgel`, 857ba2d)
+Dustin's ask: prove COMMUNITY-ACCESSIBLE sol-gel from common materials
+(citrus/citric acid, rice husk, water glass), AND keep the industrial/
+lab routes as REFERENCE so the lab->common SUBSTITUTION MAP is explicit
+data. His steer: accessibility = a recorded PROPERTY of every
+precursor/route, never a gate that hides one.
+- solgel_network: alkoxide-FREE water-glass chemistry (sodium-silicate
+  + citric-acid + silicate-acid-gelation rule + waterglass_inventory).
+- solgel_sourcing.py (NEW `PrecursorSource` class): tiers household /
+  common-industrial / lab-reagent; substitution_map (citrus juice <-
+  mineral acid; water glass / rice husk <- TEOS); route_accessibility
+  (route = worst precursor); route_report. COMMUNITY_ROUTES =
+  waterglass-citrus, ricehusk-citrus, teos-citrus, teos-ammonia-lab.
+- API: GET /api/pspp/solgel/sources, GET /solgel/community-routes
+  (+?route=<name> full report). PrecursorSource wiring mirrors
+  BenchmarkCase (module auto-registers; NOT in defClassList).
+- ⚠ NOTHING claimed "proven". Tiers = qualitative CITED claims (real
+  papers found via web, none were previously in the repo: lemon
+  bio-waste sol-gel, Sustainable Chemistry 2021; rice-husk silica;
+  acid-initiated sodium silicate, Gels 2024 / JMRT 2020). Numeric
+  performance REFUSES until digitized. The water-glass MORPHOLOGY fork
+  is OPPOSITE the alkoxide one (acidic water glass = dense small
+  particles) — route_report refuses to assert a winner for it.
+- 25 new checks (host + in-container). DATA ASKS to quantify: digitize
+  sodium-silicate gel-time/morphology-vs-pH, rice-husk yield, lemon
+  acid content.
+
 ## The running system (verify first: `docker service ls`)
 - Swarm stacks: `polari-node` (all services pinned staging-a) +
   `polari-engines` (msci worker pinned isle-core, :9500 via ingress).
