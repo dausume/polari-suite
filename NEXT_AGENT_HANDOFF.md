@@ -1,3 +1,90 @@
+# ⚡⚡⚡ HANDOFF — 2026-07-26 (READ THIS SECTION FIRST; supersedes below)
+
+**✅ REVIEW PASSED (Dustin, 2026-07-26).** Everything below is
+approved. Still UNCOMMITTED on disk — committing is the FIRST action
+next session (see Commit note). Prepared for a context clear: this
+section + the plan files + the memory entries are the full pick-up.
+
+The live target is a SWARM-based msci-focused instance, NOT the
+compose suite. Full state in memory: [[swarm-msci-instance]],
+[[geopolymer-structure-sampling]], [[materials-tech-tree]],
+[[styling-theme-tokens]]. Plans at suite root:
+MATERIALS_TECH_TREE_PLAN.md, MTT2_SOLGEL_SINTERING_PLAN.md,
+GEOPOLYMER_STRUCTURE_SAMPLING_PLAN.md, FRONTEND_THEMING_PLAN.md,
+MODULE_LAZY_BOOT_PLAN.md.
+
+## FIRST ACTION next session: commit the approved work
+Review is done — the only reason it's uncommitted is the clear. Do
+branch-per-phase off the ssp/pspp stack, innermost-first
+(framework/angular submodules → then superproject pointer), across the
+8 repos. Suggested branches: theming, gsp (1..5+2b), materials-tree
+(mtt-1+smt-1). Do NOT push until Dustin says; commit locally so the
+work is safe and organized. Then start mtt-2.
+
+## The running system (verify first: `docker service ls`)
+- Swarm stacks: `polari-node` (all services pinned staging-a) +
+  `polari-engines` (msci worker pinned isle-core, :9500 via ingress).
+- App: https://prf.192.168.0.210.nip.io  API: https://api.prf.192.168.0.210.nip.io
+- Deploy loop that WORKS: edit → `pol node build backend`(and/or
+  frontend) → `docker service update --image prf-<x>:staging --force
+  polari-node_<svc> --detach` → wait ~10-15 min cold seed (backend
+  start_period is 1800s; routes 404 until endpoint construction ends,
+  then answer). Bring up from cold with the constraint env — see
+  swarm-msci-instance memory for the exact POL_STACK_CONSTRAINTS line.
+- In-container selftests (swarm names differ from `pol modules
+  selftest`): `docker run --rm -v $PWD/polari-framework:/app -w /app
+  -e PYTHONPATH=/app:/app/modules prf-backend:staging python3 -m
+  <module>.selftest_<x>`.
+
+## What got built this session (all live-verified unless noted)
+1. Swarm msci instance + 4 real deploy fixes (stackify swarm-schema,
+   nginx lazy upstreams, backend grace/cpu). See memory.
+2. Theming (pspp + materials-science + shared layout): tokens (sty-2)
+   THEN three root-cause fixes verified in-browser by Dustin —
+   (a) Material's prebuilt DARK palette leaked its near-white default
+   into any uncolored text → fixed with `:host{color:var(--text-on-bg)}`
+   anchor + SVG `fill` tokens; (b) DARK-MODE PAGE BACKGROUND: template
+   has no <mat-sidenav-content>, so Material auto-generates an implicit
+   `.mat-drawer-content` that never used our token → GLOBAL rule in
+   styles.css ties `.mat-drawer-content/.mat-sidenav-content` to
+   `--surface-app-background` (fixes bg app-wide, not just pspp);
+   (c) /pspp/structure XRD page-freeze (getter→stable field render
+   storm). Context-semantic tokens added: `--text-on-card{,-muted}` /
+   `--text-on-bg{,-muted}` (pick by SURFACE); `--text-on-bg`=#000 light.
+   FRONTEND_THEMING_PLAN.md has the rules; sty-3 sweep (app-wide, ~20
+   dirs) must do :host anchor + SVG-fill audit + surface-token, not
+   just hex→token. Light + dark both confirmed good on /pspp.
+3. gsp-1..5 + 2b (GEOPOLYMER_STRUCTURE_SAMPLING_PLAN.md): Q-groups
+   (reference/state/stepped modes) + deterministic ensemble sampler
+   + /pspp/structure 3D page + Debye halo validation + density knob.
+   70 selftest checks green. Halo validation caught a real sampler
+   collapse bug (fixed). Optional follow-on: gsp-2 ring-statistics
+   bias so more seeds land the halo in the gel band.
+4. mtt-1 (MATERIALS_TECH_TREE_PLAN.md): new `materials-science` tech
+   tree, 12 nodes (statistical/discrete/encapsulation hubs + 9 cores;
+   stainless equiv = galvanized-bio-steel). Live.
+5. smt-1: new `simulation-methods` tech tree, 9 method nodes. Live.
+   techtree selftest 52/52.
+
+## NEXT (Dustin's stated order)
+- **mtt-2**: MTT2_SOLGEL_SINTERING_PLAN.md — SOL-GEL first (cheap,
+  pspp reuse, one new pH gate), THEN CERAMIC SINTERING engine (new;
+  start from the analytic Master Sintering Curve). The plan is the
+  "what to reference/know in advance" brief for both. Then remaining
+  mtt-2 cores (glass windows, CNT builder, silicon grades).
+- then variant layers: carbon-negative (geopolymer) → magnetic/
+  conductive → thermal → structural → nanocomposite semiconductors.
+- Open decisions for Dustin: sub-domain labels (statistical/discrete
+  vs stochastic/particulate — seed-only, cheap to rename); whether
+  mlb lazy-boot (MODULE_LAZY_BOOT_PLAN.md) gets built.
+
+## Commit note
+Review PASSED — commit locally (branch-per-phase, innermost-first
+across the 8 repos) as the first action next session; do NOT push
+until Dustin says. See "FIRST ACTION" at top.
+
+---
+
 # ⚡ PSPP HANDOFF — 2026-07-19 (READ THIS SECTION FIRST)
 
 ## ⚡⚡ UPDATE 2026-07-19 (later session): pspp-8 FULL + THRESHOLD WINDOWS BUILT
