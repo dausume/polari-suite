@@ -86,10 +86,36 @@ Dustin: "sensible batches, module by module, per object type."
   home on staging-a, engines isle-core, rollback volumes both boxes.
 - selftest_batched_persist 17 (+PYTHONPATH=modules) +
   selftest_quiesce 20; full regression sweep green.
-- gm NEXT: gm-3 KeyDB/MinIO movers, gm-4 Keycloak, gm-5 MariaDB,
-  gm-6 kind-aware UI drawer flows (typed confirmation for stateful
-  subjects); UI-triggered graceful execution (today the UI hands
-  back the command; the CLI executes).
+## ⚡ SAME DAY 4th pass: gm-SAFETY (fw fa3b07a, cli 24534f4)
+Dustin's invariants: no failure point may lose data; delete only
+after confirmation; be able to finish or reverse (target full /
+connection drop); interrupted transfers discoverable after a crash.
+- Mover: PREFLIGHT (target reachable + >=3x free space, fail early)
+  -> STAGED copy into .incoming-<move>/ (live target data untouched
+  by mid-copy failure; re-run resumes — quiesce engage is now
+  idempotent per moveName) -> staged file verified row-for-row
+  BEFORE the swap -> displaced generation kept in .previous-<move>/
+  -> retire deletes ONLY target .previous + journal, after verify.
+  The SOURCE volume is never deleted; its journal is rewritten
+  'retired-moved-to-<target>' so any later boot of it declares
+  where the live data went.
+- .move-journal.json in BOTH volumes (phase copying->swapped) =
+  crash-durable transfer record; /api/health surfaces
+  staleMoveArtifacts (journal/.incoming/.previous) with meaning +
+  action. selftest_quiesce -> 27.
+- ✅ LIVE: staging-a -> isle-core -> staging-a fully automated +
+  verified (downtime ~71s/~82s; flush 28.9s); planted-journal test
+  surfaced + cleared on /api/health.
+- ⚠ OPERATIONAL LESSON (recorded the hard way): never start a move
+  while a service update is converging — a raced attempt
+  (backend@1785180981, marked failed honestly) had its in-process
+  gate wiped by the restart; no data touched (copy hadn't started).
+  A pre-move 'no update in progress' check is a cheap future guard.
+- gm NEXT: gm-3 KeyDB/MinIO movers (staged-copy discipline now the
+  template), gm-4 Keycloak, gm-5 MariaDB, gm-6 kind-aware UI drawer
+  flows (typed confirmation for stateful subjects); UI-triggered
+  graceful execution (today the UI hands back the command; the CLI
+  executes).
 
 ---
 
