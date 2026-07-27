@@ -128,11 +128,38 @@ connection drop); interrupted transfers discoverable after a crash.
   (prf-file-store@1785184034 + @1785184115 verified). Bonus proof:
   the FIRST attempt refused at staged-verify (journal counted) with
   live data untouched and clean resume — the safety design working.
-- gm NEXT: gm-4 Keycloak mover (server-only move on the same DB,
-  proxy upstream swap), gm-5 MariaDB (quiesce fan-out + dump/restore
-  receipts), gm-6 kind-aware UI drawer flows (typed confirmation for
-  stateful subjects); UI-triggered graceful execution (today the UI
-  hands back the command; the CLI executes).
+## ⚡ SAME DAY 6th pass: gm-4 KEYCLOAK MOVER (fw 05e2152, cli b142753,
+## rf-node f94611f) + AUTH OUTAGE FOUND & FIXED
+- ⚠ FOUND LIVE (pre-move probe): Keycloak had been CRASH-LOOPING
+  since the mlb-0 stack redeploy — generated DB credentials DRIFT:
+  stack re-renders inline CURRENT env files, but the MariaDB volume
+  keeps the passwords it was INITIALIZED with (kc + root both
+  mismatched). FIXED via rescue container (--skip-grant-tables on
+  the volume, ALTER USER to the current rendered values — password
+  reset only, zero data touched; 2 realms intact). JWKS 200 again.
+  SYSTEMIC NOTE: any credential regeneration between deploys will
+  re-break DB-backed services — the render/secrets pipeline needs a
+  stable-credentials story (docker secrets refinement).
+- gm-4 `pol swarm relocate keycloak <machine>`: SERVER-ONLY move
+  (realms/keys live in MariaDB which does NOT move; keycloak+DB in
+  one step refused via db-check). Blue-green start-first with a
+  SELF-HEALING readiness healthcheck (first attempt measured the
+  outage: an ungated JVM container is "running" in seconds, serves
+  minutes later — the mover now applies a /dev/tcp realm healthcheck
+  if absent; compose source carries it for future renders). Verify =
+  SIGNING-KEY (kid) identity — access tokens expire in ~60s, shorter
+  than any move, so kid comparison is the honest continuity check.
+- ✅ ACCEPTANCE: isle-core -> staging-a, 223 JWKS polls @1s, ZERO
+  failures (both servers visibly overlapped mid-swap), kids
+  unchanged, receipts complete (prf-keycloak@1785187634 verified).
+  KC image now also on isle-core (kept). Forward attempt receipts
+  honestly record the two design lessons (token-lifetime verify +
+  missing healthcheck outage).
+- gm NEXT: gm-5 MariaDB (quiesce fan-out — KC must drain/pause
+  around the DB move — + dump/restore receipts; the staged-copy
+  discipline + auth healthcheck now in place make it tractable),
+  gm-6 kind-aware UI drawer flows (typed confirmation for stateful
+  subjects); UI-triggered graceful execution.
 
 ---
 
