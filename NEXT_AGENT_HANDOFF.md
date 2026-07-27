@@ -190,9 +190,39 @@ strain of material refinement").
   --image prf-frontend:staging --force polari-node_frontend --detach`
   ran + /pspp/ceramics loads (needs a browser pass by Dustin).
 
+## ✅ CHARACTERIZATION (FTIR+XRD) + RESEARCH-TOOLS TREE + /pspp/research (dev-mtt2-solgel 2bb873f + angular 2bb... /research commit)
+Dustin: add FTIR alongside XRD (better for our amorphous materials +
+locally/safely doable), explain what/how in plain language, and add
+RESEARCH TOOLS as a category with its OWN tech tree (goal accountability).
+- characterization.py: XRD + FTIR as data, plain-language what/how +
+  diagnostic signals. FTIR reads BONDS (works on amorphous gels; XRD
+  only sees a halo) + the carbonate band VERIFIES olivine carbon-neg.
+  simulated_ftir: Si-O-T main band shifts LOWER with more Al (approx,
+  cited anchors; direction reliable, intensities+exact pos REFUSE).
+  Honest safety: XRD radiation hazard/not-DIY, FTIR safe/ambitious.
+  Provisional FTIR band-calibration dataset = the data ask.
+- research_tools.py (ResearchTool): buildable instruments easiest-first
+  — red-cabbage pH (trivial), visible spectrometer (DVD+webcam, FTIR's
+  accessible cousin), colorimeter, Brix (sugar direct; mineral/health
+  = CORRELATION only), EC/TDS (direct minerals), thermocouple logger
+  (bridges to furnace ladder), turbidity, DIY microscope, open-source
+  FTIR (high). Parts carry accessibility tiers.
+- NEW research-tools tech tree (7th, parallel to manufacturing): 9
+  nodes, FTIR deps visible-spectrometer, thermocouple cross-refs
+  furnaces, FTIR carries the band data gap. techtree 61 checks.
+- FRONTEND /pspp/research (3 tabs: methods explainer / FTIR sampler /
+  research tools). API /characterization/methods + /ftir +
+  /research-tools. 31 new backend checks. ng build green.
+- DEPLOY: backend rolled; frontend building at handoff — confirm
+  `docker service update --image prf-frontend:staging --force
+  polari-node_frontend --detach` ran + /pspp/research loads.
+
 ## NEXT (Dustin's stated order)
-- Browser pass on /pspp/ceramics (theming + the 4 tabs).
+- Browser pass on /pspp/ceramics + /pspp/research (theming + tabs).
 - Remaining mtt-2 cores: glass windows, CNT builder, silicon grades.
+- Research-tool ideas suggested beyond Dustin's 3 (in case he wants
+  more built): visible spectrometer, EC/TDS, colorimeter, thermocouple
+  logger, turbidity, DIY microscope — all seeded already.
 - Remaining mtt-2 cores: glass windows, CNT builder, silicon grades.
 - sinter-5 (phase-field/kMC spatial microstructure) DEFERRED per plan
   — only if mean-field proves insufficient.
