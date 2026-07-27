@@ -1,3 +1,81 @@
+# ⚡⚡⚡⚡ MLB LAZY BOOT — 2026-07-27 (NEWEST; read with the section below)
+
+**✅ mlb-0..5a BUILT + DEPLOYED + CROSS-DEVICE VERIFIED same day**
+(Dustin: "start on mlb and keep going autonomously"; asks folded in:
+multi-device splits over SSH, dynamic module moves, topology tie-in,
+enabled/disabled tracking, and time-to-online-after-deps history).
+Plan + wiring survey: MODULE_LAZY_BOOT_PLAN.md (PREP section has the
+file:line map). Branches: framework `dev-mlb-lazy-boot` (off
+dev-mtt2-solgel, 99e1c9e), angular `dev-mlb-frontend` (off
+dev-gsp-structure-ui, becd09b), rf-node/suite dev-swarm-msci-deploy.
+NOT pushed.
+
+## What runs now (all live-verified)
+- POLARI_LAZY_BOOT=on (default off = monolithic, byte-compatible):
+  Phase 0 = typing+routes, LISTEN in ~10s; admission worker (daemon,
+  mesh-autoconfig idiom) does core data then modules dependency-
+  ordered. SWARM staging-a: core 56s / ALL msci modules online 107s
+  on the real volume (was 15-25min + kill-loops). Healthcheck now
+  hits /api/health (200 at core-ready; long grace kept for the
+  monolithic fallback).
+- Honest 503s while loading (middleware resolves CRUDE apiObject ->
+  class -> module; custom APIs by package; Retry-After 5). /api/
+  health + /api/modules/status (phase, per-module rows, %/times).
+- POLARI_MODULES gate live on the swarm: msci set (materialsScience,
+  pspp,techtree,simulations,polariapps) online; the other 18 modules
+  visibly 'disabled' — enabled/not-enabled is tracked, never hidden.
+- TIMING HISTORY (Dustin's ask): ModuleBootRecord rows persist each
+  module's duration AFTER ITS DEPS came online, per boot+instance;
+  warm boots restore history in the core phase and stamp
+  expected_online_s ETAs (median; no history = NO ETA shown).
+  PolariModule carries boot_status/timestamps/seeded/error/eta.
+- FRONTEND /modules/bringup (angular): live tiles pending->loading->
+  online/failed/blocked (STOMP /topic/PolariModule + poll fallback),
+  progress bar, time-to-core/full, per-module ETA + last duration,
+  disabled dashed; linked from /topology. NO browser pass yet.
+- CROSS-DEVICE SPLIT EXPERIMENTS (via SSH): prf-backend:staging
+  shipped to isle-core (image KEPT there). isle-core ran the AGRO
+  family (aquaponics+plant_morphology+scoring): dependency order
+  proven numerically (deps finish before aquaponics starts;
+  deps_ready_at == last dep's online time); msci disabled there /
+  agro disabled on staging-a = complementary split. DYNAMIC MOVE
+  rehearsal: warm restart with techtree ADDED -> techtree admits
+  fresh (no ETA), the 3 prior modules PREDICTED their durations from
+  history (scoring ETA 1.076s vs actual 1.1s); warm core 24s.
+- mlb-5a: POLARI_DB_LOG=quiet default ([DB-Save] stream gated, 17
+  sites; warnings/errors always loud). Node compose carries all 3
+  knobs render-time (${POLARI_MODULES:-} etc.).
+- Selftests: moduleService.selftest_lazy_boot 34 (order/cycle/drift-
+  pin/ETA-math/503+health via falcon TestClient/stubbed worker incl.
+  LOUD failure + blocked deps) + selftest_db_log_quiet 16 +
+  lazy-imports drift guard 15/15. Dependency edges: polari-modules.
+  json is authoritative (FEATURE_REQUIRES pinned subset).
+
+## Deploy cmd that WORKS (constraints + knobs at render)
+  export LOCAL_IP=192.168.0.210
+  C="node.labels.polari.machine==staging-a"
+  POL_STACK_CONSTRAINTS="backend=$C frontend=$C prf-file-store=$C \
+    prf-keycloak=$C prf-mariadb=$C prf-proxy=$C" \
+  POLARI_LAZY_BOOT=on POLARI_MODULES=materialsScience,pspp,techtree,\
+  simulations,polariapps POLARI_DB_LOG=quiet pol swarm deploy node
+  (then force both service images as usual)
+
+## mlb NEXT
+- Browser pass: /modules/bringup + topology link (+ glass tab etc.).
+- Derive POLARI_MODULES from ModuleAssignment rows automatically
+  (pol topology/allocate emits the env; today it's typed at render).
+- Nav gating sweep (mlb-4 second half): pages owned by a not-yet-
+  online module render "loading — Nth in queue" (an HTTP interceptor
+  on the 503 module-loading body); pspp pages already render
+  refusals so v1 is acceptable.
+- mlb-5b: batch seed inserts per class in one transaction; per-module
+  persistence replay so Phase A restore shrinks further.
+- Second swarm boot will show ETAs on /modules/bringup (history now
+  exists on the volume). tt-16 blue-green module handover rides
+  ModuleBootRecord + the move rehearsal above.
+
+---
+
 # ⚡⚡⚡ HANDOFF — 2026-07-26 (READ THIS SECTION FIRST; supersedes below)
 
 **✅ REVIEW PASSED (Dustin) + ✅ ALL COMMITTED (later same day) +
