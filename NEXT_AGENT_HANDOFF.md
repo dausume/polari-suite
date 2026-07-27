@@ -36,11 +36,42 @@ gm-3..5 stateful movers remain). Branches: framework
   ng build green; frontend rolled; NO browser pass yet.
 - Selftests: topology.selftest_move_operations 15 + topology 52/52 +
   lazy-imports 15/15.
-- gm NEXT: gm-2 full (quiesce endpoints /api/quiesce via lease
-  machinery), gm-3 KeyDB/MinIO movers, gm-4 Keycloak, gm-5 DBs,
-  gm-6 kind-aware UI drawer flows (typed confirmation for stateful
-  subjects); UI-triggered graceful execution (today the UI hands
-  back the command; the CLI executes).
+## ⚡ SAME DAY 2nd pass: gm-2 QUIESCE + gm-5 SQLITE INSTANCE MOVE
+("just keep moving" — framework d312d8f, cli 01d4d6e)
+- gm-2 FULL: POST /api/quiesce (gate FIRST, persistTree flush, then
+  the receipt — nothing mutates after it returns) + /status +
+  /release; QuiesceMiddleware 423s mutations, reads + receipts flow;
+  failed flush keeps the gate UP. In-process state ON PURPOSE
+  (relocated instances boot unquiesced). selftest_quiesce 16.
+- gm-5: `pol swarm relocate <machine>` moves the BACKEND (owned
+  sqlite): sync-image (image-ID compare — same tag != same code
+  across swarm nodes, learned the hard way) -> short-poll quiesce ->
+  snapshot -> double-pass tar copy + PRE-BOOT file verify ->
+  stop-first constraint swap -> placement-gated boot-ready with
+  measured downtime -> dedup-aware verify (tables + stable tables +
+  the marker MoveOperation row that travels INSIDE the copied DB) ->
+  retire (old volume = rollback).
+- ✅ LIVE: backend moved staging-a -> isle-core -> staging-a. Marker
+  proof worked BOTH ways; return downtime ~71s (lazy boot!); final
+  state: backend home on staging-a, engines on isle-core, rollback
+  volumes on both boxes. Move rows: backend@1785164149 (forward,
+  marked failed — verify raced, fixes applied) + backend@1785165052
+  (return, VERIFIED with full receipts).
+- ⚠ TWO MEASURED FINDINGS (the real gm-5 lessons):
+  1. persistTree flush took 2758s on isle-core (row-by-row REPLACE +
+     sqlite lock contention vs concurrent readers; OOPS handler
+     recovered 4 lock failures). mlb-5b BATCHED FLUSH is now the
+     gating item for gm-5 GA — the mover works, the flush is the
+     bottleneck.
+  2. Post-boot row totals SHRINK legitimately (restore dedupes
+     historical duplicate rows then persistTree rewrites clean) —
+     raw-total is the WRONG invariant; the mover now checks the
+     copied FILE pre-boot + stable tables + marker post-boot.
+- gm NEXT: mlb-5b batch flush (unblocks fast quiesce), gm-3
+  KeyDB/MinIO movers, gm-4 Keycloak, gm-5 MariaDB, gm-6 kind-aware
+  UI drawer flows (typed confirmation for stateful subjects);
+  UI-triggered graceful execution (today the UI hands back the
+  command; the CLI executes).
 
 ---
 
