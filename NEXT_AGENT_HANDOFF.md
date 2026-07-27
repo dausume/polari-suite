@@ -143,7 +143,35 @@ precursor/route, never a gate that hides one.
   seam. API POST /api/pspp/sinter/fire + GET /sinter/master-curves. 35
   new checks.
 
+## ✅ mtt-2 CERAMICS SAMPLES + ESCALATION LADDER + FURNACE TECH TREE (dev-mtt2-solgel, 202391a)
+Dustin's asks: locally-producible ceramic samples, "gradual escalating
+temperature resistance", olivine carbon-negative track, and an
+escalation ladder geopolymer-oven -> steelmaking — with tech trees
+TRACKING it (his steer: a Manufacturing Tool / Furnace tree, "thermal
+strain of material refinement").
+- ceramics_samples.py (CeramicSample): earthenware->stoneware->fireclay
+  firebrick->cordierite(thermal-shock champ)->mullite->alumina->SiC +
+  TWO steelmaking basic refractories: LOCAL dolomitic (carbon-positive)
+  and NON-LOCAL olivine forsterite (carbon-negative). feedstocks+tier,
+  literature-approximate temps (temp_claim_status), thermal_shock,
+  refractory_class (basic=steel-slag-resistant), carbon_profile.
+- ceramics_ladder.py (LadderRung): the furnace bootstrapping (each rung
+  built from the last one's output) + a CNT-CVD BRANCH honest that its
+  gate is ATMOSPHERE not heat. validate_ladder proves consistency
+  (lining fireable-below + survive-here) and surfaces the real
+  mullite-firing gap as warns. steelmaking rung LINING-gated (not
+  hotter); unlocks bio-galvanized-steel.
+- olivine: new 'mined-nonlocal' accessibility tier; Mg2SiO4 + 2CO2 ->
+  2MgCO3 + SiO2 (exact); provisional REFUSING carbonation dataset.
+- NEW manufacturing-tools tech tree (6 furnace nodes; deps = the
+  bootstrapping; cross-refs to linings + unlocked materials; data deps
+  carry the gaps). techtree 60 checks. API /api/pspp/ceramics/samples
+  (+minTemp/local/carbonNegative) + /ceramics/ladder. 28 new checks.
+
 ## NEXT (Dustin's stated order)
+- **Use the ceramic path as a TEMPLATE** (Dustin): geopolymer ->
+  high-temp geopolymer -> ceramic/glass transition (the geopolymer
+  half of the same escalation story).
 - Remaining mtt-2 cores: glass windows, CNT builder, silicon grades.
 - sinter-5 (phase-field/kMC spatial microstructure) DEFERRED per plan
   — only if mean-field proves insufficient.
