@@ -155,11 +155,35 @@ connection drop); interrupted transfers discoverable after a crash.
   KC image now also on isle-core (kept). Forward attempt receipts
   honestly record the two design lessons (token-lifetime verify +
   missing healthcheck outage).
-- gm NEXT: gm-5 MariaDB (quiesce fan-out — KC must drain/pause
-  around the DB move — + dump/restore receipts; the staged-copy
-  discipline + auth healthcheck now in place make it tractable),
-  gm-6 kind-aware UI drawer flows (typed confirmation for stateful
-  subjects); UI-triggered graceful execution.
+## ⚡ SAME DAY 7th pass: gm-5 MARIADB MOVER (fw 18de28c, cli 88497c3)
+## — EVERY gm MOVER (gm-1..5) IS NOW AUTOMATED
+- `pol swarm relocate mariadb <machine>` — v1 correct-before-clever:
+  writers-drain (Keycloak scaled 0, auth window MEASURED) ->
+  mariadb-dump --single-transaction to .generated/backups/ (backup
+  AND semantic baseline) -> quiesce-db (scale 0, volume still) ->
+  staged volume copy verified pre-swap -> constraint swap + health-
+  gated scale-up -> verify counts vs receipt + KC recovery + JWKS ->
+  retire keeps source volume AND dump. mv_fail re-issues scale-1 on
+  DB + writers — a failed DB move never strands auth down. v2
+  replica-promote = documented refinement.
+- ✅ ACCEPTANCE both directions: DB window ~62s/57s, auth window
+  ~145s/141s, counts 2 realms/16 clients/3 users/88 tables identical
+  both ways (prf-mariadb@1785189969 + @1785190199 verified); auth ran
+  CROSS-MACHINE mid-flight (KC staging-a, DB isle-core, JWKS 200).
+  All images (backend/engines/keycloak/mariadb/file-store) now on
+  BOTH staging-a and isle-core — any split is a constraint swap away.
+- THE MOVER SET IS COMPLETE: engines (blue-green), backend (sqlite
+  staged), MinIO (staged), Keycloak (server-only blue-green), MariaDB
+  (drain+dump+staged). All share: MoveOperation receipts + expected
+  durations, staged-copy/no-deletion-before-confirmation, dual-volume
+  journals + /api/health stale-artifact surfacing, update-in-progress
+  guard, resumable quiesce.
+- gm REMAINING: gm-6 kind-aware UI drawer flows (typed confirmation
+  for stateful subjects; the Moves panel already paints receipts
+  live), UI-triggered graceful execution (today the UI hands back
+  the command), refinements: KeyDB replica-promote, MariaDB binlog
+  v2, docker-secrets (fixes the credential-drift class), local
+  registry (replaces save|ssh-load).
 
 ---
 
