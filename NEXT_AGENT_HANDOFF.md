@@ -168,10 +168,31 @@ strain of material refinement").
   carry the gaps). techtree 60 checks. API /api/pspp/ceramics/samples
   (+minTemp/local/carbonNegative) + /ceramics/ladder. 28 new checks.
 
+## ✅ GEOPOLYMER->CERAMIC/GLASS TRANSITION + /pspp/ceramics FRONTEND (dev-mtt2-solgel 1bc0b60 + angular dev-gsp-structure-ui 0065b66)
+- geopolymer_ceramic_transition.py: DATA-BACKED (Table 8.8, Perera &
+  Trautman 2005 — measured porosity + XRD phases). Amorphous
+  geopolymer to ~1000C, kalsilite crystallizes at 1000C, leucite at
+  1200C, distorted kalsilite stable to 1400C (no melting); each stage
+  cites its reaction_network crystallization rule. Glass branch >1400C
+  = honest above-range refusal. + 2 geopolymer-derived CeramicSamples
+  (leucite-ceramic, kalsilite-ceramic).
+- sinter_stages: sample a firing at N checkpoints (partial firings) ->
+  Theta/rho/grain per stage, each refusing in place uncalibrated. API
+  POST /api/pspp/sinter/stages + GET /ceramics/geopolymer-transition.
+- FRONTEND /pspp/ceramics (angular, theme-token compliant, ng build
+  green): 4 tabs — Samples+precursors (temp-ladder bars, steelmaking
+  filter, feedstock inspector) / Furnace ladder (rungs+warns) /
+  Geopolymer->ceramic (porosity bars + XRD + glass refusal) / Sinter
+  sampler (fire a schedule -> logTheta plot + per-stage density REFUSED
+  without a curve + grain). Route + home nav card.
+- Backend + frontend both rebuilt; backend live-verified. FRONTEND
+  DEPLOY: was building at handoff — confirm `docker service update
+  --image prf-frontend:staging --force polari-node_frontend --detach`
+  ran + /pspp/ceramics loads (needs a browser pass by Dustin).
+
 ## NEXT (Dustin's stated order)
-- **Use the ceramic path as a TEMPLATE** (Dustin): geopolymer ->
-  high-temp geopolymer -> ceramic/glass transition (the geopolymer
-  half of the same escalation story).
+- Browser pass on /pspp/ceramics (theming + the 4 tabs).
+- Remaining mtt-2 cores: glass windows, CNT builder, silicon grades.
 - Remaining mtt-2 cores: glass windows, CNT builder, silicon grades.
 - sinter-5 (phase-field/kMC spatial microstructure) DEFERRED per plan
   — only if mean-field proves insufficient.
