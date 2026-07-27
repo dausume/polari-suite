@@ -217,20 +217,78 @@ RESEARCH TOOLS as a category with its OWN tech tree (goal accountability).
   `docker service update --image prf-frontend:staging --force
   polari-node_frontend --detach` ran + /pspp/research loads.
 
+## ✅ mtt-2 GLASS CORE: REFINEMENT WINDOWS + VISCOUS SINTERING (2026-07-27, dev-mtt2-solgel + angular dev-gsp-structure-ui)
+Dustin confirmed BOTH halves ("a viscous sintering variant would be
+useful so likely both"). Closes the "glass windows" item from the
+remaining mtt-2 cores.
+- glass_refinement.py: viscosity FIXED POINTS as data (log-η values
+  are DEFINITIONS — 10^3 working / 10^6.6 Littleton / 10^12 anneal /
+  10^13.5 strain / ~10^1 practical melting; soda-lime TEMPERATURES
+  literature-approximate, Shelby 2005). fit_vft = EXACT closed-form
+  VFT solve through 3 anchor points, ZERO free parameters, other
+  points reported as honesty residuals (soda-lime lands A≈-3.0,
+  B≈4990K, T0≈206C — classic territory; residuals ≤0.43 log units).
+  viscosity_at refuses outside the fitted span. 4 banded
+  condition-gate windows (fining <10^2 / forming 10^3..10^6.6 /
+  annealing 10^12..10^13.5 / soda-lime devit-risk zone 560..1040C).
+  process_map grades every gate at a probed temperature. 3 new
+  datasets: viscosity points READY; devit TTT + glass-frit viscous
+  master curve provisional-REFUSING (the data asks).
+- viscous_sintering.py: the glass variant of Part B. Λ = ∫γ/(η(T)r)dt
+  reduced viscous work (pure math over cited γ default 0.30 N/m
+  Scholze 1991 — surfaced in assumptions, overridable — + the VFT fit
+  + particle radius; schedule above the fitted span REFUSES, time
+  below the rigid floor contributes 0, stated). Frenkel early stage
+  y=(3/8)Λ valid to y=0.10 — past it the refusal names BOTH ways
+  onward (digitize the frit master curve, or measure a closed-pore
+  checkpoint); Mackenzie-Shuttleworth final stage runs ONLY from a
+  MEASURED checkpoint (ρ≥0.9 + pore radius). plan_viscous_structure
+  = amorphous-matrix + pore L2 rows, NO grain row (glass has no
+  grains — the absence is the point). viscous_fire orchestrates,
+  every piece honest in place. The mid-stage gap (Frenkel→closed
+  pores) is a REAL model gap (Scherer is the cited bridge) — refused,
+  not papered over.
+- API: GET /api/pspp/glass/refinement (+?temperature=<C> process
+  map; reads live dataset/window rows when edited), POST
+  /api/pspp/sinter/viscous. /api/pspp/sinter/master-curves now lists
+  BOTH kinds (log10Theta='solid-state', log10Lambda='viscous').
+- Seeds concatenated in polariServer (GLASS_DIGITIZED_DATASETS +
+  GLASS_THRESHOLD_WINDOWS, guarded import + stub names); drift guard
+  15/15. techtree glass node: description BUILT + 3 data_deps
+  (⚠ changed seed row: live volumes keep old text until row deletion
+  + restart — cosmetic, same as the sol-gel node). techtree 61/61.
+- FRONTEND: 5th tab "Glass (viscous)" on /pspp/ceramics — viscosity
+  ladder bars, VFT fit + residuals line, temperature probe grading
+  the gates (open/closed/warn chips, refusals rendered), viscous
+  frit-firing form (Λ + ρ + MS + structure-plan note, refusals
+  rendered). pspp.service +glassRefinement/+sinterViscous. ng build
+  green (pre-existing warnings only). NO browser pass yet.
+- 68 new checks (selftest_glass_refinement 32 + selftest_viscous_
+  sintering 36); FULL pspp sweep green (32 suites). NOT deployed to
+  the swarm yet at the time of this block — check below whether the
+  deploy commands ran (backend + frontend rebuild + service update).
+- DATA ASKS added: digitize a soda-lime devit TTT/growth-rate curve
+  (turns the risk zone into hold-time budgets) + a glass-frit
+  ρ vs log10 Λ master curve (unlocks mid/final-stage ρ without a
+  measured checkpoint) + replace approximate fixed-point temps with
+  a measured batch viscosity curve (upgrade, not unlock).
+
 ## NEXT (Dustin's stated order)
-- Browser pass on /pspp/ceramics + /pspp/research (theming + tabs).
-- Remaining mtt-2 cores: glass windows, CNT builder, silicon grades.
+- Browser pass on /pspp/ceramics + /pspp/research (theming + tabs)
+  — now ALSO the new Glass (viscous) tab.
+- Remaining mtt-2 cores: CNT builder, silicon grades (glass DONE).
 - Research-tool ideas suggested beyond Dustin's 3 (in case he wants
   more built): visible spectrometer, EC/TDS, colorimeter, thermocouple
   logger, turbidity, DIY microscope — all seeded already.
-- Remaining mtt-2 cores: glass windows, CNT builder, silicon grades.
 - sinter-5 (phase-field/kMC spatial microstructure) DEFERRED per plan
   — only if mean-field proves insufficient.
 - DATA ASKS that turn refusals into predictions (each is now a tree
   data gap): alumina/zirconia densification master curve + fitted Q
   (unlocks sinter ρ); grain-growth (n,k0,Qg); sol-gel gel-time-vs-pH,
   29Si NMR Qn-vs-time, xerogel shrinkage-vs-T (also sinter calib),
-  sodium-silicate morphology-vs-pH, ricehusk yield, lemon acid content.
+  sodium-silicate morphology-vs-pH, ricehusk yield, lemon acid
+  content; GLASS: soda-lime devit TTT curve + glass-frit ρ vs log10 Λ
+  viscous master curve (+ optional measured batch viscosity curve).
 - then variant layers: carbon-negative (geopolymer) → magnetic/
   conductive → thermal → structural → nanocomposite semiconductors.
 - Open decisions for Dustin: sub-domain labels (statistical/discrete
