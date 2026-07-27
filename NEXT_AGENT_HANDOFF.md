@@ -264,9 +264,13 @@ remaining mtt-2 cores.
   rendered). pspp.service +glassRefinement/+sinterViscous. ng build
   green (pre-existing warnings only). NO browser pass yet.
 - 68 new checks (selftest_glass_refinement 32 + selftest_viscous_
-  sintering 36); FULL pspp sweep green (32 suites). NOT deployed to
-  the swarm yet at the time of this block — check below whether the
-  deploy commands ran (backend + frontend rebuild + service update).
+  sintering 36, green host AND in-container); FULL pspp sweep green
+  (32 suites). ✅ DEPLOYED + LIVE-VERIFIED same day: both images
+  rebuilt, both services rolled, backend answered ~5 min post-roll —
+  GET /glass/refinement 200 (points + exact VFT fit), POST
+  /sinter/viscous Λ matches host to full precision, ?temperature=
+  process map grades, frontend /pspp/ceramics 200. Browser pass on
+  the new tab still pending (Dustin).
 - DATA ASKS added: digitize a soda-lime devit TTT/growth-rate curve
   (turns the risk zone into hold-time budgets) + a glass-frit
   ρ vs log10 Λ master curve (unlocks mid/final-stage ρ without a
@@ -292,8 +296,18 @@ remaining mtt-2 cores.
 - then variant layers: carbon-negative (geopolymer) → magnetic/
   conductive → thermal → structural → nanocomposite semiconductors.
 - Open decisions for Dustin: sub-domain labels (statistical/discrete
-  vs stochastic/particulate — seed-only, cheap to rename); whether
-  mlb lazy-boot (MODULE_LAZY_BOOT_PLAN.md) gets built.
+  vs stochastic/particulate — seed-only, cheap to rename).
+- ⚡ mlb LAZY-BOOT IS PREPPED (Dustin asked 2026-07-27): full wiring
+  survey with file:line refs is now the PREP section atop
+  MODULE_LAZY_BOOT_PLAN.md — boot order mapped (listen is strictly
+  LAST today; health route is net-new; [DB-Save] prints unconditional
+  in managedDB.py), STOMP + frontend module grid already exist,
+  dependency-edge DRIFT flagged (FEATURE_REQUIRES vs
+  polari-modules.json — pick one source in mlb-1). Precondition
+  (swarm healthy, seed verified end-to-end) is MET via the glass
+  deploy. Start with mlb-0 (POLARI_MODULES env in
+  pol-services/compose/services/prf-backend.yml; proposed msci set in
+  the PREP section — Dustin confirms the list) then mlb-1+2.
 
 ## Commit note
 ✅ DONE — see "COMMITS DONE" at top. Nothing is pushed; pushing is

@@ -3,6 +3,73 @@
 **Status: DRAFT 2026-07-25 — nothing built. Blocked until the swarm msci
 instance is confirmed healthy (backend seed verified end-to-end).**
 
+## PREP 2026-07-27 — wiring survey (verified file:line; build-ready)
+
+Boot path (the facts mlb-1 reshapes):
+- Entrypoint: Dockerfile CMD `python3 initLocalhostPolariServer.py`;
+  compose never overrides it. sitecustomize = sys.path only.
+- TODAY'S ORDER (initLocalhostPolariServer.py __main__ 90-204):
+  managerObject(hasServer=True) @97 → inside polariServer.__init__:
+  defClassList (polariServer.py:1700) → gating 1845-60 → def-class
+  registration 1861-71 → CRUDE add_route loop 1904-14 → dynamic
+  module load + per-module CRUDE 1943-2016; back in
+  objectTreeManagerDecorators.py: jumpstartDatabase @160 →
+  ensureDefinitionTables @171 (THE heavy seed pass; polariServer.py:
+  2205, seed calls 2259-73 + _restoreDefinitionInstances @2253) →
+  jumpstartObjectStore @187 → sidecar threads (mesh autoconfig
+  108-119, STOMP 124-128, gRPC 140-146) → HTTPS thread 194-99 →
+  BLOCKING listen @203-04 (make_server().serve_forever()).
+  LISTEN IS STRICTLY LAST — no listen-then-seed exists today.
+- add_route all happens during construction (polariCRUDE.py:49-51 +
+  registerCRUDEforObjectType polariServer.py:3474/3518 + each custom
+  API's __init__). Falcon supports post-listen add_route; nothing
+  uses it yet. polariServer.startLocalServerRun (2030-32) is a dead
+  127.0.0.1 path — ignore.
+- Worker-thread template for the admission worker: the mesh-autoconfig
+  pattern (env-gated, sleep-delayed daemon thread,
+  initLocalhostPolariServer.py:110-119) is the house pattern to copy.
+- HEALTH ROUTE IS NET-NEW: no /health|/healthz|/ready exists (only
+  /auth/jwks-health, /api/roles/sync-health, /system-info). mlb-1
+  adds one registered in Phase 0.
+- mlb-5 target: [DB-Save] prints are UNCONDITIONAL in
+  polariDBmanagement/managedDB.py saveInstanceInDB (17 print sites,
+  lines 134-280). No quiet knob exists — POLARI_DB_LOG is net-new.
+
+Module machinery (what mlb-1/2 build on):
+- Gate: module_gating.py POLARI_MODULES @55, module_enabled @66,
+  CORE_PACKAGES frozenset; one filter point on defClassList with
+  automatic downstream effects (seeds/CRUDE/restore follow).
+- Dependency edges live TWICE: module_loading.py FEATURE_REQUIRES
+  (aquaponics/dmvdata/mathshapes/electrodevice/zones only) vs
+  modules/polari-modules.json requires (also pspp→[materialsScience]).
+  pspp + materialsScience are NOT in FEATURE_MODULES at all.
+  ⚠ mlb-1's admission order must read ONE source (proposal: the
+  json register is authoritative; FEATURE_REQUIRES derives or gets a
+  drift selftest).
+- Lifecycle rows (mlb-2): PolariModule exists
+  (polariPeers/polari_module.py:27) with install-status only —
+  extend with boot_status/timestamps/seeded-count/error, don't add a
+  new class. ModuleAssignment (topology/topology_modules.py:26,
+  written by `pol apps`) already records the per-instance module set
+  — mlb-0's POLARI_MODULES value derives from it.
+- STOMP (mlb-3): already live — stompWebSocketServer.py (topics
+  /topic/{ClassName}, port 3001, WEBSOCKET_ENABLED/PORT env) +
+  frontend stomp.service.ts (RxStomp). PolariModule row updates can
+  broadcast as ordinary class events — no new push machinery.
+- Frontend (mlb-4): module-management.component.ts already renders a
+  modules grid from GET /modules (+ PUT enable, POST seed) — the
+  bring-up panel extends it + a compact header widget.
+
+mlb-0 insertion point (zero code): backend environment block in
+pol-services/compose/services/prf-backend.yml (source of truth;
+env blocks at 18/47/106) → rendered to .generated/stack-node.yml
+backend environment 19-56 (healthcheck + 30m start_period sits at
+57-66 in the same file). POLARI_KEYCLOAK_* vars are the wiring
+example. Proposed msci set (Dustin to confirm; derive from
+ModuleAssignment rows): POLARI_MODULES=materialsScience,pspp,
+techtree,simulations,polariapps (+scoring only if a dependent needs
+it; core packages always register).
+
 ## Context — what "mp" was, and why this plan exists
 
 `mp-N` = phases of **MODULE_PROJECTS_PLAN.md** ("module projects", built
