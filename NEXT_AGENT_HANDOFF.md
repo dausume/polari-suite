@@ -111,11 +111,28 @@ connection drop); interrupted transfers discoverable after a crash.
   (backend@1785180981, marked failed honestly) had its in-process
   gate wiped by the restart; no data touched (copy hadn't started).
   A pre-move 'no update in progress' check is a cheap future guard.
-- gm NEXT: gm-3 KeyDB/MinIO movers (staged-copy discipline now the
-  template), gm-4 Keycloak, gm-5 MariaDB, gm-6 kind-aware UI drawer
-  flows (typed confirmation for stateful subjects); UI-triggered
-  graceful execution (today the UI hands back the command; the CLI
-  executes).
+## ⚡ SAME DAY 5th pass: GUARD + gm-3 MinIO MOVER (fw a847479, cli ceac47c)
+- GUARD (the raced-deploy lesson, enforced): relocate AND graceful
+  allocate refuse to start while the moved service (or the backend
+  carrying receipts) has a swarm update converging.
+- `pol swarm relocate [backend|file-store|keydb] <machine>` — the
+  staged-copy mover parameterized per service. MinIO (gm-3): verify
+  = user-object count (.minio.sys volatile + move journal excluded);
+  all data ops volume-level via alpine (MinIO image lacks tar/find);
+  sidecar moves RELEASE the quiesce gate at retire (backend did not
+  move). keydb-move shares the plan, refuses honestly until a stack
+  deploys KeyDB (replica-promote zero-cold-cache = refinement).
+- ✅ LIVE: prf-file-store staging-a -> isle-core -> staging-a,
+  downtime ~12s/~11s, seeded 76KB object md5-intact after the round
+  trip (read cross-node mid-flight), receipts complete
+  (prf-file-store@1785184034 + @1785184115 verified). Bonus proof:
+  the FIRST attempt refused at staged-verify (journal counted) with
+  live data untouched and clean resume — the safety design working.
+- gm NEXT: gm-4 Keycloak mover (server-only move on the same DB,
+  proxy upstream swap), gm-5 MariaDB (quiesce fan-out + dump/restore
+  receipts), gm-6 kind-aware UI drawer flows (typed confirmation for
+  stateful subjects); UI-triggered graceful execution (today the UI
+  hands back the command; the CLI executes).
 
 ---
 
