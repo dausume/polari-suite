@@ -1,4 +1,50 @@
-# ⚡⚡⚡⚡ MLB LAZY BOOT — 2026-07-27 (NEWEST; read with the section below)
+# ⚡⚡⚡⚡⚡ GM-1 GRACEFUL ENGINE MOVES — 2026-07-27 (NEWEST)
+
+**✅ gm-1 + gm-2-lite BUILT + ACCEPTANCE PASSED same day** (Dustin:
+"the capability to move engines dynamically... ensure it can meet the
+same criteria" as mlb — explicit trigger, topology-frontend tie-in,
+tracked, prior-knowledge timing). Plan: GRACEFUL_MOBILITY_PLAN.md
+(gm-1 automated; gm-2 landed as the moves-as-data slice; quiesce +
+gm-3..5 stateful movers remain). Branches: framework
+`dev-gm-1-engine-moves` (off dev-mlb-lazy-boot, a861f05), polari-cli
+`dev-gm-1-graceful-allocate` (off dev, f5a7110), angular
+`dev-gm-moves-ui` (off dev-mlb-frontend, 3dac0a3). NOT pushed.
+
+- `pol allocate <instance> <machine> --graceful` = the gm-1 blue-
+  green: image check/ship (save|ssh load, sized receipt) -> label
+  check -> `docker service update --update-order start-first` +
+  constraint swap (routing mesh keeps :9500 answering) ->
+  /capability readiness gate -> probe-cache invalidation (NEW POST
+  /api/topology/providers/reprobe; cache was 30s-TTL-only) ->
+  verify. Needs POLARI_CORE_URL on swarm (be_call's docker-exec
+  fallback expects the compose container name).
+- MOVES AS DATA: MoveOperation rows (topology/move_operations.py) —
+  planned step list shown BEFORE running, per-step receipts +
+  server-measured durations, EXPECTED step durations = median of
+  prior verified moves (failed moves never teach; no history = {}).
+  API /api/topology/move-operations (+/step, /finish) + STOMP
+  /topic/MoveOperation. plan_move's engine hand-back now suggests
+  the --graceful command first.
+- ✅ ACCEPTANCE (the plan's exact criterion): isle-core ->
+  lightweight -> isle-core, 55 polls @1s against /capability, ZERO
+  failures. Both moves 'verified' (7.6s / 10.2s total); move #2 ran
+  with expected durations from move #1. Engines image now ALSO on
+  lightweight (kept). Topology row for 'engines' updated + renders
+  parity-OK (this also fixed the stale machine_name row).
+- FRONTEND: "Graceful moves" panel atop /topology — step tables with
+  receipts, measured vs expected durations, 3s poll while running.
+  ng build green; frontend rolled; NO browser pass yet.
+- Selftests: topology.selftest_move_operations 15 + topology 52/52 +
+  lazy-imports 15/15.
+- gm NEXT: gm-2 full (quiesce endpoints /api/quiesce via lease
+  machinery), gm-3 KeyDB/MinIO movers, gm-4 Keycloak, gm-5 DBs,
+  gm-6 kind-aware UI drawer flows (typed confirmation for stateful
+  subjects); UI-triggered graceful execution (today the UI hands
+  back the command; the CLI executes).
+
+---
+
+# ⚡⚡⚡⚡ MLB LAZY BOOT — 2026-07-27 (read with the section below)
 
 **✅ mlb-0..5a BUILT + DEPLOYED + CROSS-DEVICE VERIFIED same day**
 (Dustin: "start on mlb and keep going autonomously"; asks folded in:

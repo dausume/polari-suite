@@ -19,13 +19,12 @@ machines:
 - name: isle-core
   ssh_alias: isle-core
   arch: x86_64
-  mem_gb: 7.59
+  mem_gb: 7.6
   roles_json: '["engines", "remote-worker", "node"]'
   swarm_role: none
   repo_dir: ~/polari-suite
   source: nodes.yml
-  notes: 6-core i5 / 7.6G; also runs the Isle-Mesh project. system_info_url -> the
-    cad-engines service pinned here.
+  notes: 6-core i5 / 7.6G; also runs the Isle-Mesh project.
 - name: staging-a
   ssh_alias: ''
   arch: x86_64
@@ -43,7 +42,7 @@ instances:
   replicas: 1
   env_tier: staging
   machine_name: isle-core
-  placement_constraint: node.labels.polari.machine == isle-core
+  placement_constraint: ''
   db_backend: sqlite
   image_tag: staging
   orchestration_target: swarm
