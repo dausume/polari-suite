@@ -67,11 +67,29 @@ gm-3..5 stateful movers remain). Branches: framework
      historical duplicate rows then persistTree rewrites clean) —
      raw-total is the WRONG invariant; the mover now checks the
      copied FILE pre-boot + stable tables + marker post-boot.
-- gm NEXT: mlb-5b batch flush (unblocks fast quiesce), gm-3
-  KeyDB/MinIO movers, gm-4 Keycloak, gm-5 MariaDB, gm-6 kind-aware
-  UI drawer flows (typed confirmation for stateful subjects);
-  UI-triggered graceful execution (today the UI hands back the
-  command; the CLI executes).
+## ⚡ SAME DAY 3rd pass: mlb-5b BATCHED FLUSH (fw 4540f6d, cli c0d960c)
+Dustin: "sensible batches, module by module, per object type."
+- managedDB.saveClassBatch = ONE transaction per object type (scoped
+  DELETE + executemany REPLACE, uniform full-column rows — REPLACE
+  NULLs unnamed columns either way so byte-equivalent to per-row);
+  ok=False -> row-by-row OOPS fallback, never silent loss.
+- persistTree = MODULE-ORDERED (core first, then dependency order),
+  one batch per class, per-class progress callback, per-class
+  fallback. Quiesce engage now ASYNC (gate up instantly, flush in a
+  thread, /api/quiesce/status streams currentModule/currentClass/
+  classesDone/rowsDone; wait=true = inline for tests).
+- ✅ A/B ON THE LIVE RELOCATION (same data/boxes): flush 2758.5s ->
+  53.2s (staging-a) / 104.4s (isle-core slow disk) — 26-52x. BOTH
+  relocation directions ran FULLY AUTOMATED + verified,
+  backend@1785179128 + backend@1785179320, downtime ~69-71s,
+  expected-vs-actual populated from history. Final state: backend
+  home on staging-a, engines isle-core, rollback volumes both boxes.
+- selftest_batched_persist 17 (+PYTHONPATH=modules) +
+  selftest_quiesce 20; full regression sweep green.
+- gm NEXT: gm-3 KeyDB/MinIO movers, gm-4 Keycloak, gm-5 MariaDB,
+  gm-6 kind-aware UI drawer flows (typed confirmation for stateful
+  subjects); UI-triggered graceful execution (today the UI hands
+  back the command; the CLI executes).
 
 ---
 
