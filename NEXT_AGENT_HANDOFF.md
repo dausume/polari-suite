@@ -178,12 +178,24 @@ connection drop); interrupted transfers discoverable after a crash.
   durations, staged-copy/no-deletion-before-confirmation, dual-volume
   journals + /api/health stale-artifact surfacing, update-in-progress
   guard, resumable quiesce.
-- gm REMAINING: gm-6 kind-aware UI drawer flows (typed confirmation
-  for stateful subjects; the Moves panel already paints receipts
-  live), UI-triggered graceful execution (today the UI hands back
-  the command), refinements: KeyDB replica-promote, MariaDB binlog
-  v2, docker-secrets (fixes the credential-drift class), local
-  registry (replaces save|ssh-load).
+## ⚡ SAME DAY 8th pass: gm-6 KIND-AWARE MOVE FLOWS — GM SEGMENT
+## COMPLETE (gm-1..6 all built; fw fa475f3, ng 744d925, rf 34be606)
+- Backend: MOVE_SUBJECTS catalog + move_plan() preview + GET
+  /api/topology/move-operations/plan (?subject=&machine=) — planned
+  steps, expected durations from history (LIVE: predicts 184s for a
+  mariadb move from today's real receipts), statefulness, exact
+  command. selftest_move_operations 25.
+- Frontend /topology "Plan a graceful move…": subject+machine ->
+  step plan + per-step ETAs (no history = 'no ETA, never a guess')
+  -> STATEFUL subjects demand typing the subject name -> copy-ready
+  command. Running moves PULSE; when a watched move verifies, the
+  graph repaints AND the foundational ping pass auto-runs + paints.
+  Execution stays the human-run command (knobs-and-suggestions).
+  Deployed; NO browser pass yet (planner + pulse + verify strip).
+- gm REFINEMENTS (all named, none built): UI-triggered execution
+  (needs a host-side executor agent), KeyDB replica-promote, MariaDB
+  binlog v2, docker-secrets (kills the credential-drift class),
+  local registry (replaces save|ssh-load).
 
 ---
 
