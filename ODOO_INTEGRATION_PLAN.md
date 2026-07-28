@@ -308,6 +308,23 @@ assert at the data level.
   checksum).
 
 ### od-6 — Real-ops guardrails (the ops half)
+**✅ CORE BUILT + DRILLED 2026-07-28** (autonomous session): `pol odoo
+backup-cron install|remove|status` (03:17 nightly sim+ops receipts,
+keep last 14; fixed a set-e-kills-subshell trap that silently
+installed an EMPTY crontab — caught live); `pol odoo restore-drill
+<sim|ops>` restores the LATEST receipt into odoo_scn_restore_drill,
+verifies base-table count vs the dump's CREATE TABLE count + row-
+EXACT res_users/ir_model vs the dump's COPY stanzas, drops the drill
+DB — PASSED live on both sim (236 tables) and ops (205). econ-core
+(the real host) got the raw-docker nightly cron + a proven manual
+dump (3.3MB receipt). MOVE_SUBJECTS gained odoo (server-move,
+compose-mode ship documented; gm-4 blue-green when it joins the
+stack) + odoo-postgres (gm-5 shape: drain=pol odoo down, receipts
+both dbs, staged volume copy, restore-drill verify) — 25/25 move-op
+selftests. Remaining od-6 tail: the actual swarm movers when odoo
+joins the suite stack; ops-push typed-confirm flows already live in
+the connector since od-3.
+
 - Backups: nightly `pg_dump` receipts (pol odoo backup, cron via the
   host or a sidecar — receipts listed in /api/odoo/status);
   RESTORE DRILL is part of acceptance, not optional.
