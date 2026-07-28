@@ -364,6 +364,25 @@ ref hydroponic-wax-source-farm — scenario 2 hook). API /api/
 supplychain/sourcing/*. 23/23 selftests; scenario products carry
 item_ref links.
 
+### src-2 — Formula layer (Dustin 2026-07-28, built same day)
+**✅ BUILT + TESTED**: ProductInputRequirement maps a product to its
+FULL feedstock space — roles (base-wax 60-85%, toughener 10-30%,
+hardener 5-15% for natural-print-wax-blend) each carrying ALL
+candidate item_refs, cited or not (uncited = research gaps surfaced:
+rice-bran-wax, candelilla-wax, stearic-acid). ProductFormula = a
+concrete blend; formula_analysis costs it from citations with full
+validation (fraction sum, role ranges, candidate legality, uncited
+components refuse with citation suggestions) and emits the
+material-cost-per-kg SCORING TERM (is_positive False — cheaper wins)
+with citation evidence, so sim results can score affordability.
+cheapest_blend = greedy min-cost feasible fractions (a SUGGESTION
+demanding print-validation): v0 blend 70/20/10 = 10.78 USD/kg;
+optimizer finds 85/10/5 = 7.79 USD/kg from the same citations (-28%).
+API /api/supplychain/sourcing/requirements|formulas|formula-cost|
+cheapest-blend. 18/18 selftests. Follow-up: register the matching
+ScoreTerm row in the scoring module's seeds (one row; kept out to
+avoid destabilizing that module's count-asserting suites this late).
+
 ## Risks / honest gaps (say them, don't hide them)
 - **Community vs Enterprise**: no Odoo Studio, limited accounting
   localizations/reports; if ops accounting needs more, that is a

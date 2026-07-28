@@ -37,6 +37,31 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ src-2 FORMULA LAYER — BUILT + TESTED 2026-07-28 (Dustin's spec)
+Products map to their FULL feedstock space: ProductInputRequirement
+(roles with fraction ranges + ALL candidate item_refs per role —
+uncited candidates surface as researchGaps, never silently omitted;
+natural-print-wax-blend seeded: base-wax 60-85% {soy, rice-bran*,
+candelilla*}, toughener 10-30% {beeswax}, hardener 5-15% {carnauba,
+stearic*, candelilla*}; * = uncited gap). ProductFormula = concrete
+blend rows. formula_analysis: formula_cost validates (fraction sum,
+role ranges, candidate legality, uncited components REFUSE with a
+citation suggestion) then costs from citations with per-component
+source/citation/date breakdown AND emits the material-cost-per-kg
+SCORING TERM block (is_positive=False, evidence=citations) so
+simulation results can score affordability directly; cheapest_blend
+= greedy min-cost feasible fractions as a SUGGESTION demanding
+print-validation. REAL numbers: v0 (70 soy/20 beeswax/10 carnauba)
+= 10.78 USD/kg; optimizer 85/10/5 = 7.79 USD/kg (-28%) — and both
+sit ABOVE the 6.0/kg commercial-pellet price scenario v1 pins,
+which is the honest economics finding retail-sourced blending has
+to beat (bulk pricing / farm-grown source = the path). API
+/api/supplychain/sourcing/requirements/{item}|formulas|formula-cost/
+{name}?sources=cheapest|preferred|cheapest-blend/{item}. 18/18
+selftests + all suites green. Follow-up: seed the matching
+ScoreTerm row in the scoring module (kept out of this pass to avoid
+destabilizing its count-asserting suites).
+
 ## ✅ src-1 SOURCING LAYER — BUILT + TESTED 2026-07-28 (Dustin's spec)
 Costs become CITED DATA (supplychain module): SupplySourceProfile
 (overlap-capable booleans open/commercial/local/polari/eco — a
