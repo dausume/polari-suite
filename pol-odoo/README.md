@@ -12,6 +12,7 @@ pol security setup            # generates the credential files (once)
 pol odoo up --env staging     # build + start odoo-postgres + odoo
 pol odoo init-db sim          # create odoo_sim (base modules, no demo)
 pol odoo init-db ops          # create odoo_ops
+pol odoo sso-setup            # od-2: Keycloak OIDC in every odoo_% DB
 pol odoo status               # health, DBs, backup receipts
 ```
 
@@ -71,10 +72,30 @@ logs show `password authentication failed for user "odoo"`):
 (gitignored — NEVER commit dumps; the repos are public). This is the only
 sanctioned way to touch ops data until od-6 lands the full guardrails.
 
+## SSO (od-2)
+
+`pol odoo sso-setup` is idempotent and never hand-clicked: it ensures
+the confidential Keycloak client `odoo` in realm **Polari** (admin API
+from inside the pol-keycloak container; redirect
+`https://odoo.<domain>/auth_oauth/signin`), then installs the OCA
+`auth_oidc` addon (pinned wheel, baked into the image) and upserts the
+`auth.oauth.provider` row in every existing `odoo_%` database — the
+client secret flows Keycloak → odoo DB in one pass and is never
+written to a file. Endpoint split follows the PRF-backend pattern:
+browser-facing auth/logout = public `https://auth.<domain>`,
+server-to-server token/jwks/userinfo = in-network
+`http://pol-keycloak:8080`. Requires pol-keycloak running; re-run any
+time (e.g. after creating a new DB or changing the domain).
+
 ## Honest gaps (v1)
 
-- SSO is od-2 (Keycloak OIDC via auth_oidc) — until then, logins are
-  Odoo-local accounts (admin password set at `init-db` time).
+- KC-role → Odoo-group mapping is MANUAL: users arriving via SSO
+  follow Odoo's signup rules; promote to internal/admin inside Odoo.
+  The admin password printed at `init-db` remains the break-glass
+  local login.
+- The browser SSO round-trip needs pol-proxy serving `odoo.<domain>`
+  (direct :8069 access builds an http:// redirect_uri that Keycloak
+  rightly rejects — proxy_mode only trusts the proxy's headers).
 - The odooconnect framework module (JSON-RPC bindings) is od-3.
 - Movers (`pol swarm relocate odoo|odoo-postgres`) are od-6; until then
   the pair lives where `pol odoo up` ran.

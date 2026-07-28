@@ -144,8 +144,8 @@ services:
       env_files: [pol-odoo/odoo.env]
       mounts: [pol-odoo/odoo.conf]
       knobs: [POLARI_ODOO_DB_PASS]
-    connects_to: {odoo-postgres: db-credentials, prf-backend: erp-api-seam}
-    variations: "compose profile 'odoo'; odoo:18.0-20260723 pinned; two DBs odoo_sim/odoo_ops (created via `pol odoo init-db` — the sim/ops separation invariant); websocket :8072; humans at odoo.<domain>; SSO = od-2, connector module = od-3"
+    connects_to: {odoo-postgres: db-credentials, prf-backend: erp-api-seam, pol-keycloak: keycloak-client-secrets}
+    variations: "compose profile 'odoo'; odoo:18.0-20260723 pinned + OCA auth_oidc wheel; two DBs odoo_sim/odoo_ops (created via `pol odoo init-db` — the sim/ops separation invariant); websocket :8072; humans at odoo.<domain>; SSO via `pol odoo sso-setup` (KC client 'odoo', realm Polari — secret lives KC->odoo DB, never a file); connector module = od-3"
 
   - kind: psc-redis
     context: (image)

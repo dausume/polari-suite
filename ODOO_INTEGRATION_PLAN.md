@@ -165,6 +165,14 @@ sync (repos not pushed yet).
   pass paints the new connections.
 
 ### od-2 — SSO (humans through Keycloak)
+**✅ BUILT + VERIFIED 2026-07-27** (same branches): OCA auth_oidc
+18.0.1.1.0.2 wheel pinned into pol-odoo/Dockerfile; `pol odoo
+sso-setup` (lib/odoo-sso.sh) ensures KC client 'odoo' idempotently and
+upserts the provider row in every odoo_% DB (secret KC->DB, no file).
+Verified live: both DBs render 'Log in with Polari SSO' with a code-
+flow link to auth.<domain>. Deferred honestly: browser round-trip +
+mid-session KC-move check need pol-proxy live; role->group mapping is
+manual v1 (plan's 'minimal mapping' = signup rules + manual promote).
 - Keycloak client `odoo` (confidential, redirect
   `https://odoo.<domain>/auth_oauth/signin`), scripted via the KC
   admin API (the backend already holds admin creds) — idempotent

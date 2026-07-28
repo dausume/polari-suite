@@ -6,4 +6,13 @@ FROM odoo:18.0-20260723
 
 # DB connection arrives via env_file (pol-odoo/odoo.env — official image
 # entrypoint reads HOST/PORT/USER/PASSWORD). Server config is the mounted
-# pol-odoo/odoo.conf (NO secrets). od-2 adds the auth_oidc addon here.
+# pol-odoo/odoo.conf (NO secrets).
+
+# od-2 SSO: OCA auth_oidc (OpenID Connect code flow against Keycloak),
+# pinned like the base image. The wheel lands in site-packages and Odoo
+# discovers it through the odoo.addons namespace; it is INSTALLED into a
+# database by `pol odoo sso-setup` (or init-db thereafter), never here.
+USER root
+RUN pip3 install --no-cache-dir --break-system-packages \
+    odoo-addon-auth_oidc==18.0.1.1.0.2
+USER odoo

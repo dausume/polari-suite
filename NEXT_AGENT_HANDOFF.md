@@ -37,6 +37,29 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ od-2 SSO — BUILT + VERIFIED 2026-07-27 (same branches)
+OCA auth_oidc 18.0.1.1.0.2 wheel PINNED into pol-odoo/Dockerfile;
+`pol odoo sso-setup` (polari-cli scripts/lib/odoo-sso.sh) is the
+idempotent, never-hand-clicked flow: admin-API-inside-pol-keycloak
+ensures confidential client 'odoo' in realm Polari (redirect
+https://odoo.<domain>/auth_oauth/signin — auth_oidc reuses the
+auth_oauth route), then installs auth_oidc + upserts the
+auth.oauth.provider row in EVERY odoo_% DB (flow id_token_code;
+secret flows KC->odoo DB, never a file). Endpoint split = the PRF
+pattern: browser auth/logout public https://auth.<domain>, token/
+jwks/userinfo in-network http://pol-keycloak:8080. VERIFIED live
+(pol-mariadb+pol-keycloak brought up from the existing volume, then
+downed): client created+updated idempotently, both login pages
+render 'Log in with Polari SSO' with a correct code-flow link.
+GOTCHA fixed en route: docker exec needs -i for bash -s stdin
+scripts. Honest gaps: browser round-trip + gm-4 KC-move-mid-session
+check wait for pol-proxy serving odoo.<domain> (prf-proxy owns :443
+on pol-core); KC-role->Odoo-group mapping MANUAL v1 (init-db admin
+password = break-glass local login). Topology: odoo->pol-keycloak
+keycloak-client-secrets connection seeded (16 connections, 52/52).
+NEXT: od-3 odooconnect module (stdlib JSON-RPC, OdooInstanceConfig/
+OdooModelBinding rows, stub-server selftests, /api/odoo/status).
+
 ## ✅ od-1 SERVICE BRING-UP — BUILT + VERIFIED 2026-07-27
 Branches `dev-od-1-odoo-bringup` (suite + polari-cli + framework),
 NOT pushed. `pol odoo up|down|build|status|logs|init-db <sim|ops>|
