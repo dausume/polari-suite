@@ -92,7 +92,16 @@ dispersion" as a fabrication idea. Tech-tree topology table has the
    different levels of complexity and tolerance requirements for
    the motors makes sense, yes") — see §2c, the ladder is DATA the
    solver prices.
-4. Defaults unless objected: gaussmeter = cheap hall-sensor buy
+4. **END-GOAL TOPOLOGY (Dustin 2026-07-28)**: 3-phase DUAL-STATOR
+   — "maximum force and control, applicable to cars, cheaper
+   materials in a smaller space to reach parity with more
+   expensive ones". See §2d — dual-gap axial flux is the geometry
+   that makes the cheap-material parity argument QUANTITATIVE.
+5. **CONTROLLER (Dustin 2026-07-28)**: SimpleFOC (open-source FOC
+   stack) drives the motor — see mag-6; it replaces custom drive
+   firmware at stage 0/1 and sits at preference-ladder rank open-
+   source-non-polari. FPGA timing stays the escalation rung.
+6. Defaults unless objected: gaussmeter = cheap hall-sensor buy
    SUGGESTED (knob, never auto-purchased); module home = new
    `magnetics/`; solver = python primary + ngspice-analogy parity.
 
@@ -145,6 +154,45 @@ never vibes:
 Priors start est-flagged; MEASURED joint thicknesses (calipers, a
 QA dimensional check) replace them per the measured-rates pattern.
 
+### §2d — DUAL-STATOR AXIAL FLUX: the target geometry + the parity math
+- **Topology**: two stator DISKS (each a mortared monolith of cast
+  pie-segment teeth blocks + potted windings) sandwich one rotor
+  disk (ferrite-PM ring segments, or salient reluctance disk for
+  the no-PM proof). TWO working gaps.
+- **Why it fits us exactly**:
+  1. Force scales with GAP AREA × B² — dual gaps double active
+     area in the same envelope. Low-B cheap materials compensate
+     with geometry: that IS Dustin's parity thesis, made physics.
+  2. Flat disk faces are CASTABLE and LAPPABLE (T1 rung is
+     sandpaper-on-glass) — axial geometry wants exactly the
+     manufacturing we have; radial laminations want exactly what
+     we don't.
+  3. Yokeless variants (YASA-shape) MINIMIZE soft-core path length
+     — with µ~2 core material the less core the flux must cross,
+     the better; dual-stator lets flux go tooth→gap→magnet→gap→
+     tooth with almost no yoke. Our weakest material property gets
+     designed AROUND.
+  4. Dual stator = redundancy + control authority (two independent
+     3-phase sets can run staggered/failover — the 'maximum
+     control' half).
+- **PARITY REPORT (a mag-5 analysis function, honest by
+  construction)**: torque_parity(cheap_material, reference) →
+  the area/radius multiplier needed for torque parity (PM torque
+  ~ B_gap × loading × gap area × radius; ferrite Br ~0.2-0.4 T vs
+  NdFeB ~1.2-1.4 T → roughly 3-6x more gap area OR bigger radius
+  at equal loading — dual gaps supply a clean 2x of it, diameter
+  and stacking supply the rest). Every parity claim in any report
+  MUST come from this function with its assumptions printed.
+- **CARS = the aspiration rung, said honestly**: ladder is bench
+  demo (prove blocks+mortar+SimpleFOC) → e-bike/cart class
+  (hundreds of W) → in-wheel automotive class (the axial-flux
+  research lane; ferrite-PM axial machines are a real published
+  answer to rare-earth-free EV motors). Reports name their rung;
+  nothing claims car-class until measured rows exist.
+- Stacking rule: dual-stator units MODULE-STACK on one shaft
+  (another 'blocks' axis — torque adds per stack, the small-space
+  parity lever after diameter).
+
 ### mag-1 — Sourcing + formulas (supplychain; the "make" capability)
 - ProductInputRequirement rows: `magnetic-geopolymer-mix`
   (matrix role = geopolymer-mix CASCADED at 1.11/kg self-made;
@@ -161,10 +209,17 @@ QA dimensional check) replace them per the measured-rates pattern.
   CORES (cite Fair-Rite/Amidon toroids + C-cores $/kg) and bonded
   magnets (cite ceramic magnet retail) — the same
   make-vs-buy-honest verdict pattern as wax/geopolymer.
-- CITATION HUNTS: strontium-ferrite bonded-magnet powder; magnet
+- CITATION HUNTS: strontium-ferrite bonded-magnet powder
+  (2026-07-28 pre-hunt: bulk literature figure ~$1.5/kg; retail
+  small-lot via Stanford Advanced Materials / American Elements /
+  magnet-powder.com needs a quote — est-flag until pinned); magnet
   wire (AWG enamel copper, $/kg — REQUIRED for any motor, uncited);
-  Hall sensors; cheap ESCs/H-bridge parts for mag-6. Est-flag
-  anything bot-blocked, screenshots valid.
+  Hall sensors + AS5600 magnetic encoder (~$3 class, SimpleFOC's
+  standard position sensor); SimpleFOC Shield (~$35-50 street,
+  simplefoc.com/shop + eBay/Amazon; MakerBase clone cheaper) or
+  DRV8302 class driver; bearings + shaft stock; commercial ferrite
+  ring magnets (the make-vs-buy benchmark for the PM rotor).
+  Est-flag anything bot-blocked, screenshots valid.
 
 ### mag-2 — Magnetic properties as data (materials seam)
 - Extend the supplychain/materials seam so items carry magnetic
@@ -244,20 +299,35 @@ QA dimensional check) replace them per the measured-rates pattern.
 - L2 escalation (data/deps-gated): scikit-fem 2D magnetostatics
   cross-section validation (the fem engine + worker already exist
   in msci); L4 = spin-DFT ferrite gap already named by msci-22.
-- Seeds: a 6-slot/4-pole reluctance motor sized to a 3D-printable
-  mold envelope; the ferrite-PM variant row exists from day one
-  but REFUSES until the hard-ferrite citation + formula land
-  (the refusal is the shopping list).
+- torque_parity() analysis (§2d) ships WITH the designer — every
+  'parity with expensive materials' statement traces to it.
+- Seeds: (1) a 6-slot/4-pole RADIAL reluctance motor as the
+  simplest hand-checkable case; (2) the FLAGSHIP: dual-stator
+  axial-flux row (12-tooth per stator / 8-pole rotor class) sized
+  to a 3D-printable mold envelope — reluctance-disk variant runs
+  today, ferrite-PM variant REFUSES until the hard-ferrite
+  citation + bonding formula land (the refusal is the shopping
+  list).
 
-### mag-6 — Drive electronics + hardware bridge (close the loop)
-- electrodevice circuit rows for the 3-phase half-bridge inverter
-  (6 switches + shunts) — runs in ngspice TODAY through the
-  existing netlist runner; commutation table as data.
-- `PhaseBindingDefinition` (level_bridge mirror): binds motor
-  phases → inverter output nets → (later) FPGA PWM channels per
-  the hardware architecture (FPGA = motor timing; MCU = safety).
-  hwsim (Renode STM32) can exercise the commutation state machine
-  before any hardware exists.
+### mag-6 — Drive: SimpleFOC first, FPGA as the escalation rung
+- **SimpleFOC is the v1 controller** (Dustin 2026-07-28): the
+  open-source Arduino/STM32 FOC stack + SimpleFOC Shield class
+  driver (~$35-50; MakerBase clone cheaper) + AS5600 encoder.
+  Rank: open-source-non-polari on the preference ladder — exactly
+  what stage 0/1 should buy, not build. DUAL-stator = two 3-phase
+  sets: v1 wires them in parallel (one controller), v2 runs two
+  synchronized controllers (the control-authority/failover story).
+- Rows: MotorControllerProfile (SimpleFOC board, firmware params —
+  pole pairs, sensor type, current limits — as DATA so a design
+  generates its SimpleFOC config snippet), plus the electrodevice
+  inverter circuit rows for understanding/teaching (ngspice runs
+  the half-bridge TODAY) — the bought shield replaces building it,
+  the circuit rows keep the theory inspectable.
+- `PhaseBindingDefinition` (level_bridge mirror): motor phase →
+  shield terminal → (escalation) FPGA PWM channels per the
+  hardware architecture (FPGA = timing; MCU = safety supervisor).
+  hwsim (Renode STM32) can exercise commutation/SimpleFOC firmware
+  before hardware exists — later rung, named not promised.
 - Honest seam: simulation-only until hardware tiers say otherwise;
   every hardware-facing row is a knob + suggestion, never auto.
 
@@ -293,7 +363,10 @@ live-boot probe extended with /api/magnetics routes.
 
 ## 4. Explicitly OUT of v1 (named so nobody trips)
 Eddy currents/core loss numbers, hysteresis loops, thermal limits,
-dynamic (dq-frame) simulation, acoustic/vibration, self-wound coil
-winding machines (a later manufacturing-tools node), rare-earth
-magnets (against the accessible-materials ethos and unnecessary
-for the proof).
+dynamic (dq-frame) SIMULATION (the real dq control runs in
+SimpleFOC on hardware — we don't duplicate it in v1 sim),
+acoustic/vibration, self-wound coil winding machines (a later
+manufacturing-tools node), rare-earth magnets (against the
+accessible-materials ethos and unnecessary for the proof —
+ferrite-PM axial flux is the published rare-earth-free lane),
+automotive-class claims of any kind until measured rows exist.
