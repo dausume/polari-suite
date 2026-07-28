@@ -37,6 +37,17 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ src-4b METAKAOLIN EXACT-CITED — Dustin's screenshots 2026-07-28
+Clay Art Center bot-blocks automated fetch; Dustin captured the real
+prices by phone: metakaolin $5/1lb weigh-out, $66.00/50lb bag EXACT,
+volume tiers to $46.20/bag at 40+ bags. Cited as TWO citations: the
+single bag (2.91/kg exact) and the 40-bag tier with amount=2000lb so
+the pack size SHOWS the commitment the price demands (2.04/kg).
+Geopolymer numbers moved: v0 = 2.65/kg, optimized = 1.85/kg vs GPI
+kit 4.85/kg → making beats buying ~45-62%. Pattern for the future:
+when a site blocks fetch, a user screenshot IS a valid citation
+(note says so + who captured it). 31/31 green.
+
 ## ✅ src-4 GEOPOLYMER MAKE-VS-BUY — 2026-07-28 (Dustin's spec)
 Same pattern as the wax: geopolymer-mix (DIY-local castable) gets
 its full feedstock space + real dated citations vs buying the GPI
