@@ -37,6 +37,32 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ biz-2 STAGE-0 MODE + READINESS + LEAD-TIME QUOTES — 2026-07-28
+Three Dustin refinements landed same-session:
+- STAGE-0 = PRE-STAGED SPECULATIVE (work_mode on stages): no
+  orders — produce what you can AFFORD with what you HAVE, VARY
+  the products, then try to sell. prestage_plan(budget, horizon):
+  even exploration split across variants until MarketSessionRecord
+  sell-through exists, then winners get more of the next batch
+  with a 10% exploration floor for losers; revenue lines say
+  loudly they assume everything sells (unsold stock = tuition).
+  /api/bizops/prestage/{business}?budgetUsd=.
+- PRODUCT READINESS per business: concept -> produced (timed
+  ProductionRunRecord) -> market-proven (MADE AND SOLD past the
+  threshold, default 1 ADJUSTABLE via BusinessProfile
+  .readiness_sold_threshold) -> advance-orderable (+ measured
+  rates). Escalation EARNED by rows, never declared.
+  /api/bizops/readiness/{business}.
+- LEAD-TIME QUOTES gated on readiness: ProductionRunRecord rows =
+  'the proper record of how long it takes'; quote = (backlog hours
+  + order hours) / daily hours + cure buffer — 'based on our
+  backlog this order will take ~N days'; promise ceiling defaults
+  30 days (BusinessProfile.lead_limit_days, adjustable per call);
+  beyond it -> honest do-not-accept naming the upgrade levers
+  (commit-hours / hire-caster). Backlog estimated from priors is
+  FLAGGED in the quote. /api/bizops/quote/{business}?variant=&
+  quantity=&leadLimitDays=. 41/41 bizops selftests + full sweep.
+
 ## ✅ biz-1 BIZOPS MODULE — 2026-07-28 (Dustin's big splice)
 NEW feature module modules/bizops (requires supplychain; wave 3;
 wired into polari-modules.json/FEATURE_MODULES+REQUIRES/
