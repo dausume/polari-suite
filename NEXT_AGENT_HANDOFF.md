@@ -37,6 +37,40 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ biz-4 COMPLIANCE + QA — 2026-07-28 (sell it legally, honestly)
+Dustin: not-food-safe must NOT sell as food-safe; legal requirements
+per product kind tracked at attainment LEVELS; QA per product kind.
+- COMPLIANCE_LEVELS ladder = unassessed -> theoretical-pass ->
+  self-test-pass -> certified-third-party-pass. ComplianceRequirement
+  rows (kind legal-mandatory|market-rule|voluntary-standard,
+  applies_context, required_level, reference_note) gate sale
+  CONTEXTS; ComplianceRecord rows earn levels (variant-scoped or
+  ''=business-wide). 6 seeded: food-contact (REQUIRES certified —
+  the hard rule), honest-labeling, business-license, market-vendor
+  rules, CPSIA children's, plant-safe leachate-pH (voluntary).
+- sellability_report (bizops_compliance.py): per-context
+  allowed/blocked with blocker sentences; legal-mandatory unmet
+  blocks the CONTEXT, voluntary unmet blocks only the CLAIM;
+  canSellPlainGoods; every report carries NOT-LEGAL-ADVICE.
+- qa_report: QualityCheckDefinition (5 seeded: visual-crack,
+  dimensional-fit, water-tightness, cure-hardness, leachate-pH
+  which doubles as plant-safe evidence) + QualityCheckRecord pass
+  rates; zero records = 'unmeasured', never fake 100%.
+- Routes /api/bizops/sellability/{business} + /qa/{business}
+  (?variant=); sellability embedded in walkthrough sell-and-log
+  step; 4 classes + 2 seed lists wired in polariServer.
+- VISUAL: /business/start sell step renders hard rule (red),
+  context chips allowed/BLOCKED, per-requirement attained-vs-needed
+  chips, disclaimer; new QA table w/ pass rates (warn <90%),
+  honest 'unmeasured'. ng build green, NO browser pass.
+- selftest_bizops 56 -> 71 (variant-scoped certification, no
+  cross-requirement leaks, claim-vs-sale, honest unmeasured).
+Framework ea59b74 (dev-od-1-odoo-bringup), angular 66fc5da
+(dev-od-7-business-ui). NEXT candidates: browser pass on
+/business/* (needs backend w/ odooconnect+bizops), od-4 order
+bindings feeding ProductOrder from sale.order, scenario-3
+transfer pricing, remaining citation re-cites.
+
 ## ✅ biz-3v VISUAL — /business/start (angular dev-od-7-business-ui)
 The walkthrough as a PAGE (13c89f5 branch, new commit): six
 numbered accordion steps, cited shopping-list table with ~estimate
