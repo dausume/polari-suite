@@ -122,13 +122,14 @@ Key decisions baked in (od-0 confirms them):
 
 ## Phases (od-N) — each lands with its own branch off dev + selftests
 
-### od-0 — Decisions + placement (Dustin, ~minutes)
-Confirm: Community 18 vs pin 17; single-server/two-db (recommended);
-which machine hosts it (RESOURCES: odoo+postgres ≈ 1.5-2GB RAM —
-staging-a already carries the node stack; isle-core has 7.6G with
-engines; lightweight is the wildcard — record the choice as topology
-rows and a ModuleResourceProfile); whether ops accounting starts now
-or after the sim loop proves out.
+### od-0 — Decisions (Dustin ANSWERED 2026-07-27)
+- **Simulations FIRST; real ops much later** — od-5 is the payoff
+  target, od-6 waits until the sim loop has proven out.
+- **Host = econ-core** (the business-ops/economics core, renamed
+  from 'lightweight' — N95 4-core / 7.5G, headless-safe). Record a
+  ModuleResourceProfile once measured.
+- Still open (confirm at build time): Community 18 vs pin 17;
+  single-server/two-db stands as recommended.
 
 ### od-1 — Service bring-up (the external-asset baseline)
 - `pol-services/compose/services/odoo.yml` + `odoo-postgres.yml`

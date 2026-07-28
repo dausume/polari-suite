@@ -24,17 +24,18 @@ machines:
   swarm_role: none
   repo_dir: ~/polari-suite
   source: nodes.yml
-  notes: 6-core i5 / 7.6G; also runs the Isle-Mesh project.
-- name: staging-a
+  notes: "ISLE-MESH/infra/hardware-integration core \u2014 science engines; runs its\
+    \ own Claude (Isle-Mesh project)"
+- name: pol-core
   ssh_alias: ''
   arch: x86_64
-  mem_gb: 15.51
-  roles_json: '["core", "suite", "swarm-manager"]'
+  mem_gb: 0.0
+  roles_json: '["node","research-core"]'
   swarm_role: manager
   repo_dir: ~/Desktop/polari-suite
-  source: manual
-  notes: "Local staging host (192.168.0.210) \u2014 combined compose suite + single-node\
-    \ swarm (polari-engines stack) + twin/dask compose projects."
+  source: nodes.yml
+  notes: "RESEARCH/Polari core (renamed from staging-a 2026-07-27) \u2014 node stack\
+    \ lives here"
 instances:
 - name: engines
   kind: worker
@@ -54,8 +55,8 @@ instances:
   service_kinds_json: '["prf-backend", "prf-frontend"]'
   replicas: 1
   env_tier: staging
-  machine_name: staging-a
-  placement_constraint: ''
+  machine_name: pol-core
+  placement_constraint: node.labels.polari.machine == pol-core
   db_backend: sqlite
   image_tag: staging
   orchestration_target: compose
@@ -68,8 +69,8 @@ instances:
   service_kinds_json: '["prf-backend-b", "prf-frontend-b", "prf-keydb-b"]'
   replicas: 1
   env_tier: staging
-  machine_name: staging-a
-  placement_constraint: ''
+  machine_name: pol-core
+  placement_constraint: node.labels.polari.machine == pol-core
   db_backend: sqlite
   image_tag: staging
   orchestration_target: compose
@@ -81,8 +82,8 @@ instances:
   service_kinds_json: '["prf-dask"]'
   replicas: 1
   env_tier: staging
-  machine_name: staging-a
-  placement_constraint: ''
+  machine_name: pol-core
+  placement_constraint: node.labels.polari.machine == pol-core
   db_backend: sqlite
   image_tag: staging
   orchestration_target: compose
@@ -94,8 +95,8 @@ instances:
   service_kinds_json: '["psc-backend", "psc-frontend", "psc-redis"]'
   replicas: 1
   env_tier: staging
-  machine_name: staging-a
-  placement_constraint: ''
+  machine_name: pol-core
+  placement_constraint: node.labels.polari.machine == pol-core
   db_backend: mariadb
   image_tag: staging
   orchestration_target: compose
@@ -107,8 +108,8 @@ instances:
   service_kinds_json: '["pol-mariadb", "pol-keycloak", "pol-file-store", "pol-proxy"]'
   replicas: 1
   env_tier: staging
-  machine_name: staging-a
-  placement_constraint: ''
+  machine_name: pol-core
+  placement_constraint: node.labels.polari.machine == pol-core
   db_backend: mariadb
   image_tag: staging
   orchestration_target: compose

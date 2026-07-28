@@ -4,7 +4,7 @@ topology: staging-a
 actions:
 - order: 1
   group: suite
-  machine: staging-a
+  machine: pol-core
   remote: false
   instances:
   - prf-a
@@ -20,14 +20,14 @@ actions:
   command: pol swarm deploy engines
 - order: 3
   group: twin-b
-  machine: staging-a
+  machine: pol-core
   remote: false
   instances:
   - prf-b
   command: pol compose twin up
 - order: 4
   group: dask
-  machine: staging-a
+  machine: pol-core
   remote: false
   instances:
   - prf-dask

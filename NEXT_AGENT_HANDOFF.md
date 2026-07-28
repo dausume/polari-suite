@@ -1,3 +1,27 @@
+# ⚡ DEVICE RENAME — 2026-07-27 (roles = accountability)
+
+**Machines renamed so the name IS the mandate** (Dustin):
+- **pol-core** (was staging-a, this HP box) — RESEARCH/Polari core;
+  the node stack lives here.
+- **isle-core** (unchanged) — ISLE-MESH/infra/hardware-integration
+  core; science engines; its own Claude instance.
+- **econ-core** (was lightweight, the DNB20) — BUSINESS-OPS/ECONOMICS
+  core; the Odoo host (od-0 answered: sims FIRST, real ops much
+  later).
+Applied LIVE: swarm node labels + ALL service constraints swapped
+(everything healthy), topology machine/instance rows repointed
+(+roles in notes), nodes.yml keys+roles, ssh alias econ-core added
+(legacy 'lightweight' still works), CLI defaults POLARI_LOCAL_NODE
+-> pol-core, manifests re-rendered parity-OK. ⚠ Cleanup TODO: two
+TOMBSTONE machine rows ('staging-a', 'lightweight' — notes say
+renamed-to) remain in the topology table; delete via the Topology
+UI/CRUDE when convenient. The TOPOLOGY itself is still NAMED
+'staging-a' (deployment name, not a device) — renaming it to e.g.
+'pol-core-deploy' is a separate decision. Deploy-command examples in
+older sections below still say staging-a — read them as pol-core.
+
+---
+
 # ⚡⚡⚡⚡⚡⚡⚡ NEXT WORK: ODOO INTEGRATION — 2026-07-27 (READ FIRST)
 
 **Dustin's next arc, handed to the NEXT AGENT: integrate Odoo as the

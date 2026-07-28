@@ -2,18 +2,36 @@
 # POLARI DEPLOY TARGETS (bld-6) — machines `pol deploy` can drive over ssh.
 # NO SECRETS here: ssh uses the aliases from ~/.ssh/config (key auth);
 # credentials self-generate ON the target via the setup scripts.
+#
+# DEVICE ROLES (renamed 2026-07-27 for accountability of where things
+# SHOULD live — the machine name IS the mandate):
+#   pol-core   — core for RESEARCH / the Polari platform itself
+#                (backend, frontend, auth, storage, proxy).
+#   isle-core  — core for ISLE-MESH / infrastructure / hardware
+#                integration (science engines today; runs its own
+#                Claude instance for the Isle-Mesh project).
+#   econ-core  — core for BUSINESS OPS / ECONOMICS integration
+#                (Odoo + postgres land here per ODOO_INTEGRATION_PLAN;
+#                renamed from 'lightweight').
 # ==============================================================================
 nodes:
+  pol-core:
+    ssh: ""                       # THIS machine (empty alias = local, the
+                                  # same convention the movers already use)
+    repo_dir: ~/Desktop/polari-suite
+    roles: [node, research-core]
+    notes: "HP ProDesk 600 G1; the research/Polari core — node stack lives here (renamed from staging-a 2026-07-27)"
   isle-core:
     ssh: isle-core                # detts@192.168.0.24 (passwordless key)
     repo_dir: ~/polari-suite
-    roles: [engines, remote-worker, node]
-    notes: "6-core i5 / 7.6G; also runs the Isle-Mesh project + its own Claude"
-  lightweight:
-    ssh: lightweight              # dausume@192.168.0.66 (passwordless key)
+    roles: [engines, remote-worker, node, infra-core, hardware-integration]
+    notes: "6-core i5 / 7.6G; the isle-mesh/infra/hardware core — science engines; also runs the Isle-Mesh project + its own Claude"
+  econ-core:
+    ssh: econ-core                # dausume@192.168.0.66 (passwordless key;
+                                  # legacy alias 'lightweight' still works)
     repo_dir: ~/polari-suite
-    roles: [engines, remote-worker]
-    notes: "N95 4-core / 7.5G; suspend disabled 2026-07-08 — safe headless target"
+    roles: [engines, remote-worker, business-ops, economics]
+    notes: "N95 4-core / 7.5G; the business-ops/economics core — Odoo host per ODOO_INTEGRATION_PLAN (renamed from lightweight 2026-07-27); suspend disabled 2026-07-08 — safe headless target"
 
 # Repos are PUBLIC — clone needs no credentials:
 repo_url: https://github.com/dausume/polari-suite.git
