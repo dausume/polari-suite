@@ -383,6 +383,23 @@ cheapest-blend. 18/18 selftests. Follow-up: register the matching
 ScoreTerm row in the scoring module's seeds (one row; kept out to
 avoid destabilizing that module's count-asserting suites this late).
 
+### src-3 — Substitute benchmark (Dustin 2026-07-28, built same day)
+**✅ BUILT + TESTED**: MachinableWax.com seeded as THE current
+commercial alternative for 3D-printing wax — is_eco_friendly=False
+with the caveats as DATA on the substitution entry (contains
+plastics: paraffin+polyethylene blend; emits fumes when overheated,
+ventilation required / non-user-friendly under some conditions).
+ProductInputRequirement gained substitutes_json (whole-product
+substitutes vs role candidates). Citation: ~$10/lb pelletized,
+honestly flagged is_estimate (exact store price unreachable — site
+TLS error at observation; forum-referenced figure; re-cite when
+reachable) → 22.05 USD/kg. product_cost_comparison + /api/
+supplychain/sourcing/compare/{item}: formulas vs optimizer vs
+substitutes in one caveat-carrying table + verdict — OUR blend
+(7.79/kg optimized) beats the substitute by ~64.6%, and the cheap
+row can never hide what it costs you (caveats travel with prices).
+24/24 formula selftests.
+
 ## Risks / honest gaps (say them, don't hide them)
 - **Community vs Enterprise**: no Odoo Studio, limited accounting
   localizations/reports; if ops accounting needs more, that is a

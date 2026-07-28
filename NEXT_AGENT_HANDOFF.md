@@ -37,6 +37,24 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ src-3 SUBSTITUTE BENCHMARK — MachinableWax 2026-07-28
+The current commercial alternative for 3D-printing wax, accounted
+honestly: SupplySourceProfile machinable-wax-com (commercial,
+NON-eco — paraffin+polyethylene plastics blend, fume emission when
+overheated, ventilation required); ProductInputRequirement gained
+substitutes_json (WHOLE-product substitutes with caveats-as-data,
+distinct from role candidates); citation ~$10/lb flagged is_estimate
+(store TLS-unreachable at observation — forum-referenced figure,
+re-cite when reachable) → 22.05 USD/kg. product_cost_comparison
+(/api/supplychain/sourcing/compare/{item}): formulas vs optimizer vs
+substitutes sorted cheapest-first WITH caveats attached + verdict —
+our optimized natural blend 7.79/kg beats machinable wax by ~64.6%
+(v0 10.78/kg beats it by ~51%). So: natural blending loses to bulk
+commercial soy pellets (6.0/kg) as raw input but CRUSHES the
+dedicated commercial print-wax substitute — the business case for
+blending in-house is real TODAY vs MachinableWax, and gets better
+with bulk/farm sourcing. 24/24 formula selftests.
+
 ## ✅ src-2 FORMULA LAYER — BUILT + TESTED 2026-07-28 (Dustin's spec)
 Products map to their FULL feedstock space: ProductInputRequirement
 (roles with fraction ranges + ALL candidate item_refs per role —
