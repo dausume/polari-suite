@@ -37,6 +37,37 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ bio-1 CORN HUSKS + BIO ROUTES — 2026-07-28 (Dustin's ask)
+Are husks a sand alternative? NOT drop-in (sand = rigid inert
+volume; husks = compressible, water-absorbing, and cellulose
+DEGRADES in the alkaline matrix). THREE real routes as data, each
+with its refinement chain in the requirement:
+- FIBER (toughness, 0-2%): dry -> chop 10-30mm -> alkali-wash+rinse
+  -> optional wax/waterglass coat vs matrix alkalinity. New OPTIONAL
+  fiber-reinforcement role on geopolymer-mix (min 0 — optimizer
+  fills at zero when nothing cited; that needed a cheapest_blend
+  fix for optional roles).
+- MINERALIZED CHIPS (lightweight PARTIAL sand substitution,
+  insulating planter grades): dry -> chop 5-15mm -> WATERGLASS DIP
+  (our intermediary — the wood-wool-board trick) -> dry. Nobody
+  SELLS these, so buy-everything costing refuses honestly and the
+  CASCADE is the only true cost (selftested as the design speaking).
+- ASH: the honest comparator — corn/herbaceous ash yield ~5% (vs
+  rice hulls 18%, K-rich low-SiO2) => ~487/kg at retail husks;
+  rice hulls stay the special case, corn belongs to fiber/chips.
+CITED EXACT: Farmers Spice 24 lb case $265 (24.34/kg FOOD-GRADE
+tamale channel) — and that price IS the finding: husks are FARM
+WASTE, near-free at source; the bio castable variant
+(geopolymer-castable-bio-v0: 21% sand + 18% chips + 2% fiber)
+costs ~5x the plain castable at retail husks (selftested), which
+PROVES the farm-waste channel requirement — the hydroponic-farm
+partner loop supplies exactly this. sugarcane-bagasse-ash +
+hemp-fiber seeded as uncited candidates (documented pozzolan/
+fiber). Coverage engine improved: makeable-but-uncited candidates
+now show 'makeable' with their make-cost instead of counting as
+research gaps. 55/55 formulas + full sweep. 30 sources / 34
+citations / 11 requirements / 12 formulas.
+
 ## ✅ mold-1 MOLD STRATEGIES + CRUSH-RECYCLE — 2026-07-28
 Dustin's geopolymer-mold questions as data:
 - CAN geopolymer mold geopolymer? YES with a MANDATORY release
