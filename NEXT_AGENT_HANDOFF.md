@@ -37,6 +37,36 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ wp-r WAX RECLAIM LOOP + src-8 CITATION SWEEP — 2026-07-28
+Dustin's melt-off question answered as DATA + tracking:
+- WaxReclaimBatch (waxprint module, in defClassList, NO fake seeds):
+  THE geopolymer-wax-mold-reuse-cycles tracker — pool_name +
+  generation counter, melted/recovered/makeup kg (measured recovery
+  ratio derives from these), residue_note, wash_done + wash_ph_result
+  (red-cabbage/strip, research-tools tree), melt_point_c_measured
+  (drift vs the feedstock window = the printability early-warning),
+  printability untested|good|degraded|retired.
+- supplychain/reclaim_analysis: steady-state + cycle-curve economics
+  over CITED costs — virgin blend resolved cascaded (6.95/kg made),
+  citric wash costed (the wash is NOT optional: alkaline geopolymer
+  residue SAPONIFIES ester waxes — soy IS a triglyceride), recovery
+  0.85 FLAGGED estimate (foundry practice 0.80-0.90) until batch
+  rows land, melt/wash energy excluded, generation ceiling honestly
+  UNKNOWN (refuses to promise one). RESULT: wax per mold 2.43 ->
+  0.40 at steady state (~84% cut; per pot 0.24 -> 0.04).
+  /api/supplychain/sourcing/reclaim (+?cycles=N curve) + /reclaim/
+  pools. 13/13 selftests.
+- src-8 SEVEN MORE CITATIONS: rice-bran-wax $65.99/5lb EXACT (the
+  ENTIRE wax feedstock space is now cited — zero gaps), ferric
+  chloride $21.95/500mL exact-price/mass-inferred, TEOS $5.80/20mL
+  exact small-vial (~310/kg at that scale — why sg-community
+  exists), fly-ash + GGBFS ~$17/7lb est via the countertop channel
+  (BULK is ~100x cheaper $30-80/MT — local ready-mix/utility hunt
+  noted IN the citations), vinegar $3.97/gal exact (5% solution
+  caveat), desiccant gel ~$35/10lb est. GEOPOLYMER GAPS CLOSED TOO.
+  29 sources / 33 citations. Remaining uncited: waste-glass-fines
+  only (+ exact re-cites of est-flagged).
+
 ## ⚡⚡ AUTONOMOUS SESSION 2 — 2026-07-28 (Dustin away; delegated)
 Everything below done autonomously on Dustin's 'keep going at will':
 - SCENARIO PRICES REPINNED from citations (the drift suggestion,
