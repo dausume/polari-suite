@@ -463,6 +463,29 @@ OUTPUT basis; sol-gel drying loses mass).
   7.50/kg vs 185 market (~96% cheaper; sonication energy/equipment
   excluded; surfactant-free settles — SDS route = uncited gap).
 
+### src-7 — Citation sweep + two new intermediaries (2026-07-28)
+**✅ BUILT + TESTED** (49/49): seven more cited prices closing flagged
+gaps — ferrous sulfate ~$16/5lb est (Alpha/Walmart bot-gated), SLS
+$15.84/lb EXACT (soapgoods, out-of-stock noted), rice hulls ~$30/50lb
+est (homebrew channel; mills often near-free), EPK kaolin $21.50/50lb
+(range-mapped), stearic acid $40.19/5lb, candelilla ~$48/5lb est
+(marketplace swings flagged), soda ash ~$14/5lb est (cited for the
+FUSED waterglass route, deliberately NOT wired into the digestion
+recipe — different process). CONSEQUENCES, all selftested:
+- metakaolin became MAKEABLE (calcine kaolin, yield 0.86, kiln energy
+  excluded): make 1.10/kg vs buy 2.04-2.91 → joins the geopolymer
+  cascade → castable now 1.11/kg = ~77% under the GPI kit (waterglass
+  AND metakaolin both self-made).
+- rice-husk-ash became MAKEABLE (burn hulls, yield 0.18 → 7.35/kg) —
+  wins on process temperature, not $/kg vs sand; noted as such.
+- ferrite recipe UN-REFUSED: coprecipitation costs 20.11/kg — and
+  BUYING pigment Fe3O4 at 9.70 honestly wins ~2x (coprecip is for
+  nano-grade needs).
+- wax optimizer switched hardener to STEARIC (17.72 < carnauba
+  34.55): cheapest natural blend 6.95/kg, now ~68.5% under
+  MachinableWax; only rice-bran-wax remains uncited in the wax space.
+- CNT dispersion gained the optional SLS surfactant role (cited).
+
 ## Risks / honest gaps (say them, don't hide them)
 - **Community vs Enterprise**: no Odoo Studio, limited accounting
   localizations/reports; if ops accounting needs more, that is a

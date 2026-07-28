@@ -37,6 +37,24 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ src-7 CITATION SWEEP + NEW INTERMEDIARIES — 2026-07-28
+Seven citations closed flagged gaps (ferrous sulfate est, SLS EXACT
+15.84/lb, rice hulls est, EPK kaolin 21.50/50lb, stearic 40.19/5lb,
+candelilla est, soda ash est — cited for the FUSED waterglass route
+but NOT wired into the digestion recipe: different process, needs a
+melt furnace). RIPPLES (the system did its job): metakaolin now
+MAKEABLE (calcine kaolin 0.86 yield → 1.10/kg vs 2.04-2.91 bought)
+→ geopolymer cascade = 1.11/kg, ~77% under the GPI kit with BOTH
+waterglass and metakaolin self-made; RHA makeable (burn hulls,
+7.35/kg — temperature win not price win, said so); ferrite coprecip
+UN-REFUSED at 20.11/kg and BUYING (9.70) honestly wins ~2x; wax
+optimizer switched hardener to stearic → 6.95/kg, ~68.5% under
+MachinableWax; CNT dispersions gained the optional cited SLS role.
+49/49 + full sweep green. REMAINING uncited: rice-bran-wax, TEOS,
+acetic-vinegar, waste-glass-fines, ferric-chloride, fly-ash, slag,
+silica-gel-desiccant, exact SWCNT grade, MachinableWax exact,
++ exact re-cites for the est-flagged seven.
+
 ## ✅ src-6 SOL-GEL + FERRITE + CNT COST LAYERS — 2026-07-28
 yield_fraction landed on ProductFormula (output-basis costing —
 sol-gel drying loses mass; refuses outside (0,1]). SOL-GEL:
