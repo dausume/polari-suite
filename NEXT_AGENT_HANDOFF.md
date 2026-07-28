@@ -1,3 +1,16 @@
+# ⚡⚡⚡⚡⚡⚡ CONSOLIDATED ON dev — 2026-07-27 (Dustin's call)
+
+**ALL WORK IS NOW ON THE BASE `dev` BRANCHES** in all five repos
+(framework fa475f3, angular 744d925, cli 88497c3, rf-node 34be606,
+suite 2e55cb5) — pure fast-forwards (every feature branch was an
+ancestor; nothing left behind, verified with --no-merged). Submodule
+pointers coherent. Feature branches remain as historical markers.
+NOT pushed — repos are PUBLIC; pushing stays Dustin's manual step.
+Selftest sweep re-run green from the dev checkouts; live swarm
+stack verified unaffected (same content).
+
+---
+
 # ⚡⚡⚡⚡⚡ GM-1 GRACEFUL ENGINE MOVES — 2026-07-27 (NEWEST)
 
 **✅ gm-1 + gm-2-lite BUILT + ACCEPTANCE PASSED same day** (Dustin:
