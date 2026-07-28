@@ -77,20 +77,73 @@ dispersion" as a fabrication idea. Tech-tree topology table has the
 
 ## 2. Phases
 
-### mag-0 — Decisions (Dustin)
-1. First motor target: (A) ferrite-PM (needs the hard-ferrite
-   citation + formula) or (B) reluctance-first (all-costed today)?
-   Recommendation: **B first for the end-to-end proof, A immediately
-   after the citation lands** — same block library serves both.
-2. Characterization buy: a Hall-sensor gaussmeter (~$2-15, A1302/
-   SS49E class) + inductance-via-known-coil test → research-tools
-   tree, easiest-first. Knob: buy vs refuse-measurements-honestly.
-3. Module home: new `magnetics/` module (requires electrodevice +
-   supplychain; msci rows referenced not imported) — keeps files
-   small per the decomposition rule. Confirm.
-4. Solver: pure-python Hopkinson solve (numpy) as primary, WITH the
-   ngspice-analogy render (R=reluctance, V=MMF, I=flux) reusing
-   run_netlist as a PARITY cross-check. Confirm both-or-python-only.
+### mag-0 — Decisions (Dustin ANSWERED 2026-07-28, remainder defaulted)
+1. Motor approach: **APPROVED** ("sounds good") — reluctance-first
+   proof, ferrite-PM once the hard-ferrite citation lands; same
+   block library serves both.
+2. **THE MORTAR MODEL (Dustin's addition, now central)**: "make
+   blocks and fill them in with sol-gel as a mortar, similar on the
+   winding, so the finalized motor built almost becomes a single
+   solid object (where it makes sense for it to)". See §2b below —
+   joints are elements, windings are potted, monolith per
+   SUB-assembly (stator solid, rotor solid, the working air gap
+   stays FUNCTIONAL and is never mortared shut).
+3. Tolerance/complexity escalation: **CONFIRMED** ("escalating up
+   different levels of complexity and tolerance requirements for
+   the motors makes sense, yes") — see §2c, the ladder is DATA the
+   solver prices.
+4. Defaults unless objected: gaussmeter = cheap hall-sensor buy
+   SUGGESTED (knob, never auto-purchased); module home = new
+   `magnetics/`; solver = python primary + ngspice-analogy parity.
+
+### §2b — THE MORTAR / MONOLITH ASSEMBLY MODEL (from Dustin's spec)
+- **Blocks + mortar = the physical design language.** Cast magnetic-
+  geopolymer blocks are the bricks; SOL-GEL is the mortar filling
+  the joints and potting the windings. The finished stator (and
+  separately the rotor) cures toward ONE solid object.
+- **Every mortar joint IS a circuit element.** A joint between two
+  magnetic blocks is a thin series reluctance: thickness t_joint,
+  area A, µ of the MORTAR. Two mortar grades as formulas from day
+  one: plain sol-gel mortar (µ≈1 — magnetically a gap: use where
+  flux should NOT couple) and **sol-gel-ferrite mortar** (the
+  msci-22 1.714 row — the flux-continuity mortar between core
+  blocks). Choosing the mortar grade per joint is a DESIGN knob the
+  solver prices; the block circuit therefore maps 1:1 onto the
+  physical assembly, joints included. Nothing about the physical
+  build is invisible to the model.
+- **Windings potted in mortar**: coils wound on/around cast teeth
+  or bobbins, then encapsulated. Gains: no housing, vibration-proof,
+  thermally coupled to the mass. DATA-GAPS to test before trusting:
+  (1) enamel magnet-wire insulation vs ALKALINE geopolymer contact
+  — chemistry compatibility unknown; sol-gel (washed, near-neutral)
+  potting is the safer bet and is exactly Dustin's mortar; state it,
+  test it (a QA check row). (2) potted-coil heat path is good but
+  thermal LIMITS stay out of v1 (§4) — the report says unmeasured.
+- **"Where it makes sense" rules (the honesty of the monolith)**:
+  the working air gap is functional — rotor and stator are separate
+  monoliths, never mortared to each other; bearings/shaft seats
+  stay serviceable (mortar-free zones as block attributes);
+  anything expected to be replaced (a sacrificial sensor pocket)
+  gets a plain-mortar release boundary, mirroring the mold-1
+  release-agent rule.
+
+### §2c — TOLERANCE / COMPLEXITY ESCALATION LADDER (as data)
+Each level = a row with joint-thickness + gap-accuracy priors the
+reluctance solver consumes, so every level gets a PREDICTED
+performance delta and a cost delta — the escalation is quantified,
+never vibes:
+- **T0 cast-as-is**: wax-printed molds, no post-work. Joint prior
+  ~0.5-1 mm, gap accuracy loose. Cheapest; most torque lost to
+  parasitic gaps (the solver shows exactly how much).
+- **T1 lapped faces**: flat-lap mating faces by hand (sandpaper on
+  glass — stage-0-compatible labor). Joint prior ~0.1-0.3 mm.
+- **T2 fired blocks**: geopolymer→ceramic firing (Table 8.8 rung)
+  — higher µ AND better dimensional stability; kiln energy
+  excluded-loud as always.
+- **T3 machined/ground**: needs the manufacturing-tools tree
+  (BLCNC / surface grinding) — named, not built.
+Priors start est-flagged; MEASURED joint thicknesses (calipers, a
+QA dimensional check) replace them per the measured-rates pattern.
 
 ### mag-1 — Sourcing + formulas (supplychain; the "make" capability)
 - ProductInputRequirement rows: `magnetic-geopolymer-mix`
@@ -163,9 +216,14 @@ dispersion" as a fabrication idea. Tech-tree topology table has the
   it** (mold-1 strategies apply: release agent mandatory, reclaim
   loop cuts cost, fire-to-ceramic upgrade for µ).
 - Per-block cost = volume × density × formula $/kg (+ mold ladder
-  amortization from the biz-1 planner priors). A designed magnetic
-  circuit therefore prices itself part-by-part — the same
-  cost-per-part discipline as the order planner.
+  amortization from the biz-1 planner priors) + MORTAR cost per
+  joint (joint volume × mortar formula $/kg). A designed magnetic
+  circuit therefore prices itself part-by-part AND joint-by-joint —
+  the same cost-per-part discipline as the order planner.
+- Assembly steps as data: block → dry-fit → mortar → cure → (T1+)
+  lap → wind → pot. Each step a workflow row (biz-1
+  ProcessWorkflowDefinition shape) so the planner can cost motor
+  BUILDS the way it costs pots.
 
 ### mag-5 — 3-PHASE MOTOR DESIGNER
 - `MotorDesignDefinition` rows: topology (radial/axial), pole
