@@ -37,6 +37,24 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ src-4 GEOPOLYMER MAKE-VS-BUY — 2026-07-28 (Dustin's spec)
+Same pattern as the wax: geopolymer-mix (DIY-local castable) gets
+its full feedstock space + real dated citations vs buying the GPI
+kit. Roles: precursor 30-50% {metakaolin CITED 2.81/kg est,
+fly-ash-class-f*, ggbfs-slag*}, silicate-activator 10-22%
+{waterglass $46/gal EXACT Sheffield, mass-inferred 8.85/kg
+as-solution}, alkali 1-6% {NaOH 9.64/kg exact — CAUSTIC/PPE caveat},
+aggregate 30-55% {play sand 0.33/kg exact Home Depot}. (* = uncited
+gap; industrial byproducts, often cheap-to-free locally.) v0
+40/16/3/41 = 2.96/kg; optimizer 34/10/1/55 = 2.11/kg. Substitute =
+geopolymer-kit (GPI) 4.85/kg, caveats cut BOTH ways (closed formula,
+heavy shipping — but hydroxide-free = friendlier than DIY NaOH).
+VERDICT: MAKING BEATS BUYING ~39-56% — the reverse of the wax
+economics (where bulk pellets beat blending). /compare/
+geopolymer-mix serves the table. 31/31 formula selftests. v2:
+dry-basis silicate cost, mix water, cure validation; hunt local
+fly-ash/slag citations.
+
 ## ✅ src-3 SUBSTITUTE BENCHMARK — MachinableWax 2026-07-28
 The current commercial alternative for 3D-printing wax, accounted
 honestly: SupplySourceProfile machinable-wax-com (commercial,

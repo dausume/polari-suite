@@ -400,6 +400,25 @@ substitutes in one caveat-carrying table + verdict — OUR blend
 row can never hide what it costs you (caveats travel with prices).
 24/24 formula selftests.
 
+### src-4 — Geopolymer make-vs-buy (Dustin 2026-07-28, built same day)
+**✅ BUILT + TESTED**: geopolymer-mix ProductInputRequirement — the
+DIY-local castable's full feedstock space with REAL 2026-07-28
+citations: metakaolin $70/55lb (MetaMax via pool-supply; dealer-login
+price, flagged estimate) = 2.81/kg, waterglass $46/gal EXACT
+(Sheffield; gallon->5.2kg mass inferred, flagged) = 8.85/kg
+as-solution, NaOH $69.97/16lb exact (Essential Depot; CAUSTIC — PPE
+caveat) = 9.64/kg, play sand $7.39/50lb exact (Home Depot) = 0.33/kg.
+fly-ash + slag = honest UNCITED gaps (industrial byproduct channels,
+often cheap-to-free locally — worth the hunt). v0 castable
+(40/16/3/41) = 2.96/kg; optimizer (34/10/1/55) = 2.11/kg. Substitute
+= the GPI kit at 4.85/kg with caveats cutting BOTH ways (closed
+formula + shipping vs the kit's hydroxide-free chemistry being
+FRIENDLIER than the DIY NaOH route). VERDICT: making beats buying by
+~39% (v0) to ~56% (optimized) — opposite of the wax finding, where
+in-house blending loses to bulk pellets. Both v2 refinements listed:
+dry-basis silicate costing, mix water, cure validation. 31/31
+formula selftests.
+
 ## Risks / honest gaps (say them, don't hide them)
 - **Community vs Enterprise**: no Odoo Studio, limited accounting
   localizations/reports; if ops accounting needs more, that is a
