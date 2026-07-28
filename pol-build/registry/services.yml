@@ -63,10 +63,10 @@ interconnects:
     consumed_by: [prf-backend, psc-backend, keycloak startup_shells/configure_clients.sh]
     wires: "backend service-accounts -> keycloak admin API (re-PATCHed at every KC boot)"
   db-credentials:
-    artifact: "pol-mariadb/mariadb.env + polari-rf-node/prf-mariadb/mariadb.env"
+    artifact: "pol-mariadb/mariadb.env + polari-rf-node/prf-mariadb/mariadb.env + pol-odoo-postgres/odoo-postgres.env(+pol-odoo/odoo.env)"
     generated_by: [setup-polari-security.sh, polari-rf-node/staging-setup.sh, polari-rf-node/prod-setup.sh]
-    consumed_by: [pol-mariadb, pol-keycloak, psc-backend, prf-mariadb, prf-keycloak, prf-backend-b(dbcombo)]
-    wires: "DB users (kc, psc-scorecard-server, polari) — volume-baked at first init"
+    consumed_by: [pol-mariadb, pol-keycloak, psc-backend, prf-mariadb, prf-keycloak, prf-backend-b(dbcombo), odoo-postgres, odoo]
+    wires: "DB users (kc, psc-scorecard-server, polari, odoo) — volume-baked at first init"
   minio-credentials:
     artifact: "pol-file-store/{minio,client}.env; rf-node knobs POLARI_MINIO_ROOT_USER/_PASS"
     generated_by: [setup-polari-security.sh, polari-rf-node/prod-setup.sh]
@@ -83,6 +83,12 @@ interconnects:
     generated_by: [SCORING_ACCOUNTABILITY_PLAN.md scr-7]
     consumed_by: [psc-backend, psc-frontend]
     wires: "psc consumes prf's scoring API instead of its own mocks"
+  erp-api-seam:
+    artifact: "(od-3, designed not built) prf-backend -> odoo /jsonrpc (odooconnect module)"
+    generated_by: [ODOO_INTEGRATION_PLAN.md od-3]
+    consumed_by: [prf-backend]
+    wires: "odooconnect pulls/pushes Odoo models via JSON-RPC — pull free,
+            push = knob + typed confirm; sim/ops handles never blur"
 
 # ------------------------------------------------------------------------------
 # SERVICE KINDS
@@ -120,8 +126,26 @@ services:
     context: pol-proxy/
     appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml]
     config: {generated: [.generated/nginx.staging.conf], certs: "pol-proxy/certs (generate-pol-certs.sh / ca toolkit)"}
-    connects_to: {pol-keycloak: nginx-proxy-config, prf-frontend: nginx-proxy-config, prf-backend: nginx-proxy-config, psc-frontend: nginx-proxy-config, psc-backend: nginx-proxy-config, pol-file-store: nginx-proxy-config}
-    variations: "staging: nip.io wildcard subdomains; prod: real-domain server blocks"
+    connects_to: {pol-keycloak: nginx-proxy-config, prf-frontend: nginx-proxy-config, prf-backend: nginx-proxy-config, psc-frontend: nginx-proxy-config, psc-backend: nginx-proxy-config, pol-file-store: nginx-proxy-config, odoo: nginx-proxy-config}
+    variations: "staging: nip.io wildcard subdomains; prod: real-domain server blocks; odoo routes are variable-proxy_pass (lazy DNS) so the proxy boots without the odoo profile running"
+
+  # ===== Odoo ERP (business sims + real ops backbone — od-1) =====
+  - kind: odoo-postgres
+    context: pol-odoo-postgres/
+    appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml]
+    config: {env_files: [pol-odoo-postgres/odoo-postgres.env], knobs: [POLARI_ODOO_DB_PASS]}
+    connects_to: {odoo: db-credentials}
+    variations: "compose profile 'odoo' — NOT started by suite up; `pol odoo up`; postgres:16.14 pinned (the suite's first postgres); password volume-baked at first init (drift rescue: pol-odoo/README.md)"
+
+  - kind: odoo
+    context: pol-odoo/
+    appears_in: [docker-compose.yml, docker-compose.staging-nip.yml, docker-compose.prod.yml]
+    config:
+      env_files: [pol-odoo/odoo.env]
+      mounts: [pol-odoo/odoo.conf]
+      knobs: [POLARI_ODOO_DB_PASS]
+    connects_to: {odoo-postgres: db-credentials, prf-backend: erp-api-seam}
+    variations: "compose profile 'odoo'; odoo:18.0-20260723 pinned; two DBs odoo_sim/odoo_ops (created via `pol odoo init-db` — the sim/ops separation invariant); websocket :8072; humans at odoo.<domain>; SSO = od-2, connector module = od-3"
 
   - kind: psc-redis
     context: (image)

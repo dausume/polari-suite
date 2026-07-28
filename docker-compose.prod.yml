@@ -372,6 +372,87 @@ services:
           memory: 16M
           cpus: '0.02'
 
+  # ============================================
+  # ODOO ERP (business sims + real business ops)
+  # ============================================
+
+  # PostgreSQL for Odoo — the suite's FIRST postgres (Odoo requires it;
+  # it does NOT reuse MariaDB). Profile 'odoo': NOT started by the
+  # default suite up — bring up via `pol odoo up`; intended host is
+  # econ-core (ODOO_INTEGRATION_PLAN.md od-0). Credentials:
+  # pol-odoo-postgres/odoo-postgres.env (setup-polari-security.sh);
+  # the password is BAKED into odoo-db-data at first init — same drift
+  # class as mariadb.env (rescue: pol-odoo/README.md).
+  odoo-postgres:
+    profiles: ["odoo"]
+    build:
+      context: ./pol-odoo-postgres
+      dockerfile: Dockerfile
+    container_name: odoo-postgres
+    image: pol-odoo-postgres:prod
+    restart: always
+    networks:
+      - polari-network
+    env_file:
+      - ./pol-odoo-postgres/odoo-postgres.env
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d postgres"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.1'
+
+  # Odoo 18 Community — ERP server, backbone of business SIMULATIONS
+  # (odoo_sim DB) and REAL business ops (odoo_ops DB); the two must
+  # never blur (ODOO_INTEGRATION_PLAN.md). Profile 'odoo': NOT started
+  # by the default suite up — `pol odoo up`; intended host is econ-core
+  # (od-0). Humans reach it at odoo.<domain> via pol-proxy (websocket
+  # path /websocket -> :8072). Config pol-odoo/odoo.conf carries NO
+  # secrets; DB creds come from pol-odoo/odoo.env (generated). DBs are
+  # NOT auto-created — `pol odoo init-db <sim|ops>` after first up.
+  odoo:
+    profiles: ["odoo"]
+    build:
+      context: ./pol-odoo
+      dockerfile: Dockerfile
+    container_name: odoo
+    image: pol-odoo:prod
+    restart: always
+    networks:
+      - polari-network
+    env_file:
+      - ./pol-odoo/odoo.env
+    volumes:
+      - ./pol-odoo/odoo.conf:/etc/odoo/odoo.conf:ro
+      - odoo-filestore:/var/lib/odoo
+    depends_on:
+      odoo-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8069/web/health', timeout=5).status==200 else 1)"]
+      start_period: 60s
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
 # ============================================
 # VOLUMES
 # ============================================
@@ -381,7 +462,11 @@ volumes:
   psc_redis_data:
   # PRF framework object DB (SQLite at /app/data) — persist across recreates.
   prf_backend_data:
-#
+  # Odoo ERP (profile 'odoo'): postgres data + filestore — mover-covered
+  # subjects from day one (ODOO_INTEGRATION_PLAN.md od-6).
+  odoo-db-data:
+  odoo-filestore:
+
 # ============================================
 # NETWORKS
 # ============================================

@@ -133,6 +133,8 @@
 # {% include 'pol-services/compose/services/prf-frontend.yml.j2' %}
 # {% include 'pol-services/compose/services/prf-backend.yml.j2' %}
 # {% include 'pol-services/compose/services/pol-hub-frontend.yml.j2' %}
+# {% include 'pol-services/compose/services/odoo-postgres.yml.j2' %}
+# {% include 'pol-services/compose/services/odoo.yml.j2' %}
 ## variation: env — tail (networks/volumes) differs per tier: dev | staging+prod
 # {% if env_name == 'dev' %}
 # 
@@ -154,6 +156,10 @@
 #   prf_frontend_cache:
 #   prf_backend_data:
 # 
+#   # Odoo ERP (profile 'odoo'): postgres data + filestore
+#   odoo-db-data:
+#   odoo-filestore:
+# 
 # # ============================================
 # # NETWORKS
 # # ============================================
@@ -171,7 +177,11 @@
 #   psc_redis_data:
 #   # PRF framework object DB (SQLite at /app/data) — persist across recreates.
 #   prf_backend_data:
-#
+#   # Odoo ERP (profile 'odoo'): postgres data + filestore — mover-covered
+#   # subjects from day one (ODOO_INTEGRATION_PLAN.md od-6).
+#   odoo-db-data:
+#   odoo-filestore:
+# 
 # # ============================================
 # # NETWORKS
 # # ============================================

@@ -1,0 +1,84 @@
+# jinja-start
+## SERVICE: odoo — annotated source (see suite-bundle.yml).
+## Rendered per env by pol-build/manifests/suite-bundles.yml.
+## variation: env — odoo differs per tier: dev | staging+prod
+# {% if env_name == 'dev' %}
+# 
+#   # Odoo 18 Community — ERP server, backbone of business SIMULATIONS
+#   # (odoo_sim DB) and REAL business ops (odoo_ops DB); the two must
+#   # never blur (ODOO_INTEGRATION_PLAN.md). Profile 'odoo': NOT started
+#   # by the default suite up — `pol odoo up`. HTTP :8069, websocket
+#   # (gevent) :8072. Config pol-odoo/odoo.conf carries NO secrets; DB
+#   # creds come from pol-odoo/odoo.env (generated). DBs are NOT
+#   # auto-created — `pol odoo init-db <sim|ops>` after first up.
+#   odoo:
+#     profiles: ["odoo"]
+#     build:
+#       context: ./pol-odoo
+#       dockerfile: Dockerfile
+#     container_name: odoo
+#     image: pol-odoo:{{ suite_image_tag }}
+#     restart: always
+#     ports:
+#       - "8069:8069"  # Web UI / JSON-RPC
+#       - "8072:8072"  # Websocket (gevent)
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./pol-odoo/odoo.env
+#     volumes:
+#       - ./pol-odoo/odoo.conf:/etc/odoo/odoo.conf:ro
+#       - odoo-filestore:/var/lib/odoo
+#     depends_on:
+#       odoo-postgres:
+#         condition: service_healthy
+#     healthcheck:
+#       test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8069/web/health', timeout=5).status==200 else 1)"]
+#       start_period: 60s
+#       interval: 15s
+#       timeout: 10s
+#       retries: 5
+# {% elif env_name == 'staging' or env_name == 'prod' %}
+# 
+#   # Odoo 18 Community — ERP server, backbone of business SIMULATIONS
+#   # (odoo_sim DB) and REAL business ops (odoo_ops DB); the two must
+#   # never blur (ODOO_INTEGRATION_PLAN.md). Profile 'odoo': NOT started
+#   # by the default suite up — `pol odoo up`; intended host is econ-core
+#   # (od-0). Humans reach it at odoo.<domain> via pol-proxy (websocket
+#   # path /websocket -> :8072). Config pol-odoo/odoo.conf carries NO
+#   # secrets; DB creds come from pol-odoo/odoo.env (generated). DBs are
+#   # NOT auto-created — `pol odoo init-db <sim|ops>` after first up.
+#   odoo:
+#     profiles: ["odoo"]
+#     build:
+#       context: ./pol-odoo
+#       dockerfile: Dockerfile
+#     container_name: odoo
+#     image: pol-odoo:{{ suite_image_tag }}
+#     restart: always
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./pol-odoo/odoo.env
+#     volumes:
+#       - ./pol-odoo/odoo.conf:/etc/odoo/odoo.conf:ro
+#       - odoo-filestore:/var/lib/odoo
+#     depends_on:
+#       odoo-postgres:
+#         condition: service_healthy
+#     healthcheck:
+#       test: ["CMD", "python3", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8069/web/health', timeout=5).status==200 else 1)"]
+#       start_period: 60s
+#       interval: 15s
+#       timeout: 10s
+#       retries: 5
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 1024M
+#           cpus: '1.0'
+#         reservations:
+#           memory: 512M
+#           cpus: '0.25'
+# {% endif %}
+# jinja-end

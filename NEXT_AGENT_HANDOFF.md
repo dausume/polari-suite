@@ -37,6 +37,35 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ od-1 SERVICE BRING-UP — BUILT + VERIFIED 2026-07-27
+Branches `dev-od-1-odoo-bringup` (suite + polari-cli + framework),
+NOT pushed. `pol odoo up|down|build|status|logs|init-db <sim|ops>|
+backup <sim|ops>|urls` works end-to-end: pair healthy in ~30s on the
+staging tier, odoo_sim + odoo_ops created (admin password printed
+ONCE at init-db), login forms serve, db-manager RPCs refuse
+(list_db=False), pg_dump receipts (3.3M) in .generated/backups/.
+Key shapes: images PINNED (odoo:18.0-20260723 / postgres:16.14, own
+Dockerfile dirs pol-odoo/ + pol-odoo-postgres/); compose profile
+'odoo' in ALL tiers so plain suite up NEVER starts the pair; proxy
+odoo.<domain> routes are VARIABLE proxy_pass + resolver (a static
+upstream would stop nginx booting while the profile is down),
+/websocket -> :8072, friendly 503 JSON when down; ONE shared DB
+secret in pol-odoo-postgres/odoo-postgres.env + pol-odoo/odoo.env
+(setup-polari-security.sh 3b, knob POLARI_ODOO_DB_PASS, skip-if-
+exists — drift rescue documented in pol-odoo/README.md); topology
+seeds gained odoo + odoo-postgres instances on econ-core + 3 typed
+connections (erp-api-seam key added), machine seed 'lightweight'
+RENAMED to econ-core, topology_render.py got the odoo shape (52/52
++ 25 + 45/45 + 19/19 topology selftests green); registry entries +
+suite trio re-rendered byte-parity OK; pol proxy render/check/
+promote green (pol-proxy wasn't running — prf-proxy owns :443 on
+pol-core — so browser-through-proxy verification waits for a suite
+deploy; nginx -t validated the config). Verification pair was
+brought up on pol-core then downed; volumes odoo-db-data/
+odoo-filestore kept. NEXT: run `pol odoo up` on econ-core once code
+syncs there (repos unpushed), then od-2 SSO (KC client + auth_oidc
+addon in pol-odoo/Dockerfile), od-3 odooconnect module.
+
 ---
 
 # ⚡⚡⚡⚡⚡⚡ CONSOLIDATED ON dev — 2026-07-27 (Dustin's call)

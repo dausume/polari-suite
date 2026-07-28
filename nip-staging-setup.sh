@@ -207,6 +207,7 @@ DNS.6 = prf.${BASE_DOMAIN}
 DNS.7 = api.prf.${BASE_DOMAIN}
 DNS.8 = files.${BASE_DOMAIN}
 DNS.9 = s3.${BASE_DOMAIN}
+DNS.10 = odoo.${BASE_DOMAIN}
 EOF
 
     # Generate CSR
@@ -258,7 +259,8 @@ echo -e "${YELLOW}[4/6] Generating environment file...${NC}"
 # setup-polari-security.sh (dev mode = random, no prompts; skip-if-exists
 # protects live installs).
 for _cred in pol-keycloak/keycloak-admin.env pol-mariadb/mariadb.env \
-             pol-file-store/minio.env pol-file-store/client.env; do
+             pol-file-store/minio.env pol-file-store/client.env \
+             pol-odoo-postgres/odoo-postgres.env pol-odoo/odoo.env; do
     if [ ! -f "$SCRIPT_DIR/$_cred" ]; then
         echo -e "  Missing $_cred — running setup-polari-security.sh dev --env-only --skip-subs"
         "$SCRIPT_DIR/setup-polari-security.sh" dev --env-only --skip-subs
@@ -291,6 +293,8 @@ PRF_URL=https://prf.${BASE_DOMAIN}
 PRF_API_URL=https://api.prf.${BASE_DOMAIN}
 MINIO_CONSOLE_URL=https://files.${BASE_DOMAIN}
 MINIO_S3_URL=https://s3.${BASE_DOMAIN}
+# Odoo ERP (compose profile 'odoo' — started via pol odoo up, not suite up)
+ODOO_URL=https://odoo.${BASE_DOMAIN}
 
 # CORS Origins (comma-separated)
 CORS_ORIGINS=https://psc.${BASE_DOMAIN},https://prf.${BASE_DOMAIN},https://auth.${BASE_DOMAIN},https://files.${BASE_DOMAIN}
@@ -464,7 +468,7 @@ if [ "$IS_CUSTOM_DOMAIN" = true ]; then
     HOSTS_FILE="/etc/hosts"
     MARK_BEGIN="# >>> polari-staging: ${BASE_DOMAIN} >>>"
     MARK_END="# <<< polari-staging: ${BASE_DOMAIN} <<<"
-    HOST_NAMES="${BASE_DOMAIN} www.${BASE_DOMAIN} auth.${BASE_DOMAIN} psc.${BASE_DOMAIN} api.psc.${BASE_DOMAIN} prf.${BASE_DOMAIN} api.prf.${BASE_DOMAIN} files.${BASE_DOMAIN} s3.${BASE_DOMAIN}"
+    HOST_NAMES="${BASE_DOMAIN} www.${BASE_DOMAIN} auth.${BASE_DOMAIN} psc.${BASE_DOMAIN} api.psc.${BASE_DOMAIN} prf.${BASE_DOMAIN} api.prf.${BASE_DOMAIN} files.${BASE_DOMAIN} s3.${BASE_DOMAIN} odoo.${BASE_DOMAIN}"
 
     HOSTS_BLOCK="$MARK_BEGIN"
     for h in $HOST_NAMES; do HOSTS_BLOCK="$HOSTS_BLOCK"$'\n'"127.0.0.1   $h"; done

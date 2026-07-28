@@ -132,6 +132,17 @@ Key decisions baked in (od-0 confirms them):
   single-server/two-db stands as recommended.
 
 ### od-1 — Service bring-up (the external-asset baseline)
+**✅ BUILT + VERIFIED 2026-07-27** (branches `dev-od-1-odoo-bringup` in
+suite/cli/framework): odoo 18.0-20260723 + postgres 16.14 pinned, both
+behind compose profile `odoo` (suite up never starts them); `pol odoo`
+CLI; proxy routes use VARIABLE proxy_pass (static upstream would kill
+nginx boot while the profile is down); topology rows + render shapes +
+52/52 topology selftests; verified live on pol-core: healthy in ~30s,
+both DBs, login forms, list_db refusals, 3.3M pg_dump receipts.
+Deltas from the letter of the plan: healthcheck uses python3-urllib
+(curl not guaranteed in the image); admin password set at init-db and
+printed once; econ-core placement = run `pol odoo up` there after code
+sync (repos not pushed yet).
 - `pol-services/compose/services/odoo.yml` + `odoo-postgres.yml`
   (annotated, 3 tiers) — model on pol-keycloak/pol-mariadb; UID
   pattern; healthchecks REQUIRED from day one (gm-4 lesson: an

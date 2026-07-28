@@ -1,0 +1,81 @@
+# jinja-start
+## SERVICE: odoo-postgres — annotated source (see suite-bundle.yml).
+## Rendered per env by pol-build/manifests/suite-bundles.yml.
+## variation: env — odoo-postgres differs per tier: dev | staging+prod
+# {% if env_name == 'dev' %}
+# 
+#   # ============================================
+#   # ODOO ERP (business sims + real business ops)
+#   # ============================================
+# 
+#   # PostgreSQL for Odoo — the suite's FIRST postgres (Odoo requires it;
+#   # it does NOT reuse MariaDB). Profile 'odoo': NOT started by the
+#   # default suite up — bring up via `pol odoo up`. Credentials:
+#   # pol-odoo-postgres/odoo-postgres.env (setup-polari-security.sh);
+#   # the password is BAKED into odoo-db-data at first init — same drift
+#   # class as mariadb.env (rescue: pol-odoo/README.md).
+#   odoo-postgres:
+#     profiles: ["odoo"]
+#     build:
+#       context: ./pol-odoo-postgres
+#       dockerfile: Dockerfile
+#     container_name: odoo-postgres
+#     image: pol-odoo-postgres:{{ suite_image_tag }}
+#     restart: always
+#     ports:
+#       - "5432:5432"  # External access for DB tools
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./pol-odoo-postgres/odoo-postgres.env
+#     volumes:
+#       - odoo-db-data:/var/lib/postgresql/data
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d postgres"]
+#       start_period: 10s
+#       interval: 10s
+#       timeout: 5s
+#       retries: 3
+# {% elif env_name == 'staging' or env_name == 'prod' %}
+# 
+#   # ============================================
+#   # ODOO ERP (business sims + real business ops)
+#   # ============================================
+# 
+#   # PostgreSQL for Odoo — the suite's FIRST postgres (Odoo requires it;
+#   # it does NOT reuse MariaDB). Profile 'odoo': NOT started by the
+#   # default suite up — bring up via `pol odoo up`; intended host is
+#   # econ-core (ODOO_INTEGRATION_PLAN.md od-0). Credentials:
+#   # pol-odoo-postgres/odoo-postgres.env (setup-polari-security.sh);
+#   # the password is BAKED into odoo-db-data at first init — same drift
+#   # class as mariadb.env (rescue: pol-odoo/README.md).
+#   odoo-postgres:
+#     profiles: ["odoo"]
+#     build:
+#       context: ./pol-odoo-postgres
+#       dockerfile: Dockerfile
+#     container_name: odoo-postgres
+#     image: pol-odoo-postgres:{{ suite_image_tag }}
+#     restart: always
+#     networks:
+#       - polari-network
+#     env_file:
+#       - ./pol-odoo-postgres/odoo-postgres.env
+#     volumes:
+#       - odoo-db-data:/var/lib/postgresql/data
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d postgres"]
+#       start_period: 10s
+#       interval: 10s
+#       timeout: 5s
+#       retries: 3
+#     deploy:
+#       resources:
+#         limits:
+#           memory: 512M
+#           cpus: '0.5'
+#         reservations:
+#           memory: 256M
+#           cpus: '0.1'
+# {% endif %}
+# jinja-end

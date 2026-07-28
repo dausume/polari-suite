@@ -38,6 +38,8 @@ NODE_FULL = frozenset({'prf-backend', 'prf-frontend', 'prf-mariadb',
 TWIN = frozenset({'prf-backend-b', 'prf-frontend-b', 'prf-keydb-b'})
 DASK = frozenset({'prf-dask'})
 ENGINES = frozenset({'prf-msci-engines'})
+ODOO = frozenset({'odoo'})
+ODOO_PG = frozenset({'odoo-postgres'})
 
 #: env tier -> (suite output file, node output file) for the core
 #: bundles (mirrors suite-bundles.yml / node-bundles.yml outputs).
@@ -68,6 +70,8 @@ KNOWN_SHAPES = (
     'dask {prf-dask}', 'engines {prf-msci-engines} '
     '(swarm -> polari-engines stack, compose -> msci-engines/'
     'remote-worker bundle)',
+    'odoo {odoo} / odoo-postgres {odoo-postgres} (suite bundle, '
+    "compose profile 'odoo' -> pol odoo up)",
 )
 
 
@@ -190,6 +194,17 @@ def group_instances(doc):
                 'action': ('pol deploy run ' + machine
                            + ' --role engines' if remote
                            else 'pol compose engines up')})
+        elif k in (ODOO, ODOO_PG) and target == 'compose':
+            # Both live in the SUITE bundle behind the 'odoo' compose
+            # profile — one action brings the pair up (od-1).
+            if env not in SUITE_ENV_FILES:
+                die(f'no suite bundle output for env "{env}"')
+            groups.append({
+                'group': 'odoo', 'machine': machine, 'env': env,
+                'instances': [i['name']], 'project': 'suite',
+                'template': SUITE_TEMPLATE,
+                'file': SUITE_ENV_FILES[env], 'remote': remote,
+                'action': 'pol odoo up'})
         elif k == PRF_CORE:
             die(f'instance "{i["name"]}" is a bare prf-core but no '
                 'psc + pol-infra trio shares its machine — a '
