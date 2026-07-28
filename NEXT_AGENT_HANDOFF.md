@@ -37,6 +37,36 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ src-1 SOURCING LAYER — BUILT + TESTED 2026-07-28 (Dustin's spec)
+Costs become CITED DATA (supplychain module): SupplySourceProfile
+(overlap-capable booleans open/commercial/local/polari/eco — a
+source CAN be several at once; availability available|potential;
+demands_json = the customer side, so mutual supply loops are one
+row: the hydroponics farm supplies wax-source-biomass AND wants
+geopolymer-self-watering-pot + geopolymer-pot-shelf), PriceCitation
+(price + amount/unit + observed_at datetime + citation_url +
+is_estimate — ranges/'from' prices are FLAGGED, never silently
+exact), SourcePreferencePolicy (the definable ladder, seeded to
+Dustin's order: polari-open-local(1) > polari-open(2) >
+open-non-polari-IF-eco(3) > local-closed(4) > commercial(5);
+first-match-wins predicates over the flags — edit rules, not code).
+REAL web-researched citations 2026-07-28: GPI GeoCement kits
+$34.95(10lb)-$110(50lb) (range->size mapping flagged estimate),
+Aztec LP402 soy $109/50lb exact, bulkbeeswax floor $8.99/lb
+(flagged), carnauba 5lb $78.36 (aroma-depot) vs $92.99 (oilscenter).
+Analysis (sourcing_analysis): normalization to USD/kg (dimension
+mixing refused), price_compare with spread + PREFERENCE PREMIUM,
+preferred_source (better-ranked potential sources fire develop-
+suggestions, never auto-picks), scenario_price_drift — found the
+real thing immediately: scenario v1 pins drymix 1.8/kg vs GPI cited
+4.85/kg = +169% drift, surfaced as a deliberate-edit suggestion.
+API /api/supplychain/sourcing/sources|prices/{item}|preferred/
+{item}|scenario-drift. 23/23 selftests; all prior suites green;
+scenario products now carry item_ref links into the citation
+vocabulary. NEXT: repin scenario prices from citations (Dustin's
+call — the suggestion is on record), scenario 2 (farm), natural-
+print-wax-blend recipe costing from the 3 wax citations.
+
 ## ✅ od-5 BUSINESS SIMULATIONS — BUILT + END-TO-END VERIFIED 2026-07-28
 THE PAYOFF: the economy tree got its first NUMBERS. Dustin's scoping
 ("businesses that do whatever they can with the tools they have"):

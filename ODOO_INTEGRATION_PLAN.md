@@ -341,6 +341,29 @@ assert at the data level.
   displays (read-only projection of pulled rows — they are ordinary
   Polari rows already, so this may be free).
 
+### src-1 — Sourcing layer (Dustin 2026-07-28, built same day)
+**✅ BUILT + TESTED**: supplychain gained SupplySourceProfile
+(overlap-capable flags open/commercial/local/polari/eco + availability
+available|potential + demands_json for the customer side of mutual
+loops), PriceCitation (dated, cited, is_estimate-honest price
+observations), SourcePreferencePolicy (Dustin's 5-rank ladder as
+editable data: polari-open-local > polari-open > open-non-polari-if-
+eco > local-closed > general-commercial). REAL 2026-07-28 citations:
+GPI GeoCement $34.95/10lb-$110/50lb (range-mapped, flagged estimate;
+bulk discount visible: 7.71 vs 4.85 USD/kg), Aztec LP402 soy
+$109/50lb (4.81/kg exact), bulkbeeswax 'from $8.99/lb' (flagged),
+carnauba 2 sources $78.36 vs $92.99/5lb (18.7% spread). Analysis:
+normalize (mass->USD/kg, piece-per-unit, dimension mixing refused),
+price_compare (spread + preference premium), preferred_source
+(potential better-ranked sources = develop-suggestions, never
+auto-picks), scenario_price_drift (drymix pinned 1.8 vs cited 4.85 =
++169% flagged as a deliberate-edit suggestion). Hydroponics farm
+seeded as potential supplier of wax-source-biomass AND demander of
+geopolymer-self-watering-pot + geopolymer-pot-shelf (business_model_
+ref hydroponic-wax-source-farm — scenario 2 hook). API /api/
+supplychain/sourcing/*. 23/23 selftests; scenario products carry
+item_ref links.
+
 ## Risks / honest gaps (say them, don't hide them)
 - **Community vs Enterprise**: no Odoo Studio, limited accounting
   localizations/reports; if ops accounting needs more, that is a
