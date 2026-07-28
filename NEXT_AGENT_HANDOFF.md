@@ -37,6 +37,34 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ mold-1 MOLD STRATEGIES + CRUSH-RECYCLE — 2026-07-28
+Dustin's geopolymer-mold questions as data:
+- CAN geopolymer mold geopolymer? YES with a MANDATORY release
+  agent — fresh paste bonds to cured aluminosilicate (same
+  chemistry); oil prior 2.0/kg-uncited or the cited wax coat.
+- Ceramic? BOTH directions handled honestly: ceramic molds for
+  geopolymer fine; a geopolymer mold can be FIRED INTO a ceramic
+  mold (the tech tree's Table 8.8 geopolymer->ceramic conversion =
+  the upgrade path, kiln energy excluded-loud); geopolymer molds
+  for ceramic SLIP casting REFUSED (needs capillary porosity —
+  plaster's job; pressing clay against geopolymer is fine).
+- End-of-life: crushed retired molds re-enter NEW geopolymer as
+  crushed-geopolymer-aggregate (loopback candidate on the
+  aggregate role; credited at displaced sand price).
+MoldLifecycleRecord (waxprint, defClassList): mold_material
+(wax-printed|geopolymer|ceramic-fired), casts_completed (THE reuse
+counter), release_agent, retirement reason, crushed_kg_recovered.
+supplychain/mold_analysis: strategy compare at any volume — at 100
+casts all three land sub-dollar/cast from the cited stack
+(geopolymer mold 1.5kg x 1.11 cascaded = 1.67/mold, ~50-cycle
+formwork prior; ceramic ~200-cycle kiln-furniture prior; wax molds
+melt back to the pool instead of crushing); volume crossovers
+(1000 casts: wax needs 100 molds, ceramic 5); fleet report replaces
+priors with measured casts-at-retirement + failure reasons.
+/api/supplychain/sourcing/molds/compare?casts=N + /molds/fleet.
+14/14 selftests; geopolymer coverage now honestly shows the ONE
+loopback gap (crushed aggregate — log crush events to close).
+
 ## ✅ wp-r WAX RECLAIM LOOP + src-8 CITATION SWEEP — 2026-07-28
 Dustin's melt-off question answered as DATA + tracking:
 - WaxReclaimBatch (waxprint module, in defClassList, NO fake seeds):
