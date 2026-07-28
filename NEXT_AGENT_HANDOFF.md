@@ -37,6 +37,17 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ biz-3v VISUAL — /business/start (angular dev-od-7-business-ui)
+The walkthrough as a PAGE (13c89f5 branch, new commit): six
+numbered accordion steps, cited shopping-list table with ~estimate
+markers, live batch card (budget input refetches), level-colored
+readiness rungs, the step-up gate callout, severity-colored RISK
+callouts w/ mitigations (safety-critical red), the local-economy
+progress bar + derived milestones + nextGap, and the partnerships
+board (coherent-chips, '(to be found)' markers) + mined deal-shape
+suggestions. Cross-linked with /business/odoo. ng build green; NO
+browser pass (needs backend w/ bizops enabled).
+
 ## ✅ biz-3 WALKTHROUGH + PARTNERSHIPS — 2026-07-28 (make it intuitive)
 - STARTUP WALKTHROUGH (/api/bizops/walkthrough/{business}
   ?budgetUsd=): six steps in DOING order for a brand-new business
