@@ -37,6 +37,20 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ src-9 CITATION HUNT — 2026-07-28 (honesty corrections)
+- MachinableWax EXACT: pellets $49.95/10lb sale (reg $64.95) =
+  11.01/kg — old est 22.05 was ~2x high; wax-vs-substitute verdict
+  now ~36.9% cheaper (was 68.5). Margin SHRANK honestly.
+- waste-glass-fines CITED (Tri-City 40/70 blast media $10.50/50lb
+  = 0.46/kg, needs milling) + waterglass-from-waste-glass-v0
+  formula 1.58/kg (sand 1.54 still wins — cascades unchanged).
+- rice hulls EXACT $32.50/50lb (Seven Springs); candelilla EXACT
+  $60/kg (VedaOils tiers) vs ~21/kg marketplace est — scatter real.
+- 34 sources/41 citations/13 formulas. Framework 026b13f.
+- Remaining gaps: bagasse ash (sugar-mill channel, no US retail),
+  exact SWCNT grade, soda-ash fused-route wiring, beeswax/ferrous/
+  hulls-est re-cites at purchase time.
+
 ## ✅ od-4b ORDER FEED + LIVE-BOOT PROOF — 2026-07-28
 - /api/odoo/pull-orders: sale.order LINES -> ProductOrder rows via
   binding 'sim-sale-orders' (odoo_orders.py holds the derivations a
