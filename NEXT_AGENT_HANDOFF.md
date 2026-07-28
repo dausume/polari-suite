@@ -37,6 +37,21 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ biz-5 TRANSFER-PRICE DISCOVERY — 2026-07-28 (scenario-3 static)
+- deal_price_window (bizops_deals.py): per-flow viable window =
+  [supplier make-cost + minMarginPct, buyer's cited alternative
+  (alternative_item_ref, default = item at retail)]. No recipe ->
+  floor 0 + supplier-must-confirm; no citation -> unbounded + the
+  ask; empty window says why. Midpoint = SUGGESTION never auto;
+  dynamic half = scenario-engine re-run pointer, plan-first.
+- Live: biomass [0, 4.81 exact] suggest 2.40 (seeded term 3.50
+  shown beside); husks [0, 1.32~est]; pot flow unbounded (cite
+  retail pots = the ask). /api/bizops/deal-pricing[/{deal}].
+- VISUAL: windows on the partnership cards (/business/start), ng
+  build green. selftest_bizops 78/78.
+- Framework f066d53 + angular 814f3a9. Dynamic sweep (live odoo
+  scenario at candidate prices) = open follow-up.
+
 ## ✅ src-9 CITATION HUNT — 2026-07-28 (honesty corrections)
 - MachinableWax EXACT: pellets $49.95/10lb sale (reg $64.95) =
   11.01/kg — old est 22.05 was ~2x high; wax-vs-substitute verdict
