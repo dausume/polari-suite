@@ -37,6 +37,33 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ biz-3 WALKTHROUGH + PARTNERSHIPS — 2026-07-28 (make it intuitive)
+- STARTUP WALKTHROUGH (/api/bizops/walkthrough/{business}
+  ?budgetUsd=): six steps in DOING order for a brand-new business
+  maker, stages 0-1 ONLY (scope says so): prerequisites (printer
+  assumed — the standing assumption) -> BUY MATERIALS (concrete
+  shopping list from the cheapest CITED listing per material:
+  store, price, citation URL, estimate~flag) -> FIRST BATCH (the
+  live pre-stage plan embedded: varied products, budget+hours
+  costs) -> SELL AND LOG (markets/online; MarketSessionRecord =
+  the learning) -> READINESS CHECK (the earned ladder) -> STEP UP
+  (commit-hours gate verbatim; bulk-tier math shown). RISKS are
+  ROWS (BusinessRiskNote, 8 seeded) attached to the step where
+  they bite: caustic lye (safety-critical, mitigation stated),
+  alkaline paste burns, hot wax, unsold-stock tuition, price-drift
+  on est~ citations, overpromising before measured speed, burnout,
+  and NO-FOOD-SAFETY-CLAIM at the stall.
+- PARTNERSHIPS as rows (PartnershipAgreement): flows with explicit
+  direction, coherence-CHECKED against supplies/demands where
+  parties resolve; placeholder partners honestly UNRESOLVED ('to
+  be found'). Three archetypes seeded proposed: rice-mill husk
+  supply deal (the local-byproduct shape — same as fly ash/
+  bagasse), hydro<->mold mutual loop (scenario-2 as an agreement),
+  printer makers<->assemblers service-maintenance + scaling deal.
+  partnership_suggestions mines demands x supplies for missing
+  deals (existing pairs excluded, humans agree terms).
+  56/56 bizops selftests + sweep green.
+
 ## ✅ biz-2 STAGE-0 MODE + READINESS + LEAD-TIME QUOTES — 2026-07-28
 Three Dustin refinements landed same-session:
 - STAGE-0 = PRE-STAGED SPECULATIVE (work_mode on stages): no
