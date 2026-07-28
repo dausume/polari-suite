@@ -184,6 +184,18 @@ manual v1 (plan's 'minimal mapping' = signup rules + manual promote).
   move (gm-4) mid-session keeps the Odoo session valid.
 
 ### od-3 — `odooconnect` framework module (the connector)
+**✅ BUILT + VERIFIED 2026-07-27** (same branches): modules/odooconnect/
+(basis/client/analysis/api/seed/selftest, waxsupply anatomy) wired into
+polari-modules.json + FEATURE_MODULES + polariServer (guarded import,
+defClassList, seed_pairs, gated endpoint). Guards are DATA-driven from
+the row: read_only -> push_enabled -> ops typed phrase 'PUSH TO
+OPERATIONS <name>'; anything not in READ_SAFE_METHODS counts as a
+write; no write retries. 27/27 stub-server selftests + module-layer
+suites green; REAL round-trip verified against the od-1 pair
+(version/auth/search_read on odoo_sim). Deviations noted honestly:
+provider_registry edge-probing deferred (odoo serves no /capability —
+/api/odoo/status probes configs itself via common.version); tt-11
+ping-pass fold-in rides that status endpoint rather than PROVIDER_PORTS.
 - New feature module `modules/odooconnect/` (registered in
   polari-modules.json; POLARI_MODULES-gated; mlb-admitted):
   - `OdooInstanceConfig` (treeObject): name, base_url, db, mode

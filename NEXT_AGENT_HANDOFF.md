@@ -37,6 +37,30 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ od-3 ODOOCONNECT MODULE — BUILT + VERIFIED 2026-07-27 (same branches)
+Framework module modules/odooconnect/ (waxsupply anatomy):
+OdooInstanceConfig treeObject (mode sim|ops, base_url + url_env
+override, auth_password_env = env-var NAME never a secret,
+push_enabled default False, read_only), stdlib JSON-RPC odoo_client
+(OdooHandle bound to ONE row — sim/ops can never blur in a handle;
+{ok:False, refusal, suggestion} everywhere; NO write retries;
+READ_SAFE_METHODS allowlist so unknown methods are guarded), duck-
+typed odoo_analysis, /api/odoo/status + /configs (OdooConnectAPI,
+gated by _feature_available), seeds odoo-sim (push free) + odoo-ops
+(read_only, push_enabled=False, typed phrase 'PUSH TO OPERATIONS
+odoo-ops' required per write). Wired: polari-modules.json wave 2,
+FEATURE_MODULES, polariServer guarded import + defClassList +
+seed_pairs + endpoint block. TESTS: 27/27 selftest_odoo against an
+in-process stub JSON-RPC server (auth, paging, refusal shapes, all
+guard permutations, handle separation, status over fake manager) +
+module suites green (registry 10/10, lazy-imports 15/15, lazy-boot
+34, deps 13/14 = pre-existing xr miss). REAL round-trip verified
+against the od-1 pair (18.0-20260723, uid 2, live partners).
+Env knobs: ODOO_SIM_URL/ODOO_OPS_URL, ODOO_SIM_RPC_PASSWORD/
+ODOO_OPS_RPC_PASSWORD (backend-side). Deviation: provider_registry
+/capability probing skipped (odoo has none) — /api/odoo/status is
+the probe surface. NEXT: od-4 OdooModelBinding + pull/push sync.
+
 ## ✅ od-2 SSO — BUILT + VERIFIED 2026-07-27 (same branches)
 OCA auth_oidc 18.0.1.1.0.2 wheel PINNED into pol-odoo/Dockerfile;
 `pol odoo sso-setup` (polari-cli scripts/lib/odoo-sso.sh) is the
