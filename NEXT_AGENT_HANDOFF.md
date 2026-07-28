@@ -37,6 +37,38 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ od-5 BUSINESS SIMULATIONS — BUILT + END-TO-END VERIFIED 2026-07-28
+THE PAYOFF: the economy tree got its first NUMBERS. Dustin's scoping
+("businesses that do whatever they can with the tools they have"):
+scenario v1 = wax-print molds + geopolymer goods micro-business with
+TWO explicit assumptions in assumptions_json (feedstock from a
+purely commercial supplier — the local hydroponic wax-source farm is
+scenario 2; a working wax 3D printer exists; labor/energy/
+amortization excluded from v1 economics). BusinessScenarioDefinition
+= scenarios as DATA (seed spec: 3 partners, 4 products, 2 BOMs —
+mold=0.35kg pellets, pot=2kg drymix+0.1 mold amortized; driver: 2
+cycles of buy->receive->make->sell->deliver; outcome spec names the
+business model). odoo_scenario_engine: plan-first step list; the
+SIM-ONLY guard refuses ops configs before anything; create/archive
+return exact pol-CLI commands (DB ops are host ops — never
+pretended); seed idempotent by x_polari_ref; run drives Odoo's REAL
+mrp/purchase/sale logic; harvest reads origin='polari:<scenario>'
+docs only -> BusinessOutcome + BusinessModelDefinition (honestly not
+self_sustaining). CLI: scenario-init/scenario-drop (odoo_scn_* prefix
+guard; final pg_dump receipt before EVERY drop). API: /api/odoo/
+scenarios + /api/odoo/scenario/{plan|create|seed|run|harvest|archive}.
+ACCEPTANCE: real throwaway DB, 10 driver steps green (4 POs, 6 molds
++ 40 pots manufactured state=done, 2 SOs delivered), metrics revenue
+720 / materials 264 / margin 456, outcome 'succeeded'; TWICE from
+fresh DBs -> identical metrics; ops untouched proven at DATA level
+(md5-of-dump is INVALID — pg_dump 16 embeds a random \restrict token
+per dump). 20/20 scenario selftests + all prior suites green.
+LESSON: Odoo 18 MOs park 'to_close' unless component moves are
+picked before button_mark_done — engine sets them + verifies
+state==done, refusing otherwise. NEXT: od-6 ops guardrails (backup
+cron, restore drill, movers) or scenario 2 (hydroponic farm grows
+the wax source — vertical integration), od-7 frontend surface.
+
 ## ✅ od-4 BINDINGS + SYNC — BUILT + VERIFIED 2026-07-28 (same branches)
 OdooModelBinding (bindings are DATA: odoo_model<->polari_class +
 field_map_json + direction + instance_ref; a binding can never widen

@@ -261,6 +261,28 @@ od-5 where sale orders first exist.
   (knob on); confirm ops pushes refuse.
 
 ### od-5 — Business-simulation seam (the sim half of the mandate)
+**✅ BUILT + VERIFIED 2026-07-28** (same branches): BusinessScenario-
+Definition (scenarios as data incl. assumptions_json — Dustin's v1
+scoping: commercial feedstock buyer + working wax printer are EXPLICIT
+prerequisites; the hydroponic-farm wax source is scenario 2) +
+odoo_scenario_engine (plan-first; sim-only guard refuses ops configs;
+create/archive = honest pol-CLI suggestions since DB ops are host ops;
+seed/run/harvest over RPC, all receipted; origin tag polari:<scenario>
+scopes harvests). CLI scenario-init/scenario-drop with the odoo_scn_*
+prefix guard + final pg_dump receipt before every drop. ACCEPTANCE:
+wax-mold-goods-v1 ran END-TO-END on a real throwaway DB — 4 POs
+received, 6 molds + 40 pots manufactured to state=done, 2 SOs
+delivered; harvest = revenue 720 / materials 264 / margin 456;
+BusinessOutcome 'succeeded' + BusinessModelDefinition (honestly NOT
+self_sustaining — labor/energy/amortization excluded, listed in
+assumptions). Run TWICE from fresh DBs -> byte-identical metrics; ops
+proven untouched at the DATA level (base partner count, zero business
+apps, models absent). 20/20 scenario selftests. LESSONS: Odoo 18 MOs
+park in 'to_close' unless component moves are picked before
+button_mark_done (engine now verifies state==done and refuses
+otherwise); pg_dump 16 embeds a RANDOM \restrict token so
+md5-of-dump is NOT a valid untouched-check — strip those lines or
+assert at the data level.
 - `BusinessScenarioDefinition` (treeObject, odooconnect): names an
   OdooInstanceConfig (must be mode=simulation — enforced), a seed
   spec (products/BOMs/partners/price lists as data, reusing od-4

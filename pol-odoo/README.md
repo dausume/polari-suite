@@ -72,6 +72,23 @@ logs show `password authentication failed for user "odoo"`):
 (gitignored — NEVER commit dumps; the repos are public). This is the only
 sanctioned way to touch ops data until od-6 lands the full guardrails.
 
+⚠ Comparing dumps: pg_dump 16 embeds a RANDOM `\restrict` token in
+every dump, so md5-of-dump differs even for an untouched database —
+strip `\restrict`/`\unrestrict` lines before comparing (learned
+during od-5 acceptance; data-level assertions are the stronger proof).
+
+## Scenarios (od-5)
+
+`pol odoo scenario-init <odoo_scn_*> --modules ... --admin-pass ...`
+creates a THROWAWAY per-scenario database (the prefix guard refuses
+anything else); `pol odoo scenario-drop <odoo_scn_*>` takes a final
+pg_dump receipt then drops it — sim/ops can never be dropped from
+here. The scenario engine (odooconnect) refuses to run on any config
+whose mode is not simulation, drives seed/run/harvest over JSON-RPC,
+and harvests margin/throughput into BusinessOutcome rows on the
+economy tree. First scenario: wax-mold-goods-v1 (commercial feedstock
++ working wax printer as EXPLICIT assumptions).
+
 ## SSO (od-2)
 
 `pol odoo sso-setup` is idempotent and never hand-clicked: it ensures
