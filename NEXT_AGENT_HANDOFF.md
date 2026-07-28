@@ -37,6 +37,45 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ od-4 BINDINGS + SYNC — BUILT + VERIFIED 2026-07-28 (same branches)
+OdooModelBinding (bindings are DATA: odoo_model<->polari_class +
+field_map_json + direction + instance_ref; a binding can never widen
+an instance's permissions) + OdooSyncReceipt (every run receipted).
+odoo_sync.pull: provenance odoo:<inst>:<model>:<id>@<write_date>,
+row name '<prefix>-<odoo_id>' idempotent, same-prov skip / older-prov
+update / FOREIGN-prov conflict-report-never-touch; class resolution
+via objectTypingDict.getCreateMethod() (CRUDE path) so a gated-off
+class refuses naming POLARI_MODULES. odoo_sync.push: x_polari_ref
+ensured on demand (ir.model.fields create = itself a guarded write),
+found->write absent->create, explicit row_names required, confirm
+string forwarded into the client guards. API: /api/odoo/bindings|
+pull|push|receipts. Seeds: partners->SupplyNode, product.template<->
+WaxFeedstockDefinition (both), mrp.bom->SupplyChainDefinition
+(refuses until mrp installed). TESTS: 26/26 selftest_odoo_sync vs the
+shared stub_odoo.py (stub starts WITHOUT x_polari_ref — ensure path
+exercised for real); 27/27 od-3 suite still green. REAL acceptance
+on the local pair: pulled hand-seeded products with exact provenance,
+pushed a Polari row into odoo_sim (custom field created live,
+round-trip verified, re-push updated not duplicated), ops write
+refused AT THE GUARD (knob named) while ops reads flowed. Local
+odoo_sim now has the 'product' app + test rows (verification
+artifacts). NEXT: od-5 BusinessScenarioDefinition + wax-print
+micro-business scenario (installs product/mrp/sale in scenario DBs).
+
+## ⚡ ODOO LIVE ON ECON-CORE — 2026-07-28 (its mandated home)
+Shipped WITHOUT pushing repos (Dustin: ssh route OK): images
+docker-save|ssh-load'd, minimal runtime dir ~/polari-odoo-runtime on
+econ-core (compose file + pol-odoo{,-postgres} configs + .generated
+env copied; .generated/odoo-ports.yml override publishes 8069/8072/
+5432 on the LAN until the proxy runs there) — run with
+`docker compose -p polari-suite ...` so containers/volumes are named
+EXACTLY as a future real checkout expects (polari-suite_odoo-db-data
+adopts seamlessly). Both DBs created (base only, no product app yet),
+admin passwords set + shown once in-session. Login:
+http://192.168.0.66:8069/web/login?db=odoo_sim . SSO not configured
+there (needs pol-keycloak reachable). The local pol-core pair still
+exists (volumes kept) as the dev/verification copy.
+
 ## ✅ od-3 ODOOCONNECT MODULE — BUILT + VERIFIED 2026-07-27 (same branches)
 Framework module modules/odooconnect/ (waxsupply anatomy):
 OdooInstanceConfig treeObject (mode sim|ops, base_url + url_env

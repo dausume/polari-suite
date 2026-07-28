@@ -219,6 +219,24 @@ ping-pass fold-in rides that status endpoint rather than PROVIDER_PORTS.
   knob), sim/ops handle separation.
 
 ### od-4 — Model bindings + sync v1 (pull freely, push gated)
+**✅ BUILT + VERIFIED 2026-07-28** (same branches): OdooModelBinding +
+OdooSyncReceipt (bindings are DATA; receipts every run), odoo_sync
+pull (provenance odoo:<inst>:<model>:<id>@<write_date>, idempotent by
+deterministic row name, foreign-provenance rows = CONFLICT report not
+overwrite) + push (x_polari_ref ensured on demand — itself a guarded
+write; found->write absent->create; explicit row_names required),
+/api/odoo/bindings|pull|push|receipts. 26/26 sync selftests vs the
+shared stub (which starts WITHOUT x_polari_ref so the ensure path is
+real). REAL acceptance on the od-1 pair: hand-seeded products,
+pulled with exact provenance, pushed a Polari row INTO odoo_sim
+(x_polari_ref field created on the live server, round-trip visible,
+re-push updated not duplicated), ops write refused AT THE GUARD
+naming the knob while ops reads flowed. Notes: odoo_sim needed the
+'product' app (base has no product.template — honest refusal until
+installed); starter seeds = partners->SupplyNode, product.template<->
+WaxFeedstockDefinition, mrp.bom->SupplyChainDefinition (refuses until
+mrp installs, od-5); order->ContextualizedValue bindings deferred to
+od-5 where sale orders first exist.
 - `OdooModelBinding` (treeObject): odoo_model (`product.template`,
   `res.partner`, `mrp.bom`, `sale.order`, `purchase.order`,
   `stock.quant`, `account.move`), polari_class, field_map_json,
