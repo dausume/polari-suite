@@ -37,6 +37,23 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ⚠️ MAGNETICS — PLANNING ONLY 2026-07-28 (next direction)
+Dustin: magnetic geopolymer + magnetic sol-gel -> magnetic circuits
+-> 3-phase motors, block-based like the circuit work. Plan =
+MAGNETIC_MATERIALS_PLAN.md (mag-0..8). Key facts found: the
+"isle-core notes" = the electrodevice block pattern itself
+(~/ncg-matrix/polari-framework there; same module local) — rows ->
+GraphCompiler seam -> solver -> honest refusals, mirrored via the
+reluctance analogy (MMF~V, flux~I, reluctance~R). msci-22 already
+has the composite ladder LIVE (geopolymer-ferrite mu 2.196 @35vol%,
+sol-gel-ferrite 1.714, wax-ferrite printable); src-6 costed
+magnetite (buy 9.70 wins vs make 20.11). PHYSICS HONESTY pinned in
+plan: mu~2 is LOW (air-gap-dominated parts yes, motor iron no);
+magnetite = soft (cores) NOT permanent magnets — hard ferrite
+SrFe12O19 = citation gap; motor v1 = reluctance-first (all costed
+today) then ferrite-PM BLDC once cited. mag-0 decisions await
+Dustin (motor target, gaussmeter buy, module home, solver parity).
+
 ## ✅ biz-5 TRANSFER-PRICE DISCOVERY — 2026-07-28 (scenario-3 static)
 - deal_price_window (bizops_deals.py): per-flow viable window =
   [supplier make-cost + minMarginPct, buyer's cited alternative

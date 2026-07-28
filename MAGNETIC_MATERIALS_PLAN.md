@@ -1,0 +1,241 @@
+# MAGNETIC MATERIALS + BLOCK-BASED MAGNETIC CIRCUITS + 3-PHASE MOTORS
+*(plan drafted 2026-07-28 — Dustin: "capability to make magnetic
+geopolymer and magnetic sol-gel materials, which we can use to make
+magnetic circuits and 3-phase motors", block-based per the circuit
+work; PLANNING ONLY, nothing built yet)*
+
+## 0. Where the pieces already are (provenance)
+
+**The block-based design pattern** Dustin pointed at lives in the
+`electrodevice` module (ncg-4/ncg-6) — present locally AND in the
+`~/ncg-matrix/polari-framework` checkout on isle-core (no separate
+prose note found there; the module IS the note):
+
+> CircuitDefinition owns CircuitComponentDefinition rows (blocks,
+> pins wired by NET NAME) + CircuitNetDefinition rows (declared
+> nets = documentation + drift visibility). The netlist GENERATES
+> from rows through the GraphCompilerDefinition seam; params come
+> from derived device rows or explicit values with the row as the
+> honest record; undeclared nets are suggestions riding the result;
+> missing capability (ngspice) refuses honestly. level_bridge binds
+> logic designs onto physical boards (PinBindingDefinition).
+
+Magnetic circuits mirror this 1:1 through the classical analogy
+(Hopkinson's law): MMF ↔ voltage, flux Φ ↔ current, reluctance
+R = l/(µA) ↔ resistance, permeance ↔ conductance. Same rows→
+compiler→solver→refusals shape; different physics constants.
+
+**The materials are half-built already** (msci-22/23, the k↔µ
+Laplace-analogy homogenization):
+- geopolymer-ferrite µ_eff **2.196** @35 vol% (≈88% of cast
+  ferrite-ceramic 2.484 — the feasibility datum)
+- sol-gel-ferrite µ_eff **1.714** @25 vol%
+- wax-ferrite (printable magnetics) @30 vol% — LIVE µ_eff row
+- validity notes already on the rows: linear magnetostatics only,
+  hysteresis/remanence out of scope, ferrite L4 = spin-DFT gap.
+
+**The costs are half-cited already** (src-6/7): magnetite pigment
+**9.70/kg EXACT buy** vs coprecipitation make 20.11/kg — buy wins
+~2x, honestly. CNT dispersions costed. Geopolymer 1.11/kg cascade,
+sol-gel xerogel 10.67/kg self-made-waterglass route.
+
+**The drive side is designed** ([[polari-hardware-architecture]]):
+FPGA does pulse gen / motor timing / PWM; MCU supervises; hwsim-1
+runs real STM32 firmware. electrodevice runs SPICE circuits as rows.
+BLCNC_PLAN already names "alternating-ferromagnet ferrite
+dispersion" as a fabrication idea. Tech-tree topology table has the
+**Electromagnetic systems** row sitting at TODO — this plan fills it.
+
+## 1. Physics honesty, up front (constraints the plan obeys)
+
+1. **Our composite µ_eff ~1.7-2.5 is LOW.** Laminated steel and
+   sintered soft ferrites run 10²-10⁴. Cast composite cores are NOT
+   drop-in motor iron; they suit air-gap-dominated magnetics:
+   inductor/sensor cores, flux guides, pole shoes, high-frequency
+   parts (composite = low eddy loss is a real advantage — magnetite
+   conductivity needs checking, though: percolation engine says
+   conductive fillers percolate).
+2. **Magnetite is a SOFT-ish magnet** (low coercivity): good filler
+   for cores and flux paths, **not a permanent magnet**. Real PMs
+   need hard ferrite (SrFe₁₂O₁₉ / BaFe₁₂O₁₉) powder — buyable as
+   bonded-magnet feedstock, **UNCITED today = mag-1 hunt**. Bonded
+   hard-ferrite magnets are exactly how cheap commercial BLDC/fan
+   motors are made, so the route is proven at industry scale.
+3. **Firing upgrades exist**: geopolymer-ferrite → ceramic-ferrite
+   via the Table 8.8 path (kiln energy excluded-loud, as always);
+   sintered ferrite is the µ escalation rung. The ceramics
+   escalation ladder already models this shape.
+4. **Motor consequence**: v1 torque numbers will be SMALL and the
+   reports must say so. Two realistic first targets:
+   - **(A) ferrite-PM BLDC/synchronous** — bonded hard-ferrite
+     rotor ring + wound stator; the commercial-precedent route.
+     Gated on the SrFe₁₂O₁₉ citation + a bonding formula.
+   - **(B) pure reluctance rotor** — works with TODAY's costed
+     materials (no PM), torque scales with saliency (L_d−L_q),
+     honestly feeble at µ~2 but it CLOSES THE LOOP end-to-end
+     with zero new feedstock.
+
+## 2. Phases
+
+### mag-0 — Decisions (Dustin)
+1. First motor target: (A) ferrite-PM (needs the hard-ferrite
+   citation + formula) or (B) reluctance-first (all-costed today)?
+   Recommendation: **B first for the end-to-end proof, A immediately
+   after the citation lands** — same block library serves both.
+2. Characterization buy: a Hall-sensor gaussmeter (~$2-15, A1302/
+   SS49E class) + inductance-via-known-coil test → research-tools
+   tree, easiest-first. Knob: buy vs refuse-measurements-honestly.
+3. Module home: new `magnetics/` module (requires electrodevice +
+   supplychain; msci rows referenced not imported) — keeps files
+   small per the decomposition rule. Confirm.
+4. Solver: pure-python Hopkinson solve (numpy) as primary, WITH the
+   ngspice-analogy render (R=reluctance, V=MMF, I=flux) reusing
+   run_netlist as a PARITY cross-check. Confirm both-or-python-only.
+
+### mag-1 — Sourcing + formulas (supplychain; the "make" capability)
+- ProductInputRequirement rows: `magnetic-geopolymer-mix`
+  (matrix role = geopolymer-mix CASCADED at 1.11/kg self-made;
+  filler role = magnetite 20-60 wt%), `magnetic-solgel-composite`
+  (silica-xerogel cascade + magnetite), `wax-ferrite-feedstock`
+  (print wax blend + magnetite — printable magnetics; BLCNC's
+  alternating-ferromagnet dispersion idea rides this).
+- **vol%↔wt% honesty**: msci rows speak vol% (35 vol%), recipes
+  weigh wt% (magnetite ρ≈5.2 vs geopolymer ≈2.0 → 35 vol% ≈ 58
+  wt%). The conversion lives ONCE in analysis code, densities as
+  data, refusing when density is missing.
+- ProductFormula rows per composite + formula_cost / cascaded make
+  vs buy: our magnetic-geopolymer $/kg vs commercial soft-ferrite
+  CORES (cite Fair-Rite/Amidon toroids + C-cores $/kg) and bonded
+  magnets (cite ceramic magnet retail) — the same
+  make-vs-buy-honest verdict pattern as wax/geopolymer.
+- CITATION HUNTS: strontium-ferrite bonded-magnet powder; magnet
+  wire (AWG enamel copper, $/kg — REQUIRED for any motor, uncited);
+  Hall sensors; cheap ESCs/H-bridge parts for mag-6. Est-flag
+  anything bot-blocked, screenshots valid.
+
+### mag-2 — Magnetic properties as data (materials seam)
+- Extend the supplychain/materials seam so items carry magnetic
+  data columns: mu_r (from the msci L1 ladder — object coherence:
+  reference the msci row, don't copy numbers), B_sat, coercivity,
+  remanence, density. Unknown = None + characterization ASK, never
+  a guess.
+- Soft/hard grade split on ferrite rows (msci-22 has both in one
+  row; the circuit blocks need them distinct).
+- research-tools tree: gaussmeter + inductance-test nodes,
+  easiest-first, honest difficulty; QA hooks (a wound-core
+  inductance test IS a QualityCheckDefinition — µ verification per
+  batch lands in the biz-4 QA machinery for free).
+
+### mag-3 — BLOCK-BASED MAGNETIC CIRCUITS (the electrodevice mirror)
+- New rows (mirroring circuit_basis 1:1):
+  - `MagneticCircuitDefinition` — analyses_json: `op` (static flux
+    solve), `sweep` (parameter/angle sweep).
+  - `MagneticElementDefinition` — kinds: `mmf-coil` (N turns, I
+    amps or drive ref), `core-segment` (material ref + length +
+    area — µ from mag-2 data, refusal names the missing row),
+    `air-gap` (length, area, fringing-factor knob), `magnet`
+    (hard-grade material ref → Thevenin MMF source H_c·l_m +
+    internal reluctance), `leakage-path`, `flux-probe`. Terminals
+    wired by FLUX-NODE NAME.
+  - `FluxNodeDefinition` — declared nodes; undeclared = suggestion
+    riding the result (drift visibility), exactly like nets.
+- `magnetic_netlist.py`: rows → reluctance network through a new
+  `magnetic-netlist` GraphCompilerDefinition; pure-python nodal
+  solve (numpy lstsq on the permeance matrix); returns flux per
+  element, B = Φ/A per element, MMF drops.
+- **Saturation honesty**: linear solve ALWAYS, then per-element
+  check B vs B_sat — exceeded elements come back FLAGGED with the
+  suggestion (bigger area / lower drive / better material), the
+  run never silently lies. (Nonlinear µ(B) iteration = later rung,
+  data-gated on B-H curves.)
+- Optional parity: render the same network as a SPICE resistor
+  netlist via the analogy and run through the EXISTING run_netlist
+  — two solvers, one truth, regression-pinned (the spice_run
+  promotion protocol replayed).
+- Seeds: a gapped toroid inductor, a C-core + coil + gap, a
+  horseshoe + keeper — each with hand-computable expected flux
+  (selftest pins the math).
+
+### mag-4 — Blocks → castable geometry (the make loop)
+- Block library rows carry printable/castable GEOMETRY: C-core
+  halves, E-core, toroid segments, pole shoes, rotor disks — tied
+  into waxprint: **print the wax mold, cast magnetic geopolymer in
+  it** (mold-1 strategies apply: release agent mandatory, reclaim
+  loop cuts cost, fire-to-ceramic upgrade for µ).
+- Per-block cost = volume × density × formula $/kg (+ mold ladder
+  amortization from the biz-1 planner priors). A designed magnetic
+  circuit therefore prices itself part-by-part — the same
+  cost-per-part discipline as the order planner.
+
+### mag-5 — 3-PHASE MOTOR DESIGNER
+- `MotorDesignDefinition` rows: topology (radial/axial), pole
+  count, slot count, phase winding map (which mmf-coil blocks
+  belong to phase A/B/C, turns, wire gauge → resistance from
+  magnet-wire citation), rotor type (reluctance salient /
+  ferrite-PM ring), geometry params.
+- The designer GENERATES the magnetic circuit rows: stator teeth =
+  core-segments, gaps = air-gap elements parameterized by rotor
+  angle θ, rotor poles/magnets per type. One motor = a FAMILY of
+  magnetic circuits over θ.
+- **Torque via virtual work over the reluctance network**: sweep θ,
+  W(θ) from the solved network at 3-phase excitation (A/B/C
+  currents at electrical angle), torque ≈ dW/dθ. Quasi-static v1 —
+  no dynamics, no back-EMF waveform fidelity; the report SAYS SO
+  and states the validity window. Outputs: static torque curve,
+  torque ripple, stall torque estimate, kt/kV rough bounds.
+- L2 escalation (data/deps-gated): scikit-fem 2D magnetostatics
+  cross-section validation (the fem engine + worker already exist
+  in msci); L4 = spin-DFT ferrite gap already named by msci-22.
+- Seeds: a 6-slot/4-pole reluctance motor sized to a 3D-printable
+  mold envelope; the ferrite-PM variant row exists from day one
+  but REFUSES until the hard-ferrite citation + formula land
+  (the refusal is the shopping list).
+
+### mag-6 — Drive electronics + hardware bridge (close the loop)
+- electrodevice circuit rows for the 3-phase half-bridge inverter
+  (6 switches + shunts) — runs in ngspice TODAY through the
+  existing netlist runner; commutation table as data.
+- `PhaseBindingDefinition` (level_bridge mirror): binds motor
+  phases → inverter output nets → (later) FPGA PWM channels per
+  the hardware architecture (FPGA = motor timing; MCU = safety).
+  hwsim (Renode STM32) can exercise the commutation state machine
+  before any hardware exists.
+- Honest seam: simulation-only until hardware tiers say otherwise;
+  every hardware-facing row is a knob + suggestion, never auto.
+
+### mag-7 — Visuals (/magnetics)
+- Angular page: circuit editor over the rows (same no-code display
+  pattern as /pspp pages), flux-path view (element list with B,
+  flagged saturations red), motor cross-section SVG with per-θ
+  torque chart, cost-per-part panel from mag-4.
+- SimSpace3D scene for the assembled motor (mathshapes primitives
+  suffice for v1 geometry).
+
+### mag-8 — Business + tech-tree splice
+- Products: inductor cores, sensor cores, flux-guide sets, motor
+  kits → bizops: PRESTAGE_VARIANTS entries, readiness EARNED per
+  variant, QA checks (crack + inductance/µ verification +
+  dimensional fit), compliance: honest-labeling applies (no
+  medical/EMC claims without certification — same voluntary-claim
+  gating shape as plant-safe).
+- Tech tree: fill the **Electromagnetic systems** TODO row —
+  theory segments = msci ferrite family + magnetics module; data
+  gaps = B-H curves, hard-ferrite citation; escalation = cast →
+  fired → sintered.
+- Partnerships/deal shape: magnet wire + hard ferrite are the new
+  supply flows; deal_price_window applies unchanged.
+
+## 3. Selftest discipline (every phase)
+Fixture-manager selftests per module file (check() pattern), pinned
+hand-computed physics (gapped-toroid flux, two-solver parity,
+vol%↔wt% conversions, θ-sweep symmetry: torque period = 2π/poles),
+refusal paths (missing µ, missing B_sat, PM without hard-grade
+data, motor without magnet-wire citation), and the in-process
+live-boot probe extended with /api/magnetics routes.
+
+## 4. Explicitly OUT of v1 (named so nobody trips)
+Eddy currents/core loss numbers, hysteresis loops, thermal limits,
+dynamic (dq-frame) simulation, acoustic/vibration, self-wound coil
+winding machines (a later manufacturing-tools node), rare-earth
+magnets (against the accessible-materials ethos and unnecessary
+for the proof).
