@@ -37,6 +37,25 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ od-4b ORDER FEED + LIVE-BOOT PROOF — 2026-07-28
+- /api/odoo/pull-orders: sale.order LINES -> ProductOrder rows via
+  binding 'sim-sale-orders' (odoo_orders.py holds the derivations a
+  flat field map can't: mapping ladder x_polari_ref > default_code >
+  honest 'unmapped:'; volume m3->L w/ flagged 1.0 fallback; due_days
+  from commitment_date; state map draft/sent->requested,
+  sale->accepted, cancel->refused). Same provenance/conflict/receipt
+  discipline as od-4. selftest_odoo_orders 20/20 incl. THE SPLICE
+  (order planner over the pulled book). Needs sale app in odoo_sim
+  for live use — pulls refuse honestly until installed.
+- LIVE-BOOT PROOF: in-process boot of the REAL polariServer
+  (hasDB=True — seeding is DB-gated by design, see
+  ensureDefinitionTables 'no database, skipping') with
+  supplychain+bizops+odooconnect enabled: 15/15 (seeds land, all
+  bizops/sellability/qa/walkthrough routes answer, binding seeded).
+  Scratch script pattern: managerObject(hasServer=True, hasDB=True)
+  + falcon testing.TestClient — first non-fixture proof of the biz
+  stack. Framework 08190b1.
+
 ## ✅ biz-4 COMPLIANCE + QA — 2026-07-28 (sell it legally, honestly)
 Dustin: not-food-safe must NOT sell as food-safe; legal requirements
 per product kind tracked at attainment LEVELS; QA per product kind.
