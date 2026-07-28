@@ -346,6 +346,18 @@ the connector since od-3.
   must survive); stale-journal detection covers the new volumes.
 
 ### od-7 — Surface (frontend + tech tree filing)
+**✅ FRONTEND CORE BUILT 2026-07-28** (angular dev-od-7-business-ui
+13c89f5): /business/odoo standalone page — instances with mode +
+knobs-as-knobs (ops amber), scenario cards with assumptions +
+plan-first previews, make-vs-buy verdict cards (geopolymer-mix +
+natural-print-wax-blend, caveats attached, ~marker on estimate-based
+numbers), receipts table, bindings-as-data. Refusals render as
+sentences. ng build green; NO browser pass yet (needs backend with
+odooconnect enabled). Remaining od-7 tail: economy-tree segment
+filing for odooconnect (theory=module rows), no-code data-source
+registration (pulled rows are ordinary rows — likely free), an
+'Odoo' link-out card, nav entry.
+
 - Frontend: an "Odoo" card (link-out to odoo.<domain>) + a
   `/business/odoo` status page (instances, mode badges, push knobs
   shown as knobs, sync/bindings status, backup receipts, last

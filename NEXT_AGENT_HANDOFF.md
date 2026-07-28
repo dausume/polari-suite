@@ -37,6 +37,35 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ⚡⚡ AUTONOMOUS SESSION 2 — 2026-07-28 (Dustin away; delegated)
+Everything below done autonomously on Dustin's 'keep going at will':
+- SCENARIO PRICES REPINNED from citations (the drift suggestion,
+  deliberately executed on delegation): soy 4.81 exact, drymix 4.85
+  est — honest margin 235.8/2cycles (was 456 invented). LIVE re-run.
+- SCENARIO 2 'hydroponic-wax-farm-v1' LIVE end-to-end: the sourcing
+  mutual loop transactional (ONE partner = biomass customer AND pot
+  supplier; farm bought 4 pots, sold 60kg biomass; margin +24 THIN
+  by design — transfer-price discovery = scenario 3);
+  hydroponic-wax-source-farm BusinessModel created.
+- ScoreTerm 'material-cost-per-kg' REGISTERED in scoring seeds
+  (materials-economics, USD/kg, is_positive False); full scoring
+  sweep green.
+- od-6 CORE: pol odoo backup-cron install|remove|status (03:17
+  nightly, keep 14; CAUGHT LIVE: set -e kills the crontab subshell
+  on empty grep -> empty crontab installed silently — || true) +
+  pol odoo restore-drill <sim|ops> (latest receipt -> throwaway db,
+  base-table count vs dump CREATE TABLEs — views made it off-by-one
+  — + row-EXACT res_users/ir_model vs COPY stanzas) — DRILLED PASS
+  on sim (236 tables) AND ops (205). econ-core got its own
+  raw-docker nightly cron + proven 3.3MB manual dump (receipts in
+  ~/polari-odoo-runtime/backups/). MOVE_SUBJECTS += odoo,
+  odoo-postgres (25/25).
+- od-7 FRONTEND: /business/odoo (angular dev-od-7-business-ui) —
+  see the od-7 plan section. ng build green, NO browser pass.
+STILL NOT PUSHED anywhere (Dustin's manual step). Local pair down
+(volumes kept); econ-core pair RUNNING (its cron now takes nightly
+receipts).
+
 ## ✅ src-7 CITATION SWEEP + NEW INTERMEDIARIES — 2026-07-28
 Seven citations closed flagged gaps (ferrous sulfate est, SLS EXACT
 15.84/lb, rice hulls est, EPK kaolin 21.50/50lb, stearic 40.19/5lb,
