@@ -1,3 +1,20 @@
+# ⚡⚡⚡⚡⚡⚡⚡ NEXT WORK: ODOO INTEGRATION — 2026-07-27 (READ FIRST)
+
+**Dustin's next arc, handed to the NEXT AGENT: integrate Odoo as the
+backbone of BOTH business simulations AND real business ops.** The
+full plan is `ODOO_INTEGRATION_PLAN.md` (suite root) — od-0..7 with
+the architecture (one Odoo server, TWO databases sim/ops, the hard
+sim/ops separation invariant, Keycloak SSO, JSON-RPC connector module
+`odooconnect`, bindings-as-data, gm mover coverage for odoo +
+odoo-postgres, the wax-print micro-business as the first scenario).
+Start at od-0 (Dustin decisions: version pin, host machine, ops
+accounting now-or-later), then od-1 service bring-up modeled on
+pol-keycloak/pol-mariadb service defs. Everything below this section
+(gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
+work rides on (movers, quiesce, lazy boot, receipts, topology).
+
+---
+
 # ⚡⚡⚡⚡⚡⚡ CONSOLIDATED ON dev — 2026-07-27 (Dustin's call)
 
 **ALL WORK IS NOW ON THE BASE `dev` BRANCHES** in all five repos
