@@ -37,6 +37,27 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ src-6 SOL-GEL + FERRITE + CNT COST LAYERS — 2026-07-28
+yield_fraction landed on ProductFormula (output-basis costing —
+sol-gel drying loses mass; refuses outside (0,1]). SOL-GEL:
+silica-xerogel via waterglass+citric (cited est 5.73/kg)+water,
+yield 0.16 → 35.79/kg bought-waterglass vs 10.67/kg SELF-MADE —
+first two-level cascade proven (xerogel <- waterglass <- sand/
+NaOH/tap). FERRITE: magnetite pigment CITED EXACT 9.70/kg
+(Walmart $21.99/5lb); coprecipitation recipe seeded but refuses to
+cost until iron salts cited (ferrous-sulfate garden channel /
+ferric-chloride etchant channel = the hunts) — catalog shows the
+refusal as the research ask. CNT: making-from-scratch = EXPLICIT
+far-off assumption (polari-cnt-lab potential, no powder formula on
+purpose; techtree CNT-builder models structure not production);
+grades cited: MWCNT 375/kg vs SWCNT 500/g low-end electronic
+(orders of magnitude ON RECORD), dispersion market 185/kg mid;
+2wt% MWCNT dispersion from BOUGHT powder = 7.50/kg (~96% under
+market; sonication excluded; surfactant gap noted). 49/49 formula
++ 23/23 sourcing (rank-1 check generalized: two polari labs now)
++ all suites green. NEXT hunts: ferrous sulfate, SDS surfactant,
+RHA, exact SWCNT grade quote.
+
 ## ✅ src-5 WATERGLASS = MAKEABLE INTERMEDIARY — 2026-07-28
 Dustin: waterglass is critical in multiple processes and is an
 INTERMEDIARY — account for local production via different routes.

@@ -439,6 +439,30 @@ seam (first-class waterglass-production node with edges = deliberate
 follow-up; data_deps were wrong mechanism — they resolve against
 DigitizedDataset figures). 40/40 formula + 61/61 techtree selftests.
 
+### src-6 — Sol-gel, ferrite, CNT cost layers (Dustin 2026-07-28)
+**✅ BUILT + TESTED** (49/49): ProductFormula gained yield_fraction
+(kg product per kg input blend — costing divides so usdPerKg is
+OUTPUT basis; sol-gel drying loses mass).
+- SOL-GEL: silica-xerogel requirement (waterglass|teos*|RHA* +
+  citric-acid CITED est 5.73/kg|vinegar* + tap-water); recipe
+  55/15/30 yield 0.16 → 35.79/kg with BOUGHT waterglass,
+  10.67/kg with SELF-MADE (the first TWO-LEVEL cascade: xerogel <-
+  waterglass <- sand/NaOH). Substitute silica-gel-desiccant listed
+  with the not-a-sol-gel-precursor caveat (uncited).
+- FERRITE (v1 = magnetite powder): buy-side CITED EXACT $21.99/5lb
+  = 9.70/kg (Alpha Chemicals/Walmart); coprecipitation route seeded
+  but DELIBERATELY refuses to cost until ferrous-sulfate/ferric-
+  chloride are cited — the refusal IS the research ask. Sintered
+  MnZn/NiZn ferrite parts noted as a further step, not this item.
+- CNT: SYNTHESIS FAR OFF as an assumption ON RECORD (polari-cnt-lab
+  potential, NO powder make-formula on purpose). Varying grades
+  cited: industrial MWCNT $375/kg (listed range low), electronic
+  SWCNT $500/GRAM low end (=500k/kg — grade choice dominates cost,
+  orders of magnitude on record); dispersions market $120-250/kg.
+  DISPERSIONS are makeable from bought powder: 2wt% MWCNT recipe =
+  7.50/kg vs 185 market (~96% cheaper; sonication energy/equipment
+  excluded; surfactant-free settles — SDS route = uncited gap).
+
 ## Risks / honest gaps (say them, don't hide them)
 - **Community vs Enterprise**: no Odoo Studio, limited accounting
   localizations/reports; if ops accounting needs more, that is a
