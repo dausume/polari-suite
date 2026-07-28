@@ -37,6 +37,29 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ src-5 WATERGLASS = MAKEABLE INTERMEDIARY — 2026-07-28
+Dustin: waterglass is critical in multiple processes and is an
+INTERMEDIARY — account for local production via different routes.
+Built: sodium-silicate-solution ProductInputRequirement (silica-
+source 24-32% {sand CITED, rice-husk-ash*, waste-glass-fines*},
+alkali 12-18% {NaOH}, water 52-62% {tap-water CITED — published 2026
+utility tariff $11.63/1000gal = 0.0031/kg; municipal-water-utility
+source is the clean rank-4 local-closed example}) + recipe
+waterglass-hydrothermal-v0 (28/15/57) = 1.54/kg vs 8.85 purchased
+(-83%, digestion energy EXCLUDED loudly; RHA route = the sol-gel
+sg-community low-temp path once cited). NEW CASCADED COSTING in
+formula_analysis: make_cost (seeded recipes only), effective_unit_
+price (min buy/make, recursive + cycle-guard), cascaded_cost
+(breakdown tags via made/cited; madeIntermediates carry the energy
+caveat); product_cost_comparison surfaces formula-with-made-
+intermediates rows; /api/supplychain/sourcing/cascaded-cost/{name}.
+CHAIN RESULT: geopolymer castable 2.65 → 1.48/kg with self-made
+waterglass → ~69% cheaper than the GPI kit. Tech tree: sol-gel node
+description names the production-routes seam (first-class
+waterglass-production node = deliberate follow-up; data_deps
+resolve against DigitizedDataset so they were the wrong hook).
+40/40 formulas + 61/61 techtree + all suites green.
+
 ## ✅ src-4b METAKAOLIN EXACT-CITED — Dustin's screenshots 2026-07-28
 Clay Art Center bot-blocks automated fetch; Dustin captured the real
 prices by phone: metakaolin $5/1lb weigh-out, $66.00/50lb bag EXACT,

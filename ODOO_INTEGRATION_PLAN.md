@@ -419,6 +419,26 @@ in-house blending loses to bulk pellets. Both v2 refinements listed:
 dry-basis silicate costing, mix water, cure validation. 31/31
 formula selftests.
 
+### src-5 — Waterglass as a makeable intermediary (Dustin 2026-07-28)
+**✅ BUILT + TESTED**: waterglass is critical across geopolymer/
+sol-gel/pspp and is an INTERMEDIARY, not a natural material — so it
+got its own ProductInputRequirement with production ROUTES as data:
+(1) hydrothermal sand+NaOH digestion (cited: sand 0.33 + NaOH 9.64 +
+tap water 0.0031/kg via a published 2026 utility tariff → recipe
+~1.54/kg, digestion ENERGY EXCLUDED loudly); (2) rice-husk-ash+NaOH
+— the low-temp sol-gel community route, RHA uncited gap; (3)
+waste-glass fines — uncited gap closing the recycling loop. NEW
+CASCADED COSTING: make_cost (seeded recipes only — optimizer stays a
+suggestion) + effective_unit_price (min of buy/make, recursive,
+cycle-guarded) + cascaded_cost; product comparisons now surface
+'formula-with-made-intermediates' rows. RESULT CHAIN: waterglass
+make 1.54 vs buy 8.85 (-83%); geopolymer castable with self-made
+waterglass drops 2.65 → 1.48/kg → ~69% cheaper than the GPI kit.
+Tech tree: sol-gel node description now names the production-routes
+seam (first-class waterglass-production node with edges = deliberate
+follow-up; data_deps were wrong mechanism — they resolve against
+DigitizedDataset figures). 40/40 formula + 61/61 techtree selftests.
+
 ## Risks / honest gaps (say them, don't hide them)
 - **Community vs Enterprise**: no Odoo Studio, limited accounting
   localizations/reports; if ops accounting needs more, that is a
