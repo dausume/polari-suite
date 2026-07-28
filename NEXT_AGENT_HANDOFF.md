@@ -37,6 +37,45 @@ pol-keycloak/pol-mariadb service defs. Everything below this section
 (gm/mlb/glass) is DONE and on dev — it is the machinery the Odoo
 work rides on (movers, quiesce, lazy boot, receipts, topology).
 
+## ✅ biz-1 BIZOPS MODULE — 2026-07-28 (Dustin's big splice)
+NEW feature module modules/bizops (requires supplychain; wave 3;
+wired into polari-modules.json/FEATURE_MODULES+REQUIRES/
+polariServer/defClassList/seed_pairs/endpoint):
+- SETUP FLOW as the AXIOM: every business starts stage-0 — ONE
+  person, OFF-TIME hours, selling online + farmer/maker markets,
+  buying retail-available. Seeded ladder stage-0..3 (solo-offtime →
+  solo-committed → plus-one-hire → capability-shop with self-made
+  intermediaries).
+- UPGRADE FLOWS as evidence-gated EDGES (never auto): commit-hours,
+  hire-caster (hire ON A TASK), adopt-wax-reclaim-loop,
+  add-ceramic-firing (the Table 8.8 path as a business step),
+  add-waterglass-production — each gate references the planner's
+  numbers.
+- LOCAL ECONOMY SETUP: 8-milestone track toward the functioning
+  local economic baseline (OSEB operational) — status DERIVED from
+  live rows (local-available sources, makeable intermediaries,
+  mutual loops, business stages, reclaim/crush batches logged);
+  progressPct + nextGap. Today: 3/8 done (waterglass+metakaolin
+  makeable, mutual loop), nextGap = local wax feedstock (the farm
+  turning real).
+- ORDER PLANNER (ProductOrder registrar; od-4 sale.order binding =
+  the designed Odoo feed): answers Dustin's THREE questions —
+  (1) capacity: labor hours from volume-scaled (V^2/3) workflow
+  priors vs the stage's weekly hours; infeasible → DEFER
+  suggestions that free enough hours; (2) supply: priced
+  procurement manifest riding the cascaded stack (honest: NO
+  inventory tracking yet); (3) reuse: LADDER SCALING — geometric
+  size rungs (2^k L), one mold family per rung, strategy picked
+  per rung via the mold comparison, cycles pooled: fixture 270
+  orders collapse to <30 molds (>85% mold savings). CAPABILITIES
+  GATE THE PLAN: no ceramic strategy without ceramic-firing, wax
+  priced at makeup-only with wax-reclaim-loop — upgrades visibly
+  change the numbers (selftested both ways). /api/bizops/flows/
+  {business} + /economy + /plan/{business}. 23/23 selftests.
+- hemp-fiber CITED EXACT $17.09/lb; bagasse ash left uncited ON
+  PURPOSE (no US retail channel — sugar-mill local hunt);
+  cheapest_blend drops zero-fill optional roles. 55/55 formulas.
+
 ## ✅ bio-1 CORN HUSKS + BIO ROUTES — 2026-07-28 (Dustin's ask)
 Are husks a sand alternative? NOT drop-in (sand = rigid inert
 volume; husks = compressible, water-absorbing, and cellulose
