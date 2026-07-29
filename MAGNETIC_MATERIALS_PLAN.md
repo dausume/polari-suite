@@ -58,7 +58,9 @@ dispersion" as a fabrication idea. Tech-tree topology table has the
 2. **Magnetite is a SOFT-ish magnet** (low coercivity): good filler
    for cores and flux paths, **not a permanent magnet**. Real PMs
    need hard ferrite (SrFe₁₂O₁₉ / BaFe₁₂O₁₉) powder — buyable as
-   bonded-magnet feedstock, **UNCITED today = mag-1 hunt**. Bonded
+   bonded-magnet feedstock AND **makeable locally from pottery
+   chemicals (§1b Rung 1: rust + strontium carbonate + kiln, with
+   a citrate sol-gel route matching our stack)**. Bonded
    hard-ferrite magnets are exactly how cheap commercial BLDC/fan
    motors are made, so the route is proven at industry scale.
 3. **Firing upgrades exist**: geopolymer-ferrite → ceramic-ferrite
@@ -74,6 +76,72 @@ dispersion" as a fabrication idea. Tech-tree topology table has the
      materials (no PM), torque scales with saliency (L_d−L_q),
      honestly feeble at µ~2 but it CLOSES THE LOOP end-to-end
      with zero new feedstock.
+
+## 1b. THE LOCAL TORQUE-MAGNET LADDER (Dustin 2026-07-28: "make
+everything fully locally no matter how complex, overcoming rare
+materials with materials science and nanoparticle/nanostructure
+physics" — the answer is YES, and it's rung-by-rung honest)
+
+**Rung 1 — sol-gel hexaferrite (SrFe12O19), the realistic local
+route.** Hard ferrite is not just buyable — it is MAKEABLE from
+pottery-channel chemicals we already know how to source:
+  SrCO3 + 6 Fe2O3 -> SrFe12O19 + CO2
+- Feedstock: strontium carbonate $1.40-2.87/lb and red iron oxide
+  $1.99-2.25/lb from the SAME ceramic-supply channel as our
+  metakaolin (Evans/Clay King/Sheffield/Laguna — 2026-07-28
+  pre-hunt, exact cites = mag-1). Stoichiometric feed ~0.14 kg
+  SrCO3 + 0.90 kg Fe2O3 per kg product ≈ **under $5/kg feedstock**
+  vs the $1.5/kg bulk-industry figure — the premium is small and
+  the chain is FULLY local.
+- Route A (matches our stack EXACTLY): citrate sol-gel
+  auto-combustion — iron salts (ferric chloride/ferrous sulfate
+  ALREADY cited) or dissolved oxide + Sr salt + citric acid
+  (cited) -> gel -> combust -> calcine ~800-1000°C = nanoscale
+  hexaferrite powder at POTTERY-KILN temperatures. This is the
+  sol-gel module + ceramics ladder doing what they were built for.
+- Route B (bulk): solid-state — mix oxides, calcine 1100-1250°C,
+  mill. Cone 8-10 territory; coarser powder, simpler chemistry.
+- Then: bond into matrix (isotropic bonded magnet, our mortar/
+  block system) or press + sinter ~1200°C (stronger, ceramic
+  rung); ANISOTROPIC grade = press/cure in an aligning field —
+  which needs...
+- **The magnetizer/aligner is itself a buildable tool**: a pulsed
+  capacitor-bank coil (electrodevice circuit rows + a magnetics
+  block-matrix fixture — the stack BOOTSTRAPS its own tooling; a
+  manufacturing-tools tree node). Every sintered/bonded magnet
+  needs a magnetizing pulse anyway.
+- Verification: the EXISTING characterization stack — XRD
+  plain-language check for the hexaferrite phase, FTIR carbonate
+  band for calcination completeness, then hall-probe B_r.
+
+**Rung 2 — semi-hard nanostructure (shape anisotropy)**: aligned
+magnetite CHAINS — the msci ferrite-chaining rows (λ=12, 20 nm)
+are literally this physics; field-align during matrix cure ->
+weak-but-real permanent moment from a dirt-common oxide.
+Research-grade, honest ceiling: WEAK vs hexaferrite; useful for
+bearings-assist/sensing bias, not main torque.
+
+**Rung 3 — aspiration nodes (nanostructure physics vs rare
+elements, named honestly as research)**:
+- α″-Fe16N2 — iron + ammonia-derived nitrogen, low-temp nitriding
+  (~150-200°C!), giant magnetization; metastable nanoscale control
+  is the hard part; actively commercialized (Niron) = the flagship
+  proof that nanostructure physics CAN beat rare elements.
+- MnAl τ-phase — dirt-common elements, metastable quench+anneal
+  metallurgy; modest real-world (BH)max so far.
+- Alnico — high B_r, low H_c, needs foundry (~1600°C) + field
+  heat-treat; cobalt = semi-scarce (not rare-earth). Later
+  metal-casting tree.
+- Exchange-spring nanocomposites (hard hexaferrite + soft
+  magnetite at ~10 nm coupling length) — the sol-gel/nanoparticle
+  toolkit's long-run target; theory gains real, processing window
+  narrow; mag-2t models the ASPIRATION honestly (true exchange
+  coupling is beyond mean-field homogenization — flagged as the
+  L4-class gap it is).
+
+**Ladder honesty**: every rung's row carries its (BH)max class vs
+bought sintered ferrite vs NdFeB, so torque_parity() prices the
+local-vs-bought-vs-rare-earth tradeoff explicitly.
 
 ## 2. Phases — grouped into FOUR SECTIONS (Dustin 2026-07-28:
 "electric motors should be their own section")
@@ -237,6 +305,12 @@ QA dimensional check) replace them per the measured-rates pattern.
   simplefoc.com/shop + eBay/Amazon; MakerBase clone cheaper) or
   DRV8302 class driver; bearings + shaft stock; commercial ferrite
   ring magnets (the make-vs-buy benchmark for the PM rotor).
+  PLUS the Rung-1 magnet feedstocks (§1b): strontium carbonate +
+  red iron oxide EXACT from the pottery channel (Evans 1lb $2.25 /
+  50lb $1.40/lb; Clay King Fe2O3 $2.10/lb tiers — pin exact rows),
+  barium carbonate as the SrCO3 alternate (same shops; toxicity
+  caveat as data), ammonia/urea (Fe16N2 aspiration node, cite when
+  that node activates, not before).
   Est-flag anything bot-blocked, screenshots valid.
 
 ### mag-2 — Magnetic properties as data (materials seam)
