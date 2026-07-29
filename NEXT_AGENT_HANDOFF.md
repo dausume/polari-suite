@@ -1,3 +1,85 @@
+# ⚡⚡⚡⚡⚡⚡⚡⚡ SESSION 2026-07-28/29: TASK 1 DEPLOYED+API-VERIFIED,
+# MAGNETICS SECTION A BUILT (mag-1 + mag-2/2r/2t) — read this first
+
+## ✅ Task 1 — business stack LIVE on pol-core (browser pass PARTIAL)
+- Images REBUILT from framework dev-od-1-odoo-bringup 93bc062 +
+  angular dev-od-7-business-ui 814f3a9; deployed `pol swarm deploy
+  node` with POLARI_MODULES=materialsScience,pspp,techtree,
+  simulations,polariapps,supplychain,bizops,odooconnect,waxprint,
+  scoring + POLARI_LAZY_BOOT=on. ⚠ RENDER GOTCHA: the stale
+  .generated/stack-node.yml still said machine==staging-a — live
+  constraints had been hand-swapped to pol-core; re-render MUST set
+  POL_STACK_CONSTRAINTS "svc=node.labels.polari.machine==pol-core"
+  for all 6 services or they go unschedulable.
+- 10/10 modules ONLINE (health /api/health lazy-boot payload; the 15
+  'disabled … POLARI_MODULES gate' entries are CORRECT honest state,
+  not failures — a wait-loop that counts them as pending never
+  exits, learned the hard way).
+- API-verified live: bizops economy/sellability/deal-pricing/
+  walkthrough, sourcing, odoo status (honest unreachable — no local
+  odoo pair). biz_liveboot_probe 16/16 pre-deploy.
+- ⚠ Proxy serves the NIP.IO domain (https://prf.192.168.0.210.nip.io)
+  — prf.polari-staging.test gets 'proxy host mismatch' on this
+  render (BASE_DOMAIN=nip.io).
+- ⚠ VISUAL browser pass STILL PENDING: Chrome tools connected via
+  `claude --chrome --continue <key>` (see memory
+  chrome-browser-tools.md) but the dontAsk permission mode
+  auto-denies mcp__claude-in-chrome__* — Dustin must add
+  "mcp__claude-in-chrome__*" to permissions.allow in
+  .claude/settings.local.json (the agent may NOT self-grant).
+
+## ✅ MAGNETICS SECTION A — BUILT + TESTED 2026-07-29
+Branches dev-mag-a-magnetic-materials (framework b96d72e, off
+dev-od-1-odoo-bringup; + rf-node/suite pointer branches). NOT pushed.
+- mag-1 (supplychain/magnetic_sourcing_seed.py, extends the src
+  lists): 14 sources + 24 dated 2026-07-28 citations — SrCO3 exact
+  (ClayKing 50lb tier 5.67/kg, Evans), Fe2O3 exact (5.54/lb glaze
+  grade = 12.21/kg), BaCO3 (+toxicity caveat as data), magnet wire
+  (Essex 22AWG 31.3/kg bulk anchor), AS5600 est, SimpleFOC (official
+  EUR out-of-stock -> availability=potential; clone est), carbonyl
+  iron exact, MnZn (UK-only retail), ceramic ring magnets + FT-140-43
+  = benchmarks, 608 bearings/shaft, graphite, SrFe12O19 buy-side
+  QUOTE-ONLY (GBP row documents the gap). 5 requirements + 6 formulas:
+  srfe12o19 solid-state 11.81/kg feed + citrate sol-gel 16.94 (kiln
+  excluded-loud, nitrate-chemistry caveat), magnetic-geopolymer
+  35vol=58wt cascades 6.09/kg, sol-gel mortar 10.22, wax-ferrite
+  10.01 (71wt printability trial-gated), ferrite-CNT mortar 9.96.
+  ⚡ HONEST HEADLINE: plan §1b pre-hunt said <\$5/kg hexaferrite
+  feed — exact cites land ~11.8/kg; pigment-channel Fe2O3 (Alpha
+  Chemicals) = the named cheaper hunt. Currency guard added:
+  non-USD citations REFUSE normalization. selftest_magnetic_sourcing
+  24/24; formulas catalog 13->19 (55/55).
+- mag-2/2r/2t: NEW module modules/magnetics/ (requires supplychain+
+  materialsScience, wave 3, fully wired). MaterialUseRole x10
+  (predicate knobs, honesty notes TRAVEL: Earnshaw, copper gap,
+  mu~2 caveat; form axis; mechanism-tagged any-of roles),
+  MagneticMaterialOption x31 (§1c catalog, realization ladder,
+  buyable_cited DERIVED live, per-value provenance, NdFeB/steel
+  reference-only), MagneticPowderDefinition x7 (2 theoretical
+  watermarked; Fe16N2 + exchange-spring w/ L4 flag).
+  Analysis: gates (sim always/cost cited-or-recipe/business
+  made-and-measured), derived viability (magnetite FAILS
+  torque-magnet, alnico excluded H_c 50<100, maghemite unassessed
+  w/ ask), THE vol<->wt conversion, MG+Bruggeman predictors (MG
+  2.07 vs FEM 2.196 @35vol — confirmation-run pointer to
+  fem-effective-permeability), cost-if-real via the cascade,
+  laddered_answer (torque-magnet: recipe-seeded=SrFe12O19 /
+  theoretical=Fe16N2 / literature=NdFeB flagged).
+  /api/magnetics/{catalog,roles,viability,search,powders,predict,
+  ladder}. research-tools tree +hall-gaussmeter+inductance-test-rig
+  (theory ref=magnetics); bizops QA +qa-wound-core-inductance (the
+  made-and-measured earner; QA counts 5->6, research nodes 9->11 —
+  assertions updated). selftest_magnetics 37/37 +
+  magnetics_liveboot_probe 12/12 + biz probe 16/16 w/ magnetics OFF
+  (stub path) + full sweep green.
+- NEXT: Section B (mag-3 reluctance blocks + mag-4 slot-matrix, new
+  rows mirror electrodevice circuit_basis 1:1), mag-7 /magnetics
+  frontend (the casual role+form picker rides msci-22 chips),
+  redeploy pol-core w/ magnetics in POLARI_MODULES, pigment-channel
+  Fe2O3 cite, browser pass when permissions land.
+
+---
+
 # ⚡ DEVICE RENAME — 2026-07-27 (roles = accountability)
 
 **Machines renamed so the name IS the mandate** (Dustin):
