@@ -143,6 +143,69 @@ elements, named honestly as research)**:
 bought sintered ferrite vs NdFeB, so torque_parity() prices the
 local-vs-bought-vs-rare-earth tradeoff explicitly.
 
+## 1c. THE MATERIAL OPTION CATALOG (baked-in seeds — Dustin
+2026-07-28: "account for all of those as option materials we can
+simulate and use even if we cannot make them in the short term")
+
+**The REALIZATION LADDER (data, mirrors the biz-4 compliance-level
+pattern)** — every catalog row carries `realization_level`:
+  `theoretical` -> `literature-demonstrated` (others made it,
+  properties from papers, est-flagged) -> `recipe-seeded` (WE have
+  a costed formula) -> `made-and-measured` (our rows: XRD/hall/
+  inductance measurements exist).
+Plus the orthogonal flag `buyable_cited` (a PriceCitation exists).
+GATES: **simulation is open at EVERY level** (the watermark travels
+on every result); **costing** needs buyable_cited OR recipe-seeded;
+**business/planner use** needs made-and-measured (readiness for
+materials, exactly like product readiness is EARNED). Escalating a
+row up the ladder is evidence-driven, never declared.
+
+**SOFT MAGNETIC (magnetic-conductor role)** — seeds:
+| option | realization @seed | notes |
+|---|---|---|
+| magnetite powder (Fe3O4) | recipe-seeded + buyable_cited | buy 9.70/kg beats make 20.11 (src-6/7) |
+| carbonyl/atomized iron powder | buyable (cite in mag-1) | commercial powdered-iron cores ARE this + binder; higher B_sat than oxides — likely our best cheap core filler |
+| maghemite (γ-Fe2O3) | literature | magnetite oxidation product; acicular = semi-hard, equiaxed = soft (both noted) |
+| NiZn ferrite powder | buyable (cite) + literature sol-gel route | insulating, high-frequency soft ferrite |
+| MnZn ferrite powder | buyable (cite) | higher µ, lower frequency |
+| fired/sintered ferrite ceramic | recipe-seeded (Table 8.8 rung) | the µ escalation of any cast composite |
+| electrical steel (lams) | buyable REFERENCE | benchmark row for parity math, not our route |
+| composites: each powder × {geopolymer, sol-gel, ceramic, wax} × vol% | derived | msci-22 engine predicts; mag-2t sweeps |
+
+**HARD MAGNETIC (torque-magnet role)** — seeds:
+| option | realization @seed | notes |
+|---|---|---|
+| SrFe12O19 powder | literature + buyable(quote) -> recipe-seeded AT mag-1 (§1b Rung 1) | THE local route: pottery chemicals, sol-gel or solid-state |
+| BaFe12O19 powder | literature | same chemistry; barium carbonate toxicity caveat AS DATA |
+| bonded hexaferrite (in geopolymer/sol-gel/wax) | derived once powder lands | isotropic first; anisotropic needs the aligner |
+| sintered hexaferrite | literature + buyable_cited (finished ring magnets = the make-vs-buy benchmark) | pottery-kiln sinter rung |
+| aligned magnetite chains | literature/msci rows (chaining physics live) | semi-hard, honest weak ceiling; bias/bearing-assist |
+| α″-Fe16N2 | theoretical (literature-demonstrated by others) | iron+ammonia nanostructure flagship; the mag-2t poster child |
+| MnAl τ-phase | theoretical/literature | common elements, metastable metallurgy |
+| MnBi | theoretical | bismuth availability note |
+| alnico | literature + buyable REFERENCE | foundry rung; cobalt semi-scarce note |
+| exchange-spring hexaferrite/magnetite | theoretical (L4-flag: beyond mean-field) | the nanocomposite long-run |
+| NdFeB | buyable REFERENCE ONLY | the parity benchmark torque_parity() compares against; against the local ethos for USE, priced for HONESTY |
+
+**ELECTRIC CONDUCTORS** — seeds: copper magnet wire (power; cite),
+aluminum wire (power-lite, common, cite), ferrite-CNT composite
+(signal, msci-23 σ row), CNT dispersion traces (signal, costed
+src-6), graphite/carbon-black composite (signal/resistive — the
+CHEAP common conductor, cite powder), CNT yarn (theoretical).
+
+**CONTAINMENT / STRUCTURAL / BEARING** — seeds: plain geopolymer +
+fired ceramic + glass (mtt-2 rows) as structural & flux-fence;
+high-µ soft composite as µ-shunt shield; hexaferrite PM rings
+(magnetic-bearing, Earnshaw note); alumina (jewel/pin contact —
+msci row exists); PTFE/graphite dry-slide pads (cite, the humble
+constrained-axis option).
+
+Every row gets: roles (mag-2r predicates decide viable/unassessed),
+forms, property values with per-value provenance (measured | vendor
+| literature-est | theoretical), and — where applicable — its
+composite derivatives auto-derived rather than hand-listed. The
+catalog IS mag-1/mag-2's seed spec; counts land in selftests.
+
 ## 2. Phases — grouped into FOUR SECTIONS (Dustin 2026-07-28:
 "electric motors should be their own section")
 
@@ -313,7 +376,11 @@ QA dimensional check) replace them per the measured-rates pattern.
   that node activates, not before).
   Est-flag anything bot-blocked, screenshots valid.
 
-### mag-2 — Magnetic properties as data (materials seam)
+### mag-2 — Magnetic properties as data (materials seam) — seeds
+the §1c catalog with REALIZATION_LEVELS
+('theoretical'|'literature-demonstrated'|'recipe-seeded'|
+'made-and-measured') + buyable_cited; gates: sim=always,
+cost=cited-or-recipe, business=made-and-measured.
 - Extend the supplychain/materials seam so items carry magnetic
   data columns: mu_r (from the msci L1 ladder — object coherence:
   reference the msci row, don't copy numbers), B_sat, coercivity,
@@ -392,6 +459,11 @@ geopolymers, sol-gels, and ceramics")
   (object coherence: reference the registry entry, don't fork the
   physics). Percolation engine covers the conductivity axis for
   conductive powders (CNT, magnetite).
+- The §1c catalog is the sweep space: design studies run over ALL
+  realization levels at once — "best magnet for purpose P" returns
+  a LADDERED answer (best made-and-measured, best recipe-seeded,
+  best buyable, best theoretical) so the short-term build and the
+  long-term research target appear in one report, each watermarked.
 - Design studies: sweep powder properties → "what powder WOULD hit
   µ_eff X at vol% Y in matrix Z" → when a theoretical powder wins,
   the output IS the sourcing ask (find/cite a real powder in that
