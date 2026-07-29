@@ -21,6 +21,12 @@
 - ⚠ Proxy serves the NIP.IO domain (https://prf.192.168.0.210.nip.io)
   — prf.polari-staging.test gets 'proxy host mismatch' on this
   render (BASE_DOMAIN=nip.io).
+- ⚠⚠ SAME-TAG REDEPLOY GOTCHA (bit us live): `docker stack deploy`
+  only restarts services whose SPEC changed — rebuilding an image
+  under the same tag (prf-frontend:staging) does NOT roll the
+  service (frontend served the 35h-old msci build; /business/*
+  'not navigatable'). Fix after any same-tag rebuild:
+  `docker service update --force polari-node_<svc>`.
 - ⚠ VISUAL browser pass STILL PENDING: Chrome tools connected via
   `claude --chrome --continue <key>` (see memory
   chrome-browser-tools.md) but the dontAsk permission mode
