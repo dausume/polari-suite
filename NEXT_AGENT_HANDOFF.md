@@ -27,12 +27,25 @@
   service (frontend served the 35h-old msci build; /business/*
   'not navigatable'). Fix after any same-tag rebuild:
   `docker service update --force polari-node_<svc>`.
-- ⚠ VISUAL browser pass STILL PENDING: Chrome tools connected via
-  `claude --chrome --continue <key>` (see memory
-  chrome-browser-tools.md) but the dontAsk permission mode
-  auto-denies mcp__claude-in-chrome__* — Dustin must add
-  "mcp__claude-in-chrome__*" to permissions.allow in
-  .claude/settings.local.json (the agent may NOT self-grant).
+- ✅ VISUAL BROWSER PASS DONE 2026-07-29 (Chrome tools live after
+  Dustin allowed mcp__claude-in-chrome__* in settings.local.json):
+  /business/start — accordion 6 steps, cited shopping list w/
+  store+price+citation + safety-critical lye callout, SELLABILITY
+  panel in step 4 (red hard rule, BLOCKED context chips,
+  attained-vs-needed, disclaimer), QA table honest-unmeasured,
+  economy bar 3/8 + nextGap, partnerships w/ TRANSFER-PRICE WINDOWS
+  (biomass 0-4.81 suggest 2.40 vs terms 3.50; unbounded flows show
+  the citation ask). /business/odoo — both tiles DOWN w/ honest
+  refusals + push/read-only chips, scenario cards + plan buttons +
+  repinned-price notes, make-vs-buy verdicts (geopolymer 77.1%,
+  wax 36.9% vs MachinableWax 11.01 EXACT), receipts honest-empty,
+  bindings table incl sim-sale-orders. DARK MODE holds on both.
+  App cert-trust dialog flow works (trust api host via
+  /cert-trust + refresh).
+  ⚠ ONE VISUAL DEFECT for the sty sweep: /business/start QA table —
+  the runs/units/pass count badges overlap and clip the
+  'unmeasured' label at the right edge (both themes; column too
+  narrow for the three badges).
 
 ## ✅ MAGNETICS SECTION A — BUILT + TESTED 2026-07-29
 Branches dev-mag-a-magnetic-materials (framework b96d72e, off
