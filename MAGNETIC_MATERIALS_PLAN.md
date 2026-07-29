@@ -213,7 +213,15 @@ catalog IS mag-1/mag-2's seed spec; counts land in selftests.
   mag-1 sourcing/formulas, mag-2 properties-as-data, mag-2r role
   taxonomy + use-case tag search, mag-2t theoretical powder
   designer, ferrite-CNT conduction honesty.
-- **SECTION B — BLOCK MATRIX + MAGNETIC CIRCUITS** (new module
+  **✅ BUILT 2026-07-29** (framework b96d72e, deployed live).
+- **SECTION A2 — FIELD VIEWS IN SIMSPACES** (Dustin 2026-07-29,
+  the intermediate section): mag-fv — E/B fields of devices
+  displayed as threshold-gated VECTOR DISPERSIONS or as grouped
+  THRESHOLD SHAPES (math-shapes, color+alpha per band). See §A2
+  below. Definitions land before Section B; renders honestly from
+  whatever field source exists (analytic first, mag-3 solves as
+  they land).
+- **SECTION B — BLOCK MATRIX + MAGNETIC CIRCUITS** (in module
   `magnetics/`): mag-3 reluctance blocks, mag-4 slot-matrix
   assembly (varying block sizes, selective magnetic mortar).
 - **SECTION C — ELECTRIC MOTORS, OWN SECTION** (new module
@@ -488,6 +496,57 @@ effective means of conduction") — the honest scoping
   sensor wiring disappears into the matrix like everything else.
 - CNT costs already on record (src-6: MWCNT dispersion make 7.50
   vs 185 market); dispersion-in-mortar formula rides mag-1.
+
+### §A2 / mag-fv — FIELD VIEWS IN SIMSPACES (Dustin 2026-07-29:
+"define magnetic and electric fields in devices to be displayed in
+simSpaces as either vector-fields where we have dispersed vectors
+(which appear only in dispersions through the spaces where threshold
+values are defined), or we define threshold spaces where we define
+math-shapes that are varying colors and levels of transparent and
+group them so we can alternate view of what the different important
+electric and magnetic field flows in a device look like")
+
+- **`FieldViewDefinition` rows** — one named view of ONE field of a
+  device: device_ref (a MagneticCircuitDefinition / BlockLayout /
+  electrodevice circuit), field_kind (B | H | E | J), source_ref +
+  source_kind (see honesty below), display_mode:
+  - `vector-dispersion`: vector glyphs SAMPLED through the SimSpace
+    volume, drawn ONLY where |field| falls inside the view's
+    threshold bands — sparse dispersions, not a dense hairball;
+    sample density + seed = knobs on the row.
+  - `threshold-shapes`: each threshold band becomes a REGION
+    rendered as math-shapes (quadric/CSG rows via the mathshapes
+    module) with per-band color + alpha — nested translucent
+    shells showing where the field is strong/weak.
+- **`FieldThresholdBand` rows** — {view_ref, min_value, max_value,
+  color, alpha, label}; bands are DATA (edit the ladder, not code);
+  units carried on the band (T, A/m, V/m).
+- **`FieldViewGroup` rows** — named sets of views with an ordering:
+  THE alternation ask — cycle/toggle which field flow of the device
+  is shown (B-flow vs E-flow vs J-paths); a group is what the
+  SimSpace scene binds, not a single view.
+- **Source honesty (the watermark travels on every render)**:
+  - `analytic`: exact closed forms (dipole, finite solenoid,
+    straight wire, ring magnet on-axis) — available IMMEDIATELY,
+    before any solver lands.
+  - `reluctance-solve` (mag-3): per-element flux/B along the
+    circuit's paths — renders as flux TUBES along element
+    geometry, honestly 1D-per-path (no off-path field claimed).
+  - `fem-2d` (msci fem engine): 2D field maps extruded with the
+    stated symmetry.
+  - Full 3D field maps = a later engine rung; views REFUSE a
+    source that doesn't exist rather than faking one.
+- **Module seams**: rows + sampling + band logic live in
+  `magnetics/field_views.py`; mathshapes integration is
+  FEATURE-GATED (mathshapes requires aquaponics+plant_morphology —
+  heavy chain): with mathshapes absent, threshold-shape views
+  refuse honestly naming the module, vector-dispersion views work
+  everywhere; SimSpace binding rides the existing
+  SimSpaceBindingDefinition pattern (object coherence).
+- Selftests: analytic solenoid field vs hand values, band
+  classification exactness, dispersion sampling respects
+  thresholds + density, group cycling order, mathshapes-absent
+  refusal, watermark presence per source_kind.
 
 ### mag-3 — BLOCK-BASED MAGNETIC CIRCUITS (the electrodevice mirror)
 - New rows (mirroring circuit_basis 1:1):
