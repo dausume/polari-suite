@@ -79,8 +79,9 @@ dispersion" as a fabrication idea. Tech-tree topology table has the
 "electric motors should be their own section")
 
 - **SECTION A — MAGNETIC MATERIALS** (supplychain + msci seam):
-  mag-1 sourcing/formulas, mag-2 properties-as-data, mag-2t
-  theoretical powder designer, ferrite-CNT conduction honesty.
+  mag-1 sourcing/formulas, mag-2 properties-as-data, mag-2r role
+  taxonomy + use-case tag search, mag-2t theoretical powder
+  designer, ferrite-CNT conduction honesty.
 - **SECTION B — BLOCK MATRIX + MAGNETIC CIRCUITS** (new module
   `magnetics/`): mag-3 reluctance blocks, mag-4 slot-matrix
   assembly (varying block sizes, selective magnetic mortar).
@@ -251,6 +252,54 @@ QA dimensional check) replace them per the measured-rates pattern.
   inductance test IS a QualityCheckDefinition — µ verification per
   batch lands in the biz-4 QA machinery for free).
 
+### mag-2r — FUNCTIONAL ROLE TAXONOMY + USE-CASE TAG SEARCH
+(Dustin 2026-07-28: "different kinds of properties we need
+addressed by different materials... tagging for materials, one of
+the tags should be viable use cases... search casually the
+different material options when making a cube or mortar")
+- `MaterialUseRole` rows — the role vocabulary as DATA, each with
+  required-property PREDICATES (JSON thresholds, editable knobs)
+  so viability is DERIVED from property rows, never hand-stamped:
+  - `electric-conductor` — two grades: power (σ near copper-class;
+    today only magnet wire qualifies) and signal (σ above the
+    ferrite-CNT percolation band — in-matrix traces qualify).
+  - `magnetic-conductor` — soft flux guide: min µ_eff, LOW
+    coercivity (magnetite composites, fired ferrite).
+  - `torque-magnet` — hard PM doing work: min B_r + min H_c
+    (SrFe12O19 bonded/fired; magnetite honestly FAILS this
+    predicate — the taxonomy itself enforces the soft/hard split).
+  - `flux-containment` — TWO mechanisms, both viable, mechanism
+    tagged on the match: high-µ shunt (routes stray flux) vs
+    non-magnetic fence (µ≈1 boundary courses in the matrix).
+  - `structural-containment` — rotor physical containment: needs
+    strength/toughness data (msci mechanical rows); unassessed
+    until the data exists, honestly.
+  - `magnetic-bearing` — PMs holding the rotor centered "so it is
+    frictionless": hard-PM predicate + an **Earnshaw honesty note
+    that travels with every match**: passive PM levitation is
+    unstable in at least one axis (theorem, not opinion) — real
+    designs center radially with PM rings and constrain ONE axis
+    with a tiny mechanical point (jewel/pin, near-frictionless) or
+    active/diamagnetic assist. The role is viable; 'fully
+    floating passive' is not, and the row says so.
+  - `in-matrix-sensing` — ferrite-CNT σ band + castable form.
+  - `potting-encapsulant`, `mortar-joint` — the mortar-side roles.
+- **Form axis separate from role axis**: castable-block (cube),
+  mortar, wire, powder, potting — a material can be viable for a
+  role in one form and not another; the (form, role) pair is what
+  the search filters on.
+- Derivation: viable/unviable/UNASSESSED per (material, role) from
+  the property rows vs predicates — missing data = unassessed with
+  the measurement/citation ask (never assumed viable); admin
+  override is a knob row with its reason.
+- **Casual search** (the UI ask): on the magnetics pages a
+  role+form picker — "mortar, magnetic-conductor" → the viable
+  list with the deciding numbers shown (µ_eff, σ, B_r, $/kg from
+  supplychain) — riding msci-22's existing category/tag chips +
+  click-to-filter browser; ELECTRONIC use cases are a top-level
+  tag family there. Choosing a cube or mortar material during
+  mag-4 layout editing opens this same filtered picker.
+
 ### mag-2t — THEORETICAL MAGNETIC POWDER DESIGNER (Dustin
 2026-07-28: "simulate theoretical magnetic powders we can add to
 geopolymers, sol-gels, and ceramics")
@@ -398,6 +447,13 @@ motors are their OWN section per Dustin)
 - L2 escalation (data/deps-gated): scikit-fem 2D magnetostatics
   cross-section validation (the fem engine + worker already exist
   in msci); L4 = spin-DFT ferrite gap already named by msci-22.
+- Every material slot in a motor design NAMES ITS ROLE (mag-2r):
+  winding = electric-conductor:power, teeth = magnetic-conductor,
+  rotor magnets = torque-magnet, bearing rings = magnetic-bearing,
+  shell courses = flux-containment + structural-containment. A
+  design with a role filled by a non-viable/unassessed material
+  FLAGS it (suggestion: pick from the viable list) — wrong-
+  material-in-role becomes visible at design time, not build time.
 - torque_parity() analysis (§2d) ships WITH the designer — every
   'parity with expensive materials' statement traces to it.
 - Seeds: (1) a 6-slot/4-pole RADIAL reluctance motor as the
