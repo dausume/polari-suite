@@ -91,11 +91,30 @@ dev-od-1-odoo-bringup; + rf-node/suite pointer branches). NOT pushed.
   assertions updated). selftest_magnetics 37/37 +
   magnetics_liveboot_probe 12/12 + biz probe 16/16 w/ magnetics OFF
   (stub path) + full sweep green.
-- NEXT: Section B (mag-3 reluctance blocks + mag-4 slot-matrix, new
-  rows mirror electrodevice circuit_basis 1:1), mag-7 /magnetics
-  frontend (the casual role+form picker rides msci-22 chips),
-  redeploy pol-core w/ magnetics in POLARI_MODULES, pigment-channel
-  Fe2O3 cite, browser pass when permissions land.
+- ✅ DEPLOYED LIVE 2026-07-29: magnetics in POLARI_MODULES on
+  pol-core (11/11 modules online), /api/magnetics/* verified through
+  the proxy, wound-core QA row seeded into the live DB (6 checks).
+- ✅ mag-3 BUILT + DEPLOYED same day (framework 930f459):
+  MagneticCircuit/Element/FluxNode rows -> 'magnetic-netlist'
+  GraphCompiler -> MNA permeance solve (numpy DIRECT solve — lstsq
+  lost 1e-4 accuracy on the scale mix); materials resolve against
+  the Section-A catalog by reference; magnets = Thevenin H_c*l_m
+  Norton-stamped; saturation FLAGGED never hidden (composites got
+  volume-diluted B_sat est priors); op + sweep analyses (overrides,
+  rows never mutated); SPICE-analogy parity gated on electrodevice+
+  ngspice (ngspice NOT on pol-core — refusal is correct there).
+  Seeds hand-pinned: gapped toroid 1.3501e-7 Wb (core = 98% of
+  reluctance at mu~2 — the honesty datum as numbers), C-core+probe
+  (sign conventions pinned), horseshoe+keeper+leakage (KCL split).
+  /api/magnetics/{circuits,solve,parity}. 25/25 + probe 16/16 +
+  sweep green. LIVE solve verified through the proxy.
+- §A2 mag-fv FIELD VIEWS spec'd in the plan (Dustin 2026-07-29):
+  threshold-gated vector dispersions + grouped translucent
+  math-shape threshold surfaces, source-honest
+  (analytic/reluctance/fem ladder), mathshapes feature-gated.
+- NEXT: mag-4 slot-matrix (BlockSizeVariant/BlockLayout/selective
+  mortar -> reluctance network GENERATES from the layout), mag-fv
+  build, mag-7 /magnetics frontend, pigment-channel Fe2O3 cite.
 
 ---
 
