@@ -75,7 +75,19 @@ dispersion" as a fabrication idea. Tech-tree topology table has the
      honestly feeble at µ~2 but it CLOSES THE LOOP end-to-end
      with zero new feedstock.
 
-## 2. Phases
+## 2. Phases — grouped into FOUR SECTIONS (Dustin 2026-07-28:
+"electric motors should be their own section")
+
+- **SECTION A — MAGNETIC MATERIALS** (supplychain + msci seam):
+  mag-1 sourcing/formulas, mag-2 properties-as-data, mag-2t
+  theoretical powder designer, ferrite-CNT conduction honesty.
+- **SECTION B — BLOCK MATRIX + MAGNETIC CIRCUITS** (new module
+  `magnetics/`): mag-3 reluctance blocks, mag-4 slot-matrix
+  assembly (varying block sizes, selective magnetic mortar).
+- **SECTION C — ELECTRIC MOTORS, OWN SECTION** (new module
+  `motors/`, requires magnetics): mag-5 designer + parity, mag-6
+  SimpleFOC drive, structural containment.
+- **SECTION D — SURFACE + BUSINESS**: mag-7 visuals, mag-8 splice.
 
 ### mag-0 — Decisions (Dustin ANSWERED 2026-07-28, remainder defaulted)
 1. Motor approach: **APPROVED** ("sounds good") — reluctance-first
@@ -101,9 +113,14 @@ dispersion" as a fabrication idea. Tech-tree topology table has the
    stack) drives the motor — see mag-6; it replaces custom drive
    firmware at stage 0/1 and sits at preference-ladder rank open-
    source-non-polari. FPGA timing stays the escalation rung.
-6. Defaults unless objected: gaussmeter = cheap hall-sensor buy
-   SUGGESTED (knob, never auto-purchased); module home = new
-   `magnetics/`; solver = python primary + ngspice-analogy parity.
+6. **MOTORS ARE THEIR OWN SECTION (Dustin 2026-07-28)**: two
+   modules — `magnetics/` (blocks, matrix, circuits) and `motors/`
+   (motor design, drive, containment; requires magnetics). Keeps
+   files small and lets magnetics serve transformers/inductors/
+   sensors without dragging motor code along.
+7. Defaults unless objected: gaussmeter = cheap hall-sensor buy
+   SUGGESTED (knob, never auto-purchased); solver = python primary
+   + ngspice-analogy parity.
 
 ### §2b — THE MORTAR / MONOLITH ASSEMBLY MODEL (from Dustin's spec)
 - **Blocks + mortar = the physical design language.** Cast magnetic-
@@ -234,6 +251,49 @@ QA dimensional check) replace them per the measured-rates pattern.
   inductance test IS a QualityCheckDefinition — µ verification per
   batch lands in the biz-4 QA machinery for free).
 
+### mag-2t — THEORETICAL MAGNETIC POWDER DESIGNER (Dustin
+2026-07-28: "simulate theoretical magnetic powders we can add to
+geopolymers, sol-gels, and ceramics")
+- `MagneticPowderDefinition` rows: is_theoretical FLAG + the
+  property set (intrinsic µ_i, B_sat, H_c, B_r, density, particle
+  size, electrical conductivity). Real powders cite; THEORETICAL
+  powders are watermarked hypotheses — allowed everywhere in
+  SIMULATION, refused everywhere in COST/BUSINESS (no citation can
+  exist; the refusal names the sourcing hunt that would make it
+  real).
+- Composite predictor: powder row + matrix choice (geopolymer /
+  sol-gel / ceramic / wax) + vol% → predicted composite µ_eff,
+  density, $/kg-if-real. Quick analytic Maxwell-Garnett/Bruggeman
+  estimate lives in `magnetics/`; the VALIDATED msci
+  fem.effective-permeability engine is the L1 confirmation run
+  (object coherence: reference the registry entry, don't fork the
+  physics). Percolation engine covers the conductivity axis for
+  conductive powders (CNT, magnetite).
+- Design studies: sweep powder properties → "what powder WOULD hit
+  µ_eff X at vol% Y in matrix Z" → when a theoretical powder wins,
+  the output IS the sourcing ask (find/cite a real powder in that
+  property box — SrFe12O19, NiZn, MnZn ferrite powders are the
+  real boxes to check first).
+
+### FERRITE-CNT CONDUCTION (Dustin: "ferrite CNTs should also be an
+effective means of conduction") — the honest scoping
+- Dual-property composites (magnetic + conductive) are REAL and
+  simulable today: ferrite filler sets µ (k↔µ analogy), CNT
+  loading sets σ (msci-23 percolation: 227 S/m @2 vol%, medium-
+  independent above threshold). A `ferrite-cnt-geopolymer` /
+  `ferrite-cnt-solgel` family joins the material rows.
+- **Conductivity honesty**: 227 S/m is ~5 orders below copper
+  (6e7 S/m). Ferrite-CNT conduction therefore targets: sensing
+  electrodes/traces cast INTO blocks, shielding + static
+  dissipation, resistive damping paths, electrode surfaces —
+  NOT power windings and NOT induction-rotor cages until a
+  measured row says otherwise (the report prints the copper gap
+  every time). Power current stays in magnet wire; the mortar can
+  carry SIGNALS through the monolith — that is the near-term win:
+  sensor wiring disappears into the matrix like everything else.
+- CNT costs already on record (src-6: MWCNT dispersion make 7.50
+  vs 185 market); dispersion-in-mortar formula rides mag-1.
+
 ### mag-3 — BLOCK-BASED MAGNETIC CIRCUITS (the electrodevice mirror)
 - New rows (mirroring circuit_basis 1:1):
   - `MagneticCircuitDefinition` — analyses_json: `op` (static flux
@@ -264,7 +324,35 @@ QA dimensional check) replace them per the measured-rates pattern.
   horseshoe + keeper — each with hand-computable expected flux
   (selftest pins the math).
 
-### mag-4 — Blocks → castable geometry (the make loop)
+### mag-4 — SLOT-MATRIX ASSEMBLY: configurable blocks -> slotted
+matrix -> thin selective mortar (Dustin 2026-07-28: "configure
+block sizes (sometimes varying block sizes in one design) and then
+'slot' them into place to make a matrix that is solidified by a
+thin sol-gel mortar which we selectively make to be magnetic or
+not")
+- `BlockSizeVariant` rows: a small vocabulary of block geometries
+  per design (brick, half-brick, tooth, wedge, arc-segment, disk-
+  sector...) — MIXED sizes in one layout are first-class, exactly
+  like masonry bonds.
+- `BlockLayoutDefinition` + `BlockPlacement` rows: a slot grid
+  (2D layers stacked to 3D) where each placement names its slot,
+  its block variant, its MATERIAL (magnetic composite / plain
+  structural / ferrite-CNT sensing / theoretical-watermarked), and
+  interlock features (tongue/groove, dowel pockets) so blocks
+  SLOT rigidly before mortar — dry-fit is a real assembly step.
+- **Selective mortar per JOINT**: every adjacency in the layout
+  gets a mortar assignment — magnetic (sol-gel-ferrite: flux
+  passes) or plain (sol-gel: flux fence). The layout compiler
+  derives the reluctance network FROM the matrix: flux paths are
+  DESIGNED by placing magnetic blocks + magnetic joints and walled
+  by plain ones. "Carefully control the magnetic field flowing
+  through" is literally the layout: field routing by construction,
+  containment by non-magnetic boundary courses (an outer flux-
+  fence course doubles as stray-field shield).
+- The mag-3 element rows GENERATE from the layout (placement →
+  core-segment elements, joint → joint elements, coil pockets →
+  mmf-coil sites) — hand-authored circuits stay possible, but the
+  matrix is the primary authoring surface.
 - Block library rows carry printable/castable GEOMETRY: C-core
   halves, E-core, toroid segments, pole shoes, rotor disks — tied
   into waxprint: **print the wax mold, cast magnetic geopolymer in
@@ -275,12 +363,23 @@ QA dimensional check) replace them per the measured-rates pattern.
   joint (joint volume × mortar formula $/kg). A designed magnetic
   circuit therefore prices itself part-by-part AND joint-by-joint —
   the same cost-per-part discipline as the order planner.
-- Assembly steps as data: block → dry-fit → mortar → cure → (T1+)
-  lap → wind → pot. Each step a workflow row (biz-1
-  ProcessWorkflowDefinition shape) so the planner can cost motor
-  BUILDS the way it costs pots.
+- Assembly steps as data: block → dry-fit (slotted, interlocked) →
+  mortar (per-joint grade) → cure → (T1+) lap → wind → pot. Each
+  step a workflow row (biz-1 ProcessWorkflowDefinition shape) so
+  the planner can cost motor BUILDS the way it costs pots.
+- **STRUCTURAL CONTAINMENT (Dustin: "contain and control the
+  positioning of the stators and rotors rigidly")**: the matrix is
+  simultaneously the magnetic circuit AND the frame. Bearing
+  seats, shaft bores, and stator-to-stator alignment features are
+  BLOCK VARIANTS in the same layout (non-magnetic structural
+  blocks + plain mortar), so rotor/stator positioning rigidity
+  comes from the same masonry that routes the flux — one solid
+  object per sub-assembly, gap geometry held by construction, not
+  by brackets. Alignment tolerance rides the §2c ladder (T0 slop
+  → T1 lapped seats → T2 fired stability).
 
-### mag-5 — 3-PHASE MOTOR DESIGNER
+### mag-5 — 3-PHASE MOTOR DESIGNER (SECTION C — module `motors/`,
+motors are their OWN section per Dustin)
 - `MotorDesignDefinition` rows: topology (radial/axial), pole
   count, slot count, phase winding map (which mmf-coil blocks
   belong to phase A/B/C, turns, wire gauge → resistance from
