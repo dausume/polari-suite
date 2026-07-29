@@ -22,7 +22,68 @@ older sections below still say staging-a — read them as pol-core.
 
 ---
 
-# ⚡⚡⚡⚡⚡⚡⚡ NEXT WORK: ODOO INTEGRATION — 2026-07-27 (READ FIRST)
+# ⚡⚡⚡⚡⚡⚡⚡ NEXT WORK (2026-07-28, READ FIRST): (1) REBUILD +
+# BROWSER-TEST THE BUSINESS STACK, then (2) BUILD MAGNETICS SECTION A
+
+**Dustin's directive at handoff: "bring things back up and rebuild
+so we can test the business logic", then the magnetics arc.**
+
+## Task 1 — Redeploy pol-core with the business modules, browser pass
+Everything is committed on the branches (below) but NOTHING browsable
+runs it yet: the live polari-node swarm stack is the msci build
+(POLARI_MODULES=materialsScience,pspp,techtree,simulations,polariapps,
+baked image prf-backend:staging, no bind mount).
+1. Rebuild backend+frontend images from the CURRENT branches
+   (framework dev-od-1-odoo-bringup 93bc062, angular
+   dev-od-7-business-ui 814f3a9). `pol help` / `pol swarm help` are
+   authoritative; deploy path is `pol swarm deploy node` (renders
+   .generated/stack-node.yml, stack name polari-node).
+2. Add to pol-core's POLARI_MODULES: supplychain,bizops,odooconnect
+   (+waxprint,scoring if not already; bizops FEATURE_REQUIRES
+   supplychain). Module env comes through the stack render — check
+   nodes.yml/ModuleAssignment path from the mlb work.
+3. SANITY BEFORE DEPLOY (cheap, ~3 min): from a throwaway cwd run
+   polari-framework/tests/biz_liveboot_probe.py (16/16 expected;
+   header has the exact invocation). ⚠ seeding is DB-GATED —
+   hasDB=False boots have empty tables BY DESIGN.
+4. Browser pass at https://prf.polari-staging.test after deploy:
+   - /business/start — walkthrough accordion (cited shopping list,
+     batch card, readiness rungs, SELLABILITY panel w/ red hard
+     rule + context chips, QA table 'unmeasured', risk callouts),
+     partnerships board w/ TRANSFER-PRICE WINDOWS (biomass
+     [0-4.81] suggest 2.40 vs term 3.50), economy bar 3/8.
+   - /business/odoo — instance tiles (both DOWN unless step 5),
+     scenario cards + plan-first previews, make-vs-buy verdicts
+     (wax now ~36.9% vs MachinableWax EXACT — was 68.5 vs the est),
+     receipts/bindings tables (sim-sale-orders binding visible).
+   - Theme check per styling rules (text by SURFACE tokens).
+5. OPTIONAL live odoo: `pol odoo up` locally lights the tiles;
+   or point ODOO_SIM_URL at econ-core (http://192.168.0.66:8069,
+   pair RUNNING there w/ nightly backup cron). For a REAL
+   pull-orders test the sim db needs the sale app (-i sale) + an
+   order or two; refusals until then are correct behavior.
+6. Odoo UI itself (works TODAY, no deploy needed):
+   http://192.168.0.66:8069/web/login?db=odoo_sim (and ?db=odoo_ops)
+   — admin passwords were printed in-session only; reset via odoo
+   shell over ssh econ-core if Dustin lacks them.
+
+## Task 2 — MAGNETICS: build SECTION A first
+Plan = MAGNETIC_MATERIALS_PLAN.md (suite da1b1c6) — FULLY SPEC'D
+after 5 refinement rounds with Dustin (mortar monoliths, dual-stator
+axial flux, SimpleFOC, slot-matrix w/ selective magnetic mortar,
+mag-2r role taxonomy w/ derived viability, §1b local hexaferrite
+ladder from POTTERY CHEMICALS, §1c full option catalog w/
+REALIZATION_LEVELS gating sim/cost/business). Build order: mag-1
+(sourcing/formulas/citations: SrCO3+Fe2O3 pottery channel EXACT,
+magnet wire, AS5600, SimpleFOC shield, carbonyl iron, NiZn/MnZn,
+ring-magnet benchmark) -> mag-2/2r/2t (properties+realization
+ladder, MaterialUseRole predicates, MagneticPowderDefinition +
+laddered sweeps) -> then Section B blocks. Memory:
+magnetic-materials.md has the full refinement trail.
+
+---
+
+# ⚡ PREVIOUS ARC: ODOO INTEGRATION — 2026-07-27 (complete, see below)
 
 **Dustin's next arc, handed to the NEXT AGENT: integrate Odoo as the
 backbone of BOTH business simulations AND real business ops.** The
