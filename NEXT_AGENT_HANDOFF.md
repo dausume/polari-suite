@@ -114,6 +114,52 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## 🚀 mag-12/13/14 LIVE 2026-07-30 (three parallel agents, all green)
+- **mag-14 M1 + M3 GEOMETRY**: M1 (6s/4p reluctance — shaft, hub,
+  salient pole, stator tooth, yoke + coil as coaxial-cylinder
+  differences so they take the EXACT tube mesh) and M3 (dual-stator
+  axial flux: two 12-tooth disks about one 8-pole rotor, showing
+  the TWO gaps that are the §2d thesis). Dimensions DERIVE from
+  each design's params_json and the selftests check the arithmetic
+  (tooth face 40.2 mm² vs stated 4e-5 m²; r=12.6 minus r=12.0
+  reproduces the 0.6 mm gap). Arrayed by placing ONE tooth row 6×
+  and ONE pole 4× via scene rotation — the mechanism that already
+  spins the M0 rotor — not 14 near-identical rows. 13 part rows
+  with physics in the M0 voice (M1's poles are torque-producing
+  with NO magnet and want SOFT material — the opposite of M0's
+  rotor). Scenes `motor-m1-viz` (19 bodies) / `motor-m3-viz` (36).
+  ⚠ DELIBERATE GAPS: M3 has NO coils drawn — an axial coil is a
+  trapezoidal wedge and a tube big enough to clear a 23 mm tooth at
+  12 teeth on a 33 mm pitch circle would intersect its neighbours;
+  the scene says so and a selftest asserts the absence AND the
+  reason. M2 still has no geometry.
+- **mag-12 REALIZATION PROMOTION as SUGGESTION**: evidence →
+  suggested rung, never a mutation. Made-and-measured needs DIRECT
+  evidence (a QA record naming the option); a measured
+  MotorVerificationRun is only SYSTEM corroboration — a clock
+  keeping time proves the rotor was magnetic enough, not that its
+  B_r is what the row claims. Sim rows never count; reference-only
+  rows never promote; bought commodities flag `vendorAttested` and
+  the tool DECLINES to have an opinion. **The blind-spot rule holds
+  again**: with QualityCheckRecord unreadable it reports
+  `unjudgeable-here`, not an accusation — LIVE it says exactly that
+  for 3 rows and names the blind spot. `/api/magnetics/promotion`.
+  ⚠ KNOWN WEAK JOINT (named, not hidden): QA records tie to a
+  product VARIANT and the variant→material map lives in bizops
+  PRESTAGE_VARIANTS as CODE, not rows — so the option name must
+  appear in variant/batch_note/notes. A `material_ref` on the QA
+  record is the real fix.
+- **mag-13 DRIVETRAIN CARD** on /magnetics/motor: envelope, duty
+  with its binding constraint, and THE PRICE OF THE RATIO as the
+  headline; speedBasis/torqueBasis make the M0-exact vs M1-assumed
+  distinction visible on screen. Duty-unmet is amber not red — an
+  unmet duty is a design fact, not an error.
+- Suites: motors **107/107**, magnetics **51/51**, gears 53/53,
+  bizops 85/85, meshassets 36/36, lazy-imports 15/15.
+- ⚠ shape_units struck AGAIN on the 13 new part rows (masses read
+  23 kg / 419 kg until backfilled; now 23 g / 419 g). **Any new
+  MotorPartDefinition row needs the shape_units backfill.**
+
 ## 🔩 mag-11 LIVE 2026-07-30: the per-part bill + /magnetics/clock-motor
 Dustin: "a frontend for that motor and display/analysis of its
 pieces and materials used for them and their resulting part
