@@ -114,6 +114,55 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## 🧩 mesh-1 LIVE 2026-07-30: license-gated mesh catalog + organ fit
+## (framework cdabe2a; 17 modules on pol-core)
+Dustin, after the PlantMap3D refusal: "find a few samples of generic
+plant sub-morphologies that are genuinely open source 3D models,
+which we can use as a pick and choose 'close enough for
+approximation' mesh ... fine tune them until they look similar
+enough to the original using our morphology and part based
+definitions based on vectors" (+ "assets for gears" too).
+- NEW `modules/meshassets` (requires plant_morphology). LICENCE IS
+  A GATE with TWO grades because the questions differ: **simulate**
+  (may we use it) vs **redistribute** (may we ship it). CC0/PD
+  clears both; CC-BY adds travelling attribution; CC-BY-SA/LGPL
+  clear simulation but make redistribution carry obligations =>
+  reference-only; UNVERIFIED clears nothing. An unknown SPDX grades
+  unverified BY CONSTRUCTION.
+- **VERIFIED sources (quote kept on every row, 2026-07-30):**
+  Poly Haven CC0 (scanned, closest to real morphology) · Quaternius
+  CC0 (stylized low-poly, 35 plants — cite the PACK page, the site
+  index has no licence text) · OpenGameArt "CC0 - 3D Plants" CC0 ·
+  **pd-gears PUBLIC DOMAIN** · MCAD involute_gears LGPL-2.1 ·
+  PolyGear CC-BY-SA-4.0. ⚠ All three gear libs report NO licence
+  via the GitHub API and have no root LICENSE — terms live in
+  headers/READMEs. **The API alone is not the check.**
+- PlantMap3D stays IN the catalog graded `unverified`: a
+  written-down negative finding doesn't get re-discovered at cost.
+- **THE FIT:** OrganModel already states organs as VECTORS, so
+  fitting = per-axis scaling + one honest number,
+  **SHAPE FIDELITY = min(scale)/max(scale)**. LIVE: basil leaf vs
+  Quaternius broadleaf = **0.667 usable-with-distortion**; the
+  strap/grass blade = **0.092 WRONG-SHAPE** (the metric catches
+  what eyeballing a thumbnail wouldn't). Ranked SUBJECT-first, and
+  rejects list their reason. Scope stated every time: bbox
+  proportions only — never silhouette, venation or curvature.
+- **GEARS REFUSE TO BE APPROXIMATED** (`approximation_valid` False
+  as data): a gear is exactly specified and two only mesh if their
+  specs agree, so a "close enough" gear is a broken part. Geometry
+  gets GENERATED (gr-3) with public-domain pd-gears as the
+  unencumbered algorithm reference — NOT MCAD/PolyGear (copyleft).
+- Assets are POINTERS + measured bboxes; no third-party geometry
+  vendored. Unmeasured rows refuse instead of inventing a size.
+  Picks (OrganMeshChoice) never seeded — choosing is a human act,
+  recorded with who accepted it and why.
+- `/api/meshassets/{sources,candidates,fit}`; selftest 24/24;
+  meshassets_liveboot_probe 8/8.
+- NEXT: download + MEASURE the real bboxes (every current bbox is a
+  prior — that's what the refusal path is for), an import path that
+  caches the mesh into Mesh3DDefinition/MathShapeDefinition, and a
+  picker UI on the morphology page.
+
 ## 🌱 PlantMap3D: NOT open source — see PLANTMAP3D_EVALUATION.md
 All three `precision-sustainable-ag/PlantMap3D-*` repos carry NO
 license (API + root check) = all rights reserved. The org licenses
