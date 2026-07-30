@@ -122,13 +122,39 @@ which we can use as a pick and choose 'close enough for
 approximation' mesh ... fine tune them until they look similar
 enough to the original using our morphology and part based
 definitions based on vectors" (+ "assets for gears" too).
-- NEW `modules/meshassets` (requires plant_morphology). LICENCE IS
-  A GATE with TWO grades because the questions differ: **simulate**
-  (may we use it) vs **redistribute** (may we ship it). CC0/PD
-  clears both; CC-BY adds travelling attribution; CC-BY-SA/LGPL
-  clear simulation but make redistribution carry obligations =>
-  reference-only; UNVERIFIED clears nothing. An unknown SPDX grades
-  unverified BY CONSTRUCTION.
+- NEW `modules/meshassets` (requires plant_morphology).
+- ⚠⚠ **CORRECTED SAME DAY — read this before touching the gate.**
+  The first pass used an ABSOLUTE licence ladder and graded
+  CC-BY-SA-4.0 / LGPL-2.1 "reference-only". Dustin: *"this whole
+  project is GPLv3 and openly available as such, so it should meet
+  criteria for use of most forms of open source licenses"* — and he
+  was right. **Compatibility is a RELATION between two licences,
+  never a property of one**, and being copyleft ourselves is what
+  makes copyleft assets usable:
+  * **CC-BY-SA-4.0 → COMPATIBLE** (Creative Commons' own 2015
+    ONE-WAY declaration into GPLv3),
+  * **LGPL-2.1 → COMPATIBLE** (§3 relicenses to GPL "v2 or later"),
+  * **GPL-2.0-only** = the one genuinely blocking copyleft case,
+  * **no licence at all still blocks** — default copyright grants
+    nothing and our licence cannot invent permission (PlantMap3D
+    unaffected by any of this).
+  `PROJECT_LICENSE_SPDX = GPL-3.0-or-later`, verified from our own
+  `./LICENSE` by the same method we apply to strangers. Generalize
+  it: **any "is X allowed" gate must name what it judges RELATIVE
+  TO**, or it drifts into folklore.
+- **CITATIONS AS DATA** (Dustin: "we just need to ensure assets have
+  clear citations tracked as data"): `citation_record()` emits TASL
+  (title, author, source, licence) + terms link + a paste-ready
+  line; `citation_manifest()` is the list a release ships and
+  doubles as the do-not-ship list. A licence that REQUIRES
+  attribution with a missing author reports the GAP rather than
+  quietly crediting the website. LIVE: 5/5 citations complete.
+  `/api/meshassets/{citations,citation/{asset}}`.
+- ⚠ **SEED-FIELD GOTCHA, 6th STRIKE**: `author`/`license_url` were
+  added one deploy AFTER the rows seeded, so every live citation
+  read "(author UNKNOWN)" while the seed file had them. Backfilled
+  7 rows by CRUDE PUT. Adding a field to an already-live class =
+  plan the backfill in the SAME change.
 - **VERIFIED sources (quote kept on every row, 2026-07-30):**
   Poly Haven CC0 (scanned, closest to real morphology) · Quaternius
   CC0 (stylized low-poly, 35 plants — cite the PACK page, the site
