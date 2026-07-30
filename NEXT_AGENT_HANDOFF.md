@@ -176,6 +176,22 @@ dev-od-1-odoo-bringup; + rf-node/suite pointer branches). NOT pushed.
   stepping. ⚠ THREE more live-row backfills done via CRUDE PUT
   (bonded rotor mu_r_eff + powder_ref, composites' b_sat_t) — the
   seed-field gotcha; --form-string not -F.
+- ✅ mag-7b MOTOR 3D (framework +motor_shapes, angular
+  dev-mag-7-motor-ui, DEPLOYED + browser-verified): every M0 part =
+  a MathShapeDefinition row (rotor disc/pointer/shaft/poles/coil
+  CSG ring — the SAME geometry the wax-mold seam casts); 7 motor
+  Material3D rows incl the coil polarity pair. The /magnetics/motor
+  3D card drives ThreeSimSpaceRenderer directly: parts resolve via
+  mathshape: refs, rotor rotates from the clock-sim replay, coil
+  material + bore field vector FLIP with each alternating pulse
+  (the visible AC that walks the rotor), orbitable. 2D card stays
+  (Dustin: both, for intuition). Live set now 15 modules
+  (+mathshapes,aquaponics,plant_morphology for /api/shapes).
+  ⚠ GAPS named: CSG surface returns points w/o triangulation (view
+  uses solid coil outer meanwhile); Material3DLibraryService needs
+  load() before direct renderer use (fixed in page); cylinder
+  surfaces render sidewalls w/o caps (disc reads as a band);
+  proper SimSpaceDefinition scene row + camera = mag-7 remainder.
 - NEXT: mag-6 SimpleFOC drive rows (MotorControllerProfile +
   PhaseBindingDefinition), mag-7 remainder (circuit editor,
   field-view SimSpace renderer), fem-2d field-map export,
