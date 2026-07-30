@@ -160,13 +160,28 @@ dev-od-1-odoo-bringup; + rf-node/suite pointer branches). NOT pushed.
   opt-bonded-hexaferrite-geopolymer (mu_r_eff 1.15),
   opt-geopolymer-ferrite (b_sat 0.21), opt-fired-ferrite-ceramic
   (b_sat 0.24).
+- ✅ mag-7a + MOTOR-IN-ACTION PAGE (framework ba89039, angular
+  dev-mag-7-motor-ui 2fc53d7+, BOTH deployed + BROWSER-VERIFIED):
+  /api/motors/materials/{design} = COMPLETE MATERIAL
+  ACCOUNTABILITY (slot -> option -> per-value provenance -> msci
+  FEM by reference -> powder -> dated citations/recipes/cascade;
+  derived composites follow their FILLER powder, labeled; absent
+  links stated). /magnetics/motor page: M0 animation DRIVEN BY THE
+  SOLVER (clock-sim history replay, red rotor ORIENTATION VECTOR,
+  coil polarity colors, live steps/missed/clock-error vs time,
+  theta mod 360 + half-turn counter, 'watch it honestly fail'
+  same-polarity checkbox), M1-M3 torque curves, build-this-sample
+  card, accountability panel w/ provenance chips + citation links.
+  Browser-verified live: 11 pulses -> 11 steps, 0 error, arrow
+  stepping. ⚠ THREE more live-row backfills done via CRUDE PUT
+  (bonded rotor mu_r_eff + powder_ref, composites' b_sat_t) — the
+  seed-field gotcha; --form-string not -F.
 - NEXT: mag-6 SimpleFOC drive rows (MotorControllerProfile +
-  PhaseBindingDefinition), mag-7 /magnetics frontend (circuit
-  editor, field-view SimSpace renderer, ladder page w/ builder
-  specs), fem-2d field-map export, mathshapes row emission,
-  pigment-channel Fe2O3 cite, MotorVerificationRun recording
-  seam. ngspice absent on pol-core so /api/magnetics/parity
-  refuses honestly there.
+  PhaseBindingDefinition), mag-7 remainder (circuit editor,
+  field-view SimSpace renderer), fem-2d field-map export,
+  mathshapes row emission, pigment-channel Fe2O3 cite,
+  MotorVerificationRun recording seam. ngspice absent on pol-core
+  so /api/magnetics/parity refuses honestly there.
 
 ---
 
