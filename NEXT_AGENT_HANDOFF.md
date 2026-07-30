@@ -51,10 +51,55 @@
   modules online, light+dark themes hold.
 - STILL NEXT (mag arc): circuit editor + field-view renderer in
   SimSpaces (the non-motor mag-7 remainder), fem-2d field-map
-  export, mathshapes Shape-row emission seam, pigment-channel
-  Fe2O3 cite, mag-8 business splice (motor kits/cores as bizops
-  products + tech-tree Electromagnetic-systems row). ngspice still
+  export, mathshapes Shape-row emission seam. ngspice still
   absent on pol-core (parity refusal correct).
+
+## ✅ SAME DAY 2026-07-30 (autonomous continuation): Fe2O3 HUNT
+## CLOSED + mag-8 SPLICE, BOTH DEPLOYED + LIVE-VERIFIED
+## (framework 7fb948b, angular d3e2906, pointers committed)
+- PIGMENT Fe2O3 HUNT CLOSED: alphachemicals.com is a Shopify
+  store — /products/red-iron-oxide.json exposes exact variant
+  prices (updated same day). alpha-chemicals source + 2 citations:
+  5 lb $9.50 (4.19/kg), 50 lb $53 (2.34/kg) EXACT; assay UNSTATED
+  on the 'natural' listing = the caveat on both rows (glaze row
+  documents 81%). RIPPLES: srfe12o19 solid-state feed 11.81 ->
+  2.90/kg, citrate sol-gel 16.94 -> 8.04 — the §1b pre-hunt
+  '<$5/kg' now lands TRUE and hexaferrite feed UNDERCUTS bought
+  magnetite (coercivity premium became a discount; roles still
+  soft-vs-hard). Headline docstring + requirement notes rewritten.
+  Live cascade verified 2.899, anyEstimate false.
+- mag-8 SPLICE: PRESTAGE_VARIANTS +4 magnetic goods (inductor
+  core / sensor set / flux guides / M0 clock kit) — material_ref
+  = magnetic-geopolymer-mix (cascaded), price_ref = stated PRIOR,
+  and a DATA-LEVEL realization gate (bizops reads the
+  MagneticMaterialOption table without importing magnetics;
+  absent table = honest 'gate unassessed'). LIVE: all 7 variants
+  plan (cores 10 units \$17.03 mats), gates show recipe-seeded /
+  literature-demonstrated from the real catalog, SELLING gated;
+  the kit states wire/driver/hardware EXCLUDED (BOM =
+  /api/motors/materials). QA +qa-magnet-remanence (7 total);
+  compliance +req-magnet-ingestion (16 CFR 1262) +
+  req-emc-claim (voluntary, claim-blocking only) = 8 total;
+  partnerships +deal-magnet-wire-coop (4 deals; copper = the one
+  un-makeable input, pool the 10 lb tier); walkthrough shopping
+  list now covers magnetic-geopolymer-mix (magnetite bag lands,
+  9 items live). Tech tree electromagnetic-systems FILLED:
+  4 theory assignments (magnetics+motors done=true live), 2 B-H
+  data_deps surfacing as derived data-missing warnings (verified
+  in /api/techtree/completion). business-start batch card renders
+  the amber/green gate chips + exclusion note (browser-verified).
+- ⚠ Seed-field backfills done live (3 PUTs, text/data fields on
+  EXISTING rows): TechNode electronics/electromagnetic-systems
+  (description + data_dependencies_json), srfe12o19 requirement
+  notes, clayking-fe2o3-5lb citation_note. Re-GET verified.
+- Suites: bizops 78->85, magnetic sourcing 24->25, biz probe
+  16/16 (pins 6/6/3 -> 8/7/4), magnetics probe 39/39, techtree
+  61/61, formulas 55/55, motors 44/44.
+- REMAINING (mag arc): circuit editor + field-view SimSpace
+  renderer, fem-2d field-map export, mathshapes Shape-row
+  emission, MotorVerificationRun-driven realization promotion
+  (measured runs exist as rows; auto-promoting catalog
+  realization_level stays a HUMAN step per the knobs ethos).
 
 ## ✅ Task 1 — business stack LIVE on pol-core (browser pass PARTIAL)
 - Images REBUILT from framework dev-od-1-odoo-bringup 93bc062 +
