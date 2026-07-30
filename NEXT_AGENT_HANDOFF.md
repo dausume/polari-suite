@@ -114,6 +114,49 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## ⚡ mag-9 + mag-10/10b LIVE 2026-07-30 — motors pushed further
+- **mag-9 THE WINDING REALITY CHECK.** Every torque number rested
+  on `coil_turns x coil_amps` being ASSERTED. Now checked: does the
+  copper FIT the bobbin (fill factor, hand-windable 0.60 /
+  machine-only 0.75), what RESISTANCE (from copper resistivity —
+  1.724e-8 reproduces the published AWG ohms/m to 4 figures, a
+  constant that checks itself), what VOLTAGE (I x R vs the supply),
+  what DISSIPATION (I²R as watts + watts/cm², **never a predicted
+  temperature** — no thermal model of a cast composite exists).
+  Back-EMF named as unmodelled. Wire cost from the mag-1 CITED
+  spools. `/api/motors/{winding,winding-sweep}/{design}`.
+  LIVE, all four rungs BUILDABLE: M0 1500t 44 AWG fill 0.56 182 Ω
+  3.64 V of 12 V 73 mW \$0.01; M1 0.60; M2 0.59; M3 0.46.
+  ⚠ **THE EPISTEMIC RULE worth keeping**: our own crude stand-in
+  geometry may NOT condemn a design. Stated bobbin → an over-full
+  winding is IMPOSSIBLE and names the report it invalidates
+  (clock-sim / torque curve). Unstated bobbin → `window-unknown`,
+  invalidates nothing, asks for the real bobbin.
+  Also fixed: the gauge auto-pick iterated thickest-first and
+  handed a clock coil 18 AWG (lamp cord); table gained 38-46 AWG.
+- **mag-10/10b THE MOTOR IS A LAVET-TYPE STEPPING MOTOR** (Marius
+  Lavet, 1936) — that is the name to look up. Dustin checked
+  photographs: our 3D "looked nothing like it", correct. THREE
+  geometries now coexist, each labelled: SCHEMATIC (two pole
+  shoes + disc + pointer — shows WHY it steps), v1, and **v2 built
+  from his reference photos** (Prof MAD, "Lavet type stepper motor
+  in clock"): squared-C stator plate = plate MINUS big rectangular
+  window MINUS bore-at-one-END (n-ary CSG difference); a BIG
+  flanged bobbin 13 mm against a 26 mm plate with two lead wires;
+  a STEPPED rotor (diametric magnet below + integrated pinion
+  above + index mark). Scene `motor-m0-lavet-v2-viz`.
+  ⚠ Teeth deliberately NOT drawn though the photos show them:
+  gear geometry is GENERATED (gr-3), and decorative teeth meshing
+  with nothing is the exact "close enough gear" mistake the
+  mesh-asset catalog refuses.
+- selftest_motors 44 → **76**. ⚠ **SEED-FIELD GOTCHA 7th STRIKE**:
+  the winding params live INSIDE `params_json`, so this was a JSON
+  *value* edit on live rows — hides even better than a new column.
+  All four designs read `window-unknown` live until backfilled.
+- MOTORS NEXT: M1/M2/M3 have no 3D parts yet (only M0 does); a
+  drivetrain card on `/magnetics/motor` showing the gear output;
+  measured-run → realization-promotion SUGGESTION (never auto).
+
 ## 🧩 mesh-1 LIVE 2026-07-30: license-gated mesh catalog + organ fit
 ## (framework cdabe2a; 17 modules on pol-core)
 Dustin, after the PlantMap3D refusal: "find a few samples of generic
