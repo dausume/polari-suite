@@ -108,13 +108,38 @@ dev-od-1-odoo-bringup; + rf-node/suite pointer branches). NOT pushed.
   (sign conventions pinned), horseshoe+keeper+leakage (KCL split).
   /api/magnetics/{circuits,solve,parity}. 25/25 + probe 16/16 +
   sweep green. LIVE solve verified through the proxy.
-- §A2 mag-fv FIELD VIEWS spec'd in the plan (Dustin 2026-07-29):
-  threshold-gated vector dispersions + grouped translucent
-  math-shape threshold surfaces, source-honest
-  (analytic/reluctance/fem ladder), mathshapes feature-gated.
-- NEXT: mag-4 slot-matrix (BlockSizeVariant/BlockLayout/selective
-  mortar -> reluctance network GENERATES from the layout), mag-fv
-  build, mag-7 /magnetics frontend, pigment-channel Fe2O3 cite.
+- ✅ mag-4 BUILT + DEPLOYED (framework a2e766c): BlockSizeVariant/
+  BlockLayoutDefinition/BlockPlacement/JointMortarAssignment;
+  SELECTIVE MORTAR PER JOINT = flux routing by construction
+  (selftest proves it: upgrading the plain joint raises loop flux
+  by the exact predicted ratio); network GENERATES from the layout
+  (blocks=nodes, joints expand to half/mortar/half chains, wound
+  placements must be LIMBS, virtual overlay — generated rows never
+  persist); dry-fit report (un-mortared adjacency = suggestion);
+  layout_cost per-block + per-joint w/ Section-A gates traveling
+  into the bill. Seed ring-core-demo: 4 magnetic bricks + 3
+  ferrite joints + 1 PLAIN joint (deliberate gap) + coil + a
+  bearing-seat on plain mortar (~zero-flux dead end). LIVE: loop
+  2.12e-6 Wb, bill \$1.31 est-flagged.
+  /api/magnetics/{layouts,layout/{n}/network|cost|dryfit}. 16/16.
+- ✅ mag-fv (§A2) BUILT + DEPLOYED (framework b42c727):
+  FieldViewDefinition/FieldThresholdBand (thresholds+color+alpha
+  as data, USER-drawn sphere/box/cylinder shells)/FieldViewGroup
+  (the alternation). Exact analytic primitives (dipole, infinite
+  wire — idealizations stated), deterministic threshold-GATED
+  dispersions ('absence = below threshold, not zero field'),
+  shell FIT METRICS (precision/recall — the sphere-vs-dipole
+  factor-2 compromise MEASURED), flux tubes from mag-3/4 solves
+  (1D-per-path watermark), fem-2d refuses naming the field-map-
+  export follow-up; real mathshapes rows = named gated seam.
+  /api/magnetics/{fieldviews,fieldview/{n},fieldview-group/{n}}.
+  23/23; probe 24/24; LIVE group answers all three modes.
+- NEXT: Section C (motors/ module: mag-5 designer + torque_parity,
+  mag-6 SimpleFOC), mag-7 /magnetics frontend (circuit editor,
+  field-view renderer in SimSpace, cost panel), fem-2d field-map
+  export, real mathshapes row emission, pigment-channel Fe2O3
+  cite. ngspice absent on pol-core so /api/magnetics/parity
+  refuses honestly there (runs where electrodevice has ngspice).
 
 ---
 
