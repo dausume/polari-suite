@@ -114,6 +114,42 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## ♻️ mag-16 LIVE 2026-07-30: FATIGUE reverses the static answer
+- A clock steps ONCE PER SECOND = 3.2e8 cycles in ten years. TWO
+  models, because the physics differs by class:
+  * **brittle-scg** (ceramics, cast geopolymer): **NO endurance
+    limit**. Subcritical crack growth, sigma(N) = strength x
+    N^(-1/n); low n (cement ~15) far worse than high n (alumina
+    ~45).
+  * **ductile-endurance-limit** (steel): real limit ~0.45 UTS.
+  * **ductile-no-endurance-limit** (copper): S-N keeps falling —
+    surviving 1e7 is not a promise about 1e9.
+- **Second, non-optional derate for brittle**: strength is
+  WEIBULL-distributed (fails from the worst flaw, not the mean), so
+  design to a survival PROBABILITY: strength x (-ln P)^(1/m). Our
+  castings m~7, alumina ~15. **The derates MULTIPLY.**
+- ⚡ **THE FINDINGS — fatigue reverses static**:
+  stator SF **10.53 static -> 1.48 fatigue** (FAILS);
+  pinion SF **2.53 -> 0.39** (fails outright). A cast geopolymer
+  keeps ~15% of its strength over ten years. The static check alone
+  would have shipped a stator that looked comfortable.
+- `substitution_search` holds geometry+load FIXED and varies only
+  the MATERIAL: steel 95.9x, alumina 76.8x top it — which is what
+  real movements use for pinions. **Makeable answer: FIRED FERRITE
+  CERAMIC at 7.6x** = the Table 8.8 fire-the-casting rung we
+  already have. The fix is a PROCESS we own, not a purchase.
+- ⚠ **KNOWN GAP**: the search ranks by fatigue SF ONLY. Live it
+  returns `bestMakeable = opt-copper-magnet-wire (40.9x)` — copper
+  would pass fatigue and WEAR OUT as a pinion, and magnet wire is
+  not a structural part at all. It needs a role/suitability filter
+  (mag-2r roles already exist — wire them in).
+- Model honesty: no S-N measured on any of our castings; MOISTURE
+  accelerates crack growth in silicates (a clock lives in room
+  air) so real n is likely WORSE; a part failing EVERY material is
+  telling you the DESIGN is wrong, not the shelf.
+- `/api/motors/{fatigue,substitutes}/{design}/{part}`;
+  selftest_motors 126 -> **137**.
+
 ## 🧱 mag-15 LIVE 2026-07-30: FEM STRESS — will it break?
 Dustin: "account for von mises and stress tensors ... to ensure the
 apparatus will not break performing it's expected actions",
