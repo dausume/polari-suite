@@ -114,6 +114,42 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## 🔩 mag-11 LIVE 2026-07-30: the per-part bill + /magnetics/clock-motor
+Dustin: "a frontend for that motor and display/analysis of its
+pieces and materials used for them and their resulting part
+properties and purposes for the clock."
+- `MotorPartDefinition` joins what lived apart: geometry was
+  MathShapeDefinition rows, materials were per-SLOT on the design,
+  and nothing said which shape was made of what or WHY it existed.
+  Each row carries `function`, `purpose` (its job in the clock),
+  and `why_this_material` (the deciding property, not a
+  description). Seeded for all 7 Lavet v2 pieces.
+- Numbers DERIVE and refuse rather than guess: volume from the
+  part's OWN shape row (same geometry the viewer draws → bill and
+  picture cannot disagree), mass = volume × the material row's
+  density, per-part GAPS listed (the coil's material is a
+  supplychain item, so no density resolves — said, not faked).
+- ⚠ **UNIT BUG FOUND**: `shape_properties` reports volumeCm3 (assumes
+  cm) but the v2 geometry is authored in **mm** — reading it as cm
+  made a **1.1 KILOGRAM** clock motor. `shape_units` is now explicit
+  per part; the whole motor is **1.15 g**.
+- ⚠ **defClassList**: the import and seed-pair landed but the
+  defClassList entry did NOT (a replace that silently didn't
+  match), so the class had no CRUDE table — and the symptom looked
+  exactly like an unseeded table, not a wiring error. **grep every
+  polariServer edit to confirm it landed.**
+- ⚠ **8th seed-field strike, new flavour**: `shape_units` persisted
+  as `None` on a BRAND-NEW class's first seed while sibling fields
+  came through. Cause not diagnosed; rule: after any first deploy
+  of a new class, GET a row back and eyeball the fields.
+- FRONTEND `/magnetics/clock-motor`: v2 motor in 3D beside the piece
+  list; selecting a part dims every other body (highlight by
+  OPACITY so material colours stay readable — the point of the view
+  is what things are made of) and expands its material, why that
+  material, the property table with provenance chips, and measured
+  volume/mass. Winding card alongside. BROWSER-VERIFIED.
+- `/api/motors/parts/{design}`; selftest_motors 76 → 86.
+
 ## ⚡ mag-9 + mag-10/10b LIVE 2026-07-30 — motors pushed further
 - **mag-9 THE WINDING REALITY CHECK.** Every torque number rested
   on `coil_turns x coil_amps` being ASSERTED. Now checked: does the
