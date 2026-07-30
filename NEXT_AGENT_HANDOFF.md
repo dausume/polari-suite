@@ -134,12 +134,39 @@ dev-od-1-odoo-bringup; + rf-node/suite pointer branches). NOT pushed.
   export follow-up; real mathshapes rows = named gated seam.
   /api/magnetics/{fieldviews,fieldview/{n},fieldview-group/{n}}.
   23/23; probe 24/24; LIVE group answers all three modes.
-- NEXT: Section C (motors/ module: mag-5 designer + torque_parity,
-  mag-6 SimpleFOC), mag-7 /magnetics frontend (circuit editor,
-  field-view renderer in SimSpace, cost panel), fem-2d field-map
-  export, real mathshapes row emission, pigment-channel Fe2O3
-  cite. ngspice absent on pol-core so /api/magnetics/parity
-  refuses honestly there (runs where electrodevice has ngspice).
+- ✅ SECTION C CORE BUILT + DEPLOYED (framework 9f550a4): NEW
+  module modules/motors (requires magnetics, wave 4). THE MOTOR
+  LADDER per Dustin ('simple->advanced in tolerances AND samples
+  people can build'; M0 = clock motor control case verified
+  against TIME PROGRESSION): M0 Lavet clock stepper / M1 6s4p
+  reluctance (no PMs) / M2 ferrite-PM / M3 dual-stator axial (§2d
+  end goal) — every rung carries build_requirements_json (tools/
+  materials-with-cited-refs/skills/hours). design_report = mag-2r
+  role checks AT DESIGN TIME (magnetite rotor flags unviable);
+  clock_sim (Lavet co-energy, detent+coil amplitudes calibrated
+  from the reluctance network; alternating pulses step 180deg,
+  same-polarity honestly fails, dead coil = full clock error;
+  LIVE: 60/60 steps 0 error); torque_curve (PARTIAL dW'/dtheta at
+  held currents — total-derivative zero-means, caught by test;
+  load-angle knob; dual gap DOUBLES mean torque, computed);
+  torque_parity (hexaferrite vs NdFeB 3.33x area, dual-gap 1.67x,
+  watermarks). MotorVerificationRun rows never seeded.
+  /api/motors/{designs,report,clock-sim,torque,parity}.
+  20/20 + probe 29/29.
+- ⚠⚠ SEED-FIELD GOTCHA STRUCK AGAIN (4th time): live rows seeded
+  before mu_r_eff/b_sat_t additions needed explicit CRUDE PUTs
+  (multipart polariId+updateData; use curl --form-string — plain
+  -F truncates values at ';'). Backfilled live:
+  opt-bonded-hexaferrite-geopolymer (mu_r_eff 1.15),
+  opt-geopolymer-ferrite (b_sat 0.21), opt-fired-ferrite-ceramic
+  (b_sat 0.24).
+- NEXT: mag-6 SimpleFOC drive rows (MotorControllerProfile +
+  PhaseBindingDefinition), mag-7 /magnetics frontend (circuit
+  editor, field-view SimSpace renderer, ladder page w/ builder
+  specs), fem-2d field-map export, mathshapes row emission,
+  pigment-channel Fe2O3 cite, MotorVerificationRun recording
+  seam. ngspice absent on pol-core so /api/magnetics/parity
+  refuses honestly there.
 
 ---
 

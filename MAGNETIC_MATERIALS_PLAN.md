@@ -632,6 +632,46 @@ not")
   by brackets. Alignment tolerance rides the §2c ladder (T0 slop
   → T1 lapped seats → T2 fired stability).
 
+### THE MOTOR LADDER (Dustin 2026-07-29: "going from simple motors
+with lower tolerances to more advanced ... with the end goal being
+the dual stator; lower end and intermediate goals are also a good
+idea")
+- **M0 — CLOCK MOTOR (the control case)**: a Lavet-type single-
+  phase stepper — the mechanism in every quartz clock: ONE coil,
+  one tiny PM rotor, asymmetric stator notches that make detent
+  positions, alternating-polarity pulses step it 180 deg at 1 Hz.
+  Chosen exactly per Dustin's spec: smallest possible, low power
+  (real ones run on uA-class pulses), LOW tolerance demands (mass-
+  produced clock movements are deliberately sloppy — T0-friendly),
+  and **verification = TIME ITSELF**: drive N pulses, count steps,
+  compare accumulated rotation against wall-clock progression —
+  missed steps over hours ARE the honest quality metric, no
+  instrument needed beyond a clock face. Industrial precedent =
+  billions of units.
+- **M1 — reluctance demo** (6-slot/4-pole radial): closes the loop
+  with ZERO permanent magnets (all-costed materials today);
+  honestly feeble torque at mu~2, T0/T1.
+- **M2 — small ferrite-PM rotor motor** (single-stator BLDC
+  class): bonded/sintered hexaferrite rotor + wound stator, the
+  commercial-precedent route; T1.
+- **M3 — DUAL-STATOR AXIAL FLUX (the end goal, §2d)**: two stator
+  disks sandwich one rotor; reluctance-disk variant first,
+  ferrite-PM ring for torque; T1->T2; torque_parity() carries
+  every parity claim.
+Rungs are DATA (ladder_rung on the design row); each rung names
+its tolerance tier and its verification method; nothing claims a
+higher rung until the lower one has rows.
+**BUILDER AXIS (Dustin 2026-07-29: "start as simple as we can and
+go to more advanced, both in terms of tolerances and in terms of
+samples people can build")**: every rung is a SAMPLE a person can
+build, easiest first — the design row carries
+build_requirements_json (tools, materials w/ catalog refs, skills,
+rough hours) exactly like the research-tools tree carries honest
+difficulty; M0 needs only a wound coil, two small castings, a
+magnetizing pulse, and any 1 Hz pulse source (a 555/Arduino
+class part). The walkthrough/bizops seam can turn a rung into a
+shopping list the same way it does for pots.
+
 ### mag-5 — 3-PHASE MOTOR DESIGNER (SECTION C — module `motors/`,
 motors are their OWN section per Dustin)
 - `MotorDesignDefinition` rows: topology (radial/axial), pole
