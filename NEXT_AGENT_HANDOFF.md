@@ -54,6 +54,77 @@
   export, mathshapes Shape-row emission seam. ngspice still
   absent on pol-core (parity refusal correct).
 
+## ⚙️ NEW ARC STARTED 2026-07-30: GEARS (gr-1 + gr-5 LIVE)
+## framework 09728e1, pointers committed. Plan = GEARS_PLAN.md
+- **Dustin's ask:** "gears actuated by motors as both 3D and more
+  abstract simulations accounting for varying types of gears so we
+  can start combining the motor logic with gear logic."
+- NEW `modules/gears` (wave 4, requires mathshapes for the gr-3
+  geometry that is NOT built yet — coupling named so a drop refuses
+  honestly later). A train is a GRAPH: shaft nodes carry one speed,
+  mesh edges impose ratio+torque = the mechanical twin of the mag-3
+  reluctance network, riding the same rows-then-solve discipline.
+- 8 seeded TYPES as data (spur/helical/internal/planetary/bevel/
+  worm/rack-pinion/cycloidal): ratio law, BOTH ends of the
+  literature efficiency band (worm 0.30-0.90 wide on purpose),
+  direction behavior, thrust, self-lock capability, and how each
+  would be MADE in our stack (spur easiest to cast, worm = buy it,
+  cycloidal genuinely interesting for brittle cast parts).
+- SOLVE: speeds WITH DIRECTION (external reverses, internal does
+  not — asserted), torque after the cumulative efficiency chain,
+  centre distances (sum vs difference), accumulated backlash, and a
+  power-conservation CHECK. Unchainable types REFUSE with their
+  ratio law named; two disagreeing paths into one shaft refuse
+  (a differential needs its own solve); undeclared shafts are
+  SUGGESTIONS not failures.
+- gr-5 SPLICE LIVE: `/api/gears/motor-drive/{train}` — M0's speed
+  is EXACT (180 deg/pulse => 30 rpm at 1 Hz) and the clock train
+  lands **1.0 turns/hour** verified live; M1-M3 torque transforms
+  exactly but SPEED is an honest ASSUMPTION (quasi-static motors
+  don't predict it). Envelope = mean/peak/worst-case, never one
+  flattering number; a duty met only at PEAK counts as UNMET;
+  `priceOfTheRatio` (speed divided, efficiency lost, backlash
+  added) never omitted. LIVE duty check on M1 vs 1 Nm honestly
+  reports needing ~13,100x more torque.
+- ⚠ DEPLOY NOTE: gears was added to the LIVE service env via
+  `docker service update --env-add POLARI_MODULES=...` (16 modules,
+  14 online). The DURABLE path is a ModuleAssignment row +
+  `pol topology render staging-a` — NOT done, because re-rendering
+  carries the machine==staging-a-vs-pol-core constraint gotcha
+  documented at the top of this file. Do that deliberately.
+- Suites: selftest_gears 53/53, NEW gears_liveboot_probe 11/11.
+- ALSO fixed generally (Dustin: "make fixes more general"):
+  * **Scene assets**: `SimSpaceRendererFactory.create()` now awaits
+    `ensureSceneAssets()` (2D shapes+styles / 3D meshes+materials+
+    textures) before returning a renderer. The "load the library
+    first" bug had shipped TWICE (mag-7b parts untinted, mag-7
+    shells drawn as cubes) = the wrong layer owned it. Pages
+    dropped their hand-loads.
+  * **Rounding**: `_sig()` (significant figures) replaced every
+    fixed-decimal `round()` in the gear solver. Fixed-decimal
+    rounding is wrong for any payload that mixes scales, and a
+    drivetrain mixes scales BY DEFINITION — round(x,9) ate the
+    clock's 1/60 rpm, round(x,12) then ate a 4e-6 Nm torque, and
+    mag-3 hit it a third time on flux density. Now guarded by its
+    own selftests.
+  * Pre-existing `selftest_lazy_imports` 14/15 -> 15/15 (motors
+    stub tuple).
+- NEXT (gears): gr-2 strength screen, gr-3 involute geometry
+  generator -> MathShapeDefinition rows, gr-4 `/mechanics/gears`
+  3D page (reuse the mag-7 single-renderer pattern), gr-6
+  planetary/worm algebra, gr-7 business+tech-tree splice.
+
+## 🌱 PlantMap3D: NOT open source — see PLANTMAP3D_EVALUATION.md
+All three `precision-sustainable-ag/PlantMap3D-*` repos carry NO
+license (API + root check) = all rights reserved. The org licenses
+23 of its ~100 other repos, so the absence is meaningful, not an
+oversight to shrug off. DO NOT vendor. Keep as a benchmark
+reference (stereo depth -> canopy height -> per-species biomass is
+publishable method, independently implementable); the open ask is
+to request a license. Named alternatives (P3D, Phenomenal, DPPP)
+still need the SAME license check — a paper calling a tool "open
+source" has already been wrong once here.
+
 ## ✅ SAME DAY 2026-07-30 (autonomous continuation): Fe2O3 HUNT
 ## CLOSED + mag-8 SPLICE, BOTH DEPLOYED + LIVE-VERIFIED
 ## (framework 7fb948b, angular d3e2906, pointers committed)
