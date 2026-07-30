@@ -1,6 +1,61 @@
 # ⚡⚡⚡⚡⚡⚡⚡⚡ SESSION 2026-07-28/29: TASK 1 DEPLOYED+API-VERIFIED,
 # MAGNETICS SECTION A BUILT (mag-1 + mag-2/2r/2t) — read this first
 
+## ✅ mag-7 REMAINDER (motors) BUILT + DEPLOYED + BROWSER-VERIFIED
+## 2026-07-30 (framework 02295cf dev-mag-a-magnetic-materials,
+## angular 450eb76 dev-mag-7-motor-ui, pointers committed; NOT pushed)
+- CSG TRIANGULATION closed (mathshapes): sample_surface special-
+  cases difference-of-COAXIAL-cylinders -> exact parametric TUBE
+  mesh (tube_mesh in shape_geometry — the M0 coil ring, 192 tris
+  live); everything else CSG/general-quadric now gets a VOXEL-FACE
+  mesh from the marching grid (closed renderable surface, method
+  string says 'blocky — exact only as N grows'; the old point
+  cloud drew NOTHING in three.js).
+- CYLINDER CAPS: cap_base/cap_top requested on motor solid rows
+  (rotor disc, shaft, coil outer). ⚠ SEED-FIELD GOTCHA (5th time):
+  3 live rows needed CRUDE PUT backfills of parameters_json
+  (--form-string, polariId from GET /MathShapeDefinition) — disc
+  was 48 tris (band) until then, 96 after.
+- SCENE ROW: motor-m0-viz SimSpaceDefinition SEEDED (motor_shapes
+  SEED_MOTOR_SIM_SPACES -> polariServer 3D seed group);
+  freestandingOnly, six parts, coil = the CSG RING. The page loads
+  its SNAPSHOT (/api/simspace/motor-m0-viz/snapshot) and overlays
+  rotor rotation + coil polarity from the solver replay — scene =
+  data, motion = runtime; hard-coded layout kept only as labelled
+  fallback. Browser: caption cites the row, animation steps, coil
+  flips green/amber, ring has a real bore, disc reads solid.
+- VERIFICATION SEAM: motors/motor_verify.py — MotorVerificationRun
+  rows never seeded, this is the one way in. clock_error_s DERIVES
+  from missed/rate_hz, duration defaults commanded/rate LOUDLY,
+  taken>commanded / bad kind / unknown design REFUSE.
+  made-and-measured EARNED by kind='measured' rows only; sim
+  replays are 'provenance, not proof' (rider on every record).
+  /api/motors/verify/{design} GET summary + POST record;
+  design_report carries a verification block. UI card: counts +
+  earned chip + runs table + one-click record-sim-replay +
+  measured-bench form. Live: 2 sim runs recorded (60/60 API,
+  30/30 via the page button), madeAndMeasured honestly false.
+- DRIVE CARD on /magnetics/motor: mag-6 simplefoc_config surfaced
+  (board/profile/pole pairs, phase table w/ FPGA named-not-wired,
+  generated Arduino snippet, honesty rider); M0 shows its no-FOC
+  refusal as the drive story. Browser-verified on M1.
+- Suites: selftest_motors 33->44, selftest_shapes 20->24,
+  magnetics_liveboot_probe 32->39 (probe now boots +scoring,
+  plant_morphology,aquaponics,mathshapes and hits the snapshot +
+  tube surface through the real routes). magnetics 37/37, all
+  mathshapes + aquaponics suites green. ⚠ PRE-EXISTING failure
+  (not this change, verified against stashed tree):
+  aquaponics.selftest_system 12/13 'environmental-impact concept
+  scores both systems'.
+- Both images rebuilt + force-rolled (same-tag gotcha), 15
+  modules online, light+dark themes hold.
+- STILL NEXT (mag arc): circuit editor + field-view renderer in
+  SimSpaces (the non-motor mag-7 remainder), fem-2d field-map
+  export, mathshapes Shape-row emission seam, pigment-channel
+  Fe2O3 cite, mag-8 business splice (motor kits/cores as bizops
+  products + tech-tree Electromagnetic-systems row). ngspice still
+  absent on pol-core (parity refusal correct).
+
 ## ✅ Task 1 — business stack LIVE on pol-core (browser pass PARTIAL)
 - Images REBUILT from framework dev-od-1-odoo-bringup 93bc062 +
   angular dev-od-7-business-ui 814f3a9; deployed `pol swarm deploy
