@@ -192,7 +192,19 @@ dev-od-1-odoo-bringup; + rf-node/suite pointer branches). NOT pushed.
   load() before direct renderer use (fixed in page); cylinder
   surfaces render sidewalls w/o caps (disc reads as a band);
   proper SimSpaceDefinition scene row + camera = mag-7 remainder.
-- NEXT: mag-6 SimpleFOC drive rows (MotorControllerProfile +
+- ✅ mag-6 BUILT + DEPLOYED: MotorControllerProfile (board/sensor/
+  limits knobs, item_ref -> mag-1 cites) + PhaseBindingDefinition
+  (phase->shield terminal; FPGA column named-not-wired);
+  simplefoc_config generates the Arduino snippet FROM ROWS (pole
+  pairs from the design; M0 REFUSES FOC — wants its 1 Hz pulse;
+  dual-stator v1 parallels). /api/motors/drive/{design}. 33/33 +
+  probe 32/32 + LIVE verified.
+- NEXT: mag-7 remainder (SimSpaceDefinition scene row for the
+  motor, circuit editor, field-view renderer; CSG triangulation +
+  cylinder caps in the shape mesher; drive card on the motor
+  page), fem-2d field-map export, mathshapes Shape-row emission,
+  pigment-channel Fe2O3 cite, MotorVerificationRun recording seam,
+  mag-8 business splice (OLD next-list follows:) (MotorControllerProfile +
   PhaseBindingDefinition), mag-7 remainder (circuit editor,
   field-view SimSpace renderer), fem-2d field-map export,
   mathshapes row emission, pigment-channel Fe2O3 cite,
