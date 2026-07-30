@@ -114,6 +114,70 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## 🧱 mag-15 LIVE 2026-07-30: FEM STRESS — will it break?
+Dustin: "account for von mises and stress tensors ... to ensure the
+apparatus will not break performing it's expected actions",
+"using FEM".
+- ⚠⚠ **THE CRITERION CORRECTION, read this first.** von Mises is a
+  DUCTILE-metal criterion (distortion energy, deliberately blind to
+  hydrostatic stress). That is right for copper/steel and **WRONG
+  for our cast geopolymers and ceramics**, which are BRITTLE and
+  fail by crack opening in TENSION. Judging a cast stator by von
+  Mises would PASS a part that is already cracking. So brittle rows
+  are judged by **MAX PRINCIPAL (Rankine)**, ductile by von Mises —
+  both numbers always reported, only the verdict differs, and every
+  verdict names the criterion and why.
+- The argument is quantified, not asserted: 10 material rows gained
+  E, nu, compressive_mpa, tensile_mpa, failure_class — and the
+  compressive/tensile ASYMMETRY is the argument: **14.3x**
+  (geopolymer-ferrite), 15.0x (bonded hexaferrite), 17.1x
+  (sintered) vs **1.0x** copper. E and nu did not exist ANYWHERE
+  before; FEM elasticity was blocked on them.
+- **FEM engine extended** (scikit-fem linear elasticity): full
+  tensor (sxx/syy/sxy/szz), von Mises, both principals + szz,
+  max/min principal and max shear each WITH the location they peak
+  (where a crack starts). Rectangle + optional OFF-CENTRE hole (the
+  stator's end-bore). **Kirsch proves the solver**: SCF 2.836 →
+  2.985 → 3.020 → 3.034 across refinement, monotone from BELOW.
+  Exceeding the textbook 3.00 is CORRECT — 3.00 is the infinite
+  plate; at d/W=0.1 Howland gives ~3.03. plane-stress vs
+  plane-strain is a required knob and they differ.
+- **LOADS derive from the machine**: tooth load F = T/r_pitch off
+  the gear train it drives, magnetic pull B²A/(2µ₀) with B taken as
+  remanence (deliberately conservative), self weight, and HANDLING.
+- ⚡ **THE HONEST HEADLINE**: operating loads peak at **0.069 N**
+  against a 5 N finger press. **ASSEMBLY GOVERNS** — it will not
+  break doing its job, it will break being BUILT.
+- ⚡ **THE ACTIONABLE FINDING, live**: stator **SURVIVES SF 10.5**;
+  **rotor pinion AT RISK, SF 2.53** vs the 4.0 required for an
+  unmeasured brittle casting. Small, cast, brittle — a firm thumb
+  during assembly is enough.
+- SF 4.0 not 1.5 on purpose: brittle strength scatters (Weibull),
+  our castings are untested, strengths are literature-est.
+- NOT modelled and said so: **fatigue** (a clock steps ~31.5
+  MILLION times a year), fracture toughness/flaws, contact stress
+  at the tooth flank, creep, thermal, cure-shrinkage residual.
+- `/api/motors/{stress/{design}/{part},loads,criterion}`;
+  selftest_motors 107 → **126**; selftest_fem_elasticity **41**.
+- ⚠ **9th SEED-FIELD STRIKE**: the new properties went onto EXISTING
+  live rows, so every stress call refused until 10 CRUDE PUTs. The
+  rule was already written and still not followed — it is now a
+  STEP: after any seed edit, GET a row and diff it before calling
+  the feature live.
+- NOT WIRED: ENGINE_REGISTRY has no `fem.elasticity` entry, so a
+  MaterialScaleDefinition cannot point at the solver yet.
+
+## ⚙️ mag-10c: the REALISTIC v2 Lavet motor now RUNS
+Off-origin rotation solved exactly, not faked: math-shape geometry
+carries ABSOLUTE coordinates (the v2 rotor is at x=-9.5) and
+three.js composes world = position + R·vertex, so rotation alone
+swings the part in an arc about the world origin. Rotating about an
+axis through `a` means position = a − R·a; verified a point on the
+axis stays fixed at every angle. Both geometries stay behind a
+toggle that says what each is FOR. If the v2 scene row is missing
+the card REFUSES rather than showing the schematic under a
+"realistic" label.
+
 ## 🚀 mag-12/13/14 LIVE 2026-07-30 (three parallel agents, all green)
 - **mag-14 M1 + M3 GEOMETRY**: M1 (6s/4p reluctance — shaft, hub,
   salient pole, stator tooth, yoke + coil as coaxial-cylinder
