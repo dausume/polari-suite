@@ -1,3 +1,82 @@
+# ⚡ SESSION 2026-07-31 (cont): mag-23 INDUCTANCE SOLVED BY FEM,
+# mag-24 LOCAL MAGNET WIRE ROUTE — deployed + live-verified
+
+## ✅ mag-23: INDUCTANCE, actually solved (framework 9288bc8)
+Dustin: "do genuine simulation of inductance using fem and config."
+mag-22 had NAMED inductance as its largest risk and not modelled it.
+
+NEW ENGINE: `materialsScience/engines/fem_engine.py` gained 2D
+MAGNETOSTATICS — `solve_magnetostatic_2d()`, vector potential A_z,
+variable-nu Poisson, regions as DATA. L from stored energy,
+cross-checked against an independent flux CUT. Validated against a
+gapped C-core closed form (lands 1.66x the ideal-gap formula, above
+it because the formula omits fringing + window leakage).
+
+ANSWER: tau = 12 us at the M0 winding, only 110 us at 20000 turns,
+against a 30 ms pulse = 274 time constants, 100% of final current.
+INDUCTANCE DOES NOT BREAK mag-22. `/api/motors/inductance`,
+`/api/motors/inductance-turns`.
+
+⚠ TWO TRAPS WORTH INHERITING:
+- A UNIFORM MESH SILENTLY SHORTS A GAP. Elements straddling the
+  0.8 mm gap take the CORE mu from their centroid; L came back 150x
+  too high with nothing looking wrong. Fixed STRUCTURALLY — the
+  mesh is now ALIGNED to every region boundary
+  (`_mesh_aligned_to_features`), so no element spans two materials
+  at any refinement. Correctness no longer depends on refine, and
+  380 dofs now lands within 7% of converged.
+- A CROSS-CHECK CAN BE FAKE. I computed `a @ f` and called it flux
+  linkage — but for a linear system `a.K.a == a.f`, so it WAS 2W and
+  re-derived the energy route. Real check = flux cut via
+  Phi = A_z(P1) - A_z(P2).
+
+🔑 THE FINDING BEYOND INDUCTANCE (`/api/motors/model-validity`):
+FEM vs the LUMPED RELUCTANCE model agree to a constant 1.41 once
+mu_r >= 200, and diverge 4.6x at mu ~ 2. A core that barely beats
+air does not CONFINE flux — it crosses the window directly and a
+reluctance network has no branch for it. **The model does not get
+noisier, it STOPS APPLYING — and our locally producible materials
+are exactly the low-mu ones.** Ratios computed the same way (the M0
+step condition) partly cancel it; absolute flux/torque/inductance do
+not. ONE LCR MEASUREMENT on a wound core would settle it.
+
+## ✅ mag-24: local magnet wire research route (framework 3e23d89)
+Copper wire was mag-22's one import. It is TWO capabilities:
+- INSULATING = TRACTABLE. Oleoresinous varnish (tung oil + natural
+  resin) WAS magnet wire insulation until 1939 — "plain enamel" —
+  and vegetable-oil alkyds held on into the 1950s. Dip tank + 180 C
+  oven vs a 400 C tower.
+- DRAWING to fine gauge = THE WALL. Carbide reaches ~30 AWG; 46 AWG
+  needs diamond dies + in-line anneal + chilled coolant.
+
+THICKNESS decides, not chemistry — build adds to DIAMETER so it
+enters as a SQUARE. At 15000 turns of 46 AWG: sol-gel silica 41 mm2
+window (0.50x commercial), oleoresinous/silk 125 mm2 (1.52x), cotton
+259 mm2 (3.13x — ruled out by arithmetic). Sol-gel is thinnest and
+BRITTLE; bending it round a 3 mm former is the one-afternoon test
+that opens or closes the best local option.
+`/api/motors/{wire-insulation,local-wire-route}`.
+
+⚠ FIXED: `winding_report` took insulation build only as a module
+constant read into a DEFAULT ARGUMENT — defaults bind at definition
+time, so patching the global changed nothing and every candidate
+returned the same figure. Now an explicit `enamel_mm` parameter.
+Same family as a flipped seed default never reaching a live row.
+
+TESTS: motors 224/224, FEM elasticity 41/41, magnetics 51/51, gears
+62/62, meshassets 36/36.
+
+NEXT ON THIS THREAD:
+- The LCR bench measurement is now the highest-value single act in
+  the whole magnetics stack — it adjudicates a 4.6x model
+  disagreement on the material we plan to use.
+- M0 design row still states 1500 turns / 12 mm2 window; seed an M0b
+  with the solved winding or mag-22 stays a report, not a design.
+- No frontend for mag-22/23/24 (all API-only).
+- mag-20 migration still unfinished: motor_stress, motor_fatigue,
+  contact_wear, lifecycle_cost still compute in Python rather than
+  calling evaluate_named().
+
 # ⚡ SESSION 2026-07-30/31: mag-22 LOCALLY PRODUCIBLE CLOCK ROUTE
 # SOLVED + DEPLOYED + LIVE-VERIFIED — read this section first
 
