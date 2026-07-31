@@ -1,3 +1,95 @@
+# ⚡ SESSION 2026-07-31 (cont 2): mag-25 SIMPLEST-CASE-FIRST +
+# wire-1 DRAWING STRAIN — deployed + live-verified. READ THIS FIRST.
+
+## 🔑 THE CORRECTION THAT MATTERS MOST
+Dustin: the M0 exercise was always about "a simple magnetic engine
+that does not use complex processes". mag-22 optimised for POWER,
+chose 46 AWG, and dragged the project into ultrafine drawing,
+diamond dies and an HPHT press. **Optimising the wrong objective
+does not announce itself — it quietly moves the requirements.**
+
+THE PHYSICS WE MISSED: coil voltage is `MMF*rho*MTL/A_copper` —
+**TURNS CANCEL**. Gauge alone decides whether a cell can drive the
+movement. At 46 AWG the coil needs **4.14 V** against a cell's 1.5 V,
+so mag-22's design was silently carrying a STEP-UP CONVERTER whose
+quiescent draw was never in the power budget.
+
+GAUGE sets voltage. TURNS set battery life. WINDOW sets turns. They
+are INDEPENDENT levers, so the only price of coarse wire is a bigger
+bobbin — and on a wall clock volume is the cheapest thing we have.
+Same 4 years on one AA, direct drive, no converter:
+    32 AWG  0.16 V  24.6 mm square   (W2 — carbide dies)
+    38 AWG  0.65 V  13.7 mm square   (W2 ceiling)
+    40 AWG  1.03 V  11.4 mm square   (last gauge on one cell)
+    46 AWG  4.14 V   7.1 mm square   NEEDS A CONVERTER
+Finer wire buys SIZE and nothing else that matters here.
+`/api/motors/simplest`, `/api/motors/road-to-advanced`.
+
+## ✅ wire-1: the DRAWING STRAIN of manufacturing-tools
+NOT a new tree — `manufacturing-tools` already declares itself as
+cross-cutting apparatus many domains pull on (furnace ladder = its
+THERMAL strain). Drawing is the same argument in another axis.
+`/api/techtree/wire-strain`.
+
+8 consumers across 4 trees. **W2 unlocks 5 of them — including both
+the THERMOCOUPLE that makes the kiln controllable AND the clock
+coil.** The rung that makes the furnace work is the rung that makes
+the movement. W3 is justified by sieve mesh, strain gauges and small
+instrument coils — not by this clock.
+
+THREE BOOTSTRAP LOOPS, each carried WITH its break:
+- kiln -> thermocouple -> wire -> die -> press → breaks on
+  PYROMETRIC CONES (already how our ceramics rung is specified)
+- CVD -> tungsten filament -> drawing -> die → breaks on HPHT, or
+  one bought filament
+- PCD -> graded grit -> fine sieve -> fine wire -> PCD → breaks on
+  SEDIMENTATION grading, which reaches finer than sieving anyway
+
+The diamond chain has a shortcut at EVERY step except BORING THE
+DIE. That is the capability to attack, and to rehearse at a coarse
+gauge where failure costs one coil. Industrial specs quoted at us
+(die life 10-30x, in-line annealing, chilled coolant) exist to keep
+a LINE running fast and unattended — **we need 210 m of wire once**,
+so batch annealing and a reservoir suffice.
+
+⚠ CONSISTENCY BUG CAUGHT IN LIVE VERIFICATION: wire_ladder had
+magnet wire at W3 while mag-25 had moved it to W2 — two live
+endpoints contradicting each other. Fixed + guard test. **When two
+modules written in one session assert the same fact, test that they
+agree.**
+
+⚠ SELFTEST FILE NEARLY DESTROYED: `t[:marker] + add + t[marker:]`
+with `marker = None` duplicates the ENTIRE file. Restored via git.
+Assert the marker exists before splicing.
+
+TESTS: motors 233/233, techtree 68/68, FEM elasticity 41/41,
+magnetics 51/51, gears 62/62, meshassets 36/36.
+
+## NEXT — Dustin named it explicitly, DO THIS NEXT:
+**PART ARCHETYPES.** "account for particular kinds of common parts
+and part components, like electric-wire, and stator spool... build
+out data structure for those such that we account for manufacturing
+constraints and difficulty levels for particular criteria, as well
+as identifying relevant materials for them based on their tags."
+Design sketch: an archetype layer BETWEEN `part_roles.py` (abstract
+requirement) and `MotorPartDefinition` (concrete instance). Each
+archetype declares (a) its ROLES — reuse `role_viability` /
+`screen_candidates` for material screening rather than a new tag
+system, (b) a manufacturing chain with rungs, (c) DIFFICULTY PER
+CRITERION (dimensional tolerance, surface finish, aspect ratio,
+process temperature, concentricity) so the BINDING criterion is
+reported rather than one difficulty number. Starter set:
+electric-wire, stator-spool/bobbin, magnetic-core, rotor-magnet,
+pinion/gear, shaft, bearing-jewel, frame-plate. Candidate home is
+beside `part_roles.py`, but it generalises past motors — note the
+promotion path.
+
+Also still open: M0 design row still states 1500 turns / 12 mm2
+window (seed an M0b with the mag-25 winding); the LCR bench
+measurement that would settle the mag-23 4.6x reluctance-model
+disagreement; no frontend for mag-22..25; mag-20 migration
+unfinished.
+
 # ⚡ SESSION 2026-07-31 (cont): mag-23 INDUCTANCE SOLVED BY FEM,
 # mag-24 LOCAL MAGNET WIRE ROUTE — deployed + live-verified
 
