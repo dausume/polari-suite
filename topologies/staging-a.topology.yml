@@ -16,6 +16,16 @@ topology:
   notes: Seeded by top-1 to mirror the live 2026-07-09 deployment; becomes the first
     portable package (topologies/staging-a.topology.yml, top-3).
 machines:
+- name: econ-core
+  ssh_alias: econ-core
+  arch: x86_64
+  mem_gb: 0.0
+  roles_json: '["engines","remote-worker","business-ops","economics"]'
+  swarm_role: worker
+  repo_dir: ~/polari-suite
+  source: nodes.yml
+  notes: "BUSINESS-OPS/ECONOMICS core (renamed from lightweight 2026-07-27) \u2014\
+    \ Odoo host per ODOO_INTEGRATION_PLAN"
 - name: isle-core
   ssh_alias: isle-core
   arch: x86_64
@@ -29,7 +39,7 @@ machines:
 - name: pol-core
   ssh_alias: ''
   arch: x86_64
-  mem_gb: 0.0
+  mem_gb: 15.51
   roles_json: '["node","research-core"]'
   swarm_role: manager
   repo_dir: ~/Desktop/polari-suite
@@ -50,6 +60,34 @@ instances:
   topology_name: staging-a
   notes: "The polari-engines swarm stack (:9500) \u2014 FEM/DFT compute workers, deployed\
     \ via `pol swarm deploy engines` (single-node swarm today)."
+- name: odoo
+  kind: custom
+  service_kinds_json: '["odoo"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: econ-core
+  placement_constraint: ''
+  db_backend: postgres
+  image_tag: staging
+  orchestration_target: compose
+  topology_name: staging-a
+  notes: "Odoo 18 Community ERP (od-1) \u2014 backbone of business SIMULATIONS (odoo_sim)\
+    \ and REAL ops (odoo_ops); the two never blur. Compose profile \"odoo\": started\
+    \ via `pol odoo up`, never by suite up. SSO = od-2, odooconnect module = od-3."
+- name: odoo-postgres
+  kind: infra
+  service_kinds_json: '["odoo-postgres"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: econ-core
+  placement_constraint: ''
+  db_backend: postgres
+  image_tag: staging
+  orchestration_target: compose
+  topology_name: staging-a
+  notes: "PostgreSQL 16 for Odoo \u2014 the suite's FIRST postgres (Odoo requires\
+    \ it). Volumes odoo-db-data + odoo-filestore; credential volume-baked at first\
+    \ init (drift rescue: pol-odoo/README.md); movers = od-6."
 - name: prf-a
   kind: prf
   service_kinds_json: '["prf-backend", "prf-frontend"]'
@@ -123,6 +161,30 @@ assignments:
   state: enabled
   topology_name: staging-a
   notes: Self-watering pot sim (aqp-1..6).
+- name: bizops@prf-a
+  module_name: bizops
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
+- name: composition@prf-a
+  module_name: composition
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
+- name: gears@prf-a
+  module_name: gears
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
+- name: magnetics@prf-a
+  module_name: magnetics
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
 - name: materialsScience.dft@engines
   module_name: materialsScience.dft
   instance_name: engines
@@ -148,6 +210,42 @@ assignments:
   state: enabled
   topology_name: staging-a
   notes: Materials basis + engine-model layer (msci-0..24).
+- name: mathshapes@prf-a
+  module_name: mathshapes
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
+- name: meshassets@prf-a
+  module_name: meshassets
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
+- name: motors@prf-a
+  module_name: motors
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
+- name: odooconnect@prf-a
+  module_name: odooconnect
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
+- name: polariapps@prf-a
+  module_name: polariapps
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
+- name: pspp@prf-a
+  module_name: pspp
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
 - name: scorecard@psc-a
   module_name: scorecard
   instance_name: psc-a
@@ -166,6 +264,24 @@ assignments:
   state: enabled
   topology_name: staging-a
   notes: Multi-scale simulation framework.
+- name: supplychain@prf-a
+  module_name: supplychain
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
+- name: techtree@prf-a
+  module_name: techtree
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
+- name: waxprint@prf-a
+  module_name: waxprint
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: created via /api/topology/assign
 edges:
 - name: materialsScience.multiscale@prf-a->materialsScience.dft
   module_name: materialsScience.multiscale
@@ -185,6 +301,37 @@ edges:
   notes: "Multiscale FEM delegation \u2014 MSCI_ENGINES_URL seam today, registry-resolved\
     \ routing in top-7."
 connections:
+- name: odoo->odoo-postgres:db-credentials
+  interconnect_key: db-credentials
+  from_kind: odoo
+  to_kind: odoo-postgres
+  from_instance_name: odoo
+  to_instance_name: odoo-postgres
+  artifact: pol-odoo-postgres/odoo-postgres.env
+  topology_name: staging-a
+  notes: "One shared credential (mirrored into pol-odoo/odoo.env), volume-baked at\
+    \ first init \u2014 drift rescue in pol-odoo/README.md."
+- name: odoo->pol-keycloak:keycloak-client-secrets
+  interconnect_key: keycloak-client-secrets
+  from_kind: odoo
+  to_kind: pol-keycloak
+  from_instance_name: odoo
+  to_instance_name: shared-infra
+  artifact: KC client "odoo" (realm Polari) -> auth.oauth.provider rows, written by
+    pol odoo sso-setup (never a file)
+  topology_name: staging-a
+  notes: 'od-2 SSO: OIDC code flow via OCA auth_oidc; humans log in through auth.<domain>;
+    role->group mapping is MANUAL in v1.'
+- name: pol-proxy->odoo:nginx-proxy-config
+  interconnect_key: nginx-proxy-config
+  from_kind: pol-proxy
+  to_kind: odoo
+  from_instance_name: shared-infra
+  to_instance_name: odoo
+  artifact: .generated/nginx.staging.conf (suite)
+  topology_name: staging-a
+  notes: odoo.<domain> routes; VARIABLE proxy_pass so the proxy boots while the odoo
+    profile is down; /websocket -> :8072.
 - name: pol-proxy->psc-frontend:nginx-proxy-config
   interconnect_key: nginx-proxy-config
   from_kind: pol-proxy
@@ -194,6 +341,16 @@ connections:
   artifact: .generated/nginx.staging.conf (suite)
   topology_name: staging-a
   notes: suite-side subdomain routing + TLS termination.
+- name: prf-backend->odoo:erp-api-seam
+  interconnect_key: erp-api-seam
+  from_kind: prf-backend
+  to_kind: odoo
+  from_instance_name: prf-a
+  to_instance_name: odoo
+  artifact: (od-3, designed not built) odooconnect JSON-RPC
+  topology_name: staging-a
+  notes: "odooconnect module: pull free, push = knob + typed confirm; sim/ops handles\
+    \ never blur \u2014 designed, not built (od-3)."
 - name: prf-backend->prf-file-store:minio-credentials
   interconnect_key: minio-credentials
   from_kind: prf-backend
