@@ -1,3 +1,89 @@
+# ⚡ SESSION 2026-07-30/31: mag-22 LOCALLY PRODUCIBLE CLOCK ROUTE
+# SOLVED + DEPLOYED + LIVE-VERIFIED — read this section first
+
+## ✅ mag-22: A LOCAL ROUTE TO A WORKING CLOCK EXISTS
+## (framework 9b62b50 + rf-node pointer 2c48d77, dev-mag-a-magnetic-
+## materials; NOT pushed)
+
+Dustin: "a locally producible route to an electric motor clock that
+will work here, at least one solution to that." Everything before
+mag-22 ANALYSED a fixed design; `motors/local_route.py` SEARCHES.
+
+THE ANSWER (`GET /api/motors/producible-clock`):
+  1. FIRE the stator (opt-fired-ferrite-ceramic) and pinion
+     (opt-fired-ceramic) — a pottery kiln, cone 8-10.
+  2. PRESS + SINTER the rotor magnet from the recipe-seeded
+     SrFe12O19 powder, then magnetise. THE ONE DEMONSTRATION the
+     route rests on — carried as a named experiment, not relabelled
+     data.
+  3. WIND 15000 turns, not 1500 — 2.0 mA, on an ~83 mm2 bobbin
+     window (the design states 12 mm2 and holds NO candidate coil,
+     not even today's).
+Result: 4.03x a commercial wall movement, ~4.7 yr on one AA, vs 40x
+and 0.47 yr today. Copper wire is declared IMPORTED, never quietly
+counted as local.
+
+FOUR FINDINGS THAT CHANGED THE ANSWER — each from a check refusing:
+- THE STATED 20 mA WAS NEVER SOLVED FOR. `minimum_drive_current()`
+  bisects the EXISTING clock_sim step condition: 14.3 mA for present
+  materials. Every power figure we had rested on a guess.
+- A STRONGER MAGNET MAKES POWER **WORSE**. In a Lavet the magnet
+  that makes the torque also makes the detent (coil/detent 4.81 ->
+  3.42 going bonded -> sintered). Remanence buys structural margin
+  and COSTS current. The intuitive guess was backwards.
+- BOBBIN IS THE BINDING CONSTRAINT — hidden by MY OWN BUG:
+  turns_sweep read a `fits` key that does not exist on
+  winding_report, so `.get` defaulted True and non-fitting coils
+  were reported viable. ⚠ LESSON: when reading another module's
+  payload, VERIFY THE KEY EXISTS; `.get(k, True)` on a typo is a
+  silent false pass.
+- field-inert CHECKED PERMEABILITY BUT NOT REMANENCE. A sintered
+  magnet has mu_rec ~1.1 and sailed through; the search proposed a
+  PERMANENT MAGNET as the pinion. New `max-if-stated` test mode =
+  a DISQUALIFIER (silence is not evidence of guilt) vs `max` which
+  demands proof.
+
+ALSO: `flux-carrying` was binary at mu>=100, which declared no local
+stator possible — false, the M0 demonstrably steps at mu~2.2. Now
+GRADED (functional 1.5 / good 100) reporting the penalty. The
+rotor's magnetic role (`torque-magnet-active`) was MISSING, which is
+how copper passed as a rotor magnet.
+
+DATA: mu_r_eff added to 5 hard-magnet rows. alnico = 4.0 (the family
+EXCEPTION, ~2-6; ceramic and NdFeB are ~1.1) — stated per material
+because a family-wide value would be wrong there specifically.
+
+⚠ SEED-FIELD GOTCHA, 10th STRIKE: properties_json changes do NOT
+reach live rows. Backfilled by CRUDE PUT and DIFFED against the seed
+BEFORE declaring live. NOTE THE PAYLOAD SHAPE — it is not obvious:
+  PUT /<ClassName>  --form-string 'polariId=<id>'
+                    --form-string 'updateData={"field": "value"}'
+(CRUDE apiName is '/' + ClassName — there is NO /api prefix.)
+
+⚠ DEPLOY NOTE: the backend is a SWARM service. `docker restart` on a
+task makes swarm respawn from the IMAGE and your `docker cp` is
+LOST. Deploy = `pol node build backend --env staging` then
+`docker service update --force --image prf-backend:staging
+polari-node_backend`. Live host is `api.prf.192.168.0.210.nip.io`.
+
+TESTS: motors 200/200, magnetics 51/51, gears 62/62, meshassets
+36/36 — all IN CONTAINER. Endpoints live-verified:
+/api/motors/{local-route,producible-clock,turns-sweep} and
+/api/motors/product/{design} which now carries the route past its
+own blockers.
+
+NEXT ON THIS THREAD:
+- INDUCTANCE is the largest risk to the power claim and is NOT
+  modelled: 15k turns is many henries and a 30 ms pulse may not
+  reach final current. Treat the deep-turns end as an upper bound.
+- The M0 design row still states coil_turns 1500 / 12 mm2 window.
+  Either seed an M0b variant with the solved winding, or the route
+  stays a report rather than a design.
+- No frontend for mag-22 yet (the analysis is API-only).
+- mag-20 migration still unfinished: motor_stress, motor_fatigue,
+  contact_wear, lifecycle_cost still compute in Python instead of
+  calling evaluate_named().
+
 # ⚡⚡⚡⚡⚡⚡⚡⚡ SESSION 2026-07-28/29: TASK 1 DEPLOYED+API-VERIFIED,
 # MAGNETICS SECTION A BUILT (mag-1 + mag-2/2r/2t) — read this first
 
