@@ -114,6 +114,35 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## ⏰ mag-21 LIVE 2026-07-30: THE CLOCK AS A PRODUCT
+- ⚡ **"Is this a wristwatch?" — NO, and by the numbers.** The ROTOR
+  is watch-scale (2 mm), which is why the question is fair. But the
+  widest wheel is **180 mm** (so the movement alone is wider than a
+  pocket watch), it drives a 260 mm face, and **power settles it**:
+  20 mA for a 30 ms pulse at 1 Hz = 3% duty = **0.6 mA average**
+  against ~15 µA for a commercial wall movement and ~1 µA for a
+  watch — **40× a wall clock, 600× a watch**. A watch cell lasts
+  4 DAYS; an AA lasts **5.7 months** where a bought movement gives
+  years.
+- **The cause was already on record**: µ~2 castings make a coarse
+  detent needing mA where laminated steel needs µA. **The power
+  draw IS the permeability gap, arriving as a battery bill.**
+  `movement_class` says HOW to make it a watch (more, smaller
+  stages + close the permeability gap) rather than only saying no.
+- **`product_datasheet` composes NINE analyses** — classification,
+  power/battery, train, face, hand drive, BOM, winding, pinion
+  fatigue, true price — and computes nothing new on purpose. A
+  section that can't resolve reports its own absence, so the
+  product never looks complete when it isn't.
+- ⚡ **VERDICT: NOT SHIPPABLE**, three blockers named: pinion fails
+  fatigue at SF 0.39; power is 40× commercial; two parts can't be
+  costed/massed.
+- Headline: *a wall-clock movement driving a 260 mm face, 1.15 g of
+  parts, 0.6 mA average, 5.7 months on an AA.*
+- Honesty: composed caveats **COMPOUND** — it says it is a design
+  review, not a datasheet for a buyer.
+- `/api/motors/product/{design}`; selftest_motors 173 → **181**.
+
 ## 🧮 mag-20 LIVE 2026-07-30: PHYSICS AS CONFIGURATION, not code
 ⚠️ **Dustin's correction, and it was fair**: we have configurable
 equations + existing engines, so CONFIGURE and REUSE rather than
