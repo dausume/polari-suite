@@ -114,6 +114,40 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## 🧮 mag-20 LIVE 2026-07-30: PHYSICS AS CONFIGURATION, not code
+⚠️ **Dustin's correction, and it was fair**: we have configurable
+equations + existing engines, so CONFIGURE and REUSE rather than
+writing custom code — prevents bloat and duplication. mag-15..19
+hard-coded closed-form physics in Python while EquationDefinition
+rows and a sympy/LaTeX executor already existed.
+- **12 formulas now live as CONFIGURATION**: Hertz p_max + surface
+  tensile, SCG life (inverted AND forward), Weibull derate, Archard
+  wear, eddy loss, Maxwell pull, 2 planetary ratios, hand
+  imbalance, tooth load. Each carries LaTeX, what every symbol
+  MEANS, and what it returns. They seed as real EquationDefinition
+  rows and `evaluate_named` prefers the **LIVE row over the seed**,
+  so an edited formula takes effect **without a deploy**.
+- **The migration is VERIFIED, not asserted** — configured formulas
+  reproduce the Python numbers they replace (SCG life 200.85,
+  Weibull 0.5627, planetary 12.0), and those equalities are
+  selftests.
+- **What legitimately STAYS in code**, as a decision not an excuse:
+  refusals (policy, not arithmetic); **criterion selection** (von
+  Mises vs max-principal is a decision about WHICH formula
+  applies — exactly what a formula can't encode); role predicates;
+  units/plumbing; and calls into existing engines, because using
+  scikit-fem and re-implementing it are opposite acts.
+- ⚠ **LESSON**: bind π EXPLICITLY as a symbol. Left as `\pi` the
+  executor returns a symbolic expression — the first Hertz eval
+  came back `4180707·sqrt(1/pi)` instead of 2.36e6 Pa.
+- `/api/motors/equations` (catalog, and
+  `?evaluate=<name>&<symbol>=<v>`); selftest_motors 165 → **173**.
+- ⚠ **NOT FINISHED**: motor_stress / motor_fatigue / contact_wear /
+  lifecycle_cost still compute in Python. They should call
+  `evaluate_named`. This commit builds and PROVES the seam; it does
+  not complete the migration. **That is the next job on this
+  thread.**
+
 ## 🕰️ gr-6 LIVE 2026-07-30: planetary + WHAT SIZE CLOCK
 Dustin asked what a planetary driving all the hands looks like, and
 what size clock this motor is meant for. Three computed answers:
