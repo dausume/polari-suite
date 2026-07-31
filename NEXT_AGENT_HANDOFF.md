@@ -1,3 +1,44 @@
+# ➡️ HANDOVER TO FABLE 5 (2026-07-31): PART COMPOSITION +
+# CHARACTERISTIC EQUATIONS — read PART_COMPOSITION_HANDOVER.md FIRST
+
+Dustin is handing the next phase to Fable 5: new DATA STRUCTURES for
+part composition. The full context document is
+**`PART_COMPOSITION_HANDOVER.md`** at the suite root. Summary of what
+it carries:
+
+- **FOUR LEVELS**, distinguished by SEPARABILITY (not size):
+  part component (one material) -> part (components processed into
+  one whole, tunable toward a purpose, NOT meant to come apart) ->
+  sub-assembly -> assembly (members separable, interfaces designed).
+- **THE PROMOTION OPERATION** is the load-bearing idea: an assembly
+  can be PROCESSED into a part irreversibly (melt the screw; sol-gel
+  over a spooled winding). Promotion TRADES INTERFACE FAILURE MODES
+  FOR BULK ONES and spends repairability. Both sides showed up here
+  — the sol-gel stator is a real candidate whose blocker is exactly
+  the bulk mode it introduces (brittle film, a crack is a short).
+- **CHARACTERISTIC EQUATIONS BY LEVEL**, with emphasis on WHICH
+  VARIABLES CANCEL, because cancellation is what makes knobs
+  independent and tuning tractable. The M0 factors cleanly:
+  GAUGE->voltage, TURNS->battery life, WINDOW->turns, no cross terms.
+- **11 OBSERVED BEHAVIOURS** that constrain the design, each from
+  this arc: ratio-driven performance (a stronger magnet makes it
+  WORSE), objectives silently moving requirements, model regime
+  boundaries that do not degrade gracefully, square-law geometry
+  coupling, requirement-vs-disqualifier predicates, graded
+  thresholds, loops storable WITH their breaks, industrial specs
+  being economic rather than physical, per-property evidence levels,
+  fake cross-checks, and the seed-upsert gotcha (10 strikes).
+
+⚠ **Reuse, do not rebuild**: `part_roles.py` roles ARE the tags and
+already carry predicates — `screen_candidates` is the "relevant
+materials by tag" answer. 16 equations already exist as
+EquationDefinition rows via `physics_equations.py`. Full inventory
+table in §4 of the handover doc.
+
+⚠ **Design the seed UPSERT path before seeding composition rows.**
+The CRUDE-PUT-after-deploy workaround has held ten times and should
+not have to hold an eleventh.
+
 # ⚡ SESSION 2026-07-31 (cont 2): mag-25 SIMPLEST-CASE-FIRST +
 # wire-1 DRAWING STRAIN — deployed + live-verified. READ THIS FIRST.
 
