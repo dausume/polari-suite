@@ -67,6 +67,86 @@ gave up is indistinguishable from an assembly that was drawn badly.
 
 ---
 
+## 1.2 Worked example — three stator constructions (mag-26)
+
+Dustin's variant family, built and live-verified
+(`modules/motors/stator_construction.py`,
+`/api/motors/stator-variants`). Same functional part, three points on
+separability — **not** a difficulty ranking:
+
+| Construction | Level | Promoted interfaces | Separable | Repairable | Steps |
+|---|---|---|---|---|---|
+| **Simple** — enamelled wire on a spool | assembly | none | wire from spool | yes | 1 |
+| **Bound** — wound, then sol-gel over | **part (promoted)** | wire-to-wire, wire-to-spool | none | **no** | 3 |
+| **Layered bound** — grooved layers, bound per layer, snapped concentrically | **part with separable sub-parts** | wire-to-groove *within each layer* | layer from layer | no | 4 |
+
+### This settles open question §5.2 — promotion IS partial
+
+The layered variant is internally promoted **per layer** (wire fused
+into sol-gel, irreversible) while the layers themselves **snap apart**.
+One object, two separability regimes. So:
+
+> **Promotion attaches to a NAMED INTERFACE SET, never to a whole
+> assembly.**
+
+### What each promotion buys and spends
+
+Binding **deletes** turn-to-turn fretting and crossover abrasion
+outright — not reduces them, and a clock runs 3.2e8 cycles. It also
+makes the coil *structural*, so the bobbin flanges no longer carry the
+winding alone and can be thinner, giving back some of the window the
+coating cost. It **spends** repairability (whole cost now amortises
+over one life) and swaps interface failure for a bulk one: sol-gel
+silica is brittle, and a crack in a potted winding is a short.
+
+### The finding that came out of modelling it
+
+Layering is *for* fill factor — grooves force ordered packing, and fill
+multiplies turns directly (`turns = f·W/A_wound`). But groove **walls
+consume window**, and that is the mag-24 square-law again:
+
+> **Grooving beats scramble winding only while the wall stays under
+> ~14% of the WOUND wire diameter** — derived, not asserted. At 32 AWG
+> that is a 33 µm wall; at a realistic 50 µm the grooved winding is
+> *worse* than scramble (0.527 vs 0.600).
+
+And a second, sharper result about the snap-on geometry specifically:
+
+> **A layer that snaps on is a rigid floor, and rigid floors forbid
+> nesting.** Nested layers settle into the valleys below (radial pitch
+> 0.866·d, ceiling 0.907); layers on a rigid floor sit squarely (pitch
+> d, ceiling 0.785) *before any wall is charged*. The snap-on
+> construction therefore forfeits ~13% of the fill an ordered winding
+> would otherwise reach — most of the benefit it was adopted for.
+
+**So choose snap-on layering for per-layer INSPECTABILITY and yield —
+a defective layer is discarded instead of a whole coil — not for
+packing.** If packing is the goal, offset the grooves and let layers
+nest instead of snapping.
+
+### An unresolved conflict, recorded rather than glossed
+
+A snap fit needs **elastic deflection** to engage. Fired ceramic and
+geopolymer are **brittle** — they crack instead of flexing. This
+conflicts directly with the field-inert ceramic the spool otherwise
+wants, and nothing in this session resolves it. Either the snap
+features need a tougher material than the body (a two-material part),
+or the layers need a different retention scheme.
+
+### Requirements this adds to the model
+
+1. A construction variant is a **first-class alternative** of one
+   functional part, not a different part.
+2. Fill factor is a **property of the construction**, not of the wire —
+   scramble, ordered-on-rigid-floor, and ordered-nested are three
+   different numbers from the same components.
+3. Retention features (snap, groove) carry their own **material
+   requirements**, which may conflict with the body's. A part may need
+   more than one material for reasons that are not electrical.
+4. Process step **count** is a cost axis: 1 → 3 → 4 here, per layer.
+
+---
+
 ## 2. Characteristic equations, by level
 
 The point of levelling the equations is **tuning**: at each level a
@@ -329,9 +409,10 @@ predicate is a label, and labels do not screen.
 1. **Where does a part component's *process history* live?** Drawn-then-
    annealed copper differs from as-cast. Property + process, or
    process-derived property rows?
-2. **Can promotion be partial?** Potting a winding fixes the turns but the
-   bobbin may still slide on the core. Probably: promotion applies to a
-   *named interface set*, not the whole assembly.
+2. ~~**Can promotion be partial?**~~ **ANSWERED by mag-26 (§1.2): yes.**
+   The layered bound stator is promoted per layer while its layers stay
+   separable. Promotion applies to a *named interface set*, never to a
+   whole assembly.
 3. **How do characteristic equations compose across a promotion?** The
    assembly's interface equations must be *retired*, not merely ignored,
    or a stale wear calculation will keep answering.
