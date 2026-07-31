@@ -44,7 +44,8 @@ tuning order.**
 | goal-2 | The 4 winding relations as EquationDefinition rows; engine binds them and follows the matrix order | ✅ |
 | goal-3 | `goal_feasibility` + `scale_study`: three-way verdict **feasible / unassessed / blocked** (a gap is a measurement ask, never a finding), scored with goal weights, every blocker and gap NAMED | ✅ |
 | goal-4 | `/api/motors/goals`, `/goal/{name}`, `/scale-study?policy=` | ✅ |
-| goal-5 | Explorer page: scale ladder with verdict chips, blocker/gap cards, gauge-sweep table, per-archetype requirement cards; knob edits (weights, ceilings, priors) re-run the study | pending |
+| goal-5a / view-1 | **Discipline views as DATA** (`motors/clock_views.py`, framework 05edc20): 8 `ClockViewDefinition` rows — goal-explorer (any-scale) + mechanical (observable failure conditions w/ what-you-would-see, load cases, stress/fatigue/contact, tensor field as a NAMED gap) + electrical and magnetic as SEPARABLE views + materials-provenance/sourcing (accountability chain = the dependency trace) + mass + motion (clock sim + verification) + cost (lifecycle + cheapest config, provenance-driven). Sections dispatch into existing engines; refusals stay IN the payload; caller params modulate goal/scale/component/policy. `component_view` = one part, five disciplines. Routes `/api/motors/clock-views`, `/clock-view/{name}`, `/component-view/{part}`. Probe 32/32 live | ✅ |
+| goal-5b | The Angular page rendering the view rows: discipline tabs, scale/goal knob bar, component drill-in. The registry is data, so the page is ONE renderer | pending |
 
 ## What the first study says (seed priors — knobs, not verdicts)
 
