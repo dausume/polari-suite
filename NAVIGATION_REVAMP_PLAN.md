@@ -27,10 +27,34 @@
 > the opt-in `testing` module renders absent w/ amber bring-online
 > chip on the software-engineering app — nav-6's map-survives
 > behavior demonstrated on a real gap. Both themes verified.
-> **Next: nav-4 (clock-views sections lead with summaries + links
-> INTO sim-spaces/materials), nav-5 chips on /apps, nav-6 probe
-> (gate magnetics OFF, assert the app home still renders its tree +
-> affordances).**
+> **nav-4 + nav-5 + nav-6 COMPLETE, DEPLOYED + BROWSER-VERIFIED
+> (same day, cont 2) — THE REVAMP'S SIX PHASES ARE ALL DONE.**
+> nav-4: every clock-view section carries a seeded 2-3 line LEAD +
+> links-as-data into the visuals (motion/stress → motor-m0-viz,
+> magnetics → /magnetics/fields, sourcing → /magnetics/clock-motor);
+> the mass bill DERIVES per-part /materials/:name links from its
+> live payload; specialized tables + raw payload demoted into a
+> 'details & numbers' expander. Browser-verified on view-mass.
+> The tech-node ref was corrected to the NAMESPACED TechNode name
+> ('electronics/electromagnetic-systems') — caught by the probe,
+> and the ref change reached the live row via AppsNavSeed with
+> zero CRUDE PUTs (second live proof of the upsert path).
+> nav-5: 'I am a…' persona chips on /apps (?persona= deep-linkable
+> filter; arrow jumps to the discipline's first enabled study —
+> EE lands on /magnetics/motor, browser-verified); app-home chips
+> route back to the filtered /apps. nav-6:
+> tests/apps_nav_probe.py boots the real server with the ENTIRE
+> magnetics chain gated OFF — full nav renders, every gated item
+> absent w/ bringup + requires chain, tech-node survives, scoring
+> contrast enabled, legacy no-composition seed fallback proven;
+> 11/11 in-container (set POLARI_LAZY_BOOT=off in-process, else
+> the container knob defers seeding and everything 503s).
+> Suites: selftest_apps 45/45, selftest_motors 274/274.
+> **Remaining ideas beyond the plan:** durable ModuleAssignment
+> rows for the magnetics chain (apps show '0% placed' on staging-a
+> — enablement is env-var only, the tt-12 plan surface makes this
+> visible), and /tech-tree could read ?node= to focus the ref'd
+> node.
 
 ## 5. Pick-up instructions (exact)
 
