@@ -62,8 +62,19 @@
 > Verified live: derived == live env EXACTLY (18 modules),
 > app-magnetics plan readiness 0 → 1.0, stack render bakes the
 > derived env with pol-core constraints intact.
-> **Remaining idea beyond the plan:** /tech-tree could read ?node=
-> to focus the ref'd node.
+> **viz-1/2 (Dustin: specialized SIM SPACE displays on the views —
+> switch 3D visualizations and OVERLAP them) — DONE, same day:**
+> ClockSceneLayerDefinition rows (part-coloring | vector-field |
+> replay | markers), scene_json on every view,
+> /api/motors/clock-scene/{view}, and a clock-scene canvas atop
+> /magnetics/clock-views: one WebGL context, layer chips that
+> switch with the discipline tab and STACK (stress coloring +
+> B-field + replay verified together in the browser). Refused
+> layers stay as struck chips with reasons. motors 285/285.
+> **Remaining ideas beyond the plan:** /tech-tree could read ?node=
+> to focus the ref'd node; marker positions could derive from
+> shape-row geometry; retire the motor-view GEOMETRIES table +
+> clock-motor BODY_OF_PART now that layer data carries both.
 
 ## 5. Pick-up instructions (exact)
 
