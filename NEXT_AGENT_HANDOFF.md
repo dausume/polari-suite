@@ -114,6 +114,44 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## 🎭 mag-17 LIVE 2026-07-30: ACTIVE ROLES BY DOMAIN
+Dustin: parts perform generic ACTIVE roles; moving parts need all
+stresses+fatigue; a colliding gear tooth is its own role; a
+mechanical part in a magnetic motor must not interact with the
+fields. Then: isolate roles by CATEGORY, with INTERSECTIONAL ones.
+- Roles carry a **DOMAIN** (mechanical / magnetic / electrical /
+  thermal / intersectional); a part is judged against the **UNION**
+  of its roles. The same property is demanded in OPPOSITE
+  directions by different domains — `flux-carrying` wants mu>=100,
+  `field-inert` wants mu<=1.2 — so one material is excellent in one
+  role and disqualified in another. That is the point.
+- **INTERSECTIONAL exists for a real reason**: brass fails a strict
+  field-inert test on conductivity, yet every real clock uses a
+  brass pinion — because it sits OUTSIDE the gap where dB/dt is
+  small. That is GEOMETRY, which a property-only screen cannot
+  argue. So `field-buffered` **demands `field_buffer_mm` be stated
+  on the part row** — otherwise the role is a loophole, not an
+  argument.
+- ⚡ **FIXES the copper-pinion bug**: copper is now UNVIABLE on
+  hardness (50 HV brinells as a tooth face). LIVE pinion viable set
+  = fired ceramic, alumina, **brass** — what real movements use.
+- ⚡ **GALVANIZED BIO-STEEL, both axes**: **VIABLE for the stator**
+  (mu~2000 = three orders better flux path than our mu~2 castings,
+  AND a real fatigue endurance limit no brittle casting has);
+  **UNVIABLE for the pinion** (ferromagnetic + conductive). Same
+  material, opposite verdicts, decided by the ROLE.
+- **BIO ROUTES, not overclaimed**: biochar-reduced iron is real and
+  historically the ONLY route, but the ZINC is not bio-produced
+  (bioleaching RECOVERS zinc from tailings) — so it is bio-CARBON
+  steel. Copper IS bio-reachable: Acidithiobacillus bioleaching is
+  ~20% of world production and the **biomining module already
+  seeds that agent** — so "bioleached copper", not "bio brass".
+- `/api/motors/{roles,role-screen}/{part}`; selftest_motors 137 →
+  **145**.
+- NEXT on roles: Hertzian contact stress, eddy-drag at the stated
+  buffer, and wear — all three are NAMED in the role definitions as
+  not-built rather than silently skipped.
+
 ## ♻️ mag-16 LIVE 2026-07-30: FATIGUE reverses the static answer
 - A clock steps ONCE PER SECOND = 3.2e8 cycles in ten years. TWO
   models, because the physics differs by class:
