@@ -1,34 +1,46 @@
 # Navigation revamp — apps with coherent per-topic navigation
 
-> **HANDOFF STATE 2026-07-31 (Fable 5, token-conscious stop per
-> Dustin).** nav-0 decided (§4). nav-1 STARTED and committed:
-> `PolariAppDefinition` gained `nav_json` / `personas_json` /
-> `discipline` (backward-compatible defaults) and `apps_seed.py`
-> gained `_app(..., nav, personas, discipline)` + `_grp`/`_it`
-> helpers. polariapps selftest 20/20. **Next agent picks up at §5.**
+> **HANDOFF STATE 2026-07-31 (Fable 5, cont).** nav-0 decided (§4).
+> nav-1 COMPLETE, DEPLOYED + LIVE-VERIFIED: fields + helpers, EIGHT
+> discipline apps seeded (the six below PLUS `app-software-
+> engineering` and `app-topology-network` — Dustin 2026-07-31:
+> "customize displays and no-code or classes" / "Topology with
+> Network and Cloud engineering"), polariapps seeds wired through
+> the composition upsert path (`AppsNavSeed` block), and all 11
+> live rows verified carrying nav_json/personas_json/discipline.
+> selftest_apps 33/33 local + in-container; composition 75/75.
+> Two live-caught gotchas recorded in §5.1. **Next: §5 step 3
+> (nav-2 API) onward.**
 
 ## 5. Pick-up instructions (exact)
 
-1. **nav-1 remainder** — in `polariapps/apps_seed.py`, add six
-   discipline apps using `_grp`/`_it` (kinds: page | simspace |
-   view | tech-node): `app-magnetics` (groups: Studies → /magnetics/
-   motor, /sim-spaces/motor-m0-viz (simspace), /magnetics/clock-views
-   (view, requires composition), /magnetics/fields, /magnetics/
-   clock-motor; Tree → electromagnetic-systems tech-node),
-   `app-mechanical` (gears, composition mechanical view, stress/
-   fatigue studies), `app-materials-science` (msci groups + a PSPP
-   group holding the 11 existing pspp routes + multi-scale-sims),
-   `app-business` (business/odoo, business/start, bizops),
-   `app-policy` (dmvdata sources, maps, scoring epistemics; PSC
-   splice = future group), `app-scorecards-data-analysis` (scoring,
-   scoring/accountability, scoring/survival + workbench group
-   linking datasets/graphs/tables). Personas per §4.4.
-2. **⚠ Seed path**: polariapps rows currently seed INSERT-ONLY, so
-   the new fields will NOT reach the three existing live rows (the
-   ten-strikes gotcha). Wire `polariapps` seeds through
-   `composition.seed_upsert.upsert_seed_pairs` in polariServer's
-   seed pass (same guarded block pattern as CompositionSeed /
-   ScaleGoalsSeed), gated on both modules being available.
+1. ~~**nav-1 remainder**~~ ✅ DONE (framework `eaa7db1`+`8df3dad`+
+   `86c4099`): six planned discipline apps seeded per spec, plus
+   `app-software-engineering` (Build: create-class/custom-no-code/
+   displays/equations/matrices; Inspect: typing/manager/api-config/
+   profiler/diagnostics + /testing gated on `testing`) and
+   `app-topology-network` (Topology, Modules & deployment, tech
+   trees; personas network-engineer + cloud-engineer). Catalog
+   items ride `/class-main-page/:class`; every route verified
+   against the Angular router.
+2. ~~**⚠ Seed path**~~ ✅ DONE: `AppsNavSeed` guarded block in
+   `polariServer._seedSimSpace3D` (composition+polariapps gated);
+   legacy insert pass kept as no-composition fallback.
+   `PolariAppDefinition` gained `is_prior`.
+
+### 5.1 Gotchas caught live during nav-1 (both now pinned in tests)
+
+- **Local imports shadow module-level seed names**: re-importing
+  `PolariAppDefinition`/`SEED_POLARI_APPS` inside `_seedSimSpace3D`
+  made them function-local everywhere → the legacy seed list
+  crashed the admission worker (UnboundLocalError) on the first
+  deploy. Import only what is not already module-level.
+- **`is_prior=None` is a NULL backfill, not a human's mark**: rows
+  predating the column restore with None; `not is_prior` skipped
+  them as "customized" — exempting exactly the legacy rows the
+  upsert exists to converge. seed_upsert now blocks only on an
+  EXPLICIT False/0 (composition selftest pins it).
+
 3. **nav-2** — new `polariapps/apps_nav.py`: `apps_nav(manager)` /
    `app_nav_report(manager, name)`. Availability per item is a
    TRI-STATE (enabled | absent | unknown) derived via
