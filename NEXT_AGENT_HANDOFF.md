@@ -114,6 +114,31 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## 🔬 mag-18 LIVE 2026-07-30: contact / wear / eddy — roles delivered
+The three analyses mag-17's roles NAMED as not-built are now built.
+- **CONTACT** (colliding role): Hertz line contact. The whole tooth
+  load rides a **0.42 micron** patch at 2.5 MPa — that concentration
+  IS why the role demands hardness over bulk strength. A brittle
+  tooth is judged by the **surface TENSILE stress at the trailing
+  edge** (0.50 MPa), not peak pressure, which is compressive and
+  would flatter a ceramic 10-20x. On that criterion contact PASSES
+  at SF 8.0 — so contact is not the threat here; fatigue is.
+- **WEAR** (sliding role): Archard as a **BAND**, because k spans
+  SIX orders across pairs/lubrication. ⚡ A **dry cast-on-cast**
+  pinion loses **0.15-1.5 mm³ in ten years against a ~7 mm³ part**
+  — the upper band is a FIFTH OF THE PINION. Lubricated metal is
+  ~4 orders better: why clock pivots are oiled, and a second
+  independent argument for brass.
+- **EDDY DRAG** (field-buffered role): evaluated AT THE STATED
+  BUFFER, as promised. At 2.6 mm the field falls to 0.057x and —
+  since loss goes as **B²** — the loss to 0.0032x = 1.3e-18 W/m³,
+  negligible. The buffer argument holds quantitatively. Weakest
+  link NAMED: the 1/r³ decay is an approximation; the upgrade is to
+  read B from the mag-fv field views. A part with no stated
+  `field_buffer_mm` REFUSES the check.
+- `/api/motors/contact/{design}/{part}`; selftest_motors 145 →
+  **155**.
+
 ## 🎭 mag-17 LIVE 2026-07-30: ACTIVE ROLES BY DOMAIN
 Dustin: parts perform generic ACTIVE roles; moving parts need all
 stresses+fatigue; a colliding gear tooth is its own role; a
