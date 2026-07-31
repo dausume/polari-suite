@@ -50,11 +50,20 @@
 > 11/11 in-container (set POLARI_LAZY_BOOT=off in-process, else
 > the container knob defers seeding and everything 503s).
 > Suites: selftest_apps 45/45, selftest_motors 274/274.
-> **Remaining ideas beyond the plan:** durable ModuleAssignment
-> rows for the magnetics chain (apps show '0% placed' on staging-a
-> — enablement is env-var only, the tt-12 plan surface makes this
-> visible), and /tech-tree could read ?node= to focus the ref'd
-> node.
+> **mod-env (Dustin: "make it a real module, not an env-var
+> outlier") — DONE, same day:** module enablement is topology ROWS.
+> 13 env-only modules assigned to prf-a; `modules_env_for_instance`
+> + GET /api/topology/modules-env/{instance} derive POLARI_MODULES
+> from enabled ModuleAssignment rows with the registry requires
+> closure (zero rows REFUSES — empty env would boot monolithic);
+> `pol swarm render|deploy node` derives it (a pre-set env var is a
+> loudly-warned override); `pol topology modules-env` reads it; the
+> CLI's core-api transport now reaches the swarm backend task.
+> Verified live: derived == live env EXACTLY (18 modules),
+> app-magnetics plan readiness 0 → 1.0, stack render bakes the
+> derived env with pol-core constraints intact.
+> **Remaining idea beyond the plan:** /tech-tree could read ?node=
+> to focus the ref'd node.
 
 ## 5. Pick-up instructions (exact)
 
