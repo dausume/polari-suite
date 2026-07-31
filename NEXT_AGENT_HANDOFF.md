@@ -114,6 +114,39 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## 💰 mag-19 LIVE 2026-07-30: THE TRUE PRICE per lifespan unit
+Dustin: cheapest is not instantaneous cost — determine the most
+sensible LIFESPAN UNIT for a product, then cost per one of those.
+Upfront matters on a low budget / urgent use; lifetime usage is the
+true price. BOTH are computed and BOTH kept.
+- **STEP 1, the unit, is the modelling decision** and its reasoning
+  travels on every report. A clock produces TIME KEPT →
+  `year-of-timekeeping`; NOT runtime hours (it never stops) and NOT
+  mass (it consumes nothing). Also seeded: rotating-machine →
+  million-revolutions, gear-train → million-tooth-engagements,
+  mould → casts (what mold-1 already records), vessel →
+  growing-seasons. An undefined kind REFUSES.
+- **STEP 2, life**: the brittle fatigue law is **INVERTED** —
+  N_fail = (S/s)^n with S Weibull-derated first — instead of
+  passing/failing a fixed horizon.
+- ⚡ **THE HEADLINE**: the cast geopolymer pinion costs **1 cent
+  upfront** and needs **~1.58 MILLION replacements in ten years** →
+  a true price near **$1600 per year-of-timekeeping**. The cheapest
+  part is by far the most expensive product. Fired ceramic: 8 cents
+  upfront, **$0.008/year** — five orders cheaper to OWN while 8×
+  dearer to BUY.
+- Candidates are **ROLE-SCREENED first** (mag-17): a material that
+  cannot do the job is not made a bargain by being cheap. Both
+  orderings are produced so they CAN disagree, and disagreement is
+  reported as the finding.
+- **Two honesty guards**: extrapolation CAPPED at 1e12 cycles (n=45
+  on a 6× margin predicts 1e85 — arithmetic, not knowledge; past
+  the cap the honest statement is "not fatigue-limited"), and
+  capped/prior-based lifespans are FLAGGED so an unearned number
+  cannot quietly win. Trust the ORDERING, not the absolute value.
+- `/api/motors/true-price/{design}/{part}`; selftest_motors 155 →
+  **165**.
+
 ## 🔬 mag-18 LIVE 2026-07-30: contact / wear / eddy — roles delivered
 The three analyses mag-17's roles NAMED as not-built are now built.
 - **CONTACT** (colliding role): Hertz line contact. The whole tooth
