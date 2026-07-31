@@ -9,8 +9,28 @@
 > the composition upsert path (`AppsNavSeed` block), and all 11
 > live rows verified carrying nav_json/personas_json/discipline.
 > selftest_apps 33/33 local + in-container; composition 75/75.
-> Two live-caught gotchas recorded in §5.1. **Next: §5 step 3
-> (nav-2 API) onward.**
+> Two live-caught gotchas recorded in §5.1.
+>
+> **nav-1b + nav-2 + nav-3 COMPLETE, DEPLOYED + BROWSER-VERIFIED
+> (same day, cont).** Dustin: apps must leverage BOTH the top and
+> side menus, with a base top+side nav preserved for entering apps
+> and the higher-level views. Built: `top_menu` group placement
+> (side menu = always the complete map; top groups additionally
+> become header dropdowns; 10 groups promoted), `apps_nav.py` +
+> `/api/apps/nav(+/{app})` (tri-state enabled|absent|unknown,
+> bringup affordances w/ requires chain, server-computed per-module
+> strip, synthesized Pages group for use-case apps, persona index;
+> selftests 45/45), and the shell: header Apps switcher + Core menu
+> (always present), app pill + topMenu dropdowns in context,
+> side-nav `app-nav-panel` above a collapsible "Polari core"
+> expander, `/app/:name` home, `/magnetics` redirect. Live-caught:
+> the opt-in `testing` module renders absent w/ amber bring-online
+> chip on the software-engineering app — nav-6's map-survives
+> behavior demonstrated on a real gap. Both themes verified.
+> **Next: nav-4 (clock-views sections lead with summaries + links
+> INTO sim-spaces/materials), nav-5 chips on /apps, nav-6 probe
+> (gate magnetics OFF, assert the app home still renders its tree +
+> affordances).**
 
 ## 5. Pick-up instructions (exact)
 
