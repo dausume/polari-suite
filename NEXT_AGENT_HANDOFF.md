@@ -114,6 +114,38 @@
   3D page (reuse the mag-7 single-renderer pattern), gr-6
   planetary/worm algebra, gr-7 business+tech-tree splice.
 
+## 🕰️ gr-6 LIVE 2026-07-30: planetary + WHAT SIZE CLOCK
+Dustin asked what a planetary driving all the hands looks like, and
+what size clock this motor is meant for. Three computed answers:
+1. **Planetary table is now DATA** (gr-1 refused to guess it): which
+   member is HELD sets ratio AND direction — ring-fixed
+   `1+N_r/N_s` (workhorse), sun-fixed `1+N_s/N_r` (mild),
+   carrier-fixed `-N_r/N_s` (**REVERSED**, and the minus is the
+   point). Buildability CHECKED: planet must fit the annulus as a
+   whole tooth count, and equal spacing needs (ring+sun) % planets
+   == 0. A 12:1 set is sun 12 / planet 60 / ring 132.
+2. ⚡ **But a planetary is probably WRONG here**, by numbers not
+   taste: that 12:1 needs a ring **11× the sun diameter**. The
+   classical **MOTION WORKS** gets the same exact 12:1 from two
+   small offset meshes (12→36, 10→40 = 3×4) and is **already
+   concentric** — the hour wheel rides as a TUBE over the cannon
+   pinion. Coaxial output is what a planetary would be chosen for,
+   and the motion works already has it, more compactly.
+3. ⚡ **THE SIZE ANSWER, from our own torque**: an unbalanced hand
+   is T = m·g·r_cg. At the 1.7e-3 Nm this train delivers — 100 mm
+   hand SF 4.8 ✓, 120 mm the longest clearing SF 3, 150 mm SF 2.2
+   ✗, 200 mm SF 1.2 ✗. **A face ~260 mm across: an 8–10 inch WALL
+   CLOCK, not a tower clock.**
+   **Counterbalancing more than doubles it (~620 mm)** — a balanced
+   hand has ~zero gravity imbalance, leaving only bearing friction,
+   which is why large dials use counterweighted hands. A knob, not
+   an assumption.
+- NOT modelled and named: hand aerodynamics, and **STICTION** — the
+  real limit, because a stepper must break it EVERY step and a
+  missed step never catches up.
+- `/api/gears/{planetary,clock-face/{train}}`; selftest_gears 53 →
+  **62**.
+
 ## 💰 mag-19 LIVE 2026-07-30: THE TRUE PRICE per lifespan unit
 Dustin: cheapest is not instantaneous cost — determine the most
 sensible LIFESPAN UNIT for a product, then cost per one of those.
