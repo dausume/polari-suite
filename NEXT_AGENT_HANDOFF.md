@@ -1,3 +1,57 @@
+# ➡️ HANDOFF (2026-08-01): BEGIN M1 — read M1_PLAN.md FIRST, start m1-1
+
+**Pick-up**: `M1_PLAN.md` at the suite root is the complete plan.
+Start at **m1-1 (the sequencing solver, `modules/motors/m1_sequencing.py`)**
+and follow the phase order; §1 lists what M1 already has (design row
+`reluctance-6s4p-m1`, scene `motor-m1-viz`, part rows, torque curve,
+simplefoc profile) — extend, do not invent. §2 fixes the file layout;
+§4 is the honesty ledger to carry from day one. Branch: continue
+`dev-arch-part-composition` ×4 repos (polari-cli has its own branch of
+that name), or a fresh `dev-m1-reluctance` off it if Dustin prefers.
+
+## What this session finished (all LIVE + verified, NOT pushed)
+The whole navigation revamp (nav-0..6: 8 discipline apps, top+side
+menus, /api/apps/nav tri-state, absent-module probe), module
+enablement as ROWS (never `--env-add` again — `pol topology
+modules-env`), layered 3D clock scenes (8 stackable layer kinds),
+the Lavet AIR GAP fix, the WINDING as a parity-pinned matrix-equation
+math object + the spool→bobbin→gear COUPLED CASCADE + the toothed
+gear (undercut/tip refusals), the ISOLATED gear-train scene w/ solved
+motion + hands w/ orientation vectors, the GENUINE assembly (real
+masses; counterweighted seconds hand DRIVABLE) + the TIMEKEEPING
+PROOF (exact live; weak drive loses exactly its missed seconds),
+**M0 COMPLETE AS A PRODUCT** (clock-lavet-m0b, mag-25 winding
+verbatim, datasheet verdict "every composed check passes" — ZERO
+blockers, was NOT-SHIPPABLE ×3) with pure-local + commercial
+sourcing routes, 5 bizops workflows + ProductFormula + sell-iterate
+loop, the W2 BENCH CAMPAIGN (5 live-bound predictions + record-back
+seams — the physical build is M0's only remaining act), TWO NEW
+TREES (electric-motors ladder incl. M2b brushed = the drill;
+manufacturing-devices bootstrap chain clock→printer→hoist→drill→
+mini-traction→train), and DISTRIBUTED TRACTION as math (per-axle
+sweep + adhesion ceiling). Suites at handoff: motors 330/330,
+gears 68/68, winding+gear 31/31, techtree 74/74, apps 45/45,
+bizops 85/85; probes apps_nav 11/11.
+
+## Operational facts a fresh agent needs (details in memory files)
+- Deploy: `pol node build backend|frontend --env staging` +
+  `docker service update --force --image prf-…:staging
+  polari-node_<svc>`; NEVER docker cp+restart; in-container server
+  listens on :3000; module admission takes ~5-7 min after a roll
+  (endpoints 503 honestly meanwhile — poll, do not panic).
+- Seeds: wire ANY new/changed seed table through the upsert path
+  (guarded blocks in polariServer `_seedSimSpace3D`; ClockAssembly/
+  Product/GearScene/V2Shape/AppsNav/ScaleGoals precedents). Brand-new
+  rows can drop a field on FIRST boot (shape_units/function flavor)
+  — a respawn heals it via the upsert; check before debugging.
+- In-process probes: set POLARI_LAZY_BOOT=off or everything 503s.
+- Don't re-import module-level seed names inside `_seedSimSpace3D`
+  (UnboundLocalError crashed a deploy once).
+- Two-modules-agree: any fact stated twice gets a guard test.
+- In-container selftests: docker cp the module into the running
+  task + `python3 -m <module>.selftest_…` (test-only; discarded on
+  respawn — deploys still go through the image).
+
 # ➡️ HANDOVER TO FABLE 5 (2026-07-31): PART COMPOSITION +
 # CHARACTERISTIC EQUATIONS — read PART_COMPOSITION_HANDOVER.md FIRST
 
