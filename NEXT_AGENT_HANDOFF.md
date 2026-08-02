@@ -1,9 +1,87 @@
-# ➡️ START HERE (2026-08-02): read M2_PLAN.md and execute it —
-# Part A (cons-2 roll+legend, cons-3 adopt exact overlap) then
-# m2-1..8. The plan is written for ANY model: decisions
-# pre-made, copy-from files named, DO/DON'T box up top.
-# All repos consolidated on dev + pushed 2026-08-02;
-# push tool: polari-cli/shells/push-all-dev.sh (dry-run/--push).
+# ➡️ START HERE (2026-08-02, session 2): M2 IS BUILT — cons-2,
+# cons-3 and m2-1..8 are DONE, committed on dev through the
+# pointer chains, NOT pushed. NEXT WORK IS DUSTIN'S NEW ASK:
+# CO2 + human health analysis page, and the XPT ingest under it
+# (see "NEXT: THE CO2 WORK" below). M3_PLAN.md stays queued
+# behind that.
+# Push tool: polari-cli/shells/push-all-dev.sh (dry-run/--push).
+
+## What this session finished (M2, the PM rung)
+
+**cons-2**: the M1 shaft/coil material fixes are LIVE and the
+materials legend renders three real swatches with no
+'(unresolved)' (browser-verified).
+
+**cons-3 — THE ADOPTION CAUGHT THE GEOMETRY.** The m1-1 solver
+now runs on the EXACT tooth/pole arc overlap. A smooth
+first-harmonic stand-in gives every geometry torque everywhere,
+so it had been hiding a machine that could not start: the seeded
+tooth arc was 27.55 deg against a 30 deg step angle, meaning
+ZERO overlap exactly where each step begins (4 of 12 steps
+landed). That is the textbook SRM arc rule, now a live report
+(`/api/motors/m1-arc-rule`, a card on the M1 magnetics view) and
+a suite guard. Arcs widened to 32.02 / 36 deg; tooth_area_m2
+followed the geometry (4e-5 -> 4.718e-5); pull-in/holding moved
+0.32 -> 0.17; GEAR_RATIO 304 -> 265 with the guard tightened to
+EQUALITY.
+Second finding, free: the exact profile has a flat zero-torque
+alignment `beta_r - beta_s` wide, so rest is a BAND. One-way
+steps stay exact (proven by running the control at 2N steps —
+same error, not double), but a REVERSAL costs the band as
+backlash: 0.0138 mm on the printer axis, inside the 0.2 mm
+tolerance row, and now a bench entry a printed protractor can
+falsify (no material property enters the prediction).
+
+**m2-1..8**: `m2_rotation` (synchronous solver — load angle
+delta = phi_c + gamma - phi_r, torque as sin(delta), pull-out at
+90 deg, k_e derived from the same magnet MMF and loop reluctance
+the torque uses), `m2_scene`/`m2_views` (six view rows, five
+layers, NO new mechanism), `m2_composition` (one designed gap
+where M1 had two; the rotor already promoted BY BOND not by
+mold; the winding fork INHERITED by reference; op-m2-magnetize
+last), `m2_lift` (THE LIFT PROOF), `m2_product`, the m2 bench
+sheet, nav rows, and `selftest_m2` (77/77).
+
+Numbers worth knowing: the bare motor STALLS on the sketched
+30:1 worm (5.69x short) and names the 6:1 stage that closes it;
+as shipped it lifts at 66 deg of load angle; it HOLDS WHEN DEAD
+because the worm self-locks, never because of cogging (the model
+predicts exactly zero cogging by construction and the payload
+refuses to borrow any). And the reduction creates a contradiction
+that is NAMED rather than buried: 180:1 total demands 92x the
+commutation rate the design row assumes — either the crucible
+rises 92x slower, or the drive commutates faster than anything on
+this rung has shown. Only the bench can say which.
+
+Suites: selftest_m2 77/77 (new), m1 98/98, motors 331/331,
+composition 75/75, apps 45/45, gears 68/68, techtree 74/74,
+magnetics 51/51, shape-equations 16/16, bizops 85/85.
+
+## NEXT: THE CO2 WORK (Dustin, 2026-08-02, queued mid-session)
+
+> "look into implementing the capability to ingest xpt file
+> format data from api's. Particularly Bicarbonate data per year
+> from the CDC... also carbon dioxide levels indoors increasing
+> over time, and carbon dioxide in ppm and partial pressure in
+> the means it affects the lungs. And then also velocity and
+> acceleration of co2 over time. And also rates of decline in
+> carbon sinks. We will want to make an overall page for
+> analysis of co2 and the way it is affecting human health. We
+> should also indicate different thresholds on that page for
+> human health impacts. Like when 800 or 1000 ppm outdoors will
+> be reached, or when it became the norm for 1000 ppm inside to
+> be the norm from ventilation, and when we will hit more health
+> thresholds. A page pulling from official sources to analyze
+> this. That is the next task to tackle"
+
+Two pieces: (1) an XPT/SAS-transport ingest capability for
+official APIs (CDC NHANES serum bicarbonate by year is the
+driver), (2) the CO2-and-health analysis page — ppm AND partial
+pressure, first and second derivatives of the CO2 record,
+carbon-sink decline rates, and threshold crossings with dated
+projections. Reuse the existing source/trust/provenance stack
+(dmvdata's source rows are the closest precedent) rather than
+inventing a second one.
 
 # ➡️ HANDOFF (2026-08-01, session 2): M1 BUILT OUT THE M0 WAY —
 # m1-1..8 COMPLETE, DEPLOYED, 9/9 LIVE PROBES + BROWSER PASS DONE
