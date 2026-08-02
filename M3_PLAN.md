@@ -1,5 +1,7 @@
 # M3 — dual-stator axial flux, built out the M0/M1 way
-# (with the consolidation that makes the handoff clean FIRST)
+# ⚠ SUPERSEDED IN ORDER (Dustin 2026-08-02): M2 comes FIRST — see
+# M2_PLAN.md (which also owns the consolidation Part A). This
+# file's Part B remains the M3 pick-up for after m2-8.
 
 > **Dustin 2026-08-02**: "should we move on to m3? Make a plan for
 > moving forward or on how we should consolidate work first before
