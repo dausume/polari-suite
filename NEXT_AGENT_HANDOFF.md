@@ -75,31 +75,59 @@ holds: a live pass finds what suites cannot):
    known shapes). Both proofs now emit a `headline` list and the
    renderer tables it, shape-gated like the rest.
 
-## NEXT: THE CO2 WORK (Dustin, 2026-08-02, queued mid-session)
+## ➡️ NEXT WORK: CLIMATE CHANGE & ATMOSPHERE APP
+## READ `CO2_HEALTH_PLAN.md` — it is the complete plan
 
-> "look into implementing the capability to ingest xpt file
-> format data from api's. Particularly Bicarbonate data per year
-> from the CDC... also carbon dioxide levels indoors increasing
-> over time, and carbon dioxide in ppm and partial pressure in
-> the means it affects the lungs. And then also velocity and
-> acceleration of co2 over time. And also rates of decline in
-> carbon sinks. We will want to make an overall page for
-> analysis of co2 and the way it is affecting human health. We
-> should also indicate different thresholds on that page for
-> human health impacts. Like when 800 or 1000 ppm outdoors will
-> be reached, or when it became the norm for 1000 ppm inside to
-> be the norm from ventilation, and when we will hit more health
-> thresholds. A page pulling from official sources to analyze
-> this. That is the next task to tackle"
+Dustin queued this mid-session and then twice widened it. The
+final shape (his words, in order):
 
-Two pieces: (1) an XPT/SAS-transport ingest capability for
-official APIs (CDC NHANES serum bicarbonate by year is the
-driver), (2) the CO2-and-health analysis page — ppm AND partial
-pressure, first and second derivatives of the CO2 record,
-carbon-sink decline rates, and threshold crossings with dated
-projections. Reuse the existing source/trust/provenance stack
-(dmvdata's source rows are the closest precedent) rather than
-inventing a second one.
+1. "implementing the capability to ingest xpt file format data
+   from api's. Particularly Bicarbonate data per year from the
+   CDC... also carbon dioxide levels indoors increasing over
+   time, and carbon dioxide in ppm and partial pressure in the
+   means it affects the lungs. And then also velocity and
+   acceleration of co2 over time. And also rates of decline in
+   carbon sinks. We will want to make an overall page for
+   analysis of co2 and the way it is affecting human health. We
+   should also indicate different thresholds on that page for
+   human health impacts. Like when 800 or 1000 ppm outdoors will
+   be reached, or when it became the norm for 1000 ppm inside to
+   be the norm from ventilation, and when we will hit more health
+   thresholds. A page pulling from official sources to analyze
+   this."
+2. "we should also implement tracking of different known health
+   thresholds of co2 and derive the times we would hit those
+   thresholds for both indoor and outdoor levels based on
+   analyzing trends in influence on co2 levels indoor and outdoor
+   together with co2 velocity and acceleration."
+3. "we should probably actually make a Climate Change &
+   Atmosphere App, and we will want to turn all of this data with
+   it's sources into real polari objects we can use down the road
+   with simulations."
+
+So it is an APP + an OBJECT MODEL + the CO2/health study on top —
+not a page. The plan's §-1 states that shape; §1 is the object
+model; §7 is the coupled indoor/outdoor crossing projection (the
+heart); §9b is the app row and nav.
+
+**Three things a fresh agent should not have to rediscover:**
+- 🔑 THE INDOOR EQUATION ALREADY EXISTS.
+  `aquaponics/atmosphere_analysis.py::environment_gas_exchange`
+  solves steady-state indoor CO2 under ventilation for a crop
+  that DEPLETES it. A room full of people is the same equation
+  with the sign flipped. Generalize it with a signed source term;
+  do not write a second CO2 mass balance.
+- Provenance machinery exists: `GovSource` + `SourceRetrieval`
+  (dmvdata) and the `census_pull.py` ingest shape (injectable
+  fetcher, redacted URLs). Reuse both.
+- ⚠ EVERY NUMBER IN THE PLAN IS A PLACEHOLDER the plan's author
+  could not verify (no network). Thresholds, growth rates, NHANES
+  column names — all of them. The plan's top rule is that the
+  ingest is what makes them real, and that engines REFUSE to
+  project from an unfetched series. This is health information;
+  a confidently wrong page is the failure mode.
+
+M3_PLAN.md (the axial-flux rung) stays queued behind this.
 
 # ➡️ HANDOFF (2026-08-01, session 2): M1 BUILT OUT THE M0 WAY —
 # m1-1..8 COMPLETE, DEPLOYED, 9/9 LIVE PROBES + BROWSER PASS DONE
