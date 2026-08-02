@@ -1,9 +1,11 @@
 # ➡️ START HERE (2026-08-02, session 2): M2 IS BUILT — cons-2,
 # cons-3 and m2-1..8 are DONE, committed on dev through the
-# pointer chains, NOT pushed. NEXT WORK IS DUSTIN'S NEW ASK:
-# CO2 + human health analysis page, and the XPT ingest under it
-# (see "NEXT: THE CO2 WORK" below). M3_PLAN.md stays queued
-# behind that.
+# pointer chains, deployed, 25/25 live probes, browser-verified.
+# NOT pushed.
+#
+# NEXT WORK: the CLIMATE CHANGE & ATMOSPHERE APP —
+# read CO2_HEALTH_PLAN.md and start at co2-A (the object model).
+# M3_PLAN.md stays queued behind it.
 # Push tool: polari-cli/shells/push-all-dev.sh (dry-run/--push).
 
 ## What this session finished (M2, the PM rung)
