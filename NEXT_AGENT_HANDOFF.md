@@ -53,9 +53,27 @@ commutation rate the design row assumes — either the crucible
 rises 92x slower, or the drive commutates faster than anything on
 this rung has shown. Only the bench can say which.
 
-Suites: selftest_m2 77/77 (new), m1 98/98, motors 331/331,
+Suites: selftest_m2 79/79 (new), m1 98/98, motors 331/331,
 composition 75/75, apps 45/45, gears 68/68, techtree 74/74,
 magnetics 51/51, shape-equations 16/16, bizops 85/85.
+DEPLOYED + 25/25 LIVE PROBES + BROWSER PASS DONE.
+
+**Three things the browser pass caught and fixed** (the pattern
+holds: a live pass finds what suites cannot):
+1. THE REPLAY BUG — the scene component hardcoded
+   /api/motors/m1-sequence for every phase-replay layer, so M2's
+   layer (which DECLARES historySource 'm2-rotation') silently
+   ran the RELUCTANCE solver on the PM design. At saliency 1.0
+   that model has no torque, so on screen the coils lit and the
+   rotor sat still at 0 deg. Now routed by historySource, with
+   the M2 history carrying the replay contract's own keys.
+2. fm-bond-line-shear was NAMED on the bonded rotor interface
+   with no FailureModeDefinition row behind it — the marker layer
+   reported it as modeRowsMissing, the gap-naming machinery
+   catching its own author. Row written.
+3. The proofs rendered as RAW JSON (the view renderer only tables
+   known shapes). Both proofs now emit a `headline` list and the
+   renderer tables it, shape-gated like the rest.
 
 ## NEXT: THE CO2 WORK (Dustin, 2026-08-02, queued mid-session)
 
