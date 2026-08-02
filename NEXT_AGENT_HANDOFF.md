@@ -1,4 +1,44 @@
-# ➡️ HANDOFF (2026-08-01): BEGIN M1 — read M1_PLAN.md FIRST, start m1-1
+# ➡️ HANDOFF (2026-08-01, session 2): M1 BUILT OUT THE M0 WAY —
+# m1-1..8 COMPLETE, DEPLOYED, 9/9 LIVE PROBES; browser pass PENDING
+
+**State**: the whole M1 arc (M1_PLAN.md m1-1..m1-8) is BUILT,
+COMMITTED (dev-arch-part-composition, framework+angular+rf-node+
+suite pointer chains per phase, NOT pushed), DEPLOYED to staging
+and LIVE-VERIFIED (9/9 probe battery). selftest_m1 75/75 (new,
+auto-discovered), motors 330/330, composition 75/75, apps 45/45.
+
+**THE ONE REMAINING LEG**: the browser pass — this session had no
+--chrome. Relaunch `claude --chrome` and check: (a)
+/magnetics/clock-views?view=view-m1-sequencing shows the PHASE
+WALK (coils lighting A→B→C while the rotor steps 30°, kind
+'phase-replay' — new renderer driver in clock-scene.component),
+(b) the M1 nav items under Magnetics & Motors + Mechanical
+Engineering, (c) markers/coloring layers stack on motor-m1-viz.
+
+**Files (one per concern)**: m1_sequencing (solver + holding +
+pull_in_load_limit + bisect), m1_views, m1_scene, m1_composition,
+m1_positioning (PrinterAxisRequirement rows + THE PROOF),
+m1_product (axis-drive, 304:1), bench m1 sheet in bench_campaign,
+selftest_m1. Seeds all on upsert chains in polariServer.
+
+**FINDINGS the live probes forced (already fixed + committed)**:
+- NEW CLASS GOTCHA: a brand-new treeObject class must be
+  registered in polariServer's EXPLICIT class list (import + stub
+  tuple + definition-table list) or its seeds silently never land
+  (upsert errors don't print). PrinterAxisRequirement caught it.
+- PULL-IN SIZES DRIVETRAINS: the pull-in load limit is ~0.32x
+  holding torque (flat landscape between poles); the holding-
+  sized 98:1 reduction still lost steps — pull_in_load_limit()
+  is the engine, 304:1 the honest ratio, and axis duty verdicts
+  now judge by it. A motor that holds what it cannot step under
+  positions nothing.
+- SRM misses SLIP a pole pitch backward (no detent) — the proof
+  names slips; "loses exactly its missed steps" is M0 physics,
+  not M1's.
+
+Older context below.
+
+# ➡️ (superseded) HANDOFF (2026-08-01): BEGIN M1 — read M1_PLAN.md FIRST, start m1-1
 
 **Pick-up**: `M1_PLAN.md` at the suite root is the complete plan.
 Start at **m1-1 (the sequencing solver, `modules/motors/m1_sequencing.py`)**
