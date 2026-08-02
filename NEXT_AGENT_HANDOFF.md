@@ -1,5 +1,5 @@
 # ➡️ HANDOFF (2026-08-01, session 2): M1 BUILT OUT THE M0 WAY —
-# m1-1..8 COMPLETE, DEPLOYED, 9/9 LIVE PROBES; browser pass PENDING
+# m1-1..8 COMPLETE, DEPLOYED, 9/9 LIVE PROBES + BROWSER PASS DONE
 
 **State**: the whole M1 arc (M1_PLAN.md m1-1..m1-8) is BUILT,
 COMMITTED (dev-arch-part-composition, framework+angular+rf-node+
@@ -7,13 +7,17 @@ suite pointer chains per phase, NOT pushed), DEPLOYED to staging
 and LIVE-VERIFIED (9/9 probe battery). selftest_m1 75/75 (new,
 auto-discovered), motors 330/330, composition 75/75, apps 45/45.
 
-**THE ONE REMAINING LEG**: the browser pass — this session had no
---chrome. Relaunch `claude --chrome` and check: (a)
-/magnetics/clock-views?view=view-m1-sequencing shows the PHASE
-WALK (coils lighting A→B→C while the rotor steps 30°, kind
-'phase-replay' — new renderer driver in clock-scene.component),
-(b) the M1 nav items under Magnetics & Motors + Mechanical
-Engineering, (c) markers/coloring layers stack on motor-m1-viz.
+**BROWSER PASS DONE** (same day, --chrome relaunch): the phase
+walk visibly walks (theta +30/step, lit pair A→B→C), layers stack
+(materials/stress/markers on one canvas, real SF numbers in the
+legend), nav deep-links land, positioning + materials views render
+every card. Four MORE live-caught fixes shipped during the pass:
+the requirements-template shape collision (a same-named payload
+field killed sibling cards — renderers now gate by SHAPE), marker
+z-hover + radii scaled to the M1 extent (interior joints were
+occluded/half-size), and the M1 parts joining PART_ROLE_ASSIGNMENTS
+(the stator fork's role screen refused; now 4 viable options incl.
+bio-steel, suite-guarded). M1 GATE (M1_PLAN §5) FULLY MET.
 
 **Files (one per concern)**: m1_sequencing (solver + holding +
 pull_in_load_limit + bisect), m1_views, m1_scene, m1_composition,
