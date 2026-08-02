@@ -1,3 +1,10 @@
+# ➡️ START HERE (2026-08-02): read M2_PLAN.md and execute it —
+# Part A (cons-2 roll+legend, cons-3 adopt exact overlap) then
+# m2-1..8. The plan is written for ANY model: decisions
+# pre-made, copy-from files named, DO/DON'T box up top.
+# All repos consolidated on dev + pushed 2026-08-02;
+# push tool: polari-cli/shells/push-all-dev.sh (dry-run/--push).
+
 # ➡️ HANDOFF (2026-08-01, session 2): M1 BUILT OUT THE M0 WAY —
 # m1-1..8 COMPLETE, DEPLOYED, 9/9 LIVE PROBES + BROWSER PASS DONE
 
