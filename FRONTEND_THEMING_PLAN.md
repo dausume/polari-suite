@@ -301,3 +301,38 @@ Opt out with a `/* fixed-size */` comment; the XR panel hosts are
 excluded by name because their pixel sizes ARE the HTMLMesh contract.
 
 Run both gates with `npm run check:styles`.
+
+## The 21 remaining `min-width`s — audited 2026-08-03
+
+Audited rather than assumed, and they were not what the count implied:
+
+- **19 of 20 are MatDialogs** (500px pickers, a 600px instance picker,
+  an 800px class editor, an 880px LaTeX editor, the dict/list cell
+  editors — which are themselves dialogs, and the material-choice
+  popup, opened via `MatDialog`).
+- **1 is a 1200px SVG network diagram** (`pspp-network`) already inside
+  an `overflow: auto` wrapper — scrolling is the right answer for an
+  irreducible diagram.
+
+So the proposed "collapse to a small icon button, expand full-screen"
+pattern is **half already true**: a dialog is by definition opened by a
+control, so the launcher exists. What was missing was the other half —
+give it the whole screen.
+
+`_dialog-patterns.css`: below 600px the overlay pane fills the
+viewport, the surface squares off, each dialog's own root `min-width`
+is neutralized (`.mat-mdc-dialog-surface > *`, targeted as the direct
+child rather than a blanket `*`), and the content body is released
+from its card-sized `max-height` so it scrolls the full height.
+Between 600–1023px the floating card is kept but capped at 96vw.
+Above that, nothing changes.
+
+Verified live with the worst case (880px LaTeX editor):
+390 → pane 390, `min-width` computed 0 · 820 → 787 (96vw), 0 ·
+1440 → 880px preserved.
+
+A `.expand-to-edit` / `.inline-wide` primitive for the non-dialog case
+was drafted and then **removed**: no inline control in the app actually
+needs it today, and shipping unused pattern classes is exactly how the
+existing library ended up with classes nothing references. Add it when
+a real case appears.
