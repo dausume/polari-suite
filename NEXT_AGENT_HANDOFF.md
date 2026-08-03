@@ -1,4 +1,202 @@
-# ➡️ START HERE (2026-08-02, session 2): M2 IS BUILT — cons-2,
+# ➡️ START HERE (2026-08-02, session 3): THE CLIMATE CHANGE &
+# ATMOSPHERE MODULE IS BUILT on REAL fetched data — co2-A, xpt-1,
+# co2-0/1, co2-2, co2-3/4, co2-5, co2-H, co2-7/8, co2-X are DONE
+# and committed on dev in polari-framework. NOT deployed, NOT
+# browser-verified, NOT pushed.
+#
+# REMAINING in CO2_HEALTH_PLAN.md: co2-6 (carbon sinks), co2-B
+# (the NHANES bicarbonate/PHQ-9 correlation), co2-9 (the
+# simulation binding), then DEPLOY + a browser pass.
+# M3_PLAN.md stays queued behind it.
+# Push tool: polari-cli/shells/push-all-dev.sh (dry-run/--push).
+
+## THE HEADLINE: the plan said every number was a placeholder.
+## They are not placeholders any more.
+
+Network reached every source. Every URL on every `APIEndpoint`
+row was fetched live on 2026-08-02 and returned the real payload;
+`verifiedOn` records that date.
+
+- NOAA Mauna Loa annual mean, 1959-2025, n=67. **2025 = 427.35
+  +/- 0.12 ppm.**
+- NOAA's OWN published growth rate (the velocity term, not
+  derived by us).
+- Antarctic ice-core composite (Bereiter et al. 2015, NCEI study
+  17975), n=1901, -803719..2001 CE.
+- NHANES `BIOPRO_D.xpt` parsed: **LBXSC3SI n=6349, mean 24.556466
+  mmol/L** — bicarbonate column confirmed against the real file.
+- CDC life expectancy (Socrata JSON), 1900 = 47.3 years.
+
+### Two independent paths agree
+Fitted velocity **2.1972 ppm/yr** vs NOAA's published growth rate
+**2.2058 ppm/yr** over the same 30 years — 0.4% apart. Quadratic
+acceleration **0.0336 +/- 0.0011 ppm/yr2** (30 sigma).
+
+## FINDINGS THE DATA PRODUCED (not remembered)
+
+1. **Humans have never breathed this air.** Across the 800,000
+   years before the last millennium CO2 never exceeded **298.6
+   ppm** (glacial low 173.7). Today is **1.43x** the whole-record
+   maximum. Homo sapiens emerged at 185-236 ppm; behavioural
+   modernity at 216-240; agriculture began at 248-270;
+   pre-industrial 273-283.
+2. **ASHRAE 62.1 is a DIFFERENTIAL, and that is the answer to
+   "when did 1000 ppm indoors become the norm".** The criterion
+   is 700 ppm ABOVE OUTDOOR, and ASHRAE states plainly that its
+   IAQ standards do not use indoor CO2 to judge air quality. So a
+   FULLY COMPLIANT room sat at 980 ppm absolute when outdoor was
+   280 and sits at **1127 ppm today**. Nothing about the room
+   changed; the baseline moved under it. `is_differential` +
+   `absolute_ppm()` are the only sanctioned way to put
+   differential and absolute thresholds on one axis.
+3. **10 threshold-room pairs are ALREADY past a line today.** At
+   427 ppm outdoor: closed bedroom 3093 ppm, classroom 2093,
+   car cabin 2093, open-plan office 877, well-ventilated public
+   building 689.
+4. The mechanism is bounded honestly: 420 ppm is 0.319 mmHg,
+   **0.8% of a 40 mmHg alveolar pCO2**. Going 280 -> 420 ppm
+   narrows the elimination gradient by 0.27%; 1000 ppm by 1.38%.
+
+## THREE THINGS A FRESH AGENT MUST NOT UNDO
+
+- 🔑 **THE INGEST RIDES `polariApiProfiler`, NOT NEW CODE.** An
+  API-profile system already existed (APIDomain -> APIEndpoint ->
+  APIProfile, CRUDE-registered, seeded, with Angular UI). This
+  arc EXTENDED `APIEndpoint` with the fields a real data file
+  needs (responseFormat / contentSignature / rejectSignature /
+  minBytes / paramsTemplate / fieldMapJson / citationText /
+  verifiedOn) and added ONE generic executor,
+  `polariApiProfiler/endpoint_fetch.py`. Adding a source is a
+  ROW. Do not write a second fetch path.
+- ⚠ **A 200 IS NOT A SUCCESS.** Observed live against two
+  agencies: census.gov serves 'Missing Key' HTML with HTTP 200
+  (already known here), and wwwn.cdc.gov serves RETIRED NHANES
+  paths as HTTP 200 with a 20905-byte 'Page Not Found' page —
+  byte-identical for two different files. Status-code checking
+  alone would have ingested a webpage as a lab result. Content
+  signatures are why that cannot happen.
+- 🔑 **ONE EQUATION, TWO CALLERS.** Indoor CO2 reuses aquaponics'
+  `environment_gas_exchange` with the source term's sign flipped
+  (a crop depletes, people emit). `guard_two_callers()` pins the
+  symmetry to 1e-9. Do not write a second CO2 mass balance.
+
+## TWO REAL DEFECTS FOUND AND FIXED
+
+1. `APIEndpoint.authConfig` held `env:VAR` POINTERS that were
+   sent **literally** — every keyed endpoint transmitted the
+   string `env:POLARI_CENSUS_API_KEY` as its credential. The
+   seeded dmvdata rows assumed a resolver that did not exist.
+   `resolve_secret()` now resolves them and refuses by name when
+   the knob is unset.
+2. `crossing_band` returned `ok=True` with `low`/`high` = None
+   when neither fit reached the target — a success carrying no
+   answer, i.e. how a null reaches a published page as the word
+   "None". It now REFUSES and names both sides' reasons.
+
+## HONESTY THAT IS CARRIED IN ROWS, NOT PROSE
+
+- Thresholds are **graded**: a ventilation standard is not a
+  health study is not an occupational limit. The two ASHRAE rows
+  are `standard-or-guideline` and share a deliberately
+  off-severity colour because they are INDICATORS, not harms.
+- The cognitive rows are `contested-controlled-study` and carry
+  `contested_by` naming Rodeheffer 2018, Scully 2019 and Du 2020
+  beside Satish 2012. The page shows both or it is advocacy.
+- The **negative row** exists (280 ppm, no evidence of effect) —
+  a page listing only harms implies harm everywhere.
+- `COGNITION_QUESTION` refuses the prehistoric-cognition question
+  in BOTH directions and names what would actually be evidence.
+- **Life expectancy is context, never a regressor.** No
+  prehistoric life-expectancy number is seeded at all
+  (`life_expectancy_at_birth = 0.0` with the reason on the row).
+- **Law Dome is registered WITHOUT a parser, on purpose.** It is
+  the one archive with no '#' comment markers — prose followed by
+  several stacked tables — so the generic signature would have
+  accepted it and the generic parser would have read the wrong
+  columns. Its CO2 column must be identified from the file's own
+  header before any ingest.
+- A car-cabin ACH prior produced a 20000 ppm steady state; the
+  implausibility was caught before it shipped and the prior was
+  corrected to 6.0 ACH. The history stays on the row: the
+  equation was right, the guess was wrong.
+
+## SOURCE TRACING IS STRUCTURAL
+
+    AtmosphericObservation.span_ref
+      -> SourceCoverageSpan  (which archive, which years, what
+                              resolution, what uncertainty)
+        -> APIEndpoint       (how it was fetched)
+          -> GovSource       (who publishes it)
+            -> SourceRetrieval (when WE copied it, sha256, bytes)
+
+So a chart cites exactly the spans it shows, and the ice-core /
+instrumental seam is DATA. `splice_series` never drops a segment:
+where two overlap it reports the mean difference as a
+CROSS-CHECK, which is what makes the spliced curve a measurement
+rather than an assumption.
+
+## EXPORT (co2-X)
+
+`climate_export.py`: **markdown** (the Medium format —
+self-contained, tables + citations, no external assets), **csv**
+(one provenance column per point: span, measurement kind,
+archive, instrument, resolution, citation — a bare year,value CSV
+is number laundry), **json** (config + data + spans, the
+sim-binding document). **svg REFUSES** with a reason: the chart is
+already an SVG in the DOM and a second server-side plotter would
+disagree with the picture the reader saw. One renderer, one truth.
+`export_view_markdown` exports refused sections AS refusals.
+
+## FILES (modules/climate/, ~6600 lines, one file per concern)
+
+climate_basis (11 classes) | climate_series | climate_sources |
+series_parsers | series_ingest | xpt_reader | co2_trend |
+co2_physiology | co2_thresholds | co2_indoor | co2_crossing |
+climate_history | climate_views (9 sections as rows) |
+climate_pages (5 GraphDefinition rows + the /co2/health
+DisplayDefinition) | climate_app | climate_export | climate_api |
+selftest_climate
+
+Registrations done: FEATURE_MODULES + FEATURE_REQUIRES
+(aquaponics, dmvdata), polari-modules.json, polariServer
+try-import + stub tuple + defClassList + endpoint construction +
+a gated upsert seed pass. Suites green: apps 45/45, composition
+75/75, aquaponics atmosphere 10/10, lazy-import drift 15/15.
+
+## WHAT IS LEFT
+
+1. **co2-6 carbon sinks** — the Global Carbon Budget is NOT a
+   simple file fetch (globalcarbonbudgetdata.org/latest-data.html
+   404s; the data lives on ICOS/Zenodo as xlsx). Find a stable
+   machine-readable endpoint and add it as an APIEndpoint row.
+2. **co2-B the correlation** — bicarbonate (BIOPRO_*) and PHQ-9
+   depression (DPQ_*) are published for THE SAME NHANES cycles
+   and the same sampling frame, which is what makes them
+   comparable at all. Both file families verified reachable.
+   Run it as a QUESTION with the confounders named (assay
+   changes between cycles, age structure, altitude, kidney
+   disease, diet); a population mean moving inside the reference
+   interval is not a diagnosis.
+3. **co2-9 the simulation binding** — point aquaponics'
+   `AtmosphereDefinition.outside_co2_ppm` at the live series as
+   an optional reference (seeded constant stays the fallback, the
+   row says which it used). Small phase, large meaning.
+4. **DEPLOY + browser pass.** Nothing here has been deployed or
+   seen in a browser. Every prior arc in this repo had live
+   findings the suites could not produce — expect the same.
+   Deploy ritual and the /co2/health page are in CO2_HEALTH_PLAN
+   and the DO/DON'T box.
+5. **The frontend gaps the display explorer found** and this arc
+   did NOT fix: `embeddedGraph` resolves a graph by runtime ID
+   (unusable from a seed — `graph_data()` resolves by NAME
+   instead as the workaround); `showLegend` is stored but never
+   passed to Plot.plot(); there is no reference-line/threshold
+   band on 2D charts (the threshold bands are rows already, so
+   this is a renderer change); and no `payload.series` shape-gated
+   renderer exists beside the `headline` table.
+
+
+# ➡️ (previous session) START HERE (2026-08-02, session 2): M2 IS BUILT — cons-2,
 # cons-3 and m2-1..8 are DONE, committed on dev through the
 # pointer chains, deployed, 25/25 live probes, browser-verified.
 # NOT pushed.
