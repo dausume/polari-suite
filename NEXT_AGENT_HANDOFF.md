@@ -163,38 +163,99 @@ try-import + stub tuple + defClassList + endpoint construction +
 a gated upsert seed pass. Suites green: apps 45/45, composition
 75/75, aquaponics atmosphere 10/10, lazy-import drift 15/15.
 
+## co2-B: THE QUESTION DUSTIN ASKED, ANSWERED
+
+"Have stress-related health problems risen in proportion with the
+bicarbonate and CO2 rise, as some doctors predicted?"
+
+All 11 NHANES cycles fetched and parsed (n=5901-6891 per cycle),
+PHQ-9 for 8 of them, same survey and same sampling frame.
+
+    Bicarbonate DID rise:  +0.0507 mmol/L per year, r=+0.54
+    Depression DID rise:   6.19% -> 13.25% scoring PHQ-9 >=10
+    AND THEY DO NOT MOVE TOGETHER: r = -0.03 between them.
+
+Two series both rising against TIME is not a mechanism. The
+near-zero correlation BETWEEN them is stronger evidence against a
+shared cause than either trend is for one.
+
+**AND THE MECHANISM FAILS A UNIT CHECK BY ~700x.** Chronic renal
+compensation moves bicarbonate ~0.4 mmol/L per 10 mmHg of pCO2.
+Ambient CO2 rose 52.9 ppm 1999-2023 = 0.040 mmHg, so it could
+produce ~0.0016 mmol/L against an OBSERVED 1.14. The rise is
+real; ambient CO2 did not cause it. The CHRONIC (largest)
+constant is used deliberately - fail with the most generous
+assumption and you fail with any of them.
+
+The trend is reported as SHAKY on purpose: non-monotonic across
+cycles (a sawtooth is what an assay change looks like) and only
+0.50 of one within-cycle SD across 22 years.
+
+Two NHANES DPQ files came back as a 1245-byte HTML decoy and the
+reader refused them by name - the guard working on live data.
+
+## co2-6: A CORRECTION TO THIS PLAN
+
+The plan asked for "rates of decline in carbon sinks". The
+fetched Global Carbon Budget 2025 (66 years) does NOT show one:
+
+    total sinks   +0.066 GtC/yr per year, r=+0.92 (GROWING)
+    sink FRACTION +0.0012 per year, r=+0.29 (roughly FLAT)
+    airborne frac +0.0016 per year, r=+0.25 (weak)
+
+The recent land-sink drop (3.11 -> 2.02 -> 1.94 GtC) and the 2024
+airborne fraction of 0.672 are reported BESIDE the flat long-run
+trend and explicitly NOT extrapolated - a three-year excursion is
+what El Nino and fire years look like in this record. Cross-check:
+the budget's atmospheric-growth term and NOAA's published growth
+rate agree to 12.1% over 66 years.
+
+`climate/xlsx_reader.py` is a dependency-free stdlib xlsx reader
+(zipfile + ElementTree). openpyxl is NOT installed and one file a
+year does not justify a new pin plus an image rebuild. It finds
+its header row by CONTENT, because publishers change preamble
+length between releases.
+
+## co2-9: THE BINDING IS PROVED
+
+`AtmosphereSeriesBinding` rows point aquaponics'
+`AtmosphereDefinition.outside_co2_ppm` at the ingested Mauna Loa
+record. Verified end to end: while the series is 'prior' it
+REFUSES and leaves the target on 420.0 (the seeded constant is
+the fallback; a refused binding never half-applies), then writes
+427.35 recording what it replaced. The binding PUSHES from
+climate rather than aquaponics pulling, so the dependency never
+goes circular and `AtmosphereDefinition` needs no new field.
+
 ## WHAT IS LEFT
 
-1. **co2-6 carbon sinks** — the Global Carbon Budget is NOT a
-   simple file fetch (globalcarbonbudgetdata.org/latest-data.html
-   404s; the data lives on ICOS/Zenodo as xlsx). Find a stable
-   machine-readable endpoint and add it as an APIEndpoint row.
-2. **co2-B the correlation** — bicarbonate (BIOPRO_*) and PHQ-9
-   depression (DPQ_*) are published for THE SAME NHANES cycles
-   and the same sampling frame, which is what makes them
-   comparable at all. Both file families verified reachable.
-   Run it as a QUESTION with the confounders named (assay
-   changes between cycles, age structure, altitude, kidney
-   disease, diet); a population mean moving inside the reference
-   interval is not a diagnosis.
-3. **co2-9 the simulation binding** — point aquaponics'
-   `AtmosphereDefinition.outside_co2_ppm` at the live series as
-   an optional reference (seeded constant stays the fallback, the
-   row says which it used). Small phase, large meaning.
-4. **DEPLOY + browser pass.** Nothing here has been deployed or
-   seen in a browser. Every prior arc in this repo had live
-   findings the suites could not produce — expect the same.
-   Deploy ritual and the /co2/health page are in CO2_HEALTH_PLAN
-   and the DO/DON'T box.
-5. **The frontend gaps the display explorer found** and this arc
-   did NOT fix: `embeddedGraph` resolves a graph by runtime ID
-   (unusable from a seed — `graph_data()` resolves by NAME
-   instead as the workaround); `showLegend` is stored but never
-   passed to Plot.plot(); there is no reference-line/threshold
-   band on 2D charts (the threshold bands are rows already, so
-   this is a renderer change); and no `payload.series` shape-gated
-   renderer exists beside the `headline` table.
-
+1. **DEPLOY + BROWSER PASS — the only substantial gap.** Nothing
+   here has been deployed or seen in a browser. Every prior arc
+   in this repo had live findings the suites could not produce;
+   expect the same. Deploy ritual is in the DO/DON'T box of
+   CO2_HEALTH_PLAN.md: `pol node build backend --env staging`
+   then `docker service update --force --image prf-backend:staging
+   polari-node_backend`, admission ~8 min of honest 503s, NEVER
+   docker cp+restart, and check the BUILD exit code (a docker.io
+   502 can fail it and you will roll the old image).
+2. **The ingest is a POST, and nothing has run it in anger.**
+   `POST /api/climate/ingest/<series>` reaches the network from
+   inside the container. The parsers and the fetch path are
+   proven against the real payloads offline; the container's
+   egress is not.
+3. **Frontend gaps found but NOT fixed** (all in the display
+   explorer's report): `embeddedGraph` resolves a graph by
+   runtime ID, unusable from a seed - `graph_data()` resolves by
+   NAME as the workaround, but the component still needs
+   changing; `showLegend` is stored and never passed to
+   `Plot.plot()`; there is no reference-line/threshold band on 2D
+   charts (the threshold bands are already ROWS, so this is a
+   renderer change, not a modelling one); and no
+   `payload.series` shape-gated renderer exists beside the
+   `headline` table in clock-views.component.ts.
+4. **Law Dome still has no parser** (deliberate - its CO2 column
+   must be read from the file's own header prose first).
+5. M3_PLAN.md stays queued behind all of this.
 
 # ➡️ (previous session) START HERE (2026-08-02, session 2): M2 IS BUILT — cons-2,
 # cons-3 and m2-1..8 are DONE, committed on dev through the
