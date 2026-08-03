@@ -174,7 +174,8 @@ volume/ACH), `EvidenceMethod` for grading.
 - `climate_api.py` — `/api/climate/*`
 - `selftest_climate.py`
 
-## §2 xpt-1 — THE XPT INGEST CAPABILITY (do this first)
+## §2 xpt-1 — THE XPT INGEST CAPABILITY (first phase after the
+## objects land — see §11 for the order)
 
 **What XPT is**: SAS Transport Format (XPORT), the format CDC
 publishes NHANES lab files in. It is a fixed-record binary format
