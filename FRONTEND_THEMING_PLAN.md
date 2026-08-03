@@ -1,8 +1,68 @@
 # FRONTEND THEMING — tokens everywhere, day/night correct by construction
 
-**Status 2026-07-25: sty-1 + sty-2 BUILT (awaiting Dustin's visual verify);
-sty-3/sty-4 planned. Trigger: pspp pages white-on-white in night mode
-(screenshots 07-25) — recurring app-wide.**
+**Status 2026-08-03: sty-1..sty-4 ALL DONE, deployed + live-verified in
+BOTH themes over ~25 routes. Branch `dev-sty3-contrast-sweep` in
+angular + rf-node + suite (NOT pushed).**
+
+The sty-3 sweep did not proceed dir-by-dir as planned below; a live
+contrast audit driven through Chrome found the failures first, and
+they clustered into a handful of ROOT causes rather than a long tail
+of per-file hexes. What actually shipped:
+
+1. **Material's dark palette leaks** — anything Material styles that we
+   don't kept its near-white default. Fixed GLOBALLY in `styles.css`:
+   menu-item icons, slide-toggle/radio/checkbox labels, chip leading
+   icons + remove buttons, and disabled button labels/borders.
+2. **UA defaults** — bare `<a>` kept `#0000EE`, and a plain `<button>`
+   the black `buttontext`. Both now themed globally (the button rule is
+   scoped away from Material's own).
+3. **Property-aware tokenization** — ~700 declarations across
+   custom-no-code/, shared/, templateClassTable/, geojson-config/,
+   permissions/, dashboard/, class-main-page/, topology/, techtree/,
+   apps/, matrices/, displays/, multi-scale/ rewritten by the PROPERTY
+   the color lands on (background -> --surface-*, color -> --text-*,
+   border -> --border-*). Script kept at
+   `/tmp/.../scratchpad/tokenize.py` — regenerate if needed, it is
+   mechanical.
+4. **Legends** — painted the whole legend item in the mark color, so
+   pale kinds (yellow, light green) were unreadable. The color moved
+   onto the SWATCH; the label rides the theme. Same idea for SVG
+   labels on colored bands/edges: theme text color + a halo in the
+   canvas color, which reads on any fill in either theme.
+5. **Mark colors used as text** — `--brand-purple` / `--brand-teal` do
+   NOT flip, so text set from them died on the opposite background.
+   Added `--brand-{purple,teal}-text` pairs. **This is the general
+   lesson: a --brand-* value is a MARK color; text needs its own
+   flipping token.**
+
+Two real (non-styling) bugs fell out: an unscoped `.num` badge rule in
+business-start also matched the QA table's numeric `<td class="num">`
+cells, and module-management's plan card was a fixed light pair whose
+button text got themed by the global rule.
+
+**sty-4 shipped as `scripts/check-theme-tokens.mjs`, wired into
+`npm run build`.** It deliberately does NOT flag every raw color —
+that was 1331 hits, mostly legitimate. It fails only on the pattern
+that actually hides text: a rule that themes one side of the
+background/text pair and hardcodes the other, or `color: inherit` on a
+fixed background. It parses `_theme-dark.css` to know which tokens
+actually flip, and treats low-alpha `rgba()` as adaptive (it tints
+whatever is behind it). Remaining debt is reported, not failed:
+**290 fixed pairs + 944 lone raw colors**. It caught a regression
+introduced during this very sweep.
+
+**Method worth reusing:** a contrast auditor injected via the Chrome
+extension, walking text nodes + SVG text + mat-icons, compositing the
+real background and reporting anything under 2.5:1, run over every
+route in both themes. Note two blind spots learned the hard way —
+SVG siblings are not DOM ancestors (needs a geometry hit-test), and it
+cannot see a `paint-order: stroke` halo, so halo'd labels read as
+false positives.
+
+---
+
+**Historical (2026-07-25): sty-1 + sty-2 BUILT. Trigger: pspp pages
+white-on-white in night mode (screenshots 07-25) — recurring app-wide.**
 
 ## The system (already exists — use it, don't fight it)
 
