@@ -204,3 +204,100 @@ Corollaries:
 Each batch: toggle ThemeService day/night on the touched pages; text
 readable + cards distinct from app background in both; charts show
 axis text/grid in both. The pspp/msci set is the reference example.
+
+---
+
+# RESPONSIVE / DEVICE ADAPTATION (2026-08-03) — sizes as tokens
+
+**Status: BUILT + deployed + live-verified over 60 route×width probes.
+Same branch `dev-sty3-contrast-sweep`.**
+
+## The device classes
+
+| class | trigger | notes |
+|---|---|---|
+| phone | `<= 599px` | one column, nav overlays, tables scroll |
+| tablet | `600-1023px` | nav still overlays |
+| standard | `1024-1899px` | the default working size |
+| wide | `>= 1900px` | more columns, wider measure |
+| **mesh** | `.xr-panel-context` **class** | MeshHTML / WebXR |
+
+## 🔑 MESH IS NOT A WIDTH
+
+The XR path rasterizes a DOM element that lives **off-viewport at a
+fixed pixel size** — `panel:main` is a hard 900×700 in
+`xr-direct-entry-page.component.ts`; the side panels are 380–720 in
+`xr-panel-host.component.ts`. HTMLMesh captures at 1 CSS px = 1 texel
+(`PX_TO_WORLD = 0.001`, 1000px = 1 world unit).
+
+So **a viewport media query inside a mesh panel reports the flat
+browser window**, which has nothing to do with the panel being drawn.
+Any width-based `@media` is simply wrong there.
+
+**Therefore: components adapt with `@container`, not `@media`.** The
+same rule then works flat AND in a panel — a 390px panel and a 390px
+phone lay out identically, which is the point. `@media` is reserved
+for the app SHELL (sidenav mode, toolbar), which is genuinely
+viewport-scoped.
+
+## What shipped
+
+- **`_responsive.css`** — the single source of truth. Breakpoints are
+  documented constants; the responsive TOKENS (`--page-pad`,
+  `--page-max-width`, `--grid-min-col`, `--card-pad`, `--drawer-width`,
+  `--graph-height`, `--popup-max-width`, `--font-scale`) shift per
+  class, so most components need no query at all. Also ships the
+  layout primitives `.page-shell`, `.auto-grid`, `.split-view`,
+  `.scroll-x`, `.popup-width`, and marks the content area +
+  `.xr-panel-context` as container roots.
+- **App shell** — sidenav flips to `mode="over"` below 1024px via
+  `BreakpointObserver` and dismisses on navigation; its width was
+  `min-width:350px` (nearly a whole phone screen) and is now
+  `min(350px, 85vw)`. Content padding follows the tokens.
+- **⚠ `@angular/flex-layout` IS NOT A DEPENDENCY.** The header used
+  `fxLayout` / `fxFlex="grow"`, so the spacer meant to push the auth
+  controls right was an **inert attribute** — the toolbar had been
+  silently left-bunched. Replaced with a real `.header-spacer`.
+- **`--surface-outline` was referenced in 10 components but never
+  defined** — every use silently fell back to a literal `#8884` that
+  never changed with the theme. Now defined in both theme files.
+
+## The two blowout mechanisms (both were live)
+
+1. **Grid**: a track never shrinks below its content's min-content
+   size, so `repeat(2, 1fr)` overflows instead of wrapping. Fix is
+   `repeat(auto-fit, minmax(min(100%, X), 1fr))` **plus**
+   `min-width: 0` on the children. This put an **852px row inside a
+   390px phone viewport on the home page** — clipped, not scrollable.
+2. **Flex**: a flex child defaults to `min-width: auto`, and
+   `align-items: center` stops it being stretched, so it sizes to
+   max-content. Same page, 818px text block in a 311px card.
+
+## Consolidation done
+
+- **`_graph-view-common.scss`** — topology / tech-tree / multi-scale
+  were three copies of one shell (the topology file's header even said
+  "cloned from the msim composition graph"). 585 lines → 286 + one
+  partial. Their SVG vocabularies stay component-local.
+- **`_table-patterns.css`** — two recipes (dashed-row, lined-row)
+  replacing six re-typings, matched by EXISTING class names so no
+  template changed. Wide tables scroll in their own box below 900px of
+  **container** width.
+- **`_chip-patterns.css`** — one base + semantic state modifiers wired
+  to the `--color-*` token pairs, replacing ~25 independent `.chip` /
+  `.badge` / `.tag` declarations. The 6-file magnetics/climate
+  outlined-chip family was deduped onto `.chip-outline`.
+
+Global sheets are used on purpose: Angular scopes a component's own
+styles, but a global rule still matches inside components, so one
+definition can serve every existing class name without template churn.
+
+## Guardrail: `scripts/check-responsive.mjs` (in `npm run build`)
+
+Fails on the two mistakes that cannot adapt: a `width` wider than a
+390px phone with no ceiling, and a grid with a fixed track count.
+`min-width` above phone width is counted, not failed (21 remain).
+Opt out with a `/* fixed-size */` comment; the XR panel hosts are
+excluded by name because their pixel sizes ARE the HTMLMesh contract.
+
+Run both gates with `npm run check:styles`.
