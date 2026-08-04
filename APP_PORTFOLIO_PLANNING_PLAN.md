@@ -42,13 +42,16 @@ coverage they would answer "unknown" for 87% of the estate.
    app; `admission_advisor` judges one module against the topology.
    Neither composes: two apps wanting the same module double-count,
    and nothing sums a portfolio's floors against a device's capacity.
-2. **The database is not a placement target.** The advisor emits
-   `route-to-storage` and names a backend *kind* (redis/sqlite/
-   mariadb), but there is no object for "the MariaDB at
-   shared-infra", no capacity on it, and no notion of what is already
-   sitting there. Dustin's exact worry — *"the database we plan to
-   link it to is somewhere we are also planning multiple other pieces
-   with a lot of seed data"* — cannot currently be expressed.
+2. **Nothing groups assignments by the database they land in.** The
+   pieces exist — `InstanceDefinition.db_backend` is the per-instance
+   `pol db` choice, and `ModuleAssignment.instance_name` puts modules
+   on instances — so a module's database is already determined by its
+   instance. What is missing is the *grouping*: summing what every
+   module on a given storage identity weighs. Dustin's worry —
+   *"the database we plan to link it to is somewhere we are also
+   planning multiple other pieces with a lot of seed data"* — is a
+   question about that sum, and nothing computes it. **This is not a
+   new placement axis**; see app-3.
 3. **Seed volume ≠ observed volume, and only the latter exists.**
    `observed_data_footprint` measures what is in the tables NOW. What
    a fresh node would *inherit* by enabling a module is a different
@@ -75,6 +78,18 @@ module union across the apps, and for each module its profile. Sums:
 floors (`min_ram_mb`, `min_disk_mb`, `min_threads`), install footprint
 (`image_mb + deps_mb`), and counts by `character`.
 
+**Overlap is the point, not a detail.** Two apps wanting the same
+module SHARE one copy: it installs once, occupies one instance, and
+seeds its data once. So every module carries `wantedBy: [app, ...]`
+and is counted ONCE in every total. Two consequences to honour:
+
+- A portfolio of five overlapping apps can be far cheaper than five
+  standalone ones — the whole reason to plan a set rather than apps
+  one at a time.
+- Removing one app frees only the modules NOTHING else wants. The
+  `wantedBy` list is what makes that answerable, so it must survive
+  into the plan output rather than being collapsed away.
+
 Honesty contract: a module with no `ModuleResourceProfile` is listed
 under `unprofiled[]` and **excluded from the totals**, which are
 labelled `partial`. Never assume zero — an unprofiled module is an
@@ -95,33 +110,76 @@ they answer different questions (what you inherit vs what has grown).
 
 Label both `estimate-x-count`; neither is a measurement.
 
-### app-3 — The database as a first-class target
+### app-3 — Storage co-tenancy, via the instance (CORRECTED)
 
-New object `StorageEndpointDefinition`: `{name, kind
-(sqlite|mariadb|keydb|postgres), instance_name, topology_name,
-capacity_mb, notes}`. An instance declares which endpoint it uses for
-object storage.
+⚠ **Correction to the first draft (Dustin, 2026-08-04).** That draft
+proposed a `StorageEndpointDefinition` you assign modules to. That is
+the wrong shape and would duplicate what exists.
 
-⚠ Grounding note: an instance CHOOSES local sqlite or a remote
-MariaDB (`DATABASE_TYPE` / `DATABASE_PATH`) — this object must reflect
-that choice, not assume one.
+**The database is a property OF the instance, and assigning a module
+to an instance IS assigning it to that database.** The model already
+says so:
 
-Then `storage_load(manager, endpoint)`: every `data`-character module
-whose assigned instance points at this endpoint, with its seeded +
-observed bytes, plus its `growth_rate` and `access_pattern`.
+- `InstanceDefinition.db_backend` — `DB_BACKENDS = ('sqlite',
+  'mariadb', 'mariadb+keydb', 'postgres')`, documented as "the
+  `pol db` choice for this instance".
+- `ModuleAssignment.instance_name` — modules are assigned per
+  instance.
+- `config.yaml`: `database.type` (env `DATABASE_TYPE`) with
+  `sqlite.path: ./data/polari.db` and `mariadb.host/database`.
 
-**The co-tenancy verdict** — the heart of the ask:
+So: **the KIND is configurable, the specific database is not chosen
+separately — it follows from the instance.** No new assignment axis,
+no new object to point modules at. We *de jure* assign storage by
+choosing the PRF-level database.
+
+**The rule that makes sqlite different, and must be enforced:**
+
+> For a PRF instance, `sqlite` always means the sqlite that *that
+> instance* creates locally. It is not shareable and must never be
+> configurable to point elsewhere.
+
+That is not a limitation to work around — it is what makes sqlite
+co-tenancy trivially bounded.
+
+**Storage identity** — the group key co-tenancy is computed over:
+
+| `db_backend` | identity | who can share it |
+|---|---|---|
+| `sqlite` | **the instance itself** | nobody — local by construction |
+| `mariadb` / `mariadb+keydb` / `postgres` | the server + database it points at | every instance pointing at the same one |
+
+`storage_load(manager, identity)` then means:
+
+- **sqlite** — the modules assigned to this one instance. Capacity is
+  the disk of the `machine_name` it is pinned to (`PolariNodeMachine`
+  → `node_resources`). A crowded sqlite is an *instance* problem and
+  the fix is moving modules to another instance.
+- **mariadb** — the modules across **every instance sharing that
+  server**. This is the case Dustin described: several PRFs each
+  looking reasonable alone, jointly overloading one database. The fix
+  may be a different backend for one of them, not a module move.
+
+**Verdicts** (unchanged in spirit, now correctly scoped):
 
 ```
-crowded        combined seeded bytes > share of capacity_mb, OR
-               >N high-growth modules on one endpoint
-hot-contention several 'hot' access_pattern modules co-located
-mixed-durability ephemeral and durable sharing one endpoint
-fits           and says by how much headroom
+crowded           combined seeded bytes > declared capacity share
+hot-contention    several 'hot' access_pattern modules co-resident
+mixed-durability  ephemeral and durable sharing one server
+fits              and by how much headroom
 ```
 
-Every verdict names the modules that make it true and the endpoint
-that would relieve it. Suggestion, never auto-applied.
+Each names the modules that make it true, the instances involved, and
+whether relief is a module move (sqlite) or a backend change
+(shared server).
+
+**Honest gap to resolve during the build:** `db_backend` records the
+KIND; the specific mariadb host/database lives in config/env
+(`MARIADB_HOST`), not in the topology rows. So "which instances share
+a server" is not currently derivable from the object tree. Either
+observe it per instance, or add an explicit identity field — and
+until then, **state the assumption** ("all mariadb instances in this
+topology are treated as one server") rather than silently assuming it.
 
 ### app-4 — Portfolio admission verdict
 
@@ -204,8 +262,13 @@ Extend the app builder rather than a new surface:
 - **Deduplication is load-bearing.** Two apps sharing a module must
   count it once for footprint but keep both provenance links, or
   removing one app will look like it frees resources it does not.
-- **Capacity is a policy, not a fact.** `capacity_mb` on a storage
-  endpoint is a declared budget. Say so; don't imply it was measured.
+- **Capacity is a policy, not a fact.** A storage budget is declared,
+  not measured — say so. The exception is sqlite, whose ceiling IS the
+  measured disk of the machine its instance is pinned to.
+- **Never let sqlite look shareable.** Any UI or API that presents
+  storage must show a sqlite identity as belonging to its one
+  instance. Offering to "point it at" another database would be
+  offering something that cannot exist.
 
 ---
 
@@ -215,6 +278,10 @@ app-6 (coverage) in parallel with app-1 (set arithmetic) → app-2
 (seeded weight) → app-3 (storage co-tenancy — the distinctive part)
 → app-4 (portfolio verdict) → app-5 (balancer) → app-7 (UI).
 
-app-3 is where the real new capability is: it is the only phase with
-no existing analogue in the codebase, and it is what makes the "too
-much seed data pointed at one database" question answerable at all.
+app-3 is where the real new capability is — but it is smaller than
+the first draft assumed, because the assignment axis already exists.
+It is not a new placement target; it is **grouping existing
+assignments by the storage identity their instance implies**, and
+then summing seeded weight over each group. That is what makes the
+"too much seed data pointed at one database" question answerable, and
+it is mostly arithmetic over rows that are already there.
