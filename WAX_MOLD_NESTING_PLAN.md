@@ -116,6 +116,18 @@ treeObjects → defClassList + seed_pairs + seed_upsert wiring.
   `placements_json` (where and why — evidence), `removability_score`,
   `removability_evidence_json`.
 
+- **`MasterFeedstockDefinition`** *(added by Dustin's 2026-08-05
+  directive, BUILT in cast-2b)* — what the sacrificial master is made
+  of: `material_kind` (`natural-wax | machinable-wax | wax-filament |
+  pla`), `priority` (`core` = the natural locally-producible wax —
+  the focus; `supported` = commercial alternates), accessibility
+  tier + renewable flag, `make_routes_json`
+  (`auger-pellet-print | fdm-voron | cnc`), density/strength/soften/
+  melt with claim status, print kinematics, and `removal_route`
+  (`melt-out | burn-out | mechanical` — gated against the mold
+  material by cast-3). `master_report` dispatches feasibility +
+  print time by route; CNC time is a named absence v1.
+
 ### Process chain (rides composition, does not fork it)
 
 - **`MoldNestingChain`** — the multi-tier object. `name`,
