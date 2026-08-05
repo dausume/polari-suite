@@ -72,3 +72,29 @@ The `/casting` page today is seeded plumbing, not the product:
 - `pol node build backend` + `docker service update --force
   polari-node_backend`; boots ~13-15 min to full admission (health
   `phase` online), sqlite at /app/data/managerObject_DB.db.
+
+## ADDED 2026-08-05 (focus switch): CLIMATE/AQUAPONICS frontend items
+
+Focus moved to CO₂/health + pot sims (prf-a trimmed to 8 modules; the
+15 casting-era modules shelved on prf-b, reversible, data intact).
+
+1. **Graph DOWNLOAD buttons, everywhere graphs render** (Dustin):
+   clear/obvious button on the graph-renderer component. The climate
+   export module already REFUSES server-side rendering for the right
+   reason (two renderers = two truths — see climate_export.export_svg
+   for the exact spec): serialize the rendered SVG
+   (`new XMLSerializer().serializeToString(svg)` → Blob) and
+   rasterize to PNG via canvas for Medium pasting; also link the
+   existing provenance-carrying exports
+   (`GET /api/climate/export/series/{name}?fmt=markdown|csv|json` and
+   `/api/climate/export/view/{view}` — markdown is Medium-ready text).
+2. **Cited/derived tags → clickable**: bind tag click to
+   `GET /api/climate/citations/{source_ref}` (resolves any registry +
+   the SourceRetrieval trail w/ URLs + content signatures). Backend
+   done; frontend needs the click binding + a small popover.
+3. **Compression surfaced**: series detail now carries `compression`
+   (the audit record) and `compressionSuggestion` (the knob) — show
+   both; a compressed graph should say "N points, bin-mean of M"
+   near the legend, not hide it.
+4. Pot-sim refinement is the NEXT arc (2 PotDefinition + 6 PotHole +
+   5 derived pot shapes live on the trimmed instance).
