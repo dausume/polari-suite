@@ -442,6 +442,44 @@ else
         fi
     fi
 
+    # --- 2b. polari-shell: re-assert the fixed shell redirect URIs -----------
+    # Host-INDEPENDENT URIs (custom scheme + one fixed loopback port —
+    # Keycloak has no port wildcards), so no KC_HOSTNAME derivation.
+    POLARI_SHELL_CLIENT_ID="polari-shell"
+    PSH_RESPONSE=$(curl -s -X GET \
+        "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients?clientId=$POLARI_SHELL_CLIENT_ID" \
+        -H "Authorization: Bearer $ACCESS_TOKEN" \
+        -H "Content-Type: application/json")
+    PSH_UUID=$(echo "$PSH_RESPONSE" | jq -r '.[0].id')
+
+    if [ "$PSH_UUID" = "null" ] || [ -z "$PSH_UUID" ]; then
+        echo "WARNING: Client '$POLARI_SHELL_CLIENT_ID' not found in '$POLARI_REALM'. Skipping (re-import the realm to create it)."
+    else
+        PSH_CURRENT=$(curl -s -X GET \
+            "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients/$PSH_UUID" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json")
+        PSH_PAYLOAD=$(echo "$PSH_CURRENT" | jq '
+            .redirectUris = ["polari://oauth/callback", "http://127.0.0.1:41300/callback"] |
+            .webOrigins = ["+"] |
+            .publicClient = true |
+            .directAccessGrantsEnabled = false |
+            .attributes["pkce.code.challenge.method"] = "S256"
+        ')
+        PSH_UPDATE=$(curl -s -w "\n%{http_code}" -X PUT \
+            "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients/$PSH_UUID" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PSH_PAYLOAD")
+        PSH_HTTP=$(echo "$PSH_UPDATE" | tail -n1)
+        if [ "$PSH_HTTP" = "204" ] || [ "$PSH_HTTP" = "200" ]; then
+            echo "SUCCESS: $POLARI_SHELL_CLIENT_ID redirect URIs asserted."
+        else
+            echo "ERROR: Failed to update $POLARI_SHELL_CLIENT_ID. HTTP $PSH_HTTP"
+            echo "$PSH_UPDATE" | sed '$d'
+        fi
+    fi
+
     # --- 3. Configure polari-backend client secret + service-account roles ----
     PBE_RESPONSE=$(curl -s -X GET \
         "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients?clientId=$POLARI_BE_CLIENT_ID" \
