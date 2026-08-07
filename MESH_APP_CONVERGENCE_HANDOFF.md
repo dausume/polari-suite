@@ -71,21 +71,64 @@ Points as separated for later planning — NOT resolved:
   here. The seam is presumably: polari declares/consumes, isle-core
   transports.
 
-## 3. Ambiguities to resolve WITH Dustin (not guessed here)
+## 2b. Dustin's follow-up answers (2026-08-06, recorded — these
+## PRE-RESOLVE part of §3)
 
-- What IS a "mesh-app" to him, concretely? (A PolariAppDefinition
-  whose modules span instances? A shell that roams? A bundle that
-  installs itself onto whatever node is nearby?)
+> "they can choose between auto or manual, and we will want to
+> leverage it. We also previously defined everything assuming
+> docker compose based apps. However we likely want to upgrade
+> that so that the apps can effectively operate as though they are
+> docker swarm apps. Or they are shell apps, basically allowing
+> you to access the apps from another computer via web despite it
+> actually being installed elsewhere."
+
+As separated for planning:
+
+1. **Auto vs manual is a CHOICE (a knob), not a doctrine** — the
+   operator picks per-something (per app? per topology? to be
+   pinned down), "and we will want to leverage it" — i.e. auto
+   mode is expected to do real work, not be decorative. This
+   dissolves the §3 tension: knobs-and-suggestions survives as the
+   DEFAULT (manual), auto is an explicit opt-in knob.
+2. **Compose → swarm upgrade for apps**: everything so far assumed
+   docker-compose-based apps; mesh-apps should "effectively
+   operate as though they are docker swarm apps" — services
+   distributable across machines. Note the substrate half-exists:
+   the node/suite stacks ALREADY deploy as swarm stacks
+   (`pol swarm deploy`, stackify.py, placement constraints from
+   topology rows); what's compose-assumed is the APP/module layer
+   on top.
+3. **OR shell apps as the other realization**: an app stays
+   installed where it is, and the app-shell machinery
+   (appstore-1/shell-1: registration, reachability, multi-instance
+   registry) gives access "from another computer via web despite
+   it actually being installed elsewhere". So a mesh-app has (at
+   least) two delivery modes — MOVE the app (swarm placement) or
+   REACH the app (shell access) — and the model should treat them
+   as two answers to one question.
+
+## 3. Ambiguities STILL open (after §2b; resolve with him)
+
+- ~~auto vs manual~~ → RESOLVED as a knob (§2b.1). Remaining: the
+  knob's GRAIN (per app? per topology? per move-class?) and what
+  auto is allowed to touch (module assignment only? container
+  deploys? cert/env renders?).
+- What IS a "mesh-app" concretely — given §2b it looks like: one
+  app definition + a per-deployment CHOICE of realization
+  (swarm-distributed vs shell-reached vs both). Confirm that
+  framing before modeling it.
 - "distributed across a computer" — one machine, many instances?
-  or across the machine fleet (pol-core / isle-core / econ-core)?
-- "manage the topology automatically" vs the standing
-  knobs-and-suggestions + deploys-stay-human rules — does he want
-  auto-EXECUTION, or auto-PLANNING with one-command apply?
-- Where does the App Store sit in a mesh world — per-instance
-  stores, or one mesh-wide catalog with instance-local artifacts?
+  or the fleet (pol-core / isle-core / econ-core)? §2b.2's swarm
+  wording suggests the fleet; confirm.
+- Where does the App Store sit — per-instance stores, or one
+  mesh-wide catalog with instance-local artifacts?
 - Do the two placeholders ('mesh' accessibility scope, 'isle'
   orchestration target) become real in this arc, and which side
   (polari or isle-core) owns each?
+- App-layer swarm: does a module/app become a swarm SERVICE of its
+  own, or stay inside the instance containers with swarm placing
+  the instances (today's model)? This is the biggest architecture
+  fork §2b.2 opens.
 
 ## 4. State at handoff
 
