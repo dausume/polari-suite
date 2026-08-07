@@ -582,3 +582,15 @@ polari-framework + polari-cli):
   --force (same-tag gotcha).
 REMAINING for mac-1: Dustin's browser pass of /display/isle-mesh;
 the Angular console page is mac-10.
+
+**§12/§13 update (2026-08-07, night): THE SWITCH IS IN.** Dustin
+cabled all three machines to the TL-SG608. L2 VERIFIED from both
+ends (IPv6 all-nodes multicast): pol-core@eno1, isle-core@enp1s0,
+econ-core@enp2s0 all on ONE segment, RTT 0.4–0.8ms, no loss. The
+either/or cable constraint is GONE — econ-core is back without the
+wifi-AP path. Synced into islemesh: all three devices now REAL rows
+w/ ethernet(isle)+wifi(home) uplinks — the dual-home model as data.
+Only guest-laptop remains mock (kept as the sole-isle demo; banner
+honestly up). NEXT physical layer: the isle stack itself on
+isle-core (router VM + agent + bridge adoption of the switch
+segment) = mac-2's join flow, needs interactive sudo or Dustin.
