@@ -524,3 +524,15 @@ smart-switch port-security/MAC-limiting (virtual MACs). Verify on
 arrival: non-ISP-cable auto-detection with 3 peers on one segment.
 Future option noted: a cheap OpenWRT-capable box (GL.iNet class)
 could one day BE the physical isle router, replacing the VM.
+
+**§12 state update (2026-08-07, evening):** Dustin SWAPPED THE
+CABLE — pol-core↔isle-core plugged, econ disconnected ("for
+today"). **L1 VERIFIED both ends**: pol-core `eno1` UP w/
+link-local, isle-core `enp1s0` UP w/ link-local. But the ISLE STACK
+IS DOWN on isle-core: no `isle-br-0`, `virbr0` DOWN, router VM not
+visible (system virsh needs interactive sudo — BatchMode SSH can't
+elevate), `isle-mesh-boot.service` NOT FOUND (boot persistence not
+installed?), `isle status` prints its banner then stalls >40s.
+Bring-up needs Dustin (or passwordless-sudo grants for specific
+isle commands) — recorded as the first live task of mac-2, not
+attempted unilaterally.
