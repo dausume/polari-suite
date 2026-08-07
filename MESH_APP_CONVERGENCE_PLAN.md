@@ -68,8 +68,15 @@ One definition, many realizations — the model the whole arc hangs on.
   the **auto/manual knob per-app**: `automation = {triggers_allowed:
   [...], may_relocate: bool}`, default manual-everything
   (knobs-and-suggestions preserved).
-- `MeshAppRealization` rows: `local-stub | shell | website` —
-  simultaneous, not exclusive; all carry the same `.isle` URL.
+- `MeshAppRealization` rows: `local-stub | shell | website | kvm` —
+  simultaneous, not exclusive; all carry the same `.isle` URL. `kvm`
+  (handoff §9) = libvirt VM w/ USB/USB-C passthrough for
+  hardware-backed apps; carries a **hardware-affinity pin** (node
+  label `polari.hw.<device>`) that the mover must REFUSE to move
+  (suggest "unplug + replug at target" instead).
+- Package kinds alongside realizations: `app-deb | polari-node-deb |
+  module-deb` (mac-8) — model them now so the store/catalog rows
+  don't need reshaping later.
 - Make the two placeholders REAL in vocabulary only:
   `OrchestrationTarget 'isle'` becomes seedable-but-gated (available
   once mac-3 verifies), `accessibility_scope='mesh'` accepted on
@@ -205,6 +212,62 @@ stub, shell, browser — all through `.isle`.
 
 **Confirm gate:** live demo — kill/load a node, watch an auto app
 relocate; an on-demand app wakes from a browser hit.
+
+## mac-8 — Universal .deb install (the 2026-07-03 plan §2–3, built)
+
+.deb is the front door for EVERYTHING (Dustin, handoff §9): install
+apps the way isle-mesh installs itself; "normal app stores" deliver
+full swarm-on-isle-vLAN capability via postinst self-integration.
+
+- **Three .deb kinds through ONE pipeline** (isle's app-package.sh
+  lineage, swarm-capable after mac-4):
+  1. app .deb — any mesh-app (exists, gets the swarm knob);
+  2. **polari-node .deb** — polari itself from its compose via the
+     SAME pipeline (the July plan's "first first-class mesh-app",
+     finally); postinst = detect mesh → self-integrate (register
+     .isle, join/claim per PeerAgreement flow) → else run as a
+     plain local compose app (graceful degradation, keeper rule);
+  3. **module .deb** — wraps a module_bundle JSON + postinst that
+     calls the LOCAL instance's modules API (module_fetcher/loader
+     = the real installer; the .deb is its delivery skin). "In a
+     way that makes sense": only modules whose deps admit local
+     install offer a .deb; others point at the store.
+- **Distribution:** an apt repo ON the mesh (MinIO-hosted, signed;
+  reachable at a `.isle` URL) + the polari App Store catalog
+  fronting the same artifacts (it already serves the shell .deb).
+  `apt install polari-module-<name>` is the acceptance narrative.
+- Store/catalog rows gain package-kind + realization columns
+  (modeled at mac-1, so this phase is packaging + repo only).
+
+**Confirm gate:** on a clean machine: apt-install the manager app,
+apt-install polari-node .deb, apt-install one module .deb — polari
+self-integrates into the mesh, module appears in the local instance.
+
+## mac-9 — KVM realization: hardware over USB/USB-C, made real
+
+Polari's simulated hardware stack (hwsim Renode/Verilator/ngspice,
+electrodevice/hwdigital/hwfpga) gains the REAL path; isle's libvirt
+ops (router VM: staged qcow2, virsh autostart, boot reconcile) are
+the machinery.
+
+- `kvm` realization executor: define VM from a template (qcow2
+  staging same as the router VM), attach USB device via libvirt
+  hostdev, VM joins the isle network like any device (its agent
+  registers `.isle` names), polari hw module inside talks to the
+  physical device.
+- **Hardware-affinity placement:** device inventory per node (lsusb
+  scan → node labels `polari.hw.<device>`); hw-backed apps pin to
+  the node that has the device; mover REFUSES relocation with the
+  honest suggestion (move the plug, then the app follows).
+- **Sim↔real knob per hw app:** same module, backend = hwsim OR the
+  passed-through device; evidence pages compare sim vs real traces
+  (the whole point of "made real").
+- USB-C alt modes / power roles: document what libvirt passthrough
+  can and cannot do (thunderbolt/display = out of scope v1).
+
+**Confirm gate:** one real USB device (dev board / serial) passed
+into a VM, its polari hw module reading REAL data at a `.isle` URL,
+relocation honestly refused with the replug suggestion.
 
 ---
 

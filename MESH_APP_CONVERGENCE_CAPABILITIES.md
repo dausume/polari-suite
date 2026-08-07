@@ -137,6 +137,48 @@ control") is a keeper discipline — adopt it for the merged verbs.
 a stateful volume, relocation uses the gm discipline. This is what
 makes "move apps around dynamically" honest for real apps.
 
+## 10. Install & distribution (.deb as THE front door)
+
+| | isle-mesh | polari |
+|---|---|---|
+| Has | installs ITSELF via .deb (`appInstall.sh` → manager-app .deb BUNDLING the CLI; postinst installs CLI on clean machines), `app-package.sh` per-app .debs w/ icon + wrapper, 2026-07-03 plan §2–3: postinst SELF-INTEGRATION + graceful degradation, "Polari's .deb produced by the SAME pipeline" | App Store serving .debs already (jpackage shell .deb, presigned MinIO downloads, catalog per platform), `pol shell publish`, module_bundle + module_fetcher/loader (modules travel via API), 22 modules split to polari-module-* repos |
+| Gap | no apt REPO (dpkg -i by hand), polari-as-deb never built | no .deb wrapping for polari itself or modules |
+
+**Verdict — ISLE'S PACKAGING PIPELINE + POLARI'S STORE/CATALOG,
+THREE .deb KINDS.** (Dustin 2026-08-07, handoff §9 — re-affirming
+the 2026-07-03 plan.) One install UX for everything, postinst
+self-integration, graceful degradation everywhere:
+1. **App .deb** — any mesh-app (isle's app-package.sh, upgraded
+   swarm-capable at mac-4);
+2. **Polari-node .deb** — polari itself through the SAME pipeline
+   (the July plan's §3, finally built);
+3. **Module .deb** — wraps a module_bundle + postinst that installs
+   into the local instance via the modules API (the fetcher/loader
+   machinery IS the installer; the .deb is just its delivery skin).
+Distribution = "normal app stores": an apt repo hosted on the mesh
+(MinIO can serve one) + the polari App Store catalog fronting the
+same artifacts. Payloads self-integrate into swarm-on-isle-vLAN on
+install; without a mesh they run as plain apps (keeper principle).
+
+## 11. KVM / hardware integration (USB, USB-C)
+
+| | isle-mesh | polari |
+|---|---|---|
+| Has | libvirt IN PRODUCTION (OpenWRT router VM: staged qcow2, virsh autostart, boot reconcile) | hardware SIMULATION stack (hwsim-1 LIVE: Renode/Verilator/ngspice; electrodevice/hwdigital/hwfpga modules; MCU+FPGA architecture direction) — all simulated, no real-device path |
+| Gap | VMs only for the router; no USB passthrough story | no VM realization; sims never touch hardware |
+
+**Verdict — NEW REALIZATION KIND `kvm`, MERGING ISLE'S VM OPS WITH
+POLARI'S HARDWARE MODELS.** (Dustin: "what we have been simulating
+in polari hardware wise, made real.") A hardware-backed mesh-app =
+a KVM with the physical USB/USB-C device passed through (libvirt
+hostdev), reachable at its `.isle` URL like any other app, its
+polari hw module talking to the REAL device instead of the sim.
+🔑 **Hardware presence is a placement constraint**: the device is
+plugged into ONE machine (node label `polari.hw.<device>`), so the
+app is PINNED — the one realization the dynamic mover must honestly
+REFUSE to move (surfacing "unplug + replug at target" as the
+suggested manual step). Sim↔real becomes a knob per hw app.
+
 ---
 
 ## Gaps NEITHER side has (the genuinely new work)
@@ -154,6 +196,10 @@ makes "move apps around dynamically" honest for real apps.
    speak `.isle` (mac-6).
 5. **Wake-on-access + resource triggers wired to real signals**
    (isle relay + polari resources module, mac-7).
+6. **The apt repo on the mesh** + polari-node .deb + module .debs
+   (mac-8) — three .deb kinds, one store front.
+7. **KVM realization w/ USB passthrough + hardware-affinity
+   placement** (mac-9) — the sim-to-real bridge.
 
 ## Where each side's *character* survives
 
