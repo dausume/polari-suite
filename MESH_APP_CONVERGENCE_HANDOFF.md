@@ -101,6 +101,13 @@ As separated for planning:
        isle-mesh side gets upgraded to emit swarm-capable apps;
    (b) that mesh-app automation gets integrated with polari's
        capabilities (topology rows, app definitions, the store).
+   **THE GOAL (Dustin, verbatim): "our goal is to combine the two
+   systems meaningfully not just upgrade one or the other."** So
+   frame every design choice as convergence — one coherent
+   app-automation system with polari and isle-mesh as its two
+   halves — not as patches to either side. The converter upgrade
+   and the polari integration are means; the combined system is
+   the deliverable.
    ⚠ The converter presumably lives in isle-core's repos, and
    isle-core has its OWN Claude holding isle-mesh memories (rule
    since 2026-06-20) — the next session must LOCATE the tool
@@ -108,7 +115,8 @@ As separated for planning:
    than assume its shape, and decide which side each change lands
    on. Note polari's own stackify.py (`pol swarm render`) does a
    compose→swarm-stack transform for INSTANCES — related but not
-   the same tool; don't conflate them.
+   the same tool; the combined system is where those two
+   transforms likely become one model.
 3. **OR shell apps as the other realization**: an app stays
    installed where it is, and the app-shell machinery
    (appstore-1/shell-1: registration, reachability, multi-instance
