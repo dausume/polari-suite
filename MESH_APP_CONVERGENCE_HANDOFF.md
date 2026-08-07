@@ -303,3 +303,30 @@ Transition plan (dual-home then cut over?) is a real design step.
 Still open for the plan: §6.4 work split (isle-core's Claude vs SSH
 vs polari-only), the auto-knob grain (isle's trigger vocabulary is
 the likely answer), and the swarm re-homing path.
+
+## 8. Work split RULED + survey done (2026-08-07)
+
+Dustin: this instance takes **full responsibility over SSH** on the
+isle side, in **active communication with isle-core's Claude**
+(workspace `~/.claude/projects/-home-detts-Isle-Mesh` exists) —
+"since this is attempting to merge the logic of both frameworks and
+bring them into being a singular system." The 2026-06-20 rule is
+amended accordingly (contract + notes keep the other instance
+coherent).
+
+Physical facts: pol-core `eno1` is DOWN/no-cable (WiFi-only on the
+home LAN) → joining the isle vLAN needs Dustin to run ethernet.
+SSH to isle-core rides the home LAN — sequence cutover carefully.
+isle-core `enp1s0` up/addressless (isle bridge member); router VM
+virbr0 currently DOWN.
+
+Dustin then asked for a detailed BOTH-SIDES capability survey before
+locking the plan → `MESH_APP_CONVERGENCE_CAPABILITIES.md` (9 domains
+w/ merge verdicts + the 5 genuinely-new gaps). Key discoveries: the
+2026-07-03 `MESH_CONVERGENCE_PLAN.md` seam doc EXISTS ON BOTH SIDES
+and already ruled the authority split; isle's REVAMP-PLAN.md admits
+the app layer is "built but disjointed" (registry durability etc. —
+fix branches exist, VERIFY merged into dev-consolidation); isle's
+availability-modes vocabulary + polari's movers/receipts are the
+flagship merge. Draft phase plan: `MESH_APP_CONVERGENCE_PLAN.md`
+(mac-0..7) — awaiting Dustin's cut.
