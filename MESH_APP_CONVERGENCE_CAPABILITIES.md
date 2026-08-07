@@ -32,6 +32,18 @@ contributes nothing here except *demand* (its services become the
 biggest tenant). nip.io stays as the home-LAN web tier until the
 isolation cutover retires it deliberately.
 
+**Transport modes (handoff §10):** the isle uplink is an
+abstraction — dedicated ethernet (proven) OR a dedicated WiFi
+interface to an isle AP. The AP itself: USB dongle passed into the
+router VM (AP-capable chipset required — mt76 family; the first
+real mac-9 passthrough) or hostapd-on-host bridged to isle-br-0
+(router VM keeps DHCP/DNS). Per-device connectivity mode =
+`sole-isle | dual-home` — dual-home (internet + isle, separation
+enforced: no forwarding, split DNS) is a FIRST-CLASS steady state,
+and the mesh must be **offline-complete** (zero-internet operation:
+local DNS/CA/apt/store/auth/time + a mesh-local docker registry —
+see gap 8).
+
 ## 2. Device ingress / proxy
 
 | | isle-mesh | polari |
@@ -200,6 +212,13 @@ suggested manual step). Sim↔real becomes a knob per hw app.
    (mac-8) — three .deb kinds, one store front.
 7. **KVM realization w/ USB passthrough + hardware-affinity
    placement** (mac-9) — the sim-to-real bridge.
+8. **Mesh-local docker registry** — required for BOTH dynamic
+   placement (a move must not mean rebuild-on-target) and
+   offline-complete operation (no internet pulls). A registry
+   service on the isle, images pushed at build time (mac-3).
+9. **Isle AP + uplink/connectivity modes** — wifi uplink,
+   sole-isle vs dual-home enforcement, link-quality measurement
+   feeding placement (mac-2, mac-7).
 
 ## Where each side's *character* survives
 

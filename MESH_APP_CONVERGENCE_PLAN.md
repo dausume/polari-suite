@@ -87,24 +87,46 @@ One definition, many realizations — the model the whole arc hangs on.
 
 **Confirm gate:** review of the model on the topology page.
 
-## mac-2 — pol-core joins the isle vLAN (physical + join flow)
+## mac-2 — Uplink modes + pol-core joins the isle
 
-- **Dustin's manual step: a physical cable** — pol-core `eno1` is
-  DOWN/no-carrier today (WiFi-only on 192.168.0.210). Run ethernet
-  from pol-core to the isle bridge/router. isle's self-forming
-  bridge (recent isle commits: auto-bridge non-ISP cables) should
-  adopt it.
-- Then over SSH: isle `join` flow for pol-core (the isle CLI owns
-  this — use its scripts, don't reimplement), verify `.isle`
-  resolution + reachability from pol-core, register pol-core in the
-  mesh registry/device directory.
-- Dual-homed on purpose during the arc (WiFi=home LAN for SSH/dev,
-  eno1=isle). Mutual invisibility = no forwarding between the two on
-  any host; verify with the isle conflict/isolation checks. Whether
-  hosts eventually DROP the home LAN is a later, explicit decision.
+The isle uplink is an ABSTRACTION (handoff §10): any dedicated L2
+attachment — **ethernet cable** (proven, ~1ms) or a **dedicated
+WiFi interface** (USB dongle or internal card) associated to an
+isle AP. Everything must run smoothly over ONE such link. Per-device
+connectivity mode: **`sole-isle | dual-home`** — dual-home
+(internet + isle on one device) is a FIRST-CLASS steady state with
+separation enforced (no forwarding between the two, split DNS:
+`.isle` → isle interface only), not a transition hack.
 
-**Confirm gate:** `ping <something>.isle` from pol-core; isolation
-check green; home-LAN SSH still works.
+- **pol-core joins by cable** (Dustin's manual step — `eno1` is
+  empty today): isle's self-forming bridge adopts it; then the isle
+  `join` flow over SSH (isle CLI owns it), verify `.isle`
+  resolution, register pol-core in the device inventory. pol-core
+  runs dual-home (WiFi=internet+SSH, eno1=isle) — now a supported
+  mode, verified by the isolation checks, kept indefinitely.
+- **WiFi uplink path** (buildable without new hardware only if a
+  spare AP-capable interface exists): isle AP realization decision
+  by prototype —
+  (a) USB WiFi dongle passed into the router VM (libvirt hostdev —
+      the first REAL mac-9 passthrough). Chipset must do AP mode
+      under OpenWRT: **mt76 family (MT7612U/MT7921AU) is the safe
+      buy**; Realtek dongles generally are not.
+  (b) hostapd on the host bridged into `isle-br-0` — AP is pure L2,
+      router VM keeps DHCP + `.isle` DNS. More reliable, less
+      portable.
+- **sole-isle mode**: device's ONLY connection is the isle. Edge
+  enforcement: DNS answers `.isle` only, egress firewall limited to
+  isle nets, agent mandatory. No internet BY DESIGN (the "never
+  hijack the ISP route" rule inverted) unless a gateway knob —
+  default OFF — deliberately provides it.
+- Link-quality measurement per uplink (latency/jitter/loss) recorded
+  by the resources module — placement input for mac-7 (prefer
+  cabled nodes for chatty services).
+
+**Confirm gate:** `ping <something>.isle` from pol-core over the
+cable; isolation check green; home-LAN SSH still works; wifi-uplink
++ AP path exercised (or explicitly deferred to hardware purchase —
+chipset named).
 
 ## mac-3 — Re-home the swarm onto isle addresses
 
@@ -123,9 +145,21 @@ must not see. Swarm-over-isle = the control plane moves.
   4. `pol swarm deploy` re-renders stacks onto the new swarm;
      verify prf-a end-to-end.
 - Ports 2377/7946/4789 ride the isle vLAN only.
+- **Mesh-local docker registry** (offline-complete rule, handoff
+  §10 addendum): stand up a registry service on the isle
+  (`registry.isle`), `pol build` pushes images to it, stacks pull
+  from it. Without this every dynamic move = rebuild-on-target or
+  an internet pull; with it, placement is fast AND offline. Certs
+  from the suite CA; storage in mesh MinIO or its own volume.
 - Verify isolation: swarm traffic absent from 192.168.0.x (tcpdump
   spot-check), mesh hosts cannot reach home-LAN-only services and
   vice versa.
+- **Offline-complete drill** (acceptance): pull the WAN from the
+  home router (or firewall it off) — mesh keeps working: .isle DNS,
+  auth (local KC), app up/down/move (local registry), apt installs
+  (mac-8 repo), cert issuance (local CA), time (chrony from the
+  router). Anything that breaks gets a local substitute or an
+  honest documented dependency.
 
 **Confirm gate:** prf-a healthy on the re-homed swarm; isolation
 evidence shown. (This phase is the riskiest — schedule with Dustin
