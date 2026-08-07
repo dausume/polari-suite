@@ -252,3 +252,54 @@ may touch — though note isle's availability model already gives auto
 a vocabulary (`resource-permitting` / `resource-pressure`), so the
 knob may be nothing more than "which triggers is this app allowed
 to use, and may polari move it".
+
+## 7. Dustin's architecture answer (2026-08-07, recorded near-verbatim)
+
+> "part of the solution here needs to be that we need to retain the
+> capability for isle-mesh to remain authoritative over networking
+> while pulling docker compose into it and enabling topology from
+> polari to be able to dynamically change the topology. we want the
+> network to focus on making everything a genuinely separate vLAN
+> that cannot see the original network and vice versa. The isle-mesh
+> approach should be the main approach for networking, and docker
+> swarm just rides on top of that network so that we can leverage
+> the capability to dynamically bring apps up or down and move them
+> around dynamically. We want to make it so this can eventually be
+> turned into something that simultaneously can be apps locally and
+> be mesh accessed websites as well. The apps will leverage the
+> .isle urls."
+
+This RESOLVES three of §6's four decisions:
+
+1. **Cluster shape → swarm-over-isle.** One swarm, but it RIDES ON
+   the isle vLAN — swarm is purely the dynamic placement layer
+   (up/down/move); isle-mesh is THE network. Mutual isolation is a
+   hard requirement: the mesh vLAN cannot see the original network
+   and vice versa.
+2. **Source of truth → split by layer.** isle-mesh authoritative
+   over NETWORKING (vLANs, .isle domains, certs, agent proxying);
+   polari authoritative over TOPOLOGY (what runs where, dynamic
+   changes). Compose apps get PULLED INTO the isle world.
+3. **Facade → both, simultaneously.** An app is a local app AND a
+   mesh-accessed website at the same time; both realizations hit
+   the same `.isle` URLs.
+
+**Derived layer stack (for the plan):**
+```
+ OpenWRT router + macvlan/vLAN        ← isle-core authoritative
+ .isle DNS + per-device isle-agent    ← isle-core authoritative
+ docker swarm control+data plane      ← rides ON isle addresses
+ mesh-app swarm services              ← polari topology places these
+ delivery: local stub / shell / URL   ← all resolve via .isle
+```
+
+**⚠ Consequence not yet decided: the CURRENT swarm contradicts the
+isolation requirement.** All three nodes advertise on 192.168.0.x —
+the original network. Swarm-over-isle means re-homing the swarm
+(advertise-addr on isle vLAN interfaces = leave/re-join or
+re-init), and pol-core itself needs a presence ON the isle network.
+Transition plan (dual-home then cut over?) is a real design step.
+
+Still open for the plan: §6.4 work split (isle-core's Claude vs SSH
+vs polari-only), the auto-knob grain (isle's trigger vocabulary is
+the likely answer), and the swarm re-homing path.
