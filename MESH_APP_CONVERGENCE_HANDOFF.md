@@ -594,3 +594,22 @@ Only guest-laptop remains mock (kept as the sole-isle demo; banner
 honestly up). NEXT physical layer: the isle stack itself on
 isle-core (router VM + agent + bridge adoption of the switch
 segment) = mac-2's join flow, needs interactive sudo or Dustin.
+
+**§13 requirement (Dustin, 2026-08-07): manual ops must be EASY,
+FOREVER.** "ensure capabilities are set up so people can do this
+easily and manually in the future." The bring-up (and every op like
+it) must end up a first-class, documented, repeatable capability —
+not a Claude-dropped script:
+- isle CLI verb (fold isle-bringup-mac2.sh into `isle` proper —
+  boot-bringup exists as a script; make bring-up + persistence +
+  verify ONE obvious verb an average user can run);
+- manager-app button for the same (isle's own CLI↔app parity rule);
+- installed BY DEFAULT (.deb postinst installs boot persistence —
+  a fresh install should never be missing isle-mesh-boot.service
+  the way isle-core was);
+- documented in GETTING-STARTED, not tribal knowledge;
+- sudo grants stay operator-explicit (a knob, never baked in).
+This is the isle "average-user story" applied to operations:
+install → works, reboot → recovers, one command → verifiably up.
+Lands in mac-2 (bring-up verb) + mac-8 (postinst defaults) +
+mac-10 (console/manager button, host+login gated).
