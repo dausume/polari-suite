@@ -328,10 +328,17 @@ ships as a mesh-app .deb via mac-8 (dogfood — works offline).
   generators only); app up/down/wake; availability-mode changes.
   **CLI↔app parity** (isle's own rule): every console op = an isle
   CLI verb, both built or neither.
-- isle-manager-app relationship: the console SUPERSEDES AppsView
-  for mesh-wide views; the manager app keeps the device-local
-  role-collapse duties (or gains a JCEF pane pointing at the same
-  pages — decide with Dustin at phase start).
+- isle-manager-app relationship — RULED (Dustin 2026-08-07): the
+  manager app gains a **JCEF pane onto the SAME pages** (one page
+  set, two chromes). Authorization is SURFACE- and HOST-aware, not
+  just role-based: **privileged ops are restricted to the manager
+  app running ON the host machine + a local user login** (network-
+  shape changes, admissions, destructive ops); the console
+  elsewhere gets read views + unprivileged verbs. Enumerate the
+  per-operation permission tiers at phase start. Mechanism sketch:
+  the manager-app pane authenticates with a host-bound credential
+  (local socket / host-only claim) the roaming console cannot
+  present — deep-dive at phase start.
 
 **Confirm gate:** on two devices, open the console: see the mesh
 map + all apps + the protocol matrix; rename one app's `.isle` URL
