@@ -330,3 +330,45 @@ fix branches exist, VERIFY merged into dev-consolidation); isle's
 availability-modes vocabulary + polari's movers/receipts are the
 flagship merge. Draft phase plan: `MESH_APP_CONVERGENCE_PLAN.md`
 (mac-0..7) — awaiting Dustin's cut.
+
+## 9. Dustin's addition (2026-08-07, recorded near-verbatim): .deb installs + KVM hardware
+
+> "another thing to account for is install via deb, we need to be
+> able to install apps similarly to how we install isle-mesh itself
+> currently and be able to make polari and particular modules in
+> polari able to be installed similarly in a way that makes sense.
+> That way people can use normal app stores to do installs but have
+> all the capabilities of a docker swarm on the vlan of isle mesh.
+> While retaining the capability to use KVMs for doing things like
+> integrating arbitrary hardware over usb or usb-c (what we have
+> been simulating in polari hardware wise, made real)"
+
+As separated for planning:
+
+1. **.deb is the UNIVERSAL install story** — apps install the way
+   isle-mesh itself installs (`appInstall.sh` → manager-app .deb
+   that BUNDLES the CLI; postinst installs CLI on clean machines).
+   Note: the 2026-07-03 seam doc §2–3 ALREADY planned this — `isle
+   package` .debs w/ postinst self-integration + graceful
+   degradation, and "Polari's .deb is produced by the SAME
+   pipeline". Dustin is re-affirming + extending it.
+2. **Polari itself AND individual polari MODULES as .debs** "in a
+   way that makes sense" — module .debs presumably wrap the existing
+   module_bundle JSON + a postinst that installs into the local
+   instance via the modules API (module_fetcher/loader machinery
+   exists; 22 modules already split to polari-module-* repos).
+3. **"Normal app stores"** as the front door — deb-native installs
+   (apt repo on the mesh and/or the polari App Store serving .debs,
+   which it already does for the shell) — while the payload still
+   gets full docker-swarm-on-isle-vLAN capabilities via postinst
+   self-integration.
+4. **KVMs RETAINED as a first-class realization** — for integrating
+   arbitrary hardware over USB/USB-C: polari's hardware simulation
+   (hwsim Renode/Verilator/ngspice, electrodevice/hwdigital/hwfpga,
+   the MCU+FPGA architecture direction) **made real** by passing
+   the physical device into a VM. isle already runs libvirt (the
+   OpenWRT router VM, virsh autostart) — the machinery exists.
+   🔑 Implication: hardware presence is a PLACEMENT CONSTRAINT —
+   a USB device is plugged into ONE machine, so a hardware-backed
+   app is pinned there (node label e.g. polari.hw.<device>); it is
+   the one realization the dynamic mover must refuse to move.
