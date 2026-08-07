@@ -536,3 +536,12 @@ installed?), `isle status` prints its banner then stalls >40s.
 Bring-up needs Dustin (or passwordless-sudo grants for specific
 isle commands) — recorded as the first live task of mac-2, not
 attempted unilaterally.
+
+**§12 purchase:** Dustin selected the TP-Link **TL-SG608** (8-port
+unmanaged gigabit, ~$23) — confirmed compatible: unmanaged = no
+port-security/MAC-limiting (virtual MACs safe); IGMP snooping
+harmless (link-local multicast 224.0.0.0/24 — mDNS/beacons — is
+always flooded; DHCP/broadcast untouched). 8 ports = all three
+machines + router + headroom; econ-core returns without waiting on
+the wifi-AP path. On-arrival check stands: non-ISP-cable detection
+with multiple peers on one segment.
