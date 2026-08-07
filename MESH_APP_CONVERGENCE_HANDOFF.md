@@ -418,3 +418,24 @@ As separated:
    latency/jitter ethernet doesn't; the resources module should
    measure per-link quality so placement/availability suggestions
    can prefer cabled nodes for chatty services.
+
+**§10 addendum (Dustin, same session):** "we want to be able to
+have internet and isle-mesh on the same device as well as enabling
+isle-mesh to operate fully without internet." So:
+- **Dual-home is a FIRST-CLASS steady state**, not a transition:
+  internet (home LAN/WiFi) + isle uplink on one device, with
+  separation ENFORCED (no forwarding between them, no route leaks,
+  split DNS: .isle → isle interface, everything else → normal).
+  The earlier open question "do hosts eventually drop the home
+  LAN" is ANSWERED: no — per-device connectivity mode is
+  sole-isle | dual-home, operator's knob.
+- **Offline-complete is an ACCEPTANCE RULE**: the whole mesh must
+  work with zero internet — .isle DNS (already authoritative
+  locally), own CA (no external chain), apt repo ON the mesh
+  (mac-8), store artifacts in mesh MinIO, Keycloak local, time
+  sync from the router (chrony peer, no NTP pool dependency), and
+  🔑 a MESH-LOCAL DOCKER REGISTRY — without one, every dynamic
+  placement move needs a rebuild on the target or an internet
+  pull; a registry service on the isle is what makes "move apps
+  around dynamically" real AND offline. (Today's swarm images are
+  per-node local builds — fine static, wrong for dynamic.)
