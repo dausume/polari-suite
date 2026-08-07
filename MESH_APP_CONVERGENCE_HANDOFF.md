@@ -613,3 +613,33 @@ This is the isle "average-user story" applied to operations:
 install → works, reboot → recovers, one command → verifiably up.
 Lands in mac-2 (bring-up verb) + mac-8 (postinst defaults) +
 mac-10 (console/manager button, host+login gated).
+
+## 14. Isle stack LIVE + grant installed (2026-08-07, night)
+
+Dustin ran `~/isle-bringup-mac2.sh --grant` on isle-core (via real
+terminal — NB the Claude `!` prompt can't do interactive sudo):
+router VM openwrt-isle-router RUNNING (reachable 192.168.1.1),
+bridges br-mgmt/br-my-isle/isle-br-0 up, enp1s0 (the switch cable)
+enslaved to br-my-isle, macvlan bound, isle-mesh-boot.service
+INSTALLED+enabled, hotplug installed, **passwordless sudo granted**
+(/etc/sudoers.d/isle-claude — the work-split capability; revoke =
+rm). ⚠ boot-bringup reported "agent failed to start" but a manual
+`docker start isle-vlan-agent` worked immediately (startup race —
+container was Created-not-started; fold a retry into the mac-2
+verb). Agent generated sample.local config on start.
+
+Sync hardened (live-caught, all committed): agent container is
+isle-vlan-agent (not isle-agent); fragments live at
+agent/nginx/configs (ladder tries both); router detection via
+`sudo -n virsh` with the grep -c prints-0-AND-exits-1 trap fixed
+(SAME bug class as isle's own 8130095); 🔑 IsleAppService silently
+dropped device_name — param existed but was never assigned to self,
+and treeObjectInit DROPS unassigned params without error → AST
+param-assignment guard now in selftest (42/42). This gotcha is
+GENERAL to all polari basis classes.
+
+FINAL LIVE STATE: 3 real devices w/ truthful agent/router facts +
+mock guest (banner up); real registry (health+sample), real service
+row, real protocol matrix (sample.local http-redirect + https →
+isle-sample-app:5000). The visualization is doing its job: every
+layer that came up tonight is visible as data.
