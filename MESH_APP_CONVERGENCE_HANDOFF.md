@@ -90,14 +90,25 @@ As separated for planning:
    mode is expected to do real work, not be decorative. This
    dissolves the §3 tension: knobs-and-suggestions survives as the
    DEFAULT (manual), auto is an explicit opt-in knob.
-2. **Compose → swarm upgrade for apps**: everything so far assumed
-   docker-compose-based apps; mesh-apps should "effectively
-   operate as though they are docker swarm apps" — services
-   distributable across machines. Note the substrate half-exists:
-   the node/suite stacks ALREADY deploy as swarm stacks
-   (`pol swarm deploy`, stackify.py, placement constraints from
-   topology rows); what's compose-assumed is the APP/module layer
-   on top.
+2. **Upgrade ISLE-MESH's existing converter tool** (corrected by
+   Dustin 2026-08-06): "isle mesh has a tool to automate converting
+   compose into being a mesh app, we will want to upgrade that
+   capability in order to automate them into becoming docker swarm
+   capable apps, along with integrating together the mesh app
+   automation capabilities with polari capabilities." So the work
+   is TWO-sided:
+   (a) the compose→mesh-app converter that ALREADY EXISTS on the
+       isle-mesh side gets upgraded to emit swarm-capable apps;
+   (b) that mesh-app automation gets integrated with polari's
+       capabilities (topology rows, app definitions, the store).
+   ⚠ The converter presumably lives in isle-core's repos, and
+   isle-core has its OWN Claude holding isle-mesh memories (rule
+   since 2026-06-20) — the next session must LOCATE the tool
+   first (isle-core over SSH, or ask Dustin where it lives) rather
+   than assume its shape, and decide which side each change lands
+   on. Note polari's own stackify.py (`pol swarm render`) does a
+   compose→swarm-stack transform for INSTANCES — related but not
+   the same tool; don't conflate them.
 3. **OR shell apps as the other realization**: an app stays
    installed where it is, and the app-shell machinery
    (appstore-1/shell-1: registration, reachability, multi-instance
