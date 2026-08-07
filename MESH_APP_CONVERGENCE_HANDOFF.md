@@ -159,3 +159,96 @@ As separated for planning:
   `polari-app-shell/` awaits remote + .gitmodules.
 - Staging cert leaves renewed 2026-08-06; they are 30-day — recur
   ~Sep 5.
+
+---
+
+## 5. Reconnaissance results (2026-08-07 — the "LOCATE it first" step, done)
+
+§2b.2 said the next session must locate isle's converter rather than
+assume its shape. Done, read-only over SSH (`isle-core:~/Isle-Mesh`).
+
+**The converter is not one script — it is three layers:**
+- `isle-cli/scripts/scaffold.sh` (1124 lines) — the compose→mesh-app
+  converter proper: parses a docker-compose file, generates SSL certs
+  and the nginx proxy config, writes the app's isle configuration.
+- `isle-cli/scripts/app-package.sh` (145 lines) — compose→**.deb**:
+  desktop icon + per-app `up/down/access/status` wrapper that
+  registers/deregisters with the isle agent. **This is already
+  "an app that feels installed"**, and it already carries
+  `--mode <availability_mode>`.
+- `isle-cli/scripts/app-orchestrator.sh` (523 lines) — deploy-time
+  integration: detect agent, generate fragment, merge, reload
+  with no downtime.
+- Supporting: `mesh-app-scaffolding/` (jinja segments + templates +
+  `parse-docker-compose.sh` + `build-proxy-config.py`),
+  `isle-agent/scripts/generate-app-fragment.py` (345),
+  `generate-compose.py` (232).
+
+**isle-agent** = ONE nginx container per device (virtual MAC
+`02:00:00:00:0a:01` for OpenWRT DHCP isolation), per-app config
+FRAGMENTS merged into a master nginx.conf, `registry.json` as the
+domain/subdomain/service registry with conflict detection, zero-
+downtime reload. Siblings: `isle-host-agent` (device relay),
+`isle-remote-agent`, `isle-vlan-agent`.
+
+**`docs/AVAILABILITY-MODES.md` is the resource-adaptivity hook and it
+is already specced on the isle side**: availability as
+`up-trigger × down-trigger × placement`, presets over composable
+knobs (explicitly "per the isle knobs-and-suggestions rule" — the
+same rule polari follows). up-triggers: boot | access | schedule |
+presence/quorum | manual | **resource-permitting**. down-triggers:
+never | idle-timeout | schedule-end | presence-lost | manual |
+**resource-pressure**. placement: single-host | **replicated
+(failover across devices)**. Wake-on-access travels the device-relay
+control plane; an app→device directory is named as needed
+scaffolding. STATUS there: always-available implemented, on-demand
+scaffolded/planned.
+
+**🔑 THE BIG LIVE FACT (not known at handoff): the isle devices are
+ALREADY swarm nodes of polari's cluster.**
+```
+docker node ls   (from pol-core)
+  user-HP-ProDesk-600-G1-SFF   Leader   polari.machine=pol-core
+  dustin-etts-mesh-core        Ready    polari.machine=isle-core
+  dausume-DNB20-series         Down     polari.machine=econ-core
+```
+`polari-engines` (msci-engines) is RUNNING on isle-core right now,
+next to `isle-sample-app` as a plain container. Stacks: polari-engines,
+polari-node. So the substrate for "swarm apps distributed across
+devices" is not something to build — it is live and half-used. The
+arc is mostly ONE MODEL OVER TWO CONTROL PLANES, not new plumbing.
+
+**Polari-side seams already cut** (confirmed in code):
+- `topology/topology_constants.py`: `ORCHESTRATION_TARGETS =
+  ('compose','swarm','isle')`, `ACCESSIBILITY_SCOPES =
+  ('local','web','mesh')` — both with 'the future isle path,
+  seeded unavailable' comments.
+- `polari-cli/scripts/isle.sh` — 37-line namespace that refuses
+  every verb and names `pol swarm` the deliberate stand-in.
+- `pol-build/tools/stackify.py` — compose→swarm-stack with
+  `--constraint <service>=<expr>` → `deploy.placement.constraints`,
+  described as "how `pol allocate` pins a service to a machine
+  (node labels, set by pol swarm init/join)". The node labels it
+  refers to are the `polari.machine:*` labels above — already set.
+
+## 6. The four decisions blocking the plan (asked of Dustin 2026-08-07)
+
+1. **Cluster shape** — one swarm over the whole mesh / per-device
+   swarms with isle routing between / hybrid (swarm MOVES compute,
+   isle+shells REACH).
+2. **Source of truth** — polari rows authoritative and isle
+   registry.json RENDERED from them (the POLARI_MODULES idiom) /
+   isle authoritative and polari mirrors / two-way with an explicit
+   reconcile-and-surface-drift pass.
+3. **The facade** — what makes an app look installed everywhere:
+   isle `.deb` stub + agent proxy / polari app-shell client /
+   browser-only `.isle` domain / a per-app choice among them.
+4. **Work split** — spec-for-isle-core's-Claude (respects the
+   2026-06-20 rule) / implement both halves over SSH / polari-side
+   only against isle's current interfaces.
+
+Still open after those: the auto/manual knob's GRAIN and what auto
+may touch — though note isle's availability model already gives auto
+a vocabulary (`resource-permitting` / `resource-pressure`), so the
+knob may be nothing more than "which triggers is this app allowed
+to use, and may polari move it".
