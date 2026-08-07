@@ -372,3 +372,49 @@ As separated for planning:
    a USB device is plugged into ONE machine, so a hardware-backed
    app is pinned there (node label e.g. polari.hw.<device>); it is
    the one realization the dynamic mover must refuse to move.
+
+## 10. Dustin's transport requirement (2026-08-07, near-verbatim)
+
+> "the goal is to ensure it is possible for everything to operate
+> smoothly over a single ethernet cable dedicated to the isle-mesh,
+> or for it to alternatively be able to operate smoothly over a
+> dedicated usb-wifi or wifi card in general that has opted to
+> connect to the openwrt router. It would be good if it were
+> possible to expose the openwrt router via a plugin usb-wifi but I
+> am not sure if that is possible. That way isle-mesh could also
+> optionally just be the sole wifi connection of a device, the
+> device would still want to utilize the agent and ensure access
+> was only granted to .isle and such domains due to needing to
+> follow the rules for separation"
+
+As separated:
+
+1. **Isle uplink is an ABSTRACTION**: any L2 attachment to the
+   isle — dedicated ethernet cable (proven, ~1ms) OR a dedicated
+   WiFi interface (USB dongle or internal card) associated to an
+   isle AP. Everything (swarm control plane, overlay, .isle
+   ingress) must run smoothly over ONE such link.
+2. **Isle AP via plug-in USB-WiFi — FEASIBILITY: YES, with a
+   chipset caveat.** Two realizations, both keep the router
+   authoritative:
+   (a) USB WiFi dongle passed into the OpenWRT router VM (libvirt
+       hostdev — literally the FIRST real use of the mac-9 USB
+       passthrough capability). Works IFF the chipset does AP mode
+       under OpenWRT: MediaTek mt76 family (MT7612U, MT7921AU) is
+       the safe choice; Atheros AR9271 ok (2.4GHz only); Realtek
+       dongles are generally NOT AP-capable there — buy deliberately.
+   (b) hostapd on the HOST bridged into isle-br-0 — the AP is pure
+       L2; the router VM still owns DHCP + .isle DNS. More robust
+       (no USB-into-VM jitter), still router-authoritative.
+   Decide (a) vs (b) by prototype; (a) is more portable (the AP
+   travels with the router VM), (b) is more reliable.
+3. **Sole-WiFi mode**: a device whose ONLY connection is the isle
+   AP. Separation rules enforced at the edge: DNS answers .isle
+   only, firewall egress limited to isle nets, agent still
+   mandatory. Consistent with the standing isle rule "never hijack
+   the ISP route" — sole-wifi = no internet BY DESIGN unless the
+   mesh explicitly provides a gateway (own knob, default off).
+4. **Link quality as a placement input**: wifi uplinks have
+   latency/jitter ethernet doesn't; the resources module should
+   measure per-link quality so placement/availability suggestions
+   can prefer cabled nodes for chatty services.
