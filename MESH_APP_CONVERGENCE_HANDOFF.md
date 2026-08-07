@@ -488,3 +488,29 @@ destructive ops) require the manager app ON THE HOST machine + a
 local user login — the console elsewhere gets the read views and
 the unprivileged verbs. The permission tiers per operation get
 enumerated at mac-10 phase start.
+
+## 12. Cable topology decision (2026-08-07)
+
+Physical constraint (Dustin): limited ethernet ports — EITHER
+pol-core↔isle-core OR isle-core↔econ-core can be cabled, not both.
+Currently the latter; Dustin leans to switching to the former for
+this arc.
+
+Assessment (agreed): **pol-core↔isle-core is the right cable.**
+mac-3 requires the swarm MANAGER (pol-core) on the isle; the two
+authorities of the merged system (polari=topology, isle=network)
+must share the mesh. econ-core is the cheapest temporary loss — it
+is already swarm-Down and out of this arc's critical path.
+
+Development impact: the proven 2-machine isle gets RE-PROVEN with
+the new pair (that IS the mac-2 exercise — plug-and-play machinery
+should make it plug-in-and-verify); econ-core parks and becomes the
+FIRST CANDIDATE for the §10 wifi-uplink path once the isle AP
+exists; SSH/dev unaffected (home WiFi either way).
+
+💡 The either/or may be removable for ~$15: a USB-3 gigabit
+ethernet adapter on isle-core = another NIC; isle's own hotplug.sh
+(udev on carrier-gain) + create.sh auto-bridging of non-ISP cables
+look built for exactly this. One adapter → all three machines
+cabled. Try it; if it works the constraint disappears.
+Cable swap = Dustin's step; not yet performed.
