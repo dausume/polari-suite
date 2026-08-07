@@ -478,3 +478,13 @@ As separated — the ISLE CONSOLE:
    knobs-and-suggestions, through isle's generators only. Also
    up/down/wake, availability-mode changes. Adopt isle's own
    CLI↔app PARITY rule: every console operation = an isle CLI verb.
+
+**§11 addendum (Dustin, ruled):** "the manager app has a jcef pane
+to the same pages, but we likely keep some permissions restricted
+to the manager app host and user login." → ONE set of pages, two
+chromes; authorization is SURFACE- and HOST-aware, not just
+role-based: privileged isle ops (network-shape changes, admissions,
+destructive ops) require the manager app ON THE HOST machine + a
+local user login — the console elsewhere gets the read views and
+the unprivileged verbs. The permission tiers per operation get
+enumerated at mac-10 phase start.
