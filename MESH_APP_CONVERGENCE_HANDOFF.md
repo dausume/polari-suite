@@ -514,3 +514,13 @@ ethernet adapter on isle-core = another NIC; isle's own hotplug.sh
 look built for exactly this. One adapter → all three machines
 cabled. Try it; if it works the constraint disappears.
 Cable swap = Dustin's step; not yet performed.
+
+**§12 addendum — switch option:** a ~$15 5-port UNMANAGED gigabit
+switch (LS105G/GS305 class) interconnects all four+ ethernets and
+is the isle-compatible choice: the isle is plain L2 (router VM =
+only DHCP, virtual MACs, beacons) and a dumb switch just makes the
+broadcast domain a star — simpler than multi-NIC bridging. AVOID
+smart-switch port-security/MAC-limiting (virtual MACs). Verify on
+arrival: non-ISP-cable auto-detection with 3 peers on one segment.
+Future option noted: a cheap OpenWRT-capable box (GL.iNet class)
+could one day BE the physical isle router, replacing the VM.
