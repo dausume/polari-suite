@@ -439,3 +439,42 @@ isle-mesh to operate fully without internet." So:
   pull; a registry service on the isle is what makes "move apps
   around dynamically" real AND offline. (Today's swarm images are
   per-node local builds — fine static, wrong for dynamic.)
+
+## 11. Dustin's interface requirement (2026-08-07, near-verbatim)
+
+> "we will also want to leverage the work done on polari side for
+> javaFx apps to enable JCEF for embedded chromium, and make a
+> custom interface based on the polari topology work we have done,
+> to make understanding what is happening on the isle easy to see
+> and intuitive, we need to be able to see what all applications
+> are on the network and also be able to see what protocols are
+> being permitted between nodes on the network (known due to the
+> nginx proxies being controlled by isle-mesh) and then we will
+> also want to be able to see and leverage the interface to be
+> able to do different kinds of operations native to isle-mesh
+> like changing what the .isle urls are for different apps"
+
+As separated — the ISLE CONSOLE:
+
+1. **Vehicle = polari-app-shell** (JavaFX/JCEF, built+proven
+   2026-08-06): the console ships AS a shell app — and by mac-8 it
+   is itself a mesh-app .deb in the store (dogfood: the tool for
+   seeing the mesh installs THROUGH the mesh, works offline).
+2. **Content = topology-idiom Angular pages** (rows + D3 +
+   per-object display config — the established polari route), fed
+   by isle data through the mac-5 contract: mesh map (devices,
+   uplinks + link quality, router, agents), apps-on-network view
+   (realizations, modes, placement, status).
+3. **🔑 Protocol matrix — a DERIVED view**: because isle-mesh
+   controls every nginx proxy, the permitted protocols between
+   nodes are KNOWABLE from the agent fragments/registry
+   (server_names, ports, http/https/mTLS, upstreams). Parse/render
+   them into rows → an app×app / node×node "who may speak what to
+   whom" matrix. Nobody has to remember the network policy — the
+   proxies ARE the policy, made visible.
+4. **Operations from the UI, isle-native**: e.g. CHANGE an app's
+   .isle URL — a compound receipted op (registry update → DNS
+   re-register → fragment regen → cert reissue → agent reload),
+   knobs-and-suggestions, through isle's generators only. Also
+   up/down/wake, availability-mode changes. Adopt isle's own
+   CLI↔app PARITY rule: every console operation = an isle CLI verb.
