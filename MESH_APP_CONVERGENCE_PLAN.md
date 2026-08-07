@@ -104,6 +104,14 @@ separation enforced (no forwarding between the two, split DNS:
   resolution, register pol-core in the device inventory. pol-core
   runs dual-home (WiFi=internet+SSH, eno1=isle) — now a supported
   mode, verified by the isolation checks, kept indefinitely.
+- **Cable topology (handoff §12):** ethernet ports allow only ONE
+  pair; the cable MOVES from isle-core↔econ-core to
+  **pol-core↔isle-core** (the swarm manager must be on the isle).
+  econ-core parks its isle membership — already swarm-Down, out of
+  critical path — and becomes the FIRST wifi-uplink candidate.
+  💡 Try a USB-3 gigabit ethernet adapter on isle-core first:
+  isle's hotplug + auto-bridge machinery should treat it as just
+  another NIC, letting all three machines cable simultaneously.
 - **WiFi uplink path** (buildable without new hardware only if a
   spare AP-capable interface exists): isle AP realization decision
   by prototype —
