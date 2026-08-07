@@ -545,3 +545,40 @@ always flooded; DHCP/broadcast untouched). 8 ports = all three
 machines + router + headroom; econ-core returns without waiting on
 the wifi-AP path. On-arrival check stands: non-ISP-cable detection
 with multiple peers on one segment.
+
+## 13. mac-1 STARTED + LIVE (2026-08-07, evening)
+
+Dustin: build the polari-side acceptor module so the visualization
+verifies layers/apps coming online as the real functionality lands;
+mock data allowed but MUST carry a flag real data never has, shown
+as a large MOCK NETWORK banner.
+
+✅ BUILT + DEPLOYED on prf-a (branches dev-mac-1 in
+polari-framework + polari-cli):
+- `modules/islemesh/` — constants (ISLE'S availability vocabulary
+  verbatim), basis (IsleDevice/IsleUplink/IsleApp/IsleAppService/
+  MeshAppRealization/IsleProtocolPermit/IsleIngestReceipt, all
+  is_mock-stamped), stdlib-pure parsers (registry.json + nginx
+  fragments — THE PROXIES ARE THE POLICY), ingest API w/
+  replace-per-device semantics + mock/real flip resets + orphan
+  sweep + retire, /display/isle-mesh page, selftest 41/41.
+- `pol isle` ALIVE: status/sync/mock/matrix/retire. sync = REAL
+  data over SSH (never flagged); mock = built-in flagged network.
+- LIVE-VERIFIED: mock seeds 4 devices/3 apps/10 permits + banner;
+  real sync REPLACED isle-core+pol-core with reality (isle-core's
+  actual registry: health + sample apps); final state = 2 real + 2
+  mock devices, banner honestly up. 🔑 THE CABLE IS VISIBLE:
+  pol-core@eno1 + isle-core@enp1s0 ethernet link_up=true
+  mock=false — today's swap, as data.
+- Live-caught fixes (committed): swarm scheduler tried isle-core/
+  econ for the backend on --force (node stack has NO placement
+  constraints — pinned polari.machine==pol-core by hand; row-level
+  render fix = mac-5); IsleAppService needed device_name for
+  replace semantics; mock→real flip must reset unsupplied facts;
+  registry ingest must not claim agent_present (configured ≠
+  running).
+- Deploy chain used: pol topology assign islemesh prf-a →
+  pol node build backend → pol swarm deploy node + service update
+  --force (same-tag gotcha).
+REMAINING for mac-1: Dustin's browser pass of /display/isle-mesh;
+the Angular console page is mac-10.
