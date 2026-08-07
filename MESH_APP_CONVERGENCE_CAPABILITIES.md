@@ -139,6 +139,18 @@ CLI↔app-parity rule ("every availability capability = verb AND
 control") is a keeper discipline — adopt it for the merged verbs.
 `pol isle` comes alive proxying the isle CLI, never replacing it.
 
+**Extension (handoff §11) — THE ISLE CONSOLE (mac-10):** polari's
+JavaFX/JCEF shell + topology-idiom Angular pages become the
+intuitive what-is-happening-on-the-isle surface: mesh map, all
+apps-on-network, and a **protocol matrix DERIVED from the agent's
+nginx fragments** (isle controls every proxy, so permitted
+protocols between nodes are knowable, not documented — the proxies
+ARE the policy, made visible). Plus receipted isle-native
+operations from the UI (.isle URL rename = registry → DNS →
+fragment → cert → reload as one compound op). The console itself
+ships as a mesh-app .deb via mac-8 — the merged system used to see
+itself.
+
 ## 9. State moves / cross-instance
 
 | | isle-mesh | polari |

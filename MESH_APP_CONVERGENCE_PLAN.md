@@ -303,6 +303,40 @@ the machinery.
 into a VM, its polari hw module reading REAL data at a `.isle` URL,
 relocation honestly refused with the replug suggestion.
 
+## mac-10 — The isle console (JCEF shell × topology pages)
+
+The intuitive what-is-happening-on-the-isle surface (handoff §11).
+Vehicle: polari-app-shell (JavaFX/JCEF, proven). Content:
+topology-idiom Angular pages (rows + D3 + per-object display
+config). Depends on mac-1 (model) + mac-5 (contract feeds the data);
+ships as a mesh-app .deb via mac-8 (dogfood — works offline).
+
+- **Mesh map**: devices, uplink kind + link quality, router, agents,
+  connectivity modes — the isle drawn live from rows.
+- **Apps-on-network**: every mesh-app, realizations, availability
+  mode + current state, placement (which device), package kind.
+- **Protocol matrix (the novel view)**: parsed from the agent
+  fragments/registry the mesh controls — app×app and node×node
+  "who may speak what to whom" (ports, http/https, mTLS). The
+  proxies ARE the policy; the matrix just renders it. Drift-safe
+  because mac-5 renders fragments FROM rows — the matrix reads the
+  same source the proxies are generated from, with the reconcile
+  pass catching hand-edits.
+- **Isle-native operations, receipted**: change an app's `.isle`
+  URL (compound op: registry → DNS re-register → fragment regen →
+  cert reissue → agent reload — one receipt trail, through isle's
+  generators only); app up/down/wake; availability-mode changes.
+  **CLI↔app parity** (isle's own rule): every console op = an isle
+  CLI verb, both built or neither.
+- isle-manager-app relationship: the console SUPERSEDES AppsView
+  for mesh-wide views; the manager app keeps the device-local
+  role-collapse duties (or gains a JCEF pane pointing at the same
+  pages — decide with Dustin at phase start).
+
+**Confirm gate:** on two devices, open the console: see the mesh
+map + all apps + the protocol matrix; rename one app's `.isle` URL
+from the UI and watch it propagate (DNS, cert, proxy) with receipts.
+
 ---
 
 ## Standing risks / flags
