@@ -1069,3 +1069,42 @@ pol-core registry trust done by Dustin (sudo install → certs.d,
 matches isle root; push+pull both PROVEN from pol-core). The
 onboarding path a NEW developer runs: `pol dev setup` → `pol dev
 deploy backend`.
+
+## 30. Multi-device validation (§ Dustin's cross-device ask, 2026-08-08)
+
+Assessing/proving the real deployment across all three machines.
+STATE (honest):
+- **REACH via isle-mesh: PROVEN on all 3 devices.** Every device
+  resolves .isle (getent → 10.10.0.2) and reaches the hosted apps:
+  pol-core polari.isle→200 odoo.isle→303; econ-core (remote, wget)
+  polari→200 odoo→303; isle-core (host) both. Odoo up (303 = its
+  login redirect). This is the remote-access-via-isle-mesh claim,
+  validated for REAL apps from REMOTE devices.
+- **2 real apps HOSTED + engine wired**: polari + odoo on isle-core;
+  odoo → OdooInstanceConfig:odoo (business-ops engine) live.
+- **Real multi-device topology**: prf-isle graph now shows 3 REAL
+  devices (isle-core hosting agent=True; pol-core + econ-core
+  remote agent=False), 6 apps, banner gone (mock guest retired).
+  URL-labeled serves-edges for polari + odoo.
+- **Desktop shells STAGED on all 3**: polari-shell-core (53MB) +
+  isle-app-{polari,odoo,whoami} launchers (4KB) in ~/polari-shells
+  on each device.
+
+⚠ WHAT'S NOT YET DONE (needs Dustin — physical/sudo):
+1. **HOSTING is all on isle-core.** econ-core + pol-core REACH but
+   host nothing (no agent running there). True app-distribution-
+   across-devices needs their agents up = each device's sudo. Ask:
+   grant econ-core (+pol-core) passwordless sudo like isle-core, OR
+   run the econ-core agent + an `isle app deploy` there once, and I
+   place odoo (or another app) ON econ-core for real geography.
+2. **Desktop shell INSTALL**: on each device
+   `sudo dpkg -i ~/polari-shells/polari-shell-core_*.deb && sudo
+   apt install ~/polari-shells/isle-app-polari_*.deb` (isle-core
+   has the grant; pol-core/econ-core need your password).
+3. **GUI verification**: launch the installed apps (menu icon or
+   `polari-app-shell --config /usr/share/isle-app-polari/
+   polari-shell.json`) on each device and confirm the window opens
+   at its .isle URL — I have no display on isle-core/econ-core.
+4. **Browser**: the Chrome extension declined navigating to
+   polari.isle (new-domain gate) — open it manually:
+   https://polari.isle/isle-mesh (real topology) + /isle-store.
