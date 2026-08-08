@@ -984,3 +984,33 @@ Browser-VERIFIED on prf-a: renders clean, odoo detail shows the
 plan. Reads /api/islemesh/catalog + /catalog/{entry}. (Cosmetic:
 prf-a backend predates the --image fix so shows --compose odoo:16;
 lands next backend deploy.)
+
+## 27. Full teardown + isle-oriented dev route (§25.2/3, 2026-08-08)
+
+Both PROVEN live on isle-core (scripts in /usr/local/bin +
+committed to isle-cli/scripts):
+- **`isle-polari-teardown [--keep-data|--apps-only]`**: full
+  reproducible teardown — every store app (compose down +
+  unregister + cert/DNS drop + rm dir), prf-isle (compose down -v),
+  polari.isle/api deregistered, pusher timer disabled, agent
+  reloaded. Device-level (agent, trust-page, isle CA, sample-app)
+  persist by design. Verified: polari.isle → 502 after, clean.
+- **`isle-polari-deploy [--modules csv]`**: deploy/redeploy polari
+  ON the isle — compose up (POLARI_ISLE_MODULES env-driven),
+  register both domains (leaf hook fires), DNS, pusher, verify
+  health+web. Idempotent.
+
+🔑 **THE MAIN DEPLOYMENT ROUTE GOING FORWARD** (§25.3): on pol-core
+`pol node build backend` → `docker save prf-backend:staging | ssh
+isle-core docker load` → `ssh isle-core isle-polari-deploy`. RAN
+THE FULL LOOP: teardown → build → ship → deploy → verify; prf-isle
+returned with fresh code (the catalog --image fix visible at
+/isle-store on prf-isle). Polari now deploys THROUGH THE ISLE (no
+host ports), not the swarm-on-home-LAN path. This supersedes the
+`pol swarm deploy node` route for isle-served instances.
+
+⚠ dev-loop refinement (recorded): the `docker save | ssh | load`
+image ship is ~935MB over home wifi each cycle — a mesh-local
+registry (offline-complete gap #8, handoff §10) makes this a fast
+push/pull AND lets swarm place it; that's the mac-3 registry, now
+also the dev-loop accelerator.
