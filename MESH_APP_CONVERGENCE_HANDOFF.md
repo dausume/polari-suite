@@ -961,3 +961,15 @@ mac-10 console gets a store tab reading /catalog); a real odoo
 install (2GB pull — deferred, unit+plan proven); `_feature_
 available` gate on the engine binder; multi-service registry
 (the recurring converter gap).
+
+## 25. Dustin's directive (2026-08-08): visual store, teardown,
+## isle-as-main-dev-route
+
+1. **Visual store**: the catalog as a browsable PAGE (Angular
+   route reading /api/islemesh/catalog), install actions surfaced.
+2. **Full teardown**: bring the whole isle deployment down cleanly
+   (prf-isle + deployed apps + registry/DNS/certs), reproducibly.
+3. **Isle-oriented dev process = the MAIN deployment route going
+   forward**: the compose→isle-app pipeline becomes how we deploy
+   polari itself, not just third-party apps — a repeatable
+   build→deploy→verify loop on the isle.
