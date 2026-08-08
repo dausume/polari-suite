@@ -899,3 +899,32 @@ Remaining: install-test on a clean machine (dpkg -i core + apt
 launcher → icon in menu → opens polari.isle in its own window);
 `pol shell` / `isle app` verb wrappers to emit launchers from
 catalog rows. NEXT (Dustin's order): odoo-as-engine, then catalog.
+
+## 23. Engine interconnect PROVEN LIVE (§20.4, 2026-08-08)
+
+`isle app deploy <name> --engine <kind>[@<url>]` makes an installed
+isle app a polari ENGINE automatically. FULL LOOP DOGFOODED on
+prf-isle:
+- deploy `books --engine business-ops` → engine.json (provides +
+  url, auto-derived http://<container>:<port>); pusher POSTs it to
+  /api/islemesh/ingest/engine.
+- polari: **IsleEngine** row + **binder** (islemesh_engines.py) —
+  business-ops/odoo → **OdooInstanceConfig.base_url** upserted at
+  the isle url. LIVE RESULT: `bound:true, bound_to:
+  OdooInstanceConfig:books, note: wired ... -> http://isle-books-
+  books-1:80`. GET /api/islemesh/engines lists them.
+- Unknown kind / absent-consumer → recorded available-but-unbound,
+  named honestly (binds when the module lands). Unit-proven both
+  paths (selftest 45/45, real OdooInstanceConfig written).
+- 🔑 arg gotcha: `<container>` template chars are shell redirects →
+  switched to `--engine <kind>` (auto-derive) | `<kind>@<url>`.
+- ⚠ REFINEMENT (recorded): the binder imports the consumer module
+  (code ships in the image) rather than checking it's ENABLED in
+  defClassList — on a lean instance the row is written ahead of the
+  module's CRUDE surface. Correct for "config present when enabled";
+  a _feature_available gate would be more precise (later).
+
+Store directive status: §20 #2 (arbitrary→isle, proven) + #4
+(engine interconnect, proven) + §21/§22 (shared shells, built)
+DONE. Remaining: catalog rows generalizing appstore-1 (#1/#3) —
+Dustin's next in order.
