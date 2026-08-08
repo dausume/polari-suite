@@ -664,3 +664,39 @@ layer that came up tonight is visible as data.
   mac-2). NEXT: isle-side compose override (no published ports,
   isle-agent-net, .isle hostnames) + agent registry entry
   (polari.isle / api.polari.isle) + router DNS registration.
+
+## 17. 🏁 POLARI IS ON THE ISLE (2026-08-08, night)
+
+**prf-isle LIVE on isle-core, served ONLY through the isle:**
+- `~/polari-isle/docker-compose.yml` (isle-core): prf-backend +
+  prf-frontend :staging images, NO published ports, containers on
+  isle-agent-net, sqlite, POLARI_MODULES=islemesh, no KC (lean
+  tier — read surfaces are unauthenticated; login arrives with the
+  full tier). runtime-config points at api.polari.isle.
+- Registered via ISLE'S OWN verbs (`agent-manager.sh register` ×2 —
+  single-service-per-app limitation → polari + polari-api as two
+  apps; the multi-service registry shape exists but no verb fills
+  it = mac-4 converter gap, recorded). Certs openssl'd into the
+  agent's ssl dirs (<domain>.crt convention). Agent regenerated +
+  reloaded, stayed healthy.
+- `https://polari.isle` → 200, `api.polari.isle/api/health` → 200
+  THROUGH the agent. 🔑 backend boot log: RoleAutoConfig ran the
+  2026-07-03 first-boot mesh logic FOR REAL — "meshed=False → 0
+  instances found → DECISION: prf-isle → parent".
+- **.isle DNS registered on the router**: polari.isle +
+  api.polari.isle → 10.10.0.2 (agent's macvlan IP), resolvable
+  from any isle node via 10.10.0.1.
+- **THE MESH FEEDS ITSELF**: ~/polari-isle/push-to-polari.sh +
+  systemd timer (2min, enabled): device facts + registry +
+  fragments POSTed to api.polari.isle — REAL data only, never the
+  mock flag. prf-isle's OWN /isle-mesh graph now shows polari.isle
+  being served (the system observing itself). Pusher gotcha:
+  User=detts needs `sudo -n virsh` for router detection (fixed).
+- Frontend port gotcha: staging frontend nginx ANSWERS ON 4200
+  (not 80 despite both exposed) — register --port 4200.
+
+**To browse prf-isle from pol-core** (until the real mac-2 join):
+pol-core needs an isle lease + name resolution — Dustin's two
+commands: `sudo dhclient eno1` then /etc/hosts entries
+`10.10.0.2 polari.isle api.polari.isle` (proper path: thin isle
+CLI install + remote split-DNS on pol-core = mac-2 continuation).
