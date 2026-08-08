@@ -874,3 +874,28 @@ Model (to build): ONE shared runtime, MANY thin launcher .debs.
   (pulls the shared core once). Ties to mac-8 (three .deb kinds)
   + the module-.deb story. jpackage/jlink share a runtime image;
   the launcher debs are Depends:polari-shell-core, not fat jars.
+
+## 22. Shared-code shells BUILT + VERIFIED (§21, 2026-08-08)
+
+The foundational delivery layer. `polari-app-shell` branch
+`dev-shared-shells`:
+- **`shells/build-shared-shell.sh`** → `polari-shell-core_0.1.0_
+  amd64.deb` (53MB deb, 177MB installed ONCE at /opt/polari-shell,
+  provides /usr/bin/polari-app-shell). gradle :desktop:installDist
+  → jpackage --type app-image (bundled JRE+JCEF) → dpkg-deb. BUILT.
+- **`shells/build-launcher-deb.sh`** → thin per-app launcher debs
+  (**4KB**, Architecture: all, Depends: polari-shell-core). A
+  .desktop entry runs the shared runtime with `--config` at a
+  per-app ShellConfig JSON (isle CA embedded in tls.caPem). BUILT
+  polari-app-polari (config VALIDATED against core's
+  ShellConfig.looksValid — kind/schemaVersion/instances/webUrl/CA).
+- 🔑 NO core change needed — the existing ConfigLoader precedence
+  (--config wins) already supported one-runtime-many-configs.
+- SPACE PROVEN: 20 apps = 173MB shared vs 3464MB fat (saves 3.3GB);
+  savings grow linearly. This is §20 #1/#3 delivery + mac-8's
+  polari/isle app .debs.
+
+Remaining: install-test on a clean machine (dpkg -i core + apt
+launcher → icon in menu → opens polari.isle in its own window);
+`pol shell` / `isle app` verb wrappers to emit launchers from
+catalog rows. NEXT (Dustin's order): odoo-as-engine, then catalog.
