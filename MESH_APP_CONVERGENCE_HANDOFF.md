@@ -700,3 +700,20 @@ pol-core needs an isle lease + name resolution — Dustin's two
 commands: `sudo dhclient eno1` then /etc/hosts entries
 `10.10.0.2 polari.isle api.polari.isle` (proper path: thin isle
 CLI install + remote split-DNS on pol-core = mac-2 continuation).
+
+**§17 fix trail (Dustin's browser pass caught it):** page loaded
+but NO DATA — two stacked causes, both fixed live: (1) CORS — the
+backend whitelists origins via CORS_ORIGINS env (config_loader →
+api.cors_origins); polari.isle wasn't in it → header added
+(compose env CORS_ORIGINS=https://polari.isle,http://polari.isle);
+(2) certs — per-domain self-signed certs meant the browser's
+interstitial exception for polari.isle did NOT cover XHR to
+api.polari.isle (no interstitial is offered for XHR) → ONE SAN
+cert (polari.isle + api.polari.isle) installed in both agent slots.
+⚠ nginx -s reload inside the vlan-agent doesn't take (pid file) —
+kill -HUP 1 works. REMAINING manual: browser must accept
+api.polari.isle ONCE (per-origin exception) — goes away when .isle
+leaves come from a trusted CA (mac-6). 🔑 LESSON for the merged
+model: a mesh-app's API subdomain must share ONE cert with its
+web origin, and CORS origins must be part of the app definition
+the converter emits (mac-4 requirement).
