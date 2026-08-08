@@ -717,3 +717,20 @@ leaves come from a trusted CA (mac-6). 🔑 LESSON for the merged
 model: a mesh-app's API subdomain must share ONE cert with its
 web origin, and CORS origins must be part of the app definition
 the converter emits (mac-4 requirement).
+
+**§17 CA step (Dustin: "do the CA and then be good" — DONE):**
+.isle leaves now issued from THE SUITE'S OWN CA (the mac-6 verdict
+executed early): `step ca certificate` offline against
+polari-rf-node/ca/.step (provisioner polari-jwk), leaf
+issued/polari-isle.{crt,key} w/ SANs polari.isle, api.polari.isle,
+*.polari.isle, **\*.isle** (every future isle app pre-covered),
+1yr. FULLCHAIN (leaf+intermediate) installed in both agent cert
+slots, HUP'd, chain VERIFIES against root_ca.crt (return code 0).
+Dustin's single manual step (browser security setting = his):
+certutil-import polari-rf-node/ca/root_ca.crt → nip.io AND .isle
+all green, interstitials gone for good. 🔑 conventions: agent
+reload = kill -HUP 1 (not nginx -s reload); new .isle apps should
+get the WILDCARD fullchain copied to their <domain>.crt slot (or
+the agent generator learns a default-cert path — mac-4 item).
+⚠ the 8760h leaf outlives the 30-day nip.io leaves — different
+renewal cadences, note for the ~Sep 5 renew.
