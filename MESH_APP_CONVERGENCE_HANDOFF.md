@@ -1108,3 +1108,40 @@ STATE (honest):
 4. **Browser**: the Chrome extension declined navigating to
    polari.isle (new-domain gate) — open it manually:
    https://polari.isle/isle-mesh (real topology) + /isle-store.
+
+## 31. Native JavaFX isle app store w/ privileged install (2026-08-08)
+
+Dustin's ask: a JavaFX app store that leverages the polari store to
+DISPLAY, while the local native app handles terminal/sudo — so a
+normal user installs by being password-prompted on the JavaFX side.
+BUILT:
+- **:core `HostInstall`** — the SECURITY BOUNDARY: the store page
+  can request install of a NAMED catalog app only; the name is
+  validated against a strict allowlist ([a-z0-9][a-z0-9-]{0,63}) and
+  turned into a FIXED argv `pkexec isle store install <name> --yes`
+  (never a shell string). Injection-proof, unit-tested
+  (HostInstallTest: rejects "; rm -rf /", "$(whoami)", spaces, caps,
+  etc). Core tests green.
+- **:desktop `store.install` bridge + HostProcess** — runs the
+  validated argv; **pkexec pops the polkit password dialog** (the
+  shell never handles the password), streams output back to the page.
+  `store.available` lets the page detect the native path.
+- **Angular /isle-store** — `ShellBridgeService` detects
+  window.cefQuery; inside the shell an **"Install on this device"**
+  button calls the bridge (password-prompted, live output); in a
+  plain browser it falls back to the copyable host command.
+  Browser-VERIFIED: fallback renders (no native button outside the
+  shell), install section present.
+- **isle-app-store launcher .deb** — opens polari.isle/isle-store in
+  the shell; Depends: polari-shell-core, policykit-1. Staged on all
+  3 devices (~/polari-shells) with shell-core v0.1.1 (has the
+  bridge).
+
+So the store IS the topology+catalog UI (served from polari) inside
+a native window, and Install = a polkit-authenticated local
+`isle store install`. The normal-user flow Dustin wanted.
+
+Install the store app (per device): sudo dpkg -i
+~/polari-shells/polari-shell-core_0.1.1_amd64.deb && sudo apt
+install ~/polari-shells/isle-app-store_0.1.0_all.deb → "Isle App
+Store" in the menu → Install buttons prompt for the password.
