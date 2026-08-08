@@ -643,3 +643,24 @@ mock guest (banner up); real registry (health+sample), real service
 row, real protocol matrix (sample.local http-redirect + https →
 isle-sample-app:5000). The visualization is doing its job: every
 layer that came up tonight is visible as data.
+
+## 16. Browser loop LIVE + lean prep done (2026-08-08)
+
+- **In-browser testing WORKS**: Chrome extension connected
+  (mcp__claude-in-chrome__* was already in project permissions;
+  Dustin opened Chrome). Self-verified /isle-mesh visually, found
+  + fixed two same-box label collisions unaided (final form:
+  straight inner serves-edge + dashed LEADER LINE to URL labels
+  hanging outside the box's left edge). The verify loop is now:
+  edit → build → roll → hard-refresh → screenshot, no Dustin
+  required.
+- Cleanup DONE: polari-engines stack removed; pol-core builder
+  prune 6.2G (67%→61%); isle-core debris pruned.
+- **Lean confirmed by Dustin** ("start lean so we can test"):
+  stateless-tier shape (backend+frontend+KC+mariadb, no
+  persistence). All four :staging images SHIPPED to isle-core
+  (~1.9G, over home wifi — cable-SSH via IPv6 link-local timed
+  out; sshd/firewall on isle-core doesn't take it yet, note for
+  mac-2). NEXT: isle-side compose override (no published ports,
+  isle-agent-net, .isle hostnames) + agent registry entry
+  (polari.isle / api.polari.isle) + router DNS registration.
