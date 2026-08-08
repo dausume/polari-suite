@@ -973,3 +973,14 @@ available` gate on the engine binder; multi-service registry
    forward**: the compose→isle-app pipeline becomes how we deploy
    polari itself, not just third-party apps — a repeatable
    build→deploy→verify loop on the isle.
+
+## 26. Visual store LIVE (§25.1, 2026-08-08)
+
+`/isle-store` Angular page (branch dev-mac-1): catalog cards
+sectioned by variant (Mesh app / Polari app), engine badge on
+odoo, click → detail panel with the copyable `isle store install
+<name>` command + the resolved install plan (note + host steps).
+Browser-VERIFIED on prf-a: renders clean, odoo detail shows the
+plan. Reads /api/islemesh/catalog + /catalog/{entry}. (Cosmetic:
+prf-a backend predates the --image fix so shows --compose odoo:16;
+lands next backend deploy.)
