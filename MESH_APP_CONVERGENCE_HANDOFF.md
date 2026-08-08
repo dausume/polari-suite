@@ -835,3 +835,42 @@ As separated:
    provider rows (provider_registry / ServiceConnection idiom, the
    odooconnect/MSCI_ENGINES_URL pattern) so polari modules resolve
    the app as an ENGINE automatically.
+
+**§20 progress — `isle app deploy` PROVEN (2026-08-08):** the
+store's INSTALL PIPELINE (arbitrary #2) works end-to-end. One
+command: compose → isle-overlay.yml auto-attaches every service to
+isle-agent-net → compose up → agent register → leaf issued via the
+§19 hook → .isle DNS → graph. Dogfooded with traefik/whoami (an
+app the mesh had never seen): CA-trusted cert (DNS:whoami.isle),
+https://whoami.isle live, edge in the graph — ZERO manual steps.
+`--engine <kind>=<urltmpl>` writes engine.json (the provider-wiring
+seam for #4). Remaining §20 legs: catalog rows polari-side (#1),
+polari apps as catalog entries (#3), install→polari provider row
+(#4 wiring), swarm-mode (rides mac-3 stack render).
+
+## 21. Dustin's addition (2026-08-08): shared-code JavaFX shells
+
+> "we will want to be able to use deb to install modules, and then
+> have it become basically presenting polari apps as though they
+> are individual javaFx apps. However ... we want ... these deb
+> installed javaFX apps that are polari or isle shells to be
+> sharing as much code as they possibly can so that we decrease
+> the amount of space taken up ... while still giving the user the
+> impression that they are native apps."
+
+Model (to build): ONE shared runtime, MANY thin launcher .debs.
+- **`polari-shell-core`** .deb: the JavaFX/JCEF runtime + all
+  common code (the polari-app-shell :core/:desktop already exists
+  — this is its packaging as a SHARED dependency, installed once).
+- **per-app launcher .debs** (`polari-app-<name>`, `isle-app-
+  <name>`): tiny — a .desktop entry + icon + a config pointing the
+  shared runtime at that app's .isle URL / PolariAppDefinition
+  slice. Depends: polari-shell-core. NO bundled runtime.
+- Result: N "native" apps in the launcher, ONE ~55MB runtime on
+  disk instead of N×55MB. Each opens its own window at its own
+  URL — the native impression, shared bytes underneath.
+- This is the DELIVERY side of the store (§20 #1/#3): a catalog
+  "install" of a polari/isle app = apt-install its launcher .deb
+  (pulls the shared core once). Ties to mac-8 (three .deb kinds)
+  + the module-.deb story. jpackage/jlink share a runtime image;
+  the launcher debs are Depends:polari-shell-core, not fat jars.
