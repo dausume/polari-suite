@@ -734,3 +734,27 @@ get the WILDCARD fullchain copied to their <domain>.crt slot (or
 the agent generator learns a default-cert path — mac-4 item).
 ⚠ the 8760h leaf outlives the 30-day nip.io leaves — different
 renewal cadences, note for the ~Sep 5 renew.
+
+## 18. CA trust as an INSTALL STEP — `isle trust` (2026-08-08)
+
+Dustin: detect + automate/instruct certutil imports as part of
+installing the isle. BUILT (isle-cli commit on isle-core, synced
+to the installed CLI): **`isle trust status|install|cert`** —
+status detects trust in the system store, Chrome's NSS db, notes
+Firefox's separate store, and runs a LIVE PROBE (--cacert fetch of
+an .isle app); install is CONSENT-FIRST (fingerprint always shown;
+--yes for postinst use), imports system-wide + user NSS, installs
+libnss3-tools when missing. Root at /etc/isle-mesh/ca/
+isle-root.crt (= the suite root today).
+
+The full install story (recorded, built at mac-8):
+1. .deb postinst → debconf consent → `isle trust install --yes`;
+2. browsers on machines WITHOUT the CLI: plain-HTTP `trust.isle`
+   welcome page — JS PROBE (fetch https .isle, catch = untrusted)
+   → per-platform walkthrough + root download (covers phones:
+   iOS profile flow, Android CA install);
+3. app shells self-solve (CA pinning + TOFU).
+🔑 SECURITY RECOMMENDATION (recorded, mac-6): mint a DEDICATED
+"Isle Root CA" with X.509 NAME CONSTRAINTS (permitted DNS=.isle) —
+an imported isle root that structurally CANNOT vouch for non-isle
+names. Makes the import an honest ask of any user.
