@@ -928,3 +928,36 @@ Store directive status: §20 #2 (arbitrary→isle, proven) + #4
 (engine interconnect, proven) + §21/§22 (shared shells, built)
 DONE. Remaining: catalog rows generalizing appstore-1 (#1/#3) —
 Dustin's next in order.
+
+## 24. The general isle app store COMPLETE (§20.1/§20.3, 2026-08-08)
+
+`isle store` — appstore-1 generalized over the two proven variants.
+PROVEN end-to-end:
+- **Catalog in polari**: `IsleCatalogEntry` rows + `install_plan`
+  builder; `/api/islemesh/catalog` (list) + `/catalog/{entry}`
+  (detail + host install-plan). Seeded polari/whoami/odoo across
+  both kinds — never mock. selftest 51/51.
+- **`isle store list|show|install`** (host CLI): browses the
+  polari catalog, RUNS the plan on the host — the backend never
+  deploys (mover-on-host). `isle store install whoami --yes` →
+  catalog plan → `isle app deploy` → container+cert+DNS, fully
+  automatic. LIVE.
+- **kind dispatch**: mesh-app → `isle app deploy` (arbitrary
+  compose/image, §20.2); polari-app → shared-shell launcher .deb
+  (§21/§22); polari-module → module .deb (mac-8). One front door
+  over both proven variants + modules.
+- app-deploy gained `--image` (synthesizes a one-service compose)
+  for the catalog's bare-image entries.
+
+🏁 **STORE DIRECTIVE (§20) COMPLETE**: #1 catalog ✅, #2 arbitrary→
+isle ✅, #3 polari apps as entries ✅, #4 engine interconnect ✅;
+delivery via shared shells (§21/§22) ✅. The isle now has a general
+app store that treats arbitrary apps, polari apps, and engines
+uniformly — install is one command, everything auto-isle
+(cert/DNS/graph), engines auto-wire to polari.
+
+Remaining polish (not blocking): the store as a VISUAL page (the
+mac-10 console gets a store tab reading /catalog); a real odoo
+install (2GB pull — deferred, unit+plan proven); `_feature_
+available` gate on the engine binder; multi-service registry
+(the recurring converter gap).
