@@ -758,3 +758,23 @@ The full install story (recorded, built at mac-8):
 "Isle Root CA" with X.509 NAME CONSTRAINTS (permitted DNS=.isle) —
 an imported isle root that structurally CANNOT vouch for non-isle
 names. Makes the import an honest ask of any user.
+
+**§18 addendum — Dustin's rulings, BUILT:** (a) the app/agent
+performs trust actions; (b) CA install is part of CONNECTING TO
+THE CORE; (c) auto-update; (d) the JavaFX app prompts for sudo
+(pkexec) so consent is a familiar OS dialog. Now live on
+isle-core: **trust.isle** (static page + container, registered +
+DNS'd: JS probe, per-platform walkthrough, root download — the
+phone path); **isle trust fetch** (first-join acquisition —
+fingerprint IS the consent; --fingerprint <fp> for app-driven
+joins where the agreement/QR carries the expected value);
+**isle trust update [--auto]** under the SIGNED-CHANNEL RULE (a
+new root is only accepted over TLS the current root authenticates;
+re-key demands explicit re-consent) + daily systemd timer.
+VERIFIED: update fetches from trust.isle authenticated by the
+current root → "up to date". 🔑 X.509 GOTCHA: OpenSSL REJECTS
+single-label wildcards — *.isle matches NOTHING; every top-level
+.isle app needs an explicit SAN (leaf reissued w/ trust.isle;
+registration-triggered leaf issuance joins the mac-4 converter
+requirements). Remaining wiring: manager-app join screen invokes
+pkexec `isle trust fetch --fingerprint` (mac-10 UI work).
