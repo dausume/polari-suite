@@ -806,3 +806,32 @@ Renewal story now: leaves auto-renew via `isle certs sync` (add to
 the boot reconcile + a timer at mac-2 verb consolidation); the
 ROOT rotates via isle trust's signed-channel update. The two
 cadences are decoupled by design.
+
+## 20. Dustin's directive (2026-08-08, near-verbatim): the GENERAL
+## isle app store
+
+> "we want to ensure that we have a general app-store capability
+> for isle-mesh based on how we made the polari app store. It
+> should incorporate both the capability to put arbitrary apps up
+> as docker swarm apps with .isle endpoints (auto-configured to be
+> isle apps) and also be able to treat polari apps as individual
+> apps as well, and automating making the other apps like odoo or
+> the like, capable of being interconnected with polari and
+> serving as polari engines."
+
+As separated:
+1. **General store, appstore-1 idiom**: catalog + artifacts +
+   install receipts, generalized from shells to MESH-APPS.
+2. **Arbitrary apps → swarm apps w/ .isle endpoints, AUTO-isle**:
+   the mac-4 converter as a STORE INSTALL pipeline — compose in →
+   deployed (compose now, swarm when the stack rides the isle) →
+   agent-registered → leaf issued (the §19 hook) → .isle DNS →
+   visible in the graph. Zero manual steps.
+3. **Polari apps as individual apps**: PolariAppDefinition entries
+   in the SAME catalog (install = shell or .isle website slice —
+   the appstore content layer reused).
+4. **Engine interconnect**: a package DECLARES what it provides
+   (e.g. odoo → business-ops engine); install writes polari
+   provider rows (provider_registry / ServiceConnection idiom, the
+   odooconnect/MSCI_ENGINES_URL pattern) so polari modules resolve
+   the app as an ENGINE automatically.
