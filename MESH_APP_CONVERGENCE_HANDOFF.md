@@ -778,3 +778,31 @@ single-label wildcards — *.isle matches NOTHING; every top-level
 registration-triggered leaf issuance joins the mac-4 converter
 requirements). Remaining wiring: manager-app join screen invokes
 pkexec `isle trust fetch --fingerprint` (mac-10 UI work).
+
+## 19. Leaf reissuance at registration — `isle certs` (2026-08-08)
+
+Dustin: implement leaf reissuance now; wildcards GONE, explicit
+SANs preferable anyway. BUILT + VERIFIED (isle commit a49a8ec):
+- Signing material split: the isle INTERMEDIATE (+ password) now
+  lives on isle-core (/etc/isle-mesh/ca/signing, 0700) — the ROOT
+  key NEVER leaves the suite CA on pol-core. isle-core signs .isle
+  leaves offline with plain openssl (no step dependency).
+- **`isle certs status|sync|issue <domain>`**: per-domain EC
+  leaves, explicit single SAN, 365d, fullchain (leaf+intermediate)
+  into the agent slots + HUP. `sync` reconciles every
+  registry.json domain (apps + subdomain.domain), idempotent,
+  30-day renew threshold. `status` = honest per-domain table
+  (missing/self-signed/wrong-san/expiring/ok).
+- **Registration hook**: agent-manager register → certs issue —
+  VERIFIED live (re-register trust → new leaf + reload inline).
+  All five registered domains reissued as individual explicit-SAN
+  leaves; served SNIs confirmed one-domain-one-leaf; trust update
+  still green (root unchanged — leaves rotate freely under it).
+- 🔧 gotchas: process-substitution extfile dies under sudo (real
+  file in a USER-owned 0700 tmp); /usr/share installed-CLI copies
+  need sudo cp + chmod 755; remote heredoc patching of quotes =
+  pain, Write+scp instead.
+Renewal story now: leaves auto-renew via `isle certs sync` (add to
+the boot reconcile + a timer at mac-2 verb consolidation); the
+ROOT rotates via isle trust's signed-channel update. The two
+cadences are decoupled by design.
