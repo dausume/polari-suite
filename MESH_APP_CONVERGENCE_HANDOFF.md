@@ -1048,3 +1048,24 @@ mac-3's registry, delivered.
   sudo mkdir -p /etc/docker/certs.d/192.168.0.24:5000
   sudo cp <isle-root.crt> /etc/docker/certs.d/192.168.0.24:5000/ca.crt
 (then pol-core can push). isle-core already trusts it.
+
+## 29. Developer environment as a pol verb (2026-08-08)
+
+`pol dev` — the isle-oriented dev workflow, one namespace
+(polari-cli, dev-mac-1):
+- `pol dev setup [--yes]` — onboard a fresh machine
+  (shells/isle-dev-setup.sh): checks prereqs, installs pol,
+  trusts the mesh registry (certs.d) + isle CA (system, browser
+  hint), writes an isle-dev-deploy shortcut, verifies registry
+  reachability. Consent-first, idempotent. Persists config to
+  ~/.config/polari/isle-dev.env.
+- `pol dev deploy [backend|frontend]` — build → push to the mesh
+  registry → `isle-polari-deploy --pull` on the isle. THE dev loop
+  in one command.
+- `pol dev teardown [--keep-data]` — `isle-polari-teardown` over ssh.
+- `pol dev status` — registry catalog + prf-isle health. VERIFIED
+  live (shows repos + polari.isle → 200).
+pol-core registry trust done by Dustin (sudo install → certs.d,
+matches isle root; push+pull both PROVEN from pol-core). The
+onboarding path a NEW developer runs: `pol dev setup` → `pol dev
+deploy backend`.
