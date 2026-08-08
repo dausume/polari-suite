@@ -1014,3 +1014,37 @@ image ship is ~935MB over home wifi each cycle — a mesh-local
 registry (offline-complete gap #8, handoff §10) makes this a fast
 push/pull AND lets swarm place it; that's the mac-3 registry, now
 also the dev-loop accelerator.
+
+## 28. Mesh-local docker registry (§10 gap #8 / mac-3, 2026-08-08)
+
+The offline-complete requirement + dev-loop accelerator, BUILT +
+PROVEN. `isle-registry-setup.sh` (isle CA host, committed to
+isle-cli/scripts):
+- registry:2 on :5000 with an isle-CA-signed MULTI-SAN cert
+  (registry.isle + hostname + 192.168.0.24 [home] + 192.168.1.254
+  [isle br-mgmt] + localhost); trusted via /etc/docker/certs.d/
+  <addr>/ca.crt (the isle root — no insecure-registries).
+- 🔑 DNS registry.isle → 192.168.1.254 (isle-core's br-mgmt where
+  :5000 publishes), NOT the agent 10.10.0.2 — the registry is a
+  host service, not proxied through nginx.
+- PROVEN: push/pull round-trip on both registry.isle:5000 and
+  192.168.0.24:5000; **registry-based deploy `isle-polari-deploy
+  --pull`** removed the local image, pulled from registry.isle,
+  retagged, deployed healthy — the offline/no-internet image path.
+
+**DEV LOOP now (registry, replaces 935MB save|ssh|load):**
+```
+# on pol-core
+pol node build backend
+docker tag  prf-backend:staging 192.168.0.24:5000/prf-backend:staging
+docker push 192.168.0.24:5000/prf-backend:staging
+ssh isle-core isle-polari-deploy --pull
+```
+Only changed layers move (fast); the mesh keeps its own images.
+Also unlocks swarm placement (any node pulls from the registry) —
+mac-3's registry, delivered.
+
+⚠ ONE-TIME pol-core trust (needs Dustin sudo, once):
+  sudo mkdir -p /etc/docker/certs.d/192.168.0.24:5000
+  sudo cp <isle-root.crt> /etc/docker/certs.d/192.168.0.24:5000/ca.crt
+(then pol-core can push). isle-core already trusts it.
