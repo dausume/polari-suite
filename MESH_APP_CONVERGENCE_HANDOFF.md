@@ -1238,3 +1238,30 @@ Then reopen "Isle App Store" → opens polari.isle/isle (the hub),
 no wrong-instance error. (prf-a stays in the dropdown as a known
 instance but is no longer the default; to drop it entirely, clear
 ~/.local/share/polari-shell/registry.json.)
+
+## 37. Two more live-caught fixes + isle-mesh-cli deb (2026-08-08)
+
+From Dustin's continued testing (store OPENS + tabs + install
+button all render on pol-core):
+1. **error banner persisted after v0.1.2**: the shell registry
+   `merge()` was add-only — a same-URL re-registration KEPT the old
+   entry, so the blanked config never took. FIX: a launcher's own
+   config (same url) now REFRESHES its registry entry (identity/
+   probe/CA changes take). Core v0.1.4.
+2. **"install does not actually work"**: on pol-core the bridge
+   fires `pkexec isle store install` but there is NO isle CLI there
+   → "Cannot run program isle". The install MECHANISM is proven on
+   isle-core (§34); a device needs the isle CLI to install from its
+   own store. FIX: **isle-mesh-cli_0.1.0_all.deb** (24MB, packages
+   /usr/share/isle-mesh + the `isle` command; Depends nodejs/jq/
+   openssl) — staged on pol-core. Installing it makes the store's
+   "Install on this device" work for POLARI-APPS (native launchers,
+   no agent needed). MESH-APP hosting on a device still needs its
+   agent (the remote-onboarding goal §33).
+
+UPGRADE (pol-core):
+  sudo apt install ~/polari-shells/polari-shell-core_0.1.4_amd64.deb
+  rm -f ~/.local/share/polari-shell/registry.json   # drop stale prf-a/probe
+  sudo apt install ~/polari-shells/isle-mesh-cli_0.1.0_all.deb
+Reopen the store → no error banner, opens polari.isle/isle; "Install
+on this device" now runs (polari-apps install as native launchers).
