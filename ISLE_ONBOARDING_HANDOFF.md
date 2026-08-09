@@ -17,6 +17,18 @@ flows + the one genuinely-hard tier (a remote HOSTING apps).
 > fresh-device run of the bootstrap (econ-core, needs Dustin's
 > interactive sudo — §6 items 3 and the e2e half of 5).
 
+> **LATE 2026-08-09 — THE MEMBERSHIP RULE (Dustin):** the store
+> installs NOTHING on a device that is not an isle CORE or MEMBER —
+> the running agent IS the membership; polari-apps and mesh-apps
+> alike. Single-device isles are first-class (refusal offers
+> `isle core-install` alongside the join). Universal gate shipped
+> (CLI 0.1.9, store 0.1.7). Consequence: tier-5 (`isle join`) now
+> gates ALL remote installs — it is the next arc's critical path.
+> Fresh-device bootstrap PROVEN end to end on econ-core (found: no
+> curl, CA mode 600, /usr/local/bin prune, postinst-networking
+> landmine — all fixed at source; agent bring-up is NEVER run from
+> maintainer scripts).
+
 Read `MESH_APP_CONVERGENCE_HANDOFF.md` §17–§39 for the full trail.
 
 ---
