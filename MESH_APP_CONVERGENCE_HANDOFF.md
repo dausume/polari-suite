@@ -1450,3 +1450,52 @@ topology assign — PLANS first, human executes) + the component
 parallel-tracking rows + the shared-db profile for replicable
 backends (same-device replicas via isle-agent-net alias + docker
 DNS RR; cross-device = swarm).
+
+## 44. URL AUTHORITY + DEPENDENCY TRACKING (Dustin, 2026-08-09)
+
+Refinements to §43, verbatim intent:
+
+- **Cardinality reality:** almost always ONE core polari instance;
+  usually only ONE frontend — while potentially MANY databases
+  distributed across different places. (Corrects POLARI_COMPONENTS:
+  frontend ~singleton per isle, backends replicable, DATABASES
+  replicable/distributable; sql is NOT a per-group singleton.)
+- **Keycloak is independent:** tracked as its OWN isle citizen with
+  its OWN isle location (e.g. keycloak.isle), NOT a polari
+  subdomain — but RE-CONFIGURABLE to ride under one core URL
+  (auth.<core>.isle style) when chosen.
+- **THE URL MANAGER:** an isle can be chosen as THE web entrypoint
+  from the outside; from the app-store UI we reformat everything —
+  manage URLs manually, change them dynamically, and PUSH the
+  changes to everything connected. Deployments depend on URL
+  information, so changing a URL re-renders/redeploys dependents —
+  which requires DEPENDENCY TRACKING.
+
+### Model sketch (the build)
+
+- **UrlBinding**: {service (keycloak, polari-frontend,
+  polari-backend, db-<n>, <app>), canonical_domain, mode:
+  own-domain | under-core, exposure: isle-only | web-entrypoint,
+  public_url?}. The store UI edits these rows.
+- **UrlDependency**: {consumer artifact → binding}. The consumers
+  ALREADY EXIST as real files/rows: agent registry.json entries,
+  router DNS rows (dns-reconcile), nginx fragments, each instance's
+  runtime-config.json (backend/frontend URLs), shell-launcher
+  configs (.deb ShellConfig webUrl/probeUrl), engine.json URLs, KC
+  issuer/redirect URIs, OIDC client configs. Every one is an edge.
+- **Change flow (knobs rule):** edit a binding → resolver walks the
+  dependency edges → emits an ORDERED PLAN (DNS re-register,
+  registry update, fragment regen, config re-render + container
+  restart, launcher-deb rebuild, KC client update) → human applies;
+  auto only within a per-binding envelope later. Provenance row per
+  push.
+- **Web entrypoint:** marking an isle web-facing gives bindings
+  public URLs (ties into the custom BASE_DOMAIN machinery already
+  in the suite + cert-mode knob; certs per exposure).
+- Keycloak first: stand it up as its own isle app (own domain, own
+  row) and point polari instances' auth at ITS binding — then
+  moving/re-basing auth is a binding edit like any other.
+
+This makes the store UI the single place where "what is this
+system's shape and where does everything live" is both SEEN
+(coherence) and CHANGED (bindings → plans → push).
