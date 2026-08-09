@@ -1161,3 +1161,29 @@ THIS ROUND's scope (Dustin): "just test that the app store process
 for installing everything works at all first." Prove the install
 MECHANISM end-to-end (the thing behind the buttons), not the
 polished one-flow installers yet.
+
+## 34. INSTALL-PROCESS TEST PASSED (§33 this-round scope, 2026-08-08)
+
+Proved end-to-end on isle-core (passwordless sudo) that the app
+store process for installing everything works AT ALL:
+1. ✅ `dpkg -i polari-shell-core_0.1.1` — shared runtime installed
+   (/usr/bin/polari-app-shell, one 177MB runtime).
+2. ✅ `apt install isle-app-store_0.1.0.deb` — store installed; its
+   POSTINST ran ("making this device an isle member") and the isle
+   AGENT is RUNNING (the always-an-agent rule, proven).
+3. ✅ `isle store install polari --yes` (polari-app) — built +
+   installed the NATIVE launcher: `dpkg -l` shows `ii
+   isle-app-polari 0.1.0`, desktop entry present, "in your
+   applications menu (opens https://polari.isle)".
+4. ✅ `isle store install whoami --yes` (mesh-app) — deployed:
+   cert issued, DNS, `https://whoami.isle → 200`.
+Final device state — launchers: isle-app-polari, isle-app-store,
+polari-shell-core (ONE shared runtime); mesh-apps running:
+whoami, odoo, prf-isle. Both install KINDS through the store work.
+
+⚠ one refinement noted: the store postinst's `isle trust install`
+didn't take (trust still WARN after) — likely the CA path
+(/usr/share/isle-app-store/isle-root.crt vs isle trust's default
+/etc/isle-mesh/ca/isle-root.crt); agent-ensure + launcher install
+worked regardless. Fix the postinst CA path next. GUI window
+launch = Dustin (no display access).
