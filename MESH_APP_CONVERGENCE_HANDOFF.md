@@ -1549,3 +1549,38 @@ the transport primitive underneath.
   at the gateway against KC; requires keycloak-as-isle-citizen
   (§44 build order step 1). Ledger shape ready:
   access {level:2, group}.
+
+## 46. Topology-page exposure config + graph semantics + cross-device polari (2026-08-09)
+
+- **Exposure/entrypoint first-class**: IsleDevice.is_entrypoint +
+  exposures_json; ingested by push-to-polari; shown on the
+  Coherence tab (per-device entrypoint state + doors with L1/L2 +
+  principal) and in the graph. Full write-through-UI (edit bindings
+  → plan → push) is the §44 build; today the page SHOWS + names the
+  verbs (isle url entrypoint/expose), same pattern as the store.
+- **Graph rendering (Dustin)**: nginx proxy = role 'device-edge'
+  (the device's boundary); exposures = 'exposure' nodes
+  placement='external' floated OUTSIDE device boxes (the only
+  crossings); L2 segment placement='external' detection='inferred'
+  — HONEST that an unmanaged switch is invisible at L3 (inferred
+  from shared carrier). A genuine LLDP/bridge-detected switch would
+  arrive detection='detected' (the detection build is unwritten).
+- **Cross-device polari test — the gate**: isle-core hosts (proven:
+  polari + polari-2/lab.isle). pol-core IS a member (isle-remote-
+  agent up, prf image present, registry reachable) — ready to host
+  a polari instance; needs CLI upgrade to 0.1.18 + a sudo deploy.
+  econ-core is NOT joined (no agent) — needs `sudo isle join` at
+  the machine first. All-three interaction is a Dustin-driven step
+  (sudo at each box); commands below.
+
+TEST (Dustin):
+  # pol-core (already a member):
+  sudo apt install ~/polari-shells/isle-mesh-cli_0.1.18_all.deb
+  sudo isle polari instance deploy --name polari-pol --modules islemesh
+  # econ-core (join first, at the machine):
+  sudo apt install ~/polari-shells/isle-mesh-cli_0.1.18_all.deb
+  sudo isle join            # wired NIC holds 10.10.0.113
+  sudo isle polari instance deploy --name polari-econ --modules islemesh
+  # then watch the Coherence tab: polari on 3 devices, each its own
+  # <name>.isle, all reachable isle-wide; dns-reconcile maps the
+  # remote ones from the core.
