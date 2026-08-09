@@ -1499,3 +1499,38 @@ Refinements to §43, verbatim intent:
 This makes the store UI the single place where "what is this
 system's shape and where does everything live" is both SEEN
 (coherence) and CHANGED (bindings → plans → push).
+
+## 45. Dynamic URLs PROVEN + the exposure-naming rule (2026-08-09)
+
+**Proof 1 — dynamic URL change (DONE, live):**
+`isle polari instance rebase polari-2 --domain lab.isle` moved a
+RUNNING instance's URL through every reference in one verb:
+runtime-config rewritten IN PLACE (bind-mount inode rule), agent
+re-registration (fragment + leaf ride the hook), DNS rows swapped
+(new in, old retired), topology re-reported. https://lab.isle → 200,
+old polari-2.isle retired. Launch-an-environment-then-change-its-URL
+works.
+
+**Proof 2 — selective web exposure (DONE, live):**
+`isle url expose lab.isle --port 18080` opened an OUTSIDE door:
+a gateway container publishing 0.0.0.0:18080 that proxies INTO the
+isle through the agent (SNI lab.isle). Verified from pol-core AND
+econ-core over the HOME LAN: http://192.168.0.24:18080 → 200.
+Ledger: /etc/isle-mesh/exposures.json; unexpose closes the door.
+
+**THE CONTAINMENT + NAMING RULES (Dustin, verbatim intent):**
+- .isle is ALWAYS internal — reached only through an agent from
+  inside; fully contained. Exposure never publishes .isle itself.
+- Exposure = ADDING EXTERNAL URLS (a service can have MULTIPLE):
+  the external name FOLLOWS THE FORMAT of the internal one under a
+  chosen EXPOSURE DOMAIN — api.polari.isle gains api.polari.org
+  (or .com, whatever we define). Suffix-mirroring: everything left
+  of .isle is preserved under the external root.
+
+**NEXT (the naming layer):** `isle url domain set <external-root>`
++ name-mirrored exposure — a SHARED gateway on 80/443 at the
+entrypoint routing by external Host (X.<ext> → agent SNI X.isle),
+external DNS/hosts pointing at the entrypoint, certs for external
+names (cert-mode knob), every exposure recorded as a UrlBinding
+with its dependency edges (§44). The port-door (proof 2) remains
+the transport primitive underneath.
