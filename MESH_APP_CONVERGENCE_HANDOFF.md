@@ -1403,3 +1403,50 @@ registration via the self-feed timer (report needs the agent IP).
 (2) remote leaf certs (self-signed fallback today). (3) store WEB-UI
 instance/installed annotations. (4) same-name load balancing across
 instances. (5) econ-core join (its wired NIC holds 10.10.0.113).
+
+## 43. THE APP-MAPPING CONTRACT (Dustin, 2026-08-09 — verbatim intent)
+
+**"We need to make the concept of polari apps in isle mesh map
+DIRECTLY to polari apps in polari (module collections) — that is
+exactly the intent. Where the instances of frontend, backend,
+databases, etc, should also be handled by both polari and isle-mesh
+in parallel."**
+
+The two halves:
+
+1. **Polari-app ≡ PolariAppDefinition.** An isle-store polari-app
+   entry IS a polari module-collection app (polariapps module:
+   name + modules_json + pages_json — e.g. a Software-Engineer
+   App). Installing one = a MODULE-PLACEMENT RESOLUTION: ensure
+   every module in modules_json is live on SOME polari instance(s)
+   across the isle (one or several — the app works either way),
+   then the launcher/door opens the app's pages wherever they
+   live. The store must project PolariAppDefinition rows as
+   catalog entries (kind polari-app), each showing its modules and
+   their CURRENT placement (which instances carry which of them),
+   with the install plan = assign/deploy missing modules + build
+   the door.
+2. **Component instances in PARALLEL.** frontend / backend / sql /
+   cache / blob / auth instances are first-class in BOTH systems:
+   polari's topology rows AND isle's registry/app rows describe
+   the same components, reconciled (polari = intent, isle = live
+   network truth — the mac-5 drift-honesty rule). Scaling shape
+   (POLARI_COMPONENTS, live): singletons except backend =
+   replicable.
+
+GROUNDWORK NOW LIVE (this session): instances report their MODULES
+(registry modes 'modules:<csv>' → catalog/coherence show them:
+core = islemesh,polariapps; polari-2 = islemesh); the polariapps
+module (PolariAppDefinition + SEED_POLARI_APPS) runs ON the isle
+core; store kinds are honest (launcher=DOOR vs instance=RUNTIME);
+coherence shows subdomains folded under apps, THE CORE marked, and
+the component shape. CLI 0.1.16 (Isle-Mesh b21dcdc), framework/
+angular committed (suite 559e3e8).
+
+NEXT SESSION (the build): catalog projection of
+PolariAppDefinition rows + module-placement resolver (which
+instances carry which modules; assign missing via module install /
+topology assign — PLANS first, human executes) + the component
+parallel-tracking rows + the shared-db profile for replicable
+backends (same-device replicas via isle-agent-net alias + docker
+DNS RR; cross-device = swarm).
