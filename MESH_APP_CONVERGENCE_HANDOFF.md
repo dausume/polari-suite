@@ -1145,3 +1145,19 @@ Install the store app (per device): sudo dpkg -i
 ~/polari-shells/polari-shell-core_0.1.1_amd64.deb && sudo apt
 install ~/polari-shells/isle-app-store_0.1.0_all.deb → "Isle App
 Store" in the menu → Install buttons prompt for the password.
+
+## 33. THE GOAL: two smooth from-scratch install flows (Dustin,
+## 2026-08-08) — NOT this round; this round proves the mechanism
+
+Target (to build later, make it ONE smooth flow each):
+- **Core install (from scratch)**: one flow stands up the isle app
+  store + a BARE-BONES polari (topology + isle topology pages) +
+  the polari app store — a working core out of the box.
+- **Remote install (from scratch)**: one flow connects the device
+  to that mesh AND gives it a shell app store, from which the user
+  installs whatever else the device needs. Smooth + efficient.
+
+THIS ROUND's scope (Dustin): "just test that the app store process
+for installing everything works at all first." Prove the install
+MECHANISM end-to-end (the thing behind the buttons), not the
+polished one-flow installers yet.
