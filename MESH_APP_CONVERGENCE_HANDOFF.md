@@ -1306,3 +1306,15 @@ flow that makes a device a member (isle CLI + agent + trust +
 shell staging) so its store's "Install on this device" completes.
 Reinstall on pol-core to pick up the catalog fix:
   sudo apt install ~/polari-shells/isle-mesh-cli_0.1.1_all.deb
+
+## 40. Onboarding arc → handoff plan (2026-08-09)
+
+`isle onboard` MVP shipped (isle-cli/scripts/onboard.sh, wired):
+tiers 1–4 (trust / reach / register / native-app path);
+`--host` = tier-5 best-effort. The FULL arc (two smooth §33
+installers + the hard remote-HOSTING tier) is planned in
+**ISLE_ONBOARDING_HANDOFF.md** — what exists, the §4 fixes to land
+first, the two installers (core + remote), distribution
+(apt-on-mesh), and the isle-networking tier-5 that wants an
+isle-core-savvy session. Everything the installers orchestrate is
+built + proven; the arc is wiring + tier-5.
