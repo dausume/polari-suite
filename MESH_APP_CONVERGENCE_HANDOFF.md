@@ -1366,3 +1366,40 @@ isle-core (the passwordless-sudo member):
 DHCP/router-join, isle-core-savvy session); a genuinely FRESH
 device run of the bootstrap = econ-core with Dustin's interactive
 sudo (the flow to run is printed by `isle core-install`).
+
+## 42. Tier-5 + instance tracking LIVE (2026-08-09, same session)
+
+The user's clear-path goal advanced to: **a remote joins the isle and
+hosts chosen duplicates of store apps, tracked per device.**
+
+- **Tier-5 join proven on pol-core** (`sudo isle join --interface
+  eno1`): beacon heard (socat side-loaded on the router — the beacon
+  had NEVER transmitted; template redeployed + honest logging), ufw
+  gate opened as part of join consent, macvlan on the wired isle NIC,
+  remote agent with a REAL router DHCP lease (10.10.0.108) — the
+  original entrypoint DHCPed the wrong iface and docker-IPAM's static
+  self-assignment COLLIDED with the core agent's .2 (both agents were
+  IPAM statics; the router pool .50–.249 is the only arbiter). CLI
+  0.1.11/0.1.12; lease-derived discovery fallback; onboard --host
+  runs the real join.
+- **THE MEMBERSHIP RULE (Dustin)**: the store installs NOTHING on a
+  non-member; the agent IS membership; single-device isles are
+  first-class (gate offers isle core-install OR the join).
+- **Instance tracking (Dustin: type vs instances; scaling is
+  genuine)**: framework a7c0b27 — catalog annotates running
+  instances [{app, device, domain}] from per-device IsleApp rows
+  (pure instances_of, name + -N suffixes; 53/53 selftests). CLI
+  0.1.12 — store list shows [runs xN on devices] + [installed here
+  vX]; mesh-app install lists instances and auto-names the next
+  duplicate; app deploy self-reports its registry (counts live).
+- **E2E: whoami-2 on pol-core** — installed through the store as a
+  chosen duplicate, serves behind pol-core's agent, DNS registered
+  from the core, reachable from econ by name over HTTPS.
+
+⛔ Open seams (next session): (1) remote-app DNS AUTOMATION — the
+mDNS design never worked (agent publishes ADDRESS records; the
+router join-protocol browses SERVICES); fix = core-relayed
+registration via the self-feed timer (report needs the agent IP).
+(2) remote leaf certs (self-signed fallback today). (3) store WEB-UI
+instance/installed annotations. (4) same-name load balancing across
+instances. (5) econ-core join (its wired NIC holds 10.10.0.113).
