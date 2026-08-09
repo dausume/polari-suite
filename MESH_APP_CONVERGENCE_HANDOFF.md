@@ -1318,3 +1318,51 @@ first, the two installers (core + remote), distribution
 (apt-on-mesh), and the isle-networking tier-5 that wants an
 isle-core-savvy session. Everything the installers orchestrate is
 built + proven; the arc is wiring + tier-5.
+
+## 41. The onboarding arc BUILT (2026-08-09, autonomous session)
+
+The ISLE_ONBOARDING plan executed same-day; everything proven on
+isle-core (the passwordless-sudo member):
+
+1. **§4 fixes all landed** (Isle-Mesh 75e64a3, polari-app-shell
+   d661b24): shell.sh root-stage (`/usr/share/isle-mesh/shells/
+   debs`, pkexec's $HOME=/root case) + caller-owned temp build dir;
+   onboard stages the runtime deb system-wide + local-proxy
+   fallback for reach/register (host macvlan isolation) + fixes the
+   000000 double-echo; icons SHIP in the CLI deb; store postinst
+   seeds `/etc/isle-mesh/ca/isle-root.crt` AND resolves the CLI
+   explicitly — apt runs maintainer scripts with a sanitized PATH
+   that skips /usr/local/bin, so §34's "trust didn't take" had TWO
+   causes (CA path + PATH). Store deb 0.1.4; CA-reseed proven from
+   scratch. store.sh/module.sh curl got --max-time 8 (first attempt
+   hung minutes before the 127.0.0.1 fallback).
+2. **Committed CLI-deb builder** `isle-cli/shells/build-cli-deb.sh`
+   (retires the /tmp hand-build); `isle-cli/shells/tools/` = synced
+   copy of polari-app-shell builders + icons (provenance README).
+   `Replaces: isle-manager-app` (both packaged /usr/share/isle-mesh
+   — dpkg refused to overwrite without it). isle-mesh-cli 0.1.3
+   staged on all three + INSTALLED on isle-core.
+3. **Tier-4 PROVEN as root**: `sudo -H isle store install polari
+   --yes` → launcher built into the system stage, installed,
+   BRANDED with the polari mark. `isle onboard` all-green.
+4. **apt-on-mesh LIVE** (Isle-Mesh ac1651f): `isle apt-repo
+   publish|enable|status` — signed flat repo (ed25519, loopback
+   pinentry) at **https://apt.isle** (nginx bind mount via
+   `isle app deploy`, so re-publish is live instantly). apt
+   verified InRelease + installed the 24.7MB CLI deb over the mesh.
+   enable pins apt.isle→127.0.0.1 in /etc/hosts on the core host
+   (apt cannot --resolve). Publish prunes superseded versions and
+   also serves isle-bootstrap.sh + isle-root.crt.
+5. **The two installers BUILT + proven** (Isle-Mesh 32b164d):
+   `isle core-install` (5a) = one idempotent flow → all-green +
+   JOIN INFO (CA fingerprint, bootstrap one-liner + SHA-256).
+   **isle-bootstrap.sh** (5b) = STANDALONE remote installer served
+   at https://apt.isle/isle-bootstrap.sh: CA fetch + FINGERPRINT
+   VERIFY (mismatch exits 1 — tested), trust, apt-on-mesh enable,
+   apt install CLI+store+runtime, `isle onboard`. Full 4-step flow
+   green end to end from the served copy.
+
+⛔ Still open: tier-5 real remote HOSTING (`isle join` — macvlan/
+DHCP/router-join, isle-core-savvy session); a genuinely FRESH
+device run of the bootstrap = econ-core with Dustin's interactive
+sudo (the flow to run is printed by `isle core-install`).

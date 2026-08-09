@@ -6,6 +6,17 @@ one-flow installers. Everything they orchestrate is already built +
 proven (see "What exists"); the arc is wiring it into two polished
 flows + the one genuinely-hard tier (a remote HOSTING apps).
 
+> **STATUS 2026-08-09 (same-day build session): §4 fixes ALL LANDED
+> + tier-4 PROVEN as root + apt-on-mesh LIVE + BOTH installers
+> BUILT & proven on isle-core (§41 of the convergence handoff).**
+> CLI deb = isle-mesh-cli 0.1.3 (committed builder
+> `isle-cli/shells/build-cli-deb.sh` — the /tmp hand-build is
+> retired). Store deb = 0.1.4 (postinst CA seed + sanitized-PATH
+> fix — the §34 "trust didn't take" had BOTH causes). Remaining:
+> tier-5 real remote HOSTING (isle join territory) + a genuinely
+> fresh-device run of the bootstrap (econ-core, needs Dustin's
+> interactive sudo — §6 items 3 and the e2e half of 5).
+
 Read `MESH_APP_CONVERGENCE_HANDOFF.md` §17–§39 for the full trail.
 
 ---
@@ -85,7 +96,9 @@ does tiers 1–4; tier 5 is the hard one.
 
 ## 4. KNOWN FIXES NEEDED (found during §34–§39 testing)
 
-Small, concrete — do these first; they make tier-4 actually work:
+**✅ ALL FOUR LANDED 2026-08-09** (Isle-Mesh 75e64a3 +
+polari-app-shell d661b24); tier-4 proven end to end as root
+(launcher into the system stage, BRANDED icon). Original list:
 
 1. **pkexec runs as ROOT** → `$HOME` is `/root`. shell.sh's
    `POLARI_SHELL_STAGE` defaults to `~/polari-shells` (empty for
