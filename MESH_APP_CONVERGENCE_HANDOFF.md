@@ -1534,3 +1534,18 @@ external DNS/hosts pointing at the entrypoint, certs for external
 names (cert-mode knob), every exposure recorded as a UrlBinding
 with its dependency edges (§44). The port-door (proof 2) remains
 the transport primitive underneath.
+
+### §45b — Exposure regulation + access levels (Dustin, PROVEN)
+
+- **WHERE**: outside doors only on DESIGNATED entrypoint devices
+  (`isle url entrypoint enable` — deliberate; expose refuses
+  elsewhere; proven).
+- **LEVEL 1 (live)**: every door admits exactly ONE person with
+  assigned credentials — mandatory, no credential-less doors
+  (gateway basic auth, per-door htpasswd, ledger records
+  {level:1, user}). Proven: 401/401/200.
+- **LEVEL 2 (next)**: a KEYCLOAK GROUP whose members may access
+  from outside — forward-auth (oauth2-proxy or nginx auth_request)
+  at the gateway against KC; requires keycloak-as-isle-citizen
+  (§44 build order step 1). Ledger shape ready:
+  access {level:2, group}.
