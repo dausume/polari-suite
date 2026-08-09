@@ -1265,3 +1265,14 @@ UPGRADE (pol-core):
   sudo apt install ~/polari-shells/isle-mesh-cli_0.1.0_all.deb
 Reopen the store → no error banner, opens polari.isle/isle; "Install
 on this device" now runs (polari-apps install as native launchers).
+
+## 38. Probe fix — reachable, not down (2026-08-09)
+
+Blanking probeUrl (§37) over-corrected: the probe returns
+"instance-down (no probe URL configured)" when url is blank. FIX:
+probeUrl = the page URL (https://polari.isle/isle, returns 200)
+with instanceId still blank → 200 + blank-id match → REACHABLE, no
+error page. Store+launcher debs v0.1.3. Config-only (core v0.1.4
+unchanged). Reinstall just the store:
+  sudo apt install ~/polari-shells/isle-app-store_0.1.3_all.deb
+(registry-refresh in core 0.1.4 makes the new probeUrl take.)
