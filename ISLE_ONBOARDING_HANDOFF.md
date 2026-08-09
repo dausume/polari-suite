@@ -9,7 +9,7 @@ flows + the one genuinely-hard tier (a remote HOSTING apps).
 > **STATUS 2026-08-09 (same-day build session): §4 fixes ALL LANDED
 > + tier-4 PROVEN as root + apt-on-mesh LIVE + BOTH installers
 > BUILT & proven on isle-core (§41 of the convergence handoff).**
-> CLI deb = isle-mesh-cli 0.1.3 (committed builder
+> CLI deb = isle-mesh-cli 0.1.4 (committed builder
 > `isle-cli/shells/build-cli-deb.sh` — the /tmp hand-build is
 > retired). Store deb = 0.1.4 (postinst CA seed + sanitized-PATH
 > fix — the §34 "trust didn't take" had BOTH causes). Remaining:
