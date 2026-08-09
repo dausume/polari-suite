@@ -1214,3 +1214,27 @@ polari mark.
 its config); INSTALL-on-this-device from the store needs the isle
 CLI on pol-core (Recommends: isle-mesh-cli) — the full install
 mechanism is already PROVEN on isle-core (§34).
+
+## 36. Desktop shell live-caught fixes (2026-08-08, Dustin testing)
+
+The store app OPENS on pol-core (desktop route proven). Two fixes
+from his testing:
+1. **wrong-instance false error**: the store config probed an
+   appstore identity endpoint prf-isle doesn't serve (no appstore
+   module) → hit the SPA fallback → "instanceId '' expected
+   'isle-store'". FIX: blank identityUrl/instanceId/probeUrl in the
+   store + launcher configs (mesh web views skip the enrollment
+   probe). Rebuilt debs v0.1.2.
+2. **opened prf-a by default**: DesktopMain picked
+   registry.lastUsedId() (prf-a lingering from earlier app-store
+   testing) over the launcher's own --config instance. FIX: a
+   launcher's own config instance WINS (preferredId) — each app deb
+   opens ITS app. Rebuilt shared core v0.1.3.
+
+UPGRADE (pol-core): sudo apt install
+  ~/polari-shells/polari-shell-core_0.1.3_amd64.deb
+  ~/polari-shells/isle-app-store_0.1.2_all.deb
+Then reopen "Isle App Store" → opens polari.isle/isle (the hub),
+no wrong-instance error. (prf-a stays in the dropdown as a known
+instance but is no longer the default; to drop it entirely, clear
+~/.local/share/polari-shell/registry.json.)
