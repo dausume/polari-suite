@@ -1187,3 +1187,30 @@ didn't take (trust still WARN after) — likely the CA path
 /etc/isle-mesh/ca/isle-root.crt); agent-ensure + launcher install
 worked regardless. Fix the postinst CA path next. GUI window
 launch = Dustin (no display access).
+
+## 35. Icons + how to test the desktop route (2026-08-08)
+
+- **CC0 isle-island icon** (`polari-app-shell/shells/icons/
+  isle-island.svg|png` + LICENSE): original work, public-domain
+  (CC0-1.0). The Isle App Store's icon. (Kept to solid fills so
+  ImageMagick MSVG rasterizes it — clipPath/gradients don't render
+  there.)
+- **Polari mark** as the DEFAULT app icon (Dustin): copied from
+  angular assets circle-cropped_dodecahedronStar.png →
+  shells/icons/polari-mark.png. build-launcher-deb.sh defaults
+  --icon to it; build-store-deb.sh uses the island mark.
+- All debs rebuilt v0.1.1 WITH icons, staged on all 3 devices
+  (~/polari-shells).
+
+TEST THE DESKTOP ROUTE (Dustin, on pol-core):
+  sudo apt install ~/polari-shells/polari-shell-core_0.1.1_amd64.deb
+  sudo apt install ~/polari-shells/isle-app-store_0.1.1_all.deb
+Then Applications menu → "Isle App Store" (island icon) → native
+window onto /isle (App store + Topology tabs) over the mesh. Or:
+  polari-app-shell --config /usr/share/isle-app-store/polari-shell.json
+App launchers (isle-app-polari etc.) show as Polari/Odoo with the
+polari mark.
+⚠ opening + browsing works on pol-core (shell pins the isle CA from
+its config); INSTALL-on-this-device from the store needs the isle
+CLI on pol-core (Recommends: isle-mesh-cli) — the full install
+mechanism is already PROVEN on isle-core (§34).
