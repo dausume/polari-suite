@@ -1276,3 +1276,33 @@ error page. Store+launcher debs v0.1.3. Config-only (core v0.1.4
 unchanged). Reinstall just the store:
   sudo apt install ~/polari-shells/isle-app-store_0.1.3_all.deb
 (registry-refresh in core 0.1.4 makes the new probeUrl take.)
+
+## 39. Remote install: the honest boundary (2026-08-09)
+
+Store desktop app on pol-core (remote): OPENS CLEAN (store v0.1.3,
+no banner), tabs render, Install button → pkexec password prompt
+WORKS, catalog loads. The desktop store EXPERIENCE is proven on a
+remote.
+
+whoami install failed: (a) real bug — store.sh hardcoded --resolve
+127.0.0.1 (host-only) → catalog fetch empty → "no such entry".
+FIXED: system DNS + 127.0.0.1 fallback (macvlan host-isolation);
+CLI deb v0.1.1 staged. (b) DEEPER: `isle store install whoami` runs
+`isle app deploy` = deploy a CONTAINER, which needs pol-core's OWN
+agent — it has none. polari-app launcher via pkexec runs as ROOT
+(/root/polari-shells empty). ALL of these = pol-core REACHES the
+mesh but is not a full HOST/member yet.
+
+🔑 CONCLUSION: installing FROM a remote's store requires that remote
+to be ONBOARDED as a host first (agent + trust + staging) — exactly
+the smooth remote-install flow that IS THE GOAL (§33), not built.
+Install MECHANISM proven on a full member (isle-core §34). This
+round's "does it work at all" = YES on a member; remote store UI +
+password-prompt + catalog proven; remote-install = the onboarding
+build.
+
+NEXT (recommended): build the remote-onboarding installer — one
+flow that makes a device a member (isle CLI + agent + trust +
+shell staging) so its store's "Install on this device" completes.
+Reinstall on pol-core to pick up the catalog fix:
+  sudo apt install ~/polari-shells/isle-mesh-cli_0.1.1_all.deb
