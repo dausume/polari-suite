@@ -1719,3 +1719,63 @@ NEXT (documented, unbuilt): publish a pristine prebuilt image to the
 mesh (§3c — registry.isle vs MinIO is Dustin's call), the history purge
 (§3d, destructive, needs a coordinated window), and the credential
 rotation above.
+
+## 51. Instance data did not persist at all (2026-08-10)
+
+Started on §49's NEXT item — stateful module DATA handoff — and found
+the prerequisite was broken: **instance data was not surviving a
+container recreate in the first place.**
+
+`DATABASE_PATH` had no entry in `ConfigLoader.ENV_VAR_MAPPING`, so it
+was a **dead env var**. Every compose file set it to `/data/polari.db`
+(the volume mount point) while the sqlite files resolved to
+`./data` → **`/app/data`, inside the container's writable layer**. The
+mounted volume sat empty. Any recreate — a redeploy, or `isle polari
+module move`, which recreates both backends — silently discarded the
+instance's objects.
+
+So the capstone operation of §48, whose entire job is relocating a
+module, was **destroying the data it was moving**. This is also the
+mechanism behind the known "ingests lost across service replacement"
+gotcha, which had been blamed on deferred sqlite writes.
+
+Proven against the real `prf-backend:staging` image, writing through
+the real config + adapter path into a mounted volume:
+
+| | resolved dir | after a new container on the same volume |
+|---|---|---|
+| before | `/app/data` | **RESULT=LOST** |
+| after | `/data` | **RESULT=SURVIVED** |
+
+Two live instances were sitting on it: pol-core `prf-polari-pol-backend`
+(1.6MB) and isle-core `prf-isle-backend` (2.0MB, 118 tables). Both have
+now been rescued into their volumes, `PRAGMA integrity_check` = ok.
+
+⚠ The suite's swarm backend is **not** affected — it mounts its volume
+at `/app/data`, matching where the framework actually writes (that is
+what the 2026-07-20 "prf data persistence fixed" change did: it moved
+the mount, not the path). Two conventions existed; only the isle-instance
+one was broken.
+
+Shipped:
+- `polari-framework` 862ba71 — honor `DATABASE_PATH`; plus
+  `polariDBmanagement/legacy_data_dir.py`, a conservative boot-time move
+  from the legacy `./data` (never overwrites newer state, copies before
+  renaming originals aside, leaves originals usable on failure). 14/14
+  selftest.
+- `polari-cli` 52471db — `rescue-instance-data.sh`: snapshots a LIVE
+  instance's sqlite into its volume via sqlite's **online backup API**
+  (not `cp`, so no torn file). Dry-run default, `ISLE_HOST=` for remote.
+- Isle-Mesh b2d00e9 — instance template sets `DATABASE_PATH`; existing
+  polari-2/3/4 composes updated.
+
+🔑 **Order matters on rollout:** the boot-time migration CANNOT rescue a
+containerized instance, because a recreate discards the old writable
+layer before the new code ever runs. Run `rescue-instance-data.sh
+--apply` while the OLD container is still up, THEN redeploy.
+
+NEXT (the original §49 item, now unblocked): the actual cross-instance
+module data handoff — moving a module's TABLES from A's database to B's
+as part of `module move`, with the gm/blue-green quiesce so writes stop
+during the copy. Now that data survives a recreate, that is a real
+operation rather than a no-op over data that was about to vanish.
