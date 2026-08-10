@@ -1618,3 +1618,34 @@ isle-core (polari + lab.isle), pol-core (polari-pol), econ-core
 (joined; deploy polari-econ). The verify "hang" was a wrong-address
 health probe — fixed (probe the serving agent, 6x5s). Coherence +
 the netledger show all three coherently.
+
+## 48. Modules move between instances dynamically — PROVEN (2026-08-09)
+
+The capstone of the convergence arc: `isle polari module move <mod>
+--from A --to B` relocates a module between two LIVE polari
+instances. Drops it from A's POLARI_MODULES, adds to B, recreates
+both backends, re-records the modules note in each registry entry,
+self-reports.
+
+PROVEN on isle-core, gears moved polari-3 → polari-2:
+- compose env after: polari-3=islemesh, polari-2=islemesh,gears
+- both backends healthy with those exact envs
+- GET /api/gears/types → **200 on polari-2** (gained the module),
+  **404 on polari-3** (lost it): the module's live API surface
+  genuinely relocated.
+
+CLI 0.1.21. The whole placement story now works end to end: an app
+= a module collection (§43); instances host modules (deploy);
+modules MOVE between instances (this); URLs/exposure/access regulate
+the surface (§44–45b); the network ledger keeps it collision-free
+at scale (§47).
+
+⚠ Boundaries (honest): (1) module LOADING moves; a stateful
+module's DATA stays in its origin instance's volume — data
+migration is the next step (blue-green/gm machinery over the isle).
+(2) move is between DEPLOYED instances (not the core polari.isle,
+which owns the store/ingest). (3) recreate = a brief restart of
+both backends (lazy-boot ~1-2min) — not yet a zero-downtime handoff.
+NEXT: the app-placement RESOLVER (install a module-collection app →
+auto-move/ensure its modules across instances as a PLAN) + stateful
+data handoff.
