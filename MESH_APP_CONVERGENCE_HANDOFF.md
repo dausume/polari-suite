@@ -1584,3 +1584,37 @@ TEST (Dustin):
   # then watch the Coherence tab: polari on 3 devices, each its own
   # <name>.isle, all reachable isle-wide; dns-reconcile maps the
   # remote ones from the core.
+
+## 47. Network resource ledger + econ-core joined (2026-08-09)
+
+econ-core JOINED (3rd host member; real lease 10.10.0.79). The
+join first FAILED because the isle agent's fixed isle-agent-net
+172.20/16 collided with econ's odoo suite network on the same pool
+— nothing tracked allocation. Fixes + the ledger Dustin asked for:
+
+- **isle-agent-net auto-allocates** (per-host bridge; no fixed
+  subnet) → overlap-proof on any device.
+- **Subnet-agnostic isle detection**: the macvlan is the 10.x
+  interface, never a hardcoded 172.x bridge (which moved to 172.21
+  once pools auto-allocate — the regression that showed VLAN IP
+  172.21.0.2 though the real lease was 10.10.0.79).
+- **THE LEDGER** (islemesh_netledger, pure + 65 selftests):
+  per-device docker pools (CIDRs) + published ports tracked
+  (IsleDevice.pools_json/ports_json), ingested via a "net" block,
+  surfaced on the Coherence "Network resources" panel, with
+  pool-overlap / port-conflict ASSESSMENTS. `isle net
+  status|report|free-subnet|free-port`; push-to-polari reports it
+  every cycle; `isle url expose` refuses a taken port + suggests a
+  free one. CLI 0.1.20.
+
+Deploy verbs pick free pools (docker auto) + the expose guard uses
+free ports — near-arbitrary apps/engines add without collision.
+NEXT: allocator consults the CROSS-mesh ledger before choosing
+(today each host is conflict-checked locally + shown centrally);
+port-forward exposures through the router for true off-LAN access.
+
+## §46b — cross-device polari: all three now host
+isle-core (polari + lab.isle), pol-core (polari-pol), econ-core
+(joined; deploy polari-econ). The verify "hang" was a wrong-address
+health probe — fixed (probe the serving agent, 6x5s). Coherence +
+the netledger show all three coherently.
