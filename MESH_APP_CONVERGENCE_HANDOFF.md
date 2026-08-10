@@ -1649,3 +1649,25 @@ both backends (lazy-boot ~1-2min) — not yet a zero-downtime handoff.
 NEXT: the app-placement RESOLVER (install a module-collection app →
 auto-move/ensure its modules across instances as a PLAN) + stateful
 data handoff.
+
+## 49. App-placement resolver — module-collection apps ensured (2026-08-09)
+
+A polari-app IS a module collection (PolariAppDefinition); installing
+it = ENSURING its modules are live across the isle's instances (one
+or several — the app works either way). PROVEN:
+
+- resolve_app_placement (pure) + /api/islemesh/appplan/{app}: reads
+  the app's modules + live instance placement → satisfied/missing/
+  complete + a PLAN (isle verbs: add-module to a co-locating
+  instance, or deploy a new one).
+- isle polari app plan/ensure + module add — the verbs.
+- On isle-core: judicial-lean (needs polariNoCode,scoring) → plan
+  named both missing → ensure placed them on polari-4 → re-plan
+  COMPLETE. CLI 0.1.22.
+
+This closes the convergence loop: app=collection → deploy instances
+→ move/add modules → resolve+ensure an app's placement → all under
+URL/exposure/access control (§44-45b), collision-free at scale
+(§47), visible in the topology (§46). NEXT (documented, unbuilt):
+stateful module DATA handoff (gm/blue-green over the isle) +
+zero-downtime module reload + the resolver as a UI action.
