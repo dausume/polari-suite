@@ -1671,3 +1671,51 @@ URL/exposure/access control (§44-45b), collision-free at scale
 (§47), visible in the topology (§46). NEXT (documented, unbuilt):
 stateful module DATA handoff (gm/blue-green over the isle) +
 zero-downtime module reload + the resolver as a UI action.
+
+## 50. Artifact hygiene — no build artifacts in git (2026-08-10)
+
+Binary artifacts are out of git, and nothing broke, because the router
+image is now OBTAINED rather than shipped. Plan + full test table:
+ARTIFACT_HYGIENE_PLAN.md (§0a/§0b). Isle-Mesh `dev` d964153,
+polari-framework 865d203, polari-cli 313c274.
+
+⚠ **The finding that mattered more than the size.** The committed
+`openwrt-isle-router.qcow2` was not a build artifact — it was a
+**booted, provisioned router's disk**. Mounting its rootfs against a
+clean upstream conversion showed dropbear **private host keys**,
+`/etc/shadow` with a real root hash, `/etc/uhttpd.key`, and
+authorized_keys — in a **public** repo, ~6 copies deep in history, and
+shared by every router cloned from it. So:
+
+- the history purge is **credential remediation**, not housekeeping —
+  and it fixes nothing by itself (existing clones keep the keys);
+- **rotation** of the host keys, root password, uhttpd keypair and
+  `isle-router-key` is the step that actually remediates;
+- we must **never publish this image** — a mesh/release copy has to be
+  built pristine from upstream. The manifest's published-sha is empty
+  and the fetch steps refuse to trust an unpinned artifact, so that
+  mistake can't be made by accident.
+
+**Why untracking was safe (proven, not assumed):** provisioning happens
+at runtime against the booted VM, not baked into the image. A pristine
+image boots, accepts the bootstrap (dropbear + blank root password),
+takes its per-install key and goes passwordless — so the baked-in
+credentials were never required. Tested under plain userspace QEMU;
+the live isle was never touched.
+
+The chain: `get-router-image.sh` = cache → mesh → release → build from
+upstream, every step checksum-gated against a tracked
+`router-image.manifest`, no step load-bearing. Building from an empty
+images dir reproduces the image exactly (raw-content sha matches), and
+a fresh clone with no images can still produce one.
+
+Also: `pack.sh` resolved its own root wrong and could not regenerate
+the tracked bundle at all — fixed. And a **pre-push guard** now refuses
+to push tracked artifacts >1MB (suite repos + Isle-Mesh over SSH); it
+found a 2.2MB freetype tarball vendored in polari-framework on its
+first run, now fetched at build time with a checksum gate.
+
+NEXT (documented, unbuilt): publish a pristine prebuilt image to the
+mesh (§3c — registry.isle vs MinIO is Dustin's call), the history purge
+(§3d, destructive, needs a coordinated window), and the credential
+rotation above.
