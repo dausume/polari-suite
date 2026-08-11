@@ -26,7 +26,7 @@ GPLv3-COMPATIBILITY).
 | `scanning` module | 4 classes, presigned upload/download, finalize-from-listing, immutable-after-finalize, dedicated DELETEs, PRIVATE buckets | selftest 51/51; admit 1.0s / put-away 410 / re-admit 0.8s (`dyn_proofs/scanning_proof.py`) — the FIRST module born manifest-first on dyn-1 |
 | `prf-recon-engines` image | CPU COLMAP 3.11.1 source-built with the gate flags + trimesh 4.5.3, 569MB; gate check IN the Dockerfile (build fails if SiftGPU code or GL linkage ever appears) | built; real reconstruction of a 20-view synthetic set → 1 model, sparse PLY |
 | recon worker service | `/capability` (honest engines+resources), `/reconstruct` (COLMAP sparse → presigned PUT out), `/postprocess` (trimesh clean/transform/scale), `/export` (GLB/PLY/OBJ + LOD decimation) | smoke + E2E below |
-| jobs (scan-4) | ReconstructionJob rows: proposed → explicit run → daemon thread supervises worker over HTTP; wall_clock_s, log tail, honest `failed`; re-runs = NEW rows | E2E below |
+| jobs (scan-4) | ReconstructionJob rows: proposed → explicit run → daemon thread supervises worker over HTTP; wall_clock_s, log tail, honest `failed`; re-runs = NEW rows | **E2E 15/15 PASS** (`dyn_proofs/scanning_e2e.sh`): 20-image job → `ready` in **16.5s** wall (in-network MinIO); GLB export, scale refusal→measurement→link, gated-module 503, live `admit?withDeps` all in one walk |
 | proposals | `recon_run` = level-4 network-service in ai_actions (+ `polari_propose_recon_run` MCP tool) — AI cannot self-approve a run | code path shared with the human run route |
 | import (scan-6) | server-local dir under `POLARI_SCAN_IMPORT_ROOT`; recognizes OpenScan3 layout (format facts from the gate doc — zero OpenScan code) | E2E imports the synthetic set this way |
 | scale (scan-5) | value+method+uncertainty; `unvalidated` default; `POST .../scale` is the ONLY door out; export CARRIES the method (never launders) | E2E |
@@ -131,6 +131,15 @@ the shell once the webcam works (§4).
 9. The shell holds NO Keycloak token (Strategy A) — presigned URLs
    are why capture upload works anyway. Anything else the shell
    uploads will hit the same wall until Strategy B tokens exist.
+10. **`ImportError` is NOT an absence check** — module CODE ships in
+   every image (dyn), so `from mathshapes... import` succeeds for a
+   GATED-OUT module and would have written rows for a disabled one.
+   `module_gating.module_enabled('<m>')` is the honest guard (fixed
+   in link-sim; caught by the E2E, step 13).
+11. **trimesh picks its loader from the file EXTENSION** — saving a
+   downloaded artifact under a made-up name (`in.mesh`) makes export
+   fail as "File type: mesh not supported". The worker now saves
+   under the caller-declared `inputFormat`.
 
 ## 5. Known pre-existing defects (unchanged from the dyn handoff)
 
