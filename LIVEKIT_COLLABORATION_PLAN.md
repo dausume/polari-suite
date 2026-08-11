@@ -64,8 +64,20 @@ already-known ones:
   `isle url expose` door — is HTTP/TLS over TCP. **None of the current
   exposure machinery carries this.** This is the single biggest unknown
   and it should be proven before anything else is built.
-- **The netledger exists for exactly this.** A UDP range is a resource
-  that must be reserved, or it collides at scale. Register it.
+  *Confirmed by code investigation 2026-08-10:* there is not a single
+  `/udp` port mapping in any compose file or jinja template, no nginx
+  `stream {}` block anywhere, and the netledger
+  (`islemesh_netledger.py`) models CIDR pools and published **TCP**
+  ports only. The one UDP precedent in the whole suite is WireGuard
+  (`pol remote` writes `wg0.conf` and tells the human to forward one
+  UDP port manually). So Phase 0 concretely means: `/udp` port
+  publishing on the LiveKit service, and media that bypasses nginx
+  entirely (WebRTC media is not proxyable by an HTTP proxy; only
+  LiveKit's signalling/HTTP goes behind the proxy).
+- **The netledger exists for exactly this — but must grow a UDP-range
+  concept first.** Today it reserves CIDRs and TCP ports; a UDP port
+  range is a new resource kind, a small honest extension rather than a
+  workaround. Register the range there, or it collides at scale.
 - **TLS.** Browsers require secure contexts for getUserMedia; the LAN
   story is the self-signed Polari CA (see `LAN_ACCESS_HOME_TEST.md`), so
   a device must trust that CA before a meeting will work at all — the
@@ -81,13 +93,38 @@ the Polari CA trusted. If UDP through the current network shape does not
 work, everything downstream changes, and it is far cheaper to learn that
 now.
 
-## 4. Where it runs
+## 4. Where it runs — and the modular split
 
-LiveKit is a media server: CPU, bandwidth, and a wide port range. It is
-not a polari module and should not ride in the backend image. It is an
-isle-hosted service with its own URL binding and exposure entry, placed
-deliberately on a host chosen for bandwidth — the same placement story as
-the reconstruction engines, through the same topology/ledger machinery.
+Per the standing modularization goal (2026-08-10: split things apart so
+they can be pulled down or installed only when needed), this arc is
+**two separately-installable pieces**, not one:
+
+1. **`collab` backend module** — pure Python, light, a normal registry
+   module: `CollaborationSession` (+ later the persistent meeting
+   record of §7) and the KC-gated token-minting endpoint. Active only
+   on instances it's assigned to (`pol topology assign`), like every
+   module. No LiveKit SDK weight in the core image beyond the token
+   signer.
+2. **`pol-livekit` service** — LiveKit's own image, its own compose
+   file, never part of the default `up`. The suite already has the
+   exact convention: a separate compose file + a role case in
+   `pol compose` (msci-engines/cad-engines walked this path twice), an
+   entry in `pol-build/registry/services.yml`, and — for its HTTP/
+   signalling side behind nginx — the odoo precedent of a *variable*
+   `proxy_pass` with the docker resolver, so the proxy keeps booting
+   when the optional service is down. Media ports are `/udp` published
+   directly (§3), not proxied.
+
+LiveKit is a media server: CPU, bandwidth, and a wide port range. It
+must not ride in the backend image. It is placed deliberately on a host
+chosen for bandwidth — the same placement story as the reconstruction
+engines, through the same topology/ledger machinery (a
+`ModuleResourceProfile` for it, a topology seed pin, and the
+provider-registry ladder: env knob → topology resolution → honest
+refusal with a suggestion). Later optional pieces — recording/egress,
+transcription, an AI participant — are each **their own additional
+service**, installed only if §7's governance decision ever says yes;
+none of them may be a reason to fatten the base two pieces.
 
 Keycloak's own reachability is a prerequisite (a VR or mobile client must
 reach the KC external/LAN name to log in at all).
