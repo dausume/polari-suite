@@ -90,13 +90,17 @@ the shell once the webcam works (§4).
 
 ## 4. Gotchas found this run (do not re-learn)
 
-1. **The pol-core webcam is dead at the KERNEL level** — Logitech
-   046d:094c enumerates on USB but `uvcvideo: Failed to initialize
-   the device (-5)` since Aug 07; no `/dev/video0` exists. Needs a
-   physical replug (or different port). Until then the capture rig's
-   live proof is blocked; unit tests + the synthetic pipeline stand
-   in. Also: **ffmpeg is not installed on the host** — the shell
-   capability reports that honestly (`ffmpegAvailable: false`).
+1. **The webcam does NOT work through the KVM switch** — behind the
+   KVM the Logitech Brio 100 enumerates but UVC probe control EPIPEs
+   (`-32`) and init fails (`-5`); direct-plugged into pol-core it
+   initializes cleanly (RESOLVED 2026-08-11, Dustin re-seated it).
+   Two capture facts learned live and baked into the fixed argv:
+   default v4l2 negotiation gives 640×480 (must request
+   `-video_size 1920x1080`), and the first frames are black while
+   auto-exposure converges (keep the ~11th frame). Real 1080p JPEG
+   captured with the exact production argv. **ffmpeg is still not
+   installed on the HOST** — the shell capability reports that
+   honestly; the containers carry their own.
 2. **`pol build render` EXTRACTS templates FROM the annotated
    working files** in `pol-services/` — editing the `.j2` gets
    silently reverted. Sources are the annotated `.conf` files
