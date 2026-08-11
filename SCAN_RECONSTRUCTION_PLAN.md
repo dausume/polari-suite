@@ -1,6 +1,19 @@
 # 3D scanning + reconstruction — plan (DRAFT v2, investigated)
 
-**Date:** 2026-08-10 · **Status: PLANNING ONLY — nothing built.**
+**Date:** 2026-08-10 · **Status 2026-08-11: phases 1–2 DONE.**
+Phase 1 license gate CLEARED under the project's GPLv3 frame — verdicts
+in `SCAN_ENGINES_LICENSE_GATE.md`
+(COLMAP/Open3D/RTAB-Map/OpenScan all pass with conditions; Open3D's MKL
+wheel RULED OUT — OpenBLAS build or no-Open3D route). Phase 2 `scanning`
+module BUILT on `polari-framework` `dev-scan-1` (stacked on unreviewed
+`dev-dyn-1` — Dustin's call): first module born manifest-first on dyn-1,
+lifecycle proven in-container (admit 1.0s / put-away 410 / re-admit
+0.8s, `moduleService/dyn_proofs/scanning_proof.py`); s3 proxy cap fix on
+`polari-rf-node` `dev-scan-1`, promoted. Decisions: OBJECT-first;
+recon host = most available resources per `/api/topology/resource-ledger`.
+Next: phase 3 (shell camera capability + capture app).
+
+**Original status:** DRAFT v2, planning only.
 v1 mapped Dustin's brief (via ChatGPT) onto Polari from memory. This v2
 is grounded in a code investigation of the module system, the app
 store/shell, and the storage/job/compose infrastructure, and is
