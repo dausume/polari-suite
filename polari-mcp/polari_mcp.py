@@ -447,6 +447,26 @@ async def polari_propose_storage_connect(config: dict[str, Any]) -> dict[str, An
     )
 
 
+@mcp.tool()
+async def polari_propose_recon_run(job_name: str) -> dict[str, Any]:
+    """PROPOSE running a photogrammetry ReconstructionJob (POST
+    /api/scanning/jobs/{name}/run — scan-4). Network-service (level 4):
+    tens of CPU-minutes on the recon worker, so the AI CANNOT
+    self-approve; a human confirms via polari_execute_proposal after an
+    out-of-band grant. The job row must already exist (CRUDE POST
+    /ReconstructionJob, status 'proposed') and its CaptureSession must
+    hold >=3 images. Re-runs are NEW job rows — nothing is overwritten.
+    """
+    path = f"/api/scanning/jobs/{job_name}/run"
+    return kernel.propose(
+        operation="recon_run",
+        summary=f"Run reconstruction job {job_name!r} on the recon worker",
+        request={"method": "POST", "path": path},
+        executor=lambda: _sync(pc.post_json(path, {})),
+        clock=_now(),
+    )
+
+
 # ======================================================================
 # G. Reasoning-provider management (select + auth + validate)
 # ======================================================================

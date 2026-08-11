@@ -1,9 +1,88 @@
-# LiveKit collaboration sessions — plan (DRAFT, for review)
+# LiveKit collaboration sessions — plan (v2: GROUP MEETINGS arc)
 
-**Date:** 2026-08-10 · **Status: PLANNING ONLY — nothing built.**
-Source: Dustin's brief (via ChatGPT). This maps it onto Polari as it
-exists. Companion: `SCAN_RECONSTRUCTION_PLAN.md` — the two converge at
-the scene/asset layer and must not depend on each other directly.
+**Date:** 2026-08-10, **v2 2026-08-11** · **Status: NEXT ARC, ready to
+execute — nothing built.** Source: Dustin's brief (via ChatGPT); v2
+scoped by Dustin 2026-08-11: *"group meetings for both web/video and
+VR using LiveKit"* — which answers §8's first question (MEETINGS
+first, a working group call is the milestone) and pulls VR forward as
+a first-class client rather than a phase-8 afterthought. Companion:
+`SCAN_RECONSTRUCTION_PLAN.md` — converges at the scene/asset layer
+(now real: scan-9's GLB/LOD export exists), no direct dependency.
+
+## v2 — the mtg-1..8 ladder (execution order)
+
+Everything in the original §§0–7 stands (identity KC-only; the
+ephemeral-vs-authoritative line with teeth; two installable pieces;
+recording off by default pending the §7 governance choice). What v2
+adds is the concrete ladder and what this week's scan arc settled:
+
+- **mtg-0 — UDP/media LAN proof (BLOCKING, unchanged §3).** Two
+  browsers on the wifi exchanging audio through self-hosted LiveKit
+  with the Polari CA trusted. Includes the two infra firsts: `/udp`
+  port publishing (none exists suite-wide) and the netledger's UDP
+  port-range resource kind. Media bypasses nginx; only
+  signalling/HTTP proxies (odoo variable-proxy_pass precedent).
+- **mtg-1 — `pol-livekit` service**, the walked-twice worker pattern
+  (now walked three times by prf-recon-engines, whose files are the
+  freshest template): own compose + `pol compose livekit` case +
+  `services.yml` entry + `ModuleResourceProfile` + topology seed.
+  Placement per Dustin's standing rule: the resource ledger decides
+  (⚠ the ledger has no BANDWIDTH dimension yet — add it or note it).
+- **mtg-2 — `collab` module, the SECOND module born manifest-first
+  on dyn-1** (scanning proved the recipe end-to-end today, admit/
+  put-away included). Classes: `CollaborationSession` (room identity,
+  scope local|web, moderation state) + `MeetingRecord` (§7's
+  persistent record: participants, decisions, artifact links — no
+  audio). Token endpoint: KC-authenticated → short-lived LiveKit JWT
+  (HS256 against the service's API key — pure-python signing, NO
+  LiveKit SDK in the backend image), grants derived from KC groups
+  via the group-authority mapping. Capability endpoint with the
+  recon_remote-style refusal ladder (LIVEKIT_URL knob → topology →
+  suggestion).
+- **mtg-3 — the Angular group-meeting client** (THE milestone): join
+  by session row, audio + video + screenshare, participant list,
+  mute/kick moderation from the session's moderator (KC-group
+  derived). `livekit-client` is Apache-2.0 (license-gate it properly
+  anyway — three sources, per the standing method). Useful the day
+  it lands: staff meetings on the LAN.
+- **mtg-4 — versioned realtime message schemas** (§6.5 unchanged —
+  BEFORE any VR client; pose/presence/preview are a wire protocol).
+- **mtg-5 — VR meeting client**: the app-shell android-vr APK
+  (Wolvic) joining the SAME CollaborationSession — WebXR scene,
+  avatar heads + hands from mtg-4 messages, spatial-ish audio
+  (LiveKit pan by pose is enough at first). Avatars = a NEW small
+  asset class (§8 answer: nothing existing fits; keep it a row +
+  GLB reference like every other asset). ⚠ Wolvic + self-signed CA
+  trust is the known trap; the store shell's CA-pinning path is the
+  door. VR captures nothing (no passthrough) — consumer only.
+- **mtg-6 — simulation pages join a session** (voice alongside the
+  model — the original phase 4).
+- **mtg-7 — scanned environments in the room**: place scan-9 GLB/LOD
+  assets (they exist now, with scale-honesty carried on the row) as
+  the shared scene. The convergence §5 promised, cashed in.
+- **mtg-8 — authoritative shared manipulation**: drag previews over
+  LiveKit, commits through the normal propose/execute path — the §2
+  rule made tangible.
+
+**Decisions inherited from this week:** LAN-first (`scope: local`;
+off-LAN = EXTERNAL_APPS ladder + TURN, its own later step);
+recording stays OUT of v1 (the MeetingRecord row is the durable
+thing); every new service/module optional-by-design (dyn-1 manifest
++ own compose); the shell capability gate (scan-3) is the precedent
+if the DESKTOP shell ever needs native mic access — browsers in-page
+getUserMedia should suffice for mtg-3 since pages run over the
+trusted CA, unlike the shell's cert-error webview case.
+
+**Still open for Dustin (trimmed):** (a) does the resource ledger
+grow a measured bandwidth dimension for media placement, or do you
+just name the host? (b) v1 participant cap to size the media host
+(a family-sized 4–8 vs workshop 15+)? (c) is `web` scope wanted at
+all this year, or is LAN the whole 2026 story?
+
+---
+
+*Original plan (v1, 2026-08-10) below — §§0–8 remain the design's
+foundations and constraints.*
 
 ## 0. The brief's central call is right
 

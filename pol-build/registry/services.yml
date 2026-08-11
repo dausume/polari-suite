@@ -282,6 +282,20 @@ services:
     connects_to: {prf-backend: {}, prf-backend-b: {}}
     variations: "INDEPENDENTLY DEPLOYABLE service kind (pol compose engines up); remote-worker variant runs it on another machine; consumers degrade honestly when absent"
 
+  - kind: prf-cad-engines
+    context: polari-rf-node/ (CAD import/export worker)
+    appears_in: [polari-rf-node/docker-compose.cad-engines.yml]
+    config: {knobs: ["CAD_ENGINES_URL (consumer side)", "WITH_FREECAD=1 build arg (FCStd/STEP, ~1.5GB)"]}
+    connects_to: {prf-backend: {}, prf-backend-b: {}}
+    variations: "INDEPENDENTLY DEPLOYABLE (was MISSING from this registry — scan-4 accountability fix); trimesh baseline + optional FreeCAD; consumers degrade honestly when absent"
+
+  - kind: prf-recon-engines
+    context: polari-rf-node/ (photogrammetry reconstruction worker, scan-4)
+    appears_in: [polari-rf-node/docker-compose.recon-engines.yml]
+    config: {knobs: ["RECON_ENGINES_URL (consumer side)"]}
+    connects_to: {prf-backend: {}, prf-backend-b: {}}
+    variations: "INDEPENDENTLY DEPLOYABLE (pol compose recon up); CPU COLMAP 3.11.1 license-gate build (no SiftGPU/GL — SCAN_ENGINES_LICENSE_GATE.md) + trimesh post-processing/export; host chosen by resource ledger (dyn-9); consumers degrade honestly when absent"
+
   - kind: prf-test-harness
     context: polari-rf-node/ (fullstack-test services)
     appears_in: [polari-rf-node/docker-compose.fullstack-test.yml]
