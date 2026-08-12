@@ -9,6 +9,57 @@ a first-class client rather than a phase-8 afterthought. Companion:
 `SCAN_RECONSTRUCTION_PLAN.md` — converges at the scene/asset layer
 (now real: scan-9's GLB/LOD export exists), no direct dependency.
 
+## mtg-3 STATUS 2026-08-12: BUILT + DEPLOYED + BROWSER-VERIFIED
+## (the milestone — one signed-in join short of done)
+
+`/meetings` is LIVE on staging: the Meetings & Collaboration app sits
+in the top bar, the page lists real CollaborationSession rows, and
+the backend reports a fully ready media server (`keysConfigured`,
+`serverReachable`, `clientUrl` — no gaps). Deploy: backend + frontend
+images rebuilt and rolled, `collab@prf-a` seed row landed, module set
+re-derived to include collab.
+
+Built: `MeetingsComponent` + `CollabService` (audio/video/screenshare,
+participant tiles with speaking/muted/screen state, moderation
+buttons), `app-collaboration` as its OWN app (everyone meets; an
+instance can carry or drop meetings cleanly), and server-side
+moderation — `room_service()` calls LiveKit's RoomService twirp with
+an INTERNALLY minted admin token, so a browser never holds room-admin
+rights (live-verified: ListParticipants returned the real
+tone-publishers).
+
+⚠ **THREE THINGS THE LIVE PASS CAUGHT THAT SUITES COULD NOT:**
+1. **`pol swarm deploy` stamped a DOCKER BRIDGE into every
+   `${LOCAL_IP}` knob.** Creating one compose network reordered
+   `hostname -I`, so 172.20.0.1 came first and MSCI_ENGINES_URL +
+   both LiveKit URLs pointed at an address no other machine can dial
+   — while the deploy reported success. Fixed at the root: `lan_ip()`
+   in the CLI's lib uses the default-route source address (what
+   staging-setup.sh always did), applied across all 9 scripts.
+2. **Identity was checked AFTER existence** on token + moderation, so
+   an unauthenticated caller could tell a real session (401) from a
+   missing one (404) — i.e. enumerate meetings. Reordered; the
+   lifecycle proof now pins it.
+3. **The CRUDE envelope guess failed SILENTLY.** Sessions come back
+   as `[{Class: [{class, varsLimited, data:[…]}]}]`; a wrong guess
+   renders "no sessions", not an error. Now uses the same unwrap as
+   `CrudeClassService`.
+
+Also worth knowing: `docker service update` reports **"update paused"**
+on the stop-first rollover ("Address already in use") and then
+succeeds anyway — always check the RUNNING task's image digest, not
+the update status. And `pol swarm deploy node` did NOT move the
+frontend to its new image; a `--force --image` was needed.
+
+REMAINING for mtg-3: one signed-in join (Keycloak credentials are
+Dustin's) — real mic/camera capture, two participants, moderation
+buttons against a live peer. Everything up to the auth wall is
+verified.
+
+NEXT: mtg-4 — versioned realtime message schemas, BEFORE any VR
+client (pose/presence/preview are a wire protocol; versioning them
+later is expensive).
+
 ## mtg-2 STATUS 2026-08-12: BACKEND BUILT + PROVEN (same day as 0/1)
 
 `modules/collab/` on framework `dev-mtg-1` — the second module born
