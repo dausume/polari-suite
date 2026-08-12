@@ -9,6 +9,69 @@ a first-class client rather than a phase-8 afterthought. Companion:
 `SCAN_RECONSTRUCTION_PLAN.md` — converges at the scene/asset layer
 (now real: scan-9's GLB/LOD export exists), no direct dependency.
 
+## mtg-5 STATUS 2026-08-12: FOUNDATIONS BUILT + DEPLOYED
+## (headset pass = Dustin; everything device-independent is verified)
+
+**Avatars are rows** — §8's open question answered.
+`collab/avatar_basis.py`: identity/licence/provenance on the row,
+geometry REFERENCED in storage, never inlined; `presence.avatarRef`
+names a row, never a URL (a URL carries no licence). `usable()`
+refuses an unstated licence outright and refuses CC-BY with no
+attribution as unfulfilled. The three seeded avatars are PRIMITIVES
+with no geometry file — licence-clean by construction, and a meeting
+works on a fresh instance with no asset pipeline. Verified live.
+
+**The scene is pure functions** (`meeting-xr.ts`, 12/12 specs
+headless): seating, placement, panning, staleness, pose publishing —
+no THREE, no WebXR — so everything except the binding to real objects
+is verifiable with no device attached.
+
+🔑 **RING SEATING, NOT FREE POSITIONING.** A headset reports position
+in ITS room, whose origin means nothing to anyone else. Until a
+shared spatial anchor exists (mtg-7), free positioning would put two
+people in the same chair. Peers sit on a ring by a stable hash of
+identity (no coordinator), and their own tracked motion animates them
+WITHIN the seat, clamped — so a remote room origin can never leak in
+as absolute position. This is the honest thing to do with what we
+actually know.
+
+Audio is **"spatial-ish" by declaration**: pan-by-pose distinguishes
+speakers and costs nothing; a gain floor keeps someone across the
+ring intelligible. Real HRTF is a later step and this does not imply
+it. An avatar is a head and two hands — what a headset tracks without
+inference; a body we cannot measure is one we would be inventing.
+
+REMAINING for mtg-5 (needs the headset): entering immersive from the
+meeting page and driving the existing XrSessionRuntime, rendering the
+avatar primitives, and the known trap — **Wolvic + self-signed CA
+trust** (the store shell's CA-pinning path is the door). The VR
+button already follows the xr-1 honesty matrix: no device shows a
+DISABLED button carrying the reason.
+
+## mtg-4 STATUS 2026-08-12: BUILT + DEPLOYED + LIVE-PROVEN
+
+The wire protocol exists BEFORE the VR client, as §6.5 insisted.
+`collab/realtime_schemas.py`: five kinds (presence, pose, cursor,
+speaking, drag-preview), each with its own version, rate ceiling and
+purpose; four compatibility rules in encode/decode. **The §2 line is
+DATA here** — `EPHEMERAL_ONLY`, `authoritative_kinds() == ()`, and
+drag-preview carries a `proposalRef` naming the commit it will become
+instead of a committed transform.
+
+**One truth, no mirror:** the catalog is generated to
+`polari-realtime.schema.json` (lockstep-guarded by the selftest) and
+SERVED at `/api/collab/realtime-schema`. The Angular codec validates
+against what the server declares — so the mtg-5 VR shell, shipping on
+its own schedule, reads the same catalog a browser built today does.
+There is no second copy to drift.
+
+Proof: selftest 62/62; deployed; and live between two browsers over
+the real data channel — presence/pose/drag-preview round-tripped
+intact, three malformed messages refused at the SENDER, and all four
+rules held against a simulated future peer (`kv=99` with unknown
+`eyeGaze`+`mood` accepted with extras dropped; `v=2` refused "major
+2"; foreign protocol refused; mistyped field refused).
+
 ## mtg-3 STATUS 2026-08-12: BUILT + DEPLOYED + BROWSER-VERIFIED
 ## (the milestone — one signed-in join short of done)
 
