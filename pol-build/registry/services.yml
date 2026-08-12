@@ -296,6 +296,13 @@ services:
     connects_to: {prf-backend: {}, prf-backend-b: {}}
     variations: "INDEPENDENTLY DEPLOYABLE (pol compose recon up); CPU COLMAP 3.11.1 license-gate build (no SiftGPU/GL — SCAN_ENGINES_LICENSE_GATE.md) + trimesh post-processing/export; host chosen by resource ledger (dyn-9); consumers degrade honestly when absent"
 
+  - kind: pol-livekit
+    context: polari-rf-node/ (self-hosted LiveKit media server, mtg-1)
+    appears_in: [polari-rf-node/docker-compose.livekit.yml]
+    config: {knobs: ["LIVEKIT_NODE_IP (host LAN IP for ICE — pol case fills from hostname -I)", "LIVEKIT_URL (consumer side, mtg-2)", "livekit/keys.env (generated, gitignored)"]}
+    connects_to: {prf-proxy: {note: "signalling TLS terminates at livekit.prf.<ip>.nip.io; media is DIRECT 50000-50049/udp (netledger-registered range) and never proxies"}}
+    variations: "INDEPENDENTLY DEPLOYABLE (pol compose livekit up); upstream Apache-2.0 image (three-source license check 2026-08-12); LAN-only v1, family-sized 4-8; never in the default up — deliberate placement on a bandwidth-adequate host"
+
   - kind: prf-test-harness
     context: polari-rf-node/ (fullstack-test services)
     appears_in: [polari-rf-node/docker-compose.fullstack-test.yml]
