@@ -1,5 +1,10 @@
 # 3D scanning + reconstruction — plan (DRAFT v2, investigated)
 
+**⛔ SHELVED 2026-08-12 (Dustin): notated NOT FUNCTIONAL for end use —
+sparse-only reconstruction of small low-texture objects did not yield
+usable models. Machinery proven; code kept on dev-scan-1 branches;
+revival ladder in SCAN_RECONSTRUCTION_HANDOFF.md (dense MVS first).**
+
 **Date:** 2026-08-10 · **Status 2026-08-11: phases 1–2 DONE.**
 Phase 1 license gate CLEARED under the project's GPLv3 frame — verdicts
 in `SCAN_ENGINES_LICENSE_GATE.md`

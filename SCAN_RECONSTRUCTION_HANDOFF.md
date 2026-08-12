@@ -1,8 +1,32 @@
-# Handoff — 3D scanning via photogrammetry: BUILT, how to TEST, what's NEXT
+# Handoff — 3D scanning via photogrammetry: SHELVED (not functional)
 
-**Date:** 2026-08-11 · **Status: phases 1–6 + 9 + 10 BUILT + PROVEN in
-containers; NOT merged, NOT pushed, superproject pointers NOT
-committed — Dustin's review gate. Never deployed to the live stack.**
+**Date:** 2026-08-11, **SHELVED 2026-08-12 (Dustin).** The capability
+is **notated NOT FUNCTIONAL for end use** and shelved. All code stays
+committed on the `dev-scan-1` branches (reversible, the prf-b shelf
+convention); the throwaway rig is torn down; nothing merged, nothing
+pushed.
+
+**What "not functional" means precisely (honest split):**
+- The MACHINERY is proven: module lifecycle, presigned storage, jobs,
+  the CPU COLMAP pipeline (15/15 synthetic E2E; real webcam sets
+  reconstruct to `ready`), placements, per-placement replace-in-place
+  reruns, crop-to-object scaled-ICP aggregation with per-layer
+  dispersal view, GLB export, scale gate, UI.
+- What did NOT deliver: **useful 3D models of a real small object from
+  the Brio webcam.** Sparse SfM clouds of a low-texture object are too
+  thin/noisy to read as a shape, and cross-placement alignment on such
+  clouds is fragile even with cropping + orientation hints. The user-
+  facing outcome ("scan a hinge, get a solid") was not reached.
+
+**What a revival would need (in expected-impact order):**
+1. **Dense MVS** — openMVS on the worker (CPU, MPL-2.0 gate-compatible;
+   COLMAP dense is CUDA-only). Sparse-only was the core quality wall.
+2. A better capture camera than a fixed-focus 1080p webcam (a phone
+   via the shell capture app was always the endgame).
+3. Textured/matte test objects + the orbit protocol (proven necessary).
+4. Then meshing (Poisson/visibility-aware) lands on dense clouds.
+
+Original build/test detail follows (kept accurate as of shelving).
 
 **Branches (all named `dev-scan-1`):**
 - `polari-framework` — stacked on unreviewed `dev-dyn-1` (Dustin's
