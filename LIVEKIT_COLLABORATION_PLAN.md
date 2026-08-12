@@ -9,6 +9,44 @@ a first-class client rather than a phase-8 afterthought. Companion:
 `SCAN_RECONSTRUCTION_PLAN.md` — converges at the scene/asset layer
 (now real: scan-9's GLB/LOD export exists), no direct dependency.
 
+## mtg-0 STATUS 2026-08-12: MACHINE-PROVEN, cross-device half = Dustin
+
+The blocking proof ran on a throwaway rig (session scratchpad
+`mtg0-rig/`, not committed — mtg-1 is the committed service):
+
+- **Audio exchanged both ways through self-hosted LiveKit v1.9.12**
+  (two headless Chromes, WebAudio tones as tracks): inbound-rtp both
+  sides ~51 pkt/s, audioLevel 0.61, packetsLost 0, and
+  `connectionType: udp` with selected ICE candidates ON the published
+  range (192.168.0.210:50010 / :50004) — the first `/udp` docker
+  publish in the suite, carrying real media past nginx.
+- **TLS under the Polari CA**: leaf for
+  `livekit.prf.192.168.0.210.nip.io` issued offline from `ca/.step`
+  (same intermediate as the live proxy); wss + page verified against
+  `root_ca.crt`.
+- **Token minting is pure-stdlib HS256** (`mint_token.py`) — accepted
+  by `/rtc/validate` and real joins; this is mtg-2's signer, proven.
+- **UDP range 50000-50049 chosen by the new netledger**
+  (`free_udp_range` against the host's live UDP listeners; swarm holds
+  4789/7946). netledger UDP kind committed: framework `dev-mtg-1`
+  (cut from dev-dyn-1), islemesh selftest 74/74.
+- Gotchas: headless Chrome (131, both old+new mode) cannot
+  getUserMedia even with fake-device flags + CDP-granted permission —
+  WebAudio `MediaStreamAudioDestinationNode` tracks are the headless
+  test route; real-mic capture is untested until a headed browser
+  joins. `rtc.node_ip` must be the HOST LAN IP or candidates advertise
+  the container. livekit-server + livekit-client are Apache-2.0 by all
+  three sources (API + LICENSE + headers) — GPLv3-compatible.
+- **REMAINING for full mtg-0**: one join from a second physical device
+  on the wifi (Dustin's phone, CA already trusted from LAN onboarding;
+  links in the rig's `JOIN_LINKS.txt`, room `mtg0` — two tones are
+  parked in the room, audible on join). Rig stays up.
+
+Placement decisions (Dustin's three open questions defaulted
+2026-08-12, revisitable): host named directly for v1 (pol-core for
+the proof; ledger bandwidth dimension = named follow-up, not built);
+sized family (4–8); LAN-only for 2026.
+
 ## v2 — the mtg-1..8 ladder (execution order)
 
 Everything in the original §§0–7 stands (identity KC-only; the
