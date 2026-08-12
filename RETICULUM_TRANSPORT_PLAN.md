@@ -166,6 +166,157 @@ third module born that way after `scanning` and `collab`):
   LoRa, running a real Polari exchange end to end. The milestone
   Dustin named. Depends on isle-core for both boxes.
 
+## 5b. Answers to Dustin's three questions (2026-08-12)
+
+### Is protobuf actually much smaller than JSON, once HTTP/2 is gone?
+
+Yes — expect **3–10× on the small structured messages this link is
+for**, and the ratio COMPOUNDS on a duty-cycled link because bytes
+become packets and packets become airtime and retransmits. Where it
+comes from: field numbers as varint tags instead of quoted key names,
+varints instead of decimal digits, no quotes/commas/braces, and no
+base64 for binary (JSON pays +33% there). A tractor telemetry frame
+(id, timestamp, 5 floats, a state enum) is roughly 120–180 bytes as
+JSON and 30–45 as protobuf — the difference between one Reticulum
+packet and three or four.
+
+Three honest qualifications:
+- **Compression narrows it, but not on small messages.** deflate/zstd
+  need a dictionary; a 100-byte message gives them nothing to work
+  with. Protobuf keeps its edge exactly where our traffic lives.
+- **CBOR/msgpack is the middle option** — self-describing like JSON,
+  binary like protobuf, typically ~half of JSON. The right choice when
+  a schema is genuinely not shared.
+- **Protobuf costs a shared schema.** We already have that (both ends
+  are ours, and `grpcbridge` already carries the `.proto` files), so
+  this is a cost we have already paid.
+- ⚠ These are ESTIMATES. ret-4 reports measured bytes-on-wire per
+  binding beside the choice, and ret-6 measures the airtime.
+
+### Can we tolerate loss and make up lost packets?
+
+Yes, but the mechanism must match the link, and there are three
+distinct layers people usually conflate:
+
+1. **Reticulum's own reliability** — Links carry sequencing and
+   retries, and the Resource mechanism handles larger transfers with
+   retransmission. Point-to-point loss is largely handled. *(Verify
+   against the source in ret-0; this is recollection, not evidence.)*
+2. **ARQ degrades badly here.** A retransmit costs a full RTT — seconds
+   — plus the airtime of resending. At a few percent loss that is
+   fine; at 20% on a marginal link, latency and airtime collapse.
+3. **FEC is how you "make up" a lost packet with no round trip.**
+   Erasure coding (Reed–Solomon, or a fountain code like RaptorQ) sends
+   k data fragments plus m parity; ANY k of the k+m reconstruct the
+   message. You pay the overhead always instead of paying an RTT
+   sometimes. **The decision is measurable, not aesthetic:** when
+   `loss_rate × retransmit_cost > FEC_overhead`, FEC wins. ret-6
+   produces those numbers and the choice becomes a knob with evidence
+   behind it, per binding.
+
+**The design point that matters more than either:** for telemetry and
+control, **send state snapshots, not deltas.** A lost snapshot is
+superseded by the next one; a lost delta corrupts state permanently
+and silently. Deltas are a trap on a lossy link.
+
+⚠ **And for anything that moves** (the tractor): a link with seconds of
+latency and real loss must never sit inside a closed control loop.
+Command + ack + timeout, with the machine holding a LOCAL safe state
+(deadman/failsafe on its own MCU) when the link goes quiet. The mesh
+carries intent and telemetry; it does not carry a steering command in
+real time. This belongs with the safety-MCU tier of the hardware
+architecture, not with the transport.
+
+### All three formats — gRPC, STOMP and JSON
+
+Yes, by applying the SAME termination trick to each: preserve the
+app-level semantics, compact the wire form.
+
+- **gRPC** → terminate HTTP/2, carry protobuf bodies (§2).
+- **STOMP** → terminate the frame protocol at the edge; carry the
+  message body plus a **numeric topic id** resolved through a registry
+  row, never the topic string. ⚠ STOMP is the worst natural fit of the
+  three: text framing, per-frame headers, and **heartbeats that would
+  eat duty cycle by themselves** — its heartbeat must be disabled or
+  replaced with the link's own liveness, or it will spend the budget
+  saying nothing.
+- **JSON** → permitted, honestly labelled the expensive one, and the
+  right answer when a human needs to read what crossed.
+
+Each `TransportBinding` therefore carries an admission POLICY —
+max message size, max rate, priority, encoding — and the gateway
+**refuses or queues by name** when a binding would exceed its airtime
+budget. That is the "ensure and manage what is being sent" half, and
+it is what stops LoRa from being quietly oversubscribed.
+
+## 5c. `.arch` — the archipelago (ret-1a, Dustin 2026-08-12)
+
+A Polari module tracking the Reticulum nodes we can actually reach and
+mapping them into a **`.arch`** namespace (archipelago): named,
+trusted addresses treated as an EXTENSION of our isle. Motivating
+cases in Dustin's words: three isles across town sharing data over
+LoRa, and a remote-controlled tractor (the Open Source Ecology
+pattern).
+
+Rows:
+- `ArchipelagoNode` — `<name>.arch` ⇄ a `ReticulumDestination`, plus
+  what it IS (peer isle | device | relay), who vouches for it, and
+  **measured reachability** (last heard, hop count, link quality) kept
+  separate from declared trust.
+- `ArchipelagoTrust` — GRADED, never a boolean: what this peer may
+  ASK for. Trust is a reason to accept a proposal for consideration,
+  not permission to write. **ret-8 still applies to trusted peers** —
+  an archipelago node is authorized to PROPOSE, and a higher trust
+  grade may raise the auto-approval level for named low-authority
+  operations (telemetry ingest, gossip), never for irreversible ones.
+  "Extension of our isle" describes routing and naming, not authority.
+- Reachability is a MEASUREMENT with a timestamp, so `.arch` can
+  answer "who can I actually reach right now" honestly rather than
+  listing hopeful names — the same declared-vs-measured split the
+  resource profiles use.
+
+`.arch` also gives §3's synthetic-IP mapping its human surface: a name
+in `.arch` is what a person and an app both use, and the gateway
+resolves it to a destination hash.
+
+## 5d. LoRa is one bearer, not THE bearer (Dustin 2026-08-12)
+
+Reticulum is bearer-agnostic on purpose, and the plan must be too:
+LoRa, **LoRaWAN**, ordinary **WiFi**, **WiFi HaLow (802.11ah)**,
+Ethernet/TCP backhaul, and serial all sit under the same stack. So
+`ReticulumInterface` (§4) is the class that carries the differences,
+and NOTHING above it may assume LoRa's constraints — an app binding
+that only works at 1 kbps is fine, but one that BREAKS at 20 Mbit
+would be a bug.
+
+The differences that actually change decisions, per bearer:
+
+| Bearer | Rough order | What changes |
+|---|---|---|
+| LoRa (RNode) | kbps | duty cycle, tiny MTU, seconds of RTT — the hard case, so design here |
+| LoRaWAN | kbps, **via a network server** | ⚠ not peer-to-peer: it assumes gateways + a join server, so it is a different trust and addressing story, not just a slower radio |
+| WiFi HaLow | hundreds of kbps–Mbps, km range | the interesting middle: real bandwidth AND real range; likely the best isle-to-isle backhaul where hardware allows |
+| WiFi / Ethernet | Mbps+ | no airtime budget; the honest fast path, and what ret-0 proves on |
+
+Consequences the design must carry:
+- **Bearer selection is a routing decision with evidence.** When two
+  bearers reach the same `.arch` node, pick by measured link quality
+  and cost, and SAY which was chosen — a binding that silently fell
+  back to the kilobit path is how "why is this slow" becomes a
+  mystery. `LinkMeasurement` per interface is what makes that
+  answerable.
+- **Admission policy is per-bearer, not global.** The same
+  `TransportBinding` may be fine over HaLow and refused over LoRa;
+  the refusal names the bearer and the budget it would have blown.
+- ⚠ **LoRaWAN is not a drop-in.** Its star-of-stars topology, gateway
+  dependence and join-server model conflict with the peer-to-peer
+  assumption everything else here makes. Treat it as its own
+  investigation, gated on a real use case, not as "LoRa with more
+  letters".
+- **FEC and snapshot-vs-delta (§5b) are LoRa-shaped answers.** On a
+  fat bearer they are wasted overhead — so they are knobs on the
+  binding, chosen against the measured bearer, never global defaults.
+
 ## 6. Open questions for Dustin
 
 - **Hardware:** do we own any LoRa radios (RNode-flashable boards) yet,
