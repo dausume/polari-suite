@@ -9,6 +9,31 @@ a first-class client rather than a phase-8 afterthought. Companion:
 `SCAN_RECONSTRUCTION_PLAN.md` — converges at the scene/asset layer
 (now real: scan-9's GLB/LOD export exists), no direct dependency.
 
+## mtg-2 STATUS 2026-08-12: BACKEND BUILT + PROVEN (same day as 0/1)
+
+`modules/collab/` on framework `dev-mtg-1` — the second module born
+manifest-first on dyn-1: CollaborationSession + MeetingRecord (no
+audio field BY DESIGN), `livekit_remote` (fourth *_remote ladder walk
++ stdlib-HS256 signing), token endpoint (401 without a KC-verified
+caller; first verified minter self-claims moderator — the
+group-authority first-come precedent; moderator_role carries
+roomAdmin), capability/join-info with per-gap suggestions. Topology:
+collab@prf-a + collab.media@livekit assignments + the dependency
+edge; ENGINE_MODULES maps collab.media→pol-livekit.
+
+Proof: selftest 43/43 · drift guard 23/23 · topology 52/52 ·
+resources 31/31 · **dyn lifecycle 13/13 in-container** (admit 0.64s,
+auth wall 401, ladder 503s, put-away keeps tables + 410, re-admit,
+row survives) · the module's signer minted a token the LIVE
+pol-livekit accepted through the proxy (`/rtc/validate` 200 via 443).
+
+NOT deployed to the live prf-a backend yet (that's a
+`pol node build backend` + service roll — do it with the mtg-3
+frontend so the browser pass exercises both). NEXT: mtg-3, the
+Angular group-meeting client (license-gate livekit-client three-source
+— already checked Apache-2.0 2026-08-12; THE milestone: staff
+meetings on the LAN).
+
 ## mtg-1 STATUS 2026-08-12: BUILT + LIVE-PROVEN (same day)
 
 The committed `pol-livekit` service exists and carried real audio:
