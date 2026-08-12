@@ -9,6 +9,45 @@ a first-class client rather than a phase-8 afterthought. Companion:
 `SCAN_RECONSTRUCTION_PLAN.md` — converges at the scene/asset layer
 (now real: scan-9's GLB/LOD export exists), no direct dependency.
 
+## ➡️ ARC STATUS 2026-08-12: mtg-0..6 + mtg-8 SHIPPED IN ONE SESSION.
+## mtg-7 REMOVED (shelved with scanning). THE LADDER IS COMPLETE.
+
+Built, deployed to staging and verified to the limit of what does not
+need Dustin's credentials or hardware. Branches `dev-mtg-1` ×4 +
+pointers; NOTHING PUSHED.
+
+**What blocks full completion (all of it needs a human, none of it is
+unbuilt code):**
+1. **A signed-in join** — Keycloak credentials. Everything up to the
+   auth wall is verified; real mic/camera capture, two participants
+   hearing each other in the app, and the moderation buttons against
+   a live peer are not.
+2. **A second physical device** — the phone join that closes mtg-0/1
+   on real hardware (room `mtg1`, links in the rig's JOIN_LINKS.txt).
+3. **A headset session** — mtg-5's immersive entry, avatar rendering,
+   and the known Wolvic + self-signed-CA trust trap.
+4. **The 3D drag interaction** (mtg-8) — the commit SEAM is built and
+   proven; the viewer-side gesture that would call it is not, and it
+   wants a design pass on which objects are draggable at all.
+
+## mtg-8 STATUS 2026-08-12: BUILT + DEPLOYED + LIVE-VERIFIED
+
+The §2 rule, made tangible. Nothing reads `drag-preview` messages to
+change state: a client POSTs the final transform to
+`/api/collab/sessions/{name}/commit-drag`, which requires a
+Keycloak-verified caller and then **PROPOSES** through the ordinary
+`ai_actions` path — 202, `applied: false`, the proposal returned.
+Applying stays a separate confirmed act recorded in the same
+provenance log as every other change. `object_transform` is a
+REGISTERED operation (level 3 reversible-system — an unregistered op
+would be treated as level 7 irreversible) and reuses the existing
+field-update executor, so there is no second write path.
+
+An object moves smoothly for everyone via LiveKit, and BECOMES moved
+via Polari. selftest 77/77; live: an unauthenticated commit is
+refused 401 with the reason. The client seam (`commitDrag`) exists;
+the 3D drag gesture that calls it does not.
+
 ## mtg-6 STATUS 2026-08-12: BUILT + DEPLOYED + LIVE-VERIFIED
 
 Voice alongside the model. `CollaborationSession` gained a SURFACE
@@ -298,9 +337,18 @@ adds is the concrete ladder and what this week's scan arc settled:
   door. VR captures nothing (no passthrough) — consumer only.
 - **mtg-6 — simulation pages join a session** (voice alongside the
   model — the original phase 4).
-- **mtg-7 — scanned environments in the room**: place scan-9 GLB/LOD
-  assets (they exist now, with scale-honesty carried on the row) as
-  the shared scene. The convergence §5 promised, cashed in.
+- **mtg-7 — scanned environments in the room**: ⛔ **REMOVED FROM THIS
+  LADDER 2026-08-12 (Dustin) — SHELVED WITH THE SCANNING ARC.** It
+  depends entirely on capability that was shelved as not functional
+  for end use, so it belongs to that arc's revival, not to meetings.
+  See `SCAN_RECONSTRUCTION_HANDOFF.md`: if dense MVS + a phone camera
+  ever make scans usable, placing them as a shared meeting scene is
+  one of the things that becomes possible again. Nothing in mtg-0..8
+  depends on it. **Consequence to remember:** mtg-7 was what would
+  have supplied a shared spatial ANCHOR, so mtg-5's ring seating (a
+  stable identity hash, not free positioning) is now the permanent
+  answer rather than a stopgap — and that is the honest one while
+  every headset's room origin means nothing to its peers.
 - **mtg-8 — authoritative shared manipulation**: drag previews over
   LiveKit, commits through the normal propose/execute path — the §2
   rule made tangible.

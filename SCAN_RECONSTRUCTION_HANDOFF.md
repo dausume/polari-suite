@@ -187,6 +187,23 @@ then superproject pointers innermost-first; push-all-dev.sh --push = Dustin.
 After deploy: pol compose recon up; proxy restart; re-run §2's live loop.
 ```
 
+## 7b. INHERITED BY THIS SHELF: mtg-7 (scanned environments in a
+## meeting), moved here 2026-08-12 (Dustin)
+
+The LiveKit arc's mtg-7 — placing scan-9 GLB/LOD assets as a shared
+meeting scene — was REMOVED from the meetings ladder and shelved
+with this arc, because it depends entirely on the capability shelved
+here. If a revival ever makes scans usable (dense MVS → phone camera
+→ meshing, §"What a revival would need"), a shared meeting
+environment is one of the things it unlocks. mtg-0..8 shipped
+without it and nothing there depends on it.
+
+One consequence worth carrying: mtg-7 would have supplied the shared
+spatial ANCHOR that lets meeting avatars be freely positioned.
+Without it, mtg-5 seats peers on a ring by identity hash — which is
+the honest answer while each headset's room origin means nothing to
+anyone else's.
+
 ## 7. NEXT ARC — group meetings (web/video + VR) on LiveKit
 
 Planned and ready: `LIVEKIT_COLLABORATION_PLAN.md` **v2** — the
