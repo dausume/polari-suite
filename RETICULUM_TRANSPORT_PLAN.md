@@ -317,6 +317,47 @@ Consequences the design must carry:
   fat bearer they are wasted overhead — so they are knobs on the
   binding, chosen against the measured bearer, never global defaults.
 
+## 5e. THE MESH IS HETEROGENEOUS — a path, not a network property
+## (Dustin 2026-08-12)
+
+The same Reticulum network will be fast in places and slow in others,
+and **a multi-hop path is as slow as its worst hop.** So no capability,
+budget or timeout may be a property of "the mesh"; every one of them is
+a property of **the path to a specific `.arch` node right now**.
+
+What that forces, concretely:
+
+- **`LinkMeasurement` is per PATH, not per interface.** A fast local
+  HaLow interface tells you nothing about a peer three hops away whose
+  last hop is LoRa. The row that answers "can I do this" is keyed on
+  (destination, bearer-path), with hop count and the worst hop named.
+- **Every binding decision reads the measured path.** Encoding, FEC vs
+  ARQ, snapshot vs delta, admission policy, timeout — all of them
+  resolve at send time against THIS path's numbers, not against a
+  global default. Same message to two peers may legitimately go out
+  encoded differently, and the provenance says which and why.
+- **Timeouts must be derived, never constant.** A 5-second timeout is
+  generous on WiFi and absurd on a four-hop LoRa path; a constant one
+  guarantees false failures at the far end of the mesh. Derive from
+  measured RTT with a margin, and REFUSE (with the number) rather than
+  silently waiting when a request's deadline cannot be met by the path
+  it would take.
+- **Capability is answered per peer.** `.arch` should be able to say
+  "gRPC unary: yes; STOMP stream: no, this path is 1.2 kbps at 4 hops"
+  — the same honest-refusal shape used everywhere else in the suite,
+  with evidence, knob and action.
+- **Degradation must be visible, not silent.** When a path gets worse
+  and a binding drops to a cheaper encoding or starts queueing, that
+  is a reported event with the measurement behind it. Silent
+  degradation is how a mesh becomes untrustworthy.
+- **Stale measurements are not measurements.** Every path fact carries
+  a timestamp; past a freshness horizon the honest answer is "unknown,
+  measure first", not the last good number.
+
+⚠ This also bounds §5b's snapshot advice: on a fast path, deltas are
+fine and cheaper. The rule is not "always snapshots" — it is "the path
+decides, and the row records which it chose".
+
 ## 6. Open questions for Dustin
 
 - **Hardware:** do we own any LoRa radios (RNode-flashable boards) yet,
