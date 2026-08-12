@@ -9,6 +9,30 @@ a first-class client rather than a phase-8 afterthought. Companion:
 `SCAN_RECONSTRUCTION_PLAN.md` — converges at the scene/asset layer
 (now real: scan-9's GLB/LOD export exists), no direct dependency.
 
+## mtg-6 STATUS 2026-08-12: BUILT + DEPLOYED + LIVE-VERIFIED
+
+Voice alongside the model. `CollaborationSession` gained a SURFACE
+BINDING as data — `bound_route` (a page path) and `bound_ref`
+(Class/name, for when several routes show one object) — plus
+`/api/collab/sessions/for-surface`. A page asks "is there a meeting
+about what I am showing?" and neither side hardcodes the other. An
+empty list is a normal answer; an UNFILTERED ask is refused by name
+(listing every session is what CRUDE is for).
+
+`<meeting-dock>` is a small AUDIO-ONLY component any page drops in,
+wired into the sim-space detail page by object ref. No video on
+purpose: a page whose point is a model on screen should not have
+tiles fighting it for pixels — faces and screens live at /meetings.
+
+Live-verified BOTH ways on staging: the bound space
+(`motor-m2-viz`) shows "M2 rotor review · voice available", and an
+unbound one (`motor-m1-viz`) renders NOTHING at all. selftest 73/73.
+
+NEXT: mtg-7 — scanned environments as the shared scene (the scan-arc
+convergence; also what would let free positioning replace mtg-5's
+ring seating, since it supplies the shared spatial anchor) → mtg-8
+authoritative shared manipulation.
+
 ## mtg-5 STATUS 2026-08-12: FOUNDATIONS BUILT + DEPLOYED
 ## (headset pass = Dustin; everything device-independent is verified)
 
