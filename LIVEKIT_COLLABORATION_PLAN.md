@@ -9,6 +9,46 @@ a first-class client rather than a phase-8 afterthought. Companion:
 `SCAN_RECONSTRUCTION_PLAN.md` — converges at the scene/asset layer
 (now real: scan-9's GLB/LOD export exists), no direct dependency.
 
+## mtg-1 STATUS 2026-08-12: BUILT + LIVE-PROVEN (same day)
+
+The committed `pol-livekit` service exists and carried real audio:
+
+- **rf-node `dev-mtg-1`** (dev + cherry-picked scan-2 proxy parity):
+  `docker-compose.livekit.yml` (image v1.9.12 pinned, media
+  50000-50049/udp direct, signalling 7880 host-published, keys via
+  generated gitignored `livekit/keys.env`, node-ip knob) + the
+  livekit signalling server block in the staging proxy template.
+- **polari-cli `dev-mtg-1`**: `pol compose livekit up|down|ps|logs` —
+  generates keys on first up, ensures polari-link, derives
+  LIVEKIT_NODE_IP **from the default route** (⚠ `hostname -I` listed
+  a docker bridge FIRST and LiveKit advertised 172.20.0.1 on the
+  first live up — caught by the log, fixed, committed).
+- **framework `dev-mtg-1`**: InstanceDefinition `livekit` +
+  KNOWN_SERVICE_KINDS + PROVIDER_PORTS(:7880 — mtg-2's ladder
+  resolves here) + ModuleResourceProfile (scales_note says plainly:
+  bandwidth is the real constraint and the ledger can't measure it
+  yet). topology 52/52, resources 31/31. Suite root: services.yml
+  entry.
+- **prf-proxy rolled live**: cert reissued with the
+  `livekit.prf...nip.io` SAN (all 6 prior SANs kept, same
+  intermediate — device trust unchanged), image rebuilt, swarm
+  service updated; old hosts verified untouched. ⚠ The generated
+  nginx conf has drifted live-first FAR past the template
+  (upstreams→variable targets); block applied to BOTH, full template
+  port = standing debt.
+- **Live re-proof against the committed stack**: two headless
+  browsers, wss through the REAL proxy on 443, tones both ways —
+  inbound audioLevel 0.61/0.61, 0 lost, `connectionType: udp` on the
+  committed range. `/rtc/validate` 200 via 443 with a token signed
+  from the generated keys.
+- Phone close-out links re-minted against the committed service
+  (room `mtg1`, rig `JOIN_LINKS.txt`; two tones parked; page served
+  from a scratch TLS host on :8443 until mtg-3 builds the real one).
+
+NEXT: mtg-2 — the `collab` module, manifest-first on dyn-1
+(CollaborationSession + MeetingRecord + the KC→LiveKit token
+endpoint; the HS256 signer is already proven against this server).
+
 ## mtg-0 STATUS 2026-08-12: MACHINE-PROVEN, cross-device half = Dustin
 
 The blocking proof ran on a throwaway rig (session scratchpad
