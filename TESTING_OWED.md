@@ -34,13 +34,25 @@ single test (it exercises mtg-2/3/4/6 with a real user).
 - **WebXR xr-1/2** — UNCOMMITTED, awaiting a headset session (can share
   the sitting with mtg item 3).
 
-## 3. New tonight (Reticulum arc) — verification that will be owed
+## 3. New tonight (Reticulum, ret-0..ret-3 built) — decisions owed to YOU
 
-Filled in as the ret work lands; see `RETICULUM_TRANSPORT_PLAN.md`
-status blocks for what was machine-proven vs. what awaits you.
+Everything machine-provable was proven (selftests 61/61 + 79/79, dyn
+proof 14/14, sidecar live + transport-routing proven). What needs
+Dustin:
 
-- §6 answers were taken as ASSUMPTIONS (marked in the plan) — confirm
-  or correct them; each one names its reversal cost.
-- Hardware order: two RNode-flashable LoRa boards (~$20–40 each,
-  LilyGO T-Beam/T3, Heltec LoRa32, RAK) — needed only as ret-6
-  approaches, not before.
+1. **⚠ THE LICENCE FINDING (5 min read, one decision):** "Reticulum
+   is MIT" is STALE — it relicensed 2025-04-15 to a restricted,
+   GPLv3-incompatible licence. I proceeded on the assumption in
+   `RETICULUM_LICENCE_GATE.md`: **pin the last MIT pair rns==0.9.4 +
+   lxmf==0.6.3** (options weighed there). Confirm or choose
+   differently — everything built honours the pin either way.
+2. **§6 assumptions** (marked in the plan): first payload =
+   module/topology gossip; identity per INSTANCE; 915 MHz ISM; desk
+   bring-up first. Each names its reversal cost; all cheap to flip.
+3. **`pol-reticulum` was LEFT RUNNING on staging-a** (512 MB cap,
+   idle) — `pol compose reticulum down` if unwanted.
+4. **`RETICULUM_ISLE_CORE_REQUEST.md`** — hand it to isle-core's
+   Claude when convenient (router DNS/steering; nothing blocks on it).
+5. Hardware order stands: two RNode-flashable LoRa boards (~$20–40
+   each, LilyGO T-Beam/T3, Heltec LoRa32, RAK) — needed only as
+   ret-6 approaches.
