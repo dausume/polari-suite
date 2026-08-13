@@ -27,6 +27,7 @@ same day; the sections below are decisions, not options.
 | 17 | USB passthrough is a **gated shell capability**; helper holds the privilege, never the docker socket | §5l |
 | 18 | Develop ret-0..ret-5 on KVM guests with no radio; two boards at ret-6; real distance only at ret-9 | §5h |
 | 19 | **IDLE RADIOS ARE SILENT** (Dustin 2026-08-13): nothing transmits — announces included — without an active declared use; RF interfaces default `idle_policy='silent'` (not even attached when unused), `rx-hold` listens without announcing, `hold-open` is the operator's deliberate exception | ret-6 |
+| 20 | **THE APP ACCESS LADDER** (Dustin 2026-08-13): isle-only → archipelago → zero-trust relay, a per-app KNOB defaulting to the most restrictive; relay consumers are tracked SOLELY by Reticulum identity, KC linkage opt-in and NEVER required | §5n |
 
 ## What starts ret-0 — ✅ BOTH DELIVERED 2026-08-13 (overnight)
 
@@ -1090,6 +1091,64 @@ app (`/arch`, requires reticulum). REMAINING: deploy (backend image
 rebuild + frontend) and a browser pass = the arc's next deploy
 window; metered (vs declared) app demand = named follow-up; drawn
 edges when the matrix earns them.
+
+## 5n. THE APP ACCESS LADDER — isle → archipelago → zero-trust relay
+## (ret-1c, Dustin 2026-08-13)
+
+Apps gain an ARCHIPELAGO-level accessibility knob, and beyond it a
+zero-trust tier. Three rungs, each a deliberate enablement, default
+always the most restrictive (DECIDED row 20):
+
+1. **isle** — the app is reachable only on its own isle (today's
+   default, unchanged).
+2. **arch** — the app is archipelago-accessible: apps inside the
+   `.arch` effectively talk as their own network. Dustin's motivating
+   picture: *a farmer's market — vendors mesh their isles so
+   customers move between stalls as one network.* Exposure is a ROW
+   (`AppArchExposure`), not a config file: app ⇄ scope ⇄ which
+   archipelago, enable/disable at will.
+3. **relay** — untrusted / ZERO-TRUST state relays for mesh-app-
+   centric communication: arbitrary people connect, and the core
+   mesh-app server broadcasts the app's CURRENT (and optionally
+   prior) state. Consumers are not peers and are not trusted — they
+   receive state and send returns; nothing they send mutates
+   anything except through the ret-8 proposal seam like everyone
+   else.
+
+**The relay tier's machinery (rows + algorithms):**
+- `MeshAppRelay` — the broadcast core for one app: which
+  WatchedObject's state it fans out (reusing §5f verbatim — parent/
+  child versions, keyframes mandatory), current cadence between
+  bounds, how many prior states ride along, expected user count.
+- `MeshConsumer` — a consumer tracked **solely by Reticulum identity
+  hash** (pseudonymous first-class). `kc_link_mode` on the relay:
+  `disabled` (default) | `optional` — a consumer MAY link a signed
+  or anonymous identity on the mesh-app's local Keycloak and let it
+  know their RNS id, but **`required` deliberately does not exist**:
+  a zero-trust tier that demands enrolment is not zero-trust.
+- **Adaptive cadence** (`adaptive_cadence()`): the publisher adjusts
+  send rate to what the CONSUMERS COLLECTIVELY demonstrate — pace to
+  the median consumer's return interval with headroom, clamped by a
+  floor (airtime budget, DECIDED row 19 still applies) and a
+  ceiling (staleness). Evidence-bearing: every adjustment names the
+  numbers that drove it.
+- **User census** (`user_census()`): accountability of how many
+  users SHOULD exist vs how many distinct RNS identities were
+  actually seen in the window — over/under/as-expected is a named
+  finding, because a relay that silently gains a thousand consumers
+  is a different thing than the one you configured.
+
+**Inter-archipelago relay of state:** each archipelago holds the
+FULL state (keyframes land at arch level, so any local consumer gets
+wholeness from its own arch), while BETWEEN archipelagos only STATE
+DELTAS travel, gRPC/protobuf-encoded (§2/ret-5) for maximal wire
+efficiency. `ObjectStateVersion.source_arch_name` already keys
+versions per archipelago; the delta algebra is §5f's
+(`delta_usable`, `repeat_is_noop`, conflicts → proposals).
+
+Build order: rows + pure rules now (ret-1c); the relay daemon lives
+in the sidecar and follows ret-5 (gRPC bodies) + ret-7 (LXMF store-
+and-forward for consumers that sleep).
 
 ## 6. Open questions for Dustin — ⚠ ANSWERED AS ASSUMPTIONS 2026-08-13
 
