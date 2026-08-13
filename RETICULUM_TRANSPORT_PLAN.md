@@ -846,6 +846,61 @@ Reticulum container/VM directly and OpenWRT never touches the radio —
 which is the simpler topology and worth confirming before wiring
 anything.
 
+## 5l. Passthrough is a SHELL CAPABILITY (ret-2c)
+## (Dustin 2026-08-12)
+
+A web page cannot attach a USB device to a container — that needs host
+privilege. The JavaFX shell already runs on the host and already has
+the machinery for exactly this: **scan-3 built a capability-gated
+native bridge** (`:capture-desktop`, ServiceLoader-discovered, with
+`shell.camera.*` refused unless the active registration DECLARES the
+capability). Device passthrough is that pattern's second walk, not new
+machinery:
+
+- A `:device-passthrough` Gradle capability module in
+  `polari-app-shell`, discovered the same way, exposing
+  `shell.device.*`.
+- Declared in `AppShellDefinition.capabilities_json` → the
+  registration document → `polari-shell.schema.json` → the bridge
+  gate. **Undeclared means refused**, and a shell built without the
+  module reports "not built into this shell" honestly rather than
+  failing obscurely.
+
+### The correspondence rule Dustin asks for
+
+**A device may only be attached to a container that the ROWS say may
+claim it.** The shell never takes a free-form "attach X to Y":
+
+- `DeviceLink` (§5i) names the device and the `ReticulumInterface` it
+  backs; the interface's instance/service row names the container.
+  The shell asks to satisfy THAT binding, by name.
+- The helper validates the target is a registered Reticulum service
+  container before acting, and **refuses by name** for anything else —
+  so the capability cannot become a general-purpose "attach any device
+  to any container" tool, which is what would make it dangerous.
+- Every attach/detach is recorded with who asked and which binding it
+  satisfied, in the provenance log the rest of the suite already uses.
+
+### ⚠ The security detail: do NOT hand the shell the docker socket
+
+The naive implementation gives the desktop app docker (or libvirt)
+access. **Docker socket access is root-equivalent** — anything holding
+it can start a privileged container and own the machine. Granting that
+to a GUI app to plug in a radio is a bad trade.
+
+Instead: the shell REQUESTS, and a **small privileged helper performs
+only the narrow operation** — attach/detach this device id to that
+allowlisted container — via a systemd unit or a polkit action scoped
+to that one verb. The helper holds the privilege and the allowlist;
+the shell holds neither. This keeps the blast radius the size of the
+feature instead of the size of the machine.
+
+⚠ Also inherited from scan-3: **the shell holds no Keycloak token**
+(Strategy A). If an attach needs to be authorized against a user
+rather than a local operator, that is the same wall scan-3 hit, and
+the answer is the same — either a presigned/narrow grant, or Strategy
+B tokens, decided when it actually blocks something.
+
 ## 6. Open questions for Dustin
 
 - **Hardware:** do we own any LoRa radios (RNode-flashable boards) yet,
