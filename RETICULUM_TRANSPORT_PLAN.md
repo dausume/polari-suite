@@ -567,6 +567,96 @@ to enforce that boundary and to say plainly when it refuses.
 rules for the actual jurisdiction and bands (encryption, ID interval,
 third-party traffic, control links) BEFORE any amateur transmission.
 
+## 5h. Hardware routes — what the USB options actually resolve to
+## (Dustin 2026-08-12: MIT licence confirmed; no RNode boards owned)
+
+**Licence:** Reticulum is **MIT** — GPLv3-compatible, so the gate
+should clear for the stack itself. ret-0's gate still checks LXMF, any
+RNode firmware we would flash, and OpenWRT packaging separately: one
+component being MIT says nothing about the others.
+
+**Reticulum is bearer-agnostic through its interface types**, so the
+question is only which interface each USB route lands on.
+
+- **USB-WiFi → works today, no new concepts.** It is just an IP link:
+  TCP/UDP interfaces, or link-local autodiscovery between isles on the
+  same network. **This is the ret-0 path** — it needs nothing we do not
+  already own, and it proves the stack, identities and encodings before
+  any radio exists. WiFi HaLow USB adapters are rarer and pricier but
+  are the same interface story with far better range.
+- **USB-LoRa → is the RNode path, not an alternative to it.** ⚠ Worth
+  knowing before shopping: "USB LoRa" dongles are almost always a dev
+  board (ESP32/STM32 + SX127x/SX126x) exposed as USB serial, and the
+  way Reticulum speaks to one is by **flashing RNode firmware onto it**
+  (`rnodeconf`). So "we do not own an RNode-flashable board" and "we
+  want USB LoRa" are the same requirement. **The good news: this is a
+  ~$20–40 board** (LilyGO T-Beam / T3, Heltec LoRa32, RAK), not exotic
+  hardware — the blocker is an order, not a project. Buy TWO; one radio
+  proves nothing.
+- **USB-SDR → the awkward one, and the only route I would not plan
+  around.** Three separate problems: (1) the cheap ones (RTL-SDR) are
+  **receive-only** — they physically cannot transmit; (2) TX-capable
+  SDRs (HackRF/LimeSDR/Pluto) have **no native Reticulum interface** —
+  you must put a modem between them, e.g. GNU Radio or a soundmodem
+  (Direwolf) presenting **KISS**, which Reticulum does speak; (3) that
+  modem layer is CPU-hungry and a poor fit for a router.
+  ⚠ **But note the shape:** SDR/soundmodem + KISS is exactly the route
+  a HAM packet link would take, so it belongs to the §5g broadcast-core
+  investigation rather than to everyday transport — and an RTL-SDR
+  makes a fine RECEIVE-only node, which §5g already says needs no
+  licence.
+
+⚠ **OpenWRT sizing is its own constraint** (an isle-core question, but
+it decides feasibility): Reticulum is Python, and a typical consumer
+router with 16 MB flash / 128 MB RAM will not hold Python plus crypto
+dependencies comfortably. A capable device — x86 OpenWRT, or a router
+with real storage and RAM — is fine. **Confirm the target device's
+flash/RAM before assuming "add-on to OpenWRT" is a small ask**; on a
+constrained box the honest alternative is running `rnsd` on an
+attached SBC and giving the router only the gateway rules.
+
+**Consequence for phase order:** ret-0 through ret-5 need NO radio —
+USB-WiFi or plain TCP carries all of it. Only ret-6 (measurement) and
+ret-9 (isle-to-isle over LoRa) need the boards. So the hardware order
+is not blocking the start; it is blocking the proof.
+
+### KVM/VMs instead of a second box (Dustin 2026-08-12)
+
+Running the second (and third) isle as **VMs on hardware we already
+own**, with cheap USB devices passed through, is the right cost move
+and it changes what we must buy: one machine can host several OpenWRT
+guests, so "three isles across town" is developed as three VMs and
+only *deployed* to separate hardware once it works.
+
+What this buys and what it does NOT:
+- ✅ **Everything through ret-5 is fully testable on VMs.** Multiple
+  `rnsd` instances, the object model, the gateway, `.arch` naming,
+  encodings, state replication, the propose-gate — none of it needs a
+  radio, and virtual networking exercises multi-hop honestly.
+- ✅ **USB passthrough is well-trodden** for exactly this: a LoRa board
+  or WiFi adapter is a USB-serial/USB device handed to one guest. It
+  lets ONE physical radio serve whichever VM is being tested.
+- ⚠ **A VM cannot fake the physics.** Airtime, duty cycle, real loss,
+  RF range and multi-second RTT are precisely what ret-6 exists to
+  measure, and a virtual link will report flattering numbers. Any
+  measurement taken on VMs must be **labelled as such** — the
+  declared-vs-measured split the resource profiles already use. Do not
+  let a VM number become the basis for an encoding or FEC decision.
+- ⚠ **Passthrough is exclusive.** One USB radio serves one guest at a
+  time, so a two-VM radio test needs two boards (or a serial-over-IP
+  bridge). This is the same "buy two" conclusion from a different
+  direction.
+- 🔑 **KVM + USB has bitten this project before**: the scan arc lost
+  time to a webcam that enumerated but failed UVC probe control behind
+  a KVM switch, and only worked direct-plugged. Different meaning of
+  "KVM", same lesson — **when a USB device misbehaves, test it
+  direct-plugged before debugging the software.**
+
+**So the honest hardware plan:** develop ret-0..ret-5 on VMs with no
+radio at all; buy two cheap LoRa boards when ret-6 approaches; deploy
+to real separate hardware only for ret-9, where the point IS the
+distance.
+
 ## 6. Open questions for Dustin
 
 - **Hardware:** do we own any LoRa radios (RNode-flashable boards) yet,
