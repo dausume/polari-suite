@@ -268,6 +268,43 @@ third module born that way after `scanning` and `collab`):
   TCP first, then over LoRa hardware. **This phase decides whether
   ret-5 streaming, and any interactive use, is real.** Publish the
   numbers whether or not they flatter the design.
+
+  ⚙ **HARDWARE BRING-UP 2026-08-13** (desk, pol-core): the owned pair
+  = DSD TECH SH-L1A (rebadged EByte E220-900T22, LLCC68) — full
+  identity, restrictions, evidence and setup steps in the seeded
+  `DeviceModel` row `dsd-tech-sh-l1a`. First measurements at factory
+  settings: RNS link over the air (path 2.0 s, 56 B gossip RTT
+  median 2.25 s), single frames to 500 B intact, but back-to-back
+  packets overflow the modem's 400 B unflow-controlled buffer (JSON
+  0/2, Resource failed) — the buffer, not the frame size, is the
+  constraint. ⚠ **Both units SHIPPED on CH23 = 873.125 MHz, OUTSIDE
+  US ISM** — caught by the licence-gate habit applied to registers;
+  Dustin's rule "never transmit without confirming legality first"
+  is now the `tx_permitted()` gate + a standing memory.
+  **OPERATOR CONFIRMATION RECORDED: Dustin approved TX 2026-08-13**
+  on the basis: 915.125 MHz (CH65) @ 22 dBm, LoRa/LLCC68, US 902–928
+  ISM under FCC 15.247; module carries no end-product FCC cert
+  (deployer's burden, accepted). Both units reconfigured PERSISTENT
+  and verified by register readback: CH65 + 62.5k air + 115200 UART
+  (raw `00 00 E7 00 41 03 00 00`).
+
+  ✅ **ret-6 DESK BATTERY, LEGAL CONFIG — 2026-08-13, fidelity
+  measured-real** (RNS 0.9.4 SerialInterface over the pair, desk
+  range, 15/15 replies, 0 errors):
+  | metric | 2.4k air (factory) | 62.5k air + 115200 UART |
+  |---|---|---|
+  | path discovery | 2.0 s | **0.4 s** |
+  | 56 B gossip RTT (n=10) | 2 249 ms median | **222.8 ms median** |
+  | 163 B JSON RTT (n=5) | LOST 2/2 | **303.5 ms median** |
+  | 5 KB Resource | failed (buffer overflow) | **6.09 s = 821 B/s, sha-verified** |
+  | loss | 3/7 pkts + resource | **0** |
+  - The JSON-vs-binary RTT delta (+80.6 ms for +107 B) is ret-4's
+    evidence in miniature: ~0.75 ms/byte on this path — encoding
+    choice is measurably airtime, not taste.
+  - PLAIN broadcast again confirmed under the legal config.
+  - ⚠ Desk range ≠ distance: RSSI margin, real loss and multi-hop
+    behaviour still need ret-9's separation. These numbers say the
+    STACK and the config are sound, not that the field link is.
 - **ret-7 — store-and-forward for app data**: a link that is down for
   hours is the normal case, not an error. Reticulum's messaging layer
   (LXMF) is the natural primitive; the row model must carry queued,
@@ -1029,10 +1066,15 @@ none is treated as settled the way the 18 DECIDED rows are.**
   and which band? ret-6 and ret-9 are blocked on hardware, not code —
   and after the scan arc, naming a hardware blocker early is the
   lesson, not a formality.
-  - **ASSUMED:** none owned (Dustin stated 2026-08-12); band assumed
-    **915 MHz ISM** (US). Order two boards as ret-6 approaches.
-    *Reversal cost: none in code — band is a `ReticulumInterface` row
-    field, set at configure time.*
+  - ✅ **ANSWERED (Dustin 2026-08-13): TWO USB LoRa devices are owned**
+    and can go on two isle devices for testing — ret-6/ret-9's
+    hardware blocker is RESOLVED. Band still assumed **915 MHz ISM**
+    (US) until the boards are identified (band is printed on
+    board/antenna and confirmed at flash time; a 433/868 unit would
+    just change the row field). Bring-up order: identify via udev →
+    DeviceLink rows → flash RNode firmware (rnodeconf ships inside
+    the pinned rns 0.9.4, MIT; the firmware itself is GPLv3 at any
+    version) → RNodeInterface in a sidecar → ret-6 battery.
 - **Second site:** is the second isle a real other location, or a
   second box on this desk for bring-up? Both are useful; they prove
   different things.
