@@ -241,6 +241,21 @@ third module born that way after `scanning` and `collab`):
   (knob → topology → suggestion) and refuses unmapped addresses by
   name. The router-side DNS/nftables half goes to isle-core as a
   written request.
+
+  ✅ **POLARI HALF BUILT + PROVEN 2026-08-13**: netledger gains its
+  FOURTH kind — synthetic-IP pools (`synthetic_pool_conflicts` incl.
+  the dangerous synthetic-vs-real case, `free_synthetic_pool` default
+  space 10.77.x.0/24, assess branch, coherence surface; islemesh
+  selftest 79/79). Name registry live:
+  `GET /api/reticulum/resolve/{name}` answers destinations and .arch
+  names, **refuses unmapped by name** (proven in the dyn proof, now
+  14/14: 404+knob for `nope.arch`, 200 after a CRUDE create).
+  `RETICULUM_ISLE_CORE_REQUEST.md` written (DNS `*.rns.isle`,
+  steering, pool reservation as data; explicitly requests, never
+  edits; warns isle-core off "helpfully" bumping the licence pins).
+  **REMAINING for ret-3**: the packet-plane mapper in the sidecar
+  (synthetic-IP packets → destination rows) — wants the router half
+  applied first so there is real steering to receive.
 - **ret-4 — encodings as a knob with evidence**: protobuf / CBOR /
   JSON, chosen per binding, with MEASURED bytes-on-the-wire reported
   beside the choice. JSON is permitted and honestly labelled as the
