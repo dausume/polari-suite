@@ -458,6 +458,80 @@ advice, and it is my recollection rather than a checked citation —
 bands before any ham transmission**, exactly as the licence gate
 verifies software terms.
 
+## 5g. The HAM broadcast core — Dustin's topology, and what it needs
+## (2026-08-12)
+
+Dustin's model, and it is a good one: a licensed operator broadcasts
+app state UNENCRYPTED over amateur spectrum as a long-range one-to-many
+"core"; the local encrypted mesh (ISM LoRa / HaLow / WiFi) picks it up
+and redistributes it; changes trickle back toward the HAM core. Long
+range where you need reach, encryption where you are allowed it.
+
+**Where the belief is correct:**
+- **RECEIVING is unrestricted.** No licence is needed to listen to
+  amateur spectrum — it is public by design. So a **receive-only
+  Polari node needs no licence at all**, which makes RX-only the safe
+  default posture for any node we ship.
+- **TRANSMITTING requires a licence**, and the licence is per-operator,
+  not per-device.
+- **Unencrypted amateur transmission is lawful** for a licensed
+  operator, which is exactly what makes the broadcast core viable.
+
+**Is there an unencrypted Reticulum mode? Yes — and it is the hinge.**
+Reticulum destinations come in kinds, and one of them (`PLAIN`) is
+explicitly unencrypted; the encrypted-by-default behaviour belongs to
+single/group destinations and to Links, which negotiate ephemeral keys.
+So the lawful ham shape is: **PLAIN destinations, packet broadcast, no
+Links.** *(⚠ ret-0 must confirm this against the source — the mode's
+existence is recollection, and the exact framing matters when the
+consequence is legality.)* Signatures stay allowed: signing proves who
+sent a thing without obscuring what it says, so integrity survives even
+where confidentiality cannot.
+
+**Consequences the module must own:**
+
+1. **Licence gating on TX, RX free.** An `AmateurOperator` row carries
+   callsign, licence class and jurisdiction, plus an explicit operator
+   ATTESTATION. TX over an `amateur` interface refuses until it is
+   present. ⚠ Be honest about what this is: we cannot cryptographically
+   verify a licence. We can require the attestation, warn plainly, and
+   optionally check the callsign against a public registry (the FCC ULS
+   has a public lookup in the US). Attestation + lookup, never proof —
+   and the refusal is the default.
+2. **Automatic station identification.** Callsign at the required
+   interval, sent in clear, is something the gateway should emit on its
+   own rather than leaving to an operator to remember.
+3. **🔑 THE HAM SEGMENT IS A PUBLIC, PERMANENT BROADCAST.** Anyone with
+   an SDR receives it, forever. This is a bigger design constraint than
+   the encryption ban: **state crossing the ham core must be explicitly
+   marked publishable.** So `WatchedObject` gains a
+   `publication_class` (`public` | `mesh-only` | `local-only`)
+   defaulting to the most restrictive, and the gateway REFUSES to put
+   anything but `public` on an amateur interface, by name. Encryption
+   being illegal there is precisely why we must not rely on it.
+4. **The trickle-back path needs a licensed operator too.** Uplink into
+   the ham core is a transmission: it faces the same licence, the same
+   cleartext rule and the same publication test. A mesh node without a
+   licensed operator can consume the core and redistribute locally, but
+   it cannot answer upward.
+5. ⚠ **Third-party traffic.** Relaying messages on behalf of unlicensed
+   people is its own regulated category — broadly permitted
+   domestically in the US, restricted internationally by agreement.
+   Dustin's "average user's state reaches the HAM core" is exactly that
+   case, so ret-0's legal check must cover it specifically, not just
+   the encryption question.
+6. **No commercial use**, plus content restrictions, apply to whatever
+   crosses. A publication class is also where that judgement lives.
+
+**This makes the bearer split a design principle, not a workaround:**
+ham carries public state, far, in clear, one-way; the encrypted mesh
+carries everything else, bidirectionally, locally. The gateway's job is
+to enforce that boundary and to say plainly when it refuses.
+
+⚠ Still recollection, not legal advice: ret-0 verifies the current
+rules for the actual jurisdiction and bands (encryption, ID interval,
+third-party traffic, control links) BEFORE any amateur transmission.
+
 ## 6. Open questions for Dustin
 
 - **Hardware:** do we own any LoRa radios (RNode-flashable boards) yet,
