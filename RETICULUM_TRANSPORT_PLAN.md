@@ -27,7 +27,8 @@ same day; the sections below are decisions, not options.
 | 17 | USB passthrough is a **gated shell capability**; helper holds the privilege, never the docker socket | §5l |
 | 18 | Develop ret-0..ret-5 on KVM guests with no radio; two boards at ret-6; real distance only at ret-9 | §5h |
 | 19 | **IDLE RADIOS ARE SILENT** (Dustin 2026-08-13): nothing transmits — announces included — without an active declared use; RF interfaces default `idle_policy='silent'` (not even attached when unused), `rx-hold` listens without announcing, `hold-open` is the operator's deliberate exception | ret-6 |
-| 20 | **THE APP ACCESS LADDER** (Dustin 2026-08-13): isle-only → archipelago → zero-trust relay, a per-app KNOB defaulting to the most restrictive; relay consumers are tracked SOLELY by Reticulum identity, KC linkage opt-in and NEVER required | §5n |
+| 20 | **THE APP ACCESS LADDER** (Dustin 2026-08-13, naming settled same day): **`.isle` → `.arch` → `.mesh` → web** — the reserved isle-mesh suffixes plus the internet's endpoints; per-app exposure is ROWS (one per level, several at once), each carrying OUR ROLE for that app (observer/user/relay-only/server, default observer); `.mesh` consumers are tracked SOLELY by Reticulum identity, KC linkage opt-in and NEVER required | §5n |
+| 21 | **`.mesh` is the wider-mesh namespace** (Dustin 2026-08-13): heard peers are ADJUDICATED — `.arch` when we recognize our own device, `.mesh` for strangers we still want to see; unadjudicated peers are neither. Lighthouse broadcast runs over ALL bearers, not just HAM — the publication×regulatory gate stays PER-INTERFACE | §5o |
 
 ## What starts ret-0 — ✅ BOTH DELIVERED 2026-08-13 (overnight)
 
@@ -1092,8 +1093,13 @@ rebuild + frontend) and a browser pass = the arc's next deploy
 window; metered (vs declared) app demand = named follow-up; drawn
 edges when the matrix earns them.
 
-## 5n. THE APP ACCESS LADDER — isle → archipelago → zero-trust relay
-## (ret-1c, Dustin 2026-08-13)
+## 5n. THE APP ACCESS LADDER — .isle → .arch → .mesh → web
+## (ret-1c, Dustin 2026-08-13; naming settled same day: the reserved
+## isle-mesh suffixes; 'open-sea' survives only as prose metaphor,
+## the relay keeps its LIGHTHOUSE name. Roles added: an exposure row
+## also says what WE are for that app at that level — observer /
+## user / relay-only / server — default observer, and an app may
+## hold exposure rows at several levels at once.)
 
 Apps gain an ARCHIPELAGO-level accessibility knob, and beyond it a
 zero-trust tier. Three rungs, each a deliberate enablement, default
@@ -1107,7 +1113,7 @@ always the most restrictive (DECIDED row 20):
    customers move between stalls as one network.* Exposure is a ROW
    (`AppArchExposure`), not a config file: app ⇄ scope ⇄ which
    archipelago, enable/disable at will.
-3. **relay** — untrusted / ZERO-TRUST state relays for mesh-app-
+3. **mesh (`.mesh`)** — untrusted / ZERO-TRUST state relays for mesh-app-
    centric communication: arbitrary people connect, and the core
    mesh-app server broadcasts the app's CURRENT (and optionally
    prior) state. Consumers are not peers and are not trusted — they
@@ -1149,6 +1155,35 @@ versions per archipelago; the delta algebra is §5f's
 Build order: rows + pure rules now (ret-1c); the relay daemon lives
 in the sidecar and follows ret-5 (gRPC bodies) + ret-7 (LXMF store-
 and-forward for consumers that sleep).
+
+## 5o. PEER DISCOVERY + ADJUDICATION — .arch or .mesh
+## (ret-1d, Dustin 2026-08-13)
+
+"We need to be able to see potential peer broadcasts and choose if
+they become part of the archipelago (we know it is one of our own
+devices) or if we should treat it as part of the wider mesh."
+
+- **`PeerSighting`** — every announce/broadcast HEARD becomes an
+  observation row: identity + destination hashes, aspects, which
+  interface/bearer it arrived on, first/last heard, count. Status
+  `unadjudicated` until a human decides; sightings are MEASURED
+  facts, never trust.
+- **Adjudication** (KC-verified act, recorded with who/when):
+  `archipelago` — "this is ours": creates the ArchipelagoNode and
+  enters `.arch` naming/routing (trust GRADES stay separate rows —
+  admission is routing, not authority, §5c). `mesh` — a stranger we
+  still want to see: enters **`.mesh`**, reachability-tracked,
+  interactions capped at the .mesh rung (proposals, data rules,
+  census). `ignored` — heard, noted, not shown again.
+- **Broadcast over ALL bearers** (row 21): the lighthouse speaks
+  PLAIN over whatever interfaces its exposure allows — LoRa, WiFi,
+  TCP, HAM alike (PLAIN is proven on TCP and LoRa already). The §5g
+  gate is unchanged and PER-INTERFACE: amateur carries public-only
+  cleartext; ISM/wired carry any publication class, encrypted or
+  not. HAM is one bearer of the broadcast core, not its definition.
+- The sidecar LISTENS (announce handler) and surfaces peers-heard in
+  /status; ROWS are created only by the adjudication act on the
+  backend — hearing is not admitting.
 
 ## 6. Open questions for Dustin — ⚠ ANSWERED AS ASSUMPTIONS 2026-08-13
 
