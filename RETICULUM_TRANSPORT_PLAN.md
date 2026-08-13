@@ -790,6 +790,62 @@ a platform field on the interface/device row and stays isle-core's
 (§0). That is the whole of it; the rest of the module is ordinary
 Linux.
 
+## 5k. THE DECISION: separate Reticulum container, thin OpenWRT hook
+## (Dustin 2026-08-12 — everything on isle-mesh is a container or KVM,
+## and an OpenWRT is always present)
+
+Two candidates: (A) a Reticulum-specific Ubuntu container/KVM doing
+the gRPC/JSON conversion and relay, talking to OpenWRT; or (B)
+Reticulum as an OpenWRT add-on.
+
+**Recommendation: (A), with a deliberately thin piece on OpenWRT.**
+Five reasons, in the order they matter:
+
+1. **The conversion work is APPLICATION logic, not router logic.**
+   gRPC/protobuf, JSON/CBOR, the state replication engine, the
+   propose-gate — these want our Python dependencies, our test suite
+   and our release cadence. Coupling them to a router firmware's
+   package set and upgrade cycle would make every encoding change a
+   firmware event. That is the wrong seam.
+2. **It matches the boundary already drawn (§0).** OpenWRT does
+   routing, firewall and DNS — isle-core's domain. The container does
+   Reticulum and conversion — ours. The split we already agreed for
+   PEOPLE reasons happens to be the right split for TECHNICAL ones,
+   which is usually a sign it is the real seam.
+3. **It is the pattern this suite already walks.** `pol-livekit`,
+   `prf-recon-engines`, `prf-msci-engines`, `prf-cad-engines`: an
+   optional service with its own compose file, its own resource
+   profile, its own topology row, never in the default `up`.
+   `pol-reticulum` is the fifth walk, so it inherits placement,
+   refusals and lifecycle for free instead of inventing them.
+4. **Dependencies and size stop being a fight.** Python plus crypto
+   plus protobuf on Ubuntu is unremarkable; the same on OpenWRT is a
+   flash-space negotiation (§5h).
+5. **USB attaches where the radio is used.** Pass the device straight
+   to the container/VM that runs `rnsd` — not through OpenWRT, which
+   would add a hop and a passthrough dependency for no benefit.
+
+**What stays on OpenWRT — and it should stay SMALL:**
+- DNS answers for the `.arch` names (§5c).
+- The route/nftables rule steering the synthetic-IP range (§3) to the
+  container.
+That is it. Both are declarative, both are the router's actual job,
+and both are isle-core's to apply from a written request.
+
+**Container or KVM?** Default to a **container**: Reticulum is
+userspace Python, USB passes in as a device, and it fits the compose
+pattern above. Reach for a **KVM** only when something genuinely needs
+its own kernel or network stack — a TUN/TAP arrangement that fights
+the host, a driver the host kernel lacks, or an isle-mesh standard
+that mandates VMs. Decide per deployment; the row records which, so
+`pol` and the ledger treat them the same way.
+
+⚠ **One thing to verify early (ret-2):** whether the OpenWRT instance
+is itself a guest on the same host. If so, USB passthrough targets the
+Reticulum container/VM directly and OpenWRT never touches the radio —
+which is the simpler topology and worth confirming before wiring
+anything.
+
 ## 6. Open questions for Dustin
 
 - **Hardware:** do we own any LoRa radios (RNode-flashable boards) yet,
