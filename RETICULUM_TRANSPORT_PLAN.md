@@ -506,10 +506,19 @@ where confidentiality cannot.
    does not assert what is or is not lawful in a jurisdiction, and does
    not enforce a legal conclusion.
 
-   - `OperatorLicense` — callsign, licence class, issuing authority,
-     jurisdiction, issue/expiry dates, and the KC subject it belongs
-     to. Identity stays Keycloak's (the standing rule); this row
-     ANNOTATES a user, it does not become a second account system.
+   - `OperatorLicense` — **the operator's own ASSERTION that they hold
+     a licence**, recorded: callsign, licence class, issuing authority,
+     jurisdiction, issue/expiry dates, the KC subject it belongs to,
+     and when the assertion was made. It is a self-declaration with an
+     author and a timestamp — that is precisely what it claims to be,
+     and the software never pretends it is more. Identity stays
+     Keycloak's (the standing rule); this row ANNOTATES a user, it
+     does not become a second account system.
+   - **The assertion is the ONLY check.** Nothing is validated against
+     an external service, ever — no lookup, no phone-home, no
+     "verified" badge that depends on being online. A system meant to
+     work when the infrastructure is gone cannot have its radio gated
+     by a server it cannot reach.
    - **Expiry is tracked and surfaced** — approaching and past expiry
      are visible states with dates, since a lapsed licence is the
      failure mode a busy operator will actually hit.
