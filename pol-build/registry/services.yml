@@ -303,6 +303,13 @@ services:
     connects_to: {prf-proxy: {note: "signalling TLS terminates at livekit.prf.<ip>.nip.io; media is DIRECT 50000-50049/udp (netledger-registered range) and never proxies"}}
     variations: "INDEPENDENTLY DEPLOYABLE (pol compose livekit up); upstream Apache-2.0 image (three-source license check 2026-08-12); LAN-only v1, family-sized 4-8; never in the default up — deliberate placement on a bandwidth-adequate host"
 
+  - kind: pol-reticulum
+    context: polari-rf-node/reticulum/ (Reticulum mesh sidecar, ret-2)
+    appears_in: [polari-rf-node/docker-compose.reticulum.yml]
+    config: {knobs: ["RETICULUM_URL (consumer side — backend rns_remote ladder, http://<host>:4285)", "RNS config in the pol-reticulum-data volume (seeded from reticulum/config.template on first start)"]}
+    connects_to: {prf-backend: {note: "backend probes /status via rns_remote; inbound mesh data POSTs to /api/reticulum/inbound where it becomes a PROPOSAL (ret-8) — the sidecar never writes rows"}}
+    variations: "INDEPENDENTLY DEPLOYABLE (pol compose reticulum up); THE LICENCE BOUNDARY — rns==0.9.4 + lxmf==0.6.3 (last MIT releases; later = GPLv3-incompatible, RETICULUM_LICENCE_GATE.md) imported ONLY here; identity in a NAMED volume (no root-owned host artifacts); radios passed through per-deployment against DeviceLink rows, never seeded"
+
   - kind: prf-test-harness
     context: polari-rf-node/ (fullstack-test services)
     appears_in: [polari-rf-node/docker-compose.fullstack-test.yml]

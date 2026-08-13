@@ -9,7 +9,7 @@ same day; the sections below are decisions, not options.
 | # | Decision | Where |
 |---|---|---|
 | 1 | isle-core owns OpenWRT/radio/regulatory; we own the model, gateway, encodings, gate | §0 |
-| 2 | Reticulum is **MIT** → GPLv3-compatible; gate still checks LXMF/firmware/packaging | §1, §5h |
+| 2 | ~~Reticulum is MIT~~ **FALSIFIED BY THE GATE 2026-08-13**: relicensed 2025-04-15 to a restricted "Reticulum License" (GPLv3-INCOMPATIBLE); we pin the last-MIT pair `rns==0.9.4` + `lxmf==0.6.3` — see `RETICULUM_LICENCE_GATE.md` | §1, §5h |
 | 3 | gRPC-over-HTTP/2 must NOT run verbatim — terminate at each end, carry protobuf bodies | §2 |
 | 4 | **Two encodings only: gRPC and JSON.** STOMP is out of mesh transport (stays LAN) | §5b |
 | 5 | protobuf ≈3–10× smaller than JSON here; ret-4 MEASURES rather than assumes | §5b |
@@ -27,16 +27,20 @@ same day; the sections below are decisions, not options.
 | 17 | USB passthrough is a **gated shell capability**; helper holds the privilege, never the docker socket | §5l |
 | 18 | Develop ret-0..ret-5 on KVM guests with no radio; two boards at ret-6; real distance only at ret-9 | §5h |
 
-## What starts ret-0 (the only things still owed)
+## What starts ret-0 — ✅ BOTH DELIVERED 2026-08-13 (overnight)
 
-1. **`RETICULUM_LICENCE_GATE.md`** — short now that MIT is confirmed;
-   must still cover LXMF, any firmware we would flash, and packaging.
-2. **The §6 answers** — above all **what payload crosses first**,
-   which decides whether ret-4 tunes for small-frequent or rare-large.
+1. ✅ **`RETICULUM_LICENCE_GATE.md`** — WRITTEN, three-source verified.
+   ⚠ It found the "MIT" premise STALE: rns/lxmf relicensed 2025-04-15
+   to a restricted, GPLv3-incompatible licence. **Conditional pass on
+   the pinned MIT pair `rns==0.9.4` + `lxmf==0.6.3`** (assumption for
+   Dustin to confirm; options weighed in the gate doc). RNode firmware
+   is GPLv3 — fine.
+2. ✅ **The §6 answers** — taken as marked ASSUMPTIONS (§6), per
+   Dustin's overnight authorization. First payload assumed
+   **module/topology gossip** → ret-4 tunes small-frequent.
 
-Nothing else blocks a start: ret-0 is radio-free (two `rnsd` over TCP
-or USB-WiFi), and hardware blocks the PROOF (ret-6/ret-9), not the
-work.
+ret-0 is radio-free (two `rnsd` over TCP or USB-WiFi); hardware blocks
+the PROOF (ret-6/ret-9), not the work.
 
 ---
 Source: Dustin's brief — "leverage Reticulum as one of our main forms
@@ -84,6 +88,11 @@ To check, at minimum: the Reticulum stack itself, LXMF (the messaging
 layer), any RNode firmware we would flash, and any OpenWRT packaging.
 ⚠ My recollection is that the stack is permissive and some companion
 tools are GPL — **that recollection is not evidence.** The gate decides.
+
+✅ **GATE RUN 2026-08-13** (`RETICULUM_LICENCE_GATE.md`): conditional
+pass on `rns==0.9.4` + `lxmf==0.6.3` (the last MIT releases); current
+releases carry a restricted, GPLv3-incompatible licence. **Pins are
+licence pins — never `>=`.**
 
 ## 2. The honest physics, up front
 
@@ -168,11 +177,65 @@ third module born that way after `scanning` and `collab`):
   with our own encoding, measured. Proves the stack, the identity
   handling and our encode/decode before any RF variable exists. If
   this is awkward, everything downstream is worse — learn it cheap.
+
+  ✅ **PROVEN 2026-08-13** (rig: scratchpad `ret0-rig/`, two containers
+  on the default bridge — deliberately NO new docker network, per the
+  `hostname -I` gotcha). `rns==0.9.4` + `lxmf==0.6.3` (the licence
+  pins). Results, all first-try, 0 errors:
+  - Path resolved in 0.2 s (1 hop); Link established; **25/25 gossip
+    envelopes answered with responder-authored payload** (both ways,
+    not an echo).
+  - **Our envelope** (`PR` + version + kind): binary 56 B vs JSON
+    163 B for the same gossip message → **JSON 2.91× larger** — the
+    small-message end of §5b's 3–10× estimate, now measured.
+  - **Resource mechanism confirmed** (plan §5b item 1 recollection →
+    evidence): 50 KB blob transferred, sha256 verified identical both
+    sides, 0.02 s.
+  - **PLAIN destination confirmed** (§5g hinge recollection →
+    evidence): unencrypted broadcast packet sent and received —
+    `RNS.Destination.PLAIN` exists and works in 0.9.4.
+  - RTT median 0.84 ms binary / 1.96 ms JSON — ⚠ VM/TCP numbers,
+    labelled as such; they say nothing about LoRa (ret-6 measures).
+  - Unknown envelope magic/version is REFUSED by name in decode —
+    the honest-refusal shape reaches the wire format too.
 - **ret-1 — the object model** (§4), manifest-first, with selftests.
+
+  ✅ **BUILT + PROVEN 2026-08-13** (branch `dev-ret-1` off `dev-mtg-1`,
+  framework): `modules/reticulum/` — 13 classes across four basis
+  files by concern (core §4 + `.arch` §5c + replication §5f +
+  operator/device §5g/§5i), pure rules beside them (admission with
+  three-key refusals, may_route lawfulness gate, derived timeouts,
+  per-path capability, replication algebra, licence-expiry ladder),
+  `rns_remote` (fifth walk of the *_remote ladder, licence pins
+  surfaced as facts), API (capability / .arch honesty / the ret-8
+  inbound→proposal seam at level 4, identity-before-existence).
+  ALL FIVE registrations + `rns_inbound` in both _OP_LEVEL tables.
+  Proof: **selftest 61/61**; drift guards untouched (lazy-imports
+  23/23, collab 77/77, islemesh 74/74); **dyn lifecycle 11/11
+  in-container** (admit 2.9 s, put-away keeps tables, 410, re-admit,
+  seed survives). The module itself NEVER imports RNS — the licence
+  boundary is the process boundary, and the selftest pins that.
 - **ret-2 — `pol-reticulum` service**: its own compose file + `pol
   compose reticulum` role + `services.yml` entry + resource profile +
   topology seed. The walked-four-times worker pattern (msci → cad →
   recon → livekit); never part of the default `up`.
+
+  ✅ **BUILT + LIVE-PROVEN 2026-08-13**: sidecar image (python-slim +
+  the licence pins, `reticulum/sidecar.py` — the ONLY process that
+  imports RNS), `docker-compose.reticulum.yml` (identity in a NAMED
+  volume: no root-owned host artifacts, and it SURVIVED a container
+  recreate — same hash `765aa9a9…` before and after), `pol compose
+  reticulum up|down|build|ps|logs`, honest `/status` on :4285
+  (version, pins, per-interface online/bitrate), `services.yml`
+  entry, topology instance + `reticulum.mesh@reticulum` assignment +
+  dependency edge + resource profile + `PROVIDER_PORTS`. Backend
+  ladder proven live from a container: `rns_remote.reachable()` True,
+  status parsed. **Transport proof: two peers, each dialing ONLY the
+  sidecar, reached each other THROUGH it (path in 1.2 s, 2 hops,
+  25/25 replies, 50 KB resource sha-verified)** — the sidecar is a
+  real Reticulum transport node, not just a stack holder. Topology
+  selftest re-pinned 52/52; resources 31/31, admission 23/23.
+  pol-reticulum LEFT RUNNING on staging-a.
 - **ret-3 — the gateway**: synthetic-IP range from the netledger, the
   name registry, and the mapper. Ships with the honest refusal ladder
   (knob → topology → suggestion) and refuses unmapped addresses by
@@ -608,10 +671,11 @@ third-party traffic, control links) BEFORE any amateur transmission.
 ## 5h. Hardware routes — what the USB options actually resolve to
 ## (Dustin 2026-08-12: MIT licence confirmed; no RNode boards owned)
 
-**Licence:** Reticulum is **MIT** — GPLv3-compatible, so the gate
-should clear for the stack itself. ret-0's gate still checks LXMF, any
-RNode firmware we would flash, and OpenWRT packaging separately: one
-component being MIT says nothing about the others.
+**Licence:** ⚠ superseded by the gate (2026-08-13) — Reticulum was MIT
+only up to `rns 0.9.4`; later releases are under a restricted,
+GPLv3-incompatible licence. We pin `rns==0.9.4` + `lxmf==0.6.3`
+(`RETICULUM_LICENCE_GATE.md`). RNode firmware is GPLv3-or-later: fine
+at any version (stale MIT v1.x tags notwithstanding).
 
 **Reticulum is bearer-agnostic through its interface types**, so the
 question is only which interface each USB route lands on.
@@ -939,25 +1003,53 @@ rather than a local operator, that is the same wall scan-3 hit, and
 the answer is the same — either a presigned/narrow grant, or Strategy
 B tokens, decided when it actually blocks something.
 
-## 6. Open questions for Dustin
+## 6. Open questions for Dustin — ⚠ ANSWERED AS ASSUMPTIONS 2026-08-13
+
+**Dustin authorized overnight assumptions (2026-08-13, "make
+assumptions… go through as many tasks as you can"). Each answer below
+is an ASSUMPTION with its reversal cost named — confirm or correct;
+none is treated as settled the way the 18 DECIDED rows are.**
 
 - **Hardware:** do we own any LoRa radios (RNode-flashable boards) yet,
   and which band? ret-6 and ret-9 are blocked on hardware, not code —
   and after the scan arc, naming a hardware blocker early is the
   lesson, not a formality.
+  - **ASSUMED:** none owned (Dustin stated 2026-08-12); band assumed
+    **915 MHz ISM** (US). Order two boards as ret-6 approaches.
+    *Reversal cost: none in code — band is a `ReticulumInterface` row
+    field, set at configure time.*
 - **Second site:** is the second isle a real other location, or a
   second box on this desk for bring-up? Both are useful; they prove
   different things.
+  - **ASSUMED:** VMs/containers on hardware we own for ret-0..ret-5
+    (already DECIDED row 18); the "second site" is treated as a desk
+    bring-up first, real distance only at ret-9. *Reversal cost: none —
+    this only sequences purchases.*
 - **First real payload:** what should actually cross the link first —
   a scorecard sync, module/topology gossip, meeting presence, file
   transfer? The answer decides whether ret-4 optimises for small
   frequent messages or rare large ones.
+  - **ASSUMED: module/topology gossip** — small, frequent, structured,
+    entirely our own schema (protobuf-ready), it is what `.arch`
+    reachability and the directory already produce, and it exercises
+    the ret-8 proposal seam naturally. So ret-4 tunes for
+    **small-frequent** first. *Reversal cost: low — encoding/FEC/cadence
+    are per-binding knobs, so a rare-large binding (file transfer via
+    LXMF) adds a binding, not a redesign.*
 - **Identity binding:** should an RNS identity map 1:1 to a KC user, or
   to an INSTANCE (with users authorized behind it)? Instance-level is
   simpler and matches how isles already federate; user-level is what
   end-to-end accountability would want.
+  - **ASSUMED: INSTANCE-level** (the plan's own lean): one RNS identity
+    per Polari instance, users authorized behind it by ordinary KC
+    auth; `ReticulumIdentity.kc_subject` stays NULLABLE so a per-user
+    binding (e.g. an operator's HAM identity) can be added without
+    schema change. *Reversal cost: low — the row already carries both.*
 - **Scope of "arbitrary internet protocols":** the honest near-term
   target is *our own* app traffic plus a named handful (HTTP GET, gRPC
   unary). Truly arbitrary IP over a kilobit link is a promise the
   physics cannot keep, and I would rather say so now than build a
   demo that says otherwise.
+  - **ASSUMED as written:** own traffic + named handful. The gateway
+    refuses unmapped/unnamed protocols by name (§3), which is also
+    what makes widening the set later a data change.

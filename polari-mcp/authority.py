@@ -55,6 +55,9 @@ _OP_LEVEL: dict[str, tuple[int, str]] = {
     "pull_and_assert": (3, "reversible-system"),
     "select_provider": (3, "reversible-system"),
     "storage_connect": (4, "network-service"),
+    # ret-8 seam (mirror of polariApiServer.ai_actions): inbound mesh
+    # data proposes at network-service level — never auto-approved.
+    "rns_inbound": (4, "network-service"),
     "delete": (7, "irreversible"),
 }
 
