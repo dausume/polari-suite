@@ -6,23 +6,24 @@ OpenWRT/LoRa) was planned in detail but **not started**.
 
 ---
 
-## 1. Is the Reticulum plan ready? Honestly: ready to READ, not to RUN
+## 1. The Reticulum plan is FINAL (2026-08-12) — ready to RUN once two things land
 
-`RETICULUM_TRANSPORT_PLAN.md` (ret-0..ret-9) is complete as a design:
-the boundary, the addressing problem, the encodings, loss handling,
-state replication and the regulatory posture are all settled, and the
-open questions are written down rather than assumed.
+`RETICULUM_TRANSPORT_PLAN.md` (ret-0..ret-9) is **FINAL** — revised
+through eight rounds of Dustin's corrections in one day, with an
+18-row DECIDED ledger at the top so a fresh instance does not
+relitigate settled choices.
 
-**It cannot start yet, and the blockers are not code:**
-1. **The software licence gate** (`RETICULUM_LICENCE_GATE.md`) — the
-   blocking first step, three-source method, GPLv3 frame. Not written.
-2. **LoRa hardware** — do we own RNode-flashable boards, which band?
-   ret-6 and ret-9 are blocked on hardware. (Naming this on day one is
-   the scan-arc lesson.)
-3. **The §6 questions** — especially **what payload crosses first**,
-   which decides whether ret-4 optimises for small-frequent or
-   rare-large traffic. Also: second isle real or on the desk; RNS
-   identity bound to a KC user or an INSTANCE.
+**Only two things are still owed before ret-0 starts:**
+1. **`RETICULUM_LICENCE_GATE.md`** — short now that Reticulum is
+   confirmed **MIT** (GPLv3-compatible); still must cover LXMF, any
+   RNode firmware, and packaging.
+2. **The §6 answers** — above all **what payload crosses first**,
+   which decides whether ret-4 tunes for small-frequent or rare-large
+   traffic.
+
+**Hardware is NOT a start blocker any more.** ret-0..ret-5 develop on
+KVM guests with no radio; two ~$20-40 LoRa boards are needed only as
+ret-6 approaches, and real separate machines only at ret-9.
 
 Answering §6 + the gate is enough to run ret-0..ret-2 without
 further input. ret-0 is deliberately radio-free (two `rnsd` over TCP)

@@ -1,6 +1,44 @@
 # Reticulum as a Polari transport — plan (ret-0..ret-9)
 
-**Date:** 2026-08-12 · **Status: PLANNING ONLY, nothing built.**
+**Date:** 2026-08-12 · **Status: ✅ FINAL — design settled with Dustin,
+nothing built.** Revised through eight rounds of his corrections the
+same day; the sections below are decisions, not options.
+
+## ✅ DECIDED (do not relitigate — each was settled deliberately)
+
+| # | Decision | Where |
+|---|---|---|
+| 1 | isle-core owns OpenWRT/radio/regulatory; we own the model, gateway, encodings, gate | §0 |
+| 2 | Reticulum is **MIT** → GPLv3-compatible; gate still checks LXMF/firmware/packaging | §1, §5h |
+| 3 | gRPC-over-HTTP/2 must NOT run verbatim — terminate at each end, carry protobuf bodies | §2 |
+| 4 | **Two encodings only: gRPC and JSON.** STOMP is out of mesh transport (stays LAN) | §5b |
+| 5 | protobuf ≈3–10× smaller than JSON here; ret-4 MEASURES rather than assumes | §5b |
+| 6 | Loss: RNS retries + **FEC** where RTT is dear; **snapshots, not deltas**; nothing that moves sits in a closed loop | §5b |
+| 7 | Reticulum does not route IP → name registry + netledger synthetic-IP pool + gateway that refuses unmapped by name | §3 |
+| 8 | **`.arch` archipelago**: named nodes, GRADED trust, measured reachability; trust ≠ authority | §5c |
+| 9 | LoRa is one bearer; LoRaWAN is NOT peer-to-peer and is its own investigation | §5d |
+| 10 | **Latency is a property of the PATH, not the mesh** — everything resolves per path at send time | §5e |
+| 11 | State = **parent + child** (+ derived delta); keyframes mandatory; conflicts become PROPOSALS | §5f |
+| 12 | HAM: plan states **no legal conclusions**; operator's ASSERTION is the only check; never gated on internet | §5g, §5f |
+| 13 | HAM segment is a PUBLIC permanent broadcast → `publication_class`, default most restrictive | §5g |
+| 14 | **RECEIVE-FIRST** — RX needs no licence, is the majority case, and is the default posture | §5i |
+| 15 | Target is **USB on isle-mesh Ubuntu**; Reticulum needs no OpenWRT (router role only) | §5j |
+| 16 | **`pol-reticulum` is its own container**, thin declarative hook on OpenWRT | §5k |
+| 17 | USB passthrough is a **gated shell capability**; helper holds the privilege, never the docker socket | §5l |
+| 18 | Develop ret-0..ret-5 on KVM guests with no radio; two boards at ret-6; real distance only at ret-9 | §5h |
+
+## What starts ret-0 (the only things still owed)
+
+1. **`RETICULUM_LICENCE_GATE.md`** — short now that MIT is confirmed;
+   must still cover LXMF, any firmware we would flash, and packaging.
+2. **The §6 answers** — above all **what payload crosses first**,
+   which decides whether ret-4 tunes for small-frequent or rare-large.
+
+Nothing else blocks a start: ret-0 is radio-free (two `rnsd` over TCP
+or USB-WiFi), and hardware blocks the PROOF (ret-6/ret-9), not the
+work.
+
+---
 Source: Dustin's brief — "leverage Reticulum as one of our main forms
 of communication via OpenWRT… convert signals from arbitrary internet
 protocols and detect when they are being routed to a Reticulum address
