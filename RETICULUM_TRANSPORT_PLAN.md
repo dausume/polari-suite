@@ -724,6 +724,44 @@ system). **We orchestrate it; we do not reimplement it.** Concretely:
   already decide where things run — a VM is another placement target,
   not a new placement system.
 
+## 5j. The real target: USB devices on isle-mesh UBUNTU, not OpenWRT
+## (Dustin 2026-08-12 — this simplifies a lot)
+
+The general deployment target is **USB devices attached to Ubuntu
+machines that already have isle-mesh installed** — not Reticulum
+squeezed onto a consumer router. That resolves the §5h sizing worry
+and removes a whole class of problem:
+
+- **No flash/RAM constraint.** Python plus crypto dependencies are
+  nothing on Ubuntu; the "16 MB router won't hold it" caution and the
+  attached-SBC fallback both stop mattering for the common case.
+- **The install path already exists.** isle-mesh onboarding is BUILT
+  and proven — `isle core-install`, apt-on-mesh at `apt.isle`
+  (see `ISLE_ONBOARDING_HANDOFF.md`). **Reticulum should be another
+  package on that path**, not a new installer: an isle package that
+  pulls `rns`, drops config, and registers the service. Reusing the
+  installer we already have beats writing a second one.
+- **udev, not guesswork.** On Ubuntu a USB device announces itself;
+  ret-2b's `DeviceLink` rows can be populated from real udev events
+  with stable by-id paths, instead of scanning and inferring. A LoRa
+  board replugged into another port keeps its identity.
+- **Permissions are the predictable snag:** serial devices need group
+  membership (`dialout`) or a udev rule. Name it in the install step
+  so it is a documented step rather than a mysterious "permission
+  denied" at first transmit.
+- **OpenWRT becomes a case, not the platform.** It stays supported for
+  routers that genuinely are the isle edge (and stays isle-core's
+  work, §0), but the plan's DEFAULT target is Ubuntu + USB. Anywhere
+  the two disagree, Ubuntu is the one we build and test first.
+- **KVM/QEMU (§5i) still applies** — Ubuntu hosts are where the guests
+  and passthrough live, and multiple isles on one machine is still how
+  ret-0..ret-5 get developed without buying anything.
+
+⚠ Consequence for the module: nothing in the Polari half may assume
+OpenWRT. Interface and device rows describe capabilities and OS-level
+handles; the platform is a field on a row, not an assumption baked
+into code.
+
 ## 6. Open questions for Dustin
 
 - **Hardware:** do we own any LoRa radios (RNode-flashable boards) yet,
