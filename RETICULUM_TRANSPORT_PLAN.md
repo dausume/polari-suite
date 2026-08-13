@@ -1185,6 +1185,54 @@ devices) or if we should treat it as part of the wider mesh."
   /status; ROWS are created only by the adjudication act on the
   backend — hearing is not admitting.
 
+## 5p. MESH SIMULATION — spacing, relay allowance, scenarios
+## (ret-1e, Dustin 2026-08-13)
+
+Simulate isle-meshes with KNOWN devices (DeviceModel rows) across a
+map, before anyone buys hardware or walks a field.
+
+- **Propagation modes are a fidelity ladder**: `flat-assumed` (v1 —
+  link-budget/declared-range math on assumed flat terrain, EVERY
+  result carrying the disclaimer), `measured` (LinkMeasurement rows
+  overlay/anchor the prediction), and `ideal-elevation` /
+  `average-elevation` which REFUSE with the disclaimer for now —
+  ⚠ **terrain accounting is deliberately NOT built yet** (Dustin:
+  advanced feature, much later; we say so rather than pretend).
+- **Spacing + relay allowance**: for a target per-peer bandwidth
+  across the WHOLE mesh at a given size, compute the node spacing
+  (max spread with the smallest node count — hex packing at a
+  safety-margined range) and the RELAY ALLOWANCE each node must
+  carry (forwarding others' traffic: per-peer target × average hops
+  × peers / nodes, spatial-reuse factor as a conservative knob).
+  Assumptions are LISTED in the result, never buried.
+- **Scenarios as rows**: bearer sets — lora-only, wifi-halow-only,
+  lora+halow, +HAM broadcast mesh-apps, and CONFINED variants
+  (wifi-only-mesh-app-broadcasting: lighthouse traffic strictly on
+  wifi so LoRa transport is never crowded out; halow+HAM only).
+- **Per-app spread allowance**: each app's broadcast carries which
+  bearers it may traverse, a max airtime share per bearer, and a
+  max hop radius — "how much spread is allowed per app" is a
+  policy, and oversubscribed policies are refused with arithmetic.
+- **Interference inference**: irregular reach patterns (measured
+  reach by bearing falling far short of the mode's prediction in
+  some sectors but not others) become NAMED interference
+  suspicions with the evidence — derived, never asserted.
+- **Spread policy forms** (Dustin, same conversation): max hops,
+  max distance, or a BOUNDARY SHAPE (geojson polygon) — and the
+  shape derives max hops PER DIRECTION (distance to the edge along
+  a bearing over node spacing). All present limits apply; a policy
+  with no limits refuses (unbounded spread must be impossible to
+  state by accident).
+
+✅ **BUILT + PROVEN 2026-08-13** (`meshsim_basis.py` + wiring):
+selftest **125/125**, dyn proof **19/19** — meshsim computed a
+lora-only 9-node plan from the SH-L1A catalog row live (range 1000 m
+declared, relay verdict fits, disclaimer riding every response) and
+`ideal-elevation` refused 400 WITH the disclaimer. DeviceModel
+gained `rx_sensitivity_dbm` + `declared_range_m` (SH-L1A: −129 dBm,
+1000 m mid-vendor); catalog seed also rides the legacy pass so
+composition-gated boots still get it. `POST /api/reticulum/meshsim`.
+
 ## 6. Open questions for Dustin — ⚠ ANSWERED AS ASSUMPTIONS 2026-08-13
 
 **Dustin authorized overnight assumptions (2026-08-13, "make
