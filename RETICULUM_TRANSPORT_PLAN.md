@@ -757,10 +757,38 @@ and removes a whole class of problem:
   and passthrough live, and multiple isles on one machine is still how
   ret-0..ret-5 get developed without buying anything.
 
-⚠ Consequence for the module: nothing in the Polari half may assume
-OpenWRT. Interface and device rows describe capabilities and OS-level
-handles; the platform is a field on a row, not an assumption baked
-into code.
+### Does Reticulum actually NEED OpenWRT? No. (clarified 2026-08-12)
+
+Worth stating plainly, because the earlier draft implied a dependency
+that does not exist: **Reticulum has no OpenWRT component.** It is a
+Python stack that runs on any Linux — Ubuntu included — and the
+association with OpenWRT is cultural (routers are where off-grid mesh
+people put things), not technical. Running it on plain Ubuntu with no
+OpenWRT anywhere is a completely normal deployment.
+
+**The only thing OpenWRT would give us** is the ROUTER role: if the
+box that sees a site's traffic is a router, that is the natural place
+for §3's gateway pieces (the resolver handing out synthetic IPs, and
+the nftables rules steering them). But Linux has all of that too —
+Ubuntu can run its own resolver and nftables perfectly well — so on an
+Ubuntu isle the gateway simply lives on the Ubuntu box.
+
+So the honest position:
+- **Default: Ubuntu + USB, no OpenWRT.** Simplest, fewest moving
+  parts, and it is where the isle-mesh install path already works.
+- **OpenWRT KVM guests are for the ROUTER CASE** — developing and
+  testing against a real router edge, or a deployment whose isle edge
+  genuinely is an OpenWRT device. Useful, not required.
+- Nothing is lost by skipping OpenWRT if the site's edge is an Ubuntu
+  machine.
+
+**What the earlier "must not assume OpenWRT" line was trying to say,
+concretely:** do not write code that only runs on a router — no `uci`
+calls, no `/etc/config/network` edits, no `opkg` assumptions in the
+Polari half. Where platform-specific work IS needed, it belongs behind
+a platform field on the interface/device row and stays isle-core's
+(§0). That is the whole of it; the rest of the module is ordinary
+Linux.
 
 ## 6. Open questions for Dustin
 
