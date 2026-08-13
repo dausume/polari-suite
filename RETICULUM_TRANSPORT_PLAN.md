@@ -1156,6 +1156,19 @@ Build order: rows + pure rules now (ret-1c); the relay daemon lives
 in the sidecar and follows ret-5 (gRPC bodies) + ret-7 (LXMF store-
 and-forward for consumers that sleep).
 
+✅ **DELTA BROADCASTING BUILT + TCP-PROVEN 2026-08-13** (sidecar,
+radios dark): deltas = changed keys + removed list vs prior payload,
+keyframes MANDATORY (every Nth / forced / non-dict payloads), byte
+savings MEASURED and exposed (162 B delta vs 334 B keyframe = 49% on
+a realistic payload; 96% on a toy one where the envelope dominates —
+the facts say which). Late joiner missed deltas (counted), recovered
+EXACTLY on the next keyframe; repeats no-op'd; final states
+byte-identical on both consumers. 🔑 **MTU finding: a keyframe over
+~450 B cannot fly as one PLAIN packet (RNS ~500 B MTU)** — the state
+POST now refuses 413 WITH the numbers instead of spinning; larger
+state rides ret-7 (LXMF/Resource fragmentation). JSON deltas v1;
+gRPC/protobuf bodies remain ret-5.
+
 ## 5o. PEER DISCOVERY + ADJUDICATION — .arch or .mesh
 ## (ret-1d, Dustin 2026-08-13)
 
