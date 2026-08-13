@@ -490,14 +490,42 @@ where confidentiality cannot.
 
 **Consequences the module must own:**
 
-1. **Licence gating on TX, RX free.** An `AmateurOperator` row carries
-   callsign, licence class and jurisdiction, plus an explicit operator
-   ATTESTATION. TX over an `amateur` interface refuses until it is
-   present. ⚠ Be honest about what this is: we cannot cryptographically
-   verify a licence. We can require the attestation, warn plainly, and
-   optionally check the callsign against a public registry (the FCC ULS
-   has a public lookup in the US). Attestation + lookup, never proof —
-   and the refusal is the default.
+1. **Licence handling: ADVISE AND EDUCATE, never gate on the network.**
+   (Dustin 2026-08-12, and it is a constraint rather than a
+   preference.) **These apps exist partly for emergencies, so no
+   capability may depend on internet reachability** — a verification
+   step that fails closed when the network is down would disable the
+   radio exactly when the radio is the only thing left. That would not
+   be safety, it would be the opposite.
+
+   So:
+   - An `AmateurOperator` row carries callsign, licence class and
+     jurisdiction plus an explicit local ATTESTATION. Its purpose is
+     to make the operator's claim explicit and recorded — **not** to
+     verify it, which we cannot do.
+   - **FCC ULS lookup is ADVISORY ONLY**, attempted only if the
+     internet happens to be reachable, cached when it succeeds, and
+     **never required**. A failed or absent lookup is NOT a signal and
+     must never block transmission — offline is the normal case here,
+     not an anomaly.
+   - What we owe the user instead of enforcement is **honest, explicit
+     warning and real help**: state plainly that transmitting on
+     amateur spectrum without a licence is illegal, say what the
+     licence is, and say how to get one (in the US: an entry-level
+     Technician exam, a published question pool, volunteer examiner
+     sessions, no Morse requirement). A warning that teaches is worth
+     more than a gate that can be trivially bypassed and that breaks
+     the emergency case.
+   - The warning is UNMISSABLE and repeated at the moment of
+     transmission, not buried in setup — and the attestation is
+     recorded in provenance, so the claim has a timestamp and an
+     author.
+   - ⚠ ret-0 should also check the **emergency provisions**: Part 97
+     contains allowances for communications involving the immediate
+     safety of human life and protection of property that differ from
+     ordinary operating rules. If those apply, they matter directly to
+     this project's purpose and belong in the warning text as fact,
+     not folklore.
 2. **Automatic station identification.** Callsign at the required
    interval, sent in clear, is something the gateway should emit on its
    own rather than leaving to an operator to remember.
