@@ -427,7 +427,14 @@ publisher-side decisions, FEC (§5b) replaces ARQ entirely, and every
 message must be independently interpretable. A protocol that assumes
 it can ask "what version do you have?" does not work here.
 
-### ⚠ HAM BANDS: a legal constraint that changes the design
+### ⚠ HAM BANDS — why the DEFAULTS are conservative
+
+**Framing (Dustin 2026-08-12): this plan states no legal conclusions.**
+Rules vary by jurisdiction and change; the operator is responsible for
+compliance. What follows is why our DEFAULTS are cautious — a
+conservative default is a design choice we can justify without
+claiming to know the law, and every one of them is a knob the operator
+can set for their own jurisdiction.
 
 If any of this crosses amateur radio, the rules are not a formality
 and they bite this specific design:
@@ -490,42 +497,33 @@ where confidentiality cannot.
 
 **Consequences the module must own:**
 
-1. **Licence handling: ADVISE AND EDUCATE, never gate on the network.**
-   (Dustin 2026-08-12, and it is a constraint rather than a
-   preference.) **These apps exist partly for emergencies, so no
-   capability may depend on internet reachability** — a verification
-   step that fails closed when the network is down would disable the
-   radio exactly when the radio is the only thing left. That would not
-   be safety, it would be the opposite.
+1. **Licence handling: RECORD IT, TRACK EXPIRY, ASSUME NOTHING.**
+   (Dustin 2026-08-12 — scope deliberately narrowed so the software
+   makes no legal claims.)
 
-   So:
-   - An `AmateurOperator` row carries callsign, licence class and
-     jurisdiction plus an explicit local ATTESTATION. Its purpose is
-     to make the operator's claim explicit and recorded — **not** to
-     verify it, which we cannot do.
-   - **FCC ULS lookup is ADVISORY ONLY**, attempted only if the
-     internet happens to be reachable, cached when it succeeds, and
-     **never required**. A failed or absent lookup is NOT a signal and
-     must never block transmission — offline is the normal case here,
-     not an anomaly.
-   - What we owe the user instead of enforcement is **honest, explicit
-     warning and real help**: state plainly that transmitting on
-     amateur spectrum without a licence is illegal, say what the
-     licence is, and say how to get one (in the US: an entry-level
-     Technician exam, a published question pool, volunteer examiner
-     sessions, no Morse requirement). A warning that teaches is worth
-     more than a gate that can be trivially bypassed and that breaks
-     the emergency case.
-   - The warning is UNMISSABLE and repeated at the moment of
-     transmission, not buried in setup — and the attestation is
-     recorded in provenance, so the claim has a timestamp and an
-     author.
-   - ⚠ ret-0 should also check the **emergency provisions**: Part 97
-     contains allowances for communications involving the immediate
-     safety of human life and protection of property that differ from
-     ordinary operating rules. If those apply, they matter directly to
-     this project's purpose and belong in the warning text as fact,
-     not folklore.
+   The module records **facts the operator gives us**, ties them to a
+   Keycloak user, and surfaces them. It does not interpret regulations,
+   does not assert what is or is not lawful in a jurisdiction, and does
+   not enforce a legal conclusion.
+
+   - `OperatorLicense` — callsign, licence class, issuing authority,
+     jurisdiction, issue/expiry dates, and the KC subject it belongs
+     to. Identity stays Keycloak's (the standing rule); this row
+     ANNOTATES a user, it does not become a second account system.
+   - **Expiry is tracked and surfaced** — approaching and past expiry
+     are visible states with dates, since a lapsed licence is the
+     failure mode a busy operator will actually hit.
+   - **No licence on file, or an expired one, produces a clear
+     WARNING naming what is missing** — not a legal verdict, and not
+     a gate that would break the emergency case.
+   - ⚠ **No network dependency, at all.** These apps exist partly for
+     emergencies; nothing here may require internet reachability, and
+     no online registry check gates anything. (An advisory lookup
+     could return later as an explicit opt-in; it is out of scope now
+     and would never be required.)
+   - The operator is responsible for compliance in their own
+     jurisdiction. The software's honest role is to hold the record,
+     show it, and say when it has lapsed.
 2. **Automatic station identification.** Callsign at the required
    interval, sent in clear, is something the gateway should emit on its
    own rather than leaving to an operator to remember.
