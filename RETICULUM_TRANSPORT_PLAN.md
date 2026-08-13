@@ -1056,6 +1056,28 @@ rather than a local operator, that is the same wall scan-3 hit, and
 the answer is the same — either a presigned/narrow grant, or Strategy
 B tokens, decided when it actually blocks something.
 
+## 5m. THE `.arch` TOPOLOGY VIEW (ret-1b, Dustin 2026-08-13)
+
+Isles become BLOCKS the way devices are blocks in the isle topology —
+one level up. Inside each isle block: its RADIOS (LoRa / WiFi / HAM,
+each showing bearer, rx/tx direction and catalog model) and its APPS.
+Between blocks: MEASURED path latency (per bearer, freshness-honest).
+Per app: what it is ASKING for — its TransportBindings' demand per
+unit time (bytes × rate), declared vs measured kept separate. Per
+device: bandwidth per unit time (declared air rate AND measured
+effective) plus the airtime budget. Per isle: demand vs capacity with
+an honest verdict — oversubscription is a named finding with
+evidence, never a silent slowdown.
+
+Sources (all existing rows): ArchipelagoNode + LinkMeasurement
+(blocks + edges), ReticulumInterface + DeviceLink + DeviceModel
+(radios), TransportBinding (+ new app_name field — an app's asks),
+AirtimeBudget, islemesh IsleDevice/apps (what runs where).
+Backend: `assemble_arch_topology()` pure + GET
+/api/reticulum/arch-topology. Frontend: `/arch` page, nested blocks +
+latency matrix (drawn edges can come later; a matrix is honest and
+readable first).
+
 ## 6. Open questions for Dustin — ⚠ ANSWERED AS ASSUMPTIONS 2026-08-13
 
 **Dustin authorized overnight assumptions (2026-08-13, "make
