@@ -1078,6 +1078,19 @@ Backend: `assemble_arch_topology()` pure + GET
 latency matrix (drawn edges can come later; a matrix is honest and
 readable first).
 
+✅ **BUILT 2026-08-13** (backend selftest 88/88, dyn proof 15/15
+live, apps 45/45; angular `dev-ret-1` build green under both
+guardrails, 8 headless view-rule specs): blocks with device chips
+(HAM label wins over bearer when regulatory domain is amateur — an
+operator cares about the band), per-app declared asks, demand bar
+clamped at 100% with the overflow stated in the verdict's evidence,
+NO bar when capacity unknown, stale matrix rows dimmed with age,
+module-absent refusal card. Mesh Archipelago = the tenth discipline
+app (`/arch`, requires reticulum). REMAINING: deploy (backend image
+rebuild + frontend) and a browser pass = the arc's next deploy
+window; metered (vs declared) app demand = named follow-up; drawn
+edges when the matrix earns them.
+
 ## 6. Open questions for Dustin — ⚠ ANSWERED AS ASSUMPTIONS 2026-08-13
 
 **Dustin authorized overnight assumptions (2026-08-13, "make
