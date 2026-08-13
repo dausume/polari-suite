@@ -53,6 +53,22 @@ Dustin:
    idle) — `pol compose reticulum down` if unwanted.
 4. **`RETICULUM_ISLE_CORE_REQUEST.md`** — hand it to isle-core's
    Claude when convenient (router DNS/steering; nothing blocks on it).
-5. Hardware order stands: two RNode-flashable LoRa boards (~$20–40
-   each, LilyGO T-Beam/T3, Heltec LoRa32, RAK) — needed only as
-   ret-6 approaches.
+5. ~~Hardware order~~ RESOLVED: the SH-L1A pair is identified,
+   legally configured (your recorded approval), measured, and
+   catalogued.
+
+## 4. DEPLOYED while you were at work (2026-08-13 afternoon) — a
+## browser pass is now possible
+
+Backend + frontend ROLLED on staging; reticulum module admitted live
+(106 s); `RETICULUM_URL` knob set; every surface verified from
+inside: capability (pins, sidecar REACHABLE), peers (sidecarLive,
+honestly empty), arch-topology (local isle + local-tcp), meshsim
+(live plan from the SH-L1A row, disclaimer riding). **Your pass:**
+open `/arch` — blocks, planner (try lora-only, 9 nodes, 200 bps),
+peers panel; a real KC-authed ADJUDICATION end-to-end is the one
+flow that needs your login. Deploy note: the backend service's bind
+mount `polari-rf-node/ca/root_ca.crt` had been cleaned away — 
+restored as a copy of `ca/.step/certs/root_ca.crt` (public cert,
+gitignored); if that cleanup was deliberate, the service spec is
+the thing to change.
