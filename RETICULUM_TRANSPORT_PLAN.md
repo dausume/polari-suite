@@ -657,6 +657,73 @@ radio at all; buy two cheap LoRa boards when ret-6 approaches; deploy
 to real separate hardware only for ret-9, where the point IS the
 distance.
 
+## 5i. RECEIVE-FIRST, and devices as a first-class surface
+## (Dustin 2026-08-12)
+
+### The majority case is a RECEIVER — so build that first
+
+"In the vast majority of cases people will just want receivers for
+HAM." That reorders the work, and it is the cheapest correct thing we
+could do:
+
+- **RX-only needs no licence** (§5g), so it ships to everyone with no
+  legal exposure, no attestation, no warnings at the moment of use.
+- **RX-only hardware is the cheap hardware** — an RTL-SDR is the one
+  USB-SDR case that works well (§5h), precisely because receiving is
+  all it can do.
+- **It is the safe default posture for anything we ship**: a node
+  listens unless someone deliberately, knowingly enables transmit.
+- It makes §5g's topology useful on day one: one licensed operator
+  broadcasts public state; **everyone else just receives it** and
+  redistributes over the encrypted local mesh.
+
+So `ReticulumInterface` carries `direction` (`rx` | `tx` | `both`) as a
+DEVICE FACT, not a preference — an RTL-SDR is `rx` because it cannot
+be anything else — and every surface reads it. A device that cannot
+transmit never offers a transmit control; that is honest UI, not a
+missing feature.
+
+**Bearer priority, in Dustin's order:** HAM receive → **LoRa** →
+LoRaWAN → WiFi → WiFi HaLow. (WiFi stays FIRST for development
+convenience per §5h/ret-0, but it is not the point of the arc.)
+
+### A device-connection capability + frontend (ret-2b)
+
+Connecting hardware should be a page, not a config file. `DeviceLink`
+rows describe an attached device — bus/USB id, what we think it IS
+(LoRa board, WiFi adapter, HaLow adapter, SDR, serial/KISS), which
+`ReticulumInterface` it backs, which VM (if any) currently owns it,
+and its measured direction/bearer facts kept separate from declared
+ones.
+
+The page shows: what is plugged in, what each device can honestly do
+(receive only / transmit capable / needs firmware flashed / unknown),
+which isle or VM has it, and the honest refusal when something is
+claimed but absent. **Detection must degrade honestly** — an unknown
+USB id is reported as unknown with its ids shown, never guessed into a
+capability.
+
+### ⚠ REUSE the virtualization machinery — do not rebuild it
+
+KVM/QEMU + OpenWRT guests, with USB passthrough, is a solved problem
+with mature tooling (libvirt/QEMU, OpenWRT's own images and build
+system). **We orchestrate it; we do not reimplement it.** Concretely:
+
+- Drive guests through libvirt/QEMU rather than writing a VM manager;
+  the Polari side is ROWS describing which guest exists, what it runs
+  and which device it owns, plus the `pol` verbs to apply them.
+- Use OpenWRT's published images and package feeds; the OpenWRT-side
+  work stays isle-core's (§0).
+- **Check `HARDWARE_SIMULATION` first** — this suite already has a
+  hardware-simulation arc (hwsim-1 live: Renode/Verilator/ngspice,
+  hwsim-2..5 parked). If it already models "a device attached to a
+  simulated machine", ret-2b EXTENDS it rather than starting a second
+  device abstraction beside it. Two device models in one repo is the
+  kind of duplication that quietly doubles maintenance.
+- Same rule for placement: the resource ledger and topology rows
+  already decide where things run — a VM is another placement target,
+  not a new placement system.
+
 ## 6. Open questions for Dustin
 
 - **Hardware:** do we own any LoRa radios (RNode-flashable boards) yet,
