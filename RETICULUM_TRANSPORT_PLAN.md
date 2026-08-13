@@ -370,6 +370,94 @@ What that forces, concretely:
 fine and cheaper. The rule is not "always snapshots" — it is "the path
 decides, and the row records which it chose".
 
+## 5f. STATE REPLICATION — parent state + child state (ret-7b)
+## (Dustin 2026-08-12)
+
+Choose objects to be WATCHED; keep their state; transmit it. The model
+Dustin named — **the most recent parent state transmitted to us, and
+the child state** — is the right one, and it is the same shape git
+uses: keeping the last-known-common ancestor beside your own working
+state is what makes divergence detectable instead of catastrophic.
+
+**The two states (at least two — three in practice):**
+- `parent_state` — the last state we RECEIVED from upstream, stored
+  verbatim with its version and hash. Never edited locally; it is
+  evidence of what the other side believes.
+- `child_state` — our local state, which may have moved on.
+- (derived) `pending_delta` — child minus parent. This is what we owe
+  the link, and it is what makes send-only-the-diff possible.
+
+**What holding both buys, and why one state would not:**
+- **Diffs instead of snapshots** — send `parent → child` rather than
+  the whole object, the single biggest airtime saving on a slow path.
+- **Conflict DETECTION rather than silent clobbering.** If the arriving
+  parent version is not the parent we hold, both sides moved. That is
+  the case a one-state design silently destroys.
+- **Rollback** — parent is a known-good point to return to.
+- **An honest "am I in sync?"** answer, with a timestamp.
+
+**Rows (in the same `reticulum` module, object-coherent):**
+- `WatchedObject` — WHICH objects are replicated: by class, by name, or
+  by query; plus direction (publish | subscribe | both), the bearer
+  policy from §5d, and the cadence.
+- `ObjectStateVersion` — parent/child versions with content hashes and
+  a monotonic counter. Hash + version make a REPEAT a no-op, which is
+  what makes a lossy link safe to retry on.
+- `StateConflict` — a detected divergence, carrying both sides.
+
+**Conflict policy is a knob per watched object, never a global
+default**: `parent-wins`, `child-wins`, `newest-wins`, or —
+the one that fits this suite — **`propose`**, where a conflict becomes
+a PROPOSAL through the ret-8 seam and a human adjudicates. A remote
+isle overwriting local rows because it spoke last is exactly what the
+§2 rule exists to prevent.
+
+**Keyframes are mandatory, not an optimisation.** A receiver whose
+parent version is unknown or too far behind cannot use a delta, so the
+publisher sends a periodic FULL snapshot (a keyframe) alongside
+deltas. This is what makes a late joiner, a rebooted node, or a
+receiver that missed a burst able to recover at all — and on a
+one-way link it is the ONLY recovery mechanism.
+
+⚠ **Receive-only paths are a first-class case.** Over broadcast HAM
+there may be no return channel at all: no acks, no retransmit
+requests, no negotiation. Design consequence — the publisher cannot
+know what any receiver holds, so cadence and keyframe interval are
+publisher-side decisions, FEC (§5b) replaces ARQ entirely, and every
+message must be independently interpretable. A protocol that assumes
+it can ask "what version do you have?" does not work here.
+
+### ⚠ HAM BANDS: a legal constraint that changes the design
+
+If any of this crosses amateur radio, the rules are not a formality
+and they bite this specific design:
+
+- **Encryption is prohibited on amateur bands** in the US (Part 97
+  forbids messages encoded to obscure their meaning) and similarly in
+  many jurisdictions. **Reticulum encrypts by default.** So a plain
+  Reticulum link over ham spectrum is likely NOT LAWFUL as-is.
+- **Signing is not encrypting.** Authentication and integrity
+  (signatures, hashes) do not obscure meaning and are generally
+  acceptable — so an authenticated-but-cleartext mode is the shape a
+  lawful ham path would need.
+- Station **identification** (callsign at intervals), **no commercial
+  use**, and content restrictions also apply, and a control link for a
+  machine may face additional rules.
+- **ISM (e.g. 915 MHz LoRa) has no such content restriction** — which
+  is why ISM, not ham, is the default assumption everywhere else in
+  this plan.
+
+**Consequence for the plan:** a `ReticulumInterface` must declare its
+**regulatory domain** (`ism` | `amateur` | `licensed-other`), and the
+gateway must REFUSE to route encrypted payloads over an interface
+marked `amateur`, by name, with the rule cited. That refusal is a
+feature: it is the difference between a mesh that is merely clever and
+one that can be operated lawfully. ⚠ None of the above is legal
+advice, and it is my recollection rather than a checked citation —
+**ret-0 must verify the current rules for the actual jurisdiction and
+bands before any ham transmission**, exactly as the licence gate
+verifies software terms.
+
 ## 6. Open questions for Dustin
 
 - **Hardware:** do we own any LoRa radios (RNode-flashable boards) yet,
