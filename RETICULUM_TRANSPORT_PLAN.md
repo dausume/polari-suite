@@ -227,21 +227,32 @@ carries intent and telemetry; it does not carry a steering command in
 real time. This belongs with the safety-MCU tier of the hardware
 architecture, not with the transport.
 
-### All three formats — gRPC, STOMP and JSON
+### TWO formats over the mesh — gRPC and JSON (Dustin 2026-08-12)
 
-Yes, by applying the SAME termination trick to each: preserve the
-app-level semantics, compact the wire form.
+**STOMP is OUT of scope for Reticulum transport.** It was the worst
+natural fit — text framing, per-frame headers, and heartbeats that
+would spend duty cycle saying nothing — and carrying it would have
+meant a topic-id registry and a heartbeat override existing only for
+this path. Dropping it removes a whole subsystem for no lost
+capability.
 
-- **gRPC** → terminate HTTP/2, carry protobuf bodies (§2).
-- **STOMP** → terminate the frame protocol at the edge; carry the
-  message body plus a **numeric topic id** resolved through a registry
-  row, never the topic string. ⚠ STOMP is the worst natural fit of the
-  three: text framing, per-frame headers, and **heartbeats that would
-  eat duty cycle by themselves** — its heartbeat must be disabled or
-  replaced with the link's own liveness, or it will spend the budget
-  saying nothing.
+⚠ This does NOT remove STOMP from Polari. It stays the LAN realtime
+channel it already is (`@stomp/rx-stomp` in the frontend); it simply
+does not cross the mesh. An app that wants STOMP semantics over
+`.arch` sends a gRPC or JSON message instead, and the local STOMP
+broker fans it out on the far side — which is the termination pattern
+applied one layer higher, and needs no transport support.
+
+So, two encodings, same termination trick — preserve app semantics,
+compact the wire form:
+
+- **gRPC** → terminate HTTP/2, carry protobuf bodies (§2). The
+  default for anything structured or frequent.
 - **JSON** → permitted, honestly labelled the expensive one, and the
-  right answer when a human needs to read what crossed.
+  right answer when a human needs to read what crossed or the schema
+  genuinely is not shared. (CBOR stays available as the middle option
+  if ret-4's measurements say JSON is too costly for a binding that
+  cannot use protobuf.)
 
 Each `TransportBinding` therefore carries an admission POLICY —
 max message size, max rate, priority, encoding — and the gateway
@@ -343,7 +354,8 @@ What that forces, concretely:
   silently waiting when a request's deadline cannot be met by the path
   it would take.
 - **Capability is answered per peer.** `.arch` should be able to say
-  "gRPC unary: yes; STOMP stream: no, this path is 1.2 kbps at 4 hops"
+  "gRPC unary: yes; gRPC streaming: no, this path is 1.2 kbps at 4
+  hops; JSON: only under 2 KB"
   — the same honest-refusal shape used everywhere else in the suite,
   with evidence, knob and action.
 - **Degradation must be visible, not silent.** When a path gets worse
