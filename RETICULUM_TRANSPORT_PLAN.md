@@ -26,6 +26,7 @@ same day; the sections below are decisions, not options.
 | 16 | **`pol-reticulum` is its own container**, thin declarative hook on OpenWRT | §5k |
 | 17 | USB passthrough is a **gated shell capability**; helper holds the privilege, never the docker socket | §5l |
 | 18 | Develop ret-0..ret-5 on KVM guests with no radio; two boards at ret-6; real distance only at ret-9 | §5h |
+| 19 | **IDLE RADIOS ARE SILENT** (Dustin 2026-08-13): nothing transmits — announces included — without an active declared use; RF interfaces default `idle_policy='silent'` (not even attached when unused), `rx-hold` listens without announcing, `hold-open` is the operator's deliberate exception | ret-6 |
 
 ## What starts ret-0 — ✅ BOTH DELIVERED 2026-08-13 (overnight)
 
