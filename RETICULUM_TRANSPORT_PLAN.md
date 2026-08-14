@@ -1355,11 +1355,22 @@ closes a control loop):
   actuator + a DEADMAN — controller silence past the deadman window
   reverts actuators locally, logged as an event. The mesh carries
   intent and telemetry; the machine protects itself.
-- **Binding is identity, not hope**: the device is provisioned with
-  its controller's identity hash; commands arrive over an RNS Link
-  whose initiator has IDENTIFIED (link.identify) — an unbound
-  identity's commands are REFUSED by name and recorded. (On real
-  hardware this binding is what "flashing with an address" means.)
+- **Binding is identity, not hope** (Dustin 2026-08-14: "controllable
+  only from a particular address" — and identity is STRONGER than
+  address: addresses spoof, identities don't without the key): the
+  device is provisioned with its controller's identity hash; commands
+  arrive over an RNS Link whose initiator has IDENTIFIED
+  (link.identify) — an unbound identity's commands are REFUSED by
+  name and recorded. On real hardware "flashing with an address"
+  means flashing THREE things: the device's own identity, its
+  destination name, and its CONTROLLER'S public key.
+  ⚠ Two enforcement mechanisms, chosen by firmware completeness
+  (microReticulum research decides): (1) identified Links — replay
+  dies free with the link's ephemeral session keys; (2) signed-
+  command envelopes verified against the flashed controller key —
+  works on minimal firmware but MUST add explicit replay protection
+  (monotonic counter / signed timestamp), because LoRa is receivable
+  by anyone and a recorded valid frame can be re-broadcast.
 - **Rows later this arc**: ControlledDevice (actuators + safe
   states + deadman + bound controller) and DeviceCommandRecord
   (command→ack trail with measured latency) — commanding from the
