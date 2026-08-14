@@ -65,9 +65,14 @@ Backend + frontend ROLLED on staging; reticulum module admitted live
 inside: capability (pins, sidecar REACHABLE), peers (sidecarLive,
 honestly empty), arch-topology (local isle + local-tcp), meshsim
 (live plan from the SH-L1A row, disclaimer riding). **Your pass:**
-open `/arch` — blocks, planner (try lora-only, 9 nodes, 200 bps),
-peers panel; a real KC-authed ADJUDICATION end-to-end is the one
-flow that needs your login. Deploy note: the backend service's bind
+open `/arch` — blocks, peers panel, and the now-CONFIGURABLE planner:
+pick one of your drawn map shapes (the picker lists your real
+MapPolygonDefinition rows), try cheapest-coverage on it, click nodes
+onto the SVG for fixed-locations, set a population mix with a kit
+row (e.g. 2×lora+wifi+ham-rx), watch LoRaWAN come back isolated with
+its reason. A real KC-authed ADJUDICATION end-to-end is the one flow
+that needs your login. SH-L1A price is APPROXIMATE ($27.99, Amazon
+refused a headless fetch) — re-check before purchasing at scale. Deploy note: the backend service's bind
 mount `polari-rf-node/ca/root_ca.crt` had been cleaned away — 
 restored as a copy of `ca/.step/certs/root_ca.crt` (public cert,
 gitignored); if that cleanup was deliberate, the service spec is
