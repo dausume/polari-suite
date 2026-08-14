@@ -40,6 +40,9 @@ So this arc is mostly CLOSING WIRES between halves that both exist.
 | 9 | **Engines get their OWN tiles, and an engine's nature is DUAL-CAPABLE** (Dustin 2026-08-14, both halves): every compute engine appears as its own store tile "just so we can see where they are", and every engine tile carries a **DATA PAGE** — placement, reachability (the *_remote ladder's honest halves), and usage/traffic through it over time where tracked (where NOT tracked, the page says so rather than showing empty charts). But **some engines are simultaneously their own APPS** (Odoo: a full UI *and* the business-ops engine) — so the tile model carries both natures: engine-only tiles (msci/cad) open TO the data page; engine+app tiles (odoo) open to their OWN UI with the engine data page as a secondary view. One tile, two natures, never two tiles. Consequence for sep-4: *_remote seams gain lightweight usage metering (call counts/bytes/latency per window) as rows | visibility of where engines live + what flows through them, without flattening the odoo-like duals into either pure infrastructure or pure app |
 | 8 | **Edge behaviors live in APP-SPECIFIC MODULES, as reusable data** (Dustin 2026-08-14): a shell that does MORE than wrap the webapp (camera, device passthrough, radio access, network merge behaviors) gets its native half as a Gradle capability module (the existing ServiceLoader precedent) and its CONFIGURATION half as rows in a module specific to that app — behavior definitions that are configurable, reusable across apps, and expressible as no-code at the edge, "to merge polari, devices, and networks as needed". The registration's `capabilities` list becomes a REFERENCE to those definitions, not the definition itself | capability code is rare and native; capability CONFIG is common and belongs in the object model like everything else |
 
+| 10 | **ONE Polari login; access is PER-APP PERMISSION PROFILES granted by Keycloak GROUPS** (Dustin 2026-08-14): the chain is KC group → AppPermissionProfile → app → its modules → object-level CRUDE permissions. Profiles are rows (reusable, auditable); groups grant profiles; the login stays singular | permissions compose down the same object-coherent chain everything else uses; prior art = the group-authority passes |
+| 11 | **The clamp becomes PERMISSION-AWARE and URL-SHAPED** (Dustin 2026-08-14): (a) a user whose grants cover exactly ONE app, arriving at the MAIN Polari URL in a browser, is AUTO-ROUTED into that app and sees only its view; (b) apps get app-prefixed endpoint variants (`/<app>/<route>`) as canonical clamped URLs; (c) on non-prefixed routes the menu-less state rides a URL variable that PERSISTS across in-app navigation and drops only when the user navigates through the main URL route — deliberate exit, never accidental chrome | the clamp stops being cosmetic: for single-app users it is simply what Polari IS |
+
 ## Phases
 
 - **sep-0 — the SPA single-app mode (the clamp).** Angular:
@@ -127,8 +130,27 @@ So this arc is mostly CLOSING WIRES between halves that both exist.
   icon ride the registration but the frame should wear them); the
   auth question (open q. 2).
 - **sep-6 — the 13-app sweep.** Run sep-3 across every seeded
-  PolariAppDefinition; store shows a full shelf; TESTING_OWED gets
-  Dustin's GUI pass per app.
+  PolariAppDefinition; store shows the full option set; TESTING_OWED
+  gets Dustin's GUI pass per app.
+- **sep-7 — per-app permissions (decision 10/11; possibly its own
+  arc — scoped honestly here).** `AppPermissionProfile` rows: app →
+  modules → classes → CRUDE verbs (read/create/update/delete/
+  events), reusable and auditable; KC GROUPS grant profiles (group
+  claim in the JWT → profiles → the union of what this user may
+  touch). Enforcement lands at the CRUDE/API layer (the auto-minted
+  routes gain a permission check against the caller's resolved
+  profiles — this is the SIZABLE half and the reason this phase may
+  become its own arc; the group-authority module's identity-as-
+  evidence machinery is the prior art to build on, not around).
+  Frontend: (a) AUTO-ROUTE — on login at the main URL, if the
+  resolved grants cover exactly one app, enter it clamped; (b)
+  app-prefixed route variants `/<app>/<route>` as the canonical
+  clamped URLs; (c) the sticky menu-less variable on non-prefixed
+  routes (persists through in-app navigation; cleared only by
+  passing through the main route). Sequencing note: sep-0's clamp
+  ships permission-BLIND first (presentation only, honest about it);
+  sep-7 makes the same clamp permission-DRIVEN without changing its
+  rendering machinery.
 
 ## Boundaries
 
@@ -144,20 +166,14 @@ So this arc is mostly CLOSING WIRES between halves that both exist.
 
 ## Open questions for Dustin
 
-(Answered 2026-08-14 → decision 7: isle-wide options, install-time
-materialization, standard set listed, auto-convert for new. And →
-decision 9: engines get their own tiles; opening one = the engine's
-data page with placement + usage-over-time.)
-
-1. **Login in a single-app window**: share the one Polari sign-in
-   across all app windows (recommended, simplest), or give some
-   apps their own separate login registration later if a real need
-   appears?
-3. **The stripped view in a plain browser**: `?shellApp=` would let
-   anyone open the single-app no-menus view from a normal browser —
-   good (shareable kiosk-style links; permissions still gate every
-   action) or should the stripped view be desktop-shell-only? Plan
-   assumes GOOD.
+**All answered 2026-08-14** → decisions 7 (isle-wide options,
+install-time materialization), 8 (edge-behavior modules), 9 (engine
+tiles, dual natures), 10 (one Polari login; per-app permission
+profiles granted by KC groups), 11 (permission-aware auto-routing
+for single-app users; app-prefixed route variants; the sticky
+menu-less URL variable, with navigation through the main route as
+the deliberate exit). No open questions remain — the plan is ready
+to run.
 
 ## Grounding index (files the phases touch)
 
