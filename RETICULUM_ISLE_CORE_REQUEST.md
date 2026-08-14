@@ -54,8 +54,15 @@ are.**
 ## (Dustin: "the ability to use wifi dongles as AP is core isle mesh
 ## capability")
 
-5. **Install `iw` (and consider `hostapd`) with isle-mesh on ALL
-   devices** — AP capability is core, not optional tooling. Two
+5. ✅ **DELIVERED 2026-08-14** (at Dustin's direction, from the
+   Polari session, with provenance left in isle-core's Claude
+   memory): isle-mesh-cli **0.1.23** Depends gained `iw, hostapd`,
+   built from the repo (commit `6e6425e` in ~/Isle-Mesh) and
+   published to apt.isle. hostapd installs masked/unconfigured —
+   nothing touches networking at install time (the agent-ensure
+   incident rule holds). Original ask: install `iw` (and `hostapd`)
+   with isle-mesh on ALL devices — AP capability is core, not
+   optional tooling. Two
    blessed uses for any WiFi dongle, both first-class:
    (a) **OpenWRT/onboarding AP** — the dongle broadcasts the
    isle-mesh onboarding network (the `isle core-install` story);
