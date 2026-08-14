@@ -465,16 +465,21 @@ The differences that actually change decisions, per bearer:
 | WiFi HaLow | hundreds of kbps–Mbps, km range | the interesting middle: real bandwidth AND real range; likely the best isle-to-isle backhaul where hardware allows |
 | WiFi / Ethernet | Mbps+ | no airtime budget; the honest fast path, and what ret-0 proves on |
 
-**WiFi dongles are DUAL-USE core capability (Dustin 2026-08-14):**
-every WiFi device serves BOTH (a) the isle-mesh onboarding AP role
-(OpenWRT story, isle-core's half — `iw`/AP tooling installs WITH
-isle-mesh on all devices, requested in
-`RETICULUM_ISLE_CORE_REQUEST.md`) and (b) the Reticulum bearer role
-(infrastructure WiFi proven pol-core↔econ-core 2026-08-13; dedicated
-AP/SSID mode pending `ap_capable` detection via `iw list`, a
-MEASURED DeviceLink fact once the isle agent ingests it). Neither
-use may assume it owns the dongle — ownership is the DeviceLink
-row's exclusive-owner field, same as radios.
+**WiFi dongles carry an ASSIGNMENT knob (Dustin 2026-08-14, refined
+same day):** a device is `reticulum`-only, `onboarding-ap`-only, or
+dual — never implicitly both, defaulting `unassigned` (nothing
+claims a device silently). The dual case has THREE physical flavors
+the model distinguishes: `dual-one-network` (the AP hosts the SSID
+and RNS rides it as ordinary IP — no switching, the preferred dual),
+`dual-ap-sta` (simultaneous AP+client, a MEASURED chipset fact via
+`iw` interface combinations, refused until measured), and
+`dual-switched` (time-shared; a switch interrupts the other use, so
+it is a deliberate act with provenance, never automatic).
+`DeviceLink.wifi_assignment` + `ap_capable`/`ap_sta_capable`
+(unmeasured-empty until the isle agent's `iw` ingest — request items
+5-6); `wifi_use_allowed()` rules it, selftest-pinned. `iw`/AP
+tooling installs WITH isle-mesh on all devices (isle-core's half).
+Infrastructure-WiFi bearer proven pol-core↔econ-core 2026-08-13.
 
 Consequences the design must carry:
 - **Bearer selection is a routing decision with evidence.** When two
