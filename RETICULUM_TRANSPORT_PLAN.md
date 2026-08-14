@@ -1287,6 +1287,14 @@ real prices:
   activity, store-and-forward latency for sleeping nodes (ret-7),
   cost-vs-coverage Pareto sweeps, HAM-core one-to-many coverage
   for majority-RX populations.
+- ⛔ **DRONE BRIDGE RELAYS — SHELVED 2026-08-13 (Dustin: "remove
+  drones for now, I do not want to deal with those legal
+  complications").** Was built and proven the same evening
+  (DroneBridgeProfile, drone_bridge_plan, per-gap feasibility,
+  flight-rules-assertion gate) then surgically removed; the ANTENNA
+  work from the same wave stays. Revival: the code lives in git
+  history — framework commit `7201c0a`, angular commit `7acbb12` —
+  restore from there, not from memory.
 
 - **Node LOADOUTS** (Dustin, same conversation): a node may carry
   MULTIPLE devices — several LoRa or HAM units to raise bandwidth
