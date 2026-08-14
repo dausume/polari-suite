@@ -1288,6 +1288,16 @@ real prices:
   cost-vs-coverage Pareto sweeps, HAM-core one-to-many coverage
   for majority-RX populations.
 
+- **Node LOADOUTS** (Dustin, same conversation): a node may carry
+  MULTIPLE devices — several LoRa or HAM units to raise bandwidth
+  (units multiply capacity on DISTINCT channels, range unchanged;
+  same-channel units contend and buy nothing — stated), and mixed
+  kits (lora + wifi + ham-rx on one node) whose connectivity is the
+  UNION of their parts. The real rows already model this (one
+  ReticulumInterface per device); the sims learn kits: cheapest-
+  coverage may answer "fewer nodes × more units" where bandwidth,
+  not range, binds; population mixes become kit percentages.
+
 ✅ **BACKEND BUILT + PROVEN 2026-08-13** (`meshsim_placement.py`):
 selftest **139/139**, dyn proof **21/21** — live cheapest-coverage
 put 8 SH-L1A nodes across a 2 km square for $223.92 with positions
