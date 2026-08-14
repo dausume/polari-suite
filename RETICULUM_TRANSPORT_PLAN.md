@@ -1336,7 +1336,50 @@ SH-L1A priced $27.99 APPROXIMATE with dated evidence ("re-check
 before purchasing at scale" — Amazon serves no price to
 non-browser fetches).
 
-## 6. Open questions for Dustin — ⚠ ANSWERED AS ASSUMPTIONS 2026-08-13
+## 5r. REMOTE DEVICE CONTROL over Reticulum/LoRa (ret-1g,
+## Dustin 2026-08-14)
+
+"Flashing a device with an address for Reticulum and controlling it
+remotely" — microReticulum (C++ RNS for ESP32-class MCUs) is the
+flash target, UNDER LICENCE-GATE RESEARCH (upstream's relicensing
+makes lineage the deciding question). **For now: a SIMULATED device,
+controlled over the REAL LoRa pair** — the protocol and safety seams
+proven before any firmware exists.
+
+The §5b rules made concrete (a seconds-latency lossy link NEVER
+closes a control loop):
+- **Command + ack + derived timeout**: versioned envelopes; every
+  command idempotent-keyed (commandId; repeats no-op); controller
+  timeouts derive from measured RTT (§5e), never constants.
+- **The device holds its own safety**: declared SAFE STATE per
+  actuator + a DEADMAN — controller silence past the deadman window
+  reverts actuators locally, logged as an event. The mesh carries
+  intent and telemetry; the machine protects itself.
+- **Binding is identity, not hope**: the device is provisioned with
+  its controller's identity hash; commands arrive over an RNS Link
+  whose initiator has IDENTIFIED (link.identify) — an unbound
+  identity's commands are REFUSED by name and recorded. (On real
+  hardware this binding is what "flashing with an address" means.)
+- **Rows later this arc**: ControlledDevice (actuators + safe
+  states + deadman + bound controller) and DeviceCommandRecord
+  (command→ack trail with measured latency) — commanding from the
+  UI will be a KC-authed act with provenance; inbound telemetry
+  stays ret-8 (proposals).
+
+✅ **SIMULATED DEVICE, REAL LoRa — PROVEN 2026-08-14** (rig
+`sim_device.py`/`sim_controller.py`, SH-L1A pair at the legal
+config, fidelity measured-real):
+| seam | result |
+|---|---|
+| command → ack | `set_speed 3` / `implement lowered` executed, **RTT ~245 ms** |
+| state query | read back correctly over the air |
+| identity binding | a ROGUE identity's command **refused by name** (link identification, not honor) — state untouched |
+| deadman | 25 s controller silence → device **autonomously reverted to safe state** (speed 0, implement raised), confirmed by post-silence query |
+Command-to-ack ~245 ms at 62.5k air is comfortably interactive for
+command/ack semantics — and still NEVER a closed loop (the deadman
+is the proof the machine protects itself). microReticulum research
+(licence lineage + rns-0.9.4 wire compat + E220-over-UART fit) in
+flight; the flashed-hardware step follows its gate.
 
 **Dustin authorized overnight assumptions (2026-08-13, "make
 assumptions… go through as many tasks as you can"). Each answer below
