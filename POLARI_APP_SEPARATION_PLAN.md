@@ -36,6 +36,9 @@ So this arc is mostly CLOSING WIRES between halves that both exist.
 | 4 | **One generator, three consumers**: `registration_document()` (appstore, already correct for scope=app) becomes THE single source; `build-launcher-deb.sh` gains flags and consumes it; the store tarball path already does; `install_plan` passes the full arg set. No second registration-writer anywhere | the .deb path and tarball path must not drift (today the deb hardcodes scope=instance while the tarball is app-aware) |
 | 5 | **Launcher rows are data**: making an isle app for a Polari app = creating/publishing an `AppShellDefinition` row (scope=app) — the store catalog already lists every unshelled app as `installable:false` with a `how` naming exactly this | the row model exists; the arc makes the how-path real |
 | 6 | **Engine coverage follows the odoo chain** (module → app row → IsleCatalogEntry(provides_engine) → `_BINDERS` entry): msci + cad first; recon stays shelved with the scanning arc | `_BINDERS` and `SEED_CATALOG` are explicit one-entry-per-engine extension points |
+| 7 | **The store shows the ISLE-WIDE app picture, and launchers MATERIALIZE on demand** (Dustin 2026-08-14): the catalog lists every PolariAppDefinition known ACROSS the isle — which are defined at isle level, which exist only on some instance, which are "standard" — all as OPTIONS, none pre-installed anywhere; the launcher deb is BUILT AT INSTALL TIME (row → registration → deb → install, one flow), never a shelf of pre-built artifacts that balloons as app counts grow. "Standard polari apps" = the curated seeded set, always listed; NEW apps are convertible into isle apps automatically (the same generator, triggered from the store) | Dustin: counts will balloon; 4 KB × many becomes real; options ≠ artifacts |
+| 9 | **Engines get their OWN tiles, and an engine's nature is DUAL-CAPABLE** (Dustin 2026-08-14, both halves): every compute engine appears as its own store tile "just so we can see where they are", and every engine tile carries a **DATA PAGE** — placement, reachability (the *_remote ladder's honest halves), and usage/traffic through it over time where tracked (where NOT tracked, the page says so rather than showing empty charts). But **some engines are simultaneously their own APPS** (Odoo: a full UI *and* the business-ops engine) — so the tile model carries both natures: engine-only tiles (msci/cad) open TO the data page; engine+app tiles (odoo) open to their OWN UI with the engine data page as a secondary view. One tile, two natures, never two tiles. Consequence for sep-4: *_remote seams gain lightweight usage metering (call counts/bytes/latency per window) as rows | visibility of where engines live + what flows through them, without flattening the odoo-like duals into either pure infrastructure or pure app |
+| 8 | **Edge behaviors live in APP-SPECIFIC MODULES, as reusable data** (Dustin 2026-08-14): a shell that does MORE than wrap the webapp (camera, device passthrough, radio access, network merge behaviors) gets its native half as a Gradle capability module (the existing ServiceLoader precedent) and its CONFIGURATION half as rows in a module specific to that app — behavior definitions that are configurable, reusable across apps, and expressible as no-code at the edge, "to merge polari, devices, and networks as needed". The registration's `capabilities` list becomes a REFERENCE to those definitions, not the definition itself | capability code is rare and native; capability CONFIG is common and belongs in the object model like everything else |
 
 ## Phases
 
@@ -71,30 +74,58 @@ So this arc is mostly CLOSING WIRES between halves that both exist.
   prefix (kind-aware). Fix `export_app()` dropping
   nav_json/personas_json/discipline (an exported app must be able to
   rebuild its menu).
-- **sep-3 — "make an isle app from any Polari app" (the utility).**
-  The one-command path: `pol app shell <PolariAppDefinition>` (and
-  the isle-side `isle shell launcher --app <n>`): reads the app row
-  (title, first page → startRoute, branding), creates/updates the
-  `AppShellDefinition` row (scope=app), emits the registration,
-  builds the launcher deb, and (isle side) publishes to apt.isle +
-  projects an `IsleCatalogEntry`. The missing §43 half —
-  *catalog projection of PolariAppDefinition rows into the isle
-  store* — lands here, closing the loop the appstore catalog already
-  points at. Store UI: the `installable:false … how` entries become
-  a "Create launcher" action.
-- **sep-4 — engine apps: msci + cad (the odoo chain, twice).** App
-  rows (`app-materials-engines`? — naming open question 2),
-  IsleCatalogEntry rows with `provides_engine`, `_BINDERS` entries
-  whose upsert writes the consumer knob (MSCI_ENGINES_URL /
-  CAD_ENGINES_URL provider rows, the same shape `_bind_odoo`
-  writes), doors via sep-3. Recon: explicitly NOT (shelved with
-  scanning). Livekit + reticulum already have app rows — they just
-  get sep-3 launchers.
-- **sep-5 — separation hardening.** Per-app capabilities in the
-  registration (the camera precedent — declare-or-refused);
-  per-app branding actually applied (brandColor/icon ride the
-  registration but the shell frame should wear them); WM_CLASS
-  per launcher already works. The auth question (open q. 3).
+- **sep-3 — "make an isle app from any Polari app" (the utility,
+  shaped by decision 7).** The one-command path: `pol app shell
+  <PolariAppDefinition>` (and the isle-side `isle shell launcher
+  --app <n>`): reads the app row (title, first page → startRoute,
+  branding), creates/updates the `AppShellDefinition` row
+  (scope=app), emits the registration, and **builds the launcher deb
+  AT INSTALL TIME** — the store lists options; artifacts materialize
+  when chosen. The missing §43 half — *catalog projection of
+  PolariAppDefinition rows into the isle store* — lands here as the
+  ISLE-WIDE view: apps aggregated across every instance on the isle
+  (the coherence/catalog machinery already joins devices × instances
+  × modules), each marked **defined-at-isle-level / instance-only /
+  standard / not-yet-converted**, with "convert to isle app" as the
+  automatic path for new ones. Store UI: the `installable:false …
+  how` entries become that convert/install action.
+- **sep-4 — engine apps: msci + cad (the odoo chain, twice), as
+  DATA-PAGE tiles (decision 9).** Per engine: an app row whose one
+  page is the ENGINE PAGE — placement (topology/coherence rows),
+  reachability (the *_remote ladder rendered honestly), and
+  usage-over-time; a lightweight metering addition at each *_remote
+  seam (call count / bytes / latency per window, rows not logs) so
+  the traffic story is measured, with "not tracked yet" stated
+  wherever it isn't. IsleCatalogEntry rows with `provides_engine`,
+  `_BINDERS` entries whose upsert writes the consumer knob
+  (MSCI_ENGINES_URL / CAD_ENGINES_URL provider rows, the
+  `_bind_odoo` shape), doors via sep-3. Recon: explicitly NOT
+  (shelved with scanning). Livekit + reticulum already have app
+  rows and richer pages of their own — they just get sep-3
+  launchers, and their engine pages can reuse the same metering
+  rows. **Dual-natured engines (decision 9): odoo is the exemplar —
+  its tile opens its own UI, its engine data page rides as the
+  secondary view; the app row carries an `engine_page` reference so
+  ANY engine+app keeps both natures on one tile. Livekit and
+  reticulum are duals too (own pages + engine role).**
+- **sep-5 — edge-behavior modules (decision 8).** The shape:
+  `AppEdgeBehavior` rows (object-coherent, in a module specific to
+  the app that needs them — the reticulum module already models
+  exactly this for radios: DeviceLink correspondence + the §5l
+  shell-capability gate) defining WHAT a shell may do at the edge
+  (which devices, which networks, which no-code graphs run
+  edge-side) and with what configuration; the registration's
+  `capabilities` list references those rows; the shell's Gradle
+  capability modules (ServiceLoader, the camera/:capture-desktop
+  precedent) stay the rare NATIVE half, gated on declaration as
+  today. Reuse: a behavior configuration written once (e.g. "may
+  attach the isle's LoRa radio", "may join SSID X") is referenced
+  by any app that needs it. No-code at the edge = the graphs the
+  behavior rows name, executed shell-side against the same schema
+  the backend serves — the "merge polari, devices, and networks"
+  seam. Also here: per-app branding actually applied (brandColor/
+  icon ride the registration but the frame should wear them); the
+  auth question (open q. 2).
 - **sep-6 — the 13-app sweep.** Run sep-3 across every seeded
   PolariAppDefinition; store shows a full shelf; TESTING_OWED gets
   Dustin's GUI pass per app.
@@ -113,22 +144,20 @@ So this arc is mostly CLOSING WIRES between halves that both exist.
 
 ## Open questions for Dustin
 
-1. **Default launcher set**: auto-publish launcher debs for ALL 13
-   apps (a full shelf, ~4 KB each + shared core), or on-demand via
-   the store's "Create launcher" action only?
-2. **Engine app naming**: fold msci/cad into existing discipline
-   apps (they already ride app-materials-science / app-mechanical
-   via modules) with the ENGINES surfaced as capabilities, or give
-   engines their own thin "engine ops" app rows?
-3. **Auth in separated apps**: today the shell opens the instance
-   URL and the SPA's KC login covers everything. Should a scope=app
-   launcher share the instance session (current behavior, simplest)
-   or eventually carry per-app KC clients (the registration's auth
-   block already allows it — defer unless a real need appears)?
-4. **Browser parity**: `?shellApp=` makes separation reachable from
-   any browser — feature (shareable kiosk links) or leak (should
-   locked mode require the shell)? Plan assumes FEATURE (it is
-   presentation, not authorization).
+(Answered 2026-08-14 → decision 7: isle-wide options, install-time
+materialization, standard set listed, auto-convert for new. And →
+decision 9: engines get their own tiles; opening one = the engine's
+data page with placement + usage-over-time.)
+
+1. **Login in a single-app window**: share the one Polari sign-in
+   across all app windows (recommended, simplest), or give some
+   apps their own separate login registration later if a real need
+   appears?
+3. **The stripped view in a plain browser**: `?shellApp=` would let
+   anyone open the single-app no-menus view from a normal browser —
+   good (shareable kiosk-style links; permissions still gate every
+   action) or should the stripped view be desktop-shell-only? Plan
+   assumes GOOD.
 
 ## Grounding index (files the phases touch)
 
