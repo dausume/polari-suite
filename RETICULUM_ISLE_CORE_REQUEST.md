@@ -50,6 +50,26 @@ are.**
    genuinely wants a router-resident stack later, that is its own
    conversation (and its own licence-pin care, see above).
 
+## ADDED 2026-08-14 — WiFi dongles are DUAL-USE core capability
+## (Dustin: "the ability to use wifi dongles as AP is core isle mesh
+## capability")
+
+5. **Install `iw` (and consider `hostapd`) with isle-mesh on ALL
+   devices** — AP capability is core, not optional tooling. Two
+   blessed uses for any WiFi dongle, both first-class:
+   (a) **OpenWRT/onboarding AP** — the dongle broadcasts the
+   isle-mesh onboarding network (the `isle core-install` story);
+   (b) **Reticulum comms bearer** — the dongle carries RNS traffic,
+   either on existing infrastructure WiFi (proven pol-core ↔
+   econ-core 2026-08-13) or as its own dedicated AP/SSID that peers
+   join directly.
+6. **AP-capability detection as a device fact**: `iw list` (AP in
+   "Supported interface modes") per WiFi device, carried on the isle
+   agent's device ingest so Polari's DeviceLink rows can record
+   `ap_capable` as a MEASURED fact rather than a hope. pol-core's
+   MediaTek dongle (0e8d:7610) is the first unverified case — `iw`
+   is not installed there yet.
+
 ## Open questions for isle-core
 
 - Is the OpenWRT instance on staging-a itself a KVM guest on the same

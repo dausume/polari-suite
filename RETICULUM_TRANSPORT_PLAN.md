@@ -465,6 +465,17 @@ The differences that actually change decisions, per bearer:
 | WiFi HaLow | hundreds of kbps–Mbps, km range | the interesting middle: real bandwidth AND real range; likely the best isle-to-isle backhaul where hardware allows |
 | WiFi / Ethernet | Mbps+ | no airtime budget; the honest fast path, and what ret-0 proves on |
 
+**WiFi dongles are DUAL-USE core capability (Dustin 2026-08-14):**
+every WiFi device serves BOTH (a) the isle-mesh onboarding AP role
+(OpenWRT story, isle-core's half — `iw`/AP tooling installs WITH
+isle-mesh on all devices, requested in
+`RETICULUM_ISLE_CORE_REQUEST.md`) and (b) the Reticulum bearer role
+(infrastructure WiFi proven pol-core↔econ-core 2026-08-13; dedicated
+AP/SSID mode pending `ap_capable` detection via `iw list`, a
+MEASURED DeviceLink fact once the isle agent ingests it). Neither
+use may assume it owns the dongle — ownership is the DeviceLink
+row's exclusive-owner field, same as radios.
+
 Consequences the design must carry:
 - **Bearer selection is a routing decision with evidence.** When two
   bearers reach the same `.arch` node, pick by measured link quality
