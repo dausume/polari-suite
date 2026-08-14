@@ -93,3 +93,13 @@ is the component that should own the NIC exclusively, the deeper fix
 is for the agent to declare the interface unmanaged by NM
 (`NM_CONTROLLED=no` / an `unmanaged-devices` rule) — that is an
 isle-side design decision, not a polari one.
+
+## APPLIED 2026-08-14 (pol-core, during the reticulum arc)
+
+The fix this handoff prescribed is now LIVE on pol-core: `Profile 1`
+(the wired isle profile) carries `ipv4.never-default yes`,
+`ipv6.never-default yes`, `ipv4.route-metric 900`,
+`autoconnect-priority -10`. Activated on eno1 -> isle lease
+10.10.0.174, default route VERIFIED still on wifi, apt.isle
+resolving and reachable. isle-core's own boxes remain its own
+Claude's to fix.
