@@ -1246,6 +1246,48 @@ gained `rx_sensitivity_dbm` + `declared_range_m` (SH-L1A: −129 dBm,
 1000 m mid-vendor); catalog seed also rides the legacy pass so
 composition-gated boots still get it. `POST /api/reticulum/meshsim`.
 
+## 5q. CONFIGURABLE MAP SIMULATIONS — placement, population, cost
+## (ret-1f, Dustin 2026-08-13)
+
+The §5p simulator becomes configurable against real geography and
+real prices:
+
+- **Population build mixes**: percentages of people carrying
+  particular builds (lora / ham / wifi / wifi-halow / lorawan). The
+  interop matrix does the honest work: LoRaWAN builds cannot peer
+  (star-of-stars, DECIDED row 9), HAM-rx builds LISTEN to a licensed
+  HAM core without transmitting (§5g receive-first), closed-framing
+  models pair only with themselves — so a mix report says who
+  actually interconnects, who is reachable one-way, and who is
+  ISOLATED, never just a percentage pie.
+- **Reach modes**: `max-spread` (hex fill from a point/area — max
+  coverage, fewest nodes) vs `linear` (a corridor chain along the
+  shape's long axis — roads/rivers; the chain is the relay STRESS
+  case, avg hops ~n/3, and the math says so).
+- **Drawn geolocation shapes**: geojson polygons (lon/lat converted
+  to local meters at the centroid — equirectangular, fine at mesh
+  scales, stated as an assumption; terrain still disclaimed).
+- **(A) Cheapest optimal placement**: given the shape + device
+  profiles WITH PRICES (DeviceModel gains price_usd + dated
+  evidence; unpriced/unranged models REFUSE to be costed), rank
+  candidate types by total cost of feasible coverage (spacing →
+  count → price × count, relay-allowance feasibility gate), return
+  the winner's actual node positions.
+- **(B) Fixed-locations feasibility**: given specified locations,
+  can the shape be covered — uncovered gaps NAMED with centroids,
+  disconnected nodes NAMED — with what types and what bandwidth to
+  every node (graph-aware hops), then cost-optimized per node
+  (greedy v1, stated).
+- **Resilience** (proposed, built): remove each node in turn —
+  articulation nodes whose loss partitions the mesh or uncovers
+  area are single points of failure, named with what they'd take
+  down.
+- **Proposed for later** (plan-only): growth curves (per-peer
+  bandwidth vs mesh size), duty-cycle saturation vs population
+  activity, store-and-forward latency for sleeping nodes (ret-7),
+  cost-vs-coverage Pareto sweeps, HAM-core one-to-many coverage
+  for majority-RX populations.
+
 ## 6. Open questions for Dustin — ⚠ ANSWERED AS ASSUMPTIONS 2026-08-13
 
 **Dustin authorized overnight assumptions (2026-08-13, "make
