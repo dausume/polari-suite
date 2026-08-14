@@ -88,3 +88,32 @@ prefers it with eyes open.
 3. Plan DECIDED row 2 and §1/§5h are amended to cite this gate.
 4. If upstream ever offers a dual licence or drops the clauses,
    re-run this gate before unpinning.
+
+## ADDENDUM 2026-08-14 — microReticulum + the pin-isolation finding
+
+**microReticulum** (attermann/microReticulum, C++ RNS for ESP32-class
+MCUs, three-source checked): **Apache-2.0 by all four sources**
+(sidebar, LICENSE at head AND tag 0.5.0, source headers,
+library.json), one LICENSE commit ever (2023-10-06, no relicensing
+event) → **GPLv3-COMPATIBLE, conditional-green**. Recorded caveat:
+it is a PORT that tracks upstream (literal Python transcriptions
+ride in comments); fragments mirroring post-2025-04-15 restricted
+upstream (e.g. Token.cpp ≈ upstream's 0.9.5 Token.py) carry a
+translation-provenance risk. Mitigating: Qvist's own December 2025
+statement — "The protocol is public domain. The code is open
+source." Note also: its companion microReticulum_Firmware is GPLv3
+(fine), and the FOSDEM community deck mislabels the library MIT —
+the primary sources say Apache-2.0.
+
+🔑 **THE PIN IS WIRE-STRANDED (ledger this):** upstream 0.9.5→1.0.0
+migrated links to AES-256 and **1.0.0 removed the AES-128 handlers**
+— so our pinned rns 0.9.4 mesh is self-consistent but **cannot form
+links with ANY modern RNS 1.x node** (the entire live ecosystem).
+Fine for isle-to-isle where every node is ours; a real limit the
+day we want third-party Reticulum interop. microReticulum's Token
+code is dual-mode (0.9.4 links PLAUSIBLE, tested by nobody — it
+tests against RNS 1.2.9 only). **The licence-clean exit when
+needed: RetiNet** (Python fork, AGPL-3.0, created before the
+relicense, "fully RNS 1.0 compatible... drop-in replacement") —
+AGPLv3 and GPLv3 combine via their §13s; gate it properly before
+adopting.

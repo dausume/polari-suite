@@ -1396,9 +1396,26 @@ config, fidelity measured-real):
 | deadman | 25 s controller silence → device **autonomously reverted to safe state** (speed 0, implement raised), confirmed by post-silence query |
 Command-to-ack ~245 ms at 62.5k air is comfortably interactive for
 command/ack semantics — and still NEVER a closed loop (the deadman
-is the proof the machine protects itself). microReticulum research
-(licence lineage + rns-0.9.4 wire compat + E220-over-UART fit) in
-flight; the flashed-hardware step follows its gate.
+is the proof the machine protects itself).
+
+**RESEARCH VERDICT 2026-08-14 (gate addendum has the detail):**
+microReticulum is **Apache-2.0-clean** (GPLv3-ok, translation-
+provenance caveat noted) and DOES implement identified Links (landed
+0.3–0.5.0, interop-tested vs RNS 1.2.9) — so mechanism (1) is
+available on MCU in principle. BUT: no LXMF, no E220/UART driver in
+ANY implementation (E220 hardware cannot become an RNode — closed
+EByte firmware), provisioning wire format still churning, links two
+months old, and 🔑 **our 0.9.4 pin cannot link with RNS 1.x** (gate
+addendum). **TWO-TRACK DECISION:**
+1. **Near-term field device = Pi-Zero-class Linux + our pinned
+   Python rns + a small custom E220 serial interface** (~100 lines
+   of framing over transparent UART; needed on BOTH ends of an E220
+   link regardless) — licence-clean, protocol-identical to our mesh,
+   LXMF store-and-forward available. ~0.6–1.5 W continuous is the
+   honest cost vs an MCU's milliwatts.
+2. **Watch microReticulum, don't bet yet** — revisit when it grows
+   LXMF/stable provisioning, or when we un-pin (RetiNet, AGPL-3.0,
+   is the gated exit).
 
 **Dustin authorized overnight assumptions (2026-08-13, "make
 assumptions… go through as many tasks as you can"). Each answer below
