@@ -1364,6 +1364,14 @@ closes a control loop):
   name and recorded. On real hardware "flashing with an address"
   means flashing THREE things: the device's own identity, its
   destination name, and its CONTROLLER'S public key.
+- **THE OWNER IS THE ISLE** (Dustin 2026-08-14): the flashed owner
+  identity is the INSTANCE identity (§6 binding — the one the
+  sidecar already persists in its volume, e.g. pol-core's
+  `765aa9a9…`), never a person's. Humans command THROUGH the isle:
+  KC-authed acts with provenance decide when the sidecar keys up;
+  the device only ever knows "my owner is isle X". Staff and
+  laptops rotate without re-flashing the tractor; only deliberately
+  re-keying the isle (wiping the sidecar volume) changes the owner.
   ⚠ Two enforcement mechanisms, chosen by firmware completeness
   (microReticulum research decides): (1) identified Links — replay
   dies free with the link's ephemeral session keys; (2) signed-
