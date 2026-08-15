@@ -1,6 +1,13 @@
 # Testing owed — tracker (written 2026-08-13, for Dustin's pass later today)
 
-## 0. New 2026-08-15 — sep-0..4 (eyeball pass, ~15 min)
+## 0. New 2026-08-15 — sep-0..5 (eyeball pass, ~15 min)
+
+sep-5 addition: `curl -sk …/api/appstore/behaviors` lists the 3
+exemplar edge behaviors; a scope=app shell declaring one shows it
+via the `shell.capabilities` bridge message; a registration with
+`brandColor` (e.g. set branding_json on a shell row, rebuild the
+launcher) colors the desktop chrome bar. All shell-side visuals
+need your GUI session.
 
 sep-3/4 additions to the pass below: `/isle-store` should show the
 "Polari app options" section (16 options, markers) + the two engine
