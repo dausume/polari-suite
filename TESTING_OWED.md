@@ -3,16 +3,48 @@
 ## 0. New 2026-08-15 — sep-0..7 (eyeball pass + the permissions knob)
 
 **sep-7 is LIVE with the knob OFF (default — zero behavior change).**
-Your steps to make it real:
-1. Create KC groups `wax-print-shop-operators` / `climate-viewers`
-   (or edit the 2 seeded AppPermissionProfile rows to name YOUR
-   groups) and put a test user in one.
-2. Flip `POLARI_APP_PERMISSIONS=advisory` on the backend service
+
+**CORRECTION (your 2026-08-15 call): NO new Keycloak groups are
+needed — never invent groups.** The 2 seeded AppPermissionProfile
+rows are now UNPUBLISHED TEMPLATES bound to no groups (they grant
+nothing as seeded; the live rows were backfilled the same way).
+Profiles tie to KNOWN EXISTING groups through the auth section's
+own machinery, which already exists:
+
+- `GET /api/groups` — the realm's REAL groups, live from Keycloak
+  (admin client; already powers Permissions → Admin in the UI).
+- `GET /api/roles` — realm roles (60s cache). Roles also grant
+  profiles directly, so a role-only realm needs zero group work.
+- `GET /api/apps/permissions/profiles` now returns `knownGroups`
+  (the same live sources) beside the profile rows, so authoring
+  picks from what exists — honest note when the admin client is
+  unconfigured (`POLARI_KEYCLOAK_ADMIN_URL` + secret is the knob).
+
+Your steps for later (~10 min, no realm changes required).
+The live answer is already in hand — the realm's EXISTING groups
+are: **Polari Administrators, Polari Developers, Polari Users,
+Polari Viewers** (roles: polari-viewer / polari-user /
+polari-developer / polari-admin; `knownGroups.source =
+keycloak-admin-api (live)`):
+1. Decide which EXISTING group/role holds each app's access —
+   e.g. bind app-climate-viewer to `Polari Viewers` (or the
+   polari-viewer role) and wax-print-shop-operator to
+   `Polari Users`. Nothing needs creating unless you WANT
+   finer-than-existing granularity someday.
+2. On each template profile row (CRUDE PUT on
+   /AppPermissionProfile, or the auth section): set
+   `kc_groups_json` to the chosen EXISTING names and
+   `published: true`. That is the whole binding.
+   (If the JWT lacks a `groups` claim, either rely on roles —
+   they grant too — or enable KC's group-membership mapper on the
+   polari client; the resolver prefers the claim, states which
+   source matched either way.)
+3. Flip `POLARI_APP_PERMISSIONS=advisory` on the backend service
    (env knob — deliberately NOT flipped by the build): responses
    gain `X-Polari-Permission-Advisory: would-deny …` headers where
    enforcement WOULD refuse, refusing nothing. Watch, then decide
    on `enforce`.
-3. Log in as the single-app test user at the MAIN URL — decision
+4. Log in as a single-app test user at the MAIN URL — decision
    11a auto-routes them into their one app, clamped (needs mode ≠
    off). `GET /api/apps/permissions/my` with their token shows the
    resolved grants + evidence.
