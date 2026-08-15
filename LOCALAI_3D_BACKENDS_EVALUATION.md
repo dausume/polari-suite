@@ -5,9 +5,11 @@ non-commercial clause, ever — the project's purpose is to empower
 small businesses, so commercial use is not optional. NC weights
 block a backend even when its code is MIT.**
 
-**ADOPTED (Dustin: "1 and 2 we should take") — forked under our
-account as license/reference pins (the rns relicensing lesson:
-upstream can relicense; a fork cannot be retroactively changed):**
+**ADOPTED — forked under our account as license/reference pins
+(the rns relicensing lesson: upstream can relicense; a fork cannot
+be retroactively changed):**
+- https://github.com/dausume/free-splatter.cpp — **Dustin: "the
+  most important one for us"** (2026-08-15, after §3 resolved green)
 - https://github.com/dausume/depth-anything.cpp
 - https://github.com/dausume/trellis2cpp
 
@@ -68,15 +70,32 @@ model cards — all three surfaces, per the standing rule.
   one image — that is asset generation, not measurement; for
   scanning fidelity DA3's measured depth is the honest tool.
 
-## 3. free-splatter.cpp — ⚠ NOT PUBLIC YET
+## 3. free-splatter.cpp — ✅ GREEN, ADOPTED (Dustin: the most
+##    important one for us)
 
-- Named in the post ("pose-free 3D reconstruction, a handful of
-  photos → 3D Gaussians, no poses, no GPU") but no public repo in
-  mudler/ or localai-org as of 2026-08-15.
-- Upstream (TencentARC/FreeSplatter, ICCV 2025): Apache-2.0 with
-  Tencent policy riders; ⚠ upstream deps Hunyuan3D-1 and BRIAAI
-  RMBG-2.0 are NON-COMMERCIAL — whether the .cpp port avoids them
-  is unknowable until it publishes. WATCH, don't plan on it.
+- **Resolved 2026-08-15** (first look wrongly concluded
+  not-public — the code is at **github.com/localai-org/
+  free-splatter.cpp**; the earlier 404 was the wrong org, and the
+  GGUF weights live on HF at LocalAI-io/free-splatter.cpp).
+- **Code**: Apache-2.0 ✔. **Weights**: Apache-2.0 ✔ (derivative of
+  TencentARC/FreeSplatter, itself Apache-2.0). The upstream NC
+  worry (Hunyuan3D-1, RMBG-2.0) DOES NOT APPLY — the port carries
+  neither; only FreeSplatter + bundled ggml.
+- **What it does**: POSE-FREE reconstruction — N plain photos
+  (2 scene views, or 3–4 OBJECT views at 512×512) → per-pixel 3D
+  Gaussians (position, SH color, opacity, scale, rotation),
+  standard splat-viewer compatible. No camera poses, no Python.
+- **Hardware**: CPU-feasible — ~14 s/forward-pass on 12 threads;
+  ~0.22 s with Vulkan/CUDA. Runs on our boxes.
+- **Why it is the most important**: the scan arc died on small
+  low-texture OBJECTS — and object-mode FreeSplatter takes 3–4
+  uncalibrated photos of exactly that and answers with a dense
+  gaussian representation, no feature matching, no pose estimation,
+  no orbit rig. It is the shortest path from "phone photos of a
+  part" to "viewable 3D"; depth-anything.cpp complements it for
+  metric SCENES/depth (and where meshes are needed, gaussians →
+  surfacing is the follow-on step to design at revival time).
+- **Fork (pin)**: https://github.com/dausume/free-splatter.cpp
 
 ## Verdict
 
