@@ -1,6 +1,18 @@
 # Testing owed — tracker (written 2026-08-13, for Dustin's pass later today)
 
-## 0. New 2026-08-15 — sep-0..5 (eyeball pass, ~15 min)
+## 0. New 2026-08-15 — sep-0..6 (eyeball pass; sep-6 = per-app GUI walk)
+
+**sep-6 machine half DONE**: ALL 16 apps converted (16/16 store
+options show "isle app"; rows + registrations live; 14 launcher
+debs built to the session scratchpad `sep6-debs/` — rebuildable
+anytime with `pol apps shell <app>`, so don't archive them).
+Owed = YOUR GUI pass per app (the plan's sep-6 human half): for
+each app you care about, either install its deb on a desktop or
+open its clamped URL in a browser
+(`/<startRoute>?shellApp=<name>` — e.g.
+`/magnetics/motor?shellApp=app-magnetics`, already spot-proven
+headlessly) and eyeball that the menu is the app's own and
+nothing foreign leaks.
 
 sep-5 addition: `curl -sk …/api/appstore/behaviors` lists the 3
 exemplar edge behaviors; a scope=app shell declaring one shows it
