@@ -25,9 +25,15 @@ eyeball in a real browser:
   session-sticky; a fresh tab without the param is unclamped.
 - ⚠ swarm note: the staging swarm now has 3 nodes and
   `polari-node_frontend`/`backend` have NO placement constraint —
-  `--force` updates bounce off the other nodes (bind mount + local
-  image only exist on the leader) before landing. Worked, but the
-  staging stack file wants a `node.hostname` constraint.
+  every `--force` update bounces off the other nodes (bind mount +
+  local image only exist on the leader) before converging; no
+  outage, just minutes of Rejected retries. The DESIGNED fix is the
+  existing machinery, not a hand-edit: constraints render from
+  topology rows (`POL_STACK_CONSTRAINTS` via stacks.yml /
+  `pol allocate <instance> <machine>`, node labels
+  `polari.machine=*` already exist) and land on the next
+  `pol swarm deploy node`. Your call which machine row prf-a pins
+  to.
 
 Everything below is BUILT and machine-verified as far as automation can
 go; each item now needs a human, a credential, or a device. Ordered by
