@@ -1,6 +1,25 @@
 # Testing owed — tracker (written 2026-08-13, for Dustin's pass later today)
 
-## 0. New 2026-08-15 — sep-0..6 (eyeball pass; sep-6 = per-app GUI walk)
+## 0. New 2026-08-15 — sep-0..7 (eyeball pass + the permissions knob)
+
+**sep-7 is LIVE with the knob OFF (default — zero behavior change).**
+Your steps to make it real:
+1. Create KC groups `wax-print-shop-operators` / `climate-viewers`
+   (or edit the 2 seeded AppPermissionProfile rows to name YOUR
+   groups) and put a test user in one.
+2. Flip `POLARI_APP_PERMISSIONS=advisory` on the backend service
+   (env knob — deliberately NOT flipped by the build): responses
+   gain `X-Polari-Permission-Advisory: would-deny …` headers where
+   enforcement WOULD refuse, refusing nothing. Watch, then decide
+   on `enforce`.
+3. Log in as the single-app test user at the MAIN URL — decision
+   11a auto-routes them into their one app, clamped (needs mode ≠
+   off). `GET /api/apps/permissions/my` with their token shows the
+   resolved grants + evidence.
+Deferred inside sep-7 (recorded in memory): 11b app-prefixed
+routes + 11c sticky menu-less exit — say when you want them.
+
+## 0z. sep-0..6 (eyeball pass; sep-6 = per-app GUI walk)
 
 **sep-6 machine half DONE**: ALL 16 apps converted (16/16 store
 options show "isle app"; rows + registrations live; 14 launcher
