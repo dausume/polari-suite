@@ -1,5 +1,23 @@
 # Testing owed — tracker (written 2026-08-13, for Dustin's pass later today)
 
+## 0. New 2026-08-15 — sep-0 single-app clamp (eyeball pass, ~5 min)
+
+sep-0 is LIVE on staging (branch `dev-sep-1`, angular + rf-node
+pointer). Machine-proven: 7 specs green, headless-browser acceptance
+passed (chrome hidden, foreign route redirected). Owed = the human
+eyeball in a real browser:
+
+- `https://prf.192.168.0.210.nip.io/?shellApp=app-archipelago` —
+  expect: NO Apps/Core switchers, NO "Polari core" side-nav block,
+  "Mesh Archipelago" pill + its own menu only; deep links elsewhere
+  (e.g. `/topology`) bounce to the app home. The lock is
+  session-sticky; a fresh tab without the param is unclamped.
+- ⚠ swarm note: the staging swarm now has 3 nodes and
+  `polari-node_frontend`/`backend` have NO placement constraint —
+  `--force` updates bounce off the other nodes (bind mount + local
+  image only exist on the leader) before landing. Worked, but the
+  staging stack file wants a `node.hostname` constraint.
+
 Everything below is BUILT and machine-verified as far as automation can
 go; each item now needs a human, a credential, or a device. Ordered by
 how much one sitting closes.
