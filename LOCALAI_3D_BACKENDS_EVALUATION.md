@@ -5,13 +5,34 @@ non-commercial clause, ever — the project's purpose is to empower
 small businesses, so commercial use is not optional. NC weights
 block a backend even when its code is MIT.**
 
-**ADOPTED — forked under our account as license/reference pins
-(the rns relicensing lesson: upstream can relicense; a fork cannot
-be retroactively changed):**
-- https://github.com/dausume/free-splatter.cpp — **Dustin: "the
-  most important one for us"** (2026-08-15, after §3 resolved green)
-- https://github.com/dausume/depth-anything.cpp
-- https://github.com/dausume/trellis2cpp
+**FORK ROSTER (Dustin 2026-08-15: fork "the ones that meet our
+criteria in terms of licensing and otherwise") — pins under
+github.com/dausume/ (the rns relicensing lesson: upstream can
+relicense; a fork cannot be retroactively changed):**
+
+Kept (criteria-passing):
+- **free-splatter.cpp** — "the most important one for us"
+- depth-anything.cpp, trellis2cpp (the first two taken)
+- parakeet.cpp, moss-transcribe.cpp, moss-tts.cpp, voxtral-tts.c
+  (speech in/out — Apache/CC-BY-4.0 family)
+- LocalVQE, ced.cpp, voice-detect.cpp (meeting-audio companions)
+- rf-detr.cpp, animate-any-mesh.cpp (vision/mesh — weights
+  re-check at adoption for animate-any-mesh)
+- privacy-filter.cpp, vllm.cpp (isle-sovereign text)
+
+Never forked / to delete (criteria-failing):
+- ⛔ locate-anything.cpp — NVIDIA weights NON-COMMERCIAL (never
+  forked)
+- 🗑 magpie-tts.cpp — NVIDIA Open Model License (gated, custom);
+  Apache TTS alternatives exist. FORKED IN ERROR before the
+  criteria clarification — delete dausume/magpie-tts.cpp
+- 🗑 vibevoice.cpp — MIT text but Microsoft's card says "research
+  purpose"; ambiguity we don't build a business on. Delete
+  dausume/vibevoice.cpp
+- 🗑 face-detect.cpp — no fit + privacy posture. Delete
+  dausume/face-detect.cpp
+- (deletes need `gh auth refresh -s delete_repo` or the GitHub UI
+  — the CLI token lacks the scope; Dustin's step)
 
 Source: Richard Palethorpe's post (LocalAI team) on their 17
 standalone C++/ggml inference backends. Dustin flagged the 3D ones
