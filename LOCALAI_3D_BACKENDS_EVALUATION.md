@@ -1,4 +1,15 @@
-# LocalAI 3D backends — evaluation (2026-08-15)
+# LocalAI backends — evaluation (2026-08-15)
+
+**⛔ STANDING RULE (Dustin, 2026-08-15): NOTHING with a
+non-commercial clause, ever — the project's purpose is to empower
+small businesses, so commercial use is not optional. NC weights
+block a backend even when its code is MIT.**
+
+**ADOPTED (Dustin: "1 and 2 we should take") — forked under our
+account as license/reference pins (the rns relicensing lesson:
+upstream can relicense; a fork cannot be retroactively changed):**
+- https://github.com/dausume/depth-anything.cpp
+- https://github.com/dausume/trellis2cpp
 
 Source: Richard Palethorpe's post (LocalAI team) on their 17
 standalone C++/ggml inference backends. Dustin flagged the 3D ones
@@ -80,6 +91,33 @@ Poisson. The scan-arc machinery (module, worker, jobs, placements,
 aggregation UI on dev-scan-1) plugs in unchanged — only the
 reconstruction engine swaps.
 
+## 4. The REST of the 17 — sweep against our active arcs
+
+Green = code AND weights commercial-clean as checked 2026-08-15;
+fork-at-adoption applies to all of them.
+
+| Backend | Licenses | Fits | Verdict |
+|---|---|---|---|
+| **parakeet.cpp** | MIT code + **CC-BY-4.0** NVIDIA NeMo weights (commercial OK w/ attribution) | Meetings (mtg) transcription; the in-app AI assistant's VOICE INPUT (ai-assistant-panel is live app-wide) | ✅ useful, green |
+| **moss-transcribe.cpp** | localai-org port; OpenMOSS MOSS-Transcribe-Diarize (Apache-2.0 family — PIN exact weight license at adoption) | Meetings: who-spoke-what → MeetingRecord rows (diarization) | ✅ useful, verify-then-green |
+| **LocalVQE** | Apache-2.0 | Meetings audio: real-time echo cancellation / noise suppression — directly upstream of the LiveKit mic path | ✅ useful, green |
+| **vllm.cpp** | Apache-2.0 (weights per-model — pick Apache/MIT models) | LOCAL LLM serving for the in-app assistant — isle-sovereign, no external API | ✅ useful, green |
+| **privacy-filter.cpp** | localai-org port; OpenAI privacy-filter model **Apache-2.0** | Gate before ANY text leaves the isle (assistant calls, PSC publishing, public-repo hygiene posture) | ✅ useful, green |
+| **rf-detr.cpp** | Apache-2.0 (RF-DETR weights Apache-2.0, Roboflow) | Scan capture: crop-to-object BEFORE reconstruction (the static-background hijack fix, done properly); plant monitoring (aquaponics); AR zones | ✅ useful, green |
+| **locate-anything.cpp** | MIT code, ⛔ **NVIDIA LocateAnything-3B weights = NON-COMMERCIAL** | (would have fit AR zones / NL object location) | ⛔ **BLOCKED — NC weights** |
+| magpie-tts / moss-tts / vibevoice / voxtral-tts | unchecked in depth; NVIDIA magpie weights SUSPECT (NVIDIA TTS often NC) — check before any adoption | assistant voice OUTPUT | ⚠ check at adoption |
+| face-detect.cpp | unchecked | no current fit; privacy posture argues against | — skip |
+| ced.cpp / voice-detect.cpp | unchecked | marginal (sound classification / VAD) | — later if meetings wants VAD |
+
+Priority order if adopted: LocalVQE + parakeet/moss-transcribe
+(meetings arc is LIVE and owed its human audio pass anyway) →
+privacy-filter (cheap, guards everything) → vllm.cpp (assistant
+sovereignty) → rf-detr (scanning revival companion).
+
 Sources: the mudler/depth-anything.cpp README + LICENSE, the
 localai-org org listing, localai.io 3D-generation docs,
-HF depth-anything model cards, TencentARC/FreeSplatter README.
+HF depth-anything model cards, TencentARC/FreeSplatter README,
+mudler/parakeet.cpp README (CC-BY-4.0 weights note),
+nvidia/LocateAnything-3B HF LICENSE (non-commercial),
+OpenMOSS/MOSS-TTS + MOSS-Transcribe HF cards, localai-org/
+privacy-filter.cpp (OpenAI model, Apache-2.0).
