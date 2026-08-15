@@ -1,6 +1,16 @@
 # Testing owed — tracker (written 2026-08-13, for Dustin's pass later today)
 
-## 0. New 2026-08-15 — sep-0..2 (eyeball pass, ~10 min)
+## 0. New 2026-08-15 — sep-0..4 (eyeball pass, ~15 min)
+
+sep-3/4 additions to the pass below: `/isle-store` should show the
+"Polari app options" section (16 options, markers) + the two engine
+tiles; `/engines/msci` and `/engines/cad` render the honest data
+pages; `/app/app-business` shows the "engine data page" chip. To see
+REAL metering numbers, bring an engines worker up
+(docker-compose.msci-engines.yml) and run any DFT/FEM call — the
+usage table fills from the first call.
+
+## 0a. sep-0..2 (eyeball pass, ~10 min)
 
 sep-1 (shell passes ?shellApp=) and sep-2 (one registration
 generator; deb builder consumes it) are BUILT on `dev-sep-1` ×4
