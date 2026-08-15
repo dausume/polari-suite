@@ -131,6 +131,60 @@ Poisson. The scan-arc machinery (module, worker, jobs, placements,
 aggregation UI on dev-scan-1) plugs in unchanged — only the
 reconstruction engine swaps.
 
+## 4b. LocalAI ITSELF (the server) — ✅ GREEN, and Polari is
+##     already wired for it
+
+Evaluated 2026-08-15 at Dustin's ask ("a locally hostable AI we
+could enable via self-hosting in some places in polari").
+Fork (pin): **https://github.com/dausume/LocalAI**.
+
+- **What**: MIT-licensed, OpenAI/Anthropic/ElevenLabs-compatible
+  API server over 60+ backends (llama.cpp, whisper.cpp, vLLM, the
+  17 C++ ports above...). "No GPU required"; CUDA/ROCm/oneAPI/
+  Metal/Vulkan optional. Modular: lightweight core + per-backend
+  containers pulled on demand. Fully offline/air-gapped once
+  models are cached — "your data never leaves your infrastructure".
+- **The load-bearing discovery — ZERO new code for the chat half**:
+  Polari's reasoning-provider layer
+  (polariApiServer/reasoning_provider.py) already ships an
+  `openai_compatible` provider whose registry entry has
+  `needs_base_url: True` and "key optional for local servers", and
+  whose docstring literally anticipates "a future local open-weight
+  server". Wiring the in-app assistant to a LocalAI container is
+  CONFIG, not code: deploy LocalAI, set the managed reasoning
+  config to provider `openai_compatible` +
+  `base_url=http://<localai>:8080/v1` + a model name. Tool-calling
+  (the assistant's gated proposals) rides the same OpenAI wire
+  format LocalAI serves.
+- **Where it slots beyond chat**:
+  1. **Assistant voice sovereignty** — today the panel uses browser
+     Web Speech APIs (Chrome's STT is CLOUD-backed). LocalAI's
+     /v1/audio/transcriptions (whisper/parakeet backends) +
+     /v1/audio/speech (TTS) make voice local; the Realtime API
+     covers speech-to-speech later.
+  2. **Meetings** — transcription/diarization endpoints for
+     MeetingRecord rows (the parakeet/moss backends run INSIDE
+     LocalAI, so adopting the server covers those without separate
+     services).
+  3. **Privacy gate** — privacy-filter as a LocalAI backend before
+     any text leaves the isle.
+  4. **Embeddings** (/v1/embeddings) for future search over rows.
+- **The Polari-native shape (when built — a small sep-4-pattern
+  follow-up, NOT built yet)**: LocalAI as an isle app + engine —
+  IsleCatalogEntry (kind mesh-app, `provides_engine: 'reasoning'`),
+  a `_bind_reasoning` binder that writes the managed reasoning
+  config (provider openai_compatible + base_url) the way
+  _bind_odoo writes OdooInstanceConfig, an ENGINES registry entry
+  so /engines/reasoning shows placement/reachability/usage, and a
+  store tile. Deploying LocalAI anywhere on the isle would then
+  auto-wire every instance's assistant.
+- **Hardware honesty**: pol-core (HP ProDesk, no GPU) runs small
+  quantized models (3–8B) at modest tokens/sec — usable for the
+  assistant's short gated-proposal turns, not for long generation.
+  Engine PLACEMENT is the existing answer: run the LocalAI engine
+  on whichever isle member has the muscle; the binder pattern makes
+  the assistant follow it.
+
 ## 4. The REST of the 17 — sweep against our active arcs
 
 Green = code AND weights commercial-clean as checked 2026-08-15;
