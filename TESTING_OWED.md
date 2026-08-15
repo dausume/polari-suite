@@ -1,6 +1,17 @@
 # Testing owed — tracker (written 2026-08-13, for Dustin's pass later today)
 
-## 0. New 2026-08-15 — sep-0 single-app clamp (eyeball pass, ~5 min)
+## 0. New 2026-08-15 — sep-0..2 (eyeball pass, ~10 min)
+
+sep-1 (shell passes ?shellApp=) and sep-2 (one registration
+generator; deb builder consumes it) are BUILT on `dev-sep-1` ×4
+repos; sep-2's backend half is DEPLOYED (capabilities on the live
+registration, seed rows converged). Owed on top of the sep-0 pass
+below: launch a scope=app launcher deb end-to-end on a real desktop
+(`shells/build-launcher-deb.sh --registration <(curl …/wax-print-
+shop-shell/registration?download=1)` → install → window opens the
+clamped app). The JavaFX window itself needs your GUI session.
+
+## 0b. sep-0 single-app clamp (eyeball pass, ~5 min)
 
 sep-0 is LIVE on staging (branch `dev-sep-1`, angular + rf-node
 pointer). Machine-proven: 7 specs green, headless-browser acceptance
