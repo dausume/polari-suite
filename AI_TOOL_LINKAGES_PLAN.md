@@ -1,6 +1,13 @@
 # AI Tool Linkages — plan (ai-0..ai-5)
 
-**Date:** 2026-08-15 · **Status: ai-0..ai-4 BUILT + DEPLOYED
+**Date:** 2026-08-15 · **Status: ARC COMPLETE — ai-0..ai-5 BUILT +
+DEPLOYED 2026-08-15/16. ai-5 made the intermediary tiles genuinely
+installable: the store detail pane RUNS the binding flow (select →
+human-typed credential → validate, per-step results, readiness
+re-join; privacy recommendation worn in the flow); wire live-proven
+via the built-in provider. Pending only Dustin's proofs
+(TESTING_OWED §00). Earlier phases below.**
+Phases ai-0..ai-4: BUILT + DEPLOYED
 2026-08-15 (late session, Dustin's go: "we are doing some work on
 the ai configuration, self-hosting, and binding" → "move on to 4")
 — backend + store UI + voice on `dev-ai-1` (framework, angular);

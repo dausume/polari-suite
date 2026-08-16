@@ -15,11 +15,14 @@ What only you can do:
    section (4 tiles: null / claude / openai / localai) — hosting +
    sovereignty badges, and the detail pane's live readiness +
    linkage table. /engines page now lists `reasoning`.
-3. **Remote intermediary proof (credentials are yours)**: pick
-   claude or openai, run the tile's binding flow (select →
-   set_auth → validate via /ai/providers), then talk to the
-   assistant — the ai-tools page should flip that tool to
-   ready + active, and /engines/reasoning starts metering.
+3. **Remote intermediary proof (credentials are yours)**: ai-5
+   put the binding flow IN the store — open the claude or openai
+   tile, type your API key into the password field, hit "Select,
+   save key & validate" (per-step results show inline; the key is
+   never echoed). Then talk to the assistant — the tile should
+   flip to ready + active and /engines/reasoning starts metering.
+   The flow's wire is live-proven (select+validate on built-in);
+   the credentialed pass is yours.
 4. **Local-hosted proof (when you want it)**: `isle app deploy
    localai --image localai/localai:latest --service localai
    --port 8080 --engine reasoning` on any isle host — the ai-3
