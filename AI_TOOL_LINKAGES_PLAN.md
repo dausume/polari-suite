@@ -1,13 +1,17 @@
 # AI Tool Linkages — plan (ai-0..ai-5)
 
-**Date:** 2026-08-15 · **Status: ai-0..ai-3 BUILT + DEPLOYED
+**Date:** 2026-08-15 · **Status: ai-0..ai-4 BUILT + DEPLOYED
 2026-08-15 (late session, Dustin's go: "we are doing some work on
-the ai configuration, self-hosting, and binding") — backend on
-framework `dev-ai-1`, store UI on angular `dev-ai-1`; selftests
-appstore 61/61, islemesh 95/95, engines 18/18; live-proven on
-staging (ai-tools API, catalog AI section, /engines/reasoning).
-REMAINING: ai-4 (linkage apps + voice sovereignty), ai-5
-(intermediary apps polish), Dustin's proofs in TESTING_OWED §00.**
+the ai configuration, self-hosting, and binding" → "move on to 4")
+— backend + store UI + voice on `dev-ai-1` (framework, angular);
+selftests appstore 67/67, islemesh 95/95, engines 18/18,
+polariapps 57/57; live-proven on staging (ai-tools API, catalog AI
+section, /engines/reasoning, /ai/voice honest refusal, the two
+linkage app rows). ai-4 delivered /ai/voice (provider-backed
+STT/TTS, sovereignty stated) + panel voice path + linkage apps
+(meetings-stt deferred: collab transcription seam unbuilt).
+REMAINING: ai-5 (intermediary apps polish), Dustin's proofs in
+TESTING_OWED §00.**
 Original status: PLANNING ONLY (Dustin: "do not
 build the first slice just make a plan for the next arc").
 Grounded in a read-only survey of the reasoning seam, the store

@@ -29,9 +29,27 @@ What only you can do:
    first for air-gap). Image tag/variant is your call (fork pin
    dausume/LocalAI).
 
+**ai-4 (voice sovereignty, same session):** /ai/voice is LIVE
+(honest refusal on the null provider — probed), the assistant
+panel now prefers provider-backed STT/TTS with the browser path
+stated as cloud-backed, and two linkage apps seeded
+(ai-assistant-reasoning, ai-voice). Yours:
+5. **Voice proof rides item 3/4**: once a voice-capable provider
+   is active (openai with your key, or a live LocalAI with
+   whisper/tts backends), push-to-talk in the assistant should
+   transcribe through /ai/voice — the mic tooltip states the path
+   (sovereign / remote / browser). stt_model/tts_model/tts_voice
+   are settings knobs on the provider if the defaults
+   (whisper-1/tts-1/alloy) don't match your backends.
+6. meetings-stt linkage app deliberately NOT seeded — waits for
+   the collab transcription seam (unbuilt page = dishonest tile).
+
 Deploy note: both swarm rolls (backend + frontend) bounced off the
 two other nodes before landing home (the known --force bounce;
 `pol allocate` pin still your call). Reticulum stayed admitted.
+ai-4's linkages_json change to the openai/localai rows needed the
+CRUDE-PUT backfill on prf-a (composition off — 12th-strike rule
+followed: PUT ×2, re-GET verified).
 
 ## 0. New 2026-08-15 — sep-0..7 (eyeball pass + the permissions knob)
 
