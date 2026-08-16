@@ -81,6 +81,8 @@ install easy, walk people through, demo as much as we can.
 | 4 | The public instance is a DEMO: minimal module set + pre-run sims/data, replay allowed, new runs refuse honestly (existing detection) with a "run this yourself — install locally" affordance |
 | 5 | The deployment is compose-only (the previous production flow's shape), sized for a 4 vCPU DO VM, and is itself a single-device ISLE (isle core-install on the droplet) so polari + isle-mesh ship merged |
 | 6 | Prices/dates discipline carries over: the download page states versions + dates; the ai-7 hosting page pattern is the house style |
+| 7 | **The variant name is `exhibit`** (Dustin 2026-08-16): keys `<module>.exhibit`, debs `polari-module-<m>-exhibit`, the exhibit banner on every sample page — Q5 CLOSED |
+| 8 | The site carries a real DOCUMENTATION section (Dustin): polari core, isle-mesh, module functionality, and the approach + purpose of the open-source economic baseline (OSEB) |
 
 ## Phases
 
@@ -147,9 +149,29 @@ install easy, walk people through, demo as much as we can.
   front door (bundle + per-platform artifacts from the appstore
   machinery, versions + dates), a walkthrough (install → first
   login → tour), a "what you're seeing is a demo" page linking
-  every demo result to the module/app that produced it, and the
-  live demo links (prf.polari-systems.org). Static stays static —
-  no build step (the hub's own rule).
+  every exhibit result to the module/app that produced it, the
+  live demo links (prf.polari-systems.org) — AND the
+  **documentation section** (decision 8), four pillars:
+  1. **Polari core** — object tree, classes → tables + CRUDE,
+     displays as data, modules, topology, the knob-and-suggestion
+     discipline (source: the polari-overview/backend/frontend
+     material + polari-mcp conventions).
+  2. **Isle-Mesh** — isles, membership (the agent IS membership),
+     cores vs members, the store, apt-on-mesh, how a device
+     joins (source: the convergence/onboarding handoffs).
+  3. **Module functionality** — what a module is, full vs
+     `.exhibit` variants, the catalog with per-module pages
+     (ideally DERIVED from the registry JSON + PolariAppDefinition
+     rows rather than hand-written — one source of truth).
+  4. **The OSEB** — the approach and PURPOSE of the open-source
+     economic baseline: empowering small businesses, the GPLv3/
+     no-NC stance and why, the tech-tree framing (source: the
+     seeded OSEB tech tree + techtree content rows — again
+     derived where possible, prose where it must be).
+  Format: extends the existing docs.html Mermaid pattern — static
+  stays static (the hub's own rule), with derived content
+  generated AT BUILD/DEPLOY time from the instance's own rows,
+  never a runtime dependency for the docs pages.
 - **pub-6 — hardening + ops.** Public-KC policy per Dustin's
   answer (Q4); rate limiting at the proxy; backups of the
   droplet's data volume; uptime checks; the ai-7 page's
@@ -183,11 +205,7 @@ install easy, walk people through, demo as much as we can.
    signup? Open KC registration? A shared demo login? (Security
    posture differs a lot; plan assumes anonymous read-only +
    no public signup until decided.)
-5. **The variant name**: `exhibit` (recommended — says
-   results-on-display-machinery-absent honestly, rides the
-   dotted-subset key convention), `sampler` (closest to your
-   phrasing), or `showcase`? Locks the key format
-   (`<module>.exhibit`), the deb names, and the banner wording.
+~~5. The variant name~~ — **CLOSED: `exhibit`** (decision 7).
 
 ## Grounding index
 
