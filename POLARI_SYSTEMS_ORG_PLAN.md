@@ -176,6 +176,30 @@ install easy, walk people through, demo as much as we can.
      pages LINK INTO the live tech tree on the demo instance
      (techtree runs FULL there, pub-0) — read the approach, then
      walk the actual tree.
+  **Tree ↔ docs cross-links as DATA** (Dustin): docs sections
+  carry stable anchors; TechNode rows reference the relevant
+  anchor (the nav `ref` pattern — a `doc_ref` on the node, seeded
+  where sensible), so the live tree links back into the docs and
+  the docs link into the tree — both directions derived from
+  rows, neither hand-maintained in prose.
+  **AI-walkable by design** (Dustin: "people can use AI to see
+  what is going on with polari as a system when an AI reaches
+  out to polari-systems.org"):
+  - `llms.txt` at the apex (the emerging convention): what polari
+    is, the docs map, and the MACHINE endpoints an agent may read
+    (the public instance's honest JSON: apps catalog, tech tree,
+    engines, module directory, exhibit listings).
+  - Docs pages are semantic static HTML readable WITHOUT
+    JavaScript (already the hub's nature) — an agent fetching any
+    page gets real content, not an app shell.
+  - A machine index (JSON): the docs sitemap + per-doc summaries
+    + the API endpoint list with one-line contracts — generated
+    at build time alongside the derived pages.
+  - ⚠ OPTION, Dustin's security call (Q6): a public READ-ONLY
+    MCP surface (polari-mcp exists; the demo instance could
+    expose its inspect-only tools) — the strongest form of
+    "an AI can walk the system", but it is exposure and belongs
+    behind the pub-6 hardening decisions, not assumed.
   Format: extends the existing docs.html Mermaid pattern — static
   stays static (the hub's own rule), with derived content
   generated AT BUILD/DEPLOY time from the instance's own rows,
@@ -214,6 +238,11 @@ install easy, walk people through, demo as much as we can.
    posture differs a lot; plan assumes anonymous read-only +
    no public signup until decided.)
 ~~5. The variant name~~ — **CLOSED: `exhibit`** (decision 7).
+6. **Public read-only MCP**: expose the demo instance's
+   inspect-only polari-mcp tools publicly so agents can walk the
+   system directly (strongest AI-walkability), or keep AI access
+   to llms.txt + the JSON endpoints? (Plan assumes the latter
+   until you call it — it's an exposure decision.)
 
 ## Grounding index
 
