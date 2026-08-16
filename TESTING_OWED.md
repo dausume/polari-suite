@@ -76,6 +76,22 @@ container is the remote path; managed endpoints are intermediaries
 10. Eyeball /ai-hosting; prices are 2026-08-16 — when you re-check
     one, bump its price_as_of (CRUDE edit on RemoteHostingOption).
 
+**ai-8 (computerparts + buy-vs-rent, 2026-08-16):** the dedicated
+parts module is LIVE (12 dated parts, 3 example builds, derived
+totals, assembly checks) and /ai-hosting now leads with the
+advisory: rent hourly for sparing use (with the DO destroy-after-
+session warning) vs buy past break-even. Live numbers: builds pay
+for themselves in ~2.3-4.8 months vs the DO RTX-4000-Ada droplet;
+5-11 months vs the cheapest 4090 rental. Yours:
+11. Eyeball the buy section (fit chips, assembly chip hover, parts
+    lists); GPU street prices move fast — bump price_as_of when
+    you re-check (CRUDE on ComputerPartDefinition).
+12. Assembly checks answer only DECLARED specs (socket/ram-type/
+    psu answer today; gpu-clearance honestly unverified until
+    lengths are declared). Performance-BETWEEN-parts is
+    deliberately unmodeled — needs measured benchmarks as rows;
+    your call whether that becomes its own module when it lands.
+
 Deploy note: both swarm rolls (backend + frontend) bounced off the
 two other nodes before landing home (the known --force bounce;
 `pol allocate` pin still your call). Reticulum stayed admitted.

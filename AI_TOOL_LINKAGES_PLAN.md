@@ -19,7 +19,14 @@ SHIPPED same day (Dustin): RemoteHostingOption rows — researched
 2026-08-16, every price with its as-of DATE + source; /ai-hosting
 page (stale-flagging, derived fit chips, sovereignty badges);
 checked fact: LocalAI sells no hosted instances — rent + container
-IS the remote path.**
+IS the remote path. ai-8 ADDED + SHIPPED same day (Dustin): the
+DEDICATED computerparts module (dated part prices, derived build
+cost, assembly-feasibility checks over declared specs — undeclared
+= unverified, never guessed) + the buy-vs-rent advisory on
+/ai-hosting (3 researched builds, break-even months vs monthly-ized
+USD rentals; live: 2.3-4.8 mo vs the DO droplet). Performance-
+between-parts deliberately unmodeled (measured benchmarks as rows
+= future, possibly its own module — Dustin's instinct noted).**
 Earlier phases below.**
 Phases ai-0..ai-4: BUILT + DEPLOYED
 2026-08-15 (late session, Dustin's go: "we are doing some work on
