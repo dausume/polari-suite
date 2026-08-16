@@ -1,5 +1,38 @@
 # Testing owed — tracker (written 2026-08-13, for Dustin's pass later today)
 
+## 00. New 2026-08-15 (late) — ai-0..ai-3 LIVE (the AI tools arc)
+
+**Backend + store UI deployed to staging; everything below works
+today with zero credentials (the null provider is active + ready).**
+What only you can do:
+
+1. **Answer the plan's 3 open questions** (AI_TOOL_LINKAGES_PLAN.md
+   §Open questions): privacy-filter hard gate vs badge (built as
+   BADGE per knob-and-suggestion); one `openai` row covering Codex
+   (built as one row); reasoning engine meters counts/bytes/latency
+   only, never content (built on that assumption).
+2. **GUI pass**: /isle-store now has the dedicated "AI tools"
+   section (4 tiles: null / claude / openai / localai) — hosting +
+   sovereignty badges, and the detail pane's live readiness +
+   linkage table. /engines page now lists `reasoning`.
+3. **Remote intermediary proof (credentials are yours)**: pick
+   claude or openai, run the tile's binding flow (select →
+   set_auth → validate via /ai/providers), then talk to the
+   assistant — the ai-tools page should flip that tool to
+   ready + active, and /engines/reasoning starts metering.
+4. **Local-hosted proof (when you want it)**: `isle app deploy
+   localai --image localai/localai:latest --service localai
+   --port 8080 --engine reasoning` on any isle host — the ai-3
+   binder should auto-flip every instance's assistant to
+   openai_compatible at its /v1. Binder is selftest-proven; the
+   LIVE end-to-end needs a real LocalAI container (models cached
+   first for air-gap). Image tag/variant is your call (fork pin
+   dausume/LocalAI).
+
+Deploy note: both swarm rolls (backend + frontend) bounced off the
+two other nodes before landing home (the known --force bounce;
+`pol allocate` pin still your call). Reticulum stayed admitted.
+
 ## 0. New 2026-08-15 — sep-0..7 (eyeball pass + the permissions knob)
 
 **sep-7 is LIVE with the knob OFF (default — zero behavior change).**
