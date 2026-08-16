@@ -101,16 +101,33 @@ install easy, walk people through, demo as much as we can.
   public` (or a `pol public` verb). Deploy = `isle core-install`
   on the droplet FIRST (the droplet is a single-device isle),
   polari behind its agent — the merged deployment of decision 5.
-- **pub-2 — demo mode.** Curate + ship the pre-run content:
-  seed-borne results come free (motors 331/331, materials,
-  shapes); ingested series (climate) need an export/import step
-  (the instance-data-persistence fix makes them survive rolls).
-  A `POLARI_DEMO` knob adds: the banner ("public demo — data is
-  replayed, compute is limited"), /identity marking, and the
-  refusal DECORATION: when a run refuses because its module/
-  engine is absent, the response carries the download affordance
-  (link to the bundle + apt line). No new gating — decoration on
-  the existing honest refusals.
+- **pub-2 — EXHIBIT module variants + demo mode.** (Dustin
+  2026-08-16: "a display-samples-only version of each of the
+  modules that removes most of the backend capabilities and just
+  enables showing results — sub-sets of modules for sampling
+  only.") Naming proposal: **exhibit variants**, keyed
+  `<module>.exhibit` — the dotted-subset vocabulary the framework
+  already speaks (`materialsScience.dft`, `scanning.recon`), and
+  the word says the semantics honestly: finished results on
+  display, machinery absent. (Alternates if preferred: `sampler`
+  — closest to Dustin's own word — or `showcase`; his call, Q5.)
+  Mechanics (all existing seams): an exhibit variant is a
+  MANIFEST naming the KEPT classes (definitions + result rows +
+  display/page seeds) — no workers, no engines, no action APIs;
+  the CRUDE gate refuses writes on exhibit classes; run verbs
+  refuse via the existing module/engine detection, DECORATED with
+  the affordance ("sample result — install <module> to run your
+  own", linking the bundle + apt line). Every exhibit page wears
+  the exhibit banner — samples are never passed off as a working
+  module. Pre-run content ships IN the exhibit seeds (seed-borne
+  results free: motors, materials, shapes; ingested series like
+  climate need an export→seed step). A `POLARI_DEMO` knob marks
+  the instance (banner + /identity). SIZING WIN: the demo box
+  runs exhibits, not full modules — smaller classes, smaller
+  boot, easier 4 vCPU fit (pub-0 measures exhibits, not fulls).
+  Exhibit variants also become their own DEBS (pub-3/4): tiny
+  sampler packages anyone can install locally before committing
+  to the full module.
 - **pub-3 — the single-download bundle.** `polari-isle` meta-deb:
   Depends: isle-mesh-cli, polari store shell deb; postinst adds
   the apt.polari-systems.org source + key and seeds the public
@@ -166,6 +183,11 @@ install easy, walk people through, demo as much as we can.
    signup? Open KC registration? A shared demo login? (Security
    posture differs a lot; plan assumes anonymous read-only +
    no public signup until decided.)
+5. **The variant name**: `exhibit` (recommended — says
+   results-on-display-machinery-absent honestly, rides the
+   dotted-subset key convention), `sampler` (closest to your
+   phrasing), or `showcase`? Locks the key format
+   (`<module>.exhibit`), the deb names, and the banner wording.
 
 ## Grounding index
 
