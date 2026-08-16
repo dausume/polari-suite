@@ -92,6 +92,20 @@ for themselves in ~2.3-4.8 months vs the DO RTX-4000-Ada droplet;
     deliberately unmodeled — needs measured benchmarks as rows;
     your call whether that becomes its own module when it lands.
 
+**ai-9 (fork-pin ledger, 2026-08-16):** /ai-hosting now carries
+the pinned-forks table — all 15 keeper forks VERIFIED live on
+github.com/dausume (2026-08-16), the 3 forked-in-error rows shown
+as delete-pending, and llama.cpp/whisper.cpp shown as NAMED
+not-pinned gaps (they ride the LocalAI fork's backend mechanism).
+Yours:
+13. The 3 deletes still need `gh auth refresh -s delete_repo` or
+    the GitHub UI (magpie-tts.cpp / vibevoice.cpp /
+    face-detect.cpp).
+14. Decide the llama.cpp/whisper.cpp question: is the LocalAI
+    fork's own pinning of its backends sufficient, or do we want
+    dausume/ pins of the inference cores too (belt-and-braces
+    against upstream relicensing)?
+
 Deploy note: both swarm rolls (backend + frontend) bounced off the
 two other nodes before landing home (the known --force bounce;
 `pol allocate` pin still your call). Reticulum stayed admitted.

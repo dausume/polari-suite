@@ -26,7 +26,11 @@ cost, assembly-feasibility checks over declared specs — undeclared
 /ai-hosting (3 researched builds, break-even months vs monthly-ized
 USD rentals; live: 2.3-4.8 mo vs the DO droplet). Performance-
 between-parts deliberately unmodeled (measured benchmarks as rows
-= future, possibly its own module — Dustin's instinct noted).**
+= future, possibly its own module — Dustin's instinct noted).
+ai-9 ADDED + SHIPPED 2026-08-16: the FORK-PIN LEDGER on
+/ai-hosting — ForkPin rows dated by GitHub verification (15
+keepers verified live, 3 delete-pending, llama.cpp/whisper.cpp
+named as not-pinned gaps riding the LocalAI fork).**
 Earlier phases below.**
 Phases ai-0..ai-4: BUILT + DEPLOYED
 2026-08-15 (late session, Dustin's go: "we are doing some work on
