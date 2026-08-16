@@ -238,11 +238,26 @@ install easy, walk people through, demo as much as we can.
    posture differs a lot; plan assumes anonymous read-only +
    no public signup until decided.)
 ~~5. The variant name~~ — **CLOSED: `exhibit`** (decision 7).
-6. **Public read-only MCP**: expose the demo instance's
-   inspect-only polari-mcp tools publicly so agents can walk the
-   system directly (strongest AI-walkability), or keep AI access
-   to llms.txt + the JSON endpoints? (Plan assumes the latter
-   until you call it — it's an exposure decision.)
+6. **Public read-only MCP** — Dustin 2026-08-16: "likely fine,
+   but it depends on how lightweight it would be and if it might
+   become a limiting factor." → CONDITIONALLY IN, two gates:
+   (a) **pub-0 measures it**: the MCP server is a thin process
+   over the same REST surface, so its idle cost is small — the
+   real risk is agent TRAFFIC amplifying the expensive endpoints
+   (engine capability probes carry 4 s timeouts; topology
+   resolves fan out). Measure tool-call cost on the demo module
+   set alongside the boot/RAM baselines.
+   (b) **pub-6 guardrails before exposure**: a public tool
+   ALLOWLIST of cheap inspect-only tools (list/read/conventions;
+   EXCLUDE live probes and anything that fans out), response
+   caching for the derived answers, proxy rate limiting +
+   concurrency cap on the MCP path so agents can never starve
+   human demo traffic, and the mutation/propose tools absent
+   entirely (not gated — absent).
+   If (a) shows even the allowlisted surface pressuring the 4
+   vCPU box, ship llms.txt + JSON endpoints only and revisit
+   after a droplet resize — the fallback is already decision 8's
+   floor, so nothing blocks on this.
 
 ## Grounding index
 
