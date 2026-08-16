@@ -14,7 +14,12 @@ CLOUD_HOSTING_OPTIONS with sovereignty tiers (your-cloud vs
 intermediary, no price quotes) when local hosting is not
 realistic; store UI wears the verdict panel + a connect-remote-
 hosted flow (base_url = your rented server). Live-proven: this
-isle's own verdict is honestly NOT realistic today.**
+isle's own verdict is honestly NOT realistic today. ai-7 ADDED +
+SHIPPED same day (Dustin): RemoteHostingOption rows — researched
+2026-08-16, every price with its as-of DATE + source; /ai-hosting
+page (stale-flagging, derived fit chips, sovereignty badges);
+checked fact: LocalAI sells no hosted instances — rent + container
+IS the remote path.**
 Earlier phases below.**
 Phases ai-0..ai-4: BUILT + DEPLOYED
 2026-08-15 (late session, Dustin's go: "we are doing some work on

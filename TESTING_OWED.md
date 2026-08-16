@@ -63,6 +63,19 @@ profile). Yours:
    (base_url + optional key → Connect & validate) binds it —
    sovereignty badge says your-cloud honestly.
 
+**ai-7 (dated-price hosting page, 2026-08-16):** `/ai-hosting` is
+LIVE — 10 researched options (DO/Hetzner/RunPod/Vast/Linode), every
+price wearing its as-of date (>90 days flags ⚠ stale), source
+links, derived fit chips. Monthly reality: minimal-profile CPU
+hosting ≈ €6.80 (Hetzner EU) to $48 (DO/Linode); always-on GPU
+≈ $85 (Vast 3090) to $285 (4090s) — per-second billing makes
+intermittent use far cheaper. CHECKED FACT: the LocalAI project
+sells NO hosted instances (MIT self-hosted only) — renting + the
+container is the remote path; managed endpoints are intermediaries
+(per-token). Yours:
+10. Eyeball /ai-hosting; prices are 2026-08-16 — when you re-check
+    one, bump its price_as_of (CRUDE edit on RemoteHostingOption).
+
 Deploy note: both swarm rolls (backend + frontend) bounced off the
 two other nodes before landing home (the known --force bounce;
 `pol allocate` pin still your call). Reticulum stayed admitted.
