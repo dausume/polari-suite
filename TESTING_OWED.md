@@ -47,6 +47,22 @@ stated as cloud-backed, and two linkage apps seeded
 6. meetings-stt linkage app deliberately NOT seeded — waits for
    the collab transcription seam (unbuilt page = dishonest tile).
 
+**ai-6 (hosting gauge, 2026-08-16):** the localai tile now answers
+"Can this isle host it?" from the live resource inventory — and
+today's honest answer is **NOT realistic** (pol-core/staging-a:
+RAM busy, ~5.8 GB free disk < ~20 GB models need, 4 cores < GPU
+profile). Yours:
+7. Eyeball the verdict panel + cloud options on the localai tile;
+   hover rows for the failing numbers.
+8. econ-core / isle-core / lightweight are UNOBSERVED — run the
+   resource refresh (`/api/topology/resources` observed-push or
+   system_info_url) if you want them in the verdict; one of them
+   may fit the minimal profile.
+9. If you rent a cloud box: deploy the LocalAI container there,
+   then the localai tile's "Connect a remotely-hosted instance"
+   (base_url + optional key → Connect & validate) binds it —
+   sovereignty badge says your-cloud honestly.
+
 Deploy note: both swarm rolls (backend + frontend) bounced off the
 two other nodes before landing home (the known --force bounce;
 `pol allocate` pin still your call). Reticulum stayed admitted.

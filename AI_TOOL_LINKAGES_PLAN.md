@@ -6,7 +6,16 @@ installable: the store detail pane RUNS the binding flow (select →
 human-typed credential → validate, per-step results, readiness
 re-join; privacy recommendation worn in the flow); wire live-proven
 via the built-in provider. Pending only Dustin's proofs
-(TESTING_OWED §00). Earlier phases below.**
+(TESTING_OWED §00). **ai-6 ADDED + SHIPPED 2026-08-16 (Dustin):
+the honest hosting gauge — requirements_json profiles on tool
+rows, host-check verdicts from the res-1 inventory (failing
+numbers shown, GPU honestly untracked, tight ≠ yes), and
+CLOUD_HOSTING_OPTIONS with sovereignty tiers (your-cloud vs
+intermediary, no price quotes) when local hosting is not
+realistic; store UI wears the verdict panel + a connect-remote-
+hosted flow (base_url = your rented server). Live-proven: this
+isle's own verdict is honestly NOT realistic today.**
+Earlier phases below.**
 Phases ai-0..ai-4: BUILT + DEPLOYED
 2026-08-15 (late session, Dustin's go: "we are doing some work on
 the ai configuration, self-hosting, and binding" → "move on to 4")
