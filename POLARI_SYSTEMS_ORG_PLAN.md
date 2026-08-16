@@ -91,9 +91,14 @@ install easy, walk people through, demo as much as we can.
   Dustin: confirm DNS at DO + mint DO_API_TOKEN + create the
   droplet (ai-7 row: DO Basic 4 vCPU/8 GB $48/mo). Us: define the
   DEMO MODULE SET (proposal: topology, islemesh, appstore,
-  polariapps, simulations + 2-3 showcase modules — climate,
-  motors, mathshapes) and MEASURE it locally (baseline_profile)
-  against 4 vCPU/8 GB; pick MariaDB-vs-sqlite from the numbers.
+  polariapps, simulations, **techtree — FULL, not exhibit**
+  (Dustin: the tech tree is core to people walking through and
+  understanding how it functions; it is browse-native data —
+  trees/nodes/segments + derived completion, no engines — so the
+  full module is cheap and the interactivity IS the point) + 2-3
+  showcase modules as exhibits — climate, motors, mathshapes) and
+  MEASURE it locally (baseline_profile) against 4 vCPU/8 GB;
+  pick MariaDB-vs-sqlite from the numbers.
 - **pub-1 — the minimal merged compose profile.**
   `docker-compose.public.yml` as a SUBSET of prod.yml: proxy +
   hub + KC + prf backend/frontend + file-store (+ mariadb per
@@ -167,7 +172,10 @@ install easy, walk people through, demo as much as we can.
      economic baseline: empowering small businesses, the GPLv3/
      no-NC stance and why, the tech-tree framing (source: the
      seeded OSEB tech tree + techtree content rows — again
-     derived where possible, prose where it must be).
+     derived where possible, prose where it must be). The docs
+     pages LINK INTO the live tech tree on the demo instance
+     (techtree runs FULL there, pub-0) — read the approach, then
+     walk the actual tree.
   Format: extends the existing docs.html Mermaid pattern — static
   stays static (the hub's own rule), with derived content
   generated AT BUILD/DEPLOY time from the instance's own rows,
