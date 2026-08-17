@@ -414,6 +414,19 @@ root. Delivered:
   The droplet flow is now: install bundle → `isle
   core-install` → walkthrough prompts for real domain/passwords
   → gate clean → doors may open.
+- **polari nested as a SUB-PROJECT (Dustin 2026-08-17:
+  "everything inside the suite"; Isle-Mesh ae8f5af, CLI deb
+  0.1.26 = 1.9M, was 24M).** The isle's polari deployment
+  (~/polari-isle) was hand-made/unversioned — the one polari
+  piece a suite clone didn't carry, and the from-code install
+  died on it. Now `Isle-Mesh/polari-isle/` is versioned (compose,
+  runtime-config, pusher w/ canonical-name identity);
+  isle-polari-deploy SEEDS ~/polari-isle from it and writes the
+  pusher systemd units templated; the deb builder packages
+  polari-isle/ and EXCLUDES router images (*.qcow2/*.img —
+  hand-staged debs had shipped ~30MB of untracked artifacts).
+  Live-verified on isle-core (pusher identity stable); from-code
+  bundle rebuild carries polari-isle/.
 - **Walkthrough shape (Dustin, refined; CLI 0.1.25, ec6af24 +
   706cdb3): GENERIC self-hosting FIRST, providers as a POST
   step.** Steps 1–3 are provider-agnostic (credentials, doors,
