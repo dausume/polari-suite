@@ -10,3 +10,7 @@
 [submodule "polari-app-shell"]
 	path = polari-app-shell
 	url = https://github.com/dausume/polari-app-shell.git
+[submodule "Isle-Mesh"]
+	path = Isle-Mesh
+	url = https://github.com/dausume/Isle-Mesh.git
+	branch = dev

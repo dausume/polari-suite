@@ -259,6 +259,173 @@ install easy, walk people through, demo as much as we can.
    after a droplet resize — the fallback is already decision 8's
    floor, so nothing blocks on this.
 
+## pub-0 evidence (measured 2026-08-16)
+
+**Sizing: the demo set FITS 4 vCPU/8 GB with huge headroom.**
+One-off boot of prf-backend:staging capped at 4 CPUs / 6 GB,
+sqlite, `POLARI_LAZY_BOOT=on`, `POLARI_MODULES=` the proposed
+demo set + its measured dep closure (topology, islemesh,
+appstore, polariapps, simulations, techtree, climate, motors,
+mathshapes + matrices, polariNoCode, simSpace, simSpace3D,
+materialsScience — closures read from `/modules/<m>?withDeps=1`;
+all showcase modules declare ZERO polari deps; simulations pulls
+the other five):
+
+- **secondsToCore 32.2 / secondsToFull 36.8, 9/9 online** —
+  vs 325/434 s for the current staging set on the SAME host.
+  Every lazy module admits in <1 s.
+- **Backend RAM peak ~196 MiB** (VmHWM; cgroup peak 160 MiB).
+  Live staging idle RSS for the rest: KC 368 MiB, MariaDB 13,
+  file-store 77, proxy 9, frontend 5 — whole stack ≈650 MiB,
+  compose limits total ≈3 GiB. 8 GB is not the constraint.
+- Images: backend 937 MB, frontend 86, proxy 161 — trivial vs
+  the 160 GB droplet disk.
+- **MariaDB-vs-sqlite call: sqlite for polari data** (proven
+  fine at this scale; techtree declares sqlite-local storage by
+  construction). MariaDB stays ONLY as Keycloak's DB.
+- **Q6 gate (a) answer: the read surface is cheap.** On the
+  constrained box: /modules, /classInstanceCounts, /api/apps,
+  /api/techtree/summary, /api/modules/status all ≤4 ms median;
+  `/system-info` is the one heavy read (~110–170 ms) — exclude
+  or cache it in any public allowlist. Engine-probe endpoints
+  are absent from the demo set entirely.
+- **Climate caveat (confirms pub-2's export→seed step):** the
+  one-off seeds only 89 climate rows vs 3,325 live on prf-a —
+  the ingested real series are NOT seed-borne; the exhibit
+  needs the export→seed pass before the demo shows real data.
+  techtree (222 rows), motors (107), mathshapes (68),
+  simulations (466), materialsScience (324) ARE seed-borne.
+- Harness kept re-runnable:
+  `polari-framework/moduleService/dyn_proofs/pub0_sizing.py`
+  (dyn5-proof pattern; run per dyn_proofs/README, repo at /app,
+  add `--cpus=4 --memory=6g`). NOTE: `baseline_profile.py` is
+  the dyn-5 module FLOOR, not a measurement tool; there is no
+  `pol` verb for any of this yet.
+
+**⛔ KC finding (worse than the memory believed): the 2026-07
+"rotation" never rotated anything.** The working-tree
+`prf-keycloak-admin.env` is a verbatim copy of the TRACKED
+`.example`: the live staging client secret is the public
+`REPLACE_ME…` placeholder, KC admin is `admin`/`admin`, and
+`prf-mariadb/mariadb.env`'s three passwords are placeholders
+baked into the 2-week-old volume. Five origin branches
+(dev-msim-page-phase1/2/3/5, dev-wind-coupling) still publish
+the OLD leaked secret at their tips, and leak commit 74d85c6
+remains reachable from origin/dev. Rotation procedure (not
+executed — Dustin's sign-off per Boundaries):
+1. `pol security node-setup prod` (NOT staging — staging
+   re-defaults admin to `admin`) or `pol security setup prod`
+   with `POLARI_KC_ADMIN_PASS` set; rewrites the env with a
+   fresh `openssl rand` secret + real admin password.
+2. Restart prf-keycloak FIRST (entrypoint re-PATCHes the client
+   secret), then the backend. Verify via `docker inspect`: no
+   `REPL` prefix.
+3. MariaDB password rotation = separate window (needs a fresh
+   volume + data plan) — for the DROPLET it's free: fresh
+   volume from day one, so run prod-setup there BEFORE first
+   boot and the droplet never has this problem.
+4. Delete/rewrite the 5 stale origin branches; history purge of
+   74d85c6 optional once the secret is dead.
+5. Hardening: change the `.example` placeholder to EMPTY —
+   `configure_clients.sh` skips the PATCH on empty, so a
+   missed setup fails closed instead of installing a public
+   secret.
+
+**Remaining pub-0 items:** the KC rotation execution (now ONE
+command — see below — but run with Dustin present), Dustin's
+DNS-at-DO confirmation + DO_API_TOKEN + droplet, and the climate
+export→seed pass (can fold into pub-2).
+
+## Deployment-security lifecycle (BUILT 2026-08-16, Dustin's call)
+
+Dustin's directive: ALL security material (domain, passwords,
+certs) is put in AT DEPLOY TIME; deployments detect existing
+material, timestamp last update, flag >30 days stale, and the
+same shells do create AND smooth update. Built on the existing
+setup-shell chain (uncommitted, working tree):
+
+- **`polari-rf-node/security-ledger.sh`** (NEW lib): TSV ledger in
+  `.generated/security-ledger.tsv` — name/epoch/iso/source/
+  sha256-fingerprint per credential artifact; `ledger_stamp`,
+  `ledger_age_days` (fingerprint-checked, mtime fallback),
+  `sec_placeholders` (secret-KEY values that are dev defaults,
+  REPLACE_ME, or empty), `sec_is_stale` (`SEC_STALE_DAYS`=30).
+  Values never enter the ledger.
+- **staging-setup.sh / prod-setup.sh**: keep-or-rotate — existing
+  REAL credentials are KEPT (age shown; stale ⇒ rotation
+  suggestion, never auto); placeholder-bearing files are rotated
+  UNCONDITIONALLY (fail closed); every write stamped. prod is
+  interactive (keep? rotate?), staging honors POLARI_ROTATE_KC.
+  mariadb.env placeholder warnings name the volume-coupling.
+- **`pol security status`**: full inventory — exists/missing/
+  placeholder counts, last-updated age, STALE flags, cert
+  expiries (openssl), and a RUNNING-stack probe (docker inspect,
+  prefix-only) that catches placeholder creds live.
+- **`pol security gate [staging|prod]`**: the deploy-time check,
+  wired into `pol node up` + `pol suite up` — prod FAILS CLOSED
+  on missing/placeholder (override POLARI_SKIP_SECURITY_GATE=yes,
+  loudly); staging warns. Verified: staging exit 0, prod exit 1
+  on today's tree.
+- **`pol security rotate [staging|prod]`**: the smooth update —
+  re-runs the setup shell with POLARI_ROTATE_KC=yes, then rolls
+  out IN ORDER: Keycloak first (entrypoint re-PATCHes the client
+  secret), wait healthy, then backend; swarm-aware (stack
+  redeploy + `service update --force` backend) and compose-aware
+  (`--force-recreate` + exact-container health wait); ends with
+  the live probe and refuses to call success while the running
+  stack still shows placeholders.
+- **`.example` fail-closed**: prf-keycloak-admin.env.example now
+  ships EMPTY secret values — configure_clients.sh skips the
+  PATCH on empty, so a missed setup can never install a tracked
+  public string as the live secret (the root cause of the pub-0
+  finding).
+
+Verified: bash -n all shells; ledger lib unit-tested (fresh/
+backdated/drift/missing); `pol security status` correctly flags
+all 7 placeholder files + the running KC on this box. NOT run:
+the actual rotation (`pol security rotate staging`) — one
+command, but it bounces Keycloak + backend, so run it with
+Dustin. Note: suite-level setup-polari-security.sh doesn't stamp
+the ledger yet (ages fall back to mtime there) — fine for now,
+stamp it when the suite path matters for pub-1.
+
+**Isle-mesh integration (BUILT 2026-08-16, Isle-Mesh dev
+ec6af24, CLI deb 0.1.24 installed on isle-core + republished to
+apt.isle).** Dustin: the walkthrough lives in the ISLE SETUP
+PHASE and the .deb install process; polkit where shells need
+root. Delivered:
+- `isle security creds|gate|setup` (secure-creds.sh + a polkit-
+  aware port of security-ledger.sh; device ledger at
+  /etc/isle-mesh/security-ledger.tsv): inventory covers polari-
+  rf-node checkouts on merged boxes (the droplet case — setup
+  RUNS prod-setup.sh, which prompts domain + passwords), the
+  exposure-door htpasswds (ages, rotate-shown-once), and the
+  isle CA expiry.
+- `isle core-install` step 7/7 = production security: status
+  always, interactive walkthrough offered on gaps,
+  --skip-security defers loudly. Deb postinst points here —
+  the deb itself never ships credentials.
+- **The .isle→web upgrade is gated fail-closed**: `isle url
+  expose` refuses to open an outside door while the gate fails
+  (verified: refusal before any gateway container);
+  `entrypoint enable` names the walkthrough.
+- Verified on isle-core: clean gate=0, planted placeholder=1,
+  stale flags, walkthrough output, deb carries the scripts.
+  The droplet flow is now: install bundle → `isle
+  core-install` → walkthrough prompts for real domain/passwords
+  → gate clean → doors may open.
+- **Walkthrough shape (Dustin, refined; CLI 0.1.25, ec6af24 +
+  706cdb3): GENERIC self-hosting FIRST, providers as a POST
+  step.** Steps 1–3 are provider-agnostic (credentials, doors,
+  generic cert guidance — internal CA everywhere, browser-trust
+  needs a real domain); step 4/5 asks "hosting with a particular
+  provider?" [do/vps/home/none] — DigitalOcean gets the built
+  machinery (DO DNS-01, DO_API_TOKEN asked at cert time and
+  never stored, wildcard LE, auto-renew, droplet billing note);
+  vps/home get honest guidance only; step 5/5 = the gate
+  verdict. Provider steps are functions — new providers slot in
+  as new cases.
+
 ## Grounding index
 
 - pol-hub/ (site, Dockerfile, nginx.conf, README)
