@@ -64,12 +64,15 @@ pull_piece(){  # NAME
     if ! git config -f "$ROOT/.gitmodules" --get "submodule.$name.url" >/dev/null 2>&1; then
         warn "unknown piece '$name' (see --list)"; return 1
     fi
-    if git submodule update --init "$name" 2>&1 | tail -1; then
-        ok "$name pulled"
-    else
-        warn "$name could not be pulled (private repo without auth, or network) — continuing"
+    local out rc
+    out=$(git submodule update --init "$name" 2>&1); rc=$?
+    [ -n "$out" ] && printf '%s\n' "$out" | tail -2
+    if [ $rc -ne 0 ]; then
+        warn "$name could not be pulled (private repo without auth, network,"
+        warn "or a pointer not yet pushed to its origin) — continuing"
         return 0
     fi
+    ok "$name pulled"
     # nested submodules (polari-rf-node carries framework + angular)
     if [ -f "$ROOT/$name/.gitmodules" ]; then
         git -C "$ROOT/$name" submodule update --init 2>&1 | tail -2
