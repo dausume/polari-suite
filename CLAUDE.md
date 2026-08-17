@@ -36,8 +36,16 @@ stubbed Keycloak). See README §7.
 
 ## Repo shape
 
-Superproject with submodules: `polari-cli`, `polari-rf-node`
-(`polari-framework` = Python/Falcon backend, `polari-platform-angular` =
-Angular), `political-scorecard-node` (`political-scorecard-frontend` = Angular,
-`political-scorecard-backend` = Java/Spring). Active work is on `dev`. Commit
-submodule contents before the superproject pointer (innermost-first).
+Superproject with submodules — EVERYTHING is inside the suite:
+`polari-cli`, `polari-rf-node` (`polari-framework` = Python/Falcon backend,
+`polari-platform-angular` = Angular), `political-scorecard-node`
+(`political-scorecard-frontend` = Angular, `political-scorecard-backend` =
+Java/Spring), `polari-app-shell` (native shells, PRIVATE repo), and
+`Isle-Mesh` (isle networking + isle CLI + store plumbing + the versioned
+`polari-isle/` deployment sub-project). Active work is on `dev`. Commit
+submodule contents before the superproject pointer (innermost-first);
+`polari-cli/shells/push-all-dev.sh --with-isle` sweeps the whole forest.
+NOTE: the LIVE Isle-Mesh working copy is `~/Isle-Mesh` on isle-core
+(`ssh isle-core`, its own Claude) — when editing isle code there, keep the
+suite's submodule pin synced to isle-core's dev tip; a fresh dev checkout
+starts with `./bootstrap-dev.sh` (piece-wise pull of all sub-projects).
