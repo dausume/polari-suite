@@ -133,3 +133,26 @@ echo "   install (normal debian route, just from this code):"
 echo "     sudo apt install $OUT/isle-mesh-cli_*_all.deb \\"
 echo "                      $OUT/isle-app-store_*_all.deb \\"
 echo "                      $OUT/polari-isle_${VERSION}_all.deb"
+
+# After the build there are NO required terminal steps: offer the
+# install right here (polkit on a desktop, sudo in a terminal), and
+# from then on the APP route works — the store's first open offers
+# core-install/join itself. Both routes run the same steps.
+if [ -t 0 ]; then
+    read -p "Install the bundle now? (Y/n): " A
+    if [[ ! "$A" =~ ^[Nn] ]]; then
+        if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v pkexec >/dev/null 2>&1; then
+            pkexec apt-get install -y "$OUT"/isle-mesh-cli_*_all.deb \
+                "$OUT"/isle-app-store_*_all.deb "$OUT/polari-isle_${VERSION}_all.deb"
+        else
+            sudo apt-get install -y "$OUT"/isle-mesh-cli_*_all.deb \
+                "$OUT"/isle-app-store_*_all.deb "$OUT/polari-isle_${VERSION}_all.deb"
+        fi
+        echo
+        ok "installed — TWO equivalent routes from here:"
+        echo "   app route:      open 'Isle App Store' — its first run offers"
+        echo "                   'Create my own isle' / 'Join an existing isle'"
+        echo "                   (same steps, privilege via polkit)"
+        echo "   terminal route: sudo isle core-install"
+    fi
+fi

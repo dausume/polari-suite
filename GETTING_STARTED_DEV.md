@@ -39,12 +39,9 @@ This builds the polari backend (Python/Falcon) and frontend (Angular)
 container images from the `polari-rf-node` sub-project. The isle's
 lean polari instance (next step) deploys these exact images.
 
-## 3. Build + install the debs (the normal debian route, from code)
+## 3. Build the debs — the LAST required terminal step
 
     ./build-polari-isle-deb.sh
-    sudo apt install ./.generated/debs/isle-mesh-cli_*_all.deb \
-                     ./.generated/debs/isle-app-store_*_all.deb \
-                     ./.generated/debs/polari-isle_*_all.deb
 
 Three packages, all built from the checkout you just cloned:
 - `isle-mesh-cli` — the `isle` command (agents, router, DNS, store
@@ -53,21 +50,37 @@ Three packages, all built from the checkout you just cloned:
 - `polari-isle` — the meta-package bundling both (this is the same
   single-download bundle the public site serves)
 
-## 4. Stand up your own isle (single-device isles are first-class)
+The builder ends by OFFERING the install (polkit on a desktop, sudo
+in a terminal). Say yes and there are no further required terminal
+steps — from here every setup has two equivalent routes.
+
+## 4. Stand up your own isle — app route OR terminal route
+
+Both run the SAME steps; the app only adds polkit for privilege.
+
+**App route:** open **"Isle App Store"** from your menu. On a fresh
+device its first run offers the two doors of the membership rule:
+*Create my own isle* (runs `isle core-install` in a terminal window
+via polkit — the interactive security walkthrough happens there) or
+*Join an existing isle* (the fingerprint-verified bootstrap
+instructions). Once an agent runs, the store opens directly.
+
+**Terminal route:**
 
     sudo isle core-install
 
-One idempotent flow: isle networking (router VM + agent) → the isle CA
-trusted locally → the lean polari deployed behind the agent (seeded
-from the versioned `polari-isle/` sub-project) → the store shell →
-apt-on-mesh (so OTHER devices install everything over the mesh) → a
-verify pass → **the production-security walkthrough** (generic
-self-hosting first; provider-specific steps as a post step). It ends
-by printing the JOIN INFO another device needs to join your isle.
+Either way, core-install is one idempotent flow: isle networking
+(router VM + agent) → the isle CA trusted locally → the lean polari
+deployed behind the agent (seeded from the versioned `polari-isle/`
+sub-project) → the store shell → apt-on-mesh (so OTHER devices
+install everything over the mesh) → a verify pass → **the
+production-security walkthrough** (generic self-hosting first;
+provider-specific steps as a post step). It ends by printing the
+JOIN INFO another device needs to join your isle.
 
-Then open https://polari.isle — the isle hub — and the "Isle App
-Store" application. The membership rule: the running agent IS
-membership; the store installs apps only on isle members.
+Then open https://polari.isle — the isle hub. The membership rule:
+the running agent IS membership; the store installs apps only on
+isle members.
 
 ## 5. Or: run the polari node directly (no isle)
 
