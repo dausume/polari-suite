@@ -1,9 +1,10 @@
 # Uninstall lifecycle — one teardown engine, three standard routes
 # (unin-0..unin-6)
 
-**Date:** 2026-08-17 · **Status: PLANNING (Dustin: automate the manual
-purge so every edge case is handled by a normal/standard uninstall
-route).** Grounded in the FULL 3-DEVICE MANUAL PURGE of 2026-08-17 —
+**Date:** 2026-08-17 · **Status: proposals ACCEPTED (Dustin) —
+unin-0/1/2/3/5 BUILT same day (Isle-Mesh e856852 + 0d62ff0, polari-cli
+15c1c1b, branches dev-unin-1); unin-4 (store UI thin buttons) pending;
+unin-6 live proof rides the isle-core fresh install→uninstall run.** Grounded in the FULL 3-DEVICE MANUAL PURGE of 2026-08-17 —
 every phase below traces to something we actually had to do by hand,
 or a gap we hit live.
 
