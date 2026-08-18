@@ -1,5 +1,9 @@
 # Polari Suite — Build & Run
 
+**New developer on a fresh machine?** Follow `GETTING_STARTED_DEV.md` —
+clone → `./bootstrap-dev.sh` → build → install → your own isle, from
+nothing but this repository.
+
 **Start here.** This is the top-level guide for building, running, and testing the
 Polari suite in its various configurations. The suite is orchestrated by one CLI —
 **`pol`** — which fronts credential/cert setup, the compose stack lifecycles, the
