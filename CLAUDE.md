@@ -34,6 +34,12 @@ writable bind mount must use one of those two patterns. Also: PSC's cache is
 it), and the PSC backend test stack is self-contained (own MariaDB/KeyDB/MinIO,
 stubbed Keycloak). See README §7.
 
+## Plans
+
+All `*_PLAN.md` / `*_HANDOFF.md` / roadmap / evaluation docs live in
+**`AI-Plans/`** (moved 2026-08-17) — older references to "<X>_PLAN.md at
+suite root" mean `AI-Plans/<X>_PLAN.md` now.
+
 ## Repo shape
 
 Superproject with submodules — EVERYTHING is inside the suite:
