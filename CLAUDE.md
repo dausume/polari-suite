@@ -34,11 +34,15 @@ writable bind mount must use one of those two patterns. Also: PSC's cache is
 it), and the PSC backend test stack is self-contained (own MariaDB/KeyDB/MinIO,
 stubbed Keycloak). See README §7.
 
-## Plans
+## Plans & working docs
 
-All `*_PLAN.md` / `*_HANDOFF.md` / roadmap / evaluation docs live in
-**`AI-Plans/`** (moved 2026-08-17) — older references to "<X>_PLAN.md at
-suite root" mean `AI-Plans/<X>_PLAN.md` now.
+All AI-arc working documents live in **`AI-Notes/`** (restructured
+2026-08-17) with sub-sections: `plans/` (plans+roadmaps), `handoffs/`,
+`evaluations/` (incl. licence gates/audits), `designs/`, `ledgers/`
+(TESTING_OWED, FRONTEND_WORK_MAP), `guides/`. Older references to
+"<X>_PLAN.md at suite root" or "AI-Plans/<X>" mean
+`AI-Notes/plans/<X>_PLAN.md` now. The suite root keeps only README,
+GETTING_STARTED_DEV, and this file.
 
 ## Repo shape
 
