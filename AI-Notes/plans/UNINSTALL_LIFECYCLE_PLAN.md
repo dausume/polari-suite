@@ -132,6 +132,25 @@ excluded from any purge sweep.
   box/VM per route; the isle-core verification sweep we ran becomes
   `isle uninstall --verify` (containers/volumes/images/VMs/debs/dirs/
   units all zero, network owner named).
+- **unin-7 — the CORE cascade + kill signal (Dustin 2026-08-17;
+  BUILT same day)**: deleting a core ends the isle for every member
+  and cannot be undone (new core = new CA = a different isle).
+  (a) `isle uninstall --everything` on a core: full warning + typed
+  `delete the isle` (even --force; ISLE_CONFIRM_DELETE=yes for
+  automation). (b) The dying core broadcasts **ISLE-ENDING**
+  (fingerprint-tagged UDP on the isle subnet — remotes hold
+  host-level isle IPs, so a host-side listener hears it; sent by
+  both the verb and the deb prerm). (c) **isle-watch** on members
+  (systemd service; enabled at join/onboard, or by the deb postinst
+  when the device is already a member — passive listener only, no
+  network rewriting): matching signal → SAFE stop of isle containers
+  + event recorded; poll fallback records a softer core-unreachable
+  event for members that were offline. (d) The store's first-open
+  prompt asks the human about full removal — never automatic, with
+  the no-going-back warning; false alarms clear via `isle watch
+  clear`. Spoof risk stated honestly: fingerprint-tagged not signed;
+  bounded to a recoverable stop. (e) modules/engines:
+  `polari-module-*` debs join the purge family + verify.
 
 ## Open questions (Dustin)
 
