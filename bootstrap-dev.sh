@@ -2,7 +2,7 @@
 # bootstrap-dev.sh — from a bare suite clone to a full development
 # checkout, PIECE-WISE. The development flow is:
 #
-#     git clone https://github.com/dausume/polari-suite.git
+#     git clone --branch dev https://github.com/dausume/polari-suite.git
 #     cd polari-suite && ./bootstrap-dev.sh [piece ...]
 #
 # With no arguments it pulls every piece; name pieces to pull only what

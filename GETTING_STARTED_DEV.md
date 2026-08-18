@@ -21,7 +21,7 @@ is put in AT DEPLOY TIME by the walkthrough (`isle security setup` /
 
 ## 1. Clone the suite and pull everything (piece-wise)
 
-    git clone https://github.com/dausume/polari-suite.git
+    git clone --branch dev https://github.com/dausume/polari-suite.git
     cd polari-suite
     ./bootstrap-dev.sh
 
