@@ -61,8 +61,9 @@ if [ -f "$ROOT/polari-app-shell/shells/build-store-deb.sh" ]; then
         && ok "isle-app-store_${STORE_VERSION}_all.deb" \
         || warn "store deb not produced — bundle still builds (Depends will pull it from an apt source instead)"
 else
-    warn "polari-app-shell not pulled (private repo) — store deb skipped;"
-    warn "the bundle's Depends will need it from an apt source at install time"
+    warn "polari-app-shell not pulled — store deb skipped;"
+    warn "pull it (./bootstrap-dev.sh polari-app-shell) or the bundle's"
+    warn "Depends will need it from an apt source at install time"
 fi
 
 # ---- 3. the polari-isle META-deb ----

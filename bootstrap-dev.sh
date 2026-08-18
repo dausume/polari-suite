@@ -29,13 +29,13 @@ warn(){ echo -e "${Y}[WARN]${N} $*"; }
 step(){ echo; echo -e "${C}==> $*${N}"; }
 
 # piece|note  (pieces = the suite's direct submodules; nested ones ride
-# their parent). polari-app-shell is PRIVATE — needs GitHub auth.
+# their parent). All sub-projects are PUBLIC repos as of 2026-08-17.
 PIECES=(
     "polari-cli|the pol CLI (build/run/test orchestration)"
     "polari-rf-node|polari node: Python/Falcon backend + Angular frontend (nested submodules)"
     "political-scorecard-node|political scorecard frontend+backend"
     "Isle-Mesh|isle-mesh: agents, router, isle CLI, store plumbing"
-    "polari-app-shell|native app shells (PRIVATE repo — needs GitHub auth; skipped gracefully)"
+    "polari-app-shell|native app shells (JavaFX/android/iOS + launcher builders)"
 )
 
 list_pieces(){

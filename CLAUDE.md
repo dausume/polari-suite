@@ -50,7 +50,8 @@ Superproject with submodules — EVERYTHING is inside the suite:
 `polari-cli`, `polari-rf-node` (`polari-framework` = Python/Falcon backend,
 `polari-platform-angular` = Angular), `political-scorecard-node`
 (`political-scorecard-frontend` = Angular, `political-scorecard-backend` =
-Java/Spring), `polari-app-shell` (native shells, PRIVATE repo), and
+Java/Spring), `polari-app-shell` (native shells — public as of
+2026-08-17), and
 `Isle-Mesh` (isle networking + isle CLI + store plumbing + the versioned
 `polari-isle/` deployment sub-project). Active work is on `dev`. Commit
 submodule contents before the superproject pointer (innermost-first);

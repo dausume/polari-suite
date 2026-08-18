@@ -16,9 +16,8 @@ is put in AT DEPLOY TIME by the walkthrough (`isle security setup` /
   plugin). For hosting an isle core you also need `libvirt`/KVM
   (the isle router runs as a small VM) — the installer checks and
   names anything missing.
-- Optional: GitHub auth if you need the private `polari-app-shell`
-  sub-project (native app shells). Everything else is public; the
-  bootstrap skips it gracefully without auth.
+- All sub-projects are public repos — no GitHub auth required to
+  clone anything.
 
 ## 1. Clone the suite and pull everything (piece-wise)
 
