@@ -52,7 +52,7 @@ open-source libraries/apps to leverage.
 | 2024 Compendium of Physical Activities | MET values (1,100+ activities) | free incl. commercial, attribution, values unaltered |
 | Hall/NIDDK dynamic weight model (Lancet 2011 / Chow-Hall 2008) | weight trajectory from energy balance — equations PUBLISHED; implement from papers | published science (NIH's own implementation needs a license — don't use theirs) |
 | USDA Nutrient Retention Factors R6 + Cooking Yields | cooking transforms nutrients — THE recipe-nutrition method | CC0 |
-| Open Food Facts (optional) | barcodes/packaged foods | ODbL — keep in an ISOLATED table (share-alike scope contained) |
+| ~~Open Food Facts~~ | ~~barcodes/packaged foods~~ | OUT (decision 8: base ingredients only — never needed) |
 
 **⛔ BLOCKED (NC/unusable — do not vendor, do not scrape):** FooDB
 (CC BY-NC), RecipeNLG + Recipe1M (research-only), Monash FODMAP
@@ -79,14 +79,31 @@ reimplement concepts independently, never read its source.
   ingredients→nutrients→vs-thresholds chain. This is where polari is
   genuinely novel — and it lands exactly on our existing seams.
 
+## ✅ DECIDED (Dustin 2026-08-19 — meal-shape rules)
+
+| # | Decision |
+|---|---|
+| 1 | **Meals are single TEMPLATES with acceptable VARIATIONS** — a MealTemplate carries a base recipe set plus allowed swaps/portion ranges; a variation is valid only inside the template's bounds |
+| 2 | **Templates are STRICTLY bounded within healthy meal limits for the AVERAGE person** — authoring/validation REFUSES any template or variation that spikes a nutrient dangerously (per-meal caps derived from the general-population limits: tolerance doses, sodium/added-sugar shares, UL fractions). This is a hard GATE at template level, distinct from the soft warnings on logged intake |
+| 3 | **NO special conditions modeled** — no allergies, diabetes, IBS, or medical personalization; all bounds are general-population (DRI life-stage bands are the only person-axis). The pages say so plainly |
+| 4 | **Eating patterns (the person's choice)**: 2 meals/day · 3 meals/day · 3 small meals + 2 snacks |
+| 5 | **Meal slots**: breakfast, lunch, dinner, brunch, linner, snack — a plan entry = pattern-consistent slot × template × variation |
+| 6 | **Activity is ASKED as minutes-of-exercise-per-week**, with a detailed plain-language explanation of what counts (exertion that leaves you out of breath ≈ vigorous; brisk-but-conversational ≈ moderate — the WHO/DGA 150–300 min moderate ≍ 75–150 min vigorous framing). This replaces the abstract PAL guess as the default activity input |
+| 7 | **The calorie envelope**: eating pattern + weekly activity minutes → a person's MIN and MAX healthy daily calories (BMR safety floor below, TDEE-surplus cap above) → divided by seeded pattern fractions into a PER-MEAL healthy calorie band; meal choice scales up/down along that band, never outside it |
+| 8 | **Meals are built STRICTLY from base ingredients and meats** — whole produce, meats/fish, staples (grains, legumes, oils, dairy-as-ingredient); no packaged/processed products as meal components. Consequence: USDA FDC Foundation + SR Legacy (whole foods, analytic) covers the entire ingredient space; **Open Food Facts drops out of the arc** (Q2 CLOSED — not deferred, not needed), and the ODbL containment concern disappears with it |
+
 ## Design spine
 
 ONE chain, every link a treeObject with per-object displays:
 
-  PersonProfile (exists; + obesity classification, thresholds)
-    ← MealPlan (day/week/month of MealEntries)
-      ← MealEntry (meal slot × Recipe × servings)
-        ← Recipe (IngredientLines × CookingSteps)
+  PersonProfile (exists; + obesity class, thresholds, EatingPattern,
+                 weekly activity minutes)
+    ← MealPlan (day/week/month of MealEntries, pattern-consistent)
+      ← MealEntry (slot × MealTemplate × chosen Variation)
+        ← MealTemplate (base recipes + allowed variations, HARD-bounded
+                        to the average-person per-meal limits at
+                        authoring — decision 2)
+          ← Recipe (IngredientLines × CookingSteps)
           ← IngredientLine (FoodItem × amount × prep)
             ← FoodItem (exists; + FDC linkage)
               ← harvest (exists: aqp grow → nutrients)
@@ -107,17 +124,27 @@ which database row, which retention factor).
   jurisdiction column), DGA limits (edition-tagged), Compendium MET
   table (attribution header, values unaltered), Retention Factors R6 +
   yields (CC0 CSVs). Fork-pin adopted libs (dausume/: wger,
-  recipe-scrapers, ingredient-parser, openfoodfacts-python) per the
-  fork-pin ledger discipline; licence pins never >=. OFF isolated in
-  its own table if/when enabled (ODbL containment).
+  recipe-scrapers, ingredient-parser) per the fork-pin ledger
+  discipline; licence pins never >=. (openfoodfacts-python + OFF
+  dropped — decision 8.)
 - **nmp-1 — profiles grow the threshold layer.** PersonProfile gains:
   obesity_classification (BMI band + waist knob, computed with the
   honest caveats — BMI is a screening prior, body_fat_fraction wins
-  when set), and a PersonThresholds object: per-nutrient × per-period
+  when set), **eating_pattern** (2-meal / 3-meal / 3-small+2-snacks,
+  decision 4) and **weekly_activity_minutes** captured by the
+  plain-language question (decision 6: the form explains moderate vs
+  vigorous in felt terms — out-of-breath exertion — and maps minutes
+  to the activity factor, replacing the abstract PAL guess), and a
+  PersonThresholds object: per-nutrient × per-period
   (meal/day/week/month) min/target/max derived from the DRI/UL + DGA
   seeds by age/sex/life-stage, every value overridable (knob) with the
   derivation shown (suggestion). ULs and CDRR become the default MAX
-  side; AMDR bands the macro envelope.
+  side; AMDR bands the macro envelope. **The calorie envelope engine
+  (decision 7)**: min/max healthy daily kcal from BMR floor + activity,
+  split by seeded pattern fractions (labeled convention priors —
+  meal-distribution literature is thin, say so) into per-meal bands.
+  General-population ONLY (decision 3) — the single person-axis is
+  the DRI life-stage band.
 - **nmp-2 — tolerance/adverse-effect table (the honest one).**
   ToleranceThreshold objects seeded from the literature numbers the
   research pinned: rapid-fermenting fiber ~5-10 g/dose GI onset (no
@@ -137,11 +164,20 @@ which database row, which retention factor).
   per-serving RecipeNutrition with a raw-vs-cooked provenance label.
   recipe-scrapers ingestion verb for URL import. This is the
   build-ourselves engine nothing OSS provides.
-- **nmp-4 — meal plans.** MealPlanDefinition (person or household ×
-  date range) + MealEntry (slot breakfast/lunch/dinner/snack × recipe
-  × servings). Rollups per meal/day/week/month vs PersonThresholds +
-  ToleranceThresholds: coverage (under-target), excess (over-max,
-  symptom-named), AMDR balance. Suggestions propose swaps/portions
+- **nmp-4 — meal templates + plans.** **MealTemplate** (decisions 1+2):
+  base recipe set + VariationDefinitions (allowed swaps, portion
+  ranges); the authoring VALIDATOR computes every variation's rollup
+  and REFUSES the template if any nutrient exceeds the average-person
+  per-meal caps (tolerance doses, per-meal shares of sodium/added
+  sugar/UL) — hard gate, named reasons. Base-ingredients rule
+  (decision 8) enforced here: template lines reference whole
+  FoodItems, not products. MealPlanDefinition (person or household ×
+  date range) + MealEntry (pattern-consistent slot — breakfast/lunch/
+  dinner/brunch/linner/snack — × template × chosen variation, scaled
+  within the slot's calorie band from nmp-1). Rollups per
+  meal/day/week/month vs PersonThresholds + ToleranceThresholds:
+  coverage (under-target), excess (over-max, symptom-named), AMDR
+  balance. Suggestions propose variations/portions
   (knobs-and-suggestions: never auto-edit a plan). Household mode
   splits a shared meal across members' profiles by serving fractions.
 - **nmp-5 — activity + intensity.** ActivityDefinition seeded from the
@@ -196,13 +232,17 @@ which database row, which retention factor).
 
 1. **wger relationship**: mine its models only (default), or also run
    it as an adopted engine alongside polari (AGPL service, own UI)?
-2. **Open Food Facts**: enable the ODbL-isolated packaged-foods table
-   now, or defer until barcode workflows matter?
+~~2. Open Food Facts~~ — **CLOSED by decision 8**: base ingredients
+   only → FDC covers everything; OFF out of the arc entirely.
 3. **Recipe ingestion**: URL import (recipe-scrapers) in nmp-3, or
-   hand-authored recipes first and import later?
+   hand-authored recipes first and import later? (Imported recipes
+   would still have to pass the base-ingredients rule + template gate.)
 4. **Trajectory horizon**: default projection window (12 weeks?) and
    whether household members see each other's trajectories
    (privacy default: own-profile only?).
+5. **Pattern fractions**: proposed per-meal calorie splits — 3-meal
+   ≈ 25/35/40%, 2-meal ≈ 45/55%, 3-small+2-snacks ≈ 25/25/30 + 10/10
+   — labeled convention priors, tunable. Confirm or adjust.
 
 ## Grounding index
 
