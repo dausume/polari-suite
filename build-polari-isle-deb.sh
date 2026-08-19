@@ -51,7 +51,31 @@ CLI_VERSION="0.1.$(cd "$ROOT/Isle-Mesh" && git log --oneline | wc -l)"
 [ -f "$OUT/isle-mesh-cli_${CLI_VERSION}_all.deb" ] || { echo "cli deb not produced" >&2; exit 1; }
 ok "isle-mesh-cli_${CLI_VERSION}_all.deb"
 
-# ---- 2. isle-app-store from the polari-app-shell checkout ----
+# ---- 2. polari-shell-core: the SHARED JavaFX runtime every launcher
+# (isle-app-store included) Depends on. Needs a JDK with jpackage;
+# skipped honestly without one (the store deb then can't install).
+step "polari-shell-core (shared runtime, from polari-app-shell/)"
+if [ -f "$ROOT/polari-app-shell/shells/build-shared-shell.sh" ]; then
+    if command -v jpackage >/dev/null 2>&1; then
+        CORE_VERSION="0.1.$(cd "$ROOT/polari-app-shell" && git log --oneline | wc -l)"
+        if ls "$OUT"/polari-shell-core_"$CORE_VERSION"_*.deb >/dev/null 2>&1; then
+            ok "polari-shell-core_$CORE_VERSION already built (skipping — it's the slow one)"
+        else
+            ( cd "$ROOT/polari-app-shell" \
+                && bash shells/build-shared-shell.sh --version "$CORE_VERSION" --output "$OUT" ) | tail -1
+            ls "$OUT"/polari-shell-core_"$CORE_VERSION"_*.deb >/dev/null 2>&1 \
+                && ok "polari-shell-core_$CORE_VERSION" \
+                || warn "shared runtime did not build — the store deb will not be installable"
+        fi
+    else
+        warn "no jpackage (JDK 17+ needed) — polari-shell-core skipped;"
+        warn "the store deb Depends on it and will refuse to install"
+    fi
+else
+    warn "polari-app-shell not pulled — shared runtime skipped"
+fi
+
+# ---- 3. isle-app-store from the polari-app-shell checkout ----
 step "isle-app-store (from polari-app-shell/)"
 if [ -f "$ROOT/polari-app-shell/shells/build-store-deb.sh" ]; then
     STORE_VERSION="0.1.$(cd "$ROOT/polari-app-shell" && git log --oneline | wc -l)"
@@ -66,7 +90,7 @@ else
     warn "Depends will need it from an apt source at install time"
 fi
 
-# ---- 3. the polari-isle META-deb ----
+# ---- 4. the polari-isle META-deb ----
 step "polari-isle meta-deb"
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
@@ -131,6 +155,7 @@ ok "bundle ready in $OUT:"
 ls -sh1 "$OUT" | sed 's/^/   /'
 echo "   install (normal debian route, just from this code):"
 echo "     sudo apt install $OUT/isle-mesh-cli_*_all.deb \\"
+echo "                      $OUT/polari-shell-core_*.deb \\"
 echo "                      $OUT/isle-app-store_*_all.deb \\"
 echo "                      $OUT/polari-isle_${VERSION}_all.deb"
 
@@ -141,12 +166,19 @@ echo "                      $OUT/polari-isle_${VERSION}_all.deb"
 if [ -t 0 ]; then
     read -p "Install the bundle now? (Y/n): " A
     if [[ ! "$A" =~ ^[Nn] ]]; then
-        if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v pkexec >/dev/null 2>&1; then
-            pkexec apt-get install -y "$OUT"/isle-mesh-cli_*_all.deb \
-                "$OUT"/isle-app-store_*_all.deb "$OUT/polari-isle_${VERSION}_all.deb"
+        DEBS=("$OUT"/isle-mesh-cli_*_all.deb "$OUT/polari-isle_${VERSION}_all.deb")
+        # store + its runtime install together only when BOTH exist
+        if ls "$OUT"/polari-shell-core_*.deb >/dev/null 2>&1 \
+           && ls "$OUT"/isle-app-store_*_all.deb >/dev/null 2>&1; then
+            DEBS+=("$OUT"/polari-shell-core_*.deb "$OUT"/isle-app-store_*_all.deb)
         else
-            sudo apt-get install -y "$OUT"/isle-mesh-cli_*_all.deb \
-                "$OUT"/isle-app-store_*_all.deb "$OUT/polari-isle_${VERSION}_all.deb"
+            warn "store shell + runtime not both present — installing CLI + meta only"
+            warn "(the polari-isle meta Depends will pull them from an apt source later)"
+        fi
+        if [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ] && command -v pkexec >/dev/null 2>&1; then
+            pkexec apt-get install -y "${DEBS[@]}"
+        else
+            sudo apt-get install -y "${DEBS[@]}"
         fi
         echo
         ok "installed — TWO equivalent routes from here:"
