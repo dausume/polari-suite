@@ -1,4 +1,33 @@
-# Fresh-install debug — handoff (resume point: router VM build)
+# Fresh-install debug — ✅ RESOLVED 2026-08-19: core-install FULL GREEN
+
+**Final state:** `sudo isle core-install` runs ALL 7 STEPS GREEN on a
+genuinely fresh isle-core, from pure code (clone → bootstrap → pol node
+build → build-polari-isle-deb → apt install → core-install). polari is
+LIVE on the isle (https://polari.isle), apt.isle serves the four
+from-code debs, the CA self-mints, security check passes. Six findings
+were fixed at source across the exercise:
+
+1. polari-shell-core never built from code (bundle builder step 2)
+2. router-init packed-script lib path (pack.sh part homes)
+3. set-e-silent avahi/dbus + ssh-keygen steps (if-wrapped, UCI→conf
+   fallback)
+4. no isle CA on a fresh box → `isle certs init-ca` (self-contained
+   root+intermediate minted at install; core-install step 2 mints)
+5. stale ~/polari-isle die-guard + sudo $HOME (deploy seeds from the
+   versioned sub-project into the INVOKING user's home)
+6. apt-repo publish only knew hand-staged ~/polari-shells (now also
+   .generated/debs)
+
+**Remaining (Dustin, tonight):** the GUI pass — on isle-core the agent
+now runs, so the store icon opens the store DIRECTLY (the first-open
+two-doors dialog only shows on agent-less devices); verify the store
+window + hub. Optionally the round-trip proof: `sudo isle uninstall
+--everything` (typed 'delete the isle' — it's a core) → `--verify`
+zeros → rerun the install from the same checkout.
+
+---
+(Original debug notes below, kept for the record.)
+
 
 **Date:** 2026-08-19 · **State:** mid-exercise. Dustin is proving the
 clean-slate developer flow (GETTING_STARTED_DEV.md) on isle-core after
