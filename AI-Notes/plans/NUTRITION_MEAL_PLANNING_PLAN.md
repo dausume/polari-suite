@@ -91,6 +91,8 @@ reimplement concepts independently, never read its source.
 | 6 | **Activity is ASKED as minutes-of-exercise-per-week**, with a detailed plain-language explanation of what counts (exertion that leaves you out of breath ≈ vigorous; brisk-but-conversational ≈ moderate — the WHO/DGA 150–300 min moderate ≍ 75–150 min vigorous framing). This replaces the abstract PAL guess as the default activity input |
 | 7 | **The calorie envelope**: eating pattern + weekly activity minutes → a person's MIN and MAX healthy daily calories (BMR safety floor below, TDEE-surplus cap above) → divided by seeded pattern fractions into a PER-MEAL healthy calorie band; meal choice scales up/down along that band, never outside it |
 | 8 | **Meals are built STRICTLY from base ingredients and meats** — whole produce, meats/fish, staples (grains, legumes, oils, dairy-as-ingredient); no packaged/processed products as meal components. Consequence: USDA FDC Foundation + SR Legacy (whole foods, analytic) covers the entire ingredient space; **Open Food Facts drops out of the arc** (Q2 CLOSED — not deferred, not needed), and the ODbL containment concern disappears with it |
+| 9 | **Common-spike bounds join the template gate**: no meal may carry so much sugar it causes an imbalance in a HEALTHY person (glycemic-load cap per meal — diabetes management stays out per decision 3, but glycemic spikes are a general-population concern), and meals avoid excess ACIDITY / known reflux-trigger loads (acid content + trigger-category flags: citrus/tomato concentration, high-fat + large-meal combination, carbonation/caffeine/mint/chocolate). Reflux-trigger evidence is weaker than the UL-grade numbers — those rows carry a lower confidence label, honestly |
+| 10 | **Cooking is TASK-ORIENTED PROCESS/WORKFLOW territory** (the judicial-process pattern applied to the kitchen): what gets refined is "how to most efficiently make the week's meals" — prep sessions happen ONCE OR TWICE a week, everything made in the smallest feasible time; pre-prep and STORAGE-STATE transitions (freeze, fridge, freezer→fridge thaw, reheat) are first-class scheduled actions with durations and food-safety windows |
 
 ## Design spine
 
@@ -152,6 +154,14 @@ which database row, which retention factor).
   utilization (NOT toxicity — label it), sugar-alcohol laxation
   thresholds (sorbitol/xylitol/erythritol per-kg), FODMAP per-serving
   cutoffs (Monash published values, cited), sodium CDRR, vitamin ULs.
+  **Decision-9 additions**: per-meal GLYCEMIC LOAD cap (GL from carbs ×
+  published GI tables — Atkinson/Foster-Powell values are citable
+  facts; GL>20/meal = the published "high" convention; the University
+  of Sydney GI *database* is proprietary — values from the papers
+  only) and the ACID/REFLUX rows: meal acid concentration (citrus/
+  tomato share), the high-fat×large-meal combination, and trigger
+  categories (carbonation, caffeine, mint, chocolate) — confidence
+  LOWER than UL-grade rows and labeled so.
   Each row: nutrient, period, threshold, symptom, citation, confidence.
   Evaluation produces WARNINGS with the symptom named ("this day's
   inulin-type fiber exceeds the 10 g dose literature associates with
@@ -217,6 +227,48 @@ which database row, which retention factor).
   convention); cross-checks: a seeded day-plan's rollup vs
   hand-computed values, Hall-model unit tests against published
   worked examples, threshold warnings fire at documented doses.
+- **nmp-10 — cooking workflows: the meal-prep scheduler (decision
+  10).** The judicial-process pattern applied to cooking — a staged,
+  refinable task pipeline, not a recipe printout:
+  - **Objects**: CookingTask (chop/marinate/batch-cook/cool/portion/
+    pack; duration, equipment slot, yields), StorageAction (freeze,
+    refrigerate, freezer→fridge thaw, reheat — each with duration +
+    the USDA FSIS food-safety window it must respect: safe fridge/
+    freezer storage times, thaw rules, cool-before-store windows —
+    public-domain numbers, seeded + cited), PrepSession (a scheduled
+    block of tasks), CookingWorkflow (the week's DAG: tasks +
+    storage-state edges from prep session → meal slot).
+  - **The optimizer**: given the week's MealPlan, derive the task DAG
+    and compress it into ONE OR TWO PrepSessions + minimal day-of
+    steps — batching shared prep across templates (chop once for
+    three meals), overlapping oven/stove slots (equipment
+    constraints), choosing freeze-vs-fridge per gap between prep and
+    consumption (safety window decides; quality windows noted),
+    inserting thaw actions at the right day ("move Thursday's
+    portions freezer→fridge Wednesday evening"). Output = a timed
+    session plan + a tiny daily action list; total-active-minutes is
+    THE score being minimized.
+  - **Refinement loop (the judicial-process part)**: workflows are
+    data — observed actual durations feed back as tunable priors;
+    the scheduler suggests re-batching (knobs-and-suggestions, never
+    auto-rewrites a workflow someone edited).
+  - Cooking nutrient effects ride nmp-3's retention/yield tables
+    (freeze/reheat rows where the R6 tables carry them; label absent
+    data honestly).
+  - **Object structure — easy to ARRANGE and CONFIGURE (Dustin)**:
+    every step kind (CookingTask, StorageAction, wait/thaw) honors ONE
+    uniform STEP CONTRACT — inputs (food items + their storage state),
+    outputs (transformed items + new state), duration, equipment/
+    constraint slots — so any step snaps against any other and
+    workflows are pure ARRANGEMENTS of interchangeable pieces, not
+    bespoke code. Workflows are graphs-as-data on the EXISTING no-code
+    seams: the polariNoCode D3 graph editor arranges/re-wires them
+    (drag steps, connect state edges — the same editor, a step-node
+    vocabulary, NOT a new editor), per-object display config puts each
+    step's knobs on its own page tab, and composition/seed_upsert
+    carries curated workflow templates. Configuring = editing object
+    fields; arranging = editing graph edges; both are data the
+    refinement loop can version and suggest against.
 
 ## Boundaries
 
