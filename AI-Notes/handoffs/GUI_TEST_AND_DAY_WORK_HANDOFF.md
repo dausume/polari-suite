@@ -62,7 +62,7 @@ arrived empty twice; don't rely on them.
    (cmp-0..7, AI-Notes/plans/COMPOSTING_LOOP_PLAN.md) — waste
    DERIVED from meal plans, routed to compost/teas (aqp-7 = the
    built return path) or livestock feed (legality fail-closed);
-   4 open Qs for Dustin, then cmp-0's research pass builds first.
+   ALL 4 Qs ANSWERED (own deb; pigs+chickens+cats+dogs w/ ration mixing; new composting/ module; optional advised logging + own-vs-nearby-farm destinations); cmp-0 research pass builds on go-ahead.
 3. **pub arc remaining** (polari-systems.org): Dustin-owned blockers
    unchanged — staging KC rotation (`pol security rotate staging`,
    with him present), DNS-at-DO + DO_API_TOKEN + droplet. Ours when

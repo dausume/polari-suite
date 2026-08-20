@@ -1,8 +1,8 @@
 # Composting loop — waste planned WITH the food (cmp-0..cmp-7)
 
-**Date:** 2026-08-20 · **Status: PLANNING ONLY (Dustin's brief,
-same-day as the nmp build; written for his refinement — the nmp
-pattern: decisions ratify, then a go-ahead builds).**
+**Date:** 2026-08-20 · **Status: PLAN RATIFIED same day — Dustin
+answered all 4 open questions (decisions 7-9 below record them);
+ready for cmp-0's research pass on a build go-ahead.**
 
 **Dustin's brief (verbatim intent):** build a composting app for
 making new soil and compost-teas that feed back into hydroponics;
@@ -45,7 +45,7 @@ plan the handling when you plan the food, not after.
 | USDA FDC/SR refuse factors (percent inedible per food) | waste fraction per pantry food | CC0 — verify column availability per dataset |
 | Cornell WMI / extension C:N + moisture tables for feedstocks | compost balancing (greens/browns) | citable published values — verify per table |
 | USDA/FDA + Swine Health Protection Act (9 CFR 166) | livestock-feed LEGALITY (esp. food scraps to swine; meat-contact rules) | public law — transcribe the RULES, cited |
-| state/extension poultry + rabbit scrap guidance | per-species acceptance/prohibition lists | citable; label confidence |
+|  per-species scrap guidance: poultry extension + veterinary toxic-food lists for cats/dogs (ASPCA etc.) | per-species acceptance/prohibition lists | citable; label confidence |
 | compost-tea brewing literature (aeration, time, ratios) | tea parameter priors | published papers; label ranges honestly |
 
 ⛔ Same gates as nmp: nothing NC/proprietary vendored; values-as-
@@ -76,6 +76,28 @@ facts cited where the container is blocked.
    in nmp-7 coverage as a LABELED supply term (off by default until
    measured).
 
+## ✅ DECIDED (Dustin 2026-08-20 — the Q1-Q4 answers)
+
+7. **Own DEB**: composting is its OWN PolariAppDefinition + app
+   (`pol apps shell composting`), not a nutrition-planner tab — its
+   pages link across, but it ships and installs independently.
+8. **Four feed species: pigs, chickens, cats, dogs** (pets are feed
+   recipients too — household scraps as pet food, with the
+   veterinary toxic-food lists transcribed per species: allium/
+   grapes/chocolate/xylitol for dogs, allium/raw-dough for cats,
+   etc., cited). **Streams may be MIXED with other feedstock** to
+   compose an acceptable ration — mixing solves NUTRITION/ration
+   balancing; the router states honestly where a legality rule
+   cannot be mixed away (the swine meat-contact rule requires
+   licensed COOKING or exclusion — dilution does not legalize it).
+9. **Manual logging is an OPTIONAL, advised knob**: the app
+   explains what logging adds (drift correction, real-vs-derived
+   waste), users choose their methods — or none. **Destination is
+   also the user's choice**: own livestock/pets, OR local sale/
+   give-away to nearby people and farms (a FeedAllocation
+   destination kind riding the supplychain module seam) — the
+   router proposes both where streams qualify.
+
 ## Phases
 
 - **cmp-0 — data adoption**: refuse-fraction table for the 49-food
@@ -91,34 +113,37 @@ facts cited where the container is blocked.
 - **cmp-2 — systems as data**: CompostSystemDefinition (+ adopts
   the aqp-7 bin as the vermicompost kind), HouseholdCompostSetup
   (which systems this household runs, capacities).
-- **cmp-3 — the router**: stream → {system | livestock | discard}
+- **cmp-3 — the router**: stream → {system | feed | discard}
   proposals with reasons (C:N balance suggestions with greens/
   browns arithmetic; capacity honesty; the legality hard gate);
-  LivestockDefinition + per-species acceptance rows (cited).
+  FeedSpeciesDefinition rows for the FOUR species (pigs, chickens,
+  cats, dogs) with cited acceptance/prohibition lists; RATION
+  MIXING proposals (decision 8) that balance a stream against
+  other feedstock — never presented as legalizing what the law
+  gates.
 - **cmp-4 — outputs + the return path**: CompostBatch / SoilBatch /
-  CompostTeaBatch with prior profiles; FeedAllocation rows; the
-  aqp-7 coupling for teas; batch maturity timelines.
+  CompostTeaBatch with prior profiles; FeedAllocation rows with the
+  decision-9 destination kinds (own-livestock | own-pet |
+  local-sale via the supplychain seam); the aqp-7 coupling for
+  teas; batch maturity timelines.
 - **cmp-5 — integration**: meal-plan pages gain the waste panel;
   the prep scheduler emits waste actions ("trimmings → bokashi
   bucket at session 1"); nmp-7 coverage's labeled compost term.
 - **cmp-6 — pages** (pure-data displays, the nmp-8 pattern) + the
-  composting app front doors joining nutrition-planner (or its own
-  PolariAppDefinition — Dustin's call, Q1 below).
+  OWN composting PolariAppDefinition (decision 7) with cross-links
+  to nutrition-planner's plan pages; the advisory content for
+  decision 9 (what logging adds; own-vs-nearby destinations).
 - **cmp-7 — selftests** per phase (the module convention).
 
-## Open questions (Dustin)
+## Open questions — ALL ANSWERED (Dustin 2026-08-20)
 
-1. **App shape**: composting inside the nutrition-planner app, or
-   its own `composting` PolariAppDefinition (own deb)? (Proposal:
-   pages join nutrition-planner now; split later if it grows.)
-2. **Which livestock first**: chickens/pigs/goats/rabbits/worms —
-   which do you actually plan for? (Drives which legality tables
-   get transcribed first.)
-3. **Module home**: new `composting/` module vs growing
-   `nutrition/` + `aquaponics/`? (Proposal: new module, thin,
-   importing both seams — file-size-decomposition rule.)
-4. **Manual waste logging**: worth a correction knob in cmp-1, or
-   derived-only until real use shows drift?
+1. ✅ Own deb (decision 7).
+2. ✅ Pigs, chickens, cats, dogs — just those four; mixing with
+   other feedstock allowed for ration composition (decision 8).
+3. ✅ New thin `composting/` module importing the nutrition +
+   aquaponics seams.
+4. ✅ Manual logging optional + advised; destination choice
+   own-vs-nearby included (decision 9).
 
 ## Grounding index
 
