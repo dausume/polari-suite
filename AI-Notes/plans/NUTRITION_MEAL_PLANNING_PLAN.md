@@ -1,5 +1,5 @@
 # Nutrition meal planning — cooking, thresholds, activity, weight
-# trajectory (nmp-0..nmp-9)
+# trajectory + cooking workflows + affinity composition (nmp-0..nmp-11)
 
 **Date:** 2026-08-19 · **Status: PLANNING ONLY (Dustin's brief; plan
 written while the fresh-install exercise iterates).** Extends the
@@ -93,6 +93,7 @@ reimplement concepts independently, never read its source.
 | 8 | **Meals are built STRICTLY from base ingredients and meats** — whole produce, meats/fish, staples (grains, legumes, oils, dairy-as-ingredient); no packaged/processed products as meal components. Consequence: USDA FDC Foundation + SR Legacy (whole foods, analytic) covers the entire ingredient space; **Open Food Facts drops out of the arc** (Q2 CLOSED — not deferred, not needed), and the ODbL containment concern disappears with it |
 | 9 | **Common-spike bounds join the template gate**: no meal may carry so much sugar it causes an imbalance in a HEALTHY person (glycemic-load cap per meal — diabetes management stays out per decision 3, but glycemic spikes are a general-population concern), and meals avoid excess ACIDITY / known reflux-trigger loads (acid content + trigger-category flags: citrus/tomato concentration, high-fat + large-meal combination, carbonation/caffeine/mint/chocolate). Reflux-trigger evidence is weaker than the UL-grade numbers — those rows carry a lower confidence label, honestly |
 | 10 | **Cooking is TASK-ORIENTED PROCESS/WORKFLOW territory** (the judicial-process pattern applied to the kitchen): what gets refined is "how to most efficiently make the week's meals" — prep sessions happen ONCE OR TWICE a week, everything made in the smallest feasible time; pre-prep and STORAGE-STATE transitions (freeze, fridge, freezer→fridge thaw, reheat) are first-class scheduled actions with durations and food-safety windows |
+| 11 | **Meals compose like no-code, through GROUPINGS + AFFINITY**: dish BASES (omelet, salad, pasta…) and ingredient CATEGORIES/ROLES (diced protein, leafy green, fruit topping…) are the vocabulary; user intent is just "put diced chicken in there" + "N meals of this, for which slot, this week" — the system places, auto-balances quantities across the week against the bounds, and when something is missing/unbalancing it suggests COUNTERBALANCING ingredients that FIT the dish (banana fits a salad, not a pasta). Fit = an ingredient↔dish-base AFFINITY WEIGHT — a NORM, never a restriction (unique/cultural tastes always allowed); affinities are CONTEXTED per cuisine/cultural background and region, and per-person preference tunes which context ranks suggestions |
 
 ## Design spine
 
@@ -269,6 +270,37 @@ which database row, which retention factor).
     carries curated workflow templates. Configuring = editing object
     fields; arranging = editing graph edges; both are data the
     refinement loop can version and suggest against.
+- **nmp-11 — dish bases, ingredient roles, and the affinity composer
+  (decision 11).** The no-code composition layer over meals:
+  - **Vocabulary objects**: DishBase (omelet, salad, pasta, stir-fry,
+    soup, bowl, sandwich…) — the family a MealTemplate instantiates;
+    IngredientRole (diced-protein, leafy-green, fruit-topping,
+    aromatic, dressing/sauce, starch-base, crunch…) — groupings a
+    FoodItem can carry several of. Both are seed data, extendable
+    per household.
+  - **IngredientAffinity**: (role-or-ingredient × DishBase ×
+    AffinityContext) → weight. AffinityContext = cuisine/cultural/
+    regional frame ("general-western", "mexican", "japanese", …;
+    the person's stated preference is a PersonProfile knob — never
+    inferred). Seeds: hand-curated norms + published cuisine
+    ingredient co-occurrence statistics (Ahn et al. 2011
+    flavor-network paper — citable aggregate data; the blocked
+    recipe corpora stay untouched) + the household's own
+    accept/reject history as a learned overlay (labeled as such).
+  - **The composer**: intent in = "add diced chicken" + "N meals,
+    which slot, this week". The system: places the ingredient into
+    compatible DishBases among the week's templates
+    (affinity-ranked), AUTO-BALANCES quantities across the whole
+    week's plan against the calorie envelope + thresholds (the
+    nmp-4 gate does the refusing; the composer does the fitting),
+    and when a nutrient gap or unbalancing excess appears, suggests
+    counterbalancing ingredients FILTERED BY FIT — affinity ranks
+    what is sensible for that dish, in that person's context.
+  - **Soft by design**: low affinity NEVER blocks — banana-on-pasta
+    is allowed (a gentle "unusual for this dish" note at most);
+    norms rank suggestions, people decide. Per
+    knobs-and-suggestions, auto-balance PROPOSES a diff to the
+    week's plan; a human applies it.
 
 ## Boundaries
 
