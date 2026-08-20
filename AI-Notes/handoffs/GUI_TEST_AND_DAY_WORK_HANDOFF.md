@@ -58,7 +58,11 @@ arrived empty twice; don't rely on them.
    TESTING_OWED §000 (merge gate, GUI pass on the 5 new pages,
    live-API pass, his profile data). nutrition-planner is a
    PolariAppDefinition (deb-buildable via pol apps shell — his
-   mid-run request).
+   mid-run request). **FOLLOW-ON ARC PLANNED same day: composting
+   (cmp-0..7, AI-Notes/plans/COMPOSTING_LOOP_PLAN.md) — waste
+   DERIVED from meal plans, routed to compost/teas (aqp-7 = the
+   built return path) or livestock feed (legality fail-closed);
+   4 open Qs for Dustin, then cmp-0's research pass builds first.
 3. **pub arc remaining** (polari-systems.org): Dustin-owned blockers
    unchanged — staging KC rotation (`pol security rotate staging`,
    with him present), DNS-at-DO + DO_API_TOKEN + droplet. Ours when
