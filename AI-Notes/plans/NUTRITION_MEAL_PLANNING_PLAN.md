@@ -1,6 +1,6 @@
 # Nutrition meal planning — cooking, thresholds, activity, weight
 # trajectory + cooking workflows + affinity composition (nmp-0..nmp-11)
-# decisions 1-13
+# decisions 1-14
 
 **Date:** 2026-08-19 · **Status: PLANNING ONLY (Dustin's brief; plan
 written while the fresh-install exercise iterates).** Extends the
@@ -97,6 +97,7 @@ reimplement concepts independently, never read its source.
 | 11 | **Meals compose like no-code, through GROUPINGS + AFFINITY**: dish BASES (omelet, salad, pasta…) and ingredient CATEGORIES/ROLES (diced protein, leafy green, fruit topping…) are the vocabulary; user intent is just "put diced chicken in there" + "N meals of this, for which slot, this week" — the system places, auto-balances quantities across the week against the bounds, and when something is missing/unbalancing it suggests COUNTERBALANCING ingredients that FIT the dish (banana fits a salad, not a pasta). Fit = an ingredient↔dish-base AFFINITY WEIGHT — a NORM, never a restriction (unique/cultural tastes always allowed); affinities are CONTEXTED per cuisine/cultural background and region, and per-person preference tunes which context ranks suggestions |
 | 12 | **Steps are analyzed by TOOLS AVAILABLE, TIME, and SKILL LEVEL** — every scenario admits VARYING ways to cook the same thing (methods: knife vs food processor; pan-fry vs bake vs grill), durations depend on the household's tool inventory and the cook's skill, and the scheduler resolves to the most TIME-EFFICIENT method available BY DEFAULT — but stated METHOD PREFERENCES win over time-optimality (someone who prefers hand-dicing or grilling gets that; the time cost of the preference is shown, not judged). Method choice also selects the matching RETENTION-FACTOR row (bake ≠ fry nutritionally). When someone frequently makes meals where a missing tool would save time, the system ADVISES the purchase with the evidence (cumulative minutes saved) — a suggestion, never a nag |
 | 13 | **The vocabulary is USER-AUTHORABLE — not all evidence and workflows are known**: an average person can declare a NEW tool, define NEW methods for how they process/cook something with it, and build NEW workflows from those — through the same no-code surfaces, no developer involved. User-authored entries carry their own provenance ("mine" vs seeded), start with the author's duration estimate, and refine from observed use like everything else |
+| 14 | **Meal↔exercise TIMING is modeled as data, with HONEST effects only** (Dustin's fasted-cardio question, answered from the literature): meal times and exercise times are first-class timestamps, and timing drives real things — comfort/reflux windows (no vigorous exercise ~2-3 h after a large/high-fat meal), performance notes (carbs before vigorous sessions), chrononutrition flags (late large meals, small-effect evidence, labeled). But **the weight trajectory stays ENERGY-BALANCE-DRIVEN**: fasted morning exercise raises fat oxidation DURING the session, yet calorie-equated trials show no meaningful long-term weight-loss advantage — so timing gets NO weight multiplier; the fasted-cardio belief is presented honestly on the page (what it does do, what it does not), cited |
 
 ## Design spine
 
@@ -202,6 +203,22 @@ which database row, which retention factor).
   guess when logs exist (labeled which mode is active). wger exercise
   DB adopted (CC-BY-SA attribution) for strength-training vocabulary;
   FitTrackee integration = a later engine, not this arc.
+- **nmp-5b — meal↔exercise timing (decision 14).** MealEntry and
+  ActivityLog carry first-class times; a day's TIMELINE view interleaves
+  them. Timing-aware evaluation (all cited, confidence-labeled):
+  comfort/reflux window warnings (vigorous exercise scheduled within
+  ~2-3 h of a large or high-fat meal — ties to the decision-9 reflux
+  rows), performance suggestions (carbohydrate before long/vigorous
+  sessions), chrononutrition flags (recurring late large meals —
+  small-effect evidence, labeled as such), and the fasted-exercise
+  page: shown honestly as "higher fat oxidation during the session;
+  no meaningful long-term weight difference at equal calories"
+  (Schoenfeld 2014 RCT; Hackett & Hagstrom meta-analysis), including
+  the intensity caveat (fasted vigorous sessions may run at lower
+  output). The scheduler (nmp-10) respects the comfort windows when
+  placing prep/meals around logged exercise habits. NO timing term
+  enters nmp-6's weight model — timing informs placement, comfort,
+  and honest education, not the energy-balance arithmetic.
 - **nmp-6 — weight trajectory (the Hall model).** Implement the
   published Hall/Chow dynamic energy-balance equations from the papers
   (fat/lean partitioning, adaptive thermogenesis, energy density) as
