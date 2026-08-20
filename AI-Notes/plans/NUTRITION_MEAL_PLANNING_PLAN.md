@@ -1,5 +1,6 @@
 # Nutrition meal planning — cooking, thresholds, activity, weight
 # trajectory + cooking workflows + affinity composition (nmp-0..nmp-11)
+# decisions 1-12
 
 **Date:** 2026-08-19 · **Status: PLANNING ONLY (Dustin's brief; plan
 written while the fresh-install exercise iterates).** Extends the
@@ -94,6 +95,7 @@ reimplement concepts independently, never read its source.
 | 9 | **Common-spike bounds join the template gate**: no meal may carry so much sugar it causes an imbalance in a HEALTHY person (glycemic-load cap per meal — diabetes management stays out per decision 3, but glycemic spikes are a general-population concern), and meals avoid excess ACIDITY / known reflux-trigger loads (acid content + trigger-category flags: citrus/tomato concentration, high-fat + large-meal combination, carbonation/caffeine/mint/chocolate). Reflux-trigger evidence is weaker than the UL-grade numbers — those rows carry a lower confidence label, honestly |
 | 10 | **Cooking is TASK-ORIENTED PROCESS/WORKFLOW territory** (the judicial-process pattern applied to the kitchen): what gets refined is "how to most efficiently make the week's meals" — prep sessions happen ONCE OR TWICE a week, everything made in the smallest feasible time; pre-prep and STORAGE-STATE transitions (freeze, fridge, freezer→fridge thaw, reheat) are first-class scheduled actions with durations and food-safety windows |
 | 11 | **Meals compose like no-code, through GROUPINGS + AFFINITY**: dish BASES (omelet, salad, pasta…) and ingredient CATEGORIES/ROLES (diced protein, leafy green, fruit topping…) are the vocabulary; user intent is just "put diced chicken in there" + "N meals of this, for which slot, this week" — the system places, auto-balances quantities across the week against the bounds, and when something is missing/unbalancing it suggests COUNTERBALANCING ingredients that FIT the dish (banana fits a salad, not a pasta). Fit = an ingredient↔dish-base AFFINITY WEIGHT — a NORM, never a restriction (unique/cultural tastes always allowed); affinities are CONTEXTED per cuisine/cultural background and region, and per-person preference tunes which context ranks suggestions |
+| 12 | **Steps are analyzed by TOOLS AVAILABLE, TIME, and SKILL LEVEL** — every scenario admits VARYING ways to cook the same thing (methods: knife vs food processor; pan-fry vs bake vs grill), durations depend on the household's tool inventory and the cook's skill, and the scheduler resolves to the most TIME-EFFICIENT method available BY DEFAULT — but stated METHOD PREFERENCES win over time-optimality (someone who prefers hand-dicing or grilling gets that; the time cost of the preference is shown, not judged). Method choice also selects the matching RETENTION-FACTOR row (bake ≠ fry nutritionally). When someone frequently makes meals where a missing tool would save time, the system ADVISES the purchase with the evidence (cumulative minutes saved) — a suggestion, never a nag |
 
 ## Design spine
 
@@ -249,10 +251,40 @@ which database row, which retention factor).
     portions freezer→fridge Wednesday evening"). Output = a timed
     session plan + a tiny daily action list; total-active-minutes is
     THE score being minimized.
+  - **Method resolution — tools × time × skill (decision 12)**: a
+    CookingTask names WHAT ("dice 400 g chicken"), not HOW. Each task
+    kind carries StepMethod alternatives (knife / food processor /
+    mandoline / pre-batch…), each with a duration MODEL parameterized
+    by the tool used and the cook's skill level. The household keeps
+    a ToolInventory (KitchenTool rows: owned tools, from the same
+    seeded KitchenToolDefinition vocabulary); PersonProfile carries a
+    cooking skill knob (novice/intermediate/experienced — stated, and
+    refined by observed durations, labeled which). The scheduler
+    RESOLVES each task to the most time-efficient method actually
+    available — the engine-resolution-ladder pattern (sep-4) applied
+    to the kitchen: best available wins, absence is honest ("food
+    processor method skipped — not in inventory"). **Preference
+    beats time-optimality**: MethodPreference knobs (per person or
+    household, per task-kind or dish — "hand-dice", "grill, don't
+    pan-fry") pin the resolution; the scheduler honors the pin and
+    SHOWS the time delta ("+12 min vs the fastest method") without
+    judgment. Cooking-technique choice also selects the matching
+    nmp-3 retention/yield row — bake vs fry differ nutritionally,
+    and the rollup follows the method actually chosen.
+  - **The tool advisor**: frequency × time-delta = evidence. When the
+    plan history shows recurring tasks where a NOT-owned tool's
+    method would win, accumulate the would-be savings and, past a
+    threshold, SUGGEST the purchase with the arithmetic shown ("you
+    hand-dice ~40 min/week; a food processor's method would save
+    ~30 min/week ≈ 26 h/year") — the computerparts buy-vs-rent
+    evidence pattern (ai-8), pointed at kitchen tools. A suggestion
+    with numbers, never a nag; dismissals are remembered.
   - **Refinement loop (the judicial-process part)**: workflows are
-    data — observed actual durations feed back as tunable priors;
-    the scheduler suggests re-batching (knobs-and-suggestions, never
-    auto-rewrites a workflow someone edited).
+    data — observed actual durations feed back as tunable priors
+    (per method × tool × skill, so the duration models personalize
+    honestly); the scheduler suggests re-batching
+    (knobs-and-suggestions, never auto-rewrites a workflow someone
+    edited).
   - Cooking nutrient effects ride nmp-3's retention/yield tables
     (freeze/reheat rows where the R6 tables carry them; label absent
     data honestly).
