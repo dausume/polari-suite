@@ -64,15 +64,16 @@ arrived empty twice; don't rely on them.
    unchanged — staging KC rotation (`pol security rotate staging`,
    with him present), DNS-at-DO + DO_API_TOKEN + droplet. Ours when
    those land: pub-1 compose profile + BASE_DOMAIN prod threading.
-4. **unin-4** — ✅ BUILT 2026-08-20 (this session): branches
-   dev-unin-4 in Isle-Mesh (`isle store uninstall` verb),
-   polari-app-shell (store.uninstall/store.removeIsle bridge +
-   terminal opener), polari-rf-node/angular (two Q2 buttons +
-   remove-isle footer), suite (pointers + plan). NOT merged to dev,
-   NOT pushed, NOT GUI-verified — review gate. Java :core tests +
-   ng build green; verb negative-paths tested; positive path needs
-   a live isle. The CLI deb picks the verb up on the next rebuild
-   (whole isle-cli dir is copied; no pack step).
+4. **unin-4** — ✅ BUILT + MERGED TO dev + PUSHED 2026-08-20
+   (Dustin's go-ahead): Isle-Mesh `isle store uninstall` verb,
+   polari-app-shell store.uninstall/store.removeIsle bridge +
+   terminal opener, polari-rf-node/angular two Q2 buttons +
+   remove-isle footer, suite pointers + plan (dev-unin-4 branches
+   kept as snapshots). Java :core tests + ng build green; verb
+   negative-paths tested. REMAINING: GUI pass + positive path on a
+   live isle — rides the isle-core round after the night test; the
+   CLI deb picks the verb up on the next rebuild (whole isle-cli
+   dir is copied; no pack step).
 
 ## Standing context for a fresh session
 
