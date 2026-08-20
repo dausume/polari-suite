@@ -50,16 +50,15 @@ arrived empty twice; don't rely on them.
    iterate pattern from FRESH_INSTALL_DEBUG_HANDOFF.md (fix in
    suite's Isle-Mesh → pack.sh if router parts → push → pull on
    isle-core → rebuild deb → reinstall).
-2. **Nutrition arc (nmp)**: plan is at decisions 1-14, phases
-   nmp-0..11 (AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md, memory
-   nutrition-meal-planning.md). Status PLANNING — Dustin has been
-   actively refining it (5 design messages on 2026-08-19/20), so
-   likely next: either MORE design refinement as he sends thoughts,
-   or his go-ahead to START BUILDING nmp-0 (data adoption: FDC
-   subset, DRI/UL transcription, DGA limits, MET table, retention
-   factors — all seeds cited+versioned; fork-pins). 5 open questions
-   pend: wger mine-vs-run, URL import timing, trajectory horizon +
-   privacy, Q5 pattern fractions.
+2. **Nutrition arc (nmp)**: ✅ nmp-0..11 ALL BUILT 2026-08-20
+   (Dustin's go-ahead mid-day; one autonomous session). polari-
+   framework branch `dev-nmp-1`, 11 commits, NOT merged — review
+   gate. 12 selftest suites green. Q1/Q3/Q4/Q5 shipped as the
+   plan's proposed defaults (tunable priors). Dustin's queue =
+   TESTING_OWED §000 (merge gate, GUI pass on the 5 new pages,
+   live-API pass, his profile data). nutrition-planner is a
+   PolariAppDefinition (deb-buildable via pol apps shell — his
+   mid-run request).
 3. **pub arc remaining** (polari-systems.org): Dustin-owned blockers
    unchanged — staging KC rotation (`pol security rotate staging`,
    with him present), DNS-at-DO + DO_API_TOKEN + droplet. Ours when

@@ -1,5 +1,44 @@
 # Testing owed — tracker (written 2026-08-13, for Dustin's pass later today)
 
+## 000. New 2026-08-20 — nmp-0..11 BUILT (the nutrition meal-planning arc)
+
+**The whole arc landed in one autonomous day-session on branch
+`dev-nmp-1` (polari-framework, 11 commits, NOT merged to dev — the
+usual review gate; say "go ahead" to merge+push like unin-4).**
+All 12 nutrition selftest suites green headlessly; what only you
+can do:
+
+1. **Review + merge gate**: `git log dev..dev-nmp-1` in
+   polari-framework; on your go-ahead the branch merges to dev,
+   plus pointer commits in polari-rf-node + the suite.
+2. **GUI pass** (after a deploy): the 5 new pages —
+   /display/nutrition/profile, /meals, /recipes, /activity,
+   /garden — plus the nutrition-planner app tile in the store
+   (`pol apps shell nutrition-planner` builds its deb).
+3. **Q-decisions ratified by default, override freely**: Q1 wger
+   mine-only (fork exists either way), Q3 hand-authored recipes
+   first, Q4 12-week horizon + own-profile-only trajectories, Q5
+   the proposed pattern fractions (seeded as tunable priors).
+4. **Live-API pass**: the ~20 new /api/nutrition endpoints
+   (envelope, thresholds, tolerance-check, meal-gl, recipe
+   nutrition, template validate, plan rollup, timeline,
+   trajectory, coverage, prep-schedule, tool-advisor, compose,
+   counterbalance) — all selftested headless, none hit over HTTP
+   yet.
+5. **Your own profile data**: weight/height/goal/minutes-of-
+   exercise (the felt-terms question), then the envelope +
+   trajectory pages become real.
+6. **Fork-pins created on GitHub 2026-08-20**: dausume/wger
+   (AGPL-3.0), dausume/recipe-scrapers (MIT), dausume/
+   ingredient-parser (MIT) — verify the roster; no requirements
+   pins yet (nothing imports them until URL-import lands).
+7. **Named gaps carried honestly** (not regressions): DRI child
+   bands, added-sugar + fermenting-fiber gate caps (FDC lacks the
+   columns), meat fat-rendering in the rollup, household serving-
+   split rollups, the coverage ScoreConcept bridge, wger exercise
+   DB vocabulary.
+
+
 ## 00. New 2026-08-15 (late) — ai-0..ai-3 LIVE (the AI tools arc)
 
 **Backend + store UI deployed to staging; everything below works

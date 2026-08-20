@@ -2,8 +2,12 @@
 # trajectory + cooking workflows + affinity composition (nmp-0..nmp-11)
 # decisions 1-14
 
-**Date:** 2026-08-19 · **Status: PLANNING ONLY (Dustin's brief; plan
-written while the fresh-install exercise iterates).** Extends the
+**Date:** 2026-08-19 · **Status: nmp-0..11 ALL BUILT 2026-08-20 —
+one autonomous session on polari-framework branch `dev-nmp-1` (11
+commits, NOT merged: review gate; 12 selftest suites green; the
+Q1/Q3/Q4/Q5 defaults shipped as tunable priors; named gaps in
+TESTING_OWED §000). nmp-9's ledger half = TESTING_OWED §000; its
+selftest half = the 12 suites.** Extends the
 BUILT nutrition module (nut-1..4 on dev) and composes with
 HOUSEHOLD_NUTRITION_PLAN's unbuilt nut-5/6 (fulfillment sim, Kratky
 garden) and the saltwater food forest — this plan does NOT replace
