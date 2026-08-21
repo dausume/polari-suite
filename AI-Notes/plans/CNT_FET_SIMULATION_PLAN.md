@@ -347,8 +347,19 @@ session — extension not connected). Each round gets appended to
 "Dialogue state" above. When the dialogue converges: ratify the
 S-phases with Dustin (decision numbering, nmp style), then S0 runs as
 a parallel research pass (the cmp-0 pattern) before any build.
-Dustin's CNT paper joins as a reference the moment he downloads it —
-its measured values become S1 calibration anchors.
+
+**⛔ Papers NEVER enter the repos (Dustin 2026-08-20):** the suite
+repos are PUBLIC — committing a copyrighted paper (Dustin's CNT
+reference or any other) is illegal redistribution. Papers live
+OFF-git only (local disk, never a tracked path). What enters git is
+EXTRACTED VALUES as cited data rows — the standing values-as-facts
+pattern (Monash/WHO precedent): each row carries value, unit,
+source citation (DOI/authors/year), figure/table number, and
+confidence — enough that anyone holding the paper can verify, and
+nobody needs us to redistribute it. Applies to VS-CNFET Part I/II,
+Deng-Wong, and every S0 reference alike; S1 calibration anchors from
+Dustin's paper enter as DigitizedDataset-style cited rows, never as
+the document.
 
 ## Grounding index
 
