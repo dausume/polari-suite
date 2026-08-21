@@ -348,18 +348,24 @@ session — extension not connected). Each round gets appended to
 S-phases with Dustin (decision numbering, nmp style), then S0 runs as
 a parallel research pass (the cmp-0 pattern) before any build.
 
-**⛔ Papers NEVER enter the repos (Dustin 2026-08-20):** the suite
-repos are PUBLIC — committing a copyrighted paper (Dustin's CNT
-reference or any other) is illegal redistribution. Papers live
-OFF-git only (local disk, never a tracked path). What enters git is
-EXTRACTED VALUES as cited data rows — the standing values-as-facts
-pattern (Monash/WHO precedent): each row carries value, unit,
-source citation (DOI/authors/year), figure/table number, and
-confidence — enough that anyone holding the paper can verify, and
-nobody needs us to redistribute it. Applies to VS-CNFET Part I/II,
-Deng-Wong, and every S0 reference alike; S1 calibration anchors from
-Dustin's paper enter as DigitizedDataset-style cited rows, never as
-the document.
+**Paper-storage rule (Dustin 2026-08-20, refined same day):** the
+suite repos are PUBLIC, so committing a paper = redistributing it.
+- **Explicitly open papers MAY be committed directly**: only when
+  the paper itself carries a license permitting redistribution
+  (CC BY / CC BY-SA / CC0 or an equivalent explicit open-access
+  grant), VERIFIED per paper — being on arXiv is NOT sufficient
+  (arXiv's default license grants only arXiv distribution rights);
+  check the license statement on the paper/landing page. Record the
+  license alongside the stored PDF.
+- **Everything else = citation + link + extracted values only**:
+  paper stays off-git (local disk); what enters git is the standing
+  values-as-facts pattern (Monash/WHO precedent) — cited data rows
+  with value, unit, DOI/authors/year, figure/table number,
+  confidence, plus the link. NC-licensed papers stay in this bucket
+  too (project NC discipline).
+Applies to VS-CNFET Part I/II, Deng-Wong, and every S0 reference;
+S1 calibration anchors from Dustin's paper enter per whichever
+bucket its license puts it in — values-as-rows either way.
 
 ## Grounding index
 
