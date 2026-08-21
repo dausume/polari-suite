@@ -1,6 +1,9 @@
 # CNT FET full simulation — collaborative plan (Claude ⇄ ChatGPT)
 
-**Date:** 2026-08-20 · **Status: PLANNING — DIALOGUE IN FLIGHT.**
+**Date:** 2026-08-20 · **Status: PLANNING CONVERGED — decisions
+D1-D12 below endorsed by ChatGPT (round 4); AWAITING DUSTIN'S
+RATIFICATION (his ratify/edit = the build gate; then S0 runs as a
+parallel license-gate research pass, cmp-0 pattern).**
 Dustin's directive: collaborate WITH ChatGPT (he relays messages; no
 browser bridge this session) to plan the path to FULLY SIMULATING CNT
 FETs in the polari stack. Fab of a CNFET RISC-V MCU is the horizon
@@ -134,6 +137,68 @@ precedent.
   Polari-idiom mapping + ViDES GPL-incompatibility catch + remaining
   questions g-i + the proposed decision list D1-D11 for Dustin's
   ratification (below).
+- **Round 4 (ChatGPT, received 2026-08-20):** endorses all 11
+  decisions + two amendments (folded in below as amended D3 + new
+  D12). Answers:
+  - **(g) YES to the intermediate rung — full fidelity ladder
+    F0..F4:** F0 analytical/material derivation → F1 VS-CNFET
+    compact → F2 Landauer/top-of-barrier quasi-ballistic
+    (I=(4q/h)∫T(E)[fS−fD]dE; T≈1 ballistic, T≈λ/(λ+L)
+    quasi-ballistic, then energy-dependent backscattering) → F3
+    mode-space self-consistent NEGF → F4 atomistic NEGF. F2 is cheap
+    enough to sweep AND interpretable — the validation triangle
+    NEGF / quasi-ballistic / (VS compact ↔ experiment): each
+    disagreement edge teaches something different.
+  - **NEGF budget:** no credible literature prior for our exact
+    geometry/grid/CPU — provision as ENGINEERING PRIORS ONLY (F2
+    ms–s per bias sweep; F3 fixed-potential s–min per point; F3
+    self-consistent Poisson+NEGF min–tens-of-min per point; F4
+    longer) and REPLACE with measurements. ViDES tutorials include a
+    10nm-channel/30nm-total CNT with 2 modes — CPU-only is not
+    absurd. **First benchmark deliberately tiny**: 1 chirality, Lg
+    10nm, Vd {0.05, 0.3}, Vg {off, ~Vt, on} = 6 points; collect
+    wall/CPU time, peak RAM, NR + NEGF iterations, energy points,
+    mode count, residual. Use CONTINUATION (solution(Vg_n) seeds
+    Vg_n+1). **Adaptive oracle sampling = first-class**: spend NEGF
+    points where VS/F2 disagree, skip where they agree with low
+    uncertainty.
+  - **(h) BOTH implementations, different roles** (amendment 2):
+    Python = canonical scientific/reference implementation (owns
+    parameter derivation, provenance, validation, fitting,
+    uncertainty, F2/NEGF/experiment comparison, parameter
+    manifests; slow + transparent). Clean-room Verilog-A = the
+    circuit-execution implementation, compiled via OpenVAF → OSDI →
+    ngspice (the preferred modern ngspice route; proper Jacobians —
+    NOT B-source graphs long-term). Both implement the SAME equation
+    revision + MANDATORY automated numerical-equivalence regression
+    (grid over Vg, Vd, Lg, diameter, T, Rc with explicit
+    tolerances). .model cards stay non-opaque via generated run
+    bundles: cntfet.osdi + device-model.sp + parameter-manifest.json
+    (parameter/value/unit/role/source_row/citation/confidence/
+    derived_from/equation_revision, hashed set) + provenance.json.
+    ⚠ OpenVAF documents unsupported Verilog-A corners — S0 also
+    gates the LANGUAGE CONSTRUCTS the clean-room model uses.
+  - **(i) NEVER switch physics at regime boundaries** (amendment 1):
+    mechanisms are ADDITIVE (I_total = I_channel + I_SD_tunnel +
+    I_BTBT + …; C_total likewise) and vanish naturally where
+    negligible — no Lg=30.1nm OFF / 29.9nm ON cliffs. The
+    cost/convergence concern is solved by the ORTHOGONAL
+    physics_fidelity axis with profiles: VS_MINIMAL (channel+Rc+
+    basic parasitics), VS_FULL (+BTBT+S/D tunneling), QUASI_
+    BALLISTIC (Landauer channel), NEGF (mechanisms emerge/modelled —
+    with the nuance that "emerges" depends on Hamiltonian).
+    Same equations, different physical consequence per regime
+    (coarse: I_SDtunnel/I_total ~1e-20; aggressive: ~0.31 of Ioff).
+    Convergence = numerical techniques (smooth differentiable
+    expressions, bounded exponentials, safe log/exp, continuation,
+    voltage stepping, parameter homotopy) — never physics switches.
+  - **Architecture summary accepted:** materials → manufacturing
+    process (distributions+σ) → device geometry → physics fidelity
+    (VS | quasi-ballistic | NEGF) → prediction+uncertainty →
+    experiment → residual/recalibration; and NEGF NEVER enters the
+    digital inner loop — it bounds/improves the compact model that
+    ngspice executes millions of times. "The most important
+    architectural decision left before S1."
 
 ## What polari ALREADY HAS (the inventory sent to ChatGPT)
 
@@ -173,10 +238,17 @@ precedent.
    S1c compact fit → S1d ngspice) → device VALIDATION → variability
    → circuits → characterization → synthesis → physical-design
    abstraction → SRAM last.
-3. **Compact model**: clean-room VS-CNFET-DERIVED implementation from
-   the published Part I/II equations; swappable transport kernel;
-   labeled independent + numerically_equivalent_to_stanford=false;
-   never called "Stanford VS-CNFET".
+3. **Compact model**: clean-room VS-CNFET-DERIVED from the published
+   Part I/II equations; swappable transport kernel; labeled
+   independent + numerically_equivalent_to_stanford=false; never
+   called "Stanford VS-CNFET". *(Amended round 4:)* **Python is the
+   canonical scientific/reference implementation; clean-room
+   Verilog-A (OpenVAF → OSDI → ngspice) is the circuit-execution
+   implementation; both implement the same equation revision and
+   must pass automated numerical-equivalence regression tests.**
+   Generated run bundles (osdi + model card + hashed
+   parameter-manifest + provenance JSON) keep .model cards
+   non-opaque.
 4. **License gates**: Stanford model packages + CCAM = ⛔ blocked
    (reference-only) unless S0 proves otherwise; OpenVAF(-Reloaded) +
    ASAP7 = candidates pending OUR verification; ViDES = EXTERNAL
@@ -213,6 +285,22 @@ precedent.
     above any executor (CharLib if it gates clean, else our own
     loop); sparse grid first; the SPICE-vs-(Liberty+OpenSTA)
     composed-path regression is MANDATORY before any CPU work.
+12. **Manufacturing regime ⊥ physics fidelity** *(added round 4)*:
+    manufacturing_regime describes what a process can plausibly
+    produce; physics_fidelity (F0 analytical → F1 VS compact →
+    F2 Landauer quasi-ballistic → F3 mode-space NEGF → F4 atomistic
+    NEGF; profiles VS_MINIMAL/VS_FULL/QUASI_BALLISTIC/NEGF)
+    describes how accurately/expensively the device is evaluated.
+    Physical mechanisms are ADDITIVE and never switch
+    discontinuously at regime boundaries; convergence is solved
+    numerically (smoothing/continuation/homotopy), never by physics
+    switches. Corollaries: the F2 rung is built (cheap, sweepable,
+    interpretable — completes the NEGF/F2/VS-experiment validation
+    triangle); NEGF runtimes enter as engineering priors REPLACED by
+    a measured tiny benchmark (6 bias points, continuation,
+    wall/RAM/iteration telemetry) before any production grid;
+    adaptive oracle sampling is first-class (NEGF spend goes where
+    VS/F2 disagree); NEGF never enters the digital inner loop.
 
 ## Original proposed staging (round 1, S0..S4 — SUPERSEDED by
 ## decision 2's S0..S8)
