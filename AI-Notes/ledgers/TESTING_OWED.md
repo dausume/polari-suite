@@ -55,6 +55,17 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
+12. **S4c BUILT on your second "go" (a69650b)** — the D10 minimal
+    cell set INV/NAND2/BUF/DFF is fully DEMONSTRATED on the OSDI
+    card: NAND2 truth table exact, BUF rail-to-rail, TG
+    master-slave DFF captures on 4 consecutive edges + holds
+    through mid-cycle D flips ({action: cells} = the battery).
+    Two testbench catches armored: labeled 2 aF parasitic
+    stand-in caps (S1 has no junction parasitics — [VS2] scope)
+    + truncated-transient refusal. selftest 58/58. NEXT DECISION
+    for you: S5 characterization (CharLib/lctime — needs
+    dausume fork-pins created) vs F3 Kwant kernel vs [VS2]
+    extrinsics.
 11. **S3 + S4a + S4b BUILT on your "keep going" (fae36b5,
     1860c63)** — the chip arc now runs device→population→circuit:
     **(a) Monte Carlo variability**: six D7 process classes as

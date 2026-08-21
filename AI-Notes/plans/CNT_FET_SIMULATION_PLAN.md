@@ -1,11 +1,25 @@
 # CNT FET full simulation — collaborative plan (Claude ⇄ ChatGPT)
 
 **Date:** 2026-08-20 · **Status: ✅ RATIFIED (D1-D18) + ✅ S0 + S1
-+ S2 + S3 + S4a/S4b ALL BUILT 2026-08-21 (build reports below;
-polari-framework `dev-cnt-1` ×6 commits + angular ×1, review gate
-= Dustin — TESTING_OWED §0000). Next rungs on go-ahead: S4c
-NAND2/DFF, S5 characterization (CharLib/lctime), F3 Kwant kernel,
-[VS2] extrinsics.**
++ S2 + S3 + S4a/S4b/S4c ALL BUILT 2026-08-21 (build reports below;
+polari-framework `dev-cnt-1` ×7 commits + angular ×1, review gate
+= Dustin — TESTING_OWED §0000). The D10 minimal cell set
+(INV/NAND2/BUF/DFF) is DEMONSTRATED end to end. Next rungs on
+go-ahead: S5 characterization (CharLib/lctime, needs fork-pins),
+F3 Kwant kernel, [VS2] extrinsics.**
+
+## S4c build report (2026-08-21, second "go")
+
+`{action: cells}` battery (a69650b): NAND2 four-corner truth table
+exact (only (1,1) pulls low, 0.1 mV), BUF rail-to-rail, TG
+master-slave positive-edge DFF (18 FETs) captures on 4 consecutive
+rising edges and HOLDS through mid-cycle D flips. Completes D10 at
+demonstration level; characterization = S5. Two live testbench
+catches, both armored in code: capacitance-free cell nodes starve
+the integrator because S1 carries no junction parasitics ([VS2]
+scope) → labeled 2 aF stand-in caps + Gear; aborted transients
+leave partial wrdata a nearest-point sampler silently misreads →
+every testbench now refuses truncated runs. selftest 58/58.
 
 ## S3 + S4a/S4b build report (2026-08-21, "keep going" go-ahead)
 
