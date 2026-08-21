@@ -34,6 +34,17 @@ The day session completed. What stands, and exactly where:
   merge go-ahead for dev-nmp-1 → merge + pointers + push (the
   unin-4 flow), (3) cmp-0 on go-ahead, (4) pub blockers
   unchanged. Dustin's own queue = TESTING_OWED §000.
+- **UPDATE 2026-08-20 (day session #2b): CNT-FET SIM ARC READY FOR
+  S1** — Claude⇄ChatGPT collaborative plan RATIFIED (D1-D18) + S0
+  license pass COMPLETE, all in
+  AI-Notes/plans/CNT_FET_SIMULATION_PLAN.md (+ evaluations/
+  CNT_FET_SIM_LICENSE_GATE.md). Dustin's chosen next step = fresh
+  session from /clear that reads the plan and builds S1's narrow
+  first target (one CNT, DC I-V, Python reference → Verilog-A
+  twin). Suggested branch: polari-framework dev-cnt-1 off dev.
+  NOTE: these cnt docs are committed on the SUITE dev-nmp-1 branch
+  (with the cmp/shelved-plans work) — on-disk for any session, but
+  they ride the nmp review queue for push/merge.
 - **UPDATE 2026-08-20 (day session #2): cmp-0 RESEARCH PASS DONE**
   — night test had NOT run (isle-core probed: still step 0), so the
   session ran the one ungated queue item. All 5 data sources GREEN;
