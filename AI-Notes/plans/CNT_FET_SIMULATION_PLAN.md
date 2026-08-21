@@ -315,6 +315,25 @@ precedent.
     blocked entirely. Fit criteria: CNT/1D tight-binding mode-space
     transport, self-consistent Poisson (or coupleable), Python
     integration, CPU-only viable.
+14. **Rigorous modularization with accountability** *(Dustin,
+    2026-08-20, mid-S0)*: the CNT sim capability is built as
+    separable modules so an instance carries ONLY what it needs at
+    any given time — the standing "sims know only what they need to
+    know" directive applied here. Concretely: (a) the device/object
+    layer (geometry, processes, parameter rows) is a thin module
+    with no heavy deps; (b) each fidelity kernel (F1 compact / F2
+    quasi-ballistic / F3 NEGF) is an OPTIONAL engine behind a knob —
+    F3's engine + its dependency stack live on a worker (the
+    msci-engines swarm pattern), never as a hard import of the core
+    module; (c) the Verilog-A/OSDI + characterization tooling is its
+    own module, needed only by circuit-phase instances; (d)
+    ACCOUNTABILITY: a per-module dependency/capability ledger (which
+    fidelities/features each module provides, which external
+    tools+licenses it pulls in, which instances carry it) — tracked
+    the tech-tree data_dependencies way so "what is loaded where and
+    why" is queryable data, and honest capability endpoints report
+    what an instance can/cannot evaluate (refusal, not silent
+    fallback, when a fidelity isn't present).
 
 ## Original proposed staging (round 1, S0..S4 — SUPERSEDED by
 ## decision 2's S0..S8)
