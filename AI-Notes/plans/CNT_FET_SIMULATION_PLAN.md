@@ -1,10 +1,47 @@
 # CNT FET full simulation — collaborative plan (Claude ⇄ ChatGPT)
 
-**Date:** 2026-08-20 · **Status: ✅ RATIFIED (D1-D14) + ✅ S0
-COMPLETE same day — all six gate areas GREEN for the clean-room path
-(verdicts below; full reports in
-AI-Notes/evaluations/CNT_FET_SIM_LICENSE_GATE.md). S1+ build = a
-separate Dustin go-ahead.**
+**Date:** 2026-08-20 · **Status: ✅ RATIFIED (D1-D18) + ✅ S0
+COMPLETE + ✅ S1 BUILT 2026-08-21 (see the S1 build report below;
+polari-framework branch `dev-cnt-1`, review gate = Dustin —
+TESTING_OWED §0000). S2+ = a separate go-ahead.**
+
+## S1 build report (2026-08-21, one session, branch dev-cnt-1)
+
+The ratified narrow target landed: ONE aligned semiconducting CNT
+((16,0), d 1.253 nm, Lg 15 nm GAA HfO2 t_ox 3 nm, 300 K, Rc prior
+5.5 kΩ/terminal), DC Id-Vg + Id-Vd. `modules/cntfet/` (framework
+commit 90d0e92), selftest 34/34 headless. Sub-rung outcomes:
+
+- **S1a** bandstructure/electrostatics from chirality: Eg 0.680 eV,
+  m* 0.064 m0 (inside the [GUO04] window), GAA Cox eq.(1), scale
+  length eq.(7) λ=1.43 nm → n_ss 1.003 / DIBL 0.003 (a
+  well-tempered 15 nm device). Metallic chirality → honest refusal.
+- **S1b** F2 ToB reference (Rahman 2003) implemented, k-space
+  integration, closed-form ≡ numeric integral to 4e-9; triangle
+  edge #1 live: ToB (intrinsic, no Rc) lands within 2× of the VS
+  path at on-state, [LUN97] ballistic>quasi-ballistic ordering
+  holds.
+- **S1c** VS-CNFET-derived compact model from the published
+  equations only: eq.(9) reproduces the [FC10] v_xo anchors (1%/2%
+  at 15/300 nm); the 3 µm anchor misfits −40% and is FLAGGED
+  out-of-domain (l≈Lg stated for Lg<30 nm) — recorded, not hidden.
+  gm in the anchor's own back-gate context: within 2× of the 40 µS
+  record. D8 roles stamped as CNTFETParameterRow rows; D18 anchors
+  as rows incl. an explicitly REFUSING undigitized-curves row.
+- **S1d** generated construct-gated Verilog-A twin → OpenVAF →
+  OSDI → ngspice-46 `pre_osdi` → **D3 equivalence: EQUIVALENT, 220
+  points over {Vg,Vd,Lg,d,T,Rc}, worst rel err 4.2e-9** (tol 1e-4).
+  Two live catches: (1) damped fixed-point Rc solve oscillates at
+  20 kΩ → bisection on the monotone residual; (2) constants.vams
+  CODATA values differ from exact SI-2019 → visible subthreshold
+  mismatch until both implementations pinned the same constants.
+  Toolchain gotcha: OpenVAF-Reloaded binaries need glibc ≥ 2.36;
+  original openvaf 23.5.0 (OSDI 0.3) is the older-host fallback
+  (ngspice ≥ 44 loads both).
+- **D14/D17**: capability endpoint refuses absent fidelities
+  (F3-NEGF names its S2+ status); module ledger records deps +
+  licenses; CNTFET_MODEL.md is the standalone-capable equations
+  doc — every equation cited, Stanford source never read.
 
 ## S0 verdicts (2026-08-20, license-gated; full per-source reports in
 ## AI-Notes/evaluations/CNT_FET_SIM_LICENSE_GATE.md)

@@ -1,5 +1,33 @@
 # Testing owed — tracker (written 2026-08-13, for Dustin's pass later today)
 
+## 0000. New 2026-08-21 — cnt S1 BUILT (aligned-CNT FET, first open CNFET compact model)
+
+**S1 of the ratified CNT-FET plan landed in one session on branch
+`dev-cnt-1` (polari-framework, cut from dev — INDEPENDENT of the
+nmp review queue). selftest_cntfet 34/34 headless, including the
+LIVE OpenVAF→OSDI→ngspice equivalence leg (220-pt grid, worst rel
+err 4.2e-9). NOT merged — the usual review gate.**
+
+What only you can do:
+1. **Review + merge gate**: `git log dev..dev-cnt-1` in
+   polari-framework (one commit, 90d0e92); on go-ahead: merge to
+   dev + pointer commits (the unin-4 flow).
+2. **Your CNT research paper** (plan §Process D-rule): when you
+   supply it, its license gets bucketed, then its measurements
+   digitize into CNTCalibrationAnchor rows — that's what replaces
+   the vt0/efsd priors with calibration.
+3. **Optional relay to ChatGPT**: S1 result summary (it endorsed
+   the narrow target; the equivalence number + the 3 µm
+   out-of-domain residual are the headlines).
+4. **Live-API pass after a deploy**: /api/cntfet/capability,
+   devices, and the acts derive | iv (vs|tob) | calibrate |
+   validate | equivalence on the seeded `cnt-aligned-s1`.
+5. **Named gaps carried honestly** (S2+ by design): curve-level
+   digitization of the [FC10] Id-Vd families (the anchor row
+   REFUSES until then), optical-phonon scattering in F2, BTBT/S-D
+   tunneling ([VS2]), F3 Kwant kernel, G0-convention pin for the
+   0.7 G0 anchor, vt0/efsd are uncalibrated priors.
+
 ## 000. New 2026-08-20 — nmp-0..11 BUILT (the nutrition meal-planning arc)
 
 **The whole arc landed in one autonomous day-session on branch

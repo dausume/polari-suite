@@ -1,5 +1,12 @@
 # Handoff — CNT FET simulation S1 build (fresh session entry point)
 
+> **✅ EXECUTED 2026-08-21** — S1 is BUILT on polari-framework
+> branch `dev-cnt-1` (commit 90d0e92, selftest 34/34 incl. live
+> OSDI equivalence). See the S1 build report in
+> CNT_FET_SIMULATION_PLAN.md + Dustin's queue in TESTING_OWED
+> §0000. This handoff stays as the record of what S1 was asked to
+> be; S2+ waits on the review gate + a go-ahead.
+
 **Date:** 2026-08-20 · **From:** the planning session (Claude⇄ChatGPT
 collaborative plan, Dustin relaying) · **For:** the fresh session that
 builds S1. **Dustin's instruction: start S1 from a /clear.** Read
