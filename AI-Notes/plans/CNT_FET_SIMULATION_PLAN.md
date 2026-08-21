@@ -1,10 +1,23 @@
 # CNT FET full simulation — collaborative plan (Claude ⇄ ChatGPT)
 
-**Date:** 2026-08-20 · **Status: ✅ RATIFIED by Dustin 2026-08-20
-("sounds good") WITH his amendment recorded as D13 (seek an
-INCORPORABLE open-source NEGF engine, not oracle-only). S0 license/
-reference research pass LAUNCHED same day (results → "S0 verdicts"
-section when in). S1+ build = separate go-ahead after S0 reports.**
+**Date:** 2026-08-20 · **Status: ✅ RATIFIED (D1-D14) + ✅ S0
+COMPLETE same day — all six gate areas GREEN for the clean-room path
+(verdicts below; full reports in
+AI-Notes/evaluations/CNT_FET_SIM_LICENSE_GATE.md). S1+ build = a
+separate Dustin go-ahead.**
+
+## S0 verdicts (2026-08-20, license-gated; full per-source reports in
+## AI-Notes/evaluations/CNT_FET_SIM_LICENSE_GATE.md)
+
+| gate | verdict |
+|---|---|
+| NEGF engine (D13) | ✅ **Kwant BSD-2** (LICENSE verified, active 1.5.0) = INCORPORABLE F3 kernel — fork-pin dausume/kwant; CNT = rolled-graphene TB lattice, mode-resolved transmission, coherent-only (honest limit); Poisson user-supplied → Polari-owned cylindrical solver (or PESCADO if its UNVERIFIED license passes). **NanoNet MIT** (active 2026) = complementary GF-formalism pin. ⛔ ViDES = CONFIRMED 4-clause-BSD (advertising clause read in license.txt) → external-process oracle ONLY, unmaintained. ⛔ NEMO5 = NC binds use — excluded entirely. sisl(MPL-2)+TBtrans(GPL-3) = viable heavier fallback. |
+| Verilog-A route | ✅ GO: **OpenVAF-Reloaded** (GPL-3.0, active; original dormant since 2023) → OSDI → **ngspice ≥42** (noise ≥42, OSDI 0.4 ≥44; current 47; our image carries 46). Construct gate for the clean-room model: single flat module, scalar params, static contributions — NO arrays/named events/cross()/bit-shifts/analog filters/genvar. 🔑 **BSIM-BULK/CMG + EKV 2.6 are ECL-2.0** (Apache-derivative, FSF GPLv3-compatible) = legitimate structure templates. ADMS deprecated; XSPICE not a compact-model path. |
+| Blocked code | ⛔ Stanford VS-CNFET + CCAM both under **NEEDS Modified CMC License** (verified from nanoHUB license pages — NOT the expected single-user NC: redistribution allowed but "not to charge for the code itself" = GPL-incompatible price restriction). Never read their source. RV16X-NANO: no released collateral, data on-request → scientific reference only. **No open CNFET compact model exists anywhere — ours is the first.** ✅ **CNFET-OCL/CNFET7** (BSD-3): open 7nm/5nm CNFET CELL LIBRARIES (Liberty/LEF) built with VS-CNFET — usable artifacts + precedent. |
+| Papers | ZERO CC-licensed primaries → ALL cite+link+extracted-values (none commit-direct). VS-CNFET Part I/II legally free (arXiv 1503.04397/98 + PopLab author PDFs); Deng-Wong 2007 paywalled (DOIs recorded); Rahman 2003 ToB paper free via nanoHUB resources/122. CC BY candidates (MDPI reviews, re-confirm on-page) may commit. |
+| Characterization (S5) | ✅ open stack exists: **ASAP7 BSD-3** (LICENSE verified) = structural PDK template (its artifact inventory recorded); **CharLib GPL-2.0** (subprocess/pin only — never merge; ⚠ 2.0.0 DEPRECATED sequential characterization; pin its infinitymdm/PySpice fork too) + **lctime AGPL-3.0-or-later** (active) for setup/hold/recovery/removal; **OpenSTA GPL-3** standalone Liberty gate; Yosys ISC / OpenROAD BSD-3. |
+| Calibration anchors (S2) | 12-anchor prioritized list recorded (full detail in the gate doc). 🔑 CORRECTION: VS v_xo anchor = **Franklin & Chen 2010** (Lg 15nm/300nm/3µm same-tube; v_xo 3.8/1.7/0.47e7 cm/s), NOT Franklin 2012 (that calibrated Luo 2013). Rc: Franklin 2014 six-metal Rc(Lc) + Cao 2015 end-bonded size-independence. Aligned arrays: Liu 2020 + Lin 2023 (per-curve biases UNVERIFIED, paywalled). Bandgap: Wildöer/Odom Eg≈0.77 eV·nm/d, γ0=2.7±0.1eV. nanoHUB VS bundle SHIPS the calibration data files (NEEDS license — extract-only expected). No CC primary I-V data exists → digitize curves into cited rows. |
+| F2 literature | ✅ IMPLEMENTABLE from papers alone: Rahman 2003 publishes the complete ToB equation set; hyperbolic E(k) from Guo 2004 (arXiv OA); T=λ/(λ+L) Lundstrom 1997; mfp anchors λ_ac≈300nm / λ_op≈10-15nm (Javey/Park 2004, arXiv OA) with Perebeinos 2005 d,T-scaling. FETToy license login-gated UNVERIFIED → equations+published-curves only. No adoptable open ToB implementation exists. |
 Dustin's directive: collaborate WITH ChatGPT (he relays messages; no
 browser bridge this session) to plan the path to FULLY SIMULATING CNT
 FETs in the polari stack. Fab of a CNFET RISC-V MCU is the horizon
