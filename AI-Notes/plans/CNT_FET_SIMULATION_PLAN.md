@@ -43,6 +43,40 @@ commit 90d0e92), selftest 34/34 headless. Sub-rung outcomes:
   licenses; CNTFET_MODEL.md is the standalone-capable equations
   doc — every equation cited, Stanford source never read.
 
+## Same-day additions (Dustin's day-time asks, commit 0cd1a73)
+
+- **His two reference papers arrived + license-gated** (both
+  cite+link+values; PDFs off-git at ~/Desktop/Research_Papers/):
+  Fiori/Iannaccone/Klimeck IEDM 2005 (10.1109/IEDM.2005.1609397,
+  ballistic-NEGF CNFET study by the ViDES group — now the
+  NEGF-ORACLE-LITERATURE anchor set: (11,0) d=0.9 nm doped-
+  extension devices, Ion ~7×/6× ITRS hp32/hp22, Ioff 15× over
+  requirement via drain-side hole tunneling into valence bound
+  states, off-current f-sensitivity ~2 decades) and Hills 2019
+  Nature RV16X-NANO (10.1038/s41586-019-1493-8 — system-precedent
+  anchors: 14,702 CNFETs, 63-cell library, VDD 1.8 V, 10 kHz
+  measured/1.19 MHz EDA, 15-25 CNTs/FET at pS 99.99%, DREAM 10⁴×
+  purity relaxation, RINSE >250×, NOR yield 14400/14400).
+- **Citation linkage as a queryable surface** (his rule: proper
+  citation actions for linkages): /api/cntfet/citations = source →
+  {citation, DOI, linked constants/anchors/parameter rows} + an
+  unlinked-rows honesty list (ships empty; the check caught two
+  rows live and they were fixed with a [ZF92] tag).
+- **NEW `modules/microchip/`** (his ask; SEPARABLE from the
+  foundational device modules): the design-level ladder
+  device→standard-cell→functional-block→core→chip as
+  DesignLevelDefinition rows (each rung names its scale axes — the
+  device rung carries manufacturing_regime (D6) ⊥ physics_fidelity
+  (D12)), concrete hierarchies as MicrochipDesignNode trees with
+  {module,class,name}/anchor references (soft — no device-code
+  imports, honest degradation when absent). Seeded: our
+  polari-cnt-ladder (S1 device LIVE + film sibling; cell/block/
+  core/chip rungs UNBUILT with S4/S6/S7 pointers) and the
+  rv16x-nano-precedent tree (every node cited to [HIL19]).
+  Traversal API live; GUI traversal page = future frontend pass.
+  This module is where S4+ artifacts will hang without bloating
+  the device modules.
+
 ## S0 verdicts (2026-08-20, license-gated; full per-source reports in
 ## AI-Notes/evaluations/CNT_FET_SIM_LICENSE_GATE.md)
 

@@ -28,6 +28,28 @@ What only you can do:
    tunneling ([VS2]), F3 Kwant kernel, G0-convention pin for the
    0.7 G0 anchor, vt0/efsd are uncalibrated priors.
 
+**UPDATE same day (your day-time asks, commit 0cd1a73 on
+dev-cnt-1):**
+6. **Your two papers are IN as cited anchors** — both license-gated
+   to the cite+link+values bucket (Fiori IEDM 2005 = '(c) IEEE';
+   Hills 2019 Nature = Springer exclusive licence; the PDFs stay
+   off-git in ~/Desktop/Research_Papers/). 14 anchor rows with
+   full citations; verify the value extractions read true to you.
+   NOTE: the Fiori paper is SIMULATED (ballistic NEGF) data — it
+   became the literature NEGF-oracle edge, not experimental
+   calibration; curve digitization for both = S2 (refusing rows).
+7. **Citations surface**: GET /api/cntfet/citations — every source
+   with DOI + which rows link to it; the 'unlinked' list is the
+   honesty surface and ships empty.
+8. **NEW microchip module** (your ask, separable from the device
+   modules): design ladder device→cell→block→core→chip +
+   traversal API (/api/microchip/levels|designs|nodes/{n}), seeded
+   with our ladder (device rung LIVE, uppers honestly UNBUILT
+   with plan pointers) + the RV16X-NANO precedent decomposed and
+   cited per node. GUI page for ladder traversal = unbuilt
+   (frontend-work-map item; say go and it lands with the next
+   frontend pass).
+
 ## 000. New 2026-08-20 — nmp-0..11 BUILT (the nutrition meal-planning arc)
 
 **The whole arc landed in one autonomous day-session on branch
