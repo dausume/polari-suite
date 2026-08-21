@@ -43,8 +43,12 @@ The day session completed. What stands, and exactly where:
   = public-domain C:N table; swine household exemption is in the
   166.1 garbage DEFINITION and dies off-premises (gates the
   decision-9 nearby-farm destination); molasses >0.2% = pathogen
-  regrowth. cmp vendoring + cmp-1..7 still await the build
-  go-ahead; nmp merge gate untouched.
+  regrowth. THEN (same session) Dustin SHELVED the cmp arc:
+  plan moved to the NEW AI-Notes/plans/shelved/ directory —
+  README.md there = the shelved-work accountability ledger (13
+  plans: cmp, scan ×2, arz, wax-mold, pspp ×2, tower, blcnc ×3,
+  webxr, math-shapes; state + revival path per arc). nmp merge
+  gate untouched.
 
 ## isle-core state (verified 2026-08-20, after the unin-6 round trip)
 
@@ -98,7 +102,8 @@ arrived empty twice; don't rely on them.
    live-API pass, his profile data). nutrition-planner is a
    PolariAppDefinition (deb-buildable via pol apps shell — his
    mid-run request). **FOLLOW-ON ARC PLANNED same day: composting
-   (cmp-0..7, AI-Notes/plans/COMPOSTING_LOOP_PLAN.md) — waste
+   (cmp-0..7, AI-Notes/plans/shelved/COMPOSTING_LOOP_PLAN.md —
+   ⏸ SHELVED 2026-08-20 after the cmp-0 research pass) — waste
    DERIVED from meal plans, routed to compost/teas (aqp-7 = the
    built return path) or livestock feed (legality fail-closed);
    ALL 4 Qs ANSWERED (own deb; pigs+chickens+cats+dogs w/ ration mixing; new composting/ module; optional advised logging + own-vs-nearby-farm destinations); cmp-0 research pass builds on go-ahead.

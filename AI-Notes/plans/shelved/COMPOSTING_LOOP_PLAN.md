@@ -1,11 +1,12 @@
 # Composting loop — waste planned WITH the food (cmp-0..cmp-7)
 
-**Date:** 2026-08-20 · **Status: PLAN RATIFIED same day — Dustin
-answered all 4 open questions (decisions 7-9 below record them).
-cmp-0 RESEARCH PASS DONE same day — all five sources GREEN (verdicts
-below; full reports in
-AI-Notes/evaluations/COMPOSTING_DATA_LICENSE_GATE.md). Vendoring +
-cmp-1..7 build on a build go-ahead.**
+**Date:** 2026-08-20 · **Status: ⏸ SHELVED 2026-08-20 (Dustin, same
+day) — plan RATIFIED (all 4 Qs answered, decisions 7-9) AND cmp-0
+research pass DONE (all five sources GREEN; verdicts below; full
+reports in AI-Notes/evaluations/COMPOSTING_DATA_LICENSE_GATE.md).
+NOTHING BUILT. Revival = a Dustin go-ahead; the build starts at the
+cmp-0 vendoring, straight from the recorded verdicts — no re-research
+needed unless sources drift.**
 
 **Dustin's brief (verbatim intent):** build a composting app for
 making new soil and compost-teas that feed back into hydroponics;
