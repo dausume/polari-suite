@@ -55,8 +55,29 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
-13. **S5 + F3 + fork-pins BUILT on your morning go (2026-08-21
-    day) — ⚠ UNCOMMITTED by your no-git-during-work instruction.**
+14. **EVENING PASS DONE (your "1 should be okay" + take-next-task,
+    2026-08-21)**: git pass EXECUTED — S5/F3 committed (60390d7),
+    suite docs (51f5ac3), dausume/lctime MIRROR live (branches +
+    tags; codeberg pull-ref rejection is normal), OpenVAF-1
+    renamed → **dausume/OpenVAF-original**. NOTHING pushed from
+    the suite repos. THEN **[VS2] extrinsics BUILT (e436ad7,
+    67/67)**: Rc(Lc,d) transmission-line model HITS the paper's
+    70 kΩ pin (71.4) — 🔑 and RESOLVES your recorded Rs tension:
+    long FC10-style contacts ≈ 4.4 kΩ/terminal (0.7 G0
+    compatible) vs 35 kΩ at Lc=12.9 nm — the tension was contact
+    LENGTH, not physics (polarity gotcha caught live: the
+    calibrated constants are Pd-on-p, barrier-free); additive
+    SDT (exponential in Lg: 0.03 nA @15 → 281 nA @5 nm) + BTBT
+    (exactly 0 below Vds=Eg) + VS_FULL profile with per-point
+    decomposition ({action: iv, profile: VS_FULL}); OSDI twin
+    stays thermionic (analytic recast is in the blocked manual —
+    labeled). YOUR EYES: the Rs-tension resolution note, and
+    whether to adopt Rc(Lc,d) as the contact default (currently a
+    derived suggestion beside your 5.5 kΩ prior). Remaining
+    rungs: F3 self-consistent Poisson (D13), CharLib executor
+    wiring, OpenSTA install, S6 synthesis, parasitic-cap models.
+13. **S5 + F3 + fork-pins BUILT (2026-08-21 day) — committed
+    during the evening pass as 60390d7.**
     Working-tree manifest on polari-framework dev-cnt-1
     (selftests 61/61 incl. live S5 + F3 legs):
     modified: cnt_api.py, cnt_capability.py, selftest_cntfet.py,
