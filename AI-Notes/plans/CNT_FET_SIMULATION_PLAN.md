@@ -1,10 +1,42 @@
 # CNT FET full simulation — collaborative plan (Claude ⇄ ChatGPT)
 
-**Date:** 2026-08-20 · **Status: ✅ RATIFIED (D1-D18) + ✅ S0
-COMPLETE + ✅ S1 BUILT + ✅ S2 VALIDATION BUILT 2026-08-21 (build
-reports below; polari-framework branch `dev-cnt-1` ×4 commits +
-angular ×1, review gate = Dustin — TESTING_OWED §0000). S3
-(variability) = the next go-ahead.**
+**Date:** 2026-08-20 · **Status: ✅ RATIFIED (D1-D18) + ✅ S0 + S1
++ S2 + S3 + S4a/S4b ALL BUILT 2026-08-21 (build reports below;
+polari-framework `dev-cnt-1` ×6 commits + angular ×1, review gate
+= Dustin — TESTING_OWED §0000). Next rungs on go-ahead: S4c
+NAND2/DFF, S5 characterization (CharLib/lctime), F3 Kwant kernel,
+[VS2] extrinsics.**
+
+## S3 + S4a/S4b build report (2026-08-21, "keep going" go-ahead)
+
+- **S3 variability (D6/D7)**: the six process classes as
+  distribution objects (Alignment/Placement/Purification/
+  ContactFormation/Lithography/GateStack) + `{action: montecarlo}`
+  — deterministic-under-seed populations, metallic/missing kills,
+  lognormal Rc floored at RQ/2, every survivor measured with the
+  S2 metric ruler; yield + kill counts + DOMINANT LIMITATION (the
+  D7 feedback-loop output). Refusals: unbound set, missing rows,
+  regime mismatch (D6), confidence 'none'; priors listed per run.
+  First target-line run: 68.5% functional / 200 samples, dominant
+  = on/off-ratio violations via the Vt-σ prior ("tighten the gate
+  stack" — the loop works).
+- **S4a inverter (D10 first cell, DC)**: equation revision r2 adds
+  polarity (p = mirrored n, [VS1] premise ii; mirror exact to
+  1e-12; p-twin passes the D3 regression on a negative-bias grid
+  at 2.6e-9). `{action: inverter}`: complementary OSDI pair in
+  ngspice — **VM 0.300 V (VDD/2), peak gain −19.7, swing 99.996%,
+  NML=NMH=0.25 V** (Hills full-adder measured gain ~17 — same
+  class).
+- **S4b charge + ring oscillator**: revision r3 = [VS1] eq.(11)
+  terminal charge (Cinvb/Cq∞/Vtb published forms) with an EXPLICIT
+  50/50 Qs/Qd split (the Ward-Dutton blend derivation is inside
+  the blocked NEEDS manual — labeled approximation). Cgg
+  reproduces the Fig.9 quantum-capacitance peak-then-decline from
+  the equations alone. `{action: ring-oscillator}`: **the 5-stage
+  ring OSCILLATES — 637 GHz, 157 fs/stage, INTRINSIC-ONLY**
+  (attofarad charges, zero parasitics; a bound, not a product
+  claim). Scaling-consistent with [VS1] Fig.10 (τ~50 fs @ 8 nm).
+- selftest_cntfet **57/57**; microchip 16/16; lazy-imports 15/15.
 
 ## S2 build report (2026-08-21, Dustin's "continue" go-ahead)
 

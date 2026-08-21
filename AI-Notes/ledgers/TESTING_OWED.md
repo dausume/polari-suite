@@ -55,6 +55,23 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
+11. **S3 + S4a + S4b BUILT on your "keep going" (fae36b5,
+    1860c63)** — the chip arc now runs device→population→circuit:
+    **(a) Monte Carlo variability**: six D7 process classes as
+    distribution objects, `{action: montecarlo}` → 68.5%
+    functional yield on the seeded target line, dominant
+    limitation named (on/off-ratio via the Vt-σ prior — every
+    unmeasured σ is a flagged TUNABLE prior for you to override);
+    **(b) the complementary INVERTER works in ngspice** through
+    the OSDI card (VM = VDD/2, gain −19.7, swing 99.996%);
+    **(c) the 5-stage RING OSCILLATOR oscillates — 637 GHz / 157
+    fs per stage, intrinsic-only** (labeled: no parasitics, 50/50
+    charge partition because the Ward-Dutton derivation is in the
+    license-blocked manual). Debug-queue adds: try {action:
+    inverter}, {action: ring-oscillator}, {action: montecarlo}
+    over live API; review the six process priors (they're YOUR
+    knobs now); decide S4c (NAND2/DFF) vs S5 (CharLib/lctime
+    characterization) vs F3 (Kwant) for the next go-ahead.
 10. **S2 VALIDATION BUILT on your "continue" (a75c3e0)** — the
     headline for your review: **[VS1] Fig.7(a) was digitized
     programmatically (58 points, ±0.26 µA, overlay-verified) and
