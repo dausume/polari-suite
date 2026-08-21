@@ -7,6 +7,35 @@ upcoming night (he started today, ran out of time — the box is
 untouched past the clone); the next session does arc work throughout
 the day, and folds in his test findings when they arrive.
 
+## ⚡ END-OF-DAY STATE (2026-08-20 evening — read this first)
+
+The day session completed. What stands, and exactly where:
+
+- **unin-4 ✅ MERGED + PUSHED to dev** everywhere (suite tip on
+  origin dev = 47f34b6). The night test is unaffected by anything
+  below — origin dev is exactly what isle-core will pull.
+- **nmp-0..11 ✅ ALL BUILT, ⚠ LOCAL ONLY**: polari-framework branch
+  `dev-nmp-1` (11 commits, 12 selftest suites green), pointer
+  branches `dev-nmp-1` in polari-rf-node and the suite (suite tip
+  there also carries the cmp plan + ledger + this handoff's
+  updates). NOT merged to dev, NOT pushed — the review gate.
+  ⚠ RISK: today's work exists only on this box until pushed;
+  `git push origin dev-nmp-1` in polari-framework + polari-rf-node
+  + the suite snapshots it without touching dev.
+- **cmp (composting) ✅ PLAN RATIFIED** — COMPOSTING_LOOP_PLAN.md,
+  decisions 1-9 (Dustin answered Q1-Q4 same day: own deb; pigs/
+  chickens/cats/dogs with ration mixing; new composting/ module;
+  optional advised logging + own-vs-nearby-farm destinations).
+  cmp-0's research/license pass builds on a go-ahead.
+- **Working copies currently sit ON the dev-nmp-1 branches**
+  (suite, polari-rf-node, polari-framework); every other submodule
+  is on dev. `git checkout dev` anywhere if you need the pushed
+  state; the branches are the review queue.
+- Next session's queue: (1) night-test findings, (2) Dustin's
+  merge go-ahead for dev-nmp-1 → merge + pointers + push (the
+  unin-4 flow), (3) cmp-0 on go-ahead, (4) pub blockers
+  unchanged. Dustin's own queue = TESTING_OWED §000.
+
 ## isle-core state (verified 2026-08-20, after the unin-6 round trip)
 
 - **Fully purged via `isle uninstall --everything`** — the unin-6
@@ -80,13 +109,15 @@ arrived empty twice; don't rely on them.
 
 ## Standing context for a fresh session
 
-- Everything is PUSHED to GitHub dev across all repos (suite tip =
-  handoff commit). The suite checkout on pol-core is the working
-  copy for Isle-Mesh too (isle-core's ~/Isle-Mesh is GONE — purged;
-  the suite submodule is the only working copy now).
+- Origin dev is current through unin-4 (suite 47f34b6); the nmp/cmp
+  day-work is LOCAL on dev-nmp-1 branches (see END-OF-DAY STATE).
+  The suite checkout on pol-core is the working copy for Isle-Mesh
+  too (isle-core's ~/Isle-Mesh is GONE — purged; the suite
+  submodule is the only working copy now).
 - Memory index: polari-systems-org (pub arc + install exercise),
-  nutrition-meal-planning (nmp), public-repos-hygiene (KC rotation
-  procedure). AI-Notes/ structure: plans/ handoffs/ evaluations/
+  nutrition-meal-planning (nmp BUILT), composting-loop (cmp
+  RATIFIED), uninstall-lifecycle (unin DONE), public-repos-hygiene
+  (KC rotation procedure). AI-Notes/ structure: plans/ handoffs/ evaluations/
   designs/ ledgers/ guides/.
 - isle-core has passwordless sudo over ssh — the headless iterate
   loop works end to end from pol-core.
