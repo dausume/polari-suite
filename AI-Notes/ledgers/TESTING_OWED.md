@@ -55,6 +55,32 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
+13. **S5 + F3 + fork-pins BUILT on your morning go (2026-08-21
+    day) — ⚠ UNCOMMITTED by your no-git-during-work instruction.**
+    Working-tree manifest on polari-framework dev-cnt-1
+    (selftests 61/61 incl. live S5 + F3 legs):
+    modified: cnt_api.py, cnt_capability.py, selftest_cntfet.py,
+    polariServer.py; new: cnt_characterization.py, cnt_kwant.py,
+    kwant_worker.py (+ this ledger, plan, CNTFET_MODEL.md,
+    memory).
+    What landed: **(a) fork-pins created BEFORE your no-git
+    instruction**: dausume/{kwant, NanoNet, CharLib, PySpice,
+    CNFET-OCL, asap7, OpenVAF, OpenVAF-1} — OpenVAF-1 = the
+    ORIGINAL pascalkuthe repo (auto-name; consider renaming);
+    **(b) S5 first rung**: CellCharacterizationRun schema (D11/
+    D16, ours above any executor) + own-loop INV characterization
+    (3×3 grid monotone, 343 fs–1.84 ps, Liberty emitted, OpenSTA
+    gate = recorded refusal, not installed); **(c) F3 Kwant
+    kernel LIVE**: subprocess venv (~/tools/kwant-venv, numpy<2 —
+    kwant 1.5 breaks on numpy 2), atomistic zigzag tube self-pins
+    gap+valleys, {action: f3-oracle} spends F3 at the triangle's
+    disagreement points → F3 lands BETWEEN F2 and F1 in
+    subthreshold (tunneling real, smoothing over-predicts).
+    **QUEUED GIT ACTIONS for your evening go**: commit the
+    manifest above; lctime codeberg→GitHub mirror; optional
+    OpenVAF-1 rename; push nothing until you say.
+    Also queued: install OpenSTA (closes the D11 STA gate);
+    [VS2] extrinsics = the remaining rung not started.
 12. **S4c BUILT on your second "go" (a69650b)** — the D10 minimal
     cell set INV/NAND2/BUF/DFF is fully DEMONSTRATED on the OSDI
     card: NAND2 truth table exact, BUF rail-to-rail, TG

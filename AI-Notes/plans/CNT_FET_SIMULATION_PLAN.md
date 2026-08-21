@@ -1,12 +1,38 @@
 # CNT FET full simulation — collaborative plan (Claude ⇄ ChatGPT)
 
-**Date:** 2026-08-20 · **Status: ✅ RATIFIED (D1-D18) + ✅ S0 + S1
-+ S2 + S3 + S4a/S4b/S4c ALL BUILT 2026-08-21 (build reports below;
-polari-framework `dev-cnt-1` ×7 commits + angular ×1, review gate
-= Dustin — TESTING_OWED §0000). The D10 minimal cell set
-(INV/NAND2/BUF/DFF) is DEMONSTRATED end to end. Next rungs on
-go-ahead: S5 characterization (CharLib/lctime, needs fork-pins),
-F3 Kwant kernel, [VS2] extrinsics.**
+**Date:** 2026-08-20 · **Status: ✅ RATIFIED (D1-D18) + ✅ S0
+through S4c + S5-first-rung + F3 ALL BUILT 2026-08-21
+(polari-framework `dev-cnt-1` ×7 commits + angular ×1 + an
+UNCOMMITTED S5/F3 working tree held by Dustin's
+no-git-during-work instruction — manifest in TESTING_OWED §0000
+item 13). Remaining rungs: [VS2] extrinsics, OpenSTA install
+(closes the D11 gate), CharLib executor wiring, self-consistent
+Poisson for F3 (D13), S6 synthesis.**
+
+## S5 + F3 build report (2026-08-21 day, uncommitted)
+
+- **Fork-pins** (pre-instruction): dausume/{kwant, NanoNet,
+  CharLib, PySpice, CNFET-OCL, asap7, OpenVAF, OpenVAF-1};
+  lctime mirror queued (codeberg needs a push).
+- **S5 first rung**: `CellCharacterizationRun` = the D11/D16
+  schema above any executor; the `polari-own-loop` executor
+  characterizes INV over a sparse slew×load grid (monotone,
+  343 fs–1.84 ps, definitions recorded), emits NLDM Liberty
+  (ps/fF), and the OpenSTA acceptance gate refuses honestly until
+  the binary is installed — the MANDATORY D11 SPICE-vs-STA
+  composed-path regression is an OPEN box, tracked.
+- **F3 LIVE (D13/D14 realized)**: kwant in its own venv
+  (numpy<2; kwant 1.5's pregenerated C breaks on numpy 2),
+  subprocess-driven worker builds the explicit-connectivity
+  zigzag tube under the eq.(5) barrier. Self-pins: TB gap ≡ Eg
+  (0.6802 eV), T = 2 valleys above the edge. 🔑 The adaptive
+  oracle CLOSED ITS LOOP: `{action: f3-oracle}` reads the latest
+  triangle row's disagreement points and spends F3 there — F3
+  lands BETWEEN F2 and F1 in deep subthreshold (≈5.6× over
+  thermionic-only F2: S/D tunneling is real; ≈3.8× under F1's
+  smoothed tail) and within 40% of both at on-state. Limits
+  stated per run: coherent-only, fixed potential, zigzag-only.
+- selftests **61/61** including the live S5 + F3 legs.
 
 ## S4c build report (2026-08-21, second "go")
 
