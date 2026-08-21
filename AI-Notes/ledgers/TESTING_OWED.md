@@ -55,6 +55,21 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
+10. **S2 VALIDATION BUILT on your "continue" (a75c3e0)** — the
+    headline for your review: **[VS1] Fig.7(a) was digitized
+    programmatically (58 points, ±0.26 µA, overlay-verified) and
+    the clean-room model reproduces the flagship Lg=15 nm curve
+    at RMS 0.295 µA — AT the digitization noise floor.** Also:
+    metric family (G0 pinned = 4e²/h from the paper), F1-vs-F2
+    validation triangle + adaptive-oracle targets, curve/scalar
+    residuals incl. two honest misses (subthreshold leakage
+    floor −90%; G_on 0.35 vs 0.7 G0 = the recorded Rs-prior
+    tension). Debug-queue additions for you: (a) sanity-check the
+    digitization overlay story (method in cnt_digitized_fc10
+    docstring), (b) {action: triangle} + {action: calibrate} over
+    live API when a stack is up, (c) decide whether the Rs
+    tension warrants splitting the contact prior (rc quantum half
+    vs extrinsic half) at S3.
 
 ## 000. New 2026-08-20 — nmp-0..11 BUILT (the nutrition meal-planning arc)
 

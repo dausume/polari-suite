@@ -1,9 +1,42 @@
 # CNT FET full simulation — collaborative plan (Claude ⇄ ChatGPT)
 
 **Date:** 2026-08-20 · **Status: ✅ RATIFIED (D1-D18) + ✅ S0
-COMPLETE + ✅ S1 BUILT 2026-08-21 (see the S1 build report below;
-polari-framework branch `dev-cnt-1`, review gate = Dustin —
-TESTING_OWED §0000). S2+ = a separate go-ahead.**
+COMPLETE + ✅ S1 BUILT + ✅ S2 VALIDATION BUILT 2026-08-21 (build
+reports below; polari-framework branch `dev-cnt-1` ×4 commits +
+angular ×1, review gate = Dustin — TESTING_OWED §0000). S3
+(variability) = the next go-ahead.**
+
+## S2 build report (2026-08-21, Dustin's "continue" go-ahead)
+
+Device validation before variability, exactly per the roadmap:
+
+- **Metric family** (cnt_metrics): SS / constant-current-Vt DIBL /
+  Ion / Ioff / gm-peak / G_on measured identically from every
+  engine. 🔑 G0 convention PINNED from [FC10]'s own text: RQ =
+  1/G0 = h/4e² → G0 = 4e²/h ≈ 155 µS.
+- **Validation triangle** (cnt_triangle, {action: triangle}):
+  intrinsic edge VS(Rc=0) vs ToB — SS 66.6 vs 59.8 mV/dec, DIBL
+  14.4 vs 10.0 mV/V, Ion +21%, gm −4%; adaptive-oracle targets
+  recorded (deep subthreshold, ~1.35 dex) = where Kwant/F3 spend
+  goes later. Physics honesty: VS carries the quantum resistance
+  in Rs by design and can exceed G0 intrinsically; ToB respects
+  the bound natively (0.93 G0).
+- **🔑 [VS1] Fig.7(a) DIGITIZED programmatically** (S2c,
+  cnt_digitized_fc10 = the D18 record): 300-dpi render →
+  color-mask + white-interior components → centroids;
+  least-squares axis calibration from the tick labels;
+  overlay-verified; 58 points, ±0.005 V / ±0.26 µA. Curve
+  residuals vs the clean-room model in the anchor context:
+  **ov+0.50 RMS 0.295 µA = AT the digitization noise floor (mean
+  −0.4%)** — the S1-done curve-calibration deliverable, exceeded;
+  ov+0.25 −2.7%; ov+0.00 −16%; ov−0.25 −90% (device leakage floor
+  unmodeled — recorded, not hidden). Fig.7(b),(c) + [FC10]
+  originals still refuse pending the same treatment.
+- **Recorded tension** (data, not fiat): 0.7 G0 measured record vs
+  Rs = 5.5 kΩ/terminal fit prior (caps G at 0.59 G0) cannot both
+  hold for one device — likely different devices/contacts; the
+  G_on residual (−50%) is evidence about the CONTACT prior.
+- selftest_cntfet **45/45** (incl. live OSDI equivalence).
 
 ## S1 build report (2026-08-21, one session, branch dev-cnt-1)
 
