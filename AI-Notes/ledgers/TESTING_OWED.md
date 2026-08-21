@@ -46,9 +46,15 @@ dev-cnt-1):**
    traversal API (/api/microchip/levels|designs|nodes/{n}), seeded
    with our ladder (device rung LIVE, uppers honestly UNBUILT
    with plan pointers) + the RV16X-NANO precedent decomposed and
-   cited per node. GUI page for ladder traversal = unbuilt
-   (frontend-work-map item; say go and it lands with the next
-   frontend pass).
+   cited per node.
+9. **GUI BUILT on your go (2026-08-21)**: interactive
+   `microchip-ladder` component (polari-platform-angular
+   dev-cnt-1, 9133929; ng build green) + seeded pages
+   **/display/microchip** (design picker, level rail, click-to-
+   traverse with citations/artifacts) and **/display/cntfet**
+   (devices, D8 parameters, D18 anchors, capability, citation
+   linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
+   both pages after a deploy — headless proof only so far.
 
 ## 000. New 2026-08-20 — nmp-0..11 BUILT (the nutrition meal-planning arc)
 
