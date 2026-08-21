@@ -27,6 +27,53 @@ CNT research paper (reference anchor, arriving later), (2) the known
 functional CNT RISC-V design (2019 RV16X-NANO, ~14k CNFETs) as
 precedent.
 
+## Round 5 refinements (ChatGPT + Dustin, 2026-08-20 — post-S0):
+## decisions D15-D18
+
+ChatGPT accepted all S0 verdicts and corrections. New decisions:
+
+15. **F3 = two implementations under ONE interface**: Kwant =
+    default incorporable NEGF-kernel path; NanoNet = complementary
+    formalism/reference implementation; ViDES is NOT architecturally
+    central — it remains a legally isolated reproduction oracle
+    where useful.
+16. **Characterization executors are swappable behind the Polari
+    schema**: CharLib only for the combinational arcs it supports
+    well; lctime for setup/hold + sequential arcs; BOTH must emit
+    into the same Polari CellCharacterizationRun schema — no
+    external tool defines our data model. **AGPL ruling (Dustin's
+    question, answered with recommendation):** AGPL is NOT NC-like —
+    commercial + government use fully permitted, and the §13 network
+    clause never reaches Polari users because (a) lctime's OUTPUTS
+    (Liberty files) are not covered by its license, and (b)
+    subprocess isolation (required anyway for GPL-2.0 CharLib) keeps
+    it a separate work. Caveat = perception: some org policies ban
+    AGPL internally → lctime is OPTIONAL, separately-installed,
+    subprocess-isolated, flagged absent-by-default in the D14
+    ledger; exit paths = CharLib's sequential reimplementation or
+    our own loop. ⏳ Dustin may still veto AGPL outright — nothing
+    blocks before S5.
+17. **The compact model is a standalone-capable research artifact**:
+    since no open CNFET compact model exists, the clean-room GPLv3
+    VS-derived implementation (equations doc, implementation notes,
+    validation suite, provenance) stays modular enough to live
+    independently of Polari later (own-repo candidate).
+18. **Digitization provenance is a PERMANENT rule**: every digitized
+    literature curve retains the raw digitized points AND the full
+    transformation history — figure identifier, axis scaling,
+    extraction method, estimated digitization error, normalizations,
+    and any subsequently fitted parameter — so calibration
+    disagreements trace to graph-extraction vs physics. (Extends the
+    DigitizedDataset discipline.)
+
+**S1 first concrete target (narrowed, agreed):** ONE aligned
+semiconducting CNT — one chirality/diameter, one gate stack, one
+temperature, one contact prior — DC Id-Vg and Id-Vd only, Python
+reference + cross-checked Verilog-A, BEFORE any variability or
+multi-tube aggregation. The smallest object that can fail
+transparently. **No remaining architectural blocker — S1 starts on
+Dustin's go-ahead.**
+
 ## Dialogue state
 
 - **Round 0 (ChatGPT, received 2026-08-20):** the full hierarchy
