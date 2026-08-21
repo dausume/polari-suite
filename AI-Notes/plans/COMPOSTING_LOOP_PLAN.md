@@ -1,8 +1,11 @@
 # Composting loop — waste planned WITH the food (cmp-0..cmp-7)
 
 **Date:** 2026-08-20 · **Status: PLAN RATIFIED same day — Dustin
-answered all 4 open questions (decisions 7-9 below record them);
-ready for cmp-0's research pass on a build go-ahead.**
+answered all 4 open questions (decisions 7-9 below record them).
+cmp-0 RESEARCH PASS DONE same day — all five sources GREEN (verdicts
+below; full reports in
+AI-Notes/evaluations/COMPOSTING_DATA_LICENSE_GATE.md). Vendoring +
+cmp-1..7 build on a build go-ahead.**
 
 **Dustin's brief (verbatim intent):** build a composting app for
 making new soil and compost-teas that feed back into hydroponics;
@@ -38,18 +41,22 @@ plan the handling when you plan the food, not after.
   cited priors, per-object displays, seed-upsert, CSV-not-JSON
   vendoring (the `*.json` gitignore), fork-pin/license gates.
 
-## Data sources to license-gate in cmp-0 (research pass owed)
+## Research verdicts (2026-08-20, license-gated; full per-source
+## reports in AI-Notes/evaluations/COMPOSTING_DATA_LICENSE_GATE.md)
 
-| candidate | role | expected status |
+**All five sources GREEN:**
+| source | role | verdict |
 |---|---|---|
-| USDA FDC/SR refuse factors (percent inedible per food) | waste fraction per pantry food | CC0 — verify column availability per dataset |
-| Cornell WMI / extension C:N + moisture tables for feedstocks | compost balancing (greens/browns) | citable published values — verify per table |
-| USDA/FDA + Swine Health Protection Act (9 CFR 166) | livestock-feed LEGALITY (esp. food scraps to swine; meat-contact rules) | public law — transcribe the RULES, cited |
-|  per-species scrap guidance: poultry extension + veterinary toxic-food lists for cats/dogs (ASPCA etc.) | per-species acceptance/prohibition lists | citable; label confidence |
-| compost-tea brewing literature (aeration, time, ratios) | tea parameter priors | published papers; label ranges honestly |
+| USDA SR28 refuse factors (`sr28asc.zip` from ARS, FOOD_DES fields Refuse/Ref_desc) | waste fraction per pantry food | US-gov public domain / CC0-per-FDC. 🔑 **FDC dropped refuse entirely** — not in the SR Legacy bulk CSV, not in the API; SR28 at ARS is the ONLY machine-readable source. Join via FDC `sr_legacy_food.csv` (fdc_id↔NDB), normalizing NDB leading zeros. Values verified by download (banana 36 skin, broccoli 39, egg 12 shell, orange 27, avocado 26; boneless fish + staples 0) |
+| USDA **NRCS NEH Part 637 Ch. 2 Table 2A-1** (C:N + moisture per feedstock) | compost balancing (greens/browns) | public domain (17 USC §105) and carries the SAME numbers as NRAES-54 App. A — cite NRCS as primary, NRAES-54 as the underlying compilation. Targets: C:N 25–30:1 preferred (20–40 reasonable), moisture 50–60% (40–65). Eggshells have NO primary-source row → model as mineral amendment, not a C:N feedstock |
+| Swine Health Protection Act + 9 CFR 166 (+ 21 CFR 1.227/507.12 for off-premises) | livestock-feed LEGALITY | public law, transcribed. 🔑 corrections: the household exemption is INSIDE the 166.1 *definition of garbage* (not 166.15), three prongs (own household waste + fed directly + same premises); meat-ASSOCIATED veg waste IS garbage; **the exemption dies off-premises** — the decision-9 "nearby farm" destination is the licensed-cooking pathway or BLOCK; ~23-25 states ban garbage feeding outright (state check = per-user fail-closed gate). Chickens: no federal bar, state gate only. Pets: no legality layer — toxicity only |
+| per-species lists (UF/IFAS + OSU ext. for chickens; ASPCA + Merck for dogs/cats; Purdue/Iowa State + Merck for pigs) | acceptance/prohibition rows | citable facts (Feist); no data-reuse prohibitions found; never copy prose/table layouts. Grape/raisin = tartaric acid (Merck-confirmed); allium worse for cats; chicken-citrus = genuine source disagreement → `caution`; pig avocado/chocolate rows UNVERIFIED (advocacy-tier only) |
+| compost-tea priors (NOSB 2004 Task Force report + S&M 2002 + Duffy 2004 + Ingram&Millner 2007 + UH/SARE manual) | tea parameters + safety | NOSB 2004 = public domain, full text retrieved (potable water; additive tea needs E. coli ≤126 CFU/100mL testing else 90/120-day PHI; no sprouts; extract <1h ≠ tea). ACT 12–24h, 1:10–1:20 v/v; DO ≥6 mg/L is practitioner-tier only. 🔑 molasses >0.2% regrows Salmonella/E. coli; regrowth rides ADDITIVES not aeration (ACT can be WORSE). NPK priors wide (N 58–315 mg/L across teas). Other containers © (UH manual, T&F) — values-only, cite DOIs |
 
 ⛔ Same gates as nmp: nothing NC/proprietary vendored; values-as-
-facts cited where the container is blocked.
+facts cited where the container is blocked. Confirmed NC blockers
+found this pass: FAO/INFOODS edible-portion data (CC BY-NC-SA) —
+never vendor.
 
 ## Proposed decisions (Dustin ratifies/edits — numbered like nmp's)
 
@@ -103,8 +110,8 @@ facts cited where the container is blocked.
 - **cmp-0 — data adoption**: refuse-fraction table for the 49-food
   pantry (vendored CSV, cited; labeled estimate where FDC lacks the
   factor), feedstock C:N/moisture table, the livestock legality
-  rule transcription, tea parameter priors. Research pass first
-  (license verdicts recorded like nmp-0's).
+  rule transcription, tea parameter priors. ✅ Research pass DONE
+  2026-08-20 (verdicts above; the vendoring itself = the build).
 - **cmp-1 — waste derivation**: WasteStream objects computed from a
   MealPlan (inedible fraction × line grams + prep trimmings) + the
   harvest side (non-edible PlantParts mass); `waste_rollup(plan)`

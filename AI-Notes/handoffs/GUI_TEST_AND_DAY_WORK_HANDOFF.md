@@ -34,6 +34,17 @@ The day session completed. What stands, and exactly where:
   merge go-ahead for dev-nmp-1 → merge + pointers + push (the
   unin-4 flow), (3) cmp-0 on go-ahead, (4) pub blockers
   unchanged. Dustin's own queue = TESTING_OWED §000.
+- **UPDATE 2026-08-20 (day session #2): cmp-0 RESEARCH PASS DONE**
+  — night test had NOT run (isle-core probed: still step 0), so the
+  session ran the one ungated queue item. All 5 data sources GREEN;
+  verdicts in COMPOSTING_LOOP_PLAN.md §Research verdicts, full
+  reports in AI-Notes/evaluations/COMPOSTING_DATA_LICENSE_GATE.md.
+  Key: FDC dropped refuse (SR28 at ARS = only source); NRCS NEH 637
+  = public-domain C:N table; swine household exemption is in the
+  166.1 garbage DEFINITION and dies off-premises (gates the
+  decision-9 nearby-farm destination); molasses >0.2% = pathogen
+  regrowth. cmp vendoring + cmp-1..7 still await the build
+  go-ahead; nmp merge gate untouched.
 
 ## isle-core state (verified 2026-08-20, after the unin-6 round trip)
 
