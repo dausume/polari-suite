@@ -14,14 +14,13 @@ The day session completed. What stands, and exactly where:
 - **unin-4 ✅ MERGED + PUSHED to dev** everywhere (suite tip on
   origin dev = 47f34b6). The night test is unaffected by anything
   below — origin dev is exactly what isle-core will pull.
-- **nmp-0..11 ✅ ALL BUILT, ⚠ LOCAL ONLY**: polari-framework branch
-  `dev-nmp-1` (11 commits, 12 selftest suites green), pointer
+- **nmp-0..11 ✅ ALL BUILT, ✅ PUSHED AS BRANCH**: polari-framework
+  branch `dev-nmp-1` (11 commits, 12 selftest suites green), pointer
   branches `dev-nmp-1` in polari-rf-node and the suite (suite tip
-  there also carries the cmp plan + ledger + this handoff's
-  updates). NOT merged to dev, NOT pushed — the review gate.
-  ⚠ RISK: today's work exists only on this box until pushed;
-  `git push origin dev-nmp-1` in polari-framework + polari-rf-node
-  + the suite snapshots it without touching dev.
+  there also carries the cmp plan + ledger + this handoff). NOT
+  merged to dev — the review gate — but all three branches are ON
+  ORIGIN (Dustin's evening go-ahead): snapshots safe on GitHub,
+  dev untouched.
 - **cmp (composting) ✅ PLAN RATIFIED** — COMPOSTING_LOOP_PLAN.md,
   decisions 1-9 (Dustin answered Q1-Q4 same day: own deb; pigs/
   chickens/cats/dogs with ration mixing; new composting/ module;
