@@ -1,9 +1,10 @@
 # CNT FET full simulation — collaborative plan (Claude ⇄ ChatGPT)
 
-**Date:** 2026-08-20 · **Status: PLANNING CONVERGED — decisions
-D1-D12 below endorsed by ChatGPT (round 4); AWAITING DUSTIN'S
-RATIFICATION (his ratify/edit = the build gate; then S0 runs as a
-parallel license-gate research pass, cmp-0 pattern).**
+**Date:** 2026-08-20 · **Status: ✅ RATIFIED by Dustin 2026-08-20
+("sounds good") WITH his amendment recorded as D13 (seek an
+INCORPORABLE open-source NEGF engine, not oracle-only). S0 license/
+reference research pass LAUNCHED same day (results → "S0 verdicts"
+section when in). S1+ build = separate go-ahead after S0 reports.**
 Dustin's directive: collaborate WITH ChatGPT (he relays messages; no
 browser bridge this session) to plan the path to FULLY SIMULATING CNT
 FETs in the polari stack. Fab of a CNFET RISC-V MCU is the horizon
@@ -301,6 +302,19 @@ precedent.
     wall/RAM/iteration telemetry) before any production grid;
     adaptive oracle sampling is first-class (NEGF spend goes where
     VS/F2 disagree); NEGF never enters the digital inner loop.
+13. **Prefer an INCORPORABLE open-source NEGF engine** *(Dustin's
+    ratification amendment, 2026-08-20)*: S0 searches for a
+    GPLv3-compatible quantum-transport/NEGF engine suitable for
+    INCORPORATION into polari's own simulation capabilities (vendored
+    or fork-pinned as the F3 kernel + comparison backend), not just
+    external-oracle use. Candidates to gate: Kwant, NanoTCAD ViDES
+    (exact license text), sisl + TBtrans, SIESTA/TranSIESTA, OpenMX,
+    GPAW, others found. Incorporation preferred where the license
+    passes; external-oracle-process is the fallback for
+    GPL-incompatible-but-usable tools; ⛔ NC/academic-only stays
+    blocked entirely. Fit criteria: CNT/1D tight-binding mode-space
+    transport, self-consistent Poisson (or coupleable), Python
+    integration, CPU-only viable.
 
 ## Original proposed staging (round 1, S0..S4 — SUPERSEDED by
 ## decision 2's S0..S8)
