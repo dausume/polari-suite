@@ -23,7 +23,117 @@ precedent.
 - **Round 1 (Claude → ChatGPT, sent via Dustin same day):** framing
   correction (near-term = full SIMULATION, not fab) + inventory of
   what polari already has + proposed S0..S4 staging + questions a-f
-  (see below). Awaiting ChatGPT's reply.
+  (see below).
+- **Round 2 (ChatGPT, received same day) — the substantive answers:**
+  - REFRAME accepted by us: goal = "predictive design-space
+    simulation with explicit uncertainty," not signoff-sense "full
+    simulation."
+  - **S0 license findings (ChatGPT-reported — OUR S0 STILL
+    RE-VERIFIES ALL OF THESE):** OpenVAF + OpenVAF-Reloaded =
+    GPL-3.0 (clean); ASAP7 = BSD-3-Clause (usable as template);
+    NanoTCAD ViDES = old-BSD-style WITH ADVERTISING CLAUSE (⚠ Claude
+    note: 4-clause BSD is GPL-INCOMPATIBLE for linking — external
+    oracle only, never vendored, pending exact text); Stanford CNFET
+    + VS-CNFET packages = non-transferable single-user NC license on
+    the old user guide → ⛔ reference-only until relicense proven;
+    CCAM = "NEEDS Modified CMC License" on nanoHUB → ⛔ blocked
+    pending exact terms; RV16X-NANO collateral = no trustworthy
+    redistribution license found → scientific reference only.
+  - (a) Center S1 on a CLEAN-ROOM implementation of the VS-CNFET
+    equations (Part I intrinsic I-V/Q-V + Part II extrinsic:
+    Rc, S/D tunneling, BTBT, parasitics; calibrated to 15nm
+    experimental devices; older Deng-Wong has known sub-100nm
+    pathologies) with a SWAPPABLE transport kernel
+    (virtual_source | landauer_quasiballistic | NEGF_reference).
+    VS = the compact CIRCUIT model, not the source of truth; NEGF/
+    experiment validate it. Label honestly: model_family
+    "VS-CNFET-derived", implementation "independent",
+    numerically_equivalent_to_stanford=false. Papers suffice for a
+    scientifically useful reimplementation, NOT for numerical
+    identity with Stanford's Verilog-A.
+  - (b) Minimal parameter set: {chirality/diameter, Lg, tube
+    count/pitch, gate topology, EOT (tox+εr), VDD, contact length +
+    effective Rc, Vt/work-function offset, transport param (mfp or
+    vxo), T}. Derived: diameter→Eg (inverse-diameter), Cq, Cox,
+    ballistic limits. Priors: Rc, vxo, mobility, mfp, DIBL,
+    fringe C, BTBT, S/D tunneling. Monte-Carlo distributions: Rc,
+    count, pitch, diameter/chirality, metallic fraction, Vt. 🔑 Rc
+    must NEVER hide inside effective mobility — at 7nm it dominates
+    ranking. Schema = decomposed objects (Geometry, MaterialState,
+    GateStack, Contact, TransportModel, Parasitics,
+    VariabilityModel), not one giant row.
+  - (c) Film and aligned = SIBLING device classes over shared
+    CarbonNanotube material primitives with a common interface
+    (evaluate_dc/evaluate_charge/generate_spice/estimate_geometry/
+    sample_variation/validate). Never scale the 14mm film result to
+    infer aligned devices. Film device becomes the regression test
+    proving multiple CNT regimes coexist without conflation.
+  - (d) Validation = 3 layers: VS-CNFET calibration-device
+    experimental I-V (µm → 15nm); Deng-Wong papers as independent
+    quasi-ballistic benchmark (papers, not code); NEGF oracle
+    (ViDES-class) on sparse sweeps → compact-vs-NEGF error surface.
+    Validate Id-Vg/Id-Vd families, SS, Ion, Ioff, gm, DIBL, Cgg/Qg,
+    Rc sensitivity, Lg + diameter scaling — not one headline
+    on/off. Sub-rungs S1a electrostatics → S1b quantum-transport
+    reference → S1c compact fit → S1d ngspice (so convergence ≠
+    validation).
+  - (e) Liberty: ngspice → testbench generator → measurements →
+    Liberty → Yosys → OpenSTA. Investigate **CharLib** (2025 open
+    Python cell characterizer) before writing our own loop; keep a
+    Polari CellCharacterizationRun schema ABOVE the executor. Sparse
+    grid first (slew fast/nom/slow × load FO1/2/4/8; rise/fall cell
+    + transition arcs; setup/hold/clk→Q for sequential). MANDATORY
+    cross-check: composed-gate SPICE vs Liberty+OpenSTA path delays
+    — abstraction must fail loudly before any CPU.
+  - (f) SRAM out until synthesis proven; DFF register file/RAM for
+    first machines; SRAM later as its OWN arc (stability/margins/
+    assist/sense — a bad SRAM abstraction would slander the logic
+    platform).
+  - REORDERED ROADMAP S0..S8: S0 license+reference gate (papers/
+    datasets/equations/executables tracked separately) → S1 single
+    aligned CNFET (a..d above) → S2 DEVICE VALIDATION (before
+    variability — else Monte Carlo around the wrong mean) → S3
+    variability → S4 circuits (INV/NAND2/RO/DFF then rest) → S5
+    characterization (Liberty + SPICE-vs-STA regression) → S6
+    synthesis (counter → ALU → FSM → RV32E) → S7 physical-design
+    abstraction (LEF-ish, wire RC, OpenROAD) → S8 SRAM.
+  - Minimal library before synthesis = INV NAND2 BUF DFF (universal
+    logic + state); XOR/MUX = optimization cells, later.
+  - Architectural principle: separate physical / derived-physics /
+    compact-model / calibration / simulation-output parameters —
+    never all flat fields on the transistor. Enables "which MCU
+    conclusions depend on measured physics vs semi-empirical
+    calibration?"
+- **Round 2b (Dustin's steer, same day):** add 1-2 INTERMEDIATE CNT
+  device tiers by MANUFACTURING SCALE/difficulty — we are developing
+  the manufacturing methods as we go.
+- **Round 2c (ChatGPT, integrating Dustin's steer):** 5-tier
+  manufacturability ladder: percolation film (have) → coarse aligned
+  (µm–multi-100nm Lg, tens-hundreds of tubes, alignment/density/
+  purification/contacts are the research questions; FIRST tier where
+  the aligned compact model is relevant) → fine aligned (~50-200nm
+  Lg; pitch control, Rc + electrostatics + overlay start dominating;
+  first fabricable cell-library tier) → aggressively scaled
+  (~10-30nm; S/D tunneling, BTBT, short-channel, contact-length
+  scaling enter) → ~7nm target. Implementation: ONE AlignedCNTFET
+  class + `manufacturing_regime` knob (NOT separate classes — same
+  physics), plus MANUFACTURING PROCESS OBJECTS contributing
+  DISTRIBUTIONS not ideal values (CNTAlignmentProcess angle σ,
+  CNTPlacementProcess pitch σ + missing-tube prob,
+  CNTPurificationProcess metallic fraction, ContactFormationProcess
+  Rc µ/σ + min contact length, LithographyProcess feature/overlay,
+  GateStackProcess tox/εr distributions) → transistor declares
+  target_pitch, process predicts pitch±σ → Monte Carlo generates
+  the device population. Feedback loop: manufacturing method →
+  measured process capabilities → process model → device MC →
+  circuit yield → dominant limitation → improve method. Circuit
+  milestones advance WITH manufacturing tier (film→inverter; coarse→
+  inverter/NAND/RO; fine→small test chip/counter; scaled→synthesized
+  blocks; 7nm→RISC-V-scale).
+- **Round 3 (Claude → ChatGPT, sent via Dustin):** convergence +
+  Polari-idiom mapping + ViDES GPL-incompatibility catch + remaining
+  questions g-i + the proposed decision list D1-D11 for Dustin's
+  ratification (below).
 
 ## What polari ALREADY HAS (the inventory sent to ChatGPT)
 
@@ -53,7 +163,59 @@ precedent.
   workaround — Hall/NIDDK precedent). Literature numbers = flagged,
   cited, tunable priors.
 
-## Proposed staging (S0..S4 — sent for ChatGPT push-back)
+## Proposed decisions (Dustin ratifies/edits — nmp numbering)
+
+1. **Goal**: predictive design-space simulation with explicit
+   uncertainty — never signoff prediction; no simulated 7nm result
+   is ever presented as a fabrication prediction.
+2. **Roadmap = S0..S8** (ChatGPT's reorder, accepted): license gate →
+   single aligned CNFET (S1a electrostatics → S1b NEGF reference →
+   S1c compact fit → S1d ngspice) → device VALIDATION → variability
+   → circuits → characterization → synthesis → physical-design
+   abstraction → SRAM last.
+3. **Compact model**: clean-room VS-CNFET-DERIVED implementation from
+   the published Part I/II equations; swappable transport kernel;
+   labeled independent + numerically_equivalent_to_stanford=false;
+   never called "Stanford VS-CNFET".
+4. **License gates**: Stanford model packages + CCAM = ⛔ blocked
+   (reference-only) unless S0 proves otherwise; OpenVAF(-Reloaded) +
+   ASAP7 = candidates pending OUR verification; ViDES = EXTERNAL
+   ORACLE process only (advertising-clause BSD is GPL-incompatible
+   for linking) pending exact license text; RV16X-NANO = scientific
+   reference only; CharLib added to the S0 gate list. All
+   ChatGPT-reported statuses re-verified by us (API + LICENSE +
+   header, all three).
+5. **Device taxonomy**: CNTPercolationFilmFET (exists) and
+   AlignedCNTFET = SIBLING classes over shared CarbonNanotube
+   primitives with a common device interface; film result never
+   geometrically scaled to infer aligned behavior; film device =
+   the standing regression test.
+6. **Manufacturing regimes (Dustin's steer)**: ONE AlignedCNTFET
+   class + manufacturing_regime knob (coarse_alignment |
+   fine_alignment | aggressively_scaled | target_7nm); regime
+   thresholds are data, not code forks.
+7. **Manufacturing processes as first-class objects contributing
+   DISTRIBUTIONS** (alignment σ, pitch σ + missing-tube prob,
+   metallic fraction, Rc µ/σ, litho feature/overlay, gate-stack
+   spread); devices declare targets, processes predict populations,
+   Monte Carlo instantiates them; the manufacturing feedback loop is
+   the point. Ties into the manufacturing-tools tech tree +
+   accessibility tiers; process capabilities ride DigitizedDataset
+   refusal discipline (unmeasured → prior-flagged or refusing).
+8. **Parameter roles separated as schema**: physical | derived |
+   compact-model | calibration | output — enabling "which
+   conclusions rest on measurement vs calibration" queries.
+9. **Rc is first-class** — never folded into effective mobility.
+10. **Minimal cell set before synthesis**: INV NAND2 BUF DFF;
+    XOR/MUX later as optimization cells; SRAM = S8, its own arc;
+    DFF-array memory for first synthesized machines.
+11. **Characterization**: Polari CellCharacterizationRun schema
+    above any executor (CharLib if it gates clean, else our own
+    loop); sparse grid first; the SPICE-vs-(Liberty+OpenSTA)
+    composed-path regression is MANDATORY before any CPU work.
+
+## Original proposed staging (round 1, S0..S4 — SUPERSEDED by
+## decision 2's S0..S8)
 
 - **S0 — license-gate research pass** (cmp-0/nmp-0 pattern) on:
   Stanford VS-CNFET (Verilog-A), CCAM (TU Dresden), Deng–Wong 2007
