@@ -55,6 +55,23 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
+15. **GUI-TEST FINDING #8 FIXED AT SOURCE (2026-08-22)** — your
+    install was flawless but the FIRST store open failed PKIX and
+    needed 'open anyway' + trust-twice. Root causes: (a) the store
+    deb bakes its config BEFORE the isle exists → tls.caPem empty
+    (the CA is minted BY core-install); (b) CertTrustHandler
+    cached NEGATIVE trust verdicts, so the pre-CA failure outlived
+    the CA's arrival = the trust-twice bug. Fix: tls.caFile — the
+    config now ships the canonical CA PATHS
+    (/etc/isle-mesh/ca/isle-root.crt + system-trust copy) and the
+    shell resolves them at every trust build (probe, CEF pinned
+    handshake, enroll); only positive verdicts cache. app-shell
+    2cf2534 + Isle-Mesh c6c55bd + suite dev 86d260c, ALL PUSHED;
+    isle-core pulled + debs rebuilt/reinstalled. YOUR VERIFY:
+    reopen the Isle App Store — it should land on https://polari.isle
+    trusted, first try, zero clicks. (Bootstrap re-pull quirk also
+    noted: stale local dev branches shadow origin/dev on repeat
+    pulls — worked around with explicit ff; candidate fix later.)
 14. **EVENING PASS DONE (your "1 should be okay" + take-next-task,
     2026-08-21)**: git pass EXECUTED — S5/F3 committed (60390d7),
     suite docs (51f5ac3), dausume/lctime MIRROR live (branches +
