@@ -55,6 +55,28 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
+19. **LXMF + MQTT FOUNDATIONS BUILT (your greenlight,
+    2026-08-23)** — own-stack only, no third-party gateway code
+    referenced (your call: these are foundational). Also
+    CORRECTED the record on your question: LoRa IS bridged —
+    E220 SerialInterface path proven over real RF 2026-08-13/14
+    (battery + remote control); only RNode-class hw support is
+    absent, and pin-isolation makes ecosystem interop impossible
+    anyway. (a) mqtt-1: NEW mqttbridge module (framework branch
+    `dev-mqtt-1`, 69a827f, UNMERGED): brokers/bindings/ledger as
+    rows, enabled=False defaults, explicit connect act, ingest
+    with named+ledgered refusals, paho-mqtt==2.1.0 pinned under
+    the EDL-1.0 edge; selftest 10/10. (b) ret-7 sidecar half
+    (polari-rf-node branch `dev-ret-7`, efaed13, UNMERGED): LXMF
+    store-and-forward on the isle identity — whitelist +
+    rate-limit policy gate with refusal ledger, jsonl persistence,
+    honest send refusals, /lxmf* endpoints + /status facts;
+    selftest 10/10 (injected fake stack). REMAINING ret-7 half:
+    backend /api/reticulum/messages proxy + STOMP notify + a chat
+    page — rides the framework dev-ret-1 review queue. YOUR
+    QUEUE: merge gates for dev-mqtt-1 + dev-ret-7 (+ dev-dl-1),
+    then a live pass: mosquitto container against the bridge, and
+    the two-dongle desk rig for an LXMF round trip.
 18. **DOWNLOADS PAGE BUILT + OFFLINE PLAN STAKED (your
     clarified ask, 2026-08-23)** — dl-1: the PUBLIC /downloads
     page for the internet demo (polari-framework branch
