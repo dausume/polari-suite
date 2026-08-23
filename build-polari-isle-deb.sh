@@ -40,6 +40,34 @@ step(){ echo; echo -e "${C}==> $*${N}"; }
 mkdir -p "$OUT"
 
 # ---- 1. isle-mesh-cli from the Isle-Mesh checkout ----
+step "sync vendored shell tools (canonical: polari-app-shell/shells)"
+# The shell build tools exist TWICE: canonically in polari-app-shell/
+# shells (where the shell evolves) and vendored in Isle-Mesh/isle-cli/
+# shells/tools (shipped by the CLI deb for ON-ISLE member builds).
+# Divergence ships silently-stale debs — finding #8 part 2 came from
+# exactly this (the store fix landed in one copy; the launcher twin
+# had drifted a whole feature generation). The bundle build now SYNCS
+# canonical -> vendored before staging anything, so the CLI deb built
+# below always carries current tools and `git status` in Isle-Mesh
+# surfaces the vendored refresh for commit. (Reinstall-dedup rule,
+# Dustin 2026-08-23: duplication may exist only as a synced vendor
+# copy, never as a divergent twin.)
+SYNC_SRC="$ROOT/polari-app-shell/shells"
+SYNC_DST="$ROOT/Isle-Mesh/isle-cli/shells/tools"
+if [ -d "$SYNC_SRC" ] && [ -d "$SYNC_DST" ]; then
+    for f in build-store-deb.sh build-launcher-deb.sh \
+             build-shared-shell.sh store-launch.sh; do
+        [ -f "$SYNC_SRC/$f" ] || continue
+        if ! cmp -s "$SYNC_SRC/$f" "$SYNC_DST/$f" 2>/dev/null; then
+            install -m 755 "$SYNC_SRC/$f" "$SYNC_DST/$f"
+            ok "synced $f (vendored copy refreshed — commit Isle-Mesh)"
+        fi
+    done
+    cp -n "$SYNC_SRC"/icons/*.png "$SYNC_DST/icons/" 2>/dev/null || true
+else
+    warn "both checkouts not present — vendored tools NOT synced (drift risk)"
+fi
+
 step "isle-mesh-cli (from Isle-Mesh/)"
 [ -f "$ROOT/Isle-Mesh/isle-cli/shells/build-cli-deb.sh" ] \
     || { echo "Isle-Mesh not pulled — ./bootstrap-dev.sh Isle-Mesh" >&2; exit 1; }
@@ -150,6 +178,20 @@ chmod 755 "$STAGE/DEBIAN/postinst"
 dpkg-deb --build --root-owner-group "$STAGE" "$OUT/polari-isle_${VERSION}_all.deb" >/dev/null
 ok "polari-isle_${VERSION}_all.deb"
 
+# ---- reinstall-dedup guarantees (Dustin 2026-08-23) ----
+# 1. ONE version per package in the output dir. Old versions piled
+#    up across rebuilds and made every `pkg_*.deb` glob ambiguous —
+#    apt then errors or installs a stale pair (bit us live
+#    2026-08-22: 0.1.29/0.1.30 side by side). Keep newest only.
+for pkg in isle-mesh-cli polari-shell-core isle-app-store polari-isle; do
+    mapfile -t versions < <(ls -1 "$OUT/${pkg}"_*.deb 2>/dev/null | sort -V)
+    count=${#versions[@]}
+    if [ "$count" -gt 1 ]; then
+        for old in "${versions[@]:0:count-1}"; do
+            rm -f "$old" && warn "pruned stale $(basename "$old") (newest kept)"
+        done
+    fi
+done
 echo
 ok "bundle ready in $OUT:"
 ls -sh1 "$OUT" | sed 's/^/   /'
