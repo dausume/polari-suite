@@ -123,6 +123,15 @@ dev-cnt-1):**
     POLARI_DOWNLOADS_DIR staging knob, honest empty state.
     Selftest 6/6 + live HTTP proof. DEPLOY NOTE: stage
     .generated/debs into the downloads dir on the droplet.
+    **dl-1b (2026-08-23 evening, e82f8c4 on dev-dl-1): the page
+    now LOOKS like a product download page** — per-deb cards with
+    plain-language names/blurbs + Download buttons, install-order
+    ordinals, numbered step cards, light+dark, phone-responsive;
+    still zero-JS; 6/6 unchanged; light+dark screenshots eyeballed
+    with the real .generated/debs staged. NOTE: this box stages
+    only 3 of 4 debs (polari-shell-core missing from
+    .generated/debs) — the droplet staging step should build the
+    full bundle first.
     dl-2: AI-Notes/plans/OFFLINE_INSTALL_PLAN.md — the
     internet-install vs offline-install flavor split; offline =
     version-matched piecewise bundle on DVD/USB (our debs + full
