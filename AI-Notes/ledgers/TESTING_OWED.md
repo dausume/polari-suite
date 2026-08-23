@@ -55,6 +55,29 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
+17. **FINDING #9 FIXED + the download page LIVE (2026-08-23)** —
+    your ask: test the page an average user hits for the debs.
+    It DIDN'T EXIST: (a) core-install's 'publish | tail -2' ate
+    the exit status so a failed publish looked green (why your
+    isle had none); (b) the core can't reach its own agent and
+    apt.isle was never hairpin-pinned; (c) https://apt.isle/ was
+    a bare-nginx 403 wall; (d) non-root 'isle' commands died on a
+    644-in-git watch.sh (exec bit is cosmetic — scripts run via
+    bash — validator softened, bits fixed in git). ALL FIXED at
+    source (Isle-Mesh 79a8de1, CLI 0.1.126 deployed): publish now
+    generates a HUMAN landing page (join instructions with the CA
+    fingerprint as the stated trust anchor, member apt route, the
+    served debs) + pins the hairpin itself. VERIFIED live:
+    https://apt.isle/ by name with SYSTEM trust -> 200, serving
+    the current one-version-per-package set. YOUR EYEBALL: open
+    https://apt.isle in a browser on isle-core (note: a browser
+    with its OWN trust store, e.g. Firefox/NSS, may still warn —
+    system-trust browsers won't; the page itself explains the CA).
+    **FOLLOW-UP #10 RECORDED**: the app-deploy topology report
+    never reached the catalog (hosts-reconcile had nothing to
+    pin) AND the catalog holds DUPLICATE device aliases
+    (dustin-etts-mesh-core vs isle-core — the same instance
+    twice; your dedup rule applies to the topology reporter).
 16. **REINSTALL-DEDUP RULE BUILT IN (your ask, 2026-08-23)** —
     "ensure duplication does not occur with re-installs", swept
     structurally at every layer we could name:
