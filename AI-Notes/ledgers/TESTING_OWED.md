@@ -55,6 +55,26 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
+18. **DOWNLOADS PAGE BUILT + OFFLINE PLAN STAKED (your
+    clarified ask, 2026-08-23)** — dl-1: the PUBLIC /downloads
+    page for the internet demo (polari-framework branch
+    `dev-dl-1`, 4ca1dd9, UNMERGED — small review): server-rendered
+    HTML, one current version headlined, staged debs as ordered
+    download links, click-only install instructions (Downloads
+    folder -> double-click -> Install, in order; distro deps come
+    from the internet during install), traversal-safe serving,
+    POLARI_DOWNLOADS_DIR staging knob, honest empty state.
+    Selftest 6/6 + live HTTP proof. DEPLOY NOTE: stage
+    .generated/debs into the downloads dir on the droplet.
+    dl-2: AI-Notes/plans/OFFLINE_INSTALL_PLAN.md — the
+    internet-install vs offline-install flavor split; offline =
+    version-matched piecewise bundle on DVD/USB (our debs + full
+    dep closure as a file: apt repo + docker image tars + router
+    VM artifacts + signed manifest), media probe in core-install
+    with all-or-nothing version guard; mega-deb recommended
+    AGAINST (reasons in plan). 4 OPEN DECISIONS for you in the
+    plan: target distro pinning, DVD/USB-first vs CD chunking,
+    signing anchor, whether app images ride the base medium.
 17. **FINDING #9 FIXED + the download page LIVE (2026-08-23)** —
     your ask: test the page an average user hits for the debs.
     It DIDN'T EXIST: (a) core-install's 'publish | tail -2' ate
