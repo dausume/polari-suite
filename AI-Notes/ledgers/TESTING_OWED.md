@@ -55,6 +55,26 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
+16. **REINSTALL-DEDUP RULE BUILT IN (your ask, 2026-08-23)** —
+    "ensure duplication does not occur with re-installs", swept
+    structurally at every layer we could name:
+    (a) shell registry: same-id/same-URL re-merge REFRESHES in
+    place (one entry, new fields live — this is what heals stale
+    registrations); now PINNED by test; (b) trust store: identical
+    CA arriving by several roads (caPem + both caFile paths)
+    dedups by content hash — one entry per distinct CA; (c) deb
+    output dir: the bundle build now PRUNES to one version per
+    package (stale piles made every *_glob install ambiguous —
+    bit us live); (d) the twin build tools: canonical copies live
+    ONLY in polari-app-shell/shells; the bundle build AUTO-SYNCS
+    them into the Isle-Mesh vendored set (which had silently
+    drifted a whole feature generation — the launcher twin was
+    pre-sep-2 with live on-isle callers), so divergent twins
+    cannot exist; assets are layout-agnostic (SELF_DIR).
+    app-shell 2377259, Isle-Mesh 60a01f3, suite dev 9182f5d +
+    dev-nmp-1 ba83733, all pushed; isle-core loop rerun to prove
+    sync+prune live. Also idempotent already-verified: trust.sh
+    (cmp-before-copy), store postinst, dpkg desktop entries.
 15. **GUI-TEST FINDING #8 FIXED AT SOURCE (2026-08-22)** — your
     install was flawless but the FIRST store open failed PKIX and
     needed 'open anyway' + trust-twice. Root causes: (a) the store
