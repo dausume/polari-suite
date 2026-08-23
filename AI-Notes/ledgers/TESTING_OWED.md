@@ -55,6 +55,23 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
+21. **dev-cnt-1 MERGED to dev on your go (2026-08-23; framework
+    cda27f0, angular 9b7edb6, pointers pushed). Presentation
+    upgrade BUILT on `dev-cnt-2` ×2 repos (your "JSON instead of
+    real graphs" finding; framework f8edfdb, angular 0ed81f3,
+    UNMERGED)**: (a) `cntfet-iv-chart` — real SVG line chart over
+    stored I-V families (run picker, Id-Vg/Id-Vd, log/linear,
+    crosshair tooltip, legend; palette validator PASS light+dark);
+    (b) `api-json-panel` now renders nested payloads as readable
+    tables/sections on EVERY module page — raw JSON demoted to a
+    collapsed details block; (c) new GET /api/cntfet/results[/{n}]
+    read-side; (d) IV result names carry a fidelity suffix (same-
+    second collision fix). selftest 70/70; headless eyeball of
+    /display/cntfet + /display/microchip both GREEN. YOUR PASS:
+    browser eyeball (hover/toggles/dark mode), then merge gate.
+    GOTCHA carried: DisplayDefinition seeds are insert-by-name —
+    an EXISTING instance keeps the old cntfet-home layout until
+    the row is CRUDE-PUT (done on the preview) or reseeded fresh.
 20. **ret-7 COMPLETE both halves (your wifi-LXMF ask,
     2026-08-23)** — receive reticulum messages ON polari + send
     over wifi via LXMF: (a) backend half (framework `dev-ret-7`
