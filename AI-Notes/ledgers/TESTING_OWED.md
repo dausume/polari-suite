@@ -55,6 +55,24 @@ dev-cnt-1):**
    (devices, D8 parameters, D18 anchors, capability, citation
    linkage). Framework 1f7b7ab. YOUR PASS: browser eyeball of
    both pages after a deploy — headless proof only so far.
+20. **ret-7 COMPLETE both halves (your wifi-LXMF ask,
+    2026-08-23)** — receive reticulum messages ON polari + send
+    over wifi via LXMF: (a) backend half (framework `dev-ret-7`
+    off dev-ret-1, 1feed77, 178/178): GET/POST
+    /api/reticulum/messages (+ refusals, policy) proxying the
+    sidecar with the refusal ladder intact; 🔑 the PIN-ISOLATION
+    NOTE rides every response — 'normal' modern RNS >= 1.0
+    clients (current Sideband/NomadNet) CANNOT link with our
+    pinned MIT mesh; wifi LXMF works between OUR nodes (another
+    polari sidecar / pre-1.0 client). (b) sidecar wifi bearer
+    (rf-node `dev-ret-7`, c13c69f): AutoInterface added to the
+    config template — zero-config LAN/wifi peering; ⚠ template
+    seeds FIRST START ONLY, existing volumes need the block added
+    to the live copy. YOUR LIVE PASS: two sidecars on the wifi
+    (or pol-core + isle-core), announce, then POST a message
+    through /api/reticulum/messages and watch it arrive in the
+    other's store. A chat page (composer UI) is the remaining
+    frontend nicety.
 19. **LXMF + MQTT FOUNDATIONS BUILT (your greenlight,
     2026-08-23)** — own-stack only, no third-party gateway code
     referenced (your call: these are foundational). Also
