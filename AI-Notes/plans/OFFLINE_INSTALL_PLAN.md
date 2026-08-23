@@ -1,7 +1,15 @@
 # Offline install — CD/DVD/USB media flavor (dl-2)
 
-**Date:** 2026-08-23 · **Status: PLANNING — decisions below need
-Dustin's ratification before off-1 builds.** Companion to the
+**Date:** 2026-08-23 · **Status: PLANNING — decisions 1+2
+RATIFIED same day (Dustin: "Ubuntu and multi-disk or
+multi-usb chunking"): target = Ubuntu (amd64, 24.04 first,
+22.04 next), and CHUNKING IS IN-SCOPE — the bundle must split
+across multiple CDs/USBs with the installer prompting per medium
+(copy-to-staging aggregation: each medium's payload lands in
+/var/cache/isle-offline, verified against the manifest, install
+runs once all chunks are present; partial sets refuse with which
+chunk ids are missing). Decisions 3 (signing anchor) + 4 (app
+images on the base medium) still open.** Companion to the
 internet downloads page (dl-1, appstore/downloads_page.py, built
 same day).
 
@@ -98,8 +106,10 @@ shell-core 51M + cli/store/meta ~1M + docker.io/containerd
 (hundreds of M) → realistically **1.5-3 GB: a DVD or USB stick.**
 A single CD (700 MB) cannot carry this; CD support = multi-disc
 chunking (manifest already carries per-file chunk ids in the
-design; the installer would prompt per disc). RECOMMEND: target
-DVD/USB first, defer chunking until someone actually needs CDs.
+design; the installer would prompt per disc). RATIFIED (Dustin 2026-08-23): chunking is IN-SCOPE from the
+start — multi-disc CD and multi-USB sets are first-class; the
+manifest's per-file chunk ids drive an insert-medium-N prompt
+loop with copy-to-staging aggregation.
 
 ## Flavor separation on the downloads page
 
@@ -122,7 +132,7 @@ not-yet-available (honest placeholder shipped with dl-1).
 - **off-3** — member path: isle-bootstrap/onboard accept the same
   medium.
 - **off-4** — downloads-page offline artifact section + docs.
-- **off-5** — (optional, on demand) multi-disc CD chunking.
+- **off-5** — FOLDED INTO off-1/off-2 (chunking ratified in-scope).
 
 ## Open decisions (Dustin)
 
