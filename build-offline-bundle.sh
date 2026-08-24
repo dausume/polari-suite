@@ -145,13 +145,15 @@ ok "marker + honest README"
 
 step "Chunk to $MEDIA media (framework chunker — the ONE implementation)"
 ( cd "$FRAMEWORK" && PYTHONPATH=.:modules python3 -m appstore.offline_chunker \
-    plan "$POOL" "$MEDIA" "$OUT" \
+    plan "$POOL" "$MEDIA" "$POOL" \
     --target "$TARGET" --media-label "$MEDIA" \
     --built-at "$(date +%F)" ) || fail "chunk planning refused"
-ok "chunks.json + sha256SUMS -> $OUT (stage POLARI_OFFLINE_DIR here for /downloads/offline)"
+# manifests live IN the pool: chunks.json names files relative to
+# the pool, so the pool dir IS what /downloads/offline serves.
+ok "chunks.json + sha256SUMS -> $POOL (stage POLARI_OFFLINE_DIR at the POOL for /downloads/offline)"
 
 step "Manifest"
-python3 - "$OUT" "$TARGET" "$MEDIA" "$CLOSURE_DOWNLOADED" "$COUNT" <<'PYEOF'
+python3 - "$POOL" "$TARGET" "$MEDIA" "$CLOSURE_DOWNLOADED" "$COUNT" <<'PYEOF'
 import json, os, sys
 out, target, media, downloaded, count = sys.argv[1:6]
 chunks = json.load(open(os.path.join(out, 'chunks.json')))
@@ -174,7 +176,7 @@ ok "manifest.json"
 if [ "$ISO" = 1 ]; then
     step "Per-chunk ISOs (piece by piece — one chunk staged at a time)"
     command -v genisoimage >/dev/null || fail "genisoimage not installed"
-    CHUNKS=$(python3 -c "import json;print(len(json.load(open('$OUT/chunks.json'))['chunks']))")
+    CHUNKS=$(python3 -c "import json;print(len(json.load(open('$POOL/chunks.json'))['chunks']))")
     for i in $(seq 1 "$CHUNKS"); do
         STAGE="$OUT/.iso-stage"
         rm -rf "$STAGE"; mkdir -p "$STAGE"
@@ -182,8 +184,9 @@ if [ "$ISO" = 1 ]; then
             python3 -m appstore.offline_chunker emit "$POOL" "$MEDIA" "$i" "$STAGE" )
         # EVERY medium is self-identifying: marker + manifests ride
         # on each disk, not just the chunk they packed into.
-        cp "$OUT/chunks.json" "$OUT/sha256SUMS" "$OUT/manifest.json" \
-           "$POOL/ISLE_OFFLINE_BUNDLE" "$POOL/README.txt" "$STAGE/"
+        cp "$POOL/chunks.json" "$POOL/sha256SUMS" \
+           "$POOL/manifest.json" "$POOL/ISLE_OFFLINE_BUNDLE" \
+           "$POOL/README.txt" "$STAGE/"
         genisoimage -quiet -r -J -V "POLARI_OFFLINE_$i" \
             -o "$OUT/polari-offline-$TARGET-disk$i.iso" "$STAGE"
         rm -rf "$STAGE"
