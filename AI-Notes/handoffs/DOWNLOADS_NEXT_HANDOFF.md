@@ -110,3 +110,21 @@ the declared-Depends closure roots.
 - Suite ledger/plan docs live on `dev-nmp-1`; dl CODE on
   `dev-dl-1` branches (framework + Isle-Mesh + suite). Don't
   cross them.
+
+## MERGED TO DEV 2026-08-24 (Dustin's bring-to-dev ask; push = his)
+
+All dl work is on `dev` in every repo, ready for `push-all-dev.sh
+--with-isle` (framework dev 91ca72a via merge, rf-node dev 96e0f9f
+pointer, Isle-Mesh dev a5a7667, suite dev 437fd62 incl. the docs
+merge). Framework `dev-nmp-1` (nutrition CODE) deliberately NOT
+merged — its review gate stands; the suite-dev submodule pin
+resolves to the downloads-merged rf-node dev, never the nmp
+pointer. Same session added **dl-6 /downloads/plan** — the
+topology/bundle wizard (devices + performance-in-what-way + goals
+→ speculated core/hosting/member roles + per-device download
+bundles with real links; 13/13) — and
+**appstore/preview_server.py**, the review harness serving all
+four surfaces with real data (same resource classes, no twin
+routes). Live pass caught + fixed: offline manifests belong IN
+the pool; nested chunk paths need the {filename:path} route.
+Preview left running: http://192.168.0.210:8090/downloads
