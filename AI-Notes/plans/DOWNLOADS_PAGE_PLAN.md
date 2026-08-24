@@ -87,6 +87,15 @@ the complete build after the prune. REMAINING for dl-3: the
 (Dustin). Gotcha for the next session: `paste -sd ', '` cycles
 its delimiter chars — the Depends join uses tr/sed instead.
 
+### ✅ PAGE SIDE DONE 2026-08-24 (framework `dev-dl-1`, d2aef34)
+
+Option A hero card (pre-prepped provenance line) vs demoted
+Option B with the can't-coexist note; dl-1b fallback intact; the
+transparency components landed as `appstore/downloads_shared.py`
+(page shell + explainers + provenance lines, shared by all three
+surfaces). Selftest 6→16, real-bundle render + light/dark/mobile
+screenshots. REMAINING: the real install = Dustin's window.
+
 ---
 
 ## dl-4 — the apps page (/downloads/apps)
@@ -209,6 +218,18 @@ An app deb that declares a compose service (the odoo precedent)
 is v2 — v1 scope is polari-module apps only, so the manifest
 stays honest about what the instance can actually admit.
 
+### ✅ dl-4 BUILT 2026-08-24 (framework d2aef34→62cb902,
+### Isle-Mesh bfd0c5b — admit wiring still queued on dyn merge)
+
+`appstore/app_deb_builder.py` (pure-python ar+tar.gz writer,
+dpkg-deb-verified; content-hash version = TTL cache key; shared
+factoring via polari-app-shared-* symlink debs, ≥4 KB floor;
+named refusals; DebGenerationRecord JSONL + median estimates;
+POLARI_APP_DEB_TTL / POLARI_APP_DEB_PREBUILD knobs) +
+`appstore/app_debs_page.py` (/downloads/apps, registry-listed,
+on-demand provenance + pre-click named steps, admit-gap
+explainer) + `isle apps build-debs` thin verb. Selftest 19/19.
+
 ---
 
 ## dl-5 — the offline surface
@@ -230,6 +251,17 @@ downloads-page tie-in this iteration adds:
   the real payload. ⚠ the docker/qemu closure is multi-GB —
   pol-core sat at 96% disk 2026-08-16; the pool build belongs on
   the droplet/build box, or after a prune pass here.
+
+### ✅ dl-5 PAGE BUILT 2026-08-24 (framework 0fc6b38)
+
+`appstore/offline_page.py`: staged chunks.json (contract
+documented in the module docstring: target/builtAt/media +
+per-chunk labeled file lists) renders per-disk sections + sizes +
+write-the-media steps; honest not-built-yet page otherwise; named
+refusals for malformed manifests; manifest-is-the-truth streamed
+serving; the open signing decision stated honestly on-page.
+/downloads footer note is now the link. Selftest 6/6.
+REMAINING: off-1 pool builder (own session, roomy box).
 
 ---
 

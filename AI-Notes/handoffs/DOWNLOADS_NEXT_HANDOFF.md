@@ -1,111 +1,90 @@
-# Downloads-page next-session handoff (written 2026-08-24)
+# Downloads-page handoff (updated 2026-08-24 after the build session)
 
-Fresh-session entry point for the dl arc. Governing plan (READ IT
-FIRST, it is ratified): `AI-Notes/plans/DOWNLOADS_PAGE_PLAN.md`.
-Offline flavor details: `AI-Notes/plans/OFFLINE_INSTALL_PLAN.md`
-(decisions 3 signing-anchor + 4 app-images still open).
+Governing plan (ratified, now carries ✅ markers):
+`AI-Notes/plans/DOWNLOADS_PAGE_PLAN.md`. Offline flavor:
+`AI-Notes/plans/OFFLINE_INSTALL_PLAN.md` (decisions 3 signing-anchor
++ 4 app-images still open).
 
-## Where every branch stands
+## What the 2026-08-24 autonomous session built (dl-3/4/5)
 
 | repo | branch | state |
 |---|---|---|
-| polari-framework | `dev-dl-1` | dl-1 page (4ca1dd9) + dl-1b product styling (e82f8c4). UNMERGED. |
-| polari-suite | `dev-dl-1` | dl-3 BUILD SIDE DONE (46ff661): build-polari-complete-deb.sh PROVEN (real polari-complete_0.1.25_amd64.deb, 53 MB, 440 files) + build-polari-isle-deb.sh shell-core dist-fallback and complete-deb step. |
+| polari-framework | `dev-dl-1` | dl-1 (4ca1dd9) + dl-1b (e82f8c4) + **dl-3 page (d2aef34) + dl-4 (62cb902) + dl-5 (0fc6b38)**. UNMERGED. |
+| Isle-Mesh | `dev-dl-1` | **`isle apps build-debs` thin verb (bfd0c5b)**. UNMERGED. |
+| polari-suite | `dev-dl-1` | dl-3 build side (46ff661): build-polari-complete-deb.sh PROVEN. |
 | polari-suite | `dev-nmp-1` | docs: plan + ledgers + this handoff. |
-| polari-framework | `dev-cnt-2` | unrelated (cnt presentation) — do not mix. |
 
-Also merged context: framework/angular `dev` carry the cnt merge
-(cda27f0/9b7edb6); angular `dev-cnt-2` has the api-json-panel
-readable upgrade + cntfet-iv-chart (0ed81f3) — the apps/offline
-pages should reuse the dl-1b server-rendered styling, NOT the SPA.
+Everything selftested green from polari-framework/ with
+`PYTHONPATH=.:modules python3 -m appstore.selftest_<x>`:
+downloads 16/16 · app_debs 19/19 · offline 6/6 · appstore 36/36.
 
-## Ratified design in one breath
+- **dl-3 page**: polari-complete staged → Option A hero
+  (pre-prepped provenance) vs demoted Option B + can't-coexist
+  note; fallback = dl-1b layout. `appstore/downloads_shared.py` =
+  the shared page shell + transparency components (explainers,
+  provenance lines) all three surfaces use.
+- **dl-4**: `appstore/app_deb_builder.py` pure-python deb writer
+  (real dpkg-deb accepts output), payload →
+  /var/lib/polari/apps/<module>/ + honest manifest naming the dyn
+  admit gap; content-hash version = cache key within
+  POLARI_APP_DEB_TTL (1 h default, 0 = delete-after-delivery);
+  shared-payload factoring → polari-app-shared-* symlink debs
+  (≥4 KB floor); named refusals incl. deb-name collisions;
+  DebGenerationRecord JSONL → median estimates ("never generated
+  yet" before history); POLARI_APP_DEB_PREBUILD knob +
+  prebuild_all(); CLI `python3 -m appstore.app_deb_builder`.
+  `appstore/app_debs_page.py` /downloads/apps lists the REGISTRY
+  (named-unavailable for ghost modules), steps named before the
+  click, zero JS. Isle verb locates checkout/container, proven on
+  a real gears deb.
+- **dl-5**: `appstore/offline_page.py` renders staged chunks.json
+  (contract in module docstring) per-disk + write-the-media
+  steps, honest not-built-yet page otherwise, manifest-is-the-
+  truth streamed serving, signing openness stated. /downloads
+  footer links offline + apps pages.
 
-All-in-one = TRUE MERGED deb (dpkg-in-dpkg impossible);
-`polari-complete`, Provides/Conflicts/Replaces its members —
-and it is the ONE PRE-PREPPED download (headline installer,
-instant; the page says so). App debs = generated ON REQUEST from
-the live module registry — NO debs stored by default (a deb
-duplicates content the instance already holds): generate →
-stream to requester → delete after delivery or
-POLARI_APP_DEB_TTL; prebuilt pool only behind
-POLARI_APP_DEB_PREBUILD (off). Generation DURATIONS are recorded
-(DebGenerationRecord: module/hash/bytes/seconds) → the page
-quotes honest per-item wait estimates from history, "first run
-measures it" before any exists. Every page carries the
-TRANSPARENCY components (plan §Transparency): what-is-this
-explainers, per-item provenance (pre-prepped vs on-demand +
-estimate), named-step generation progress, named refusals —
-server-rendered, shared styling. Shared payload across modules
-factors into generated polari-app-shared-* debs (install-once,
-dpkg-enforced); true conflicts refuse generation. Client side:
-store-UI installs delete the deb on success (never on failure);
-manual downloads belong to the user. Offline chunks generate
-PIECE BY PIECE straight onto the medium (generate→write→delete→
-next) — no pre-built pool needed, which dissolves the disk
-blocker; pre-built pool = repeat-burn option.
+## Dustin's gates (nothing else moves without them)
 
-## Next session's work, in order
+1. Real `polari-complete` install on a test box (dl-3 proof).
+2. One real app-deb install (e.g. gears + its shared deb if any)
+   + eyeball /var/lib/polari/apps/.
+3. Browser pass of /downloads, /downloads/apps,
+   /downloads/offline (light/dark; screenshots from the session
+   are in the commit messages' described flow).
+4. dev-dl-1 review ×2 repos; dev-dyn-1 merge decision — the
+   admit wiring (app payload → live module via dynamic-modules)
+   is the NEXT dl-4 session and queues entirely behind that
+   merge.
+5. Offline decisions 3 (signing anchor) + 4 (app images on
+   medium) → then off-1 pool builder on a roomy box.
 
-1. **dl-3 page side** (framework `dev-dl-1`,
-   modules/appstore/downloads_page.py): `polari-complete` staged →
-   "Option A — one file installs everything" hero card (marked
-   pre-prepped/instant); the ordered list demotes to "Option B —
-   piece by piece"; PACKAGE_INFO entry; the transparency
-   explainer block; selftest checks for A/B and the no-combined
-   fallback. Then a REAL install of polari-complete on a test
-   box = Dustin's window.
-2. **dl-4 generator** (framework `dev-dl-1`,
-   appstore/app_deb_builder.py + app_debs_page.py): pure-python
-   deb writer (ar + tar.gz — no dpkg-deb dependency in
-   containers), payload → /var/lib/polari/apps/<module>/ (code
-   snapshot + exported seed data + manifest.json), on-request
-   generation with TTL cleanup + DebGenerationRecord timing rows
-   (page quotes median-of-history estimates), shared-payload
-   factoring, /downloads/apps page listing the module REGISTRY
-   (not files on disk) with per-item transparency lines,
-   traversal-safe serving, link from /downloads. Thin isle
-   CLI verb `isle apps build-debs` calling the ONE framework
-   implementation. Consumer honesty: payloads go LIVE via
-   dynamic-modules live-admit — dev-dyn-1 MERGE IS ITS OWN GATE
-   (ask Dustin); until then the page says how staged apps get
-   admitted.
-3. **dl-5 offline page** (framework `dev-dl-1`,
-   appstore/offline_page.py): render staged chunks.json sets +
-   honest not-yet state; /downloads footer note becomes the link.
-   The piece-by-piece media chunker = off-1 in
-   OFFLINE_INSTALL_PLAN.md (own session).
-4. Client-side auto-delete in the store shell (polari-app-shell,
-   Java) — separate session with Dustin's window.
+## Remaining build work (in order, after gates)
 
-## Gotchas already paid for
+1. dl-4 admit wiring session (post-dyn-merge): installed payload
+   → live admit + GUI progress in the store shell.
+2. off-1 offline pool builder (chunker writes straight onto the
+   medium; pol-core disk is ~95% — use droplet/build box).
+3. Client-side auto-delete in the store shell (polari-app-shell,
+   Java) — Dustin's window.
 
-- `paste -sd ', '` CYCLES its delimiter chars (broke the Depends
-  join) — use tr/sed. Fixed in the committed script.
-- polari-shell-core needs jpackage; boxes without a JDK stage the
-  newest prebuilt from polari-app-shell/dist (fallback now in the
+## Gotchas already paid for (keep)
+
+- `paste -sd ', '` CYCLES delimiter chars — Depends joins use
+  tr/sed (committed).
+- polari-shell-core needs jpackage; no-JDK boxes stage the
+  newest prebuilt from polari-app-shell/dist (fallback in the
   bundle script). pol-core has no jpackage.
 - Merged maintainer scripts: strip member shebangs, subshell each
-  member (`( ... )`) under one `set -e`; removal scripts run in
-  REVERSE member order.
-- Disk on pol-core: ~95% (6 GB free). Deb work fits; offline
-  pools do NOT (on-demand chunking is the plan's answer).
-- DisplayDefinition seeds are insert-by-name — but dl pages are
+  member under one `set -e`; removal scripts in REVERSE order.
+- GzipFile mtime must be set AT CONSTRUCTION (mtime=0) for
+  deterministic gzip — assigning `.mtime` later silently does
+  nothing (paid for in app_deb_builder).
+- Debian package names forbid `_` — module names map through
+  deb_package_name(); collisions refuse BOTH sides by name.
+- Explainer prose can collide with selftest substring counts —
+  count `class="prov prov-prepped"`, not the word.
+- DisplayDefinition seeds are insert-by-name — dl pages stay
   server-rendered (no seeds), keep it that way.
 - Suite ledger/plan docs live on `dev-nmp-1`; dl CODE on
-  `dev-dl-1` branches. Don't cross them.
-
-## Live state on pol-core (fine to leave / kill as needed)
-
-Host preview stack from the cnt session may still run: backend
-:3000 (POLARI_MODULES=cntfet,microchip,electrodevice,hwdigital,
-working copy = framework dev-cnt-2) + ng serve :4201. The dl
-pages don't need it (server-rendered, test via selftest +
-static render + headless screenshots — see the dl-1b flow).
-
-## Dustin's own queue (unchanged, TESTING_OWED)
-
-cnt browser pass (hover/toggles/dark) + dev-cnt-2 merge gate;
-dev-dl-1 review; dev-nmp-1 / dev-mqtt-1 / dev-ret-7 gates;
-dev-dyn-1 merge decision (unblocks dl-4 admit wiring); KC
-rotation (pub-0); offline decisions 3+4.
+  `dev-dl-1` branches (framework + Isle-Mesh + suite). Don't
+  cross them.

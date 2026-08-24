@@ -145,8 +145,46 @@ dev-cnt-1):**
     **AI-Notes/handoffs/DOWNLOADS_NEXT_HANDOFF.md** (dl-3 page
     side → dl-4 on-request generator → dl-5 offline page; the
     dev-dyn-1 merge stays YOUR gate and unblocks dl-4 admit
-    wiring). YOUR PASSES pending: real polari-complete install;
-    dev-dl-1 review.
+    wiring).
+    **dl-3 PAGE SIDE + dl-4 + dl-5 BUILT 2026-08-24 (autonomous
+    session on your go)** — framework `dev-dl-1` d2aef34/62cb902/
+    0fc6b38 + Isle-Mesh `dev-dl-1` bfd0c5b, ALL UNMERGED:
+    (a) dl-3 page: polari-complete staged → "Option A — one file
+    installs everything" hero (pre-prepped provenance: built date,
+    version source, instant) vs demoted "Option B — piece by
+    piece" with the can't-coexist note; no-combined fallback =
+    dl-1b layout; NEW appstore/downloads_shared.py = shared page
+    shell + transparency components (what-is-this <details>
+    explainers, prepped/on-demand provenance lines) reused by all
+    three surfaces. Selftest 6→16.
+    (b) dl-4: appstore/app_deb_builder.py — pure-python deb
+    writer (ar+tar.gz, REAL dpkg-deb -I/-c accepts the output),
+    payload → /var/lib/polari/apps/<module>/ + honest
+    manifest.json naming the dyn admit gap; content-hash version
+    = cache key inside POLARI_APP_DEB_TTL (default 1 h, 0 =
+    delete-after-delivery); shared-payload factoring into
+    polari-app-shared-* debs (symlinks + pinned Depends, ≥4 KB
+    floor); named refusals (unknown/not-downloaded/deb-name
+    collision both sides); DebGenerationRecord JSONL ledger →
+    median "usually ~Ns" estimates, honest "never generated yet";
+    POLARI_APP_DEB_PREBUILD knob. /downloads/apps lists the
+    REGISTRY (ghost modules render named-unavailable), steps
+    named BEFORE the click, zero JS. Selftest 19/19. isle CLI:
+    `isle apps build-debs` thin verb (locates checkout or
+    backend container; proven end-to-end on real gears deb).
+    (c) dl-5: appstore/offline_page.py — /downloads/offline
+    renders staged chunks.json sets (documented contract) with
+    per-disk lists + write-the-media steps, or the honest
+    not-built-yet page; manifest-is-the-truth serving, streamed;
+    open signing decision stated honestly. Selftest 6/6.
+    /downloads footer now LINKS offline + apps pages. All four
+    appstore selftests green (16+19+6+36).
+    YOUR PASSES pending: real polari-complete install (test box);
+    one real app-deb install (e.g. gears) + eyeball
+    /var/lib/polari/apps/; browser pass of the three pages;
+    dev-dl-1 review ×2 repos (framework + Isle-Mesh);
+    dev-dyn-1 merge decision (then dl-4 admit wiring session);
+    offline decisions 3+4.
     dl-2: AI-Notes/plans/OFFLINE_INSTALL_PLAN.md — the
     internet-install vs offline-install flavor split; offline =
     version-matched piecewise bundle on DVD/USB (our debs + full
