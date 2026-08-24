@@ -22,12 +22,21 @@ pages should reuse the dl-1b server-rendered styling, NOT the SPA.
 ## Ratified design in one breath
 
 All-in-one = TRUE MERGED deb (dpkg-in-dpkg impossible);
-`polari-complete`, Provides/Conflicts/Replaces its members.
-App debs = generated ON REQUEST from the live module registry —
-NO debs stored by default (a deb duplicates content the instance
-already holds): generate → stream to requester → delete after
-delivery or POLARI_APP_DEB_TTL; prebuilt pool only behind
-POLARI_APP_DEB_PREBUILD (off). Shared payload across modules
+`polari-complete`, Provides/Conflicts/Replaces its members —
+and it is the ONE PRE-PREPPED download (headline installer,
+instant; the page says so). App debs = generated ON REQUEST from
+the live module registry — NO debs stored by default (a deb
+duplicates content the instance already holds): generate →
+stream to requester → delete after delivery or
+POLARI_APP_DEB_TTL; prebuilt pool only behind
+POLARI_APP_DEB_PREBUILD (off). Generation DURATIONS are recorded
+(DebGenerationRecord: module/hash/bytes/seconds) → the page
+quotes honest per-item wait estimates from history, "first run
+measures it" before any exists. Every page carries the
+TRANSPARENCY components (plan §Transparency): what-is-this
+explainers, per-item provenance (pre-prepped vs on-demand +
+estimate), named-step generation progress, named refusals —
+server-rendered, shared styling. Shared payload across modules
 factors into generated polari-app-shared-* debs (install-once,
 dpkg-enforced); true conflicts refuse generation. Client side:
 store-UI installs delete the deb on success (never on failure);
@@ -40,19 +49,22 @@ blocker; pre-built pool = repeat-burn option.
 
 1. **dl-3 page side** (framework `dev-dl-1`,
    modules/appstore/downloads_page.py): `polari-complete` staged →
-   "Option A — one file installs everything" hero card; the
-   ordered list demotes to "Option B — piece by piece";
-   PACKAGE_INFO entry; selftest checks for A/B and the
-   no-combined fallback. Then a REAL install of polari-complete
-   on a test box = Dustin's window.
+   "Option A — one file installs everything" hero card (marked
+   pre-prepped/instant); the ordered list demotes to "Option B —
+   piece by piece"; PACKAGE_INFO entry; the transparency
+   explainer block; selftest checks for A/B and the no-combined
+   fallback. Then a REAL install of polari-complete on a test
+   box = Dustin's window.
 2. **dl-4 generator** (framework `dev-dl-1`,
    appstore/app_deb_builder.py + app_debs_page.py): pure-python
    deb writer (ar + tar.gz — no dpkg-deb dependency in
    containers), payload → /var/lib/polari/apps/<module>/ (code
    snapshot + exported seed data + manifest.json), on-request
-   generation with TTL cleanup, shared-payload factoring,
-   /downloads/apps page listing the module REGISTRY (not files on
-   disk), traversal-safe serving, link from /downloads. Thin isle
+   generation with TTL cleanup + DebGenerationRecord timing rows
+   (page quotes median-of-history estimates), shared-payload
+   factoring, /downloads/apps page listing the module REGISTRY
+   (not files on disk) with per-item transparency lines,
+   traversal-safe serving, link from /downloads. Thin isle
    CLI verb `isle apps build-debs` calling the ONE framework
    implementation. Consumer honesty: payloads go LIVE via
    dynamic-modules live-admit — dev-dyn-1 MERGE IS ITS OWN GATE

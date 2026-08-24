@@ -130,6 +130,18 @@ unless someone currently wants it:
   (POLARI_APP_DEB_TTL, e.g. 1 h) so a flaky download can retry
   without regenerating. Version-hash caching applies only WITHIN
   the TTL window.
+- **EXCEPTION (Dustin 2026-08-24 third pass): `polari-complete`
+  is PRE-PREPPED** — the headline installer must download
+  instantly, so the bundle build stages it and it never enters
+  the on-demand flow. The page says so explicitly, and says the
+  app/module debs are generated on demand.
+- **Generation timing is RECORDED for honest estimates**: every
+  generation appends {module, contentHash, bytes, seconds,
+  generatedAt} to a small ledger (DebGenerationRecord rows);
+  the page shows each on-demand item's expected wait from its
+  history ("usually ~40 s", median of recent runs) and an
+  honest "never generated yet — first run measures it" before
+  any history exists. No invented numbers.
 - **Pre-prepped pool = an explicit OPTION** (POLARI_APP_DEB_PREBUILD
   knob, off by default) for deployments that prefer instant
   downloads over disk — e.g. the public droplet.
@@ -220,6 +232,27 @@ downloads-page tie-in this iteration adds:
   the droplet/build box, or after a prune pass here.
 
 ---
+
+## Transparency components (Dustin 2026-08-24: "the frontend
+## will also need components that explain everything
+## transparently to the user")
+
+Every downloads surface explains itself in plain language —
+nothing happens invisibly:
+- **What-is-this explainers** on each page: what a deb is, why
+  install order matters, what "pre-prepped" vs "generated on
+  demand" means, what gets fetched from the internet during
+  install, and what will occupy disk where.
+- **Per-item provenance line**: pre-prepped items say when/where
+  they were built and their version source; on-demand items say
+  "generated fresh when you click, deleted from the server after
+  delivery/TTL" plus the recorded time estimate (above).
+- **During generation**: an honest progress state naming the
+  step (packaging module → writing data → streaming), never a
+  bare spinner; failures surface the named refusal.
+- These are server-rendered blocks in the dl pages' shared
+  styling (no SPA dependency), reusable across /downloads,
+  /downloads/apps, /downloads/offline.
 
 ## Decisions — RATIFIED 2026-08-24 ("the plan sounds good as is")
 
