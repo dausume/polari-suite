@@ -7,6 +7,60 @@ upcoming night (he started today, ran out of time — the box is
 untouched past the clone); the next session does arc work throughout
 the day, and folds in his test findings when they arrive.
 
+## ⚡ END-OF-DAY STATE (2026-08-20 evening — read this first)
+
+The day session completed. What stands, and exactly where:
+
+- **unin-4 ✅ MERGED + PUSHED to dev** everywhere (suite tip on
+  origin dev = 47f34b6). The night test is unaffected by anything
+  below — origin dev is exactly what isle-core will pull.
+- **nmp-0..11 ✅ ALL BUILT, ✅ PUSHED AS BRANCH**: polari-framework
+  branch `dev-nmp-1` (11 commits, 12 selftest suites green), pointer
+  branches `dev-nmp-1` in polari-rf-node and the suite (suite tip
+  there also carries the cmp plan + ledger + this handoff). NOT
+  merged to dev — the review gate — but all three branches are ON
+  ORIGIN (Dustin's evening go-ahead): snapshots safe on GitHub,
+  dev untouched.
+- **cmp (composting) ✅ PLAN RATIFIED** — COMPOSTING_LOOP_PLAN.md,
+  decisions 1-9 (Dustin answered Q1-Q4 same day: own deb; pigs/
+  chickens/cats/dogs with ration mixing; new composting/ module;
+  optional advised logging + own-vs-nearby-farm destinations).
+  cmp-0's research/license pass builds on a go-ahead.
+- **Working copies currently sit ON the dev-nmp-1 branches**
+  (suite, polari-rf-node, polari-framework); every other submodule
+  is on dev. `git checkout dev` anywhere if you need the pushed
+  state; the branches are the review queue.
+- Next session's queue: (1) night-test findings, (2) Dustin's
+  merge go-ahead for dev-nmp-1 → merge + pointers + push (the
+  unin-4 flow), (3) cmp-0 on go-ahead, (4) pub blockers
+  unchanged. Dustin's own queue = TESTING_OWED §000.
+- **UPDATE 2026-08-20 (day session #2b): CNT-FET SIM ARC READY FOR
+  S1** — Claude⇄ChatGPT collaborative plan RATIFIED (D1-D18) + S0
+  license pass COMPLETE, all in
+  AI-Notes/plans/CNT_FET_SIMULATION_PLAN.md (+ evaluations/
+  CNT_FET_SIM_LICENSE_GATE.md). Dustin's chosen next step = fresh
+  session from /clear that reads the plan and builds S1's narrow
+  first target (one CNT, DC I-V, Python reference → Verilog-A
+  twin). Suggested branch: polari-framework dev-cnt-1 off dev.
+  NOTE: these cnt docs are committed on the SUITE dev-nmp-1 branch
+  (with the cmp/shelved-plans work) — on-disk for any session, but
+  they ride the nmp review queue for push/merge.
+- **UPDATE 2026-08-20 (day session #2): cmp-0 RESEARCH PASS DONE**
+  — night test had NOT run (isle-core probed: still step 0), so the
+  session ran the one ungated queue item. All 5 data sources GREEN;
+  verdicts in COMPOSTING_LOOP_PLAN.md §Research verdicts, full
+  reports in AI-Notes/evaluations/COMPOSTING_DATA_LICENSE_GATE.md.
+  Key: FDC dropped refuse (SR28 at ARS = only source); NRCS NEH 637
+  = public-domain C:N table; swine household exemption is in the
+  166.1 garbage DEFINITION and dies off-premises (gates the
+  decision-9 nearby-farm destination); molasses >0.2% = pathogen
+  regrowth. THEN (same session) Dustin SHELVED the cmp arc:
+  plan moved to the NEW AI-Notes/plans/shelved/ directory —
+  README.md there = the shelved-work accountability ledger (13
+  plans: cmp, scan ×2, arz, wax-mold, pspp ×2, tower, blcnc ×3,
+  webxr, math-shapes; state + revival path per arc). nmp merge
+  gate untouched.
+
 ## isle-core state (verified 2026-08-20, after the unin-6 round trip)
 
 - **Fully purged via `isle uninstall --everything`** — the unin-6
@@ -50,16 +104,20 @@ arrived empty twice; don't rely on them.
    iterate pattern from FRESH_INSTALL_DEBUG_HANDOFF.md (fix in
    suite's Isle-Mesh → pack.sh if router parts → push → pull on
    isle-core → rebuild deb → reinstall).
-2. **Nutrition arc (nmp)**: plan is at decisions 1-14, phases
-   nmp-0..11 (AI-Notes/plans/NUTRITION_MEAL_PLANNING_PLAN.md, memory
-   nutrition-meal-planning.md). Status PLANNING — Dustin has been
-   actively refining it (5 design messages on 2026-08-19/20), so
-   likely next: either MORE design refinement as he sends thoughts,
-   or his go-ahead to START BUILDING nmp-0 (data adoption: FDC
-   subset, DRI/UL transcription, DGA limits, MET table, retention
-   factors — all seeds cited+versioned; fork-pins). 5 open questions
-   pend: wger mine-vs-run, URL import timing, trajectory horizon +
-   privacy, Q5 pattern fractions.
+2. **Nutrition arc (nmp)**: ✅ nmp-0..11 ALL BUILT 2026-08-20
+   (Dustin's go-ahead mid-day; one autonomous session). polari-
+   framework branch `dev-nmp-1`, 11 commits, NOT merged — review
+   gate. 12 selftest suites green. Q1/Q3/Q4/Q5 shipped as the
+   plan's proposed defaults (tunable priors). Dustin's queue =
+   TESTING_OWED §000 (merge gate, GUI pass on the 5 new pages,
+   live-API pass, his profile data). nutrition-planner is a
+   PolariAppDefinition (deb-buildable via pol apps shell — his
+   mid-run request). **FOLLOW-ON ARC PLANNED same day: composting
+   (cmp-0..7, AI-Notes/plans/shelved/COMPOSTING_LOOP_PLAN.md —
+   ⏸ SHELVED 2026-08-20 after the cmp-0 research pass) — waste
+   DERIVED from meal plans, routed to compost/teas (aqp-7 = the
+   built return path) or livestock feed (legality fail-closed);
+   ALL 4 Qs ANSWERED (own deb; pigs+chickens+cats+dogs w/ ration mixing; new composting/ module; optional advised logging + own-vs-nearby-farm destinations); cmp-0 research pass builds on go-ahead.
 3. **pub arc remaining** (polari-systems.org): Dustin-owned blockers
    unchanged — staging KC rotation (`pol security rotate staging`,
    with him present), DNS-at-DO + DO_API_TOKEN + droplet. Ours when
@@ -77,13 +135,15 @@ arrived empty twice; don't rely on them.
 
 ## Standing context for a fresh session
 
-- Everything is PUSHED to GitHub dev across all repos (suite tip =
-  handoff commit). The suite checkout on pol-core is the working
-  copy for Isle-Mesh too (isle-core's ~/Isle-Mesh is GONE — purged;
-  the suite submodule is the only working copy now).
+- Origin dev is current through unin-4 (suite 47f34b6); the nmp/cmp
+  day-work is LOCAL on dev-nmp-1 branches (see END-OF-DAY STATE).
+  The suite checkout on pol-core is the working copy for Isle-Mesh
+  too (isle-core's ~/Isle-Mesh is GONE — purged; the suite
+  submodule is the only working copy now).
 - Memory index: polari-systems-org (pub arc + install exercise),
-  nutrition-meal-planning (nmp), public-repos-hygiene (KC rotation
-  procedure). AI-Notes/ structure: plans/ handoffs/ evaluations/
+  nutrition-meal-planning (nmp BUILT), composting-loop (cmp
+  RATIFIED), uninstall-lifecycle (unin DONE), public-repos-hygiene
+  (KC rotation procedure). AI-Notes/ structure: plans/ handoffs/ evaluations/
   designs/ ledgers/ guides/.
 - isle-core has passwordless sudo over ssh — the headless iterate
   loop works end to end from pol-core.

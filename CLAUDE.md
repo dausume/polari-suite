@@ -39,7 +39,10 @@ stubbed Keycloak). See README §7.
 All AI-arc working documents live in **`AI-Notes/`** (restructured
 2026-08-17) with sub-sections: `plans/` (plans+roadmaps), `handoffs/`,
 `evaluations/` (incl. licence gates/audits), `designs/`, `ledgers/`
-(TESTING_OWED, FRONTEND_WORK_MAP), `guides/`. Older references to
+(TESTING_OWED, FRONTEND_WORK_MAP), `guides/`. Deliberately shelved
+plans live in **`plans/shelved/`** — its README.md is the shelved-work
+accountability ledger (state + revival path per arc); move a plan
+back out on revival and update that table. Older references to
 "<X>_PLAN.md at suite root" or "AI-Plans/<X>" mean
 `AI-Notes/plans/<X>_PLAN.md` now. The suite root keeps only README,
 GETTING_STARTED_DEV, and this file.
