@@ -96,8 +96,16 @@ if [ -f "$ROOT/polari-app-shell/shells/build-shared-shell.sh" ]; then
                 || warn "shared runtime did not build — the store deb will not be installable"
         fi
     else
-        warn "no jpackage (JDK 17+ needed) — polari-shell-core skipped;"
-        warn "the store deb Depends on it and will refuse to install"
+        # No JDK on this box — fall back to the newest ALREADY-BUILT
+        # runtime deb from polari-app-shell/dist (built on a JDK box).
+        FALLBACK=$(ls -1 "$ROOT"/polari-app-shell/dist/polari-shell-core_*.deb 2>/dev/null | sort -V | tail -1 || true)
+        if [ -n "$FALLBACK" ]; then
+            cp -f "$FALLBACK" "$OUT/"
+            ok "polari-shell-core: no jpackage here — staged prebuilt $(basename "$FALLBACK") from dist/"
+        else
+            warn "no jpackage (JDK 17+ needed) and no prebuilt runtime in dist/ —"
+            warn "polari-shell-core skipped; the store deb will refuse to install"
+        fi
     fi
 else
     warn "polari-app-shell not pulled — shared runtime skipped"
@@ -192,6 +200,16 @@ for pkg in isle-mesh-cli polari-shell-core isle-app-store polari-isle; do
         done
     fi
 done
+
+# ---- 5. the all-in-one polari-complete deb (dl-3) ----
+# True merged package from the four members above; refuses on a
+# partial bundle, so it only appears when everything built.
+step "polari-complete (all-in-one merged deb)"
+if bash "$ROOT/build-polari-complete-deb.sh" --debs-dir "$OUT"; then
+    ok "polari-complete built"
+else
+    warn "polari-complete not built (partial bundle above) — piecewise debs still valid"
+fi
 echo
 ok "bundle ready in $OUT:"
 ls -sh1 "$OUT" | sed 's/^/   /'
