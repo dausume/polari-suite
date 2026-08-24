@@ -72,6 +72,21 @@ file-conflict refusal); real build from a full bundle;
 `dpkg-deb -R` round-trip check headless; real install on a test
 box = Dustin's window.
 
+### ✅ BUILD-SIDE DONE 2026-08-24 (suite branch `dev-dl-1`, 46ff661)
+
+`build-polari-complete-deb.sh` built + PROVEN on the real bundle:
+polari-complete_0.1.25_amd64.deb, 53 MB, 440 merged files, zero
+collisions, Depends `curl, hostapd, iw, jq, libnss3-tools,
+nodejs, openssl, policykit-1`, Provides/Conflicts/Replaces all
+four members, merged postinst/postrm syntax-checked.
+`build-polari-isle-deb.sh` now (a) falls back to the newest
+prebuilt polari-shell-core from polari-app-shell/dist on
+no-jpackage boxes (closes the 3-of-4 staging gap) and (b) runs
+the complete build after the prune. REMAINING for dl-3: the
+/downloads page Option A/B rendering + selftests + a real install
+(Dustin). Gotcha for the next session: `paste -sd ', '` cycles
+its delimiter chars — the Depends join uses tr/sed instead.
+
 ---
 
 ## dl-4 — the apps page (/downloads/apps)
@@ -99,16 +114,39 @@ remembering a build step:
   isle CLI gets the verb (`isle apps build-debs`) for on-isle
   generation — CLI verb and framework generator share ONE
   implementation (vendor-sync rule, never twin scripts).
-- Trigger = module VERSION-HASH change (content hash of
-  modules/<module>/ + its seed exports), checked when the apps
-  page is served or at boot: hash unchanged → serve existing deb;
-  changed → regenerate. No cron, no stale debs, no rebuild storm.
 - Generated pool obeys reinstall-dedup: ONE version per package,
   old versions pruned on regeneration.
 
+### REFINEMENT (Dustin 2026-08-24, second pass): generate ON
+### REQUEST, never store by default
+
+A deb is a DUPLICATE of content the instance already holds (the
+module code + app data ARE the app) — it must not occupy disk
+unless someone currently wants it:
+- **Default = on-demand**: the apps page lists modules from the
+  live registry (no debs on disk at all). Clicking Download
+  triggers generation, the deb streams to the requester, and the
+  server copy is deleted after delivery — or after a TTL
+  (POLARI_APP_DEB_TTL, e.g. 1 h) so a flaky download can retry
+  without regenerating. Version-hash caching applies only WITHIN
+  the TTL window.
+- **Pre-prepped pool = an explicit OPTION** (POLARI_APP_DEB_PREBUILD
+  knob, off by default) for deployments that prefer instant
+  downloads over disk — e.g. the public droplet.
+- The FOUNDATIONS (generator + module content + manifest spec)
+  are always present; only the artifact is transient.
+- Same principle for the offline media flavor: the chunker can
+  generate debs PIECE BY PIECE straight onto the USB/CD/DVD
+  (generate chunk → write → delete → next), so no full
+  pre-built pool is ever required on disk; a pre-built pool
+  stays an option for repeat burns. ⚠ this also dissolves the
+  disk-space blocker for off-1 on small boxes.
+
 ### Space: debs are delivery vehicles, deleted after install
 
-- Server side: only the current generation is kept (prune above).
+- Server side: on-demand generation + TTL cleanup above; the
+  pre-prepped pool (when enabled) keeps only the current
+  generation.
 - Client side, store-UI path (the normal flow): the shell
   downloads to a temp dir, installs via pkexec, and DELETES the
   deb once dpkg reports success — a failed install keeps the file
@@ -183,7 +221,12 @@ downloads-page tie-in this iteration adds:
 
 ---
 
-## Decisions to ratify (then build starts)
+## Decisions — RATIFIED 2026-08-24 ("the plan sounds good as is")
+
+Dustin ratified the plan with the recommended option on every
+line; the one carve-out is that the dev-dyn-1 MERGE itself stays
+its own explicit gate (dl-4's admit wiring queues behind it).
+The list below is kept for the record:
 
 1. dl-3 design A (true merged deb) — yes/no.
 2. Combined package name: `polari-complete` (alt: `polari-suite`).
@@ -196,8 +239,9 @@ downloads-page tie-in this iteration adds:
 6. Client deb cleanup split: store-UI installs auto-delete on
    success; manual browser downloads are the user's files (page
    says "safe to delete after install") — confirm.
-7. Auto-generation trigger = version-hash-on-page-serve/boot
-   (no cron) — confirm.
+7. ~~Auto-generation trigger~~ SUPERSEDED by the on-request
+   refinement: generate when asked, delete after delivery/TTL;
+   prebuild = explicit knob. RATIFIED 2026-08-24.
 8. Shared-payload factoring via generated polari-app-shared-*
    debs (vs refusing all overlap outright) — confirm.
 
