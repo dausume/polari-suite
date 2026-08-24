@@ -179,12 +179,20 @@ dev-cnt-1):**
     open signing decision stated honestly. Selftest 6/6.
     /downloads footer now LINKS offline + apps pages. All four
     appstore selftests green (16+19+6+36).
+    **off-1 MACHINERY BUILT same day (second pass)** — framework
+    24b54eb (offline_chunker: deterministic FFD packing, named
+    refusals, piece-by-piece emit, chunks.json = the exact
+    offline_page contract; 10/10) + suite 43e1c0a
+    (build-offline-bundle.sh: pristine-container closure
+    resolution, honest SKELETON mode without --download, per-disk
+    self-identifying ISOs). Proven here: 101-deb closure, 2-chunk
+    ISO set from the real debs, sums OK, page renders it.
     YOUR PASSES pending: real polari-complete install (test box);
     one real app-deb install (e.g. gears) + eyeball
     /var/lib/polari/apps/; browser pass of the three pages;
-    dev-dl-1 review ×2 repos (framework + Isle-Mesh);
+    dev-dl-1 review ×3 repos (framework + Isle-Mesh + suite);
     dev-dyn-1 merge decision (then dl-4 admit wiring session);
-    offline decisions 3+4.
+    offline decisions 3+4, then --download bundle on a roomy box.
     dl-2: AI-Notes/plans/OFFLINE_INSTALL_PLAN.md — the
     internet-install vs offline-install flavor split; offline =
     version-matched piecewise bundle on DVD/USB (our debs + full

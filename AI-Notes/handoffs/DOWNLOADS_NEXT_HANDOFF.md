@@ -58,12 +58,34 @@ downloads 16/16 · app_debs 19/19 · offline 6/6 · appstore 36/36.
 5. Offline decisions 3 (signing anchor) + 4 (app images on
    medium) → then off-1 pool builder on a roomy box.
 
+## off-1 MACHINERY BUILT (same session, second pass)
+
+Framework `dev-dl-1` 24b54eb: `appstore/offline_chunker.py` —
+deterministic FFD chunk planning (cd/dvd/usb presets), named
+refusal for unsplittable files, piece-by-piece emit
+(write→verify→delete-source), chunks.json in EXACTLY the
+offline_page contract + sha256SUMS; selftest 10/10 incl. the
+producer/consumer render check. Suite `dev-dl-1` 43e1c0a:
+`build-offline-bundle.sh` — pool from .generated/debs, closure
+resolved in a PRISTINE ubuntu:24.04/22.04 container
+(--print-uris; --closure adds roots until off-0's inventory),
+honest SKELETON mode without --download (URIs recorded, README
+names every gap: closure absent, signing decision 3 open,
+images/VM absent per decision 4/off-0), --iso = per-chunk ISOs
+piece by piece with every disk self-identifying. PROVEN here:
+101-deb closure resolved, 2-chunk split of the real 110 MB set,
+ISOs isoinfo-verified, sums OK, /downloads/offline renders the
+real output. REMAINING off-1: `--download` run on a roomy box
+(pol-core is 95%) + off-0 instrumented inventory to supersede
+the declared-Depends closure roots.
+
 ## Remaining build work (in order, after gates)
 
 1. dl-4 admit wiring session (post-dyn-merge): installed payload
    → live admit + GUI progress in the store shell.
-2. off-1 offline pool builder (chunker writes straight onto the
-   medium; pol-core disk is ~95% — use droplet/build box).
+2. off-1 completion: off-0 instrumented inventory (clean target,
+   record every fetch) → `--download` bundle build on a roomy
+   box → off-2 media probe in core-install.
 3. Client-side auto-delete in the store shell (polari-app-shell,
    Java) — Dustin's window.
 

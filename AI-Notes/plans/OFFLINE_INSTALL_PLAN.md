@@ -126,7 +126,12 @@ not-yet-available (honest placeholder shipped with dl-1).
   VM artifacts) → the authoritative bundle content list + real
   sizing. (No design risk; pure measurement.)
 - **off-1** — the builder script (closure in pristine container,
-  images, vm, manifest, iso option).
+  images, vm, manifest, iso option). **✅ MACHINERY BUILT
+  2026-08-24** (framework dev-dl-1 24b54eb chunker + suite
+  dev-dl-1 43e1c0a builder; skeleton mode proven here — 101-deb
+  closure resolved pristine, 2-chunk ISO set from the real debs,
+  /downloads/offline renders the output). REMAINING: --download
+  run on a roomy box; images/vm await off-0 + decision 4.
 - **off-2** — media probe + verify + file-source install path in
   core-install; refusal semantics; "satisfied from medium" output.
 - **off-3** — member path: isle-bootstrap/onboard accept the same
