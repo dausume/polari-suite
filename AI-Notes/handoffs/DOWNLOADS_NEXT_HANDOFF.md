@@ -128,3 +128,21 @@ four surfaces with real data (same resource classes, no twin
 routes). Live pass caught + fixed: offline manifests belong IN
 the pool; nested chunk paths need the {filename:path} route.
 Preview left running: http://192.168.0.210:8090/downloads
+
+## dl-7 (same day): dependency/engine accounting + two deb flavors
+
+Framework dev d88e1c4 (rf-node 2088062, suite c0ee858). File
+counts replaced by REAL accounting: appstore/module_requirements.py
+derives per-module pip libraries (measured closure bytes from the
+live env, honest 'unmeasured'), polari module requires, and curated
++probed ENGINES (system engines = distro/offline-media payload,
+never a wheel). /downloads/apps offers BOTH flavors per app:
+Online deb (small; manifest = dynamic-after-install accounting) and
+Offline deb (wheels ride inside, -offline pkg Provides/Conflicts/
+Replaces the online name; pip --no-index line in manifest);
+per-flavor wait estimates; planner links offline flavor when
+net=no. Live-proven: climate-offline 13.9 MB / 6 wheels / 4.3 s,
+dpkg-verified. selftest_module_requirements 10/10; all 7 suites
+green. ENGINE_MAP is deliberately curated — extending it per
+module (and wiring engine payloads into the offline media bundle)
+is follow-up work.
