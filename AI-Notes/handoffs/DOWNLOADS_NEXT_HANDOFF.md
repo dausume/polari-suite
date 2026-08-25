@@ -146,3 +146,18 @@ dpkg-verified. selftest_module_requirements 10/10; all 7 suites
 green. ENGINE_MAP is deliberately curated — extending it per
 module (and wiring engine payloads into the offline media bundle)
 is follow-up work.
+
+## dl-8 + dl-9 (2026-08-24 evening, his live-review rounds)
+
+Status flow: every Download lands on /downloads/apps/status/<m>
+?flavor= — initiated confirmation, live named step (background
+thread + meta-refresh, zero JS), then auto-handover; GENERATING /
+DOWNLOADING state tags. Tab toggles: /downloads/apps Online|
+Offline installs; /downloads One-file|Stepped install. dl-9:
+download times MEASURED (stream close = real transfer; median
+throughput predicts; honest no-data line); pool-aware cards
+(READY = direct Download w/ age+size+predicted transfer;
+GENERATING NOW = View progress; else Generate & download).
+Preview server is THREADED (transfers must not block clicks).
+All 7 appstore suites green. Consolidated on dev across repos
+2026-08-25 for his push.
