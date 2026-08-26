@@ -5,9 +5,11 @@ through S4c + S5-first-rung + F3 ALL BUILT 2026-08-21
 (polari-framework `dev-cnt-1` ×7 commits + angular ×1 + an
 UNCOMMITTED S5/F3 working tree held by Dustin's
 no-git-during-work instruction — manifest in TESTING_OWED §0000
-item 13). Remaining rungs: [VS2] extrinsics, OpenSTA install
-(closes the D11 gate), CharLib executor wiring, self-consistent
-Poisson for F3 (D13), S6 synthesis.**
+item 13). [VS2] extrinsics built 2026-08-21 evening; **D13
+self-consistent Poisson BUILT 2026-08-25 (chip-1, working tree
+for `dev-chip-1`)** — see the chip-1 report below. Remaining
+rungs: OpenSTA install (closes the D11 gate), CharLib executor
+wiring, S6 synthesis.**
 
 ## S5 + F3 build report (2026-08-21 day, uncommitted)
 
@@ -33,6 +35,33 @@ Poisson for F3 (D13), S6 synthesis.**
   smoothed tail) and within 40% of both at on-state. Limits
   stated per run: coherent-only, fixed potential, zigzag-only.
 - selftests **61/61** including the live S5 + F3 legs.
+
+## chip-1 build report (2026-08-25) — D13 self-consistent Poisson
+
+Working tree for `dev-chip-1` (uncommitted, no-git-during-work
+rule). The eq.(5) barrier is now the LAPLACE SEED of a real SCF
+loop: `λ² Ec″ − (Ec − C) = −q·Δn_l/Cox` on the ring grid (the
+zero-charge solution IS eq.(5) — asserted by the new
+`poisson-pin` worker mode, max dev ~8e-5 eV). Charge = NEGF
+scattering states (`kwant.wave_function`, both leads,
+Fermi-weighted, normalization pinned against `kwant.ldos` at
+~2e-16); neutrality reference = source-lead band structure
+(`kwant.physics.Bands`), abrupt-junction donors (|x| > Lg/2).
+Damped mixing 0.35 (cnt_tob house style) + recorded adaptive
+halving + continuation across bias points (D12 budget note
+honored). `{action: f3-oracle, scf: true}`; fidelity
+`F3_NEGF_SCF` with its own capability entry and limits;
+unconverged points flagged in the verdict, never absorbed.
+First physics: barrier +33 mV (deep subthreshold, junction
+spill-in) / +14 mV (on-state, quantum-capacitance self-limited),
+Id lowered accordingly; converges in 7/4 iterations.
+
+🔑 **The pin caught a real bug**: the original eq.(5)
+implementation (S5-era, merged) had a1/a2 SWAPPED — interior
+ramp mirrored, ~Vd steps at the gate edges. Mirrored barriers
+preserve height/near-top shape and two-terminal T(E), so every
+earlier check passed; fixed-mode F3 numbers shift slightly now
+that the spurious edge-step reflection is gone.
 
 ## S4c build report (2026-08-21, second "go")
 

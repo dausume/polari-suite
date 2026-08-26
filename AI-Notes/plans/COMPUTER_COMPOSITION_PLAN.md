@@ -1,7 +1,34 @@
 # Computer composition + microchip continuation (cmp-c / chip arcs)
 
 Written 2026-08-25 (Dustin's directive, post-downloads-push).
-PLANNING ONLY — build starts on his go, per-arc. Two arcs run IN
+**BUILD STATUS 2026-08-25 (same-day session, on his "keep
+working" go): chip-1 BUILT (D13 SCF Poisson, cntfet 72/72 — and
+the identity pin CAUGHT an S5-era a1/a2 mirror bug in eq.(5),
+fixed) ∥ cmp-c-0..4 BUILT (computerparts PORTED from dev-ai-1 —
+it was never on dev — + new modules/computers: taxonomy, gates,
+profiles, /display/computers page; computers 22/22,
+computerparts 14/14, lazy-imports 15/15). ALL UNCOMMITTED
+(no-git-during-work rule); disjoint file sets ready for
+dev-chip-1 / dev-cmpc-1. Decisions 1–4 were taken as this plan's
+recommendations pending Dustin's ratification (seeds converge by
+upsert if overridden). Remaining: cmp-c-5 planner splice,
+composition MATERIALIZATION (view-only v1), chip-2/3
+(CharLib/OpenSTA, S6), chip-4 seam (deferred). Details:
+TESTING_OWED §000.**
+
+**SESSION 2 (2026-08-26): BOTH ARCS GOT THEIR NAV APPS — the
+2026-08-25 work was live but unreachable by browsing (no
+PolariAppDefinition rows). Module-LOCAL app rows (climate_app
+pattern, keeps commit sets disjoint + modules droppable):
+computers/computers_app.py = `app-computer-assembly` (Computer
+Assembly), cntfet/cnt_app.py = `app-microchips` (Microchips &
+Semiconductors); seed passes wired in polariServer. 14 apps
+live-verified. PLUS cmp-c-6 BUILT (interconnects as data — §7
+below) on his directive; cmp-c-7 visual workbench PLANNED (§8).
+All UNCOMMITTED, same no-git rule; computers_app + cmp-c-6 files
+→ dev-cmpc-1, cnt_app.py → dev-chip-1, polariServer.py carries
+BOTH seed passes (already in the dev-cmpc-1 set — flag at the
+split).** Two arcs run IN
 PARALLEL and must stay SEPARABLE:
 
 - **chip arc** — continue microchip functionality (the levels
@@ -56,6 +83,53 @@ PARALLEL and must stay SEPARABLE:
    report (evidence-bearing verdicts, ai-6 style).
 6. **cmp-c-5 planner splice**: dl-6 planner's perf classes gain
    'see a concrete build' links into profiles; buy-vs-rent rides.
+7. **cmp-c-6 interconnects as DATA** (✅ BUILT 2026-08-26, his
+   directive: "mappings to what their viable interconnects are…
+   communication parts… embedded directly or attached via
+   usb/usb-c, and the parts that enable usb attachment at all"):
+   NEW `InterconnectDefinition` rows = the port/connector
+   vocabulary (17 seeded: cpu-socket, ddr4-dimm, pcie-x16/x4,
+   m2-key-m/key-e, sata-data/power, usb-a/usb-c, the
+   usb2/usb3/usb-c HEADERS that enable front-panel USB, rj45,
+   power connectors). Parts declare `ports_provided` /
+   `ports_required` {token: count} on specs_json; pure engine in
+   computers_ports.py: `viable_links` (pairwise), `interconnect_
+   matrix` (nodes+edges, undeclared parts LISTED never guessed),
+   `port_budget_gates` (per-token provided-vs-required — ok /
+   mismatch only on a DECLARED shortage / unverified) joined into
+   assembly_gate_report. NEW PART_KINDS + taxonomy rows: `comms`
+   (wifi/bt/cellular — EMBEDDED m2-key-e vs ATTACHED usb-a/usb-c
+   falls out of ports_required, not a subclass) and
+   `usb-expansion` (PCIe USB controller cards / hubs / header
+   adapters — the ENABLERS). 3 UNPRICED example parts (ai-8 rule:
+   dated price only when sourced). API: GET
+   /api/computers/interconnects + /interconnects/build/{name}.
+   Page row 3 on /display/computers. Selftest 22→30.
+8. **cmp-c-7 visual assembly workbench** (NEXT, his directive:
+   "more intuitive and visual display of selecting parts…use the
+   existing d3 topology and other mappings"): the frontend over
+   cmp-c-6's matrix. Surveyed reuse paths (NO new graph engine,
+   per frontend-graphing-capability):
+   - **Slot/connector path** (interactive assembly): the no-code
+     editor's `models/noCode/Slot.ts` + `Connector.ts` +
+     `d3-extensions/RectangleStateLayer` — parts as nodes, ports
+     as typed angular-positioned slots WITH cardinality
+     (allowOneToMany/allowManyToOne) and drag-to-connect incl.
+     invalid-drop rollback, all already built.
+   - **Topology path** (read-only compatibility map): feed the
+     matrix in `TopologyGraph` shape into `topology-graph-view`
+     — nesting (board contains ram/cpu), typed colored edges,
+     resolved/unresolved/degraded ≈ ok/mismatch/unverified.
+   - **Palette**: `sim-space-selector` (registered, seedable
+     from backend like the periodic table) or the no-code
+     `state-tool-sidebar` for the pick-a-part step.
+   Recommended v1: a `computer-workbench` display component =
+   topology-path map + part palette filtered by kind, edges
+   colored by port-budget verdict; slot/connector interactivity
+   as v2. ⚠ Angular work — lands in polari-platform-angular,
+   which currently carries dev-chip-1's working tree: needs its
+   own branch cut at his commit split (or after dev-chip-1
+   lands) to keep the arcs separable.
 
 ## chip arc — microchip continuation (parallel, separable)
 

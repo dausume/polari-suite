@@ -1,5 +1,81 @@
 # Testing owed — tracker (written 2026-08-13, for Dustin's pass later today)
 
+## 000. New 2026-08-25 — chip-1 (D13 Poisson) ∥ cmp-c (computers app) — ✅ COMMITTED+MERGED to local dev 2026-08-26 (his go; NOT pushed)
+
+**2026-08-26 ADDENDUM (session 2, live-deployed via docker cp +
+restart into the running prf stack): (a) NAV APPS — both arcs
+were unreachable by browsing (pages seeded, NO PolariAppDefinition
+rows); fixed with module-LOCAL app rows: computers/computers_app.py
+(`app-computer-assembly`) + cntfet/cnt_app.py (`app-microchips`),
+polariServer seed passes; 14 apps LIVE-VERIFIED. (b) cmp-c-6
+INTERCONNECTS AS DATA on his directive: InterconnectDefinition
+vocabulary (17 rows), ports_provided/required declarations,
+viable_links/interconnect_matrix/port_budget_gates joined into the
+gate report, comms + usb-expansion PART_KINDS + taxonomy + 3
+UNPRICED example parts, /api/computers/interconnects{,/build/x},
+page row 3. computers selftest 22→30 (host AND in-container),
+computerparts 14/14 green. (c) cmp-c-7 visual workbench PLANNED
+(plan §8, D3 reuse survey done — no new graph engine). OWED: the
+computers-home DisplayDefinition CRUDE PUT was applied live
+(insert-by-name gotcha) — verify row 3 renders in the browser
+pass; polariServer.py now carries both arcs' app-seed passes
+(flag at the commit split).**
+
+**Two parallel arcs built in one session, working tree only (your
+no-git-during-work rule) — the file sets are DISJOINT and split
+cleanly at commit time: `modules/cntfet/*` + the CNT plan doc →
+`dev-chip-1`; `modules/computerparts/` (ported from dev-ai-1) +
+`modules/computers/` + polariServer/module_loading/registry edits
+→ `dev-cmpc-1`. selftests: cntfet 72/72, computers 22/22,
+computerparts 14/14, lazy-imports 15/15 — all HEADLESS; no
+live-boot proof (no containers up post-purge).**
+
+What only you can do:
+1. **Evening git pass**: create `dev-chip-1` + `dev-cmpc-1` off
+   dev and commit the two file sets (git status is clean-split;
+   the session handoff lists the exact paths).
+2. **🔑 REVIEW THE F3 BUG FIX**: the S5-era eq.(5) barrier had
+   a1/a2 SWAPPED (mirrored ramp + ~Vd steps at the gate edges) —
+   caught by the new discrete-vs-analytic pin, fixed in
+   kwant_worker.py. Merged-dev F3 numbers (5.6×/3.8× subthreshold,
+   40% on-state) were computed on the mirrored barrier; the
+   corrected fixed-mode numbers shift. Decide whether the plan's
+   S5 report needs a correction note beyond the one added.
+3. **cmp-c decisions 1–4 ratification**: the build proceeded on
+   the plan's recommendations (new `computers` module; 4+1
+   profiles; DB-binding declare-only; chip-4 seam deferred) —
+   override any and the seeds/rows converge via upsert.
+4. **Xeon build honesty check**: the DB-bound profile fit
+   honestly REFUSES your owned build (2 TB seed SSD < 4 TB
+   floor) — confirm the 4 TB floor is what you want, or edit the
+   profile row.
+5. **Live pass after next deploy**: /api/computers (catalog +
+   fit matrix), /api/computers/assembly/assembly-xeon-6338n,
+   /display/computers page; cntfet {action: f3-oracle, scf: true}
+   (~4 min for 2 points at default knobs).
+
+**SAME-DAY CONTINUATION (your day directives, autonomous):**
+6. **Figure replicas built** (your "graphs similar to the cited
+   studies" ask): /api/cntfet/figures registry — vs1-fig7a full
+   replica (digitized points + error bars + model on the paper
+   axes, flagship RMS 0.295 µA at the noise floor), vxo-vs-Lg
+   (3 µm misfit PLOTTED), Fig.9 model-only, Fiori/FC10-original
+   refusing entries; page row added. Frontend SVG overlay = a
+   small extension of dev-cnt-2's cntfet-iv-chart at its merge.
+7. **Cell stage: cell-1 BUILT** — cnt_cell_library.py (cells as
+   data, generated x1/x2 variants, NOR2 added, multi-cell
+   Liberty via characterize_cells, actions characterize-cells +
+   d11-crosscheck, CNTCellDefinition rows). **OpenSTA is LIVE
+   via docker** (openroad/opensta v3.1.0 behind ~/.local/bin/sta
+   — no sudo build) and the **MANDATORY D11 SPICE-vs-STA
+   composed-path box now runs for real**. Your call: keep the
+   docker wrapper or native-build later (plan §6.3).
+8. **Cleanup + probes + distribution plan**: pol-core disk
+   96%→62% (docker cache+images pruned; volumes + purge backup
+   untouched); isle-core/econ-core probed; the dist/cell/chip-4
+   plan = AI-Notes/plans/CHIP_COMPUTE_DISTRIBUTION_PLAN.md with
+   4 decisions for you (§6).
+
 ## 0000. New 2026-08-21 — cnt S1 BUILT (aligned-CNT FET, first open CNFET compact model)
 
 **S1 of the ratified CNT-FET plan landed in one session on branch
