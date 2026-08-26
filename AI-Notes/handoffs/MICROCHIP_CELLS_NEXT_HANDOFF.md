@@ -21,8 +21,17 @@ CNT_FET_SIMULATION_PLAN.md (D-boxes), COMPUTER_CHIP_NEXT_HANDOFF
 
 ## Build order
 
-1. **fet-viz (his 2026-08-26 directive, do FIRST)**: "in-page
+1. **fet-viz ✅ BUILT same session (2026-08-26)**: "in-page
    visualizations and characterizations of our existing FETs."
+   cnt_device_viz.py — GET /api/cntfet/device/{name}/points
+   ?curve=transfer|output (long-form rows, Id in µA) + …/
+   characterization (cnt_metrics family + fidelity string +
+   refusals verbatim); 2 seeded GraphDefinition rows
+   (cnt-device-transfer log-Y / cnt-device-output) reused across
+   devices via dataPath; cntfet-home row 5 (S1 device panels);
+   selftest 85→89. Committed dev-chip-2 → dev. Per-device pages
+   for OTHER devices = point the same graphs at their paths.
+   The original sketch (kept for the next device):
    - Per-object rule applies ([[per-object-display-config]]):
      curves/characterization belong on the DEVICE's own page
      surfaces, configured there — not a new global page.
