@@ -1,5 +1,64 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-26 (autonomous late session, his directive:
+> "characterization and scoring of FETs and Cells"):** **fi-2 +
+> fi-3 + cell scoring BUILT on `dev-fi-1`** (framework + angular,
+> see FET_INTUITION_PLAN.md §4 for built-vs-planned):
+> - `cntfet/cnt_scoring.py` — 6 FET ScoreTerms (SS, on/off decades,
+>   DIBL, gm/G0, |g_on/G0−0.7|, |Vt−Vt_target|) whose IDEALS are
+>   computed from the device's own model frame; concept
+>   `fet-switching-quality`; ScoreSubject per seeded device
+>   (object_ref → the row); ContextualizedValue rows bound by
+>   objectRef to `AlignedCNTFETDevice.figures_of_merit` (a live
+>   property, cnt_basis) so the GENERIC engine's
+>   `score_concept('fet-switching-quality')` lands on the same
+>   number as `GET /api/cntfet/device/{name}/score` (selftest
+>   proves equality). S1 nominal score 0.687.
+> - `cnt_montecarlo.monte_carlo(score=True)` — every functional
+>   sample scored → quantiles, per-term spread, best/worst case
+>   with sampled process values + per-term attribution vs nominal;
+>   Id(Vg) envelope (min/p05/p50/p95/max). S1: p05–p95 0.65–0.72;
+>   worst case moved by `fet-g-on-distance` (Rc lognormal tail).
+> - `cntfet/cnt_cell_scoring.py` — cell terms as RATIOS to the
+>   driving FET's intrinsic limits (delay/τ_int, transition/τ_int,
+>   E_supply/(C_L·Vdd²), FETs/min; ideal 1), read back from the
+>   latest library run row's own Liberty (existing rows score
+>   without a re-run); `GET …/cell-scores`; refuses by name
+>   without a run. Real cell-2 Liberty: INVX1 0.86 … OAI21X1 0.76.
+> - graphs (config only): `cnt-device-score-terms`,
+>   `cnt-device-transfer-envelope`, `cnt-device-cell-scores`;
+>   cntfet-home rows 7–8 (page now 10 graph panels / 21
+>   components) — ⚠ INSERT-BY-NAME ⇒ CRUDE PUT backfill on the
+>   live node. Angular: long-form `hguide` style (ruleY + label)
+>   and categorical x kept as strings (NamedGraphConfig.ts +
+>   plotFigure.ts; tsc clean).
+> - points endpoint knobs: `?samples=` (MC count behind
+>   score-terms/transfer-envelope, default 100, 0 = nominal only)
+>   `?seed=`; score endpoint knobs `vt_definition`, `off_decades`,
+>   `vov_decades`, `g_on_target_over_g0`, `samples`.
+> - Selftest 107/111 on the HOST (the 4 misses = the `sta` docker
+>   wrapper cannot read host /tmp workdirs — pre-existing, passes
+>   in-container). NEXT: fi-4 (per-object display config on the
+>   device rows, backfill, library_report links), then cell-3.
+
+> **UPDATE 2026-08-26 (late session, HIS go):** the dev box was
+> purged and rebuilt on **docker swarm** (dev = swarm, app/deb route
+> = production — see memory `dev-swarm-prod-app-route`): `polari-node`
+> on pol-core, `polari-cnt-engines` (:9700) on isle-core,
+> `polari-engines` (msci :9500) on econ-core.
+> **cell-2 + dist-1 COMMITTED** (framework `dev-cell-2` 9b7b36e → dev,
+> 95/95 live against the isle-core worker; this branch had been left
+> UNCOMMITTED by a session the systemd-oomd VS Code kills dropped).
+> **New arc opened: FET intuition** — `AI-Notes/plans/FET_INTUITION_PLAN.md`;
+> fi-0 (states as data + qualifying criteria, `/api/cntfet/device/{name}/states`)
+> and fi-1 (band/guide long-form styles, state-annotated curves, cntfet-home
+> row 6) BUILT on `dev-fi-1` (framework 9d31eee, angular ace38c7), selftest
+> 100/100. NEXT: fi-2 scoring by characteristic equations, fi-3 MC
+> best/worst case, fi-4 per-object surfaces; then cell-3 / cell-4 below.
+> Deploy loop on swarm: `docker compose -f .generated/stack-node.yml build
+> backend|frontend` + `docker service update --image … --force`; selftests via
+> `docker cp` into the `polari-node_backend` task (cell-2 run ≈ 30 min).
+
 **Entry state (this session's consolidation, HIS go): both arcs
 COMMITTED and MERGED to local dev — framework `dev-chip-1`
 (0b92bff) + `dev-cmpc-1` (57c6ebc) → dev b7b7e3b; angular
