@@ -1,5 +1,23 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-27 (autonomous, his 9-h window): the fv ARC
+> (regimes / transport / characteristic-driven 2-D+3-D views /
+> more FETs+cells) is BUILT end-to-end** — plan
+> `AI-Notes/plans/FET_VIEWS_PLAN.md` §3 is the status table
+> (framework `4206e99`, angular `84259e9`, both on `dev-fi-1`,
+> images rebuilt + rolled on the dev swarm). Main selftest
+> 120/120 + regimes 24 / transport 16 / fields 25 / more_cells 11.
+> **His one command** (unattended, now also derives every
+> comparator FET and samples the 3-D field scenes):
+> `ssh pol-core 'bash ~/Desktop/polari-suite/polari-cli/shells/enable-cntfet-prf-a.sh'`
+> then browse `/display/cntfet-detail-cnt-aligned-s1` (explorer:
+> pick a characteristic → views + meaning; 3-D scenes scrub Vg).
+> Known honest limits: VS model never reaches the square law
+> (m ≤ ~1); F1 field profiles are SKETCHES (D13 SCF drawn beside);
+> `polarity` is a label (p-row says so); scattering time profiles
+> are labelled priors. Next: browser pass, ratify FET_VIEWS_PLAN
+> §2, wire polarity → ptype, cell-3 parasitics.
+
 > **UPDATE 2026-08-26 (autonomous late session, his directive:
 > "characterization and scoring of FETs and Cells"):** **fi-2 +
 > fi-3 + cell scoring BUILT on `dev-fi-1`** (framework + angular,
