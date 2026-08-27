@@ -36,10 +36,29 @@
 >   score-terms/transfer-envelope, default 100, 0 = nominal only)
 >   `?seed=`; score endpoint knobs `vt_definition`, `off_decades`,
 >   `vov_decades`, `g_on_target_over_g0`, `samples`.
-> - Selftest 107/111 on the HOST (the 4 misses = the `sta` docker
->   wrapper cannot read host /tmp workdirs — pre-existing, passes
->   in-container). NEXT: fi-4 (per-object display config on the
->   device rows, backfill, library_report links), then cell-3.
+> - Selftest **111/111 on the HOST** (after adding `-w "$PWD"` to
+>   `~/.local/bin/sta` — the docker wrapper mounted /tmp but never
+>   set the working dir, so OpenSTA's relative `read_liberty`
+>   failed; pre-existing, now fixed on pol-core).
+> - **DEPLOYED to the dev swarm**: backend + frontend images
+>   rebuilt (`docker compose -f .generated/stack-node.yml build
+>   backend|frontend` + `docker service update --force --image …`)
+>   — ⚠ `docker cp` + `docker restart` is LOST on swarm (respawn
+>   from image; memory `deploy-swarm-image-rebuild` was right, the
+>   earlier prf-compose note in this file is stale). Seeds landed
+>   live (7 cnt-device graphs, 10 terms, 2 concepts, subjects,
+>   6 live-bound values) and **cntfet-home was CRUDE-PUT
+>   backfilled** (live row had only 4 rows — the fet-viz/fi-1 rows
+>   5–6 had never reached it either; now 9, diffed identical).
+> - ⛔ **HIS CALL — `cntfet` is NOT assigned to `prf-a`** on this
+>   swarm (ModuleAssignment rows: only `cntfet.engines@cnt-engines`),
+>   so `/api/cntfet/*` 404s on `api.prf.…` and the page's graph/
+>   API panels refuse until `pol topology assign cntfet prf-a` +
+>   `pol swarm deploy node` (adds the module to POLARI_MODULES).
+>   The CRUDE surfaces (rows, seeds, page) are live regardless.
+>   Note `prf.…/api/*` is the SPA fallback (index.html), not an API.
+> - NEXT: fi-4 (per-object display config on the device rows,
+>   library_report links), then cell-3.
 
 > **UPDATE 2026-08-26 (late session, HIS go):** the dev box was
 > purged and rebuilt on **docker swarm** (dev = swarm, app/deb route
