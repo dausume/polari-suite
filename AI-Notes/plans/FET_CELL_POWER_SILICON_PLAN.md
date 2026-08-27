@@ -1,0 +1,126 @@
+# FET + cell: power limits, silicon (sol-gel) transistors, optimization classes, complementary pairs, silicon refinement, circuit + boolean-logic diagrams (fp arc)
+
+Written 2026-08-27 from Dustin's brief (verbatim intent): "account for
+power dissipation limits. Static power dissipation, leakage power …
+simulate traditional Silicon and doped Silicon semiconductor
+transistors while leveraging sol-gels … digital-optimized and
+analog-optimized transistors, also referred to as Switching-Optimized
+and Signal-Optimized … different FET shape types, whether or not they
+are made to be complementary FETs and what their specific
+complementary fet is … the logic for why they are complementary and
+how that helps. Linear Region & Saturation Region, BdSat … the
+sub-threshold region … Silicon refinement … open research … up to the
+PV-level quality; for semiconductor grade … a novel approach. …
+Circuit diagrams and boolean logic diagrams … generated for different
+cells via no-code configuration … boolean logic visualizations from d3
+… step through the state spaces to proof them. … categorize by input,
+output, and transfer characteristics … frontend components … intuitive
+… weaving together pages and alternate views for FETs … for the
+average person."
+
+Binding rules as in FET_VIEWS_PLAN (config-driven graphs, per-object
+surfaces, rows for every concept, explicit knobs, honesty strings,
+licence gates — every adopted equation cites; sol-gel and refinement
+routes cite open literature or are labelled PRIOR/novel).
+
+## 0. Reuse (the fv/fi machinery is model-agnostic)
+Everything downstream of `device_model(manager, name) → (id_fn, p,
+device, refusal)` — states, regimes, scoring, validity gate, transport,
+fields, characteristics, compare — works for ANY device whose model
+yields the VS parameter dict `p`. The VS model IS a MOSFET model
+([KHA09] was written for silicon): a silicon device therefore only
+needs `build_si_vs_params` (Vt from doping/flat-band, Cinv from a
+planar/fin/GAA Cox and the depletion capacitance, μ from doping
+(Caughey–Thomas), v_xo from Si injection velocity × ballisticity,
+n_ss = 1 + Cdep/Cox, DIBL from the scale length of the SHAPE). Cells
+likewise reuse `cnt_cell_library` netlists with a different card.
+
+## 1. Phases (agents on disjoint files; integrator wires)
+### fp-1 power — `cntfet/cnt_power.py`
+- FET: static/leakage power P_static = Vdd·Ioff (subthreshold; gate
+  leakage = named gap at S1 — no tunnelling model; GIDL likewise),
+  its dependence on Vt/SS/T (Ioff ∝ 10^(−Vt/SS)), dynamic
+  E = C·Vdd² per transition, P_dyn = α·f·C·Vdd².
+- Cell: leakage per INPUT STATE from the off-network (stack effect
+  knob), averaged over states → P_static; Liberty `leakage_power()`
+  blocks with `when`; dynamic from the cell-2 energy tables ×
+  activity × f; `PowerBudget` rows (limits: per-cell leakage, per-area
+  density W/cm², thermal) with CHECKS naming which limit fails; Score
+  terms fet-static-power / cell-static-power / cell-dynamic-energy
+  feed the existing concepts. Endpoints `/power` (FET) and
+  `/cell-power`.
+### fp-2 silicon FET on sol-gel — `sifet/` (sibling module, THIN)
+- Rows: `SiliconDopingProfile` (type, N_A/N_D, method: implant/
+  diffusion/in-situ), `SolGelDielectric` (precursor TEOS/HfCl4-
+  alkoxide → SiO2/HfO2, anneal, k, thickness, leakage prior — open
+  literature cited), `SolGelProcess` (spin/dip, cure), `SiliconMOSFET`
+  device row (shape ref, doping refs, dielectric ref, W/L, T) and
+  `si_model.build_si_vs_params(...)` → VS `p`; `device_model` adaptor
+  so EVERY fv/fi surface works on it; seeds: planar NMOS/PMOS 90 nm-
+  class, FinFET-class, each with a sol-gel dielectric variant.
+### fp-3 taxonomy — `cntfet/cnt_taxonomy.py`
+- `FETOptimizationClass` rows: switching-optimized (digital: Ion/Ioff,
+  SS, delay, leakage) vs signal-optimized (analog: gm/Id, gds →
+  intrinsic gain gm/gds, linearity, noise, matching) — with the SCORE
+  CONCEPT each maps to (a second concept `fet-signal-quality` with
+  gm/gds, gm/Id, Vdsat headroom terms) and the operating REGION each
+  prefers (switching: sub-threshold ↔ saturation swing; signal:
+  saturation with Vds > Vdsat + margin).
+- `FETShapeType` rows (planar bulk, SOI, FinFET, GAA nanowire, GAA
+  nanosheet, CNT-GAA, TFET) with the electrostatic scale-length
+  formula as data and typical n_ss/DIBL priors.
+- `ComplementaryPair` rows: n ↔ p, the LOGIC (pull-up conducts when
+  pull-down is off → no static path, rail-to-rail, noise margins),
+  the CONDITIONS (|Vt_n| ≈ |Vt_p|, drive match via W_p/W_n ≈ μ_n/μ_p
+  or CNT twin symmetry), and per-device `complementary_of`
+  resolution + a check report. Regions summary per device: linear /
+  saturation / sub-threshold with Vdsat (BdSat) boundaries — cites
+  fi-0/fv-1.
+### fp-4 silicon refinement — `sifet/si_refinement.py`
+- Route rows MG-Si → UMG-Si → SoG-Si (PV) → EG-Si (semiconductor):
+  carbothermic reduction, slag/acid leaching, directional
+  solidification (Scheil segregation, k_eff per impurity — the
+  characteristic equation), Siemens TCS / FBR silane, zone refining
+  (passes), FZ. Each row: inputs, outputs, purity in/out (N-count),
+  energy, licence/openness status (`open-research` with citations vs
+  `novel-needed`), and a computable model (`scheil_pass` etc.).
+  PV-grade = documented open routes; semiconductor-grade = the novel
+  section with candidate directions as labelled PRIOR rows. Report
+  endpoint `/api/sifet/refinement` + grade ladder as data.
+### fp-5 circuit + boolean logic diagrams — `cntfet/cnt_logic.py` + angular d3
+- From CELL_LIBRARY: transistor-level netlist GRAPH (nodes: nets +
+  devices; edges) → `cell-schematic` (d3); boolean AST from
+  `liberty_function` → gate-level DAG → `cell-logic-diagram` (d3,
+  interactive: click inputs to toggle, watch gate outputs, or step
+  through every input vector); truth table; switch-level PROOF:
+  evaluate the transistor netlist per input vector (pull-up/pull-down
+  conduction) and compare with the boolean function — every cell
+  proven or a named counter-example; sequential cells: state
+  transition graph stepping. Endpoint `/api/cntfet/cell/{name}/logic`.
+  Survey the existing spice/verilog no-code (cnt_verilog_a, cnt_osdi,
+  electrodevice) and the d3 no-code editor before building.
+### fp-6 categorization + weaving (integrator)
+- `FETCharacteristic.category` ∈ {input, output, transfer} on every
+  row + plain-language `explain` (average-person) + `navigation`
+  row on every FET page (home ↔ score ↔ detail ↔ silicon twin ↔
+  complementary partner ↔ cells that use it).
+
+## 2. Decisions for Dustin (defaults stated)
+1. Gate leakage / GIDL: named gaps at S1 (no tunnelling model) — or adopt a cited empirical prior?
+2. Power budget defaults (per-cell leakage 1 nW, density 100 W/cm²) — knobs.
+3. Silicon model = VS parameterization (shared downstream) rather than a BSIM port — accepted?
+4. Sol-gel dielectric priors (k, leakage) from open literature until a measured row exists.
+5. Semiconductor-grade refinement: which novel direction to pursue first (rows are candidates, none endorsed).
+
+## 3. Status — ALL SIX PHASES BUILT 2026-08-27 (dev-fi-1)
+
+| Phase | Landed | Numbers / honest limits |
+|---|---|---|
+| fp-1 | `cnt_power.py`: FET static = Vdd·Ioff (gate leakage + GIDL = NAMED unmodelled gaps), dynamic C·Vdd², Vt/T sensitivity; cell leakage per input state by switch-level off-network with the stack effect ([NAR01]); Liberty `leakage_power() { when }` emitted by `characterize_cells`; `PowerBudget` rows + per-limit checks; 3 score terms; `/power`, `/cell-power`; 3 graphs | S1: Ioff 0.83 nA → 0.50 nW static (under the 1 nW prior); −50 mV Vt → ×6.9; E_switch 1.5 aJ; NAND2 leakage 00/01/10/11 = 0.5/1/1/2 Ioff. 20/20 |
+| fp-2 | `sifet/` (si_basis, si_model, si_device): SiliconMOSFET rows on thermal-SiO2 / sol-gel SiO2 / sol-gel HfO2, planar + FinFET shapes, doping profiles; VS parameterisation from Si physics (Sze Vt, Caughey–Thomas μ, Taur–Ning / Suzuki / Auth–Plummer scale lengths); `si_device_model` satisfies the SAME contract → every fi/fv/fp surface works; `device_model` dispatches by class; `/api/sifet/devices` (+ derive), `/capability` | NMOS planar Vt 0.33 V, SS 72.6 mV/dec, Ion/Ioff 1e5 at 1 V; HfO2 sol-gel Cinv ×2.3; **cross-technology ranking: Si NMOS 0.71 > CNT S1 0.69 > Si FinFET-HfO2 0.68**. ⚠ v_xo uses a kT-layer fraction prior; sol-gel priors 'to verify'; CNT-only surfaces (transport context, field regions) refuse by name for Si. 25/25 |
+| fp-3 | `cnt_taxonomy.py`: FETOptimizationClass (switching-/signal-optimized with aliases digital/analog), second concept `fet-signal-quality` (gm/Id, gm/gds, Vdsat headroom, linearity), FETShapeType ×7 (scale-length formulas as data), ComplementaryPair (logic + evaluated conditions), regions summary (linear / saturation / sub-threshold with Vt, Vt+Vov_min, Vdsat = BdSat); `/taxonomy`, `/signal-score` | S1 signal 0.32 vs switching 0.69 → switching-optimized; pair s1↔s1-p symmetric under the explicit mirror. 26/26 |
+| fp-4 | `sifet/si_refinement.py`: grades MG/UMG/SoG/EG, 11 steps with computable models (Scheil, multipass zone, evaporation), routes `pv-open-route` (open-research), `siemens-route` (industrial-proprietary), `eg-novel-route` (novel-needed, 3 PRIOR directions); `/api/sifet/refinement[/route]`; 2 graphs | MG feed B 40 / P 30 ppmw → open route B 0.107 / P 0.108 → **SoG reached**, 48 kWh/kg; EG NOT reachable by any open chain (B k_eff 0.8 is the wall) → the novel section. 31/31 |
+| fp-5 | `cnt_logic.py`: boolean AST → gate DAG, truth tables, placed transistor netlist, switch-level PROOF (union-find over conducting devices, inputs as drivers for pass gates), state space (cdff transition graph parsed from the subckt); `/api/cntfet/cell/{cell}/logic`, `/cells/logic`; angular `cell-logic-diagram` (click inputs / step / play, PROVEN badge) + `cell-schematic` (conducting path per vector); page `/display/cntfet-cells` (10 cells × both) | ALL 12 combinational cells prove, zero contention / floating. 23/23; tsc + ng build clean |
+| fp-6 | `FETCharacteristic.category` input/output/transfer/structure + plain-language `explain` on all 22 rows (explorer shows both first); `/links` weave + nav rows on score/detail pages; polarity → `ptype` in `device_model` (own-frame evaluation, card gets ptype 1) | main selftest 125/125 |
+
+His one command still: `enable-cntfet-prf-a.sh` (now also derives the silicon FETs and verifies power / taxonomy / logic proof / refinement / cross-tech ranking). Browser passes owed: cells page, detail page. §2 decisions await him.

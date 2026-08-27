@@ -1,5 +1,23 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-27 (later, same autonomous window): the fp ARC
+> is BUILT** — `AI-Notes/plans/FET_CELL_POWER_SILICON_PLAN.md` §3
+> is the status table: power limits + leakage (fp-1), silicon FETs
+> on sol-gel sharing the VS device contract (fp-2 — cross-technology
+> ranking: Si NMOS 0.71 > CNT S1 0.69 > Si FinFET-HfO2 0.68),
+> switching-/signal-optimized classes + shapes + complementary pairs
+> + regions incl. BdSat (fp-3), silicon refinement routes (fp-4 —
+> PV grade reachable by the open route, EG needs the novel section),
+> cell logic/circuit diagrams with switch-level proofs, all 12 cells
+> proven (fp-5, page `/display/cntfet-cells`), datasheet categories
+> + plain-language explanations + `/links` weave (fp-6). Main
+> selftest 125/125 + 7 sub-suites green; images rebuilt + rolled.
+> Still gated on his `enable-cntfet-prf-a.sh` (module assignment);
+> the script now also derives the silicon FETs and verifies every
+> fp surface. Open: browser passes, plan §2 decisions ×5, a sifet
+> transport/field basis (Si refuses those by name today), lifting
+> the new citation dicts into cnt_citations.
+
 > **UPDATE 2026-08-27 (autonomous, his 9-h window): the fv ARC
 > (regimes / transport / characteristic-driven 2-D+3-D views /
 > more FETs+cells) is BUILT end-to-end** — plan
