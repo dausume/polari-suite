@@ -57,8 +57,24 @@
 >   `pol swarm deploy node` (adds the module to POLARI_MODULES).
 >   The CRUDE surfaces (rows, seeds, page) are live regardless.
 >   Note `prf.…/api/*` is the SPA fallback (index.html), not an API.
-> - NEXT: fi-4 (per-object display config on the device rows,
->   library_report links), then cell-3.
+> - **fi-4 (2026-08-27, his redefinition) BUILT + COMMITTED**
+>   (framework on dev-fi-1, 116/116): FET-VALIDITY GATE
+>   (`cnt_scoring.fet_validity` — 5 characteristic-equation proofs;
+>   any failure or underived model ⇒ score 0, proofs named) and
+>   PER-FET COMPETITIVE PAGES (`cnt_compare`: `/compare`, graph
+>   `cnt-device-compare`, seeded `cntfet-score-{device}` pages;
+>   comparator device `cnt-aligned-s1-lg30` seeded, scores 0 as
+>   UNPROVEN until `POST {"action":"derive"}`). Backend image
+>   rebuilt + rolled again.
+> - **HIS QUICK RUN (unattended):** `ssh pol-core 'bash
+>   ~/Desktop/polari-suite/polari-cli/shells/enable-cntfet-prf-a.sh'`
+>   — assigns cntfet→prf-a, `pol swarm deploy node`, waits, verifies
+>   score/cells/compare. Then derive the comparator so the ranking
+>   has two real FETs: `curl -sk -X POST -H 'Content-Type:
+>   application/json' -d '{"action":"derive"}'
+>   https://api.prf.192.168.0.210.nip.io/api/cntfet/devices/cnt-aligned-s1-lg30`.
+> - NEXT: fi-4 remainder (TableDefinition per device for the
+>   Tables/Graphs tabs, library_report links), then cell-3.
 
 > **UPDATE 2026-08-26 (late session, HIS go):** the dev box was
 > purged and rebuilt on **docker swarm** (dev = swarm, app/deb route
