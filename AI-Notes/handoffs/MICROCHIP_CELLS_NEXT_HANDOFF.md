@@ -1,5 +1,36 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-29 (open-source focus, his direction):**
+> - **The binary, first class:** `EvidenceItem.role` (reference =
+>   proves our processes/sims make sense; usable = we build with it:
+>   open licences, formats) and `TechnologyIPRecord.intended_use`
+>   (open-chip-candidate vs reference-only: tfet, siemens-tcs,
+>   fbr-silane, gaa-nanowire). Every proof / provenance / library
+>   subject carries `usage.{usable_in_open_chips, statement}` —
+>   USABLE only when candidate AND proven-free (US). Proof panel and
+>   evidence browser show it first.
+> - **Open cell library** (`cnt_open_library.py`, `OpenCellLibrary`
+>   rows): admission = every cell proven-free AND the device pair
+>   proven-free. `polari-open-si-planar-90` (si-nmos/pmos-planar-90):
+>   26/26 cells admitted, **open_source_ready**; `polari-open-cnt-s1`:
+>   NOT ready — device pair encumbered (US 9,825,229) though the
+>   circuits are free. Characterize / export (`.lib` with provenance
+>   header, `.sp`, PROVENANCE.json, LICENSE GPL-3.0 artefacts, public-
+>   domain circuits) / ladder cell-rung update as data.
+>   `/api/cntfet/open-library[/{name}[/liberty]]`, page
+>   `/display/open-library`.
+> - **Cells × FETs coverage** (`cnt_cell_coverage.py`): per device,
+>   which of the 26 cells (incl. cdff) have numbers from a run on
+>   THAT device, what is missing (sequential setup/hold, tri-state)
+>   and the POST that fills it; `/api/cntfet/cells/coverage`,
+>   `/device/{n}/cell-coverage`, in `/links`.
+> - Functional blocks (ladder rank 3: ctr4 / alu4 / fsm / reg4) are
+>   being built from the cells (cnt_blocks.py) — routes pre-wired
+>   (`/api/cntfet/blocks`, `/block/{key}[/proof]`).
+> - Live: the Si planar pair library characterization runs on the
+>   worker via the open-library `characterize` action (runbook
+>   `CHARACTERIZE=1`); POST device actions now accept Si rows.
+
 > **UPDATE 2026-08-29 (latest): EVIDENCE + PROOF OF FREEDOM, first
 > class and clickable (his ask; jurisdiction = US).**
 > `cntfet/cnt_evidence.py` — 76 `EvidenceItem` rows (16 patents, 47
