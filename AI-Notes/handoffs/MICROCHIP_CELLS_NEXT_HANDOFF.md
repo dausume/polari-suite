@@ -1,5 +1,30 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-29 — LIVE on the dev swarm (his assign + my
+> follow-through).** cntfet + sifet are assigned to prf-a and
+> booted; all 12 FETs derived; field scenes sampled; the cell
+> library CHARACTERIZED on the isle-core engines worker (run
+> `cnt-aligned-s1-lib-140958`, 24 cells, OpenSTA-accepted; cell
+> scores/power live). Cross-tech ranking today: Si PMOS FinFET on
+> sol-gel HfO2 0.73 > CNT tox2 0.70 > S1 0.69 … Learned the hard way:
+> - `sifet` had to be REGISTERED in `modules/polari-modules.json`
+>   (requires cntfet) before `pol topology assign sifet prf-a`
+>   admits its classes (otherwise CRUDE 404 / seeds skipped).
+> - `CNTFET_ENGINES_URL` is interpolated by the NODE compose file
+>   from the PROCESS env at `pol swarm deploy` time — neither the
+>   suite `.env` nor pol state carries it; unset ⇒ backend uses its
+>   local ngspice WITHOUT OpenVAF and characterization dies half-way
+>   ("no arc survived"). The runbook now exports it (+ the
+>   `POL_STACK_CONSTRAINTS` pin `backend=node.labels.polari.machine==pol-core`
+>   — without the pin swarm bounces the backend across nodes:
+>   "invalid mount config … ca/root_ca.crt").
+> - `pol swarm deploy` refuses while the core is rebooting (derives
+>   POLARI_MODULES from live rows) — wait for /api/topology first.
+> - The worker does not log requests; a long characterize call sits
+>   behind the proxy — check worker CPU on isle-core, not logs.
+> Runbook: `polari-cli/shells/enable-cntfet-prf-a.sh`
+> (`CHARACTERIZE=1` opt-in for the ~30-min library run).
+
 > **UPDATE 2026-08-27 (later, same autonomous window): the fp ARC
 > is BUILT** — `AI-Notes/plans/FET_CELL_POWER_SILICON_PLAN.md` §3
 > is the status table: power limits + leakage (fp-1), silicon FETs
