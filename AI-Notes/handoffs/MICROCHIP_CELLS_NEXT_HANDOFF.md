@@ -1,5 +1,30 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-29 (latest): EVIDENCE + PROOF OF FREEDOM, first
+> class and clickable (his ask; jurisdiction = US).**
+> `cntfet/cnt_evidence.py` — 76 `EvidenceItem` rows (16 patents, 47
+> papers/prior-art, 11 textbooks, 4 standards, 8 licences; 46 verified
+> online via Google Patents / Crossref / OpenLibrary with
+> `verified_via`) joined by name from every `TechnologyIPRecord`
+> (`evidence_json`). `freedom_proof(kind, name)` applies PROOF_RULES
+> (data) under US patent terms (EXPIRY_RULES: 1995-06-08 cutover;
+> foreign families out of scope, stated) → proven-free /
+> free-unverified / encumbered / unknown with the CHAIN and the GAPS.
+> Live table: **29 proven-free** (all 26 cells + planar Si NMOS/PMOS +
+> sol-gel-SiO2 NMOS), 7 free-unverified (sol-gel HfO2 devices, the
+> refinement routes), **5 encumbered** (all CNT devices — gap = active
+> US 9,825,229 aligned-array process; the CNT device itself is free),
+> 0 unknown. A `provenance` block (verdict, status, top evidence,
+> detailPath) rides score / compare / cell-scores / cell-logic /
+> characteristics. Routes `/proof`, `/device/{n}/proof`,
+> `/cell/{c}/proof`, `/evidence[/{item}]`. Angular
+> `freedom-proof-panel` (status badge, chain, click an item → detail
+> drawer with supports/citedBy/source link, gaps checklist) on every
+> score + detail page; `evidence-browser` on cntfet-home and the cells
+> page. Main selftest 127/127; evidence 38/38; ip 41/41.
+> Known: US 9,428,830 (FBR) is GTAT, not REC, per Google Patents —
+> the evidence row is right, cnt_ip's text still says REC.
+
 > **UPDATE 2026-08-29 (later): licensing / FTO tracked as rows.**
 > `cntfet/cnt_ip.py` — 26 `TechnologyIPRecord` seeds (device shapes,
 > materials, processes, cells, model, tools, formats) with verdict
