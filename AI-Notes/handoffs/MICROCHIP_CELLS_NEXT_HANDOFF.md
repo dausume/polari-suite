@@ -1,5 +1,20 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-29 (later): licensing / FTO tracked as rows.**
+> `cntfet/cnt_ip.py` — 26 `TechnologyIPRecord` seeds (device shapes,
+> materials, processes, cells, model, tools, formats) with verdict
+> green/amber/red, key patents (numbers, filing, expiry — ~15
+> verified online), what we own, the self-manufacture rule (own
+> fab does NOT clear an ACTIVE patent), verify_next, confidence;
+> `/api/cntfet/device/{name}/ip`, `/api/cntfet/ip`; IP panel on
+> every score page (backfilled live via the new
+> `polari-cli/shells/backfill-cntfet-pages.sh`). Verdicts: generic
+> MOSFET / CMOS / planar / FinFET / basic CNT FET / cells / our VS
+> model = GREEN; GAA nanosheet, aligned-CNT array processes, FBR
+> silane, sol-gel HfO2 formulations, SOI, TFET, Siemens know-how =
+> AMBER; no RED. Engineering record, not legal advice — every
+> payload says so. Main selftest 126/126; ip 41/41.
+
 > **UPDATE 2026-08-29 — LIVE on the dev swarm (his assign + my
 > follow-through).** cntfet + sifet are assigned to prf-a and
 > booted; all 12 FETs derived; field scenes sampled; the cell
