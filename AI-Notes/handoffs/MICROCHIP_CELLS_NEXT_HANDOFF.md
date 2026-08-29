@@ -44,8 +44,10 @@
 >   (.lib with provenance header, .sp, PROVENANCE.json, LICENSE.txt),
 >   ladder `standard-cell` rung = `characterized` (data), Si cell
 >   scores live with provenance + "USABLE in open-source chips".
->   Coverage matrix: S1 24/26, Si NMOS 24/26 (sequential runs in
->   flight). Cosmetic: `open_library_report().run` keys come back
+>   Coverage matrix: S1 **26/26** (DFF + latch runs landed), Si NMOS
+>   24/26 — ⚠ the sequential harness TRUNCATES on the Si card at 0.6
+>   and 1.0 V (tstop/step tuned on the CNT τ; scale from the device's
+>   own τ) — open gap, not forced. Cosmetic: `open_library_report().run` keys come back
 >   None while the Liberty header names the run — fix the report's
 >   run lookup keys.
 
