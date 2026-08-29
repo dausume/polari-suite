@@ -37,9 +37,17 @@
 >   `/api/cntfet/blocks?device=`, `/block/{key}?timing=1`,
 >   `/block/{key}/proof|logic|power`; page `/display/cntfet-blocks`.
 >   Main selftest 129/129, blocks 32/32, open-library 22/22.
-> - Live: the Si planar pair library characterization runs on the
->   worker via the open-library `characterize` action (runbook
->   `CHARACTERIZE=1`); POST device actions now accept Si rows.
+> - **LIVE (2026-08-29 evening):** Si planar pair library run
+>   `si-nmos-planar-90-lib-170958` (24/26 cells; clatch/cdff via
+>   their own actions), open library `polari-open-si-planar-90`
+>   refreshed + EXPORTED to `/tmp/open-library/polari-open-si-planar-90/`
+>   (.lib with provenance header, .sp, PROVENANCE.json, LICENSE.txt),
+>   ladder `standard-cell` rung = `characterized` (data), Si cell
+>   scores live with provenance + "USABLE in open-source chips".
+>   Coverage matrix: S1 24/26, Si NMOS 24/26 (sequential runs in
+>   flight). Cosmetic: `open_library_report().run` keys come back
+>   None while the Liberty header names the run — fix the report's
+>   run lookup keys.
 
 > **UPDATE 2026-08-29 (latest): EVIDENCE + PROOF OF FREEDOM, first
 > class and clickable (his ask; jurisdiction = US).**
