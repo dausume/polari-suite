@@ -24,9 +24,19 @@
 >   THAT device, what is missing (sequential setup/hold, tri-state)
 >   and the POST that fills it; `/api/cntfet/cells/coverage`,
 >   `/device/{n}/cell-coverage`, in `/links`.
-> - Functional blocks (ladder rank 3: ctr4 / alu4 / fsm / reg4) are
->   being built from the cells (cnt_blocks.py) — routes pre-wired
->   (`/api/cntfet/blocks`, `/block/{key}[/proof]`).
+> - **Functional blocks BUILT** (`cnt_blocks.py`, ladder rank 3):
+>   reg4 (96T), ctr4 (162T), fsm-traffic (78T), alu4 (358T; 8 cell
+>   kinds) — composed ONLY of library cells, proven exhaustively
+>   (alu4: 2048 vectors), Verilog + SPICE netlists generated, OpenSTA
+>   on alu4 over the real S1 Liberty: critical path 7.1 ps (intrinsic-
+>   grade, no wires); ctr4/reg4/fsm timing refuses by name until a
+>   DFFX1 Liberty row exists (`characterize-sequential`); power
+>   roll-up (static per input state via cell leakage, dynamic from
+>   run energies); provenance roll-up = worst of device + cells (alu4:
+>   encumbered on S1, proven-free on planar Si). Routes
+>   `/api/cntfet/blocks?device=`, `/block/{key}?timing=1`,
+>   `/block/{key}/proof|logic|power`; page `/display/cntfet-blocks`.
+>   Main selftest 129/129, blocks 32/32, open-library 22/22.
 > - Live: the Si planar pair library characterization runs on the
 >   worker via the open-library `characterize` action (runbook
 >   `CHARACTERIZE=1`); POST device actions now accept Si rows.
