@@ -70,6 +70,22 @@
 >   defaults bit-identical); /fields handler dual-lookup; parts2d Si
 >   overlays NOW SERVE, x aligned with the 2-D template.
 >   selftest_si_fields 10/10; fields 25/25, parts2d 12/12.
+> - **fg-6 (2026-08-30 night, from his browser pass + directive):**
+>   ① the embedded fet-2d spaces rendered as ONE gray rectangle —
+>   root cause: nm sizes fed into the 2-D renderer's UNIFORM scale
+>   (style base 40×40); fixed with non-uniform [sx, sy] scale support
+>   in d3-utils + style-normalized seeds; ② "the 3-D FET pieces
+>   should be math shapes via matrix equations" — DONE: every piece
+>   is now a MathShapeDefinition row (true-nm boxes / x-axis
+>   cylinders / CSG shells = outer−inner coaxial cylinders;
+>   shape_equation_rows gives the 4×4 matrix form; scenes use
+>   mathshape:fet-part-* refs, the pot/motor convention; radial
+>   exaggeration survives only as a STATED view scale); ③ scenes
+>   renamed fet-3d-{device} (cnt-device-3d-* = legacy list in the
+>   backfill script); ④ silicon 3-D scenes (sifet/si_scene.py) +
+>   device-relative sample-fields (0→own Vdd; CNT bit-identical) with
+>   SI_FIELD_BANDS (areal ranges, CNT band styles reused).
+>   selftest_si_scene 12/12, fields 25/25.
 > - The whole fg arc (fg-0..4) is BUILT and **DEPLOYED to the dev
 >   swarm (2026-08-30 evening)**: both images rebuilt from dev-fg-1 +
 >   service-updated (⚠ the FRONTEND service had NO pol-core pin and
