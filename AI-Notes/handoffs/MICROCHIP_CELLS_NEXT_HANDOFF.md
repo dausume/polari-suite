@@ -1,5 +1,31 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-29 (evening, his phone pass): "JSON walls, empty
+> graphs, endpoints not returning anything real" → fixed.**
+> - ROOT CAUSE of every empty long-form graph (CNT and Si alike):
+>   `plotFigure` passed the series LABEL to Observable Plot as the
+>   colour; a non-colour string is a FIELD NAME → undefined on every
+>   row → the mark's `defined` filter dropped every point, only the
+>   hard-coloured guides survived. Fixed (`seriesPaint()` accessor →
+>   categorical colour scale + legend; non-finite / log-invalid
+>   points filtered per axis). Regression spec
+>   `named-graph-long-form.spec.ts` 7/7 on real payloads.
+> - Refusals were 503 → the proxy rewrote them to "backend
+>   unavailable" 504 (the D13 figure). Every refusal is 422 now.
+> - Silicon stochastic curves 500'd (MC needs CNT process rows) →
+>   honest refusal; silicon field curves returned 200 + empty rows →
+>   refusal. `/power` 500'd live: persisted PowerBudget limits come
+>   back as STRINGS → `check_budget` coerces (0/blank = no limit).
+> - GENERIC FET DISPLAY: `fet-overview` (device input; same for every
+>   FET; sub-sections chosen by switching-/signal-optimized, CNT/Si,
+>   usable/not) on top of every score page; `api-structured-panel`
+>   (structured chips/tables with `pick`) replaces raw JSON panels on
+>   cntfet-home, cells, score/detail pages. Pages backfilled.
+> - Tool for the next pass: `polari-cli` — the panel audit is one
+>   python loop over every seeded dataPath (see this session) — run
+>   it after each deploy; Chrome MCP was NOT connected from this
+>   session so no true browser pass yet.
+
 > **UPDATE 2026-08-29 (open-source focus, his direction):**
 > - **The binary, first class:** `EvidenceItem.role` (reference =
 >   proves our processes/sims make sense; usable = we build with it:
