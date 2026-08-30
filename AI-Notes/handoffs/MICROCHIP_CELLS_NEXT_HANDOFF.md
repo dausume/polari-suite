@@ -473,3 +473,12 @@ data; lightweight, JSON, nothing that a dependency install regenerates. Built (f
   ignore) and its `seedData.py` returns {}. Now committed; the loader skips its bare-list
   files LOUDLY ("rename to <ClassName>.json with the header"). Converting it to the
   convention = a small follow-up for whoever touches materials science next.
+
+## 2026-08-30 — all 40 modules published as their own public projects
+Dustin (scope 1): every `modules/<m>` now has `https://github.com/dausume/polari-module-<m>`
+(18 created today incl. cntfet / sifet / microchip / computers / computerparts; 22 July
+splits fast-forwarded — they had 25 unpushed in-tree commits; climate's repo had been
+registered but never created — created now). Registry `polari-modules.json` carries every
+URL. IN-TREE STAYS AUTHORITATIVE: after editing a module, re-run `pol modules publish <m>`
+(subtree split + push main) or the module repo goes stale again — the push sweep does NOT
+do this. Consider adding a `pol modules publish --all` step to `push-all-dev.sh`.
