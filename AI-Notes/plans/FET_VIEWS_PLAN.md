@@ -136,6 +136,43 @@ where they exist).
   XOR2 (composed), generated variants × drives; library_report
   lists them; characterize on the engines worker.
 
+### fv-7 — 2-D SVG parts view, generic over FETs (PLANNED 2026-08-29, not built)
+Dustin: "a generic way to pull data for FETs in general so that across
+multiple FETs their 2D svg-defined parts can be pulled with
+appropriate data and be visualized." Foundation already built:
+`cnt_parts.device_parts(manager, device)` — the ORDERED parts list
+(part, purpose, material, doping, dimensions, process, row,
+`regionKind` ∈ contact / extension / channel / oxide / gate) for any
+FET (CNT or Si). Plan:
+1. **`FETPartTemplate` rows (config, per shape kind):** one SVG
+   template per `FETShapeType` (planar-bulk, finfet, gaa-nanowire,
+   cnt-gaa …) stored as a row: `svg_template` with named `<g
+   data-region="channel">` groups, a `layout_json` mapping
+   `regionKind` → the group + which dimension keys scale it
+   (lg_nm → width of the channel group, t_ox_nm → oxide thickness,
+   l_ext_nm …), and `legend_json` (fill by doping type: n / p /
+   undoped / metal / insulator — fixed palette tokens).
+2. **Resolver endpoint** `/api/cntfet/device/{name}/parts-view` →
+   {template (svg), regions: [{regionKind, part, material, doping,
+   fill class, label, dims, row, dataPaths: {field profile for the
+   region, part-specific graph}}], scale}. Data pulled through the
+   SAME generic parts list — nothing per device.
+3. **Component `fet-parts-view`** (generic registry): renders the
+   template SVG, colours regions by doping type, sizes them from the
+   dims, labels + hover tooltip (material, doping statement, row
+   link), click → the region's detail (parts row + field profile
+   graph for CNT: potential / density along that region; for Si:
+   refusal-by-name until a Si field basis exists). Optional overlay
+   mode: shade regions by a scalar (potential / density band) from
+   `/fields` — the 2-D slice of the fv-4 3-D scenes.
+4. Seed onto every score + detail page (row above the parts table);
+   Si shapes get their own templates (planar with S/D junctions and
+   body; FinFET cross-section).
+5. Later: the same regions become the 2-D `SimSpaceDefinition`
+   (dimensionality '2d', Shape2DDefinition rows) so the sim-space
+   scrubber can drive them — but the SVG template route ships first
+   because it is config + one component, no compiler work.
+
 ## 2. Decisions for Dustin (defaults stated; build proceeds)
 1. Regime exponent bands and transport-T bands — knobs (defaults above).
 2. Time profiles of scattering (aging/dose) are PRIORS labelled low-confidence until a measured series exists.
