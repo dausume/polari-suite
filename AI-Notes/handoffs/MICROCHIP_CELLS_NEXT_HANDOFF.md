@@ -70,10 +70,17 @@
 >   defaults bit-identical); /fields handler dual-lookup; parts2d Si
 >   overlays NOW SERVE, x aligned with the 2-D template.
 >   selftest_si_fields 10/10; fields 25/25, parts2d 12/12.
-> - The whole fg arc (fg-0..4) is BUILT. REMAINING (unchanged gates):
->   deploy (image roll + backfill + CONFIRM_DELETE_LEGACY pass),
->   browser pass phone + desktop, his decisions (plan §3b), and
->   fg-5 (fet-module extraction) stays PARKED.
+> - The whole fg arc (fg-0..4) is BUILT and **DEPLOYED to the dev
+>   swarm (2026-08-30 evening)**: both images rebuilt from dev-fg-1 +
+>   service-updated (⚠ the FRONTEND service had NO pol-core pin and
+>   bounced to isle-core — 'bind source path does not exist'; fixed
+>   with `--constraint-add node.labels.polari.machine==pol-core`,
+>   now BOTH services carry the pin), backfill run (24 legacy
+>   per-device pages listed and KEPT), fet/fet-detail rows seeded,
+>   all 8 /api/fet verification links 200 ok:true live.
+>   REMAINING gates: browser pass phone + desktop, his decisions
+>   (plan §3b), CONFIRM_DELETE_LEGACY=yes re-run after the browser
+>   pass, and fg-5 (fet-module extraction) stays PARKED.
 
 > **UPDATE 2026-08-29 (night): parts & purpose + 2-D plan.**
 > `cnt_parts.device_parts` — generic ordered PARTS list for any FET
