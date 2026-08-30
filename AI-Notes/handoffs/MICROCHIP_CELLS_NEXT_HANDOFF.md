@@ -482,3 +482,7 @@ registered but never created — created now). Registry `polari-modules.json` ca
 URL. IN-TREE STAYS AUTHORITATIVE. `push-all-dev.sh` now handles the subtrees: after
 polari-framework pushes it compares every module's tree hash with its polari-module-* main
 and re-publishes only the stale ones (dry run lists them; `--skip-modules` to bypass).
+- 🔑 Boot-pass gotcha fixed (framework c77b60b): the JsonSeeds pass had been gated on the
+  `composition` MODULE being enabled — prf-a runs without it, so the pass silently skipped
+  every module's initialData. Ungated (seed_upsert is a plain helper). Verified on prf-a boot:
+  `[JsonSeeds] cntfet: 4 class(es) +0 ~0 =16`, `sifet: 1 … =9`. Live backend = current dev.
