@@ -479,6 +479,6 @@ Dustin (scope 1): every `modules/<m>` now has `https://github.com/dausume/polari
 (18 created today incl. cntfet / sifet / microchip / computers / computerparts; 22 July
 splits fast-forwarded — they had 25 unpushed in-tree commits; climate's repo had been
 registered but never created — created now). Registry `polari-modules.json` carries every
-URL. IN-TREE STAYS AUTHORITATIVE: after editing a module, re-run `pol modules publish <m>`
-(subtree split + push main) or the module repo goes stale again — the push sweep does NOT
-do this. Consider adding a `pol modules publish --all` step to `push-all-dev.sh`.
+URL. IN-TREE STAYS AUTHORITATIVE. `push-all-dev.sh` now handles the subtrees: after
+polari-framework pushes it compares every module's tree hash with its polari-module-* main
+and re-publishes only the stale ones (dry run lists them; `--skip-modules` to bypass).
