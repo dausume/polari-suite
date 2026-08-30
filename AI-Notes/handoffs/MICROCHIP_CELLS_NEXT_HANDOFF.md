@@ -1,5 +1,80 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-30 (fg arc started): FET, NOT CNTFET (his correction:
+> "we want to dig into cntfets but we are not only doing cntfets") +
+> fg-0/1/2 BUILT on `dev-fg-1`** (framework + angular + the cli backfill
+> script; NOT pushed). FET_GENERIC_PAGES_PLAN §3 is the status table:
+> - fg-0 `cnt_fet_summary.py`: GET `/api/fet/device/{name}/summary`
+>   (fet-summary/1) — every section = the same report its endpoint
+>   serves, refusals INLINE, key set NEVER changes; every device-scoped
+>   cntfet route aliases under `/api/fet/device/…` (`fet_alias`; cntfet
+>   paths keep answering until the fet-module split, fg-5 PARKED);
+>   fet-overview now does ONE summary fetch (per-slot = fallback).
+> - fg-1 `display/:id?object=<name>`: display-page substitutes
+>   '{object}' into every input/dataPath/title; banner when opened
+>   without ?object=.
+> - fg-2 TWO generic pages replace the 24+ per-device rows:
+>   `fet` + `fet-detail` ({object}-addressed, /api/fet paths;
+>   score_pages/detail_pages now return the generic pair,
+>   SEED_SI_SCORE_PAGES = []); `/api/fet/devices` = the generic
+>   catalogue (both technologies) with a row on cntfet-home +
+>   sifet-home; /links emits `fet?object=`; fet-overview links went
+>   [queryParams] (routerLink can't parse '?').
+> - Selftests: summary 14/14, sifet_pages 21/21, cntfet 131/131 (fg-0)
+>   + full re-run after fg-2 pending at handoff-write time.
+> - DEPLOY OWED: image rebuild + roll, `backfill-cntfet-pages.sh`
+>   (now also LISTS legacy per-device pages; deletes them ONLY with
+>   `CONFIRM_DELETE_LEGACY=yes` and only after fet/fet-detail are
+>   live), then browser pass phone + desktop.
+> - fg-3 BUILT same session: `/api/fet/device/{name}/parts2d`
+>   (fet-parts2d/1 — region rects in nm from the parts-list rows,
+>   templates cnt-gaa / si-planar / si-finfet, sketch lengths
+>   labelled, field overlay at the device's OWN Vdd; Si overlay =
+>   honest refusal until fg-4), `fet-parts-2d` component (rows on
+>   fet-detail + compact on fet), `fet-2d-{device}`
+>   SimSpaceDefinition rows for every CNT + Si device. selftests:
+>   parts2d 12/12, summary 14/14, sifet_pages 21/21.
+> - fg-4 (first item) ✅ Si SEQUENTIAL TRUNCATION FIXED + root-caused:
+>   NOT τ (already device-scaled) — the aF CNT-sized standin caps left
+>   cdff m1 / the latch loop massless vs ~350× Si currents ('timestep
+>   too small, node xdut.m1'). Fix = one retry with standins scaled to
+>   the device's own input cap, recorded as `numericalAid`; CNT paths
+>   bit-identical (control proven). NEW suite
+>   `sifet.selftest_si_sequential` 7/7 (~3.5 min, real ngspice) — the
+>   Si DFFX1/DLATCHX1 Liberty rows (`characterize-sequential` /
+>   `characterize-latch`) can now fill the Si 24/26 → 26/26 gap live.
+> - fg-4 (second item) ✅ FreePDK45-class Ioff: the gap stays
+>   REPORTED by default; new explicit act `POST /api/sifet/devices/
+>   {n} {"action":"apply-anchor-knob"}` applies the vfb_v suggestion
+>   to the row, cites the FreePDK45 anchors in vfb_source (old value
+>   kept), re-derives to within tolerance (selftest_ladder 31/31).
+>   Live freepdk45-class rows: HIS call whether to post the act.
+> - fg-4 (third item) ✅ Si TRANSPORT basis (`sifet/si_transport.py`):
+>   mechanism mfps DERIVED from the cited [CT67]/[SZE07]/[TAK94]
+>   mobility chain via [LUN97] (λ = μ·2φt/v_T; Matthiessen identity
+>   proven in-test; λ_eff cross-checked vs the [LUN97] 10–20 nm
+>   anchor; 90 nm Si classifies SCATTERED, as it must); dispatched
+>   from cnt_transport.transport_report so /transport + summary +
+>   fet-overview un-refuse together; no invented aging series, no
+>   contact double-count (both stated). selftest_si_transport 10/10.
+> - fg-4 (fourth item) ✅ fv-8 normalized cross-device view: curve
+>   `transfer-normalized` (x = Vg/Vdd, y = Id/Ion log — both
+>   technologies on one plot although each runs at its OWN Vdd;
+>   underived devices NAMED on the guide), graph seed
+>   `fet-compare-normalized`, row 13 on the generic `fet` page.
+> - fg-4 (fifth item — **fg-4 COMPLETE**) ✅ Si FIELD basis
+>   (`sifet/si_fields.py`): the SAME eq.(5) analytic barrier with
+>   silicon's own cited scale length, charge-sheet density [SZE07],
+>   doping rows verbatim — F1 SKETCH and it says so; `field_profile`
+>   dispatches Si rows (Si defaults = its OWN Vdd; CNT legacy
+>   defaults bit-identical); /fields handler dual-lookup; parts2d Si
+>   overlays NOW SERVE, x aligned with the 2-D template.
+>   selftest_si_fields 10/10; fields 25/25, parts2d 12/12.
+> - The whole fg arc (fg-0..4) is BUILT. REMAINING (unchanged gates):
+>   deploy (image roll + backfill + CONFIRM_DELETE_LEGACY pass),
+>   browser pass phone + desktop, his decisions (plan §3b), and
+>   fg-5 (fet-module extraction) stays PARKED.
+
 > **UPDATE 2026-08-29 (night): parts & purpose + 2-D plan.**
 > `cnt_parts.device_parts` — generic ordered PARTS list for any FET
 > (CNT or Si): part, purpose, material, doping (n / p / undoped /

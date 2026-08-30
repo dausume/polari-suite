@@ -136,7 +136,14 @@ where they exist).
   XOR2 (composed), generated variants × drives; library_report
   lists them; characterize on the engines worker.
 
-### fv-7 — 2-D SVG parts view, generic over FETs (PLANNED 2026-08-29, not built)
+### fv-7 — 2-D SVG parts view, generic over FETs (✅ BUILT 2026-08-30 as fg-3, dev-fg-1)
+
+Built (FET_GENERIC_PAGES_PLAN fg-3): `cntfet/cnt_parts_svg.py`
+(`/api/fet/device/{name}/parts2d`, fet-parts2d/1 — templates cnt-gaa /
+si-planar / si-finfet from the parts rows, field overlay at the device's
+own Vdd — Si overlays serve since the si_fields basis), angular
+`fet-parts-2d` (hover part cards, Vg/Vd sliders, sketch dims dashed),
+`fet-2d-{device}` SimSpaceDefinition rows. Original sketch:
 Dustin: "a generic way to pull data for FETs in general so that across
 multiple FETs their 2D svg-defined parts can be pulled with
 appropriate data and be visualized." Foundation already built:
@@ -200,7 +207,12 @@ comparator and samples the field scenes); ratify §2 defaults; the
 p-polarity plumbing (make `polarity` drive ptype in derive) is a
 real gap the p-row names.
 
-### fv-8 — normalized cross-device view (PLANNED 2026-08-30, not built)
+### fv-8 — normalized cross-device view (✅ BUILT 2026-08-30, dev-fg-1)
+
+Built as planned (curve `transfer-normalized` in cnt_device_viz — x = Vg/Vdd,
+y = Id/Ion log, one series per DERIVED device across BOTH technologies, focus
+◀, underived devices named on the guide; graph seed `fet-compare-normalized`
+(fet, not cntfet); row 13 on the generic `fet` page). Original sketch:
 
 Every per-device plot is device-relative (V_G, V_D sweep 0 → its OWN V_DD; built
 2026-08-30). Cross-device comparison therefore needs a SEPARATE normalized view:
