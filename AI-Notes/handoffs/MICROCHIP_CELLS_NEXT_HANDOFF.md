@@ -447,3 +447,24 @@ BSIM4 / PTM licence terms unverified (evidence rows say so).
    device's own Vdd; generic `fet-parts-2d`; registered as SimSpaceDefinition rows.
 4. Architecture level — `ARCHITECTURE_LEVEL_PLAN.md` — PARKED until 1–3 land.
 Standing rule for all of it: every number DERIVED or CITED, tagged.
+
+## UPDATE 2026-08-30 (late) — module data convention implemented; FET data in the repo
+Dustin: modules must be installable from GitHub OR from an API that provides the module
+data; lightweight, JSON, nothing that a dependency install regenerates. Built (framework
++ cli, pushed with the sweep):
+- `moduleService/json_seeds.py` — the convention: `modules/<pkg>/initialData/<Class>.json`
+  (`module-initial-data/1`, plain JSON). Loaded at boot (JsonSeeds pass, upsert path —
+  `is_prior` False rows never clobbered), by `POST /modules/seed {"moduleId"}` (each
+  module's `seedData.py` delegates), served by `GET /modules/{m}/initial-data`, and
+  installable from another instance: `POST /modules/seed {"moduleId","source":"<api>"}`.
+  Framework `.gitignore` exempts `modules/*/initialData/*.json`.
+- cntfet/sifet initialData (~0.7 MB): CellCharacterizationRun (latest library per device —
+  the ~6 h of engine time), derived AlignedCNTFETDevice / SiliconMOSFET, OpenCellLibrary,
+  FunctionalBlock. EXCLUDED by stated rule (`cnt_snapshot.EXCLUDED`): everything seeded in
+  code, CNTFETSimResult / FETFieldSample (a POST regenerates), cnt-engines/vendor.
+- Refresh: `polari-cli/shells/snapshot-cntfet-data.sh` — only when a library/derivation
+  changed (each refresh ≈ 0.7 MB of history). Check: `cntfet.selftest_snapshot` 8/8.
+- Proven live: GET initial-data (cntfet 4 files, sifet 1, gears 404); POST seed → "4
+  classes, 0 new" (DB already converged). The boot summary line lands next deploy.
+- Other modules: drop `initialData/*.json` + the 3-line `seedData.py` and they get the
+  same three install paths — the flush-out/fg rounds should keep their data this way.
