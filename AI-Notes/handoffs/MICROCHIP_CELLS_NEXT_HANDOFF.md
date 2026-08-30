@@ -468,3 +468,8 @@ data; lightweight, JSON, nothing that a dependency install regenerates. Built (f
   classes, 0 new" (DB already converged). The boot summary line lands next deploy.
 - Other modules: drop `initialData/*.json` + the 3-line `seedData.py` and they get the
   same three install paths — the flush-out/fg rounds should keep their data this way.
+- ⚠ Found while wiring it: `polariMaterialsScienceModule/initialData/*.json` (Feb 2026, 100 KB —
+  rawMaterials / additives / propertyEffects…) had NEVER been committed (blanket `*.json`
+  ignore) and its `seedData.py` returns {}. Now committed; the loader skips its bare-list
+  files LOUDLY ("rename to <ClassName>.json with the header"). Converting it to the
+  convention = a small follow-up for whoever touches materials science next.
