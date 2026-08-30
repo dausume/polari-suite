@@ -434,3 +434,9 @@ BSIM4 / PTM licence terms unverified (evidence rows say so).
   re-characterization (4 extra library rows on planar-90 / freepdk45-class — harmless,
   latest-wins). New seeded devices (freepdk45-class pair) need `{"action":"derive"}`
   before `/anchors` answers (the runbook's sifet derive loop covers them).
+
+## NEXT ROUND (set 2026-08-30): architecture level — `AI-Notes/plans/ARCHITECTURE_LEVEL_PLAN.md`
+arch-0 targets (8-core OoO preferred / 16-core simple alternative) → arch-1 clock+energy
+derived from FO4 (refuses without a characterized rung) → arch-2 named gaps + tagged PC
+comparison → arch-3 ASAP7-class pair (reconstruct, characterize, anchors) → arch-4 pages.
+Standing rule: every number DERIVED or CITED, tagged derived|knob|cited|hypothetical.
