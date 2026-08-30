@@ -413,3 +413,24 @@ CNT_FET_SIMULATION_PLAN.md (D-boxes), COMPUTER_CHIP_NEXT_HANDOFF
 5. Standing: nmp dev-nmp-1 + dev-dyn-1 gates untouched; browser
    passes (TESTING_OWED item 18 + the new computers-home row 3 +
    the two nav apps).
+
+## UPDATE 2026-08-30 — speed from the cell layer, own-Vdd sweeps, open-silicon ladder
+
+Built, tested, committed on dev-fi-1 (framework f566660, angular 7a893ab; NOT pushed):
+FET_CELL_POWER_SILICON_PLAN §3c has the decisions. Selftests: cntfet 131/131, sifet
+25/25, sifet pages 21/21, ladder 28/28. Deploy = image rebuild + service update +
+`polari-cli/shells/backfill-cntfet-pages.sh` (score pages gained row 11, sifet-home
+rows 6–7). Verify: `/api/cntfet/device/si-nmos-planar-90/fo4`, `/api/sifet/ladder`.
+Open: Si sequential harness truncation; fv-7 2-D parts view (planned); fv-8 normalized
+cross-device view (planned); FreePDK45-class NMOS Ioff gap (knob suggestion only);
+BSIM4 / PTM licence terms unverified (evidence rows say so).
+- 🔑 Follow-ups same day (framework c0d9c9b + next, angular 0d8a424): `characterize-cells`
+  had a 0.6 V default in the API (now the device's `vdd_v`), AND the library ROW never
+  recorded `vdd_v` (class default 0.6) although the SPICE always ran at the requested Vdd
+  (Liberty `nom_voltage` = 1.0 for every Si run) — so the Si planar-90 FO4 was mislabelled,
+  not mis-run. Fixed: rows record `vdd_v`; `fo4_report` reads the Liberty `nom_voltage`
+  as ground truth and flags `vddMismatch` vs the device (Speed card shows it); the three
+  live Si rows were PUT to 1.0. Cost of the wrong assumption: ~3 h of redundant
+  re-characterization (4 extra library rows on planar-90 / freepdk45-class — harmless,
+  latest-wins). New seeded devices (freepdk45-class pair) need `{"action":"derive"}`
+  before `/anchors` answers (the runbook's sifet derive loop covers them).

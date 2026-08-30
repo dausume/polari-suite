@@ -129,3 +129,39 @@ likewise reuse `cnt_cell_library` netlists with a different card.
 - Suites: main 125, cells-2 20, sifet-pages 21, sifet 25, refinement 31, taxonomy 26, power 20, logic 23, more-cells 11.
 
 His one command still: `enable-cntfet-prf-a.sh` (now also derives the silicon FETs and verifies power / taxonomy / logic proof / refinement / cross-tech ranking). Browser passes owed: cells page, detail page. §2 decisions await him.
+
+### 3c. Speed from the cell layer + device-relative sweeps + the ladder (2026-08-30)
+
+Dustin's refinement of the ChatGPT exchange, RATIFIED as built:
+
+- **Division**: FET page = device physics (primitives: Ion/Ioff/SS/gm/Cg, at its OWN
+  Vdd); cell page = switching performance (FO4, transition energy, leakage per cell);
+  architecture page = CPU-level estimates (future). Speed is **owned by the cell layer**
+  (`cntfet/cnt_fo4.py`): FO4 = delay of the characterized INVX1 driving 4×Cin at its
+  own output slew (fixed point on the Liberty grid); `f_est = 1/(N_FO4·t_FO4)` with
+  **configurable N_FO4** — default bands 12 aggressive / 15 moderate / 20 relaxed /
+  30 conservative, or `?fo4_per_cycle=12,15,20,30` on `GET /api/cntfet/device/{name}/fo4`
+  (`?fanout=`). The headline is a RANGE ("1.9–4.8 GHz for 30–12 FO4/cycle"), never one
+  number. E_transition = the MEASURED supply energy of the switching edge (∫Vdd·Idd dt,
+  leakage baseline subtracted — cnt_cell_library) + C_load·Vdd², not a bare CV². Every
+  payload carries the caveat verbatim: *intrinsic-grade estimate; excludes extracted
+  interconnect, clock tree, SRAM, IR drop, and package effects.* Surfaces: Speed card in
+  `fet-overview` (labelled "from the cell layer"), row 11 of every score page
+  (`score-{d}-fo4`, pick=clock). Live: Si planar-90 FO4 17.5 ps → 1.9–4.8 GHz.
+- **Device-relative sweeps**: all FET plots run V_G 0→V_DD and V_D→V_DD of the device's
+  own `vdd_v` (`cnt_device_viz.device_vdd/_windows`; transport at Vg=Vd=own Vdd).
+  A separate NORMALIZED cross-device view (V_G/V_DD, I/I_on) is planned, not built
+  (fv-8 in FET_VIEWS_PLAN).
+- **Open-silicon ladder** (`sifet/si_ladder.py`, plan `FET_LADDER_PLAN.md`): two
+  INDEPENDENT axes per rung — `rights_class` {incorporable-open, clean-room-
+  reconstructable, reference-oracle, encumbered, unresolved} × `fabrication_evidence`
+  {measured-fabricated-device, reconstructed-from-published-silicon, calibrated-
+  predictive, predictive-only, hypothetical}; `manufacturable` is NEVER inferred from a
+  predictive PDK (asserted). Rungs 90 → 65 → 45 → 32 → 22 → 15/14 → 7. Frontier =
+  FreePDK45 (Apache-2.0, PTM-45 calibrated to Fujitsu silicon); predictive frontier =
+  ASAP7 (BSD-3, predictive-only); manufacturable frontier = none. FreePDK15 is
+  ENCUMBERED (CC-BY-NC-SA design rules); PTM32 UNRESOLVED (terms unverified). New devices
+  `si-nmos/pmos-freepdk45-class` vs documented anchors: NMOS Ion 0.75×, Ioff 25× under
+  (gap; nearest knob vfb −0.93→−0.98 suggested, NOT applied); PMOS within tolerance.
+  Routes `/api/sifet/ladder`, `/ladder/points?curve=ion-vs-node`,
+  `/devices/{name}/anchors`; sifet-home rows 6–7.

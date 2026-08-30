@@ -199,3 +199,12 @@ after `enable-cntfet-prf-a.sh` (which now also derives every
 comparator and samples the field scenes); ratify §2 defaults; the
 p-polarity plumbing (make `polarity` drive ptype in derive) is a
 real gap the p-row names.
+
+### fv-8 — normalized cross-device view (PLANNED 2026-08-30, not built)
+
+Every per-device plot is device-relative (V_G, V_D sweep 0 → its OWN V_DD; built
+2026-08-30). Cross-device comparison therefore needs a SEPARATE normalized view:
+x = V_G/V_DD (and V_D/V_DD for output), y = I_D/I_on (log) and I_D/W or per tube,
+one series per device, the compare page only. Backend: a `curve='transfer-normalized'`
+in `cnt_device_viz` that divides by `device_vdd` and the device's own Ion; graph seed
+`fet-compare-normalized`; the compare page row. No new engine — named-graph-panel.
