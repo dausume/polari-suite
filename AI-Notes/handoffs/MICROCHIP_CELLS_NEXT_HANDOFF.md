@@ -1,5 +1,22 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-29 (late): budgets are TARGET-scoped (his
+> correction: "saying they are failing does not make sense unless they
+> are something we are actively trying to make the FET work for").**
+> `cnt_targets.py`: `DesignTarget` rows (low-power-logic ≤ 1 nW,
+> general-logic ≤ 100 nW, high-performance-logic ≤ 1 µW + density,
+> analog-signal (no leakage budget), research-reference (none)) and
+> `FETTargetMapping` rows (every FET → the targets it was engineered
+> for, with WHY; libraries/cells/blocks inherit). `budget_report` now
+> returns `targets[]` with `mapped` → status meets/misses, else
+> `not-a-target` + informational would/would-not-meet; `results` /
+> `failing` = mapped only. fet-overview shows TWO tables ("Engineered
+> for" vs "Other targets — informational") with captions. Real finding:
+> S1 (low-power target) MISSES on AND2/FA/HA cell leakage; planar Si
+> MEETS general-logic. Also: `sifet/si_montecarlo.py` (labelled
+> variability priors) so silicon envelope / best-worst curves are real;
+> graph panels show refusal text instead of "422".
+
 > **UPDATE 2026-08-29 (evening, his phone pass): "JSON walls, empty
 > graphs, endpoints not returning anything real" → fixed.**
 > - ROOT CAUSE of every empty long-form graph (CNT and Si alike):
