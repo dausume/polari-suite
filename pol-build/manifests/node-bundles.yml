@@ -18,5 +18,7 @@ bundles:
     outputs: [ { env: staging, file: docker-compose.dask.yml } ]
   - template: pol-services/compose/bundles/docker-compose.msci-engines.yml.j2
     outputs: [ { env: staging, file: docker-compose.msci-engines.yml } ]
+  - template: pol-services/compose/bundles/docker-compose.cnt-engines.yml.j2
+    outputs: [ { env: staging, file: docker-compose.cnt-engines.yml } ]
   - template: pol-services/compose/bundles/docker-compose.remote-worker.yml.j2
     outputs: [ { env: staging, file: docker-compose.remote-worker.yml } ]

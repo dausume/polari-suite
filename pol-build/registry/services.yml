@@ -289,6 +289,13 @@ services:
     connects_to: {prf-backend: {}, prf-backend-b: {}}
     variations: "INDEPENDENTLY DEPLOYABLE (was MISSING from this registry — scan-4 accountability fix); trimesh baseline + optional FreeCAD; consumers degrade honestly when absent"
 
+  - kind: prf-cnt-engines
+    context: polari-rf-node/ (microchip / cntfet engines worker)
+    appears_in: [polari-rf-node/docker-compose.cnt-engines.yml]
+    config: {knobs: ["CNTFET_ENGINES_URL (consumer side; unset = topology provider cntfet.engines, else local ~/tools)", "CNT_ENGINES_WORKERS (gunicorn workers, default 3)"]}
+    connects_to: {prf-backend: {}, prf-backend-b: {}}
+    variations: "INDEPENDENTLY DEPLOYABLE (dist-1 2026-08-26): ngspice-46 + OpenVAF + OpenSTA + kwant behind :9700; swarm-pinned to isle-core by default; consumers refuse honestly (never silently local) when a DECLARED worker is absent"
+
   - kind: prf-recon-engines
     context: polari-rf-node/ (photogrammetry reconstruction worker, scan-4)
     appears_in: [polari-rf-node/docker-compose.recon-engines.yml]

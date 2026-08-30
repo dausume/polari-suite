@@ -38,6 +38,8 @@ NODE_FULL = frozenset({'prf-backend', 'prf-frontend', 'prf-mariadb',
 TWIN = frozenset({'prf-backend-b', 'prf-frontend-b', 'prf-keydb-b'})
 DASK = frozenset({'prf-dask'})
 ENGINES = frozenset({'prf-msci-engines'})
+#: dist-1: the microchip (cntfet) engines worker — its own stack/role.
+CNT_ENGINES = frozenset({'prf-cnt-engines'})
 ODOO = frozenset({'odoo'})
 ODOO_PG = frozenset({'odoo-postgres'})
 
@@ -70,6 +72,8 @@ KNOWN_SHAPES = (
     'dask {prf-dask}', 'engines {prf-msci-engines} '
     '(swarm -> polari-engines stack, compose -> msci-engines/'
     'remote-worker bundle)',
+    'cnt-engines {prf-cnt-engines} (swarm -> polari-cnt-engines '
+    'stack, compose -> cnt-engines bundle)',
     'odoo {odoo} / odoo-postgres {odoo-postgres} (suite bundle, '
     "compose profile 'odoo' -> pol odoo up)",
 )
@@ -181,6 +185,33 @@ def group_instances(doc):
                                   f'{machine}' if machine else '')),
                 'remote': remote,
                 'action': 'pol swarm deploy engines'})
+        elif k == CNT_ENGINES and target == 'swarm':
+            groups.append({
+                'group': 'cnt-engines-stack', 'machine': machine,
+                'env': 'staging', 'instances': [i['name']],
+                'project': 'node',
+                'template': f'{SPECIALS_DIR}/docker-compose.'
+                            'cnt-engines.yml.j2',
+                'file': 'docker-compose.cnt-engines.yml',
+                'stack': 'polari-cnt-engines', 'role': 'cnt-engines',
+                'replicas': i.get('replicas', 1),
+                'placement': (i.get('placement_constraint', '')
+                              or (f'node.labels.polari.machine == '
+                                  f'{machine}' if machine else '')),
+                'remote': remote,
+                'action': 'pol swarm deploy cnt-engines'})
+        elif k == CNT_ENGINES and target == 'compose':
+            groups.append({
+                'group': 'cnt-engines', 'machine': machine,
+                'env': 'staging', 'instances': [i['name']],
+                'project': 'node',
+                'template': f'{SPECIALS_DIR}/docker-compose.'
+                            'cnt-engines.yml.j2',
+                'file': 'docker-compose.cnt-engines.yml',
+                'remote': remote,
+                'action': ('pol deploy run ' + machine
+                           + ' --role cnt-engines' if remote
+                           else 'pol compose cnt-engines up')})
         elif k == ENGINES and target == 'compose':
             special = 'remote-worker' if remote else 'msci-engines'
             groups.append({
