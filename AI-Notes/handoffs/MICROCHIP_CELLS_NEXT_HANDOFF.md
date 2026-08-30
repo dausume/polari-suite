@@ -435,8 +435,15 @@ BSIM4 / PTM licence terms unverified (evidence rows say so).
   latest-wins). New seeded devices (freepdk45-class pair) need `{"action":"derive"}`
   before `/anchors` answers (the runbook's sifet derive loop covers them).
 
-## NEXT ROUND (set 2026-08-30): architecture level — `AI-Notes/plans/ARCHITECTURE_LEVEL_PLAN.md`
-arch-0 targets (8-core OoO preferred / 16-core simple alternative) → arch-1 clock+energy
-derived from FO4 (refuses without a characterized rung) → arch-2 named gaps + tagged PC
-comparison → arch-3 ASAP7-class pair (reconstruct, characterize, anchors) → arch-4 pages.
-Standing rule: every number DERIVED or CITED, tagged derived|knob|cited|hypothetical.
+## NEXT ROUND (set 2026-08-30, Dustin's priority order)
+
+1. **FETs + cells flush-out continues** (FET_GENERIC_PAGES_PLAN fg-4: Si sequential
+   truncation, Si transport/field basis, FreePDK45 Ioff gap, fv-8 normalized view).
+2. **Generic FET pages + common data format** — `AI-Notes/plans/FET_GENERIC_PAGES_PLAN.md`
+   fg-0..2: one `/summary` schema every FET answers; `display/:id?object=<name>` with
+   `{object}` substitution; TWO generic page seeds replace the 24 per-device pages so
+   what the 90 nm display shows is what EVERY FET's detail view shows.
+3. **2-D sim spaces** (fg-3 = fv-7 built): parts → SVG regions with field overlays at the
+   device's own Vdd; generic `fet-parts-2d`; registered as SimSpaceDefinition rows.
+4. Architecture level — `ARCHITECTURE_LEVEL_PLAN.md` — PARKED until 1–3 land.
+Standing rule for all of it: every number DERIVED or CITED, tagged.

@@ -1,5 +1,8 @@
 # Architecture level — from cells to "can this be a PC?" (arch arc)
 
+**STATUS: PARKED (Dustin 2026-08-30) — priority is FET/cell flush-out, then the generic
+FET pages + 2-D sim spaces (FET_GENERIC_PAGES_PLAN). Revive after those land.**
+
 Drafted 2026-08-30 after Dustin's ChatGPT-assisted exploration of connecting the
 FET → cell data up to whole-chip questions. Goal of the whole line of work: an
 **open-source microchip at all** — so every number here is either DERIVED from our
