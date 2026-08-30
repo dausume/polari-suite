@@ -1,5 +1,19 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-29 (night): parts & purpose + 2-D plan.**
+> `cnt_parts.device_parts` — generic ordered PARTS list for any FET
+> (CNT or Si): part, purpose, material, doping (n / p / undoped /
+> metal / insulator with species, concentration, method), dimensions,
+> process (e.g. sol-gel TEOS spin), the ROW it comes from, and
+> `regionKind` (contact / extension / channel / oxide / gate).
+> `/api/cntfet/device/{name}/parts`; structured panel on every score +
+> detail page. This list is the binding contract for the PLANNED 2-D
+> SVG parts view (FET_VIEWS_PLAN fv-7: FETPartTemplate rows per shape
+> kind + `fet-parts-view` component + `/parts-view` resolver) — not
+> built yet, by his call. Also fixed: `/score?samples=` 500 for Si
+> names (device lookup), graph panel headings humanised
+> (`cnt-device-…` identifiers stay in the tooltip / gear link).
+
 > **UPDATE 2026-08-29 (late): budgets are TARGET-scoped (his
 > correction: "saying they are failing does not make sense unless they
 > are something we are actively trying to make the FET work for").**
