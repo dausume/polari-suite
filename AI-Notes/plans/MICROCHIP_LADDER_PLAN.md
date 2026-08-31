@@ -174,6 +174,23 @@ case).
 Default rule when unsure: try Tier 1 (a family at rank 1) first; reach for
 a peer ladder only when the rung structure genuinely fights you.
 
+### fam-1 — Tier-1 family SHELLS (CONFIRMED by Dustin 2026-08-31; BUILT
+### same day on branch dev-lad-1)
+`microchip/chip_families.py`: `DeviceFamilyDefinition` rows — `fet` LIVE
+(artifact classes counted per instance: AlignedCNTFETDevice /
+SiliconMOSFET / ElectronicDeviceDefinition) + 6 SHELLS (capacitor,
+memristor, photonic, mems-resonator, inductor, spintronic-mtj). Each
+shell carries its characterization CONTRACT as data ({quantity, unit,
+why} — revisable), its mixed-family composition targets (1T1C = fet +
+capacitor; RRAM crossbar = memristor + fet; …), first target and plan
+pointer. **Deliberate scope call: NO device treeObject classes for the
+shells** — defining field schemas before a family's physics basis exists
+violates the per-class schema-freeze rule; each family's own arc defines
+its class when it characterizes something real (the shell note states
+this verbatim). Routes `GET /api/microchip/families[/{name}]`; families
+row (table + report panel) on `/display/microchip`; registered in
+defClassList + seed pairs. `selftest_families` 9/9.
+
 ## 3. Non-goals
 
 - NO new assembly system — `composition` is it; cmp-c stays its client.
@@ -205,3 +222,4 @@ a peer ladder only when the rung structure genuinely fights you.
 | lad-5 workload-profiled sim chips | planned (needs only lad-0 + profiling hook) |
 | kind generality (§2b) | ✅ RATIFIED direction 2026-08-31 |
 | device families + peer-ladder criteria (§2c) | ✅ RATIFIED direction 2026-08-31 |
+| fam-1 family shells | ✅ BUILT 2026-08-31 (dev-lad-1; deploy owed) |
