@@ -92,6 +92,20 @@
 >   pairs, swarm.sh:89); /api/shapes meshes the Si gate box + CNT
 >   oxide CSG shell; 14 fet-3d rows; sample-fields swept ALL 14
 >   devices at their OWN Vdd (840 rows each, one batch, ids unique).
+> - **fg-6b (his 3-D pass) DEPLOYED + LIVE-VERIFIED:** shells were
+>   INVISIBLE (CSG → the renderer's point-cloud path) → each shell is
+>   ONE `annular_sector` primitive (mq-2; 164 triangles live);
+>   camera `mode:'fixed'` DISABLES orbiting → scenes author
+>   `'orbit'` (pose = start, navigation free); fet-2d viewport
+>   hugged to the bbox; 2-D viewer gained d3 pan/zoom (it had NONE).
+>   🔑 backfill scene-sync must diff camera_json + viewport_json,
+>   not definition alone (first pass skipped 28 'unchanged' scenes).
+>   🔑 VERIFY SUITES FROM THE TALLY LINE, never a tail-piped exit
+>   code — two stale selftest expectations (fg-2 home count, fv-8
+>   graph set) hid at "129/131" behind `| tail -2` reads for several
+>   rounds; fixed, verified 131/131 from the full log. Legacy for
+>   the CONFIRM_DELETE_LEGACY pass now ALSO: 20 orphaned
+>   fet-part-*-outer/-inner shape rows + 5 cnt-device-3d-* scenes.
 >   ⚠ KNOWN (small): CRUDE GET /FETFieldSample returns some devices'
 >   rows in TWO wrapper blocks (840 unique ids read back as 1680 —
 >   readback artifact only; compile_3d reads objectTables, nothing
