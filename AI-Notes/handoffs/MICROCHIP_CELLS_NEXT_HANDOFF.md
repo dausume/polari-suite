@@ -85,7 +85,18 @@
 >   backfill script); ④ silicon 3-D scenes (sifet/si_scene.py) +
 >   device-relative sample-fields (0→own Vdd; CNT bit-identical) with
 >   SI_FIELD_BANDS (areal ranges, CNT band styles reused).
->   selftest_si_scene 12/12, fields 25/25.
+>   selftest_si_scene 12/12, fields 25/25. DEPLOYED + LIVE-VERIFIED
+>   (2026-08-31 00:0x): mathshapes ASSIGNED to prf-a + `pol swarm
+>   deploy node` (⚠ POL_STACK_CONSTRAINTS now pins BOTH
+>   `backend=…==pol-core frontend=…==pol-core` — space-separated
+>   pairs, swarm.sh:89); /api/shapes meshes the Si gate box + CNT
+>   oxide CSG shell; 14 fet-3d rows; sample-fields swept ALL 14
+>   devices at their OWN Vdd (840 rows each, one batch, ids unique).
+>   ⚠ KNOWN (small): CRUDE GET /FETFieldSample returns some devices'
+>   rows in TWO wrapper blocks (840 unique ids read back as 1680 —
+>   readback artifact only; compile_3d reads objectTables, nothing
+>   renders twice). Worth a look in polariCRUDE's read-all wrapper
+>   assembly.
 > - The whole fg arc (fg-0..4) is BUILT and **DEPLOYED to the dev
 >   swarm (2026-08-30 evening)**: both images rebuilt from dev-fg-1 +
 >   service-updated (⚠ the FRONTEND service had NO pol-core pin and
