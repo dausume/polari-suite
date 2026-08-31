@@ -1,5 +1,48 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-31 (later) — MULTISCALE LEVEL SCENES (his
+> directive: "2D and 3D visualizations and/or simulations for all 3
+> levels … plug-in the FETs and showing how they interconnect in
+> reality to form a cell … turning those cells into instancable
+> objects that we can plug in to the block level … we may choose
+> between keeping the real shapes … vs 'black box' stand-ins, which
+> pull the lower level real simulation data"; goal = "turn this
+> gradually into a multiscale simulation that works for
+> microchips").** BUILT on dev-fg-1: `cnt_level_scenes.py` —
+> - CELL scenes `cell-{2d|3d}-{cell}-{device}`: the cell's flattened
+>   netlist (compose expanded) laid out CMOS-row style — Vdd/GND
+>   rails, p-row top / n-row bottom, labelled NET TRACKS between the
+>   rows + per-pin stubs (stated as schematic convention, not
+>   lithography). **lod=real** (3-D): every transistor INSTANCES the
+>   same `fet-part-{device}-*` MathShapeDefinition rows the FET
+>   scenes use — one geometry source across scales (CNT keeps its
+>   stated radial view exaggeration). **lod=blackbox** + all 2-D:
+>   boxes whose userData carries the device summaryPath + nets + the
+>   fet-3d scene one rung down.
+> - BLOCK scenes `block-{dim}-{block}-{device}`: cells as
+>   INSTANCABLE boxes; each userData carries that
+>   CellFETConfiguration's characterized score/run — or the refusal
+>   verbatim — plus its cell scene + `?device=` page link: the
+>   scale-boundary contract pulling lower-level real data. lod=real
+>   at block scale = honest v1 refusal (entry budget named).
+> - Generation is **upsert-on-GET** (never boot-seeded):
+>   `GET /api/fet/scene/{cell|block}/{key}/{device}?dim=&lod=` finds
+>   or creates the SimSpaceDefinition row and returns
+>   {scene, entries, instances}. lod=real over the
+>   `real_entry_budget` knob (1600) REFUSES naming the number —
+>   never a silent downgrade.
+> - Panels: cell-detail-panel + block-detail-panel gained a
+>   Visualize section on config selection (dim/lod selects →
+>   embedded `<sim-space-viewer [simSpaceName] [hideRunPanel]>`;
+>   refusals shown verbatim).
+> - `selftest_level_scenes` 13/13 host. 🔑 gotcha: Si `_si_pieces`
+>   spec rows carry `id` (no name/kind) vs CNT's name/kind —
+>   normalize before styling. Commits: framework 6b3c9fb, angular
+>   00febb3. DEPLOY OWED (held until the cells-advance sweep
+>   finishes — rolls kill in-flight engine POSTs): roll both
+>   services, live-verify the two GET endpoints create + update
+>   rows, re-run the idempotent sweep once, browser pass = HIS gate.
+
 > **UPDATE 2026-08-31 — the CELL arc (his directive: general cell
 > pages + cells-with-particular-FETs as an OBJECT + one detail page
 > for both, solved for ≥2 proven open-source samples).** BUILT on
