@@ -88,6 +88,51 @@ wire/floorplan gaps NAMED, not invented).
 Die instances + D2D interconnect as a design object (the net-tracks pattern
 one scale up); exports the lad-1 part. PARKED until rank 5 has artifacts.
 
+## 2b. Kind generality — GPUs, AI chips, sim-specialized chips, memory
+(Dustin's same-day extension, 2026-08-31: "generalize further beyond just
+cpus… gpus, specialized computes like AI chips, math oriented specialized
+chips… and account for ssd or hdd using fets… or RAM, whatever systems are
+partially composed of fet based devices.")
+
+**Principle: specialization enters as KINDS at existing rungs, never as new
+ladders.** The ladder is about *what composes into what*; what the thing
+computes is a kind axis on ranks 3–4.
+
+| rung | logic kinds | memory kinds |
+|---|---|---|
+| 2 cell | INV/NAND/DFF… (library) | **bitcells ARE cells**: 6T SRAM, 1T1C DRAM, floating-gate/charge-trap flash — all FET-based, same characterize pattern |
+| 3 block | ALU, FPU, MAC array, systolic tile, stencil unit, sparse-op unit | array + sense amps, bank + periphery, row/col decoders |
+| 4 subsystem | cpu-core, gpu-compute-unit, npu-tensor-array, **sim-engine**, dsp | memory-controller, cache hierarchy, flash-channel controller |
+| 5 die | CPU die, GPU die, accelerator die | DRAM die, NAND die, SRAM macro-heavy die |
+| 6 package | SoC, chiplet CPU+GPU | **HBM stack = literally rank 6** (DRAM dies + logic die on interposer); DIMM-chip packages |
+
+Where drives land: an **SSD is a composition-level product** (NAND dies +
+controller die + DRAM on a board) — its *chips* are ladder objects, the
+*drive* crosses the rank-6 hand-off into `composition`. HDD likewise
+(controller chip on the ladder; motor/head assembly = composition, where the
+motors module already lives). RAM modules (DIMMs) same split. This is the
+hand-off point doing its job — no special cases.
+
+### lad-5 — workload-profiled sim chips (the differentiator)
+The math-specialized-chip idea, as data end-to-end (`derive-or-cite`,
+`knobs-and-suggestions`):
+1. **Profile**: instrument our own sim runs to count which
+   `MatrixEquationOperation` nodes / equation forms dominate (we already have
+   matrix-equation configuration objects — the workload profile is DERIVED
+   from real runs, never assumed). → `WorkloadProfile` rows (op histogram,
+   precision needs, data-shape/sparsity, memory:compute ratio).
+2. **Map**: profile → suggested rank-3 block kinds (MAC array vs stencil vs
+   sparse unit, sized from the histogram) with the evidence attached — a
+   suggestion, not an assertion.
+3. **Compose**: a `sim-engine` subsystem kind assembled from those blocks;
+   scored against running the same profile on cpu-core / gpu-compute-unit
+   kinds (the honest "is specialization worth it" number, refusing where
+   characterized data is missing).
+This makes the chip arc self-serving: chips designed FROM our simulations,
+to speed up our simulations. Prereqs: lad-0 (kinds exist) + a profiling hook
+in the sim engine. Extends the `cnt_targets` DesignTarget pattern
+(target-scoped budgets → workload-scoped architecture).
+
 ## 3. Non-goals
 
 - NO new assembly system — `composition` is it; cmp-c stays its client.
@@ -100,8 +145,10 @@ one scale up); exports the lad-1 part. PARKED until rank 5 has artifacts.
 | # | decision | default if unstated |
 |---|---|---|
 | D1 | rank 5 rename `chip` → `die`: keep `chip` as an alias in traversal? | yes, alias kept |
-| D2 | subsystem kinds list — seed which? | core, memory-controller only |
+| D2 | subsystem kinds list — seed which? | cpu-core, memory-controller, gpu-compute-unit, sim-engine (names only; artifacts refuse) |
 | D3 | when to confirm lad-0 | next microchip-module session |
+| D4 | first memory bitcell in the cell library (6T SRAM is the natural one — pure FETs, no capacitor model needed) | 6T SRAM, when a cell-library session picks it up |
+| D5 | lad-5 priority vs lad-1..4 (it only needs lad-0 + a sim profiling hook, so it can leapfrog) | his call — it is the differentiator |
 
 ## 5. Status table
 
@@ -113,3 +160,5 @@ one scale up); exports the lad-1 part. PARKED until rank 5 has artifacts.
 | lad-2 SubsystemConfiguration | planned (revives arch arc) |
 | lad-3 DieConfiguration | planned |
 | lad-4 ChipletAssembly | planned/parked |
+| lad-5 workload-profiled sim chips | planned (needs only lad-0 + profiling hook) |
+| kind generality (§2b) | ✅ RATIFIED direction 2026-08-31 |
