@@ -12,7 +12,12 @@
 > FET's intrinsic limits, leakage states, characterize acts, proof
 > roll-up worst-of-cell-and-device; proven-free ∧ characterized =
 > **OPEN-SOURCE SAMPLE** flag); cells catalogue row on the cells
-> page; cell surfaces alias under /api/fet. The two target samples:
+> page; cell surfaces alias under /api/fet. **cells-advance service**
+> (his follow-up): GET/POST `/api/fet/cells/advance` — the first-step
+> ladder (coarse 2×2 corner-grid library + sequential; grid recorded
+> on the run row; NEVER re-characterizes an existing run) + the
+> idempotent sweep `advance-cell-first-steps.sh`, so no cell×FET
+> page opens blank. The two target samples:
 > cinv + cnand2 on si-nmos-planar-90 (proven-free, characterized in
 > the live planar-90 run). selftest_cell_pages 8/8.
 
