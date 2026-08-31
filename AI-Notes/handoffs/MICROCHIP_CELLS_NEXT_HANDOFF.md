@@ -1,5 +1,21 @@
 # Next-session handoff: microchip arc → the CELL stage (2026-08-26)
 
+> **UPDATE 2026-08-31 — the CELL arc (his directive: general cell
+> pages + cells-with-particular-FETs as an OBJECT + one detail page
+> for both, solved for ≥2 proven open-source samples).** BUILT on
+> dev-fg-1: `cnt_cell_pages.py` — **CellFETConfiguration** rows (27
+> cells × every device; the pairing is addressable characterized or
+> not), `/api/fet/cell/{cell}/summary` + `/api/fet/cellcfg/{cell}/
+> {device}/summary` + `/api/fet/cells`; generic page `cell-detail`
+> (`?object=<cell>`, `?device=` preselect) with `cell-detail-panel`
+> (general identity/proof + configuration selector; score vs that
+> FET's intrinsic limits, leakage states, characterize acts, proof
+> roll-up worst-of-cell-and-device; proven-free ∧ characterized =
+> **OPEN-SOURCE SAMPLE** flag); cells catalogue row on the cells
+> page; cell surfaces alias under /api/fet. The two target samples:
+> cinv + cnand2 on si-nmos-planar-90 (proven-free, characterized in
+> the live planar-90 run). selftest_cell_pages 8/8.
+
 > **UPDATE 2026-08-30 (fg arc started): FET, NOT CNTFET (his correction:
 > "we want to dig into cntfets but we are not only doing cntfets") +
 > fg-0/1/2 BUILT on `dev-fg-1`** (framework + angular + the cli backfill
