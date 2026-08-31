@@ -17,7 +17,18 @@
 > ladder (coarse 2×2 corner-grid library + sequential; grid recorded
 > on the run row; NEVER re-characterizes an existing run) + the
 > idempotent sweep `advance-cell-first-steps.sh`, so no cell×FET
-> page opens blank. The two target samples:
+> page opens blank. **BLOCK level** (his "move up to the next
+> level" — FET → cell → BLOCK → core → chip): cnt_block_pages.py —
+> BlockFETConfiguration rows (reg4/ctr4/fsm-traffic/alu4 × every
+> device), `/api/fet/block/{key}/summary`, `/api/fet/blockcfg/
+> {key}/{device}/summary?timing=`, `/api/fet/blocks`, generic page
+> `block-detail` + block-detail-panel; the config's `composition`
+> table links DOWN to each CellFETConfiguration (?device= pages)
+> and cell configs carry `usedInBlocks` UP — the explicit
+> level-linkage toward simulating full chips; readiness = every
+> cell beneath characterized. NEXT levels: core → chip (the
+> microchip module's ladder rungs — unbuilt as config objects).
+> The two target samples:
 > cinv + cnand2 on si-nmos-planar-90 (proven-free, characterized in
 > the live planar-90 run). selftest_cell_pages 8/8.
 
