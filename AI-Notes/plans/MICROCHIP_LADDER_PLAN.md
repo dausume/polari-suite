@@ -133,6 +133,47 @@ to speed up our simulations. Prereqs: lad-0 (kinds exist) + a profiling hook
 in the sim engine. Extends the `cnt_targets` DesignTarget pattern
 (target-scoped budgets → workload-scoped architecture).
 
+## 2c. Non-FET physics: device FAMILIES first, peer ladders only when
+## the composition topology differs
+(Dustin 2026-08-31: "when those may be interweaved with other systems…
+that may not cleanly be defined via just fets, if we need to build other
+ladders that are peers to the fet ladder.")
+
+**Tier 1 — generalize rank 1, not the ladder.** Rank 1 is `device`, and
+FET is its first FAMILY, not its definition. Peer device families enter at
+rank 1 under the same contract (characterized behavior, derive-or-cite,
+refusals by name): capacitor (the C in 1T1C DRAM — already implied by
+§2b!), memristor/RRAM/PCM/MRAM element, photonic (modulator, photodiode,
+waveguide), MEMS resonator, on-die passives (inductor), spintronic.
+Rungs 2+ then MIX families freely — that is how real chips are built:
+- 1T1C DRAM cell = FET + capacitor (two families in one rank-2 cell)
+- RRAM crossbar block = memristor array + FET selectors + CMOS periphery
+- photonic transceiver block = optical devices + CMOS drivers on one die
+- MEMS-on-CMOS = mechanical device + readout cells
+The ladder is COMPOSITION TOPOLOGY (litho-built die structure), not FET
+physics — so anything manufactured into a die rides it, whatever its
+physics. Mixed-family cells/blocks need nothing new structurally; they
+need the new family's device rows and characterization basis.
+
+**Tier 2 — a true PEER ladder only when BOTH criteria hold:**
+1. not composed lithographically into a die (different manufacturing
+   substrate), AND
+2. its natural rung structure differs (not device→cell→block→…).
+Examples: battery ladder (electrochemical cell → module → pack), optics
+assemblies, motor drivetrains (already its own world in the motors/
+composition modules), possibly future quantum stacks (own intermediate
+rungs; would still share ranks 5–6 die/package if litho-built).
+**The machinery already supports this**: `chip_basis` stores ladders AS
+DATA (polari-cnt-ladder + the RV16X-NANO precedent are already two rows) —
+a peer ladder is another ladder definition with its own LEVELS, not new
+code. Every peer ladder's top rung exports the SAME black-box PART
+contract into `composition`, where interweaving actually happens (a drive
+= NAND dies + controller + motor: two ladders + composition, no special
+case).
+
+Default rule when unsure: try Tier 1 (a family at rank 1) first; reach for
+a peer ladder only when the rung structure genuinely fights you.
+
 ## 3. Non-goals
 
 - NO new assembly system — `composition` is it; cmp-c stays its client.
@@ -149,6 +190,7 @@ in the sim engine. Extends the `cnt_targets` DesignTarget pattern
 | D3 | when to confirm lad-0 | next microchip-module session |
 | D4 | first memory bitcell in the cell library (6T SRAM is the natural one — pure FETs, no capacitor model needed) | 6T SRAM, when a cell-library session picks it up |
 | D5 | lad-5 priority vs lad-1..4 (it only needs lad-0 + a sim profiling hook, so it can leapfrog) | his call — it is the differentiator |
+| D6 | first non-FET device family to seed at rank 1 (capacitor unlocks 1T1C DRAM; memristor unlocks RRAM) | capacitor, when a memory-kind session needs it |
 
 ## 5. Status table
 
@@ -162,3 +204,4 @@ in the sim engine. Extends the `cnt_targets` DesignTarget pattern
 | lad-4 ChipletAssembly | planned/parked |
 | lad-5 workload-profiled sim chips | planned (needs only lad-0 + profiling hook) |
 | kind generality (§2b) | ✅ RATIFIED direction 2026-08-31 |
+| device families + peer-ladder criteria (§2c) | ✅ RATIFIED direction 2026-08-31 |
