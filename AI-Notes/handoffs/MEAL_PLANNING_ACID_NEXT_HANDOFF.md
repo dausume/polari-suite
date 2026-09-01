@@ -31,9 +31,18 @@
 >   demo-alex-week, nutrition-planner nav groups; polariServer
 >   fully wired (imports/stubs/defClassList/both seed passes).
 >
-> **REMAINING (his gates + next round):** deploy (pspp+foodstate
-> NOT in POLARI_MODULES on prf-a; BOTH images — backend AND
-> frontend, angular changed on its own dev-mpa-1 — service update,
+> **DEPLOYED 2026-09-01 (same session): 21/21 LIVE PROBES PASS** —
+> modules assigned (pol topology assign pspp/foodstate/nutrition/
+> composition prf-a → 16-module POLARI_MODULES), both images
+> rebuilt from dev-mpa-1 trees, `pol swarm deploy node`
+> (admission ~14 min — poll longer than 12 min before worrying).
+> Probes covered every foodstate + mealplanning route, the live
+> metric-cache upsert, and the seeded Graph/Display rows.
+>
+> **REMAINING (his gates + next round):** the BROWSER pass over
+> /display/mealplan* (chart date-x-axis = the untested seam);
+> (superseded → deploy notes kept for the ritual: image build +
+> service update,
 > NEVER docker cp) → browser pass (live findings expected); the
 > embeddedGraph-by-name fix IS DONE (mpa-7: graphName input +
 > mealplan-weight-trend chart) AND the derived-series gap is
