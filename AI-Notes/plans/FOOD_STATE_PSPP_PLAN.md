@@ -40,8 +40,16 @@ Cooking/Preparation → Food Structure → Chemical + Physical Properties
 
 ## 1. Ground truth — this architecture already half-exists (REUSE)
 
-**`modules/pspp/` (materials framework — architecture CLOSED, branches
-UNMERGED/parked, see [[pspp-materials]] + PSPP_MATERIALS_PLAN.md):**
+**`modules/pspp/` (materials framework — architecture CLOSED; ⚠ the
+"branches unmerged" note in older memories is STALE: pspp IS MERGED on
+dev and has grown since — 35 selftest suites, mtt-2 ceramics/glass +
+cast-3 work on top; seeds fully transcribed into code (datasets_seed.py
+= the operational form of the root JSON, no runtime file reads). Two
+real 2026-09-01 findings: pspp is the ONE official module with an
+EMPTY registry repo — polari-module-pspp does NOT exist on GitHub, so
+the download-as-module path fails until it is published (his go) —
+and pspp is NOT in POLARI_MODULES on prf-a (assign when fsp goes
+live). See PSPP_MATERIALS_PLAN.md):**
 - MaterialState DAG owned by the material; canonical `#as-defined`
   state; state_resolution as THE name→state path (canonical-state
   invariant protected existing consumers with zero call-site edits).
@@ -144,7 +152,7 @@ holds).
 
 | # | decision | options / default |
 |---|---|---|
-| D1 | **Substrate** — the central call | (a) food = pspp CLIENT (import pspp core; requires merging the parked pspp branch stack — his review gate); (b) mirror the pattern in a new module, no pspp import (duplication, drift risk); **(c) food = the pspp-11 generality proof: states/claims as data over pspp core, zero schema changes — recommended, but implies (a)'s merge** |
+| D1 | **Substrate** | ✅ **RATIFIED 2026-09-01 ("using pspp for food if it works then let us go with that")**: food = pspp CLIENT / the pspp-11 generality proof. The merge worry was moot — pspp is already ON dev; the "works" gate = the 35-suite selftest run + the empty-repo/publish fix |
 | D2 | module home | default: new `modules/foodstate/` requiring `nutrition` (file-size-decomposition) |
 | D3 | proof foods for fsp-2/3 | default: tomato-sauce chain, boiled vs raw potato, steamed-vs-fried chicken breast |
 | D4 | v1 constituent scope | default: water, starch/sugar split, citric+malic+acetic+lactic acids, caffeine, capsaicinoids |
@@ -169,5 +177,7 @@ holds).
 |---|---|
 | direction (PSPP-for-food, §0) | ✅ RATIFIED 2026-08-31 |
 | D8 rename | ✅ ratified (record) |
-| D1–D7 | ⏳ his call |
+| D1 substrate = pspp client | ✅ RATIFIED 2026-09-01 |
+| D2–D7 | ✅ defaults ACCEPTED 2026-09-01 ("the other recommendations") |
+| pspp operational re-confirmation | ✅ 2026-09-01: **35/35 suites, 0 failures (~665 checks)** on dev; seeds self-contained in code. Remaining gap = module publish (repo:"" — polari-module-pspp missing, HIS go; registry URL + push-all-dev sweep then cover it) + prf-a assignment when fsp goes live |
 | fsp-0..6 | planned, not started |
