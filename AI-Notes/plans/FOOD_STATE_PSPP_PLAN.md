@@ -192,4 +192,7 @@ holds).
 | pspp module publish | ✅ 2026-09-01 (his go): polari-module-pspp created + dev subtree pushed (tree hashes match); registry URL committed on dev (6a62e72) so push-all-dev tracks it |
 | **fsp-0** | ✅ **BUILT 2026-09-01** on branch `dev-fsp-1` (off dev): `modules/foodstate/` — food stages/processes/evidence-methods as PSPP ROWS (zero pspp schema changes, proven in selftest), FoodDomainContract shells (5 domains), GET /api/foodstate/contracts\|vocabulary, registered (requires pspp+nutrition). selftest_foodstate 14/14; pspp suites unaffected. ⚠ foodstate registry repo:"" — publish polari-module-foodstate with the next sweep (the pspp lesson). DEPLOY: needs pspp+foodstate assigned on prf-a when going live |
 | **fsp-1** | ✅ **BUILT 2026-09-01** (dev-fsp-1): 49-ingredient roster (FoodMaterial; identity resolved FROM the vendored sha-pinned FDC subset) + 949 FDC-cited PropertyClaims on `#as-defined` subjects + `/api/foodstate/ingredients[/{slug}]` with per-ingredient coverage naming the D4 gaps. Vendor data files pulled from dev-nmp-1 (data-only; nmp code merge = his gate). selftests 12/12 + 14/14 |
-| fsp-2..6 | planned, not started |
+| fsp-2 | ⚠ v1 BUILT 2026-09-01 as mpa-0 on `dev-mpa-1` (off dev-fsp-1 + dev-nmp-1 merged in — D7 stacked): rungs 2+4 live (mass balance + R6 retention), rung 3 refuses by name; cited gelatinization/denaturation calibrations still to load (the fsp-2 remainder). See MEAL_PLANNING_APP_PLAN.md |
+| fsp-3 (partial) | pH literature priors landed (mpa-1, food_ph_seed) — TA/buffer/speciation + the tomato-chain acceptance still open |
+| fsp-6 (partial) | template_state_chain (mpa-0) + meal-acidity/cost/pantry surfaces (mpa arc) consume the states; the /states DAG page still open |
+| fsp-4..5 | planned, not started |

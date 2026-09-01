@@ -1,6 +1,47 @@
 # Next-session handoff: meal planning + acid management
 
-> **UPDATE 2026-09-01 (night) — fsp-0 BUILT; next round = fsp-1 (the
+> **UPDATE 2026-09-01 (day 2) — THE MEAL-PLANNING APP IS BUILT
+> (mpa-0..6, branch `dev-mpa-1` = dev-fsp-1 + dev-nmp-1 merged in,
+> per ratified D7 "stacked"; dev itself untouched, his nmp review
+> gate stands). Plan: `AI-Notes/plans/MEAL_PLANNING_APP_PLAN.md`
+> (his two 2026-09-01 asks verbatim in §0; assumed defaults A1–A7
+> in §3 — flag them to him).**
+>
+> What exists now, all suite-green (23 suites):
+> - **fsp-2 v1** (mpa-0): foodstate/food_transforms.py — mass
+>   balance + R6 retention; model rungs refuse (I5);
+>   `template_state_chain` = meal properties as pspp claims,
+>   1%-agreement guard vs the nmp rollup.
+> - **meal acidity** (mpa-1): FDA/CFSAN-lineage pH claims
+>   (VERIFIED-vs-TRANSCRIBED labeled per row), acid mass share vs
+>   21 CFR 114 pH≤4.6 → the decision-9 tolerance row; NO combined
+>   meal pH by design.
+> - **market** (mpa-2): SourceLocation (lat/lon), PriceObservation
+>   → $/kg, UnitWeightPrior approximate weights; purchase preview
+>   assigns weight+nutrition+cost.
+> - **pantry** (mpa-3): stock vs plan demand, priced shopping list
+>   (unpriced NAMED), plan cost, stock-aware suggestions (never
+>   auto-edit).
+> - **accounts+tracking** (mpa-4): UserAccountLink (Keycloak sub/
+>   username/email → person; NO silent provisioning), IntakeRecord,
+>   day rollups + date series (nutrition/GL/acid-share/weight; gap
+>   days NAMED).
+> - **the app** (mpa-5/6): /api/mealplanning (13 routes), 5
+>   interconnected /display/mealplan* pages, demo plan
+>   demo-alex-week, nutrition-planner nav groups; polariServer
+>   fully wired (imports/stubs/defClassList/both seed passes).
+>
+> **REMAINING (his gates + next round):** deploy (pspp+foodstate
+> NOT in POLARI_MODULES on prf-a; image build + service update —
+> NEVER docker cp) → browser pass (live findings expected); the
+> embeddedGraph-by-name frontend fix would turn the trends series
+> into real sci-xy charts (known gap, climate handoff §3); fsp-2
+> remainder (cited gelatinization/denaturation calibrations),
+> fsp-3 (TA/buffer/speciation + tomato-chain acceptance), fsp-4/5;
+> nmp merge review; publish polari-module-foodstate (registry
+> repo:"" — the pspp lesson).
+
+> (previous update) **2026-09-01 (night) — fsp-0 BUILT; that round = fsp-1 (the
 > base-ingredients database, his ask verbatim: "start putting
 > together a database of common base ingredients") + nmp refinement.**
 >
