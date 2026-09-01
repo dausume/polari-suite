@@ -39,8 +39,23 @@
 > Probes covered every foodstate + mealplanning route, the live
 > metric-cache upsert, and the seeded Graph/Display rows.
 >
+> ⚠ **DEPLOY FINDING (live-only, fixed in-session):** `pol swarm
+> deploy node` did NOT roll the frontend (unchanged spec + tag-only
+> image = no restart); a manual `docker service update --force`
+> then BOUNCED it onto other swarm nodes (its
+> .generated/prf-runtime-config.json bind exists only on pol-core)
+> — Rejected loop, update paused. Fixed live with
+> `--constraint-add 'node.labels.polari.machine==pol-core'` +
+> force; now Running on the new bundle (main.dcf9e8ab…). 🔑 The
+> constraint is LIVE-ONLY: the rendered stack spec still lacks the
+> frontend pin — add it (pol allocate / stack render) or the next
+> deploy can bounce again.
+>
 > **REMAINING (his gates + next round):** the BROWSER pass over
-> /display/mealplan* (chart date-x-axis = the untested seam);
+> /display/mealplan* (chart date-x-axis = the untested seam) —
+> NOT possible this session: the Chrome extension was not
+> connected; relaunch with `claude --chrome` (memory
+> chrome-browser-tools) to run it;
 > (superseded → deploy notes kept for the ritual: image build +
 > service update,
 > NEVER docker cp) → browser pass (live findings expected); the
@@ -49,8 +64,12 @@
 > CLOSED (mpa-8: DailyIntakeMetric derive-on-demand cache + 3
 > trend charts on /display/mealplan/trends — reading /series
 > refreshes the cache rows the charts read); fsp-2
-> remainder (cited gelatinization/denaturation calibrations),
-> fsp-3 (TA/buffer/speciation + tomato-chain acceptance), fsp-4/5;
+> remainder (cited gelatinization/denaturation calibrations);
+> **fsp-3 SLICE BUILT same session** (food_chemistry.py: HH
+> speciation over VERIFIED pKa, exact TA, buffer REFUSES; tomato
+> citric/malic claims from Agius 2018; the tomato-chain ACCEPTANCE
+> PASSES 21/21 — remainder: buffer calibration, measured-TA rows,
+> acids for more foods); fsp-4/5;
 > nmp merge review; publish polari-module-foodstate (registry
 > repo:"" — the pspp lesson).
 
