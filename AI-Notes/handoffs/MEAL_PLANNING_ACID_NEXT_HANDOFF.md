@@ -32,10 +32,13 @@
 >   fully wired (imports/stubs/defClassList/both seed passes).
 >
 > **REMAINING (his gates + next round):** deploy (pspp+foodstate
-> NOT in POLARI_MODULES on prf-a; image build + service update —
+> NOT in POLARI_MODULES on prf-a; BOTH images — backend AND
+> frontend, angular changed on its own dev-mpa-1 — service update,
 > NEVER docker cp) → browser pass (live findings expected); the
-> embeddedGraph-by-name frontend fix would turn the trends series
-> into real sci-xy charts (known gap, climate handoff §3); fsp-2
+> embeddedGraph-by-name fix IS DONE (mpa-7: graphName input +
+> mealplan-weight-trend chart on /display/mealplan/trends) — the
+> remaining chart gap is DERIVED day-series (calories/GL/acid),
+> which need a cached-rows class or an API-fed graph panel; fsp-2
 > remainder (cited gelatinization/denaturation calibrations),
 > fsp-3 (TA/buffer/speciation + tomato-chain acceptance), fsp-4/5;
 > nmp merge review; publish polari-module-foodstate (registry
