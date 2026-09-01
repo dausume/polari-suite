@@ -18,15 +18,21 @@ Branches (NOT pushed — his `./push-all-dev.sh` ritual):
   `/api/fet/scene/...`) DEPLOYED + LIVE-VERIFIED on the dev swarm.
 - suite dev: MICROCHIP_LADDER_PLAN + this handoff + pointer rolls.
 
-Deploy state: backend image `prf-backend:staging` REBUILT with fam-1
-but **NOT rolled** at write time (rolls held while the cells-advance
-sweep runs; check `/api/fet/cells/advance` → `blankDevices` for the
-live tail — 7 blank at write time, resilient sweep script running).
-Closeout owed by the session that finds the sweep finished: ONE
-batched `docker service update --force --image prf-backend:staging
-polari-node_backend` (+ frontend if angular changed), then verify
-`GET /api/microchip/families` live (expect 7 families, fet
-liveRows > 0 on prf-a) and post the final ladder report.
+Deploy state: **CLOSED OUT 2026-08-31 night — fam-1 LIVE-VERIFIED**
+on the dev swarm: 7 families (fet liveRows 17), shells + contracts +
+unknown-family refusal all serving. 🔑 GOTCHA HIT: the `microchip`
+module had NEVER been in POLARI_MODULES on prf-a — even the OLD
+ladder routes 404'd live; fixed the proper way (`pol topology assign
+microchip prf-a` + `pol swarm deploy node` with the both-services
+pol-core pin — POLARI_MODULES derives from ModuleAssignment rows,
+never --env-add).
+Cells-advance ladder FINAL: all 10 legitimate devices done (4 CNT +
+6 NMOS-keyed Si pairs); the 4 pmos-keyed rows are blank ON PURPOSE —
+🔑 a pmos-keyed library run pairs the device with a MIRROR OF ITSELF
+(`_pair_params` only matches the pair's n_device), so those runs
+would be redundant + misleading. Follow-up candidates (his call):
+pmos-keyed cellcfg pages POINT at the pair's nmos-keyed run;
+_pair_params resolves p-keyed → the partner's n card.
 
 ## The ratified ladder (do not re-litigate — decided 2026-08-31)
 
