@@ -179,5 +179,7 @@ holds).
 | D8 rename | ✅ ratified (record) |
 | D1 substrate = pspp client | ✅ RATIFIED 2026-09-01 |
 | D2–D7 | ✅ defaults ACCEPTED 2026-09-01 ("the other recommendations") |
-| pspp operational re-confirmation | ✅ 2026-09-01: **35/35 suites, 0 failures (~665 checks)** on dev; seeds self-contained in code. Remaining gap = module publish (repo:"" — polari-module-pspp missing, HIS go; registry URL + push-all-dev sweep then cover it) + prf-a assignment when fsp goes live |
-| fsp-0..6 | planned, not started |
+| pspp operational re-confirmation | ✅ 2026-09-01: **35/35 suites, 0 failures (~665 checks)** on dev; seeds self-contained in code |
+| pspp module publish | ✅ 2026-09-01 (his go): polari-module-pspp created + dev subtree pushed (tree hashes match); registry URL committed on dev (6a62e72) so push-all-dev tracks it |
+| **fsp-0** | ✅ **BUILT 2026-09-01** on branch `dev-fsp-1` (off dev): `modules/foodstate/` — food stages/processes/evidence-methods as PSPP ROWS (zero pspp schema changes, proven in selftest), FoodDomainContract shells (5 domains), GET /api/foodstate/contracts\|vocabulary, registered (requires pspp+nutrition). selftest_foodstate 14/14; pspp suites unaffected. ⚠ foodstate registry repo:"" — publish polari-module-foodstate with the next sweep (the pspp lesson). DEPLOY: needs pspp+foodstate assigned on prf-a when going live |
+| fsp-1..6 | planned, not started |
