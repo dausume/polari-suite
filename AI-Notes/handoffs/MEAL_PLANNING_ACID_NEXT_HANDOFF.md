@@ -6,7 +6,17 @@ its own entry point is MICROCHIP_LADDER_NEXT_HANDOFF.md.)
 **This is a PLANNING round, not a build round** — the deliverable is a
 ratifiable plan (phases + decisions), per the working style.
 
-## FIRST QUESTION FOR DUSTIN (settle before planning)
+> **ANSWERED same night (2026-08-31): reading 1 — dietary/gastric —
+> AND the architecture direction came with it: food as PSPP-style
+> state evolution (FoodMaterial → FoodState DAG; gastric model
+> downstream; recipes = process specs). The planning-round output is
+> `AI-Notes/plans/FOOD_STATE_PSPP_PLAN.md` (fsp arc) — next round
+> opens THERE: settle D1–D7 (D1 substrate = the gating call: reusing
+> pspp core requires merging the parked pspp branch stack), then
+> fsp-0 on his go. The agenda below is superseded except items it
+> shares with the plan's decision table.**
+
+## (superseded) FIRST QUESTION FOR DUSTIN
 
 "Acid management" has three plausible readings in this suite — confirm
 which (or which mix):
