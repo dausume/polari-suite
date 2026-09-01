@@ -69,7 +69,9 @@
 > speciation over VERIFIED pKa, exact TA, buffer REFUSES; tomato
 > citric/malic claims from Agius 2018; the tomato-chain ACCEPTANCE
 > PASSES 21/21 — remainder: buffer calibration, measured-TA rows,
-> acids for more foods); fsp-4/5;
+> acids for more foods; chemistry is LIVE: backend re-rolled same
+> session, speciation + tomato acidity answer 200 [TA 3.79
+> meq/100g], full 21-probe battery re-passed); fsp-4/5;
 > nmp merge review; publish polari-module-foodstate (registry
 > repo:"" — the pspp lesson).
 
