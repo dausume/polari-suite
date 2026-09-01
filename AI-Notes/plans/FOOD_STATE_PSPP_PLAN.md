@@ -191,4 +191,5 @@ holds).
 | pspp operational re-confirmation | ✅ 2026-09-01: **35/35 suites, 0 failures (~665 checks)** on dev; seeds self-contained in code |
 | pspp module publish | ✅ 2026-09-01 (his go): polari-module-pspp created + dev subtree pushed (tree hashes match); registry URL committed on dev (6a62e72) so push-all-dev tracks it |
 | **fsp-0** | ✅ **BUILT 2026-09-01** on branch `dev-fsp-1` (off dev): `modules/foodstate/` — food stages/processes/evidence-methods as PSPP ROWS (zero pspp schema changes, proven in selftest), FoodDomainContract shells (5 domains), GET /api/foodstate/contracts\|vocabulary, registered (requires pspp+nutrition). selftest_foodstate 14/14; pspp suites unaffected. ⚠ foodstate registry repo:"" — publish polari-module-foodstate with the next sweep (the pspp lesson). DEPLOY: needs pspp+foodstate assigned on prf-a when going live |
-| fsp-1..6 | planned, not started |
+| **fsp-1** | ✅ **BUILT 2026-09-01** (dev-fsp-1): 49-ingredient roster (FoodMaterial; identity resolved FROM the vendored sha-pinned FDC subset) + 949 FDC-cited PropertyClaims on `#as-defined` subjects + `/api/foodstate/ingredients[/{slug}]` with per-ingredient coverage naming the D4 gaps. Vendor data files pulled from dev-nmp-1 (data-only; nmp code merge = his gate). selftests 12/12 + 14/14 |
+| fsp-2..6 | planned, not started |
