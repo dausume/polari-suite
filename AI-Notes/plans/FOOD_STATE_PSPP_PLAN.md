@@ -122,10 +122,19 @@ holds).
   FoodMaterial / FoodState / FoodProcessingStep / property-domain
   CONTRACTS as rows first ({quantity, unit, provenance-kinds, why});
   no class freeze until D1 lands. Includes the D8 rename.
-- **fsp-1 — composition backbone**: constituent extension beyond the
-  30 nutrients (water as first-class, starch vs sugars split, organic
-  acids by species, caffeine/capsaicinoids), FDC mapping, claims with
-  provenance on the raw (canonical) states.
+- **fsp-1 — composition backbone = the COMMON-BASE-INGREDIENTS
+  DATABASE** (his 2026-09-01 ask verbatim): a starter roster
+  (~60–100 staples across grains / legumes / vegetables / fruits /
+  meats-eggs-dairy / oils / flavor bases — nmp decision 8 makes this
+  roster the meal vocabulary) of food-material identities; per
+  ingredient a hand-curated FDC mapping (name → fdc_id + dataset
+  edition; non-regenerable → `modules/foodstate/initialData/` per the
+  module-initial-data convention) yielding composition CLAIMS on the
+  canonical `#as-defined` state with FDC citations; constituent
+  extension beyond the 30 nutrients (water first-class, starch vs
+  sugars split, organic acids by species, caffeine/capsaicinoids —
+  D4); nut-2 FoodItem rows link to the same identities; per-
+  ingredient contract-coverage report (has vs refuses, honestly).
 - **fsp-2 — transform engine v1**: rungs 2+4 fully (mass balance +
   retention-factor fallback riding nmp-3), rung 3 for 2–3 CITED
   models only (gelatinization, denaturation) behind registered

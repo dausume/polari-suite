@@ -1,4 +1,51 @@
-# Next-session handoff: meal planning + acid management — PLANNING round
+# Next-session handoff: meal planning + acid management
+
+> **UPDATE 2026-09-01 (night) — fsp-0 BUILT; next round = fsp-1 (the
+> base-ingredients database, his ask verbatim: "start putting
+> together a database of common base ingredients") + nmp refinement.**
+>
+> State: fsp direction + D1–D8 ratified; **fsp-0 built** on framework
+> `dev-fsp-1` (bd23a04, off dev, NOT merged): `modules/foodstate/` —
+> food stages/processes/evidence-methods as PSPP rows (zero-schema-
+> change proven, selftest 14/14), FoodDomainContract ×5,
+> `/api/foodstate/contracts|vocabulary`. pspp re-verified (35/35
+> suites) and PUBLISHED (polari-module-pspp; registry URL on dev
+> 6a62e72). ⚠ foodstate registry repo:"" — publish with the next
+> sweep. ⚠ pspp + foodstate NOT in POLARI_MODULES on prf-a — assign
+> both before live verification.
+>
+> **NEXT ROUND OPENS ON fsp-1 — the common-base-ingredients database**
+> (plan §4 fsp-1, sharpened 2026-09-01):
+> 1. FoodMaterial identity rows for a starter roster of COMMON BASE
+>    ingredients (nmp decision 8: meals build STRICTLY from base
+>    ingredients + meats, so this roster IS the meal-planning
+>    vocabulary): staples across grains, legumes, vegetables, fruits,
+>    meats/eggs/dairy, oils/fats, and the flavor bases (onion,
+>    garlic, tomato…) — roster size ~60–100, HIS trim/extend.
+> 2. Each ingredient: hand-curated FDC mapping (name → fdc_id +
+>    dataset edition — non-regenerable, so it belongs in
+>    `modules/foodstate/initialData/` per the module-initial-data
+>    convention) → composition CLAIMS on the canonical
+>    `<material>#as-defined` state (FDC CC0; provenance 'measured'/
+>    'literature' with the FDC citation), incl. the fsp-0 contract
+>    extensions: water first-class, starch/sugar split, organic acids
+>    per species where FDC/literature carries them (D4 scope).
+> 3. Ties: nutrition nut-2 FoodItem rows link to the same identities
+>    (harvest loop keeps working); nmp recipes will resolve
+>    ingredients against this roster (fsp-6).
+> 4. Selftest + the contracts report showing per-ingredient coverage
+>    HONESTLY (which contract quantities each ingredient actually
+>    has vs refuses).
+>
+> **Meal-planning refinement queue (parallel/after)**: his gates on
+> dev-nmp-1 (merge review, GUI pass on the 5 pages, live-API pass,
+> profile data — TESTING_OWED §000); open Qs (wger mine-vs-run, URL
+> import timing, trajectory horizon + household privacy, Q5 pattern
+> fractions); named gaps (child DRI bands, added-sugar/fiber gate
+> caps, fat rendering, household splits, coverage ScoreConcept).
+> Acid-arc refinements ride fsp-3/fsp-5, not a separate system.
+
+## (original 2026-08-31 planning-round content below)
 (prepared 2026-08-31 night; Dustin: "shift back to meal planning and
 acidic management … start our planning next round". Microchip arc TABLED —
 its own entry point is MICROCHIP_LADDER_NEXT_HANDOFF.md.)
