@@ -157,10 +157,13 @@ Phases (priority order):
 (coverage steering, 12/12) · mpb-7 (plan-fed trajectory route) ·
 mpb-8 (ratings, 8/8) · mpb-9 (quick-add, 11/11) ALL BUILT on
 dev-mpa-1; 11 new API routes + panels on the app pages; full
-28-suite battery green. NOT yet: mpb-4 price-trend/buy-low half
-(needs observation history), trip distance, mpb-5, composer
-rank-integration of conditions/ratings (surfaces exist; wiring
-into nmp-11 ranking = next), redeploy of this round.
+28-suite battery green. ✅ REDEPLOYED same
+session: backend rebuilt + rolled, **34/34 live probes pass**
+(all mpa + mpb routes on staging). NOT yet: mpb-4
+price-trend/buy-low half (needs observation history), trip
+distance, mpb-5, composer rank-integration of conditions/ratings
+(surfaces exist; wiring into nmp-11 ranking = next), the browser
+pass (`claude --chrome` relaunch).
 
 ## 4. Non-goals
 
