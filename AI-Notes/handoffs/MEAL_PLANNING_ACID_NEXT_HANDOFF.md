@@ -1,7 +1,23 @@
 # Next-session handoff: meal planning + acid management
 
-> **DOWNLOADABILITY AUDIT 2026-09-01 (his ask: "would anything not
-> survive or push properly?") — findings, in fix order:**
+> **AUDIT EXECUTED 2026-09-02 (his go: "make that repo and bind it
+> also merge all to dev and merge the fg stack… go with the
+> optional improvement… automating"):** ✅ polari-module-foodstate
+> CREATED + bound + subtree pushed (the last repo:'' module —
+> every official module now has a public repo); ✅ framework
+> dev-mpa-1 → dev (ff, +25,840 lines incl. vendor CSVs) and
+> angular dev-mpa-1 (fg stack + embeddedGraph) → dev; ✅ stale
+> subtrees re-published (nutrition, polariapps); ✅ pointer chain
+> rolled innermost-first (rf-node 69dabe6, suite 35ea602); ✅ the
+> optional improvement AUTOMATED: foodstate/export_initial_data.py
+> generates initialData/{FoodMaterial,PropertyClaim}.json from the
+> seed builders (curated tables only; FDC-derived claims stay with
+> nutrition's CSV) with a drift-guard selftest (14/14).
+> ⚠ STILL HIS: `push-all-dev.sh --push` (framework/angular/
+> rf-node/suite dev → origin — module repos are current but origin
+> dev is behind them until the sweep) + the browser pass.
+>
+> (original audit findings below, now executed:)
 > 1. ⛔ **polari-module-foodstate does NOT exist on GitHub**
 >    (registry repo:"" — the ONLY module of 42 without a repo;
 >    `git ls-remote` confirms 404). `pol modules get foodstate`
