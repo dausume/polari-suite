@@ -1,5 +1,50 @@
 # Next-session handoff: meal planning + acid management
 
+> **➡️ BROWSER PASS HANDOFF (2026-09-02, for a FRESH `claude
+> --chrome` session — Dustin: "do a handoff with a fresh chrome").
+> Everything is BUILT + DEPLOYED + 34/34 live-probed; this pass is
+> the last verification. Execute:**
+>
+> 1. Open https://prf.192.168.0.210.nip.io/display/mealplan — the
+>    front door. Expect: Me panel (anon = honest refusal),
+>    dashboard demo-alex, plans + account-links tables.
+> 2. /display/mealplan/planner — entries table, rollup vs
+>    thresholds, cost, pantry coverage, stock suggestions, prep
+>    schedule, exclusion screen, condition flags (posture text
+>    visible), budget envelope ($60/wk demo cap), protein-per-$.
+> 3. /display/mealplan/pantry — lots + resolved stock (rice
+>    2000 g, eggs 400 g), unit-weight priors, shopping list, waste
+>    ledger, quick-add preview.
+> 4. /display/mealplan/market — locations w/ lat/lon, price
+>    observations, $/kg compare (best = demo-grocery chicken
+>    13.21/kg), dozen-eggs purchase preview (600 g, ~$3.79).
+> 5. /display/mealplan/trends — **THE SEAM: the four embeddedGraph
+>    charts** (calories + weight side by side, then GL + acid
+>    share). These ride the NEW graphName input; the date STRING
+>    x-axis through Observable Plot is the one thing no suite or
+>    probe could exercise — if a chart is blank/garbled, the fix
+>    is in graph-renderer's dimension handling (angular), NOT the
+>    data. Also: series panel (metricCache cached:true), day
+>    panel, acidity, the PSPP state chain.
+> 6. Check the nutrition-planner nav (top bar 'Meal Planning' +
+>    'Kitchen' dropdowns; side menu groups) interconnects all 5
+>    pages + the 6 nutrition pages.
+> 7. Console: read_console_messages pattern 'error|Error' per page.
+> 8. Fix ritual for frontend findings: edit angular (dev), `pol
+>    node build frontend --env staging`, then `docker service
+>    update --force --image prf-frontend:staging
+>    polari-node_frontend` (the service now carries the pol-core
+>    pin; ⚠ the STACK SPEC still lacks it). Backend findings:
+>    build backend + `docker service update --force --image
+>    prf-backend:staging polari-node_backend` (admission up to
+>    ~14 min, poll before worrying).
+> 9. Chrome-bridge note: 2026-09-02 debugging showed the bridge
+>    would NOT attach to resumed sessions on this box even with
+>    --chrome (extension 1.0.85→1.0.90 staged update; native host
+>    respawns fine). Use a FRESH chrome window + FRESH
+>    `claude --chrome` (new session, read this handoff) rather
+>    than --continue.
+
 > **AUDIT EXECUTED 2026-09-02 (his go: "make that repo and bind it
 > also merge all to dev and merge the fg stack… go with the
 > optional improvement… automating"):** ✅ polari-module-foodstate
