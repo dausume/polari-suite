@@ -1,5 +1,47 @@
 # Next-session handoff: meal planning + acid management
 
+> **DOWNLOADABILITY AUDIT 2026-09-01 (his ask: "would anything not
+> survive or push properly?") — findings, in fix order:**
+> 1. ⛔ **polari-module-foodstate does NOT exist on GitHub**
+>    (registry repo:"" — the ONLY module of 42 without a repo;
+>    `git ls-remote` confirms 404). `pol modules get foodstate`
+>    refuses honestly; fix = `pol modules publish foodstate` (+
+>    commit the repo URL into modules/polari-modules.json) — HIS
+>    GO, it creates a public repo (the pspp precedent).
+> 2. ⛔ **dev (the publish source) carries NONE of the food work**:
+>    modules/foodstate ABSENT on dev (0 files; registry entry too),
+>    modules/nutrition = 15 files on dev vs 84 on dev-mpa-1, and
+>    **modules/nutrition/vendor/ (the sha-pinned FDC/R6/METs CSVs)
+>    is NOT on dev at all** — so the PUBLISHED
+>    polari-module-nutrition currently lacks the vendor data AND
+>    all nmp/mpa/mpb code. Nothing new is downloadable until
+>    dev-mpa-1 (which contains dev-nmp-1 + dev-fsp-1) MERGES to
+>    dev, then `push-all-dev.sh` re-publishes the stale subtrees
+>    (it tree-hash-compares HEAD:modules/<m> vs each repo main;
+>    empty-repo entries are silently `continue`d — foodstate needs
+>    finding 1 first or the sweep skips it forever).
+> 3. ⚠ **angular dev-mpa-1 (embeddedGraph graphName) unmerged**
+>    (10 commits incl. the fg stack): a frontend built from dev
+>    renders the seeded chart panels as an error box ('No graph
+>    config ID provided'). Merge framework+angular TOGETHER.
+> 4. ⚠ `pol modules get` clones ONE module (requires[] only guards
+>    `drop`): getting foodstate alone leaves nutrition/pspp to
+>    fetch separately — import refuses honestly, but the app-store
+>    install of nutrition-planner (now requiring
+>    nutrition+aquaponics+foodstate+pspp) should be verified after
+>    publish.
+> 5. ✓ Everything else checks out: framework tree clean, all 13
+>    initialData JSONs tracked (gitignore exemptions correct),
+>    vendor CSVs tracked on the branch, polari-cli clean+committed
+>    (suite pointer roll = his ritual), registry requires edges
+>    correct (foodstate→pspp+nutrition). Live-only state (frontend
+>    node pin, ModuleAssignment rows, user data rows) survives
+>    restarts via DB/volumes but NOT a full purge — by design.
+> 6. Optional improvement: expose the non-regenerable FDC identity
+>    mapping + pH/acid tables as modules/foodstate/initialData/*.json
+>    per the module-data convention (today GET /modules/{nutrition,
+>    foodstate}/initial-data 404s; data still ships via the repo).
+
 > **UPDATE 2026-09-01 (round 2 — mpb): HIS RATIFICATION verbatim:
 > "we should not be doing diagnosis in any way, what we can say is
 > 'try to make meals that do not make this condition worse', all
