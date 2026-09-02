@@ -1,5 +1,21 @@
 # Next-session handoff: meal planning + acid management
 
+> **UPDATE 2026-09-01 (round 2 — mpb): HIS RATIFICATION verbatim:
+> "we should not be doing diagnosis in any way, what we can say is
+> 'try to make meals that do not make this condition worse', all
+> of the rest sounds good." ALL EIGHT buildable mpb phases BUILT
+> same session on dev-mpa-1 (plan §3b; 28-suite battery green):
+> exclusions (FDA major-9, declared, swap-aware) · condition
+> steering (do-not-worsen flags over existing cited rows; posture
+> on every payload) · nutrient-per-$ + budget envelope · waste
+> ledger · rolling coverage + exclusion-safe cheapest closers ·
+> plan-fed trajectory · ratings-rank · quick-add grammar. 11 new
+> /api/mealplanning routes + app-page panels.
+> REMAINING: REDEPLOY this round (backend image rebuilt at session
+> end — roll + re-probe), composer rank-integration of
+> conditions/ratings, price-trend/buy-low (needs observation
+> history), trip distance, mpb-5 child-DRI transcription round.**
+
 > **UPDATE 2026-09-01 (day 2) — THE MEAL-PLANNING APP IS BUILT
 > (mpa-0..6, branch `dev-mpa-1` = dev-fsp-1 + dev-nmp-1 merged in,
 > per ratified D7 "stacked"; dev itself untouched, his nmp review
