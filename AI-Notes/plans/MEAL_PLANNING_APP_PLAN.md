@@ -107,6 +107,61 @@ stays untouched; his nmp merge-review gate stands).**
 | A6 | intake tracking starts from plan confirmation ("ate as planned" default with per-entry edits) |
 | A7 | all mass-loss in mass-balance v1 attributed to water unless stated otherwise — assumption named on every claim |
 
+## 3b. Round 2 (mpb) — budget + tailoring (RATIFIED 2026-09-01)
+
+Dustin (verbatim): "we should not be doing diagnosis in any way,
+what we can say is 'try to make meals that do not make this
+condition worse', all of the rest sounds good."
+
+So: **conditions are STATED by the person, never inferred or
+diagnosed; the system only steers toward meals that avoid known
+aggravators of the stated condition** — comfort steering, not
+treatment; the posture restated on every payload. Decision 3's
+no-diagnosis core stands; this narrows what "personalization"
+may ever mean here.
+
+Phases (priority order):
+- **mpb-1 — allergen/intolerance exclusions**: FDA major-9
+  allergen flags per roster food (identity-derived data rows);
+  PersonExclusion (allergen or food × stated reason × hard/soft);
+  plans + composer + suggestions filter/refuse with the violation
+  NAMED. A safety filter, not medical advice.
+- **mpb-2 — stated-condition comfort steering**: StatedCondition
+  rows (reflux / sodium-sensitive / glycemic-sensitive /
+  fodmap-sensitive…) mapping to the EXISTING evidence rows
+  (decision-9 acid+fat+trigger, CDRR, GL cap, FODMAP cutoffs) —
+  per-person elevation of those warnings in ranking + per-meal
+  flags ("this would likely aggravate your stated reflux:
+  citrus/tomato share 0.6"). No diagnosis; no magnitudes (D6).
+- **mpb-3 — cost-per-nutrient + budget envelope**: $/g-nutrient
+  rankings from prices × per-100g; MealPlan weekly budget knob;
+  plan rollup shows spend vs budget; counterbalance suggestions
+  ranked by cheapest-closer.
+- **mpb-6 — coverage steering over time**: rolling 7/30-day
+  under-target report from the tracking series + cheapest closers
+  that fit the person's dishes (affinity-filtered).
+- **mpb-4 — price trends/buy-low + waste ledger + trip distance**
+  (honest refusals under thin observation history).
+- **mpb-7 — trajectory feedback** (observed-vs-projected drift →
+  suggested envelope adjustment, never auto-applied).
+- **mpb-8 — meal ratings → affinity overlay**; **mpb-9 —
+  quick-add text entry** (deterministic grammar, refuses rather
+  than guesses); **mpb-10 — API/pages/wiring/deploy**.
+- **mpb-5 — child/teen DRI bands**: DEFERRED to its own
+  transcription round — every value must be fetched+cited
+  (derive-or-cite), not typed from memory.
+
+**mpb STATUS (2026-09-01, same session as the go):** mpb-1
+(exclusions, 17/17) · mpb-2 (condition steering, 13/13) · mpb-3
+(nutrient-$/budget, 13/13) · mpb-4 waste half (8/8) · mpb-6
+(coverage steering, 12/12) · mpb-7 (plan-fed trajectory route) ·
+mpb-8 (ratings, 8/8) · mpb-9 (quick-add, 11/11) ALL BUILT on
+dev-mpa-1; 11 new API routes + panels on the app pages; full
+28-suite battery green. NOT yet: mpb-4 price-trend/buy-low half
+(needs observation history), trip distance, mpb-5, composer
+rank-integration of conditions/ratings (surfaces exist; wiring
+into nmp-11 ranking = next), redeploy of this round.
+
 ## 4. Non-goals
 
 - No store price scraping/APIs, no barcodes, no medical claims,
