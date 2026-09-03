@@ -319,3 +319,35 @@ Module `vpn` (`polari-rf-node/polari-framework/modules/vpn/`, registry id
   flow (two Link networks, federation proposal → applied by the simulated
   isle → link active → revoke → peer gone in one push; `.vpn` present on
   a gateway isle and absent on a node isle; zero private keys anywhere).
+
+## 9. vpn-3 as built (2026-09-03, Polari side, branch `dev-vpn-3` off `dev-vpn-1`)
+
+The trust bridge (§4 vpn-3), kept inside D9 — consent moves a VALIDATED
+proposal into the isle's inbox; only the isle applies:
+- `POST /api/vpn/join-request` {device, kind peer|link, the proposal
+  fields, requester_name, requester_base_url, fingerprint} → validated
+  against the mirror (a bad request makes NO agreement) → a
+  `PeerAgreement` (direction inbound, `requested_role vpn-member` |
+  `vpn-federation`, scope `vpn:<kind>:<network>@<device>`, never
+  auto-admitted — `POLARI_AUTO_APPROVE_SAME_ISLE` is not consulted here)
+  + a `VpnProposal` with the new status `awaiting-consent` whose payload
+  carries `agreement_id`. Re-asking while pending returns the same
+  agreement (idempotent, like `/api/peers/join-request`).
+- `polariPeers.agreements_api` gained `AGREEMENT_LISTENERS` +
+  `notify_agreement(manager, agreement, event)` called on approve /
+  deny / revoke; `VpnAPI.register_trust_bridge()` subscribes
+  `vpn.vpn_trust.on_agreement_event`: approved → the waiting proposal
+  becomes `proposed` (inbox; note records who/when); denied → `rejected`;
+  revoked → waiting/proposed → `rejected`, and every APPLIED peer/link
+  proposal of that agreement gets a fresh `revoke` proposal (target +
+  name) so `isle vpn apply` tears the entry down — the mirror flips on
+  the isle's next push. Non-vpn agreements are ignored.
+- `GET /api/vpn/agreements[?status=]` — the vpn-* agreements with their
+  proposals; `/display/vpn` row 6 = the PeerAgreement table + that
+  panel; `pol vpn join …` / `pol vpn agreements`; runbook step 8 runs
+  the whole loop live. Selftest section 8 (13 checks → 88/88).
+- NOT in vpn-3: the requester-side flow (`polariPeers.join_flow` verbs
+  posting a VPN join request from another instance) and the one-time
+  config delivery to the member — the join-status poll carries the
+  scope + token today; the member still fetches its conf from the isle
+  (`isle vpn export`), never from Polari (the private key rule).

@@ -1072,3 +1072,47 @@ page sweep and does not come back (cap now 1536M).
   ritual). The demo left mock-flagged rows (isle-a/b/c) and one
   `browser-*` proposal on prf-a — the banner says so; a real push for
   those device names replaces them.
+
+## 13. VPN arc vpn-3 — the trust bridge (2026-09-03 afternoon, branch dev-vpn-3 off dev-vpn-1)
+
+- Headless: `vpn.selftest_vpn` 89/89 (section 8: join request →
+  PeerAgreement pending + proposal awaiting-consent; idempotent re-ask;
+  a request failing VPN validation makes NO agreement; approve → proposed
+  with the mirror untouched; isle push → applied; revoke → exactly ONE
+  tear-down proposal, proposed, and a repeated revoke files nothing;
+  federation request → vpn-federation; deny → rejected; non-vpn
+  agreements ignored; listener registered ONCE across repeated endpoint
+  constructions); `polariPeers.selftest_agreements` 23/23, `selftest_peers`
+  15/15, islemesh 69/69, lazy_imports 15/15.
+- Live on prf-a (three rolls; each boot ~30 min): runbook step 8 —
+  `POST /api/vpn/join-request` → awaiting-consent + agreement; approve via
+  `/api/peers/agreements/{id}/approve` → the proposal is `proposed`
+  (note: "consent: agreement … approved by runbook"); the isle push with
+  `applied_by` → applied; revoke → ONE `revoke` proposal `proposed` for the
+  peer; `/api/vpn/agreements` lists both runbook agreements revoked.
+  Demo 23/23 again (now tolerant of DB-restored rows), matrix / options /
+  isle-mesh column / key-material sweep all as in §12.
+- Real browser (CDP) 17/17 on the final deploy: `/display/vpn` now 5
+  structured panels + 7 class tables (the PeerAgreement table + the
+  agreements panel) + 5 forms; refusal / success / rung-refusal messages
+  as in §12; `/display/isle-mesh` `.vpn` column.
+- FOUND LIVE and fixed in the same session: (1) the listener was a bound
+  method per VpnAPI instance and polariServer constructs its endpoints on
+  every boot cycle → 61 listeners → 61 tear-down proposals, all then
+  self-rejected by the revoke event (first run); now a module-level
+  function registered once + the revoke event skips `revoke` kinds +
+  one tear-down per target (idempotent). (2) the new page row did not
+  land: DisplayDefinition rides the insert-by-name seed pass — `vpn-home`
+  now upserts through composition (log: `"vpn-home" updated: definition`).
+  (3) the live demo counted a DB-restored isle-c row (fixed: isle-a/b
+  only). The first run's 61 rejected `revoke` rows for agreement
+  e0fb1ca3… are still in the VpnProposal table (mock-flagged, harmless —
+  delete with CRUDE if they bother the page).
+- OWED: the requester-side flow (another instance's `join_flow` posting a
+  VPN join request and fetching its conf from ITS isle); `.arch` over the
+  tunnel (vpn-4, isle-heavy); DDNS + step-ca (vpn-6); the isle half
+  I-1..I-5 unchanged. `pol vpn` verbs exercised LIVE at the end: status,
+  agreements, proposals --status, options --device, matrix, peers
+  --device, render --peer self all print (the first run of every list
+  verb died: fmt_table's python rode a heredoc that replaced the JSON
+  stdin — fixed to `python3 -c`); `join` only through its API.

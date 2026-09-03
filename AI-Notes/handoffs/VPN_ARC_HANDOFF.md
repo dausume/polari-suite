@@ -20,6 +20,14 @@ UNCOMMITTED in the submodule working tree on purpose (isle-core owns
 that repo's dev tip — commit it there, then re-pin). Real-browser pass
 17/17 + live API pass recorded in TESTING_OWED §12.
 
+**vpn-3 (the trust bridge) is ALSO BUILT, same day, on `dev-vpn-3` off
+`dev-vpn-1`** (plan §9): `POST /api/vpn/join-request` → PeerAgreement
+(vpn-member | vpn-federation, never auto-admitted) + a proposal that
+waits for consent; approve moves it into the isle's inbox, deny rejects
+it, revoke files the tear-down proposal. Live on prf-a, selftest 89/89,
+browser 17/17 (TESTING_OWED §13). Branch order for his review: dev-vpn-1
+then dev-vpn-3 (vpn-3 contains vpn-1). NOT merged, NOT pushed.
+
 ## Read first, in this order
 1. `AI-Notes/plans/VPN_FEDERATION_PLAN.md` — §0 capability (neutral
    wording), §1 what exists (file:line cites), §2–§5 shape/phases/
