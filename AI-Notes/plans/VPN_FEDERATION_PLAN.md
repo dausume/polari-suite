@@ -1,6 +1,6 @@
 # VPN + federation for isles (vpn arc): peer-to-peer tunnels, a shared hub that federates, coordination-server hosts exported through Polari
 
-**Date:** 2026-09-03 · **Status: PLAN (vpn-0) + his review amendments in §7 (authority isle-side, `.vpn` rung, relay kinds) — D1–D13 to ratify, then vpn-1.
+**Date:** 2026-09-03 · **Status: PLAN (vpn-0) + his review amendments in §7 (authority isle-side, `.vpn` rung, relay kinds) — D1–D14 to ratify, then vpn-1.
 No code changed. Grounded in the mechanics survey of 2026-09-03 (file:line
 cites below are from the tree at that date).**
 
@@ -255,3 +255,15 @@ shapes; the analysis/security wrappers target the management interface
 (OpenVPN) and netlink/`wg show` (WireGuard) behind one interface.
 - D13 providers: **WireGuard core + OpenVPN full provider (driven, not
   embedded); OpenVPN 3 only if AGPL terms are accepted.**
+
+**7.8 Naming schema (his ask 2026-09-03).** Two product lines under the
+`isle-vpn` family, named by purpose, engine only in the description:
+**Isle Link** (WireGuard-based: point to point, mesh, blind relays) and
+**Isle Bridge** (OpenVPN-based: certificate joins of networks and
+outside peers, L2 spans, TCP/443). Kind ids `vpn-link-{node,gateway,
+relay,hub,exit}` and `vpn-bridge-{client,server,span,exit,peer}`;
+labels **Blind** / **Sees traffic** on every row. Rule of thumb: Link
+when both ends run ours; Bridge when joining a network or an
+OpenVPN-only box. User reference: AI-Notes/guides/VPN_APP_KINDS.md.
+This supersedes §7.5's kind names.
+- D14 naming: **Isle Link / Isle Bridge; kind ids as above.**
