@@ -1,6 +1,6 @@
 # VPN + federation for isles (vpn arc): peer-to-peer tunnels, a shared hub that federates, coordination-server hosts exported through Polari
 
-**Date:** 2026-09-03 · **Status: PLAN (vpn-0) — his review, then vpn-1.
+**Date:** 2026-09-03 · **Status: PLAN (vpn-0) + his review amendments in §7 (authority isle-side, `.vpn` rung, relay kinds) — D1–D12 to ratify, then vpn-1.
 No code changed. Grounded in the mechanics survey of 2026-09-03 (file:line
 cites below are from the tree at that date).**
 
@@ -162,3 +162,73 @@ Tailscale coordination server (proprietary — ⛔).
 Two-isle demo on this box: two VpnNetworks, one federation link, an app
 exposed at `.arch` reachable from the other isle's device; the exposure
 visible on `/display/isle-mesh`; revoke → unreachable within one render.
+
+## 7. Amendments from his review (2026-09-03 morning) — these override §2–§5 where they differ
+
+**7.1 Licence answer (verified stance; re-check LICENSE files at pin time).**
+WireGuard is fully open source: kernel implementation GPLv2 (mainline
+since 5.6), `wireguard-tools` GPLv2, `wireguard-go` MIT, the protocol a
+published spec on the Noise framework with no patent claims. Our GPLv3
+tree never copies GPLv2-only source; it DRIVES WireGuard as a separate
+program or through the kernel's netlink interface (subprocess `wg`,
+`wg show` counters, pyroute2 GPLv2/Apache dual, config rendering,
+on-the-wire analysis). Custom analysis/security wrappers are therefore
+legal and stay GPLv3. `wireguard-go` (MIT) is the only piece we could
+ever embed. Trademark: the module is `isle-vpn`, described as
+"WireGuard-based" — never named WireGuard.
+
+**7.2 `.vpn` is a rung and an exposure row.** The ladder becomes
+`.isle → .arch → .vpn → .mesh → web`. An app exposed at `.vpn` is
+reachable by the members of the VPN the isle's gateway belongs to. The
+`.vpn` option appears in `isle expose` / the exposure form ONLY when an
+installed VPN app of gateway kind is registered in the isle catalog
+(the IsleCatalogEntry "providing engine" idiom: `vpn-gateway`). Names
+`<app>.vpn` are served to members by the gateway's DNS; `.isle` still
+never crosses.
+
+**7.3 Configuration authority is the isle-mesh side — Polari mirrors.**
+The VPN app's config API binds to isle-local addresses only (the
+isle-agent's 127.0.0.1 / isle-address binding precedent) and REFUSES
+any request arriving over the tunnel interface or from a non-isle
+source. Polari's `VpnNetwork/VpnPeer/…` rows are a MIRROR fed by
+`push-to-polari` (the islemesh acceptor rule "isle stays authoritative
+over networking") plus PROPOSALS (rows with status `proposed`) that a
+local operator applies on the isle with `isle vpn apply <proposal>`.
+Nothing reached remotely or through the VPN can alter the VPN. This
+inverts §2's "rows are the control plane": the control plane is the
+isle-side app; the rows are its shadow and its inbox. Consequently
+vpn-1/vpn-2 split into an isle-side half (Isle-Mesh repo, isle-core's)
+and a Polari-side half (mirror, proposals, pages, analysis).
+
+**7.4 Expose the manual configuration surface.** The app/module exposes
+what a hand-written `wg` setup exposes, grouped basic/advanced:
+Interface — private key (generated on the device, never leaves it),
+listen port, addresses, DNS + search, MTU, fwmark, routing table,
+SaveConfig; Peer — public key, preshared key (optional symmetric
+layer, a post-quantum hedge), allowed IPs, endpoint, persistent
+keepalive; plus routing/firewall rules (nftables text rendered from
+VpnAccessRule), forwarding + masquerade toggles, key and preshared-key
+rotation schedules, handshake/transfer monitoring. GUARD: PreUp/PostUp/
+PreDown/PostDown are NOT free text (root shell) — templated toggles
+only (forward, masquerade, route add), each a named knob.
+
+**7.5 App kinds — relays are not one thing.** Catalog kinds for the
+VPN app package, chosen at install: `vpn-node` (an endpoint; carries
+its own /32), `vpn-gateway` (carries its isle subnet; what makes `.vpn`
+available), `vpn-relay-blind` (forwards ENCRYPTED WireGuard datagrams
+between peers that cannot reach each other — holds no keys, sees no
+plaintext; the default for federation across isles and safe on a
+rented box), `vpn-relay-routing` (an IP-layer forwarder that is a PEER
+of both sides and therefore sees plaintext — a hub you own, required
+for exit-node and subnet routing), `vpn-hub` (routing relay +
+membership authority), `vpn-exit` (routing relay + masquerade to WAN,
+the exit-node knob). The distinction is shown on every row and on the
+`/display/isle-mesh` matrix so nobody mistakes a blind relay for a hub.
+
+**7.6 Decisions added (defaults in bold; his call):**
+- D9 authority: **isle-side app; Polari read + propose only; the config
+  API refuses tunnel/remote sources.**
+- D10 federation relays: **blind by default**; routing relays only on
+  hubs the household owns.
+- D11 hooks: **templated toggles, no free-text shell.**
+- D12 naming: **`isle-vpn` module/app, "WireGuard-based".**
