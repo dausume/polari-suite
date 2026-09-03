@@ -313,3 +313,82 @@ purchase, the 3-month and yearly bulk proposals, bulk staples, the
 purchase events. Owed: address → coordinates through the geocoder
 service on Create New (today coordinates are typed), and "nearest
 store for X" / "on the way home" (the workplace pin exists).
+
+### N2 — Today page + done → WorkLedger (BUILT 2026-09-03, selftest 28/28)
+- nutrition/today_analysis.py: person_day (CalendarEvent lines for one
+  person-day in time order; eating/meal-prep/pre-prep/packing/cleanup/
+  purchase, availability = context; safetyNote from MethodSkillRequirement
+  hazard tags × SafetyRule; nextUp; done/planned/open counts; ledger lines)
+  + mark_done_proposal (status done, ONE WorkLedger row = actual minutes if
+  given else planned span minutes labelled 'planned-minutes prior';
+  DurationObservation ONLY with actual minutes; dedupe ledger-<event>).
+- nutrition/today_seed.py: tables today-day-list/today-ledger/today-
+  durations; page mealplan/today (?object=person): structured headline over
+  /api/mealplanning/today/{object}, mealplan-week in listDay for the person,
+  Mark done FORM, ledger + durations tables; analyses today-person-day /
+  today-mark-done; solutions today-mark-done-form (writes first, then
+  ModifyEvent → refreshDisplay) and today-done-to-ledger; trigger
+  today-done-to-ledger (object CalendarEvent, fieldFilter status==done).
+- nutrition/today_api.py: TodayAPI — GET today/{person}?day=, POST
+  today/{person}/done {event, minutes} through the real engine.
+- Proven on the fake manager: form path keeps actual minutes against the
+  nested trigger; a CRUD status edit → trigger → planned minutes; planned
+  events never fire.
+
+### N3 — Shopping trip page (BUILT 2026-09-03, selftest 33/33)
+Phone-shaped `mealplan/shoptrip`: the purchase event's lines as a checklist
+in STORE aisle order; "Bought it" → PriceObservation + PantryItem lot.
+- shoptrip_basis: StoreAisleOrder (per-store walk order knob; NOT on
+  SourceLocation) + FoodAisleCategory (51 food→aisle convention priors:
+  produce/dairy/meat/seafood/dry-goods); DEFAULT_AISLE_ORDER prior.
+- shoptrip_analysis: trip_checklist (generated purchase event first, else
+  the weekly proposal, source stated; store order row or convention prior;
+  unknown aisle last + named; est. cost = best observed $/kg × g with age;
+  bought = a lot from this store within ±6 d, a knob) and
+  record_purchase_proposal (PriceObservation `<store>-<food>-<date>` never
+  overwriting; lot grams via weight priors, storage by aisle prior,
+  best-before from BulkStaple shelf_life_days).
+- shoptrip_seed: 3 tables, 1 page (5 rows, 1–2 items each), 2 analyses,
+  1 solution (Form → AnalysisCall×2 → GenerateEvent PriceObservation +
+  PantryItem → refresh). shoptrip_api: GET checklist, POST bought (runs the
+  seeded solution — one write path). Default plan `demo-alex-week`.
+
+### N4 — Cook now (BUILT 2026-09-03, selftest 33/33)
+Page mealplan/cooknow?object=<person>: the recipe at prep time for ONE person.
+- cooknow_analysis.cook_sheet: template → Recipe steps in order; method →
+  task → StepMethod via workflow_analysis.resolve_method; minutes =
+  household.step_minutes (base × skill factor, never below the safety
+  floor; basis on every step); unattended steps carry the timer window and
+  the household's dish suggestion (dish_plan's unattended-first rule);
+  safety lines = SafetyRule words per hazard tag + safety_check verdict;
+  ingredients per step scaled by the person's serving split; totals +
+  readyBy/startBy from a CalendarEvent span. step_done_proposal → one
+  DurationObservation (dedupe <person>-<template>-<step>-<date>) + the
+  refine_speed_factors suggestion AS IF counted (applied=False — PersonSkill
+  stays a knob).
+- cooknow_seed: 2 tables, the page (6 rows), 2 analyses, 1 solution
+  (FormSubscription → AnalysisCall → GenerateEvent DurationObservation →
+  refreshDisplay). cooknow_api: GET cooknow/{person}?template=, POST
+  …/step-done (dry=1 previews). Speed-refinement panels reuse
+  /api/mealplanning/speed-refinement.
+- Observation: on the demo seeds refine_speed_factors proposes knife-work
+  2.25 for demo-alex (seeded 4–5 min observations ÷ dice-knife base 2.0).
+
+### N5 — Weekly review (BUILT 2026-09-03, selftest 32/32)
+Page mealplan/review: headline api-structured-panel over GET
+/api/mealplanning/review + one panel per section (?section=… pick=lines) +
+the period calories/sodium graphs + "Accept next week's proposals" form
+(FormSubscription → AnalysisCall next-week-proposals → GenerateEvent
+CalendarEvent dedupeBy name → refreshDisplay) + WasteRecord / PlanBudget /
+WorkLedger / event tables by existing name + an honesty panel (8 named
+priors as records).
+- weekreview_analysis: week_review composes week_coverage × IntakeRecord,
+  period_summary (this-week bucket + full-history consistency),
+  plan_budget_report, waste_report (windowed), fairness_readout (windowed),
+  weekly + bulk purchase proposals; next_week_proposals (purchase Sat 10:00
+  prior + bulk buys whose 1st falls in the Monday-start next week + next
+  Sunday review); weekly_review_event_proposal (category review, Sunday
+  18:00 × 45 min priors). Every section says "no data" when rows are
+  missing. Default plan `demo-alex-week`.
+- Trigger weekly-review-sunday (schedule SU 17:00) → the review event
+  through the engine; second tick idempotent.

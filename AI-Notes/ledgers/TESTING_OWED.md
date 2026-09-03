@@ -921,8 +921,14 @@ OWED (his gates):
 OWED: a real-browser submission of the log forms; the map page's
 Create New should geocode an address (geocoder service exists);
 the period charts show two points on the demo — more logged days
-make the views meaningful; sugars need a nutrient column before
-"sweets" can be read directly.
+make the views meaningful; ~~sugars need a nutrient column before
+"sweets" can be read directly~~ — LANDED 2026-09-03 (N6): `sugars-total`
+(FDC 269/269.3, values from the same bulk CSVs, 4 API-cross-checked)
+cited for **24 of 49** pantry foods (25 honest absences, named in
+vendor/README.md); each period bucket's `sweets.basis` says
+`sugars-total` or `gl+carbohydrate`; the sugars line is a DERIVED
+DGA-share ceiling labelled conservative, never a target
+(`selftest_tracking_periods` 23/23, `selftest_data` +8 checks).
 
 ## 9. Module-pages no-JSON sweep + household extraction (hh-1) + frontend follow-ups — 2026-09-02
 
@@ -960,3 +966,30 @@ OWED: a real-browser click of the geocode button on
 the cntfet stub-tuple drift (14 guard blocks) so lazy_imports goes
 15/15; `pol modules publish household`; the household page redirect
 (hh-4); sugars column before "sweets" reads directly.
+
+## 10. Meal options export path (mo-3, 2026-09-03) — the privacy line, proven on the reverse of seed
+
+- Built: `json_seeds.export_rows` (+ `out_dir`, hook discovery via
+  `modules/<pkg>/export_hook.py`: include_classes / include_prior_classes /
+  strip_fields / filter_row), `POST /modules/export {"moduleId","classes"?}`,
+  `pol modules export <module> [--api <base>]`, `mealoptions/export_hook.py`
+  + `seedData.py` + `initialData/README.md`.
+- `mealoptions.selftest_privacy` 51/51 proves: a fake manager's is_prior=False
+  MealTemplate/Recipe/BulkStaple + PriceReference (kept regardless of is_prior)
+  export to a temp dir with NO stripped field name (household/person/location/
+  bulk_location/observed_date/lat/lon/address/purchaser ∪ PriceReference's
+  PRIVACY_STRIPPED_FIELDS) as a key in any written file; the prior template is
+  excluded; a template carrying household_name='x' is DROPPED and reported;
+  BulkStaple's trio is blanked then stripped; months match ^\d{4}-\d{2}$; and
+  statically no MEALOPTIONS class (nor PriceReference) declares a stripped
+  field beyond BulkStaple's declared trio. `moduleService.selftest_json_seeds`
+  21/21 = export→apply round trip on a temp package (customized rows never
+  clobbered, stale exporter file removed, refusal without hook/class list).
+  Re-run: mealoptions 16-class suite passes, lazy_imports 15/15.
+
+OWED: `pol modules export mealoptions` against a RUNNING backend (the handler
+was exercised bare, not through falcon), then `pol modules publish mealoptions`
+— needs the GitHub repo (`gh repo create polari-module-mealoptions --public`,
+`--repo` the first time) and is his push ritual (push-all-dev re-publishes the
+subtree). A real user-authored row on prf-a before the first export so the
+files are not empty.
