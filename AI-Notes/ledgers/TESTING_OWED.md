@@ -778,3 +778,185 @@ mount `polari-rf-node/ca/root_ca.crt` had been cleaned away —
 restored as a copy of `ca/.step/certs/root_ca.crt` (public cert,
 gitignored); if that cleanup was deliberate, the service spec is
 the thing to change.
+
+## 5. Calendar + events arc (cal-1..5, built 2026-09-02, branch dev-cal-1)
+
+Plan: `AI-Notes/plans/CALENDAR_EVENTS_PLAN.md`. Every phase ships a
+check()-style selftest that runs WITHOUT a server (fake manager, REAL
+engine):
+
+- `polariNoCode.selftest_recurrence` 16/16 — the `schedule` type
+  expands (weekly / 1-3-6-12-month / yearly / bySetPos / once+duration
+  / datetime spans / excludes / plain refusals).
+- `polariNoCode.selftest_calendar_events` 12/12 — every
+  EventDefinition reading (span, start, relative start + slot prior,
+  time join, duration, all-day, recurrence, filters), honest
+  unresolved counts, CalendarDefinition layer merge.
+- `polariNoCode.selftest_event_triggers` 15/15 — object trigger →
+  solution → GenerateEvent (dedupe), emitted-event chaining + depth
+  guard, schedule trigger idempotency, disabled/cooldown refusals,
+  Modify/Cancel/ScheduleOccurrences/EventWindowQuery, missing-solution
+  failure row.
+- `nutrition.selftest_purchase` 19/19 — his sample: weekly purchase
+  proposal (bulk-covered lines removed), bulk proposals on all four
+  cadences (demand vs stock, bulk vs retail $/kg, savings only where
+  retail is observed, shelf life REFUSING a too-long cadence by name),
+  week coordination (purchase Saturday-before → pre-prep → meals →
+  15-min meal-prep; rules named), the seeded no-code solutions fired
+  by the seeded triggers through the real engine, the mealplan-week
+  calendar merging it all.
+- `nutrition.selftest_mealplan_pages` 7/7 — pages use only
+  embeddedTable / embeddedGraph / embeddedCalendar /
+  api-structured-panel; every embed names a seeded definition; table
+  columns exist on their classes; boot repoint resolves every embed.
+- Regression kept green: turing 16/16, composition 12/12,
+  display_flow 13/13, parity (Python) 69/69, graph_builder 14/14.
+
+OWED (his gates):
+- TS-engine parity vectors for the new node family are NOT written —
+  the six nodes (GenerateEvent, ModifyEvent, CancelEvent,
+  ScheduleOccurrences, EventWindowQuery, AnalysisCall) are declared
+  BACKEND-ONLY in all three registries (StateBuildingBlock.py,
+  capability.ts, state-space-class-registry.ts) per the standing rule;
+  no frontend palette metadata yet (they run, they are not yet
+  draggable in the editor) — cal-3 remainder.
+- Events / Calendars tabs on the class page + the `schedule` editor
+  cell — cal-3 remainder (definitions are editable through CRUDE
+  today).
+- A real-browser pass of the front door (drag → confirm → CRUDE PUT,
+  click → CRUD dialog) — headless verifies render + console only.
+- FoodKeeper shelf lives are TRANSCRIBED priors (confidence
+  'transcribed') — verify against the app before quoting.
+- Slot-time / purchase-time / pre-prep-time / meal-prep-minutes are
+  labeled priors on the definition and the analysis; no household
+  override row yet.
+
+## 6. Meal logistics arc (mlg-1..5, built 2026-09-02, branch dev-mlg-1 off dev-cal-1)
+
+Plan: `AI-Notes/plans/MEAL_LOGISTICS_PLAN.md` (D2/D4/D9/D13–D16 ratified
+by him; D1/D3/D5–D8/D10–D12 at the recommended defaults).
+
+- `nutrition.selftest_logistics` 26/26 — schedules expand (sleep
+  across midnight), where-is, timing check (his 120-min default per
+  person; an early bedtime FLAGS with a latest-start move, never
+  blocks), skill profiles (experienced ×0.8 vs novice ×1.3), SAFETY
+  bounding speed (floor wins, named), safety rules (alone /
+  supervised with reasons), refinement (median of 3; below-floor
+  observations = a safety question, factor stays at 0.7), prep-vs-
+  eating profile, portability (pack at leave − pack − 10 min, cold
+  packs frozen the night before, missing tools named), dishes
+  (unattended windows first; after eating + cooldown), the
+  allocation (shares within tolerance, both allocations, purchase vs
+  delivery comparison, assignees on events, eating is not work),
+  fairness (drift + suggestion), a PersonSchedule change re-
+  coordinating through the no-code trigger (inputs win over the
+  payload), background schedule layer on the calendar.
+- Kept green: purchase 19/19, pages 7/7 (now 6 pages), workflow,
+  pantry, turing 16/16, composition 12/12, display_flow 13/13,
+  parity 69/69, graph_builder 14/14, recurrence 16/16,
+  calendar_events 12/12, event_triggers 15/15.
+
+OWED (his gates):
+- Real-browser pass of /display/mealplan/household and the front
+  door's background schedule layer (headless verifies render only).
+- The IntakeRecord / event CRUD dialogs do not yet ASK "how long did
+  it take" — DurationObservation rows are CRUDE-entered today.
+- WorkLedger rows are not yet written automatically from events
+  marked done (a trigger on CalendarEvent status → done is the
+  natural next step; the fairness readout reads whatever is there).
+- The allocation is greedy (fastest safe person under target, in
+  timeline order), not a global optimum; the pure-minimum column
+  makes the gap visible.
+- Cited priors to verify: ACG/NIDDK ~3 h (shown beside his 2 h
+  default), FSIS bag-lunch 2-hour rule, kitchen-safety rules
+  (transcribed), eating-time priors (household numbers, no
+  literature).
+
+## 7. Week planning (mpc — meals per person → entries, coverage, portions; 2026-09-02)
+
+- `nutrition.selftest_planning` 14/14 — expected slots (pattern /
+  3-meal default labeled), the coverage grid (2 × 3 × 3 = 18; 10
+  planned; 8 missing NAMED; headline), portion fit (ideal scales per
+  person from THEIR targets; the small demo dinner clamps both to the
+  variation max → the compromise STATED with a suggestion; key
+  nutrients vs slot share), apply-meal (slots × days; already-planned
+  named; template-slot mismatch = warning; unknown meal / out-of-range
+  day refuse plainly; one person + fixed scale), the seeded FORM
+  solution through the real engine (FormSubscription → AnalysisCall →
+  GenerateEvent MealEntry → refreshDisplay) writing 3 lunch entries,
+  coverage rising to 16/18, idempotent re-run, the entry trigger
+  firing. Pages 7/7 (8 pages; forms link seeded solutions).
+- Live: coverage 10/18 on the demo plan; portion-fit shows both
+  clamped (452 kcal vs ~900–1000 kcal slot targets) with 2 named
+  compromises; apply preview 3 lunches; /display/mealplan/meals?
+  object=demo-alex and /display/mealplan/week render their forms +
+  tables with no JSON, `{object}` resolved, 0 console errors.
+
+OWED (his gates):
+- A real-browser SUBMISSION of "Add to the week" (headless verifies
+  the form renders and the same solution runs through the execution
+  API; the button click itself is untested in a browser).
+- Portion fit reads calories only for the scale; nutrients are
+  REPORTED, not optimised (a second objective — protein-per-portion —
+  is the natural next knob).
+- Replacing an already-planned entry from the form is refused by
+  design (edit/delete in the entries table); a "replace" mode would
+  need ModifyEvent per cell.
+- The meal ranking on the meals page is the mpb ratings rank; it does
+  not yet fold in exclusions/conditions (planned composer work).
+
+## 8. Tracking over time (mpt) + Food Supply map (mps) — 2026-09-02
+
+- `nutrition.selftest_tracking_periods` 15/15 — week/month buckets,
+  means per logged day, verdicts vs the person's lines, low-confidence
+  named, consistency (3 salty weeks → "consistently too much"), duck
+  manager skips the cache and says so, the log forms' proposals
+  (every problem named) and their solutions through the real engine
+  (dedupe by name), the new log appearing in the week means.
+- Pages 7/7 (ten pages; embeddedMap allowed).
+- Live: periods route writes 4 PeriodIntakeMetric rows; the me page
+  renders 13 embedded graphs (day / week / month), 2 forms, 3 tables,
+  0 console errors.
+
+OWED: a real-browser submission of the log forms; the map page's
+Create New should geocode an address (geocoder service exists);
+the period charts show two points on the demo — more logged days
+make the views meaningful; sugars need a nutrient column before
+"sweets" can be read directly.
+
+## 9. Module-pages no-JSON sweep + household extraction (hh-1) + frontend follow-ups — 2026-09-02
+
+- Sweep (agent): 30 `api-json-panel` items → `api-structured-panel`
+  across module_pages_seed (nutrition / vermicompost / tanks /
+  biomining / microalgae / wax / supply-chain / morphology / zones),
+  climate (10→14), computers (5→6), cntfet home/blocks/characteristics
+  (+ the `_api` view descriptors), sifet (4→6). Cross-seed check: 50
+  pages, 191 structured panels, 0 json panels, rows sum to 12, ids
+  unique. Selftests: sifet pages 21/21, cntfet 131/131, blocks 32/32,
+  computers 30/30, climate 237/237. Dead path found:
+  `/persons/demo-alex/needs` is POST-only (the old panel was dead) →
+  repointed to `/thresholds?period=day`.
+- Live backfill `polari-cli/shells/backfill-module-pages.sh`: 48
+  pages converged (PUT+diff), co2-health/co2-eras missing on prf-a
+  (seed on their node's boot). Headless on the live routes (nutrition,
+  nutrition/profile, nutrition/recipes, cntfet, sifet, vermicompost,
+  plant-morphology, cntfet-score-cnt-aligned-s1): pre=0 unrendered=0
+  json=0, tables render. The last four pages (app-store-home,
+  isle-mesh-home, open-library, fet-detail) are a second agent's pass —
+  see the handoff for its result.
+- hh-1: `household.selftest_household` 27/27; nutrition suites
+  unchanged (logistics / planning / purchase / tracking_periods /
+  mealplan_pages); polariNoCode recurrence 16/16, calendar_events
+  12/12, event_triggers 15/15. Pre-existing: lazy_imports 14/15
+  (cntfet stub tuples, fv arc — not this round).
+- Frontend (agent, tsc clean): CRUD dialog "Find coordinates from
+  address" (any class with latitude+longitude+address/display_name;
+  fills region_label when the geocoder returns a region; errors
+  inline); fet-characteristic explorer honours the descriptor's
+  componentName/pick/hideKeys (api-structured-panel by default).
+
+OWED: a real-browser click of the geocode button on
+/display/mealplan/supply Create New (headless can only prove the DOM);
+the cntfet stub-tuple drift (14 guard blocks) so lazy_imports goes
+15/15; `pol modules publish household`; the household page redirect
+(hh-4); sugars column before "sweets" reads directly.

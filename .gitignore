@@ -114,3 +114,7 @@ __pycache__/
 # WireGuard remote-access artifacts (private keys) — keep private
 .remote-wg/
 **/.remote-wg/
+
+# AI-Notes/local — notes that quote third parties (user requests, private
+# messages). Never tracked; the functionality gets built, the message stays home.
+AI-Notes/local/

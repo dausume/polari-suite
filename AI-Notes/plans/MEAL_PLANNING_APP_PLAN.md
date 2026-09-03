@@ -188,3 +188,128 @@ pass (`claude --chrome` relaunch).
 | deploy | ✅ **DEPLOYED 2026-09-01**: pspp+foodstate+nutrition+composition assigned to prf-a (`pol topology assign`, POLARI_MODULES now 16 modules), BOTH images rebuilt from the dev-mpa-1 trees, `pol swarm deploy node`, admission ~14 min — **21/21 LIVE PROBES PASS** (all foodstate + mealplanning routes, metric cache upserts live, Graph/Display rows present). Probe script: `pol suite`-side scratch, battery recorded in the handoff |
 | redeploy 2 | ✅ backend re-rolled same session with the fsp-3 chemistry slice — speciation + tomato acidity live (TA 3.79 meq/100g), 21/21 battery re-passed; frontend live on the new bundle (by-name charts), pinned to pol-core (LIVE-ONLY constraint — stack spec still needs the pin) |
 | browser pass | ⚠ pending — the visual pass over /display/mealplan* (chart rendering esp. date-x-axis on the trend charts is the untested seam); this session had no Chrome extension — relaunch `claude --chrome` |
+
+## mpc — plan the week: meals per person → entries, coverage, portions (2026-09-02, BUILT same day)
+
+**Dustin, verbatim:** "we should have a meals page specifying meals
+for individuals, and then the meals page should be able to translate
+into converting that meal into meal-prep for the week. We should be
+able to choose to use that meal for any number of meals of the day,
+and any number of days in the week from that meal plan. We should
+also have a configuration page for planning meals for the week, that
+checks if all meals have been planned for the week yet." … "it should
+still be able to adjust the portioning on the meal to adjust the
+calories and nutrients per person to try and best-fit getting each
+person what they need individually. Compromising the fact that we
+cannot make a perfect meal for everyone and compromising between
+needs of the household"
+
+**Built (wrapping):** `nutrition/planning_analysis.py` —
+`expected_slots` (the person's eating pattern; 3-meal default
+labeled), `week_coverage` (person × day × slot grid; missing NAMED;
+headline; complete flag), `portion_fit` (ONE recipe, per-person
+scales = slot share of THEIR calorie target ÷ kcal per serving via
+`template_rollup` + `calorie_envelope`, clamped to the variation's
+`scale_min/max`; key nutrients vs the slot share of `nutrient_needs`;
+the compromise stated per person with a suggestion),
+`apply_meal_proposal` (slots × days → MealEntry proposals with
+`serving_split_json` = the portions and `scale` = their sum; existing
+entries NAMED, never overwritten; template-slot mismatch = warning).
+No-code: the "Add to the week" FORM (P4 real forms, `type: 'form'`,
+extraVariables) runs `mealplan-apply-meal-to-week` = FormSubscription
+→ AnalysisCall(mealplan-apply-meal, pick proposals) →
+GenerateEvent(targetClassName=MealEntry, eventsFrom, dedupeBy name)
+→ EmitFrontendEvent refreshDisplay; the MealEntry create trigger
+re-coordinates pre-prep / packing / dishes / allocation. Pages:
+`/display/mealplan/meals?object=<person>` (ranked meals, slots,
+templates + variations tables, the form with the person pre-filled —
+display-page now substitutes `{object}` into form defaults — portion
+fit panels, the week's entries) and `/display/mealplan/week`
+(headline, missing table, per person / per day, the form, the grid,
+the entries table); the front door shows "Is the week planned?".
+Routes: week-coverage, apply-meal (preview), portion-fit,
+expected-slots. Selftest `nutrition.selftest_planning`.
+
+**Portion objective KNOB (2026-09-02, BUILT — TESTING_OWED §7
+"nutrient-aware portion optimisation"):** `portion_fit(…, objective=,
+weights=)` and `GET …/templates/{name}/portion-fit?objective=&weights=`.
+`objective='calories'` (DEFAULT — the behaviour above, byte-identical)
+or `'nutrients'`: each person's scale is the point on a 0.05 grid
+inside the variation's `[scale_min, scale_max]` minimising
+`J(s) = Σ_n w_n · e_n(s)²` with `e_n = (have_n·s − line_n)/line_n` for
+the TARGET lines calories / protein_g / fiber_g and, for sodium_mg, a
+CEILING: `e = max(0, (have·s − cap)/cap)` — excess penalised,
+shortfall free. The per-slot lines are the person's own daily lines ×
+the slot fraction, read from the SAME functions the tracking page
+uses: `tracking_periods._lines` (calorie envelope target; sodium CDRR
+2300 mg / ToleranceThreshold row) and `threshold_analysis.person_thresholds`
+(the DRI/override targets that feed `intake_day`'s vsThresholds) —
+nothing re-derived. A nutrient with no line or no rollup is NAMED on
+the fit (`noLine`), never guessed. **Weights = labelled convention
+prior** (`DEFAULT_FIT_WEIGHTS`, not evidence-derived): calories 1.0,
+protein 0.7, fiber 0.3, sodium-excess 0.5; `weights=protein=0.9,sodium=0.2`
+(or a JSON object) overrides per line; whatever was used is echoed
+(`weights`, `weightsLabel`, `unknownWeights`). Per person the fit adds
+`caloriesOnlyScale`, `objectiveValue`, `fitLines` (kind, achieved vs
+line, relErrPct, ownIdealScale, weight, weightedTerm, source),
+`driver` (the largest weighted term) and `story` — words: "protein
+pulls the portion up (its own ideal ×2.74); calories pull it down
+(×2.00) — chosen ×2.25; protein drives the compromise (−18 % vs its
+line)" / "sodium caps it at ×0.64". `clamped` under this objective =
+pinned on a bound while J still falls past it. Compromises carry the
+driver and a driver-specific suggestion. No scipy — a bounded scan.
+Selftest `nutrition.selftest_planning` 16 → 24 checks (default
+unchanged; high-protein override → larger scale than calories-only;
+6 g salt → sodium ceiling caps it; weights echoed; no-line named).
+
+## mpt — per-person tracking over time (2026-09-02, BUILT same day)
+
+**Dustin, verbatim:** "a per-person page analyzing what an individual
+has ate over time, so they can track their data and weight trajectory
+over time. We should be able to condense data to average or mean
+values at per week and per month levels to see different views. This
+way we can see if we are consistently eating too many sweets or acid
+inducing foods or calories or carbs or salty foods, etc. Or if we are
+eating too little" … "work on the per person page and check it in the
+browser and make sure we have multiple graphs that can be gone between
+and that there is a place for a user to enter data."
+
+**Built:** `nutrition/tracking_periods.py` — `period_summary`
+(week/month buckets of the day series: means per LOGGED day of
+calories/protein/carbohydrate/fiber/sodium, mean max-meal GL, mean
+acid share, weight mean + delta; verdicts vs the person's own lines —
+calorie envelope min/max, the day rollup's targets, the sodium CDRR,
+GL>20, the acid-share tolerance row; low-confidence buckets named;
+CONSISTENCY across well-logged buckets; persist → `PeriodIntakeMetric`
+cache rows keyed series_key '<person>:<kind>'), `intake_proposal` /
+`weight_proposal` (the log forms, validated). "Sweets" are read
+through GL + carbohydrate — the FDC set has no sugars column (said on
+the payload). Route `/users/{person}/periods?kind=week|month`
+(reading refreshes the cache). Solutions `mealplan-log-intake`,
+`mealplan-log-weight` (FormSubscription → AnalysisCall → GenerateEvent
+IntakeRecord/WeightObservation, dedupe by name → refresh). Page
+`/display/mealplan/me?object=<person>` (nav "My tracking"): week +
+month summaries and consistency, the two log forms (person
+pre-filled), 4 DAY charts, 6 WEEK charts, 3 MONTH charts (the same
+7 period GraphDefinitions filtered by series_key), intake / weight /
+period tables (Create New), the buckets and the lines. Selftest
+`nutrition.selftest_tracking_periods` 15/15.
+
+## mps — the Food Supply map (2026-09-02, BUILT same day)
+
+**Dustin, verbatim:** "make a Food Supply page, that will focus
+around a map. We will want to use geolocations and addresses for the
+places where we buy different kinds of foods and at what prices we
+buy those foods."
+
+**Built:** `embeddedMap` (angular: a GeoJsonDefinition by NAME over a
+class's rows through the existing map-renderer — the map twin of
+embeddedTable/Graph/Calendar), the seeded GeoJsonDefinition
+`mealplan-food-sources` (SourceLocation lat/lon, DMV-centred),
+page `/display/mealplan/supply` (nav "Food Supply (map)"): the map
+12-wide, places + prices tables (Create New with address and
+coordinates), best place per food ($/kg, price age), the next weekly
+purchase, the 3-month and yearly bulk proposals, bulk staples, the
+purchase events. Owed: address → coordinates through the geocoder
+service on Create New (today coordinates are typed), and "nearest
+store for X" / "on the way home" (the workplace pin exists).

@@ -1,6 +1,268 @@
 # Next-session handoff: meal planning + acid management
 
-> **➡️ BROWSER PASS HANDOFF (2026-09-02, for a FRESH `claude
+> **✅ 2026-09-02 (late) — NO-JSON SWEEP OF EVERY MODULE PAGE + hh-1
+> HOUSEHOLD EXTRACTION + geocode/explorer frontend (agents; dev-mlg-1,
+> UNCOMMITTED).** (1) 50 seed pages / 191 api-structured-panels / 0
+> api-json-panel in the tree (module_pages_seed, climate, computers,
+> cntfet incl. the explorer's view descriptors, sifet, appstore,
+> islemesh, open-library, fet-detail); live rows converged by
+> `polari-cli/shells/backfill-module-pages.sh` (re-runnable; ends by
+> listing any live page still carrying a json panel — expect 0);
+> headless on nutrition / profile / recipes / cntfet / sifet /
+> vermicompost / plant-morphology / a score page: pre=0 unrendered=0.
+> (2) `modules/household/` extracted from nutrition's logistics layer,
+> names unchanged, nutrition re-exports everything (no importer
+> changed), `requires: household`, `pol topology assign household
+> prf-a` done, `household.selftest_household` 27/27, all nutrition +
+> no-code suites unchanged — HOUSEHOLD_APP_PLAN.md §3a. D1–D10 still
+> gate hh-2. (3) CRUD dialog "Find coordinates from address" (any
+> class with latitude+longitude+address) + fet-characteristic explorer
+> honours componentName/pick/hideKeys; frontend bundle main.e53bd9db
+> rolled. (4) The me page after the cache fix: DailyIntakeMetric holds
+> both logged days, weekly cache skips unlogged buckets — 26 graphs /
+> 4 forms / 12 tables, 0 errors. DEPLOY: the backend image carrying
+> the sweep seeds + household must roll via the STACK DEPLOY (item 3
+> below: both env pins) so POLARI_MODULES picks up household — see the
+> "deploy state" line at the end of this block, updated when it lands.
+> Ledger: TESTING_OWED §9. Pre-existing, not ours:
+> `moduleService.selftest_lazy_imports` 14/15 (cntfet stub tuples).
+> DEPLOY STATE: LANDED 23:09 2026-09-02 — stack deploy (both env pins) → POLARI_MODULES carries household; backend cap 1024M→1536M (the 1024M task was OOM-killed, exit 137, during the backfill sweep; see deploy memory); live: HouseholdMember 2 / PersonSkill 12 / WorkDistributionPolicy 6 rows, 4 AnalysisDefinitions on household.household_analysis, portion-fit objective knob answering (chicken-bowl-dinner: nutrients objective ×0.85/×0.80 vs calories-only ×1.2, driver named), 69 calendar events / 15 triggers, backfill reports 0 json panels on any live page, headless mealplan / household / me / week / nutrition/profile / open-library / a cntfet detail page: pre=0 unrendered=0 json=0; frontend bundle main.e53bd9db (geocode button + explorer descriptor).
+
+> **✅ mpt (My tracking) + mps (Food Supply map) BUILT + DEPLOYED
+> 2026-09-02 (dev-mlg-1, UNCOMMITTED).** `/display/mealplan/me?object=
+> <person>`: week/month means per logged day vs the person's lines,
+> "consistently too much / too little" (sweets = GL + carbs; no sugars
+> column), log-intake + log-weight forms, 13 charts across day/week/
+> month (7 period GraphDefinitions over the PeriodIntakeMetric cache,
+> filtered by series_key '<person>:<kind>'), Create-New tables.
+> `/display/mealplan/supply`: the new `embeddedMap` (GeoJsonDefinition
+> by name → map-renderer) over SourceLocation pins + places/prices
+> tables + best $/kg + purchase/bulk proposals. The pages inventory,
+> the Household home design and the next views to build:
+> `AI-Notes/designs/HOUSEHOLD_APP_PAGES.md`. Owed (TESTING_OWED §8):
+> browser submission of the log forms; geocoding on Create New.
+
+> **✅ mpc WEEK PLANNING BUILT + DEPLOYED 2026-09-02 (his two asks +
+> the portioning ask; dev-mlg-1, UNCOMMITTED):** new pages
+> `/display/mealplan/meals?object=<person>` (nav "Meals for me") and
+> `/display/mealplan/week` (nav "Plan the week"): meals ranked per
+> person, the slots they eat, templates + variations, the "Add to the
+> week" no-code FORM (any slots × any days → MealEntry rows through
+> GenerateEvent; already-planned cells NAMED, never overwritten;
+> per-person PORTIONS in serving_split_json fitted to each member's
+> calorie target and clamped to the variation's bounds, the
+> compromise stated), the coverage grid that says whether the week
+> is planned (front door shows the headline). Live: 10/18 planned on
+> the demo plan; 0 errors, no JSON. Owed (TESTING_OWED §7): a real-
+> browser click of the form; nutrient-aware portion optimisation.
+
+> **➡️ NEXT ROUND: THE HOUSEHOLD APP (hh) — PLANNED 2026-09-02 (his
+> "go ahead" on the plan), awaits ratification of D1–D10.**
+> `AI-Notes/plans/HOUSEHOLD_APP_PLAN.md`: refactor-first — hh-1
+> extracts a `household` module (schedules/sleep, members, percent
+> shares, ledger, skills + safety, refinement, allocation, fairness,
+> dish strategies) out of nutrition with names unchanged (live rows +
+> callable refs converge via upsert; nutrition requires household;
+> publish polari-module-household), then hh-2 chores + laundry
+> (cycles as unattended windows, chemical/ladder hazards), hh-3
+> supplies (pantry + bulk-cadence pattern), hh-4 the 'household' app
+> + pages, hh-5 done→WorkLedger + duration prompts + a global
+> allocation knob. Open: one app or two siblings; robot/washer as
+> demo tools; kids' chores supervised by default.
+
+> **✅ MEAL LOGISTICS mlg-1..5 BUILT + DEPLOYED 2026-09-02 (his go;
+> branch `dev-mlg-1` off dev-cal-1, framework only, UNCOMMITTED).**
+> New page `/display/mealplan/household` (nav: Meal Planning →
+> Household & Work): schedules (background layer on the calendar),
+> sleep spacing (his 2 h default, per person), members + percent
+> shares per workload type + delivery comparison, the allocation
+> (fastest safe free person within shares; both allocations shown),
+> fairness, situations + packing (lunchbox / cold packs, FSIS-cited),
+> skill profiles with SAFETY floors + rules ("skilled, not fast"),
+> prep-vs-eating profiles, refinement (never below 0.7), dish
+> strategies + plan. `coordinate_week` v2 generates eating, packing
+> and cleanup events with assignees; any logistics row change
+> re-coordinates through the triggers. Selftest 26/26 (TESTING_OWED
+> §6). REMAINING: WorkLedger auto-write from done events, "how long
+> did it take" prompts, real-browser pass, TS parity/palette for the
+> event nodes (cal-3 remainder).
+
+> **(done) ➡️ NEXT ROUND: MEAL LOGISTICS (mlg) — PLANNED 2026-09-02, awaits
+> his ratification.** `AI-Notes/plans/MEAL_LOGISTICS_PLAN.md`:
+> people's work/sleep schedules as PersonSchedule rows (schedule
+> recurrence, background calendar layer) + SleepPreference (dinner→
+> sleep prior 180 min, ACG/NIDDK-cited, flags never blocks); household
+> members + WorkDistributionPolicy (everyone/rotate/weighted/assigned/
+> delivery with fee/markup/min-order; labor value = the household's
+> own knob) + WorkLedger fairness readout; MealSituation +
+> MealLogistics (workplace, insulated lunchbox, cold packs, FSIS
+> bag-lunch prior; pack / freeze-packs events); SkillDefinition +
+> PersonSkill + DurationObservation refinement + MealTimeProfile so
+> final-prep and EATING time are per person; five analyses feeding
+> coordinate_week. Phases mlg-1..5, D1–D12. Open Qs: his 3-h number,
+> seed a 2nd adult, delivery model, workplace as SourceLocation.
+
+> **✅ CALENDAR + EVENTS ARC cal-1..5 BUILT + DEPLOYED 2026-09-02
+> (ratified same day; branch `dev-cal-1` in framework + angular,
+> UNCOMMITTED — his push ritual).** The front door
+> /display/mealplan IS the calendar now (embeddedCalendar over the
+> seeded `mealplan-week` CalendarDefinition: planned meals, generated
+> purchase / bulk-purchase / pre-prep / meal-prep events, intake,
+> activity, weight — layer chips, click → CRUD dialog, drag → confirm
+> → CRUDE PUT). Event logic is NO-CODE: 8 seeded EventTrigger rows →
+> 3 SolutionDefinitions (AnalysisCall → GenerateEvent(eventsFrom) →
+> EmitEvent) → CalendarEvent rows, every firing a TriggerFiring row
+> (visible on the planner page). His sample: weekly purchase
+> (Saturday 10:00), bulk purchases monthly/3/6/12-month on the 1st
+> over 12 FoodKeeper-cited staples (shelf life refuses a too-long
+> cadence), coordination purchase → pre-prep → meals → short
+> meal-prep. Live probes: /api/calendar/mealplan-week/events = 18
+> events; /api/calendar/triggers = 8; the seed's first coordination
+> firing audited; headless front door 0 errors. Full state + gotchas:
+> CALENDAR_EVENTS_PLAN.md (top block), TESTING_OWED §5, memory
+> calendar-events-arc. ⚠ Deploy ritual unchanged (build image +
+> `docker service update --force`; admission ~10 min); the tick
+> thread runs on the backend (POLARI_EVENT_TICK_S=60).
+
+> **(done) ➡️ NEXT ROUND OPENS ON THE CALENDAR (Dustin 2026-09-02: "make a
+> calendar, we should have configurable calander and event
+> capabilities … the main page of the meal planning app to be
+> focused around that"). Plan = `AI-Notes/plans/CALENDAR_EVENTS_PLAN.md`
+> (cal-0 audit DONE: FullCalendar MIT already vendored + popup
+> dialog + temporal types + recurrence model with NO expander;
+> MISSING CalendarDefinition / embeddedCalendar / Calendars tab /
+> CalendarEvent / /api/calendar). His refinement the same day: WRAP
+> what exists; EVENT DEFINITIONS tie object classes to datetime +
+> duration fields; event generation/modification/triggering = NO-CODE
+> (EventTrigger rows → SolutionDefinitions; node family wrapping
+> StateChangeCommit/EmitEvent/dateutil; dispatcher on the CRUDE
+> lifecycle hook + emitted events + a tick). Ratify D1–D13 → cal-1
+> on `dev-cal-1`.**
+
+> **✅ NO-JSON ROUND 2026-09-02 (after the browser pass). Dustin, on
+> seeing the pages: "there should not be any json showing on the
+> screens, everything should be configured tables, graphs, or
+> visualizations" · "look at how we do configuration of those
+> already in polari, do not create new custom code" · "they should
+> be embedded into displays that are put into the app pages".**
+> Built + DEPLOYED + verified headless (5 pages: `<pre>`=0,
+> "unrendered fields"=0, table-load errors=0, console errors=0):
+> - `polariApiServer/mealplan_pages_seed.py` REWRITTEN the Polari
+>   way: 17 **TableDefinition** rows (one per meal-planning class —
+>   MealPlanDefinition, MealEntry, PantryItem, UnitWeightPrior,
+>   SourceLocation, PriceObservation, IntakeRecord, UserAccountLink,
+>   WeightObservation, DailyIntakeMetric, PersonExclusion,
+>   StatedCondition, ConditionSteering, PlanBudget, WasteRecord,
+>   MealRating + a NutrientContent view; ColumnConfiguration shape,
+>   instance cards, defaults for the class pages) embedded via
+>   `embeddedTable` (scoped with filterField/filterValue); the 4
+>   trend **GraphDefinition**s via `embeddedGraph` by name; the
+>   derived verdicts (cost/coverage/budget/acidity/state chain…) via
+>   the registered `api-structured-panel` with `pick`/`hideKeys`
+>   tuned so nothing reaches its JSON expander. Item counts: 20
+>   embedded tables, 4 charts, 27 structured panels; 0 api-json-panel
+>   / class-rows-table.
+> - Seeded through **composition.seed_upsert** (`seed_mealplan_pages`
+>   wired in polariServer beside seed_motors_pages, nutrition-gated)
+>   with boot-time **id repoint** (motors pattern) — the pages now
+>   CONVERGE on edit; the mealplan entries were REMOVED from the
+>   insert-by-name lists; the interim backfill script was deleted.
+>   Live boot log: TableDefinition +17, DisplayDefinition ~5,
+>   repointed 20.
+> - `modules/nutrition/selftest_mealplan_pages.py` (7/7): allowed
+>   components only, embeds name seeded definitions of the right
+>   class, columns EXIST on the class (constructor signature),
+>   repoint resolves every embed on a fake node.
+> - ONE frontend fix in existing code (angular dev, UNCOMMITTED):
+>   `class-data-table.initializeFromNamedConfig` falls back to the
+>   TableDefinition's configured column `dataType` when no class
+>   schema is present — display-page embeds showed "(unknown)" on
+>   every header (motors pages had it too). Rebuilt + rolled
+>   (bundle main.34eaa239…).
+> - Backend: image rebuilt + `docker service update --force`
+>   (admission ~10 min).
+> ⚠ **FOLLOW-UP HIS RULE IMPLIES (not done):** 36 OTHER live pages
+> still carry `api-json-panel` (the 6 nutrition/* app pages in the
+> SAME nav — nutrition-home/profile/meals/recipes/activity/garden
+> from module_pages_seed — plus vermicompost/tanks/biomining/
+> microalgae/waxsupply/supplychain/morphology/zones/app-store/
+> isle-mesh/computers/open-library/cntfet-*/sifet-home/fet-detail).
+> Route = the same recipe: TableDefinitions per class + embeddedTable,
+> structured panels for verdicts, and (the gotcha) those seeds are
+> INSERT-BY-NAME — either adopt the upsert path per module (as here)
+> or backfill. The nutrition six are the natural next slice.
+> Trivial `{object}` upgrade available: display-page substitutes
+> `{object}` in inputs, so these pages can become per-person /
+> per-plan (`?object=`) instead of demo-hardcoded.
+> UNCOMMITTED now: framework (mealplan_pages_seed.py, polariServer.py,
+> selftest_mealplan_pages.py), angular (app-routing.module.ts,
+> class-data-table.ts), this doc. Live DB: 17 TableDefinition rows,
+> ModuleAssignment polariapps@prf-a.
+
+> **✅ BROWSER PASS EXECUTED 2026-09-02 (fresh `claude --chrome`
+> session — the extension STILL refused to attach ("Browser
+> extension is not connected"; Chrome + native host both running),
+> so the pass ran through HOST HEADLESS CHROME: real Chromium
+> screenshots + DOM dumps + `--enable-logging=stderr` console per
+> page — see memory chrome-browser-tools). All 7 items PASS after
+> three fixes; 0 console errors on all 5 pages in the final run.**
+>
+> Findings + what was done (fix ritual followed):
+> 1. ⛔→✅ **/display/mealplan/{planner,pantry,market,trends} did not
+>    ROUTE** — Angular's `display/:id` matches ONE segment, so every
+>    nested pageRoute (the 4 mealplan + 6 nutrition/* pages) threw
+>    NG04002; only /display/mealplan worked. Fix (angular dev,
+>    UNCOMMITTED): `displayPageMatcher` UrlMatcher in
+>    app-routing.module.ts joins `display/a/b/…` into :id='a/b/…'
+>    (DisplayPage already matched `isPage && pageRoute === id`).
+>    Built `pol node build frontend --env staging` + `docker service
+>    update --force --image prf-frontend:staging polari-node_frontend`
+>    → bundle main.c46e5333…; all 11 nested pages load.
+> 2. ⛔→✅ **polariapps was NOT in POLARI_MODULES on prf-a** →
+>    /api/apps/nav 404 → no 'Meal Planning'/'Kitchen' dropdowns.
+>    `pol topology assign polariapps prf-a` (row) then the stack
+>    deploy below; nav now carries both groups + all 11 links.
+> 3. ✅ **Frontend pin is now IN THE STACK SPEC** (the open item):
+>    deployed with `CNTFET_ENGINES_URL=http://192.168.0.210:9700
+>    POL_STACK_CONSTRAINTS="backend=node.labels.polari.machine==pol-core
+>    frontend=node.labels.polari.machine==pol-core" pol swarm deploy
+>    node` — ⚠ a bare `pol swarm deploy node` DROPS
+>    CNTFET_ENGINES_URL (rendered env diffed vs live before deploy;
+>    that was the only other delta). Backend re-admitted in ~9 min.
+> 4. ⛔→✅ **Live page rows were BEHIND the seed** (INSERT-BY-NAME
+>    gotcha again): planner lacked exclusion/condition/budget/
+>    protein-per-$ panels, pantry lacked waste ledger + quick-add,
+>    trends lacked coverage steering + declared exclusions. New
+>    `polari-cli/shells/backfill-mealplan-pages.sh` (PUT-diff-verify,
+>    same pattern as backfill-cntfet-pages.sh; graphs included)
+>    backfilled 3 pages, 4 graphs already identical. RE-RUN IT after
+>    any page-seed edit until DisplayDefinition rides an upsert path.
+> 5. ✅ **THE SEAM HOLDS**: all four embeddedGraph charts render
+>    through Observable Plot with the date-STRING x-axis (ticks
+>    2026-08-31 / 2026-09-01; weight scatter 08-25…09-01). Cosmetic
+>    only: a FLAT series (GL 16.1 both days, acid share 0) yields a
+>    single y tick printed '6.100000'/'0.000000' — 6-decimal format +
+>    left-margin clipping of '16.100000'. Fix lives in the graph
+>    renderer's y-tick format for degenerate domains; not the data.
+> 6. Checklist values confirmed on screen: Me = honest refusal;
+>    dashboard demo-alex; rice 2000 g / eggs 400 g; best chicken
+>    demo-grocery 13.21/kg; dozen eggs 600 g $3.79; budget = $25.71
+>    cap for the 3 plan days (the $60/wk envelope pro-rated) with
+>    $18.30 headroom; posture text visible on condition flags.
+> 7. Observations, not fixed: (a) 10 parallel headless loads once
+>    produced `ChunkLoadError: Loading chunk 2753` (serial re-run
+>    clean, chunk serves 200) — proxy under burst, watch for it;
+>    (b) one run showed the "Certificate Trust Required" modal for
+>    https://localhost:2096/cert-trust — the trust check read the
+>    build-time backend default before runtime-config applied (1 of
+>    ~15 loads); a real-browser repro would make it worth ordering
+>    the check after configLoaded.
+> UNCOMMITTED (his ritual): angular app-routing.module.ts (dev),
+> polari-cli/shells/backfill-mealplan-pages.sh, this doc. Row
+> change: ModuleAssignment polariapps@prf-a (live DB).
+> Screenshots of the final pass are session-scratch only.
+
+> **(superseded by the block above) ➡️ BROWSER PASS HANDOFF (2026-09-02, for a FRESH `claude
 > --chrome` session — Dustin: "do a handoff with a fresh chrome").
 > Everything is BUILT + DEPLOYED + 34/34 live-probed; this pass is
 > the last verification. Execute:**
