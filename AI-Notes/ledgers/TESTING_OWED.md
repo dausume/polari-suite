@@ -1017,3 +1017,58 @@ publish mealoptions` (GitHub repo — his push ritual); real-store aisle
 rows; per-store `StoreAisleOrder` from real shops; a phone-width pass of
 the shopping trip page; the backend RSS still climbs ~170 MB across a
 page sweep and does not come back (cap now 1536M).
+
+## 12. VPN arc vpn-1 — Polari half (2026-09-03 afternoon, branch dev-vpn-1; his "I approve of the plan", then away for hours)
+
+- Headless: `vpn.selftest_vpn` 75/75 (vocabulary/labels, ledger
+  allocation, Link rendering mesh N−1 / hub member 1 / hub all, exit
+  masquerade ONLY with knob + exit kind, Bridge Peer subnet in AllowedIPs,
+  federation routes active-only, nftables text, Bridge refusals until
+  step-ca, proposal validation incl. key-material refusal, the two-isle
+  demo, seed shapes); `islemesh.selftest_islemesh` 69/69 (INGEST_KINDS +
+  matrix `.vpn` column); `moduleService.selftest_lazy_imports` 15/15,
+  `selftest_module_registry` 10/10 (`selftest_module_dependencies` 13/14 =
+  pre-existing waxprint/xr boundary miss, same on clean dev).
+- Live on prf-a (image rebuilt 13:35, node stack rolled by
+  `enable-vpn-prf-a.sh`; boot took ~30 min — the CRUDE-registration cycle
+  ran 61 times at ~16 s each before the seed phase; health 200 at 14:06):
+  `/api/vpn/kinds` 10 kinds with the right labels; catalog carries the ten
+  `isle-vpn` listings, six with `provides_engine vpn-gateway`;
+  `POST /api/vpn/demo` 23/23 (two Link Gateways mirrored; `.vpn` option on
+  isle-a, ABSENT on isle-c the Link Node; federation proposal filed
+  without touching the mirror; anonymous apply refused; operator apply
+  flips it and the link row goes ACTIVE; render carries the remote
+  gateway + its subnets with the private-key placeholder only; revoke →
+  peer gone in one push + render drops it; a push with `private_key` and
+  a proposal with `preshared_key` refused whole); `/api/vpn/matrix` +
+  `/exposure-options` agree; `/api/islemesh/matrix` shows `whoami.vpn`
+  with its label; CRUDE export of all six classes: zero key-material
+  hits; `POST /modules/export {"moduleId":"vpn"}` exports 0 rows (mirror
+  + inbox rows are never user-authored seeds). VpnNocodeSeed created the
+  analysis + six solutions on first boot.
+- Real browser (headless Chrome over CDP, `scratchpad/cdp_vpn.js`,
+  17/17 at 14:09): `/display/vpn` renders as 4 structured panels + 6
+  class tables + 5 forms, pre=0 unrendered=0 api-json-panel=0, mock
+  banner + kinds + Blind/Sees-traffic + the demo rows visible; form
+  "Propose a network" with a duplicate name → "Refused: network
+  'arch-demo' already exists on this isle — propose a peer or a rule
+  instead" on the form, proposal count unchanged; a new name → "Proposed
+  network browser-… (vpn-link-gateway, mesh, 10.60.4.0/24, port 51821)
+  for isle-a. Apply on the isle with `isle vpn apply vp-…`", a
+  VpnProposal row filed (cidr + port allocated, applied_by empty) and NO
+  VpnNetwork row; the `.vpn` exposure form on isle-c → "Refused: the .vpn
+  rung is not available on this isle — no gateway-kind VPN app…";
+  `/display/isle-mesh` matrix shows `whoami.vpn`. Zero console errors.
+  FOUND on the first run only: the two summary panels reported "Http
+  failure … 0 Unknown Error" seconds after boot (transient — CORS headers
+  verified by curl, second run clean).
+- OWED: the ISLE half I-1..I-5 (isle-core; contract in
+  `Isle-Mesh/NOTES-FROM-POL-CORE.md`); a REAL push from isle-core through
+  `push-to-polari.sh` replacing the mock rows; the boolean form knobs
+  (forward/masquerade) were not exercised by the browser pass; `pol vpn`
+  verbs were syntax-checked and `help` run, the read verbs only exercised
+  through the API they wrap; `pol modules selftest vpn` in-container (host
+  run only); `pol modules publish vpn` (repo '' in the registry — his
+  ritual). The demo left mock-flagged rows (isle-a/b/c) and one
+  `browser-*` proposal on prf-a — the banner says so; a real push for
+  those device names replaces them.

@@ -1,9 +1,24 @@
-# Handoff: start the VPN + federation arc (vpn-1)
+# Handoff: the VPN + federation arc (vpn-1)
 
-**Date:** 2026-09-03 · **From:** the night-run session (pol-core) ·
-**For:** the next session here AND isle-core's own Claude (the isle-side
-half). Nothing of vpn-1 is built; the plan is ratified up to his review
-notes (D1–D14 await his explicit "go").
+**Date:** 2026-09-03 · **From:** the night-run session (pol-core), updated
+the same afternoon by the vpn-1 build session · **For:** the next session
+here AND isle-core's own Claude (the isle-side half).
+
+**STATUS 2026-09-03 (afternoon):** D1–D14 ratified ("I approve of the plan
+for the VPN already"). **The Polari half of vpn-1 is BUILT on `dev-vpn-1`**
+(polari-framework + polari-cli + superproject; plan §8 lists every file),
+selftest 75/75, deployed to prf-a (ModuleAssignment rows `vpn@prf-a` +
+`islemesh@prf-a`, image rebuilt, node stack rolled by
+`polari-cli/shells/enable-vpn-prf-a.sh`). Live verification is in
+`AI-Notes/ledgers/TESTING_OWED.md` §12. **The isle half (I-1..I-5) is NOT
+started** — its contract (push payload, proposal row, render, config-API
+binding) is posted in `Isle-Mesh/NOTES-FROM-POL-CORE.md` (2026-09-03
+entry) for isle-core's Claude. COMMITTED on `dev-vpn-1` in
+polari-framework, polari-rf-node, polari-cli and the superproject (NOT
+merged to dev, NOT pushed — his ritual); the Isle-Mesh note is left
+UNCOMMITTED in the submodule working tree on purpose (isle-core owns
+that repo's dev tip — commit it there, then re-pin). Real-browser pass
+17/17 + live API pass recorded in TESTING_OWED §12.
 
 ## Read first, in this order
 1. `AI-Notes/plans/VPN_FEDERATION_PLAN.md` — §0 capability (neutral

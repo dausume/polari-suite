@@ -1,8 +1,11 @@
 # VPN + federation for isles (vpn arc): peer-to-peer tunnels, a shared hub that federates, coordination-server hosts exported through Polari
 
-**Date:** 2026-09-03 · **Status: PLAN (vpn-0) + his review amendments in §7 (authority isle-side, `.vpn` rung, relay kinds) — D1–D14 to ratify, then vpn-1.
-No code changed. Grounded in the mechanics survey of 2026-09-03 (file:line
-cites below are from the tree at that date).**
+**Date:** 2026-09-03 · **Status: D1–D14 RATIFIED 2026-09-03 (his "I approve of
+the plan"); vpn-1 POLARI HALF BUILT 2026-09-03 on `dev-vpn-1` (see §8);
+the ISLE HALF (I-1..I-5) is isle-core's, contract posted in
+`Isle-Mesh/NOTES-FROM-POL-CORE.md`.** §7 amendments override §2–§5 where
+they differ. Grounded in the mechanics survey of 2026-09-03 (file:line
+cites below are from the tree at that date).
 
 ## 0. The capability, stated neutrally
 
@@ -267,3 +270,52 @@ when both ends run ours; Bridge when joining a network or an
 OpenVPN-only box. User reference: AI-Notes/guides/VPN_APP_KINDS.md.
 This supersedes §7.5's kind names.
 - D14 naming: **Isle Link / Isle Bridge; kind ids as above.**
+
+## 8. vpn-1 as built (2026-09-03, Polari side, branch `dev-vpn-1`)
+
+Module `vpn` (`polari-rf-node/polari-framework/modules/vpn/`, registry id
+`vpn`, requires `islemesh`, family `isle-vpn`):
+- `vpn_constants` — the ten kinds (`KIND_INFO`: provider / label /
+  carries_subnet / gateway / relay / exit / authority / l2), Blind vs
+  Sees-traffic, `GATEWAY_KINDS` (what turns the `.vpn` rung on),
+  `HOOK_TOGGLES`, `FORBIDDEN_KEYS`, the ladder with `.vpn`.
+- `vpn_basis` — `VpnNetwork`, `VpnPeer` (public key only),
+  `VpnAccessRule`, `VpnFederationLink`, `AppVpnExposure`, `VpnProposal`;
+  every row carries provider / kind / label / is_mock.
+- `vpn_engine` — `keygen()` (X25519, returned once), `allocate_cidr`
+  (10.60.n.0/24 vs used + docker pools), `allocate_address`,
+  `allocate_udp_port` (islemesh `free_port` window 51820–51899),
+  `render_link_conf` (mesh N−1 / hub member 1 / hub all; PrivateKey =
+  `@@DEVICE_PRIVATE_KEY@@`; forward + masquerade PostUp ONLY with the
+  knob AND a kind that can; federation routes on the gateway peer),
+  `render_access_rules` (nftables, policy drop, unresolved tag = comment),
+  `render_bridge_server_conf` / `render_bridge_client_ovpn` (refuse until
+  `CERT_MODE=step-ca`; keys are device paths), `forbidden_key_paths`.
+- `vpn_proposals` — `validate_proposal(kind, payload, mirror_view)` for
+  network / peer / rule / link / exposure / revoke (allocations filled,
+  consent id required for a link, `.vpn` exposure refused without a
+  gateway app, any key material refused outright); `propose()` is the
+  AnalysisCall behind the forms and the API.
+- `vpn_api` — `/api/vpn` summary, `/kinds`, `/networks|peers|rules|links|
+  exposures` (`?device=&network=`), `/proposals` (GET + the ONLY POST),
+  `/proposals/{id}`, `/render/{device}/{network}/{peer|self}`,
+  `/rules/{device}/{network}/render`, `/exposure-options?device=`,
+  `/matrix`, `POST /demo`; acceptor `POST /api/islemesh/ingest/vpn`
+  (replace-per-device, receipts kind `vpn`, refuses key material whole,
+  gateway kinds upsert the `vpn-gateway` IsleEngine row, proposal status
+  flips ONLY here and ONLY with `applied_by`).
+- `vpn_catalog` — ten `IsleCatalogEntry` rows kind `isle-vpn`
+  (`install_plan` → `isle vpn install <kind>`); `vpn_page` — `/display/vpn`
+  (tables + structured panels + five propose forms, no custom component);
+  `vpn_seed` — AnalysisDefinition `vpn-proposal` + six `vpn-propose-*`
+  SolutionDefinitions (FormSubscription → Validate → Message →
+  GenerateEvent VpnProposal → refresh); `vpn_demo` — the two-isle flow.
+- islemesh: `INGEST_KINDS` += vpn; catalog kind `isle-vpn` dispatch;
+  `/api/islemesh/matrix` rows gain `vpn` + `vpn_label`.
+- CLI `pol vpn` (`polari-cli/scripts/vpn.sh`): status / kinds / lists /
+  proposals / propose / render / rules-render / options / matrix / qr /
+  demo. Runbook `polari-cli/shells/enable-vpn-prf-a.sh`.
+- Selftest `python3 -m vpn.selftest_vpn` — 75 checks incl. the acceptance
+  flow (two Link networks, federation proposal → applied by the simulated
+  isle → link active → revoke → peer gone in one push; `.vpn` present on
+  a gateway isle and absent on a node isle; zero private keys anywhere).
