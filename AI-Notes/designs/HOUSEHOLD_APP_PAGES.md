@@ -91,15 +91,15 @@ in one line; nothing blocks — flags name a move.
    reads the workplace pin. Needs an `embeddedMap` wrapper (the
    calendar twin over the existing map-renderer + GeoJsonDefinition)
    — see §4.
-2. **Today** (a person's day as a list): eat / prep / pack / leave /
+2. ✅ BUILT 2026-09-03 (`/display/mealplan/today?object=`) — **Today** (a person's day as a list): eat / prep / pack / leave /
    dishes in time order with one tap "done" (→ WorkLedger + the
    duration prompt). The calendar's list view almost is this; a
    `?object=` page with a `listDay` embeddedCalendar + the two forms.
-3. **Shopping trip** (phone-shaped): the purchase event's lines as a
+3. ✅ BUILT 2026-09-03 (`/display/mealplan/shoptrip`) — **Shopping trip** (phone-shaped): the purchase event's lines as a
    checklist by store aisle order (a knob on SourceLocation), prices
    editable in place → PriceObservation rows; "bought" → PantryItem
    lots (put-away).
-4. **Cook now** (the recipe at prep time): the meal-prep event's
+4. ✅ BUILT 2026-09-03 (`/display/mealplan/cooknow?object=`) — **Cook now** (the recipe at prep time): the meal-prep event's
    steps with the person's minutes per step, the safety notes for
    the hazard tags, a timer per unattended step (the dish window),
    "done" → durations observed.
@@ -107,7 +107,7 @@ in one line; nothing blocks — flags name a move.
    shares, sleep, tools owned, situations, dish strategy — today
    spread over Household & Work; a settings page groups them by
    question ("who shops?", "what do we own?").
-6. **Weekly review** (Sunday): what was planned vs eaten (coverage vs
+6. ✅ BUILT 2026-09-03 (`/display/mealplan/review`) — **Weekly review** (Sunday): what was planned vs eaten (coverage vs
    intake), cost vs budget, waste, fairness, the two or three
    "consistently" readings, and the next week's proposals — one page
    the Sunday trigger could also mail/print (ICS/export later).

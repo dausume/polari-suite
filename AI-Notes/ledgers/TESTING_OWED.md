@@ -993,3 +993,27 @@ was exercised bare, not through falcon), then `pol modules publish mealoptions`
 `--repo` the first time) and is his push ritual (push-all-dev re-publishes the
 subtree). A real user-authored row on prf-a before the first export so the
 files are not empty.
+
+## 11. Night run 2026-09-03 (unattended; his "finish the meal planning stuff through the night")
+
+- mealoptions: selftest_mealoptions (17 pairs), selftest_price_reference
+  33/33, selftest_privacy 51/51, moduleService.selftest_json_seeds 21/21,
+  nutrition.selftest_market 28/28, lazy_imports 15/15, lazy_boot 34/34.
+- Pages: selftest_today 32, selftest_shoptrip 36, selftest_cooknow 37,
+  selftest_weekreview 34, selftest_planning 29, selftest_tracking_periods
+  27 (sugars basis), selftest_data 38, tracking 18, acidity 14; pages 7/7;
+  polariapps 45/45.
+- Live (second deploy 05:49, after the seed-pair crash fix): all four
+  pages render (pre=0 unrendered=0 json=0), nav carries them, geocoder
+  prior seeded, SourceLocation demo rows typed, /prices/publish wrote 7
+  references, /modules/export stripped 9 private fields, sweets basis =
+  sugars-total on the logged week. Real-browser (CDP) pass of the forms
+  before the fixes: add-to-week creates rows, log intake/weight write
+  rows + charts refetch, calendar views + event dialog work.
+
+OWED: the post-fix browser check of the feedback line (see the night
+ledger's last row); N7 guests & situations (not started); `pol modules
+publish mealoptions` (GitHub repo — his push ritual); real-store aisle
+rows; per-store `StoreAisleOrder` from real shops; a phone-width pass of
+the shopping trip page; the backend RSS still climbs ~170 MB across a
+page sweep and does not come back (cap now 1536M).
