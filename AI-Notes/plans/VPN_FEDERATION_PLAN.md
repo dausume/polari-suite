@@ -1,6 +1,6 @@
 # VPN + federation for isles (vpn arc): peer-to-peer tunnels, a shared hub that federates, coordination-server hosts exported through Polari
 
-**Date:** 2026-09-03 · **Status: PLAN (vpn-0) + his review amendments in §7 (authority isle-side, `.vpn` rung, relay kinds) — D1–D12 to ratify, then vpn-1.
+**Date:** 2026-09-03 · **Status: PLAN (vpn-0) + his review amendments in §7 (authority isle-side, `.vpn` rung, relay kinds) — D1–D13 to ratify, then vpn-1.
 No code changed. Grounded in the mechanics survey of 2026-09-03 (file:line
 cites below are from the tree at that date).**
 
@@ -232,3 +232,26 @@ the exit-node knob). The distinction is shown on every row and on the
   hubs the household owns.
 - D11 hooks: **templated toggles, no free-text shell.**
 - D12 naming: **`isle-vpn` module/app, "WireGuard-based".**
+
+**7.7 OpenVPN as a full second provider (his question 2026-09-03).**
+Licence: OpenVPN 2.x GPLv2 + OpenSSL exception; OpenVPN 3 core/Linux
+client AGPLv3 (GPLv3-compatible but stricter — never embed, only
+drive); ovpn-dco kernel offload GPLv2. Same rule as WireGuard: driven
+as a separate program, never copied into the GPLv3 tree; a fork would
+be its own GPLv2 pin. Modifiability is architectural, not legal:
+OpenVPN offers a plugin API, a management interface (live client list,
+kill, byte counts, signals), connect/learn-address/up/down hooks,
+per-client config dirs and server-pushed routes/DNS — far more runtime
+hooks for analysis and security tooling than WireGuard's netlink +
+`wg show`. It also does L2 (tap) bridging (the archipelago README's
+VLAN-across-sites idea), x509 identity with CA + CRL (fits step-ca and
+PeerAgreement-as-consent), and TCP/443 traversal. It cannot do mesh or
+a blind relay (the server always decrypts), and its attack surface and
+speed are worse than WireGuard's. Recommendation: WireGuard stays the
+core (node / gateway / mesh federation / blind relay); OpenVPN becomes a
+FULL provider for L2 bridges between isles, x509 hubs, TCP/443 paths and
+OpenVPN-only peers (YunoHost-class). Both providers expose the same row
+shapes; the analysis/security wrappers target the management interface
+(OpenVPN) and netlink/`wg show` (WireGuard) behind one interface.
+- D13 providers: **WireGuard core + OpenVPN full provider (driven, not
+  embedded); OpenVPN 3 only if AGPL terms are accepted.**
