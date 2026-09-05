@@ -1218,3 +1218,14 @@ page sweep and does not come back (cap now 1536M).
   /display/mealplan/household renders one structured panel in raw
   mode with an empty payload (no API failed; which panel is owed).
   Net: 79/89 genuinely fine, 8 config, 1 fixed, 1 owed.
+
+## 15. Dependabot 2026-09-05 — the two cryptography advisories he forwarded, and the other 15
+`gh api …/dependabot/alerts` listed 17 open alerts on Polari-Framework,
+all in requirements.txt: cryptography ×7 (incl. CVE-2026-69249 and
+CVE-2026-69247, patched at 49.0.0 / 50.0.0), pip ×5, setuptools ×2,
+urllib3 ×2, requests ×1. Pins bumped to cryptography 50.0.1, pip 26.2.1,
+setuptools 84.0.0, urllib3 2.7.0, requests 2.34.2 (each ≥ its patched
+version). Image rebuilt: RS256 JWT round-trip on 50.0.1, vpn 89/89,
+islemesh 95/95 in-container; rolled to prf-a. The alerts close only when
+`dev` (or main) is pushed — his ritual. Note for prd-2: pip + setuptools
+should not ship in the runtime venv at all.
