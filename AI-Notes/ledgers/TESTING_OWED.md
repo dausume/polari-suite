@@ -1192,3 +1192,29 @@ page sweep and does not come back (cap now 1536M).
   `<pre class="equation">` in the characteristic explorer — intended,
   the sweep now excludes it; `/display/cntfet-cells` says "payload has
   no netlist" for cell `cdff` (to check against the pre-merge deploy).
+- Fixed-roll results (2026-09-05, image with the list fix): `GET
+  /polariServer` 0 errors since boot; vpn runbook + vpn CDP 17/17 green
+  again; the meal-planning "add to week" form scenario runs (already-
+  planned slot kept); nav 19 apps; collab / reticulum / mqttbridge /
+  fet / islemesh routes 200; RSS 604 MiB idle → ~950 MiB during the
+  sweep (the known non-returning climb, now larger with 24 modules —
+  prd-3's gunicorn recycling is the answer).
+- **All-pages CDP sweep, 89 seeded routes: 60 clean outright; the 29
+  "fails" classify as** 17 cntfet-detail pages whose only `<pre>` is
+  the characteristic explorer's equation block (intended; the sweep
+  now excludes `pre.equation`); 2 transient `ERR_NETWORK_CHANGED`
+  (sifet, cntfet-score-…-lg30 — both clean when re-checked alone);
+  8 pages whose module is NOT assigned to prf-a (app-store, biomining,
+  computers, microalgae, supply-chain, tanks, wax-supply, zones —
+  honest CRUDE 404 panels; assign the modules or hide the pages —
+  config, not code); 2 intended refusals shown in the error state
+  (cntfet-cells: cell `cdff` is a sequential DFF with no combinational
+  netlist; cntfet-score-si-pmos-…: pmos-keyed characterization
+  deliberately not run); 1 auth-gated panel on /display/mealplan (no
+  Keycloak identity in the headless browser); 1 REAL bug on
+  /display/mealplan/planner — `/plans/{name}/availability` 500'd
+  because a second `on_get_availability(person)` shadowed the plan
+  handler (pre-existing since mlg-1; fixed, rolled); 1 to look at:
+  /display/mealplan/household renders one structured panel in raw
+  mode with an empty payload (no API failed; which panel is owed).
+  Net: 79/89 genuinely fine, 8 config, 1 fixed, 1 owed.
