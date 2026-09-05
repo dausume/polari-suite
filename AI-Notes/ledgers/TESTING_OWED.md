@@ -1164,3 +1164,31 @@ page sweep and does not come back (cap now 1536M).
   fresh isle-core deb install); `pol modules publish` for the four new
   modules; the 6 pre-existing failing suites (none from this merge);
   the still-uncommitted Isle-Mesh note; NOT pushed anywhere.
+
+### 14b. Swarm re-proof of the merged tree (2026-09-04/05, his "you should be able to do the swarm testing yourself")
+- prf-a now carries 24 modules (collab, reticulum, mqttbridge assigned
+  too); the merged image booted in ~33 min; RSS 604 MiB at idle.
+- Live: the vpn runbook (demo 23/23 + trust bridge) and the vpn CDP
+  pass 17/17 green on the merged deploy; `/api/collab/capability`,
+  `/api/reticulum/arch`, `/api/mqttbridge`, `/api/peers/agreements`,
+  `/api/apps/nav` (19 apps, app-archipelago present), `/api/fet/devices`
+  (14) all 200.
+- FOUND + FIXED: dyn-1's `polariServer.endpointConstructed` was a
+  Python set on the object CRUDE serves — every frontend
+  `GET /polariServer` poll 500'd ("Object of type set is not JSON
+  serializable"); now a list (d8595b2), image rebuilt + rolled.
+- FOUND, NOT fixed (design): `POST /modules/gears/admit` on the FULL
+  24-module prf-a re-ran the registration cycles at 140 % CPU, memory
+  climbed 0.6 → 1.23 GiB against the 1.5 GiB cap and the task
+  restarted ~7 min in (the dyn proofs ran on a small gated server).
+  Live admission is a core-only-server feature (prd-3b) — do not admit
+  on the full staging instance until the cap or the admission cost is
+  addressed. The one-off container proved admit works (household in
+  seconds with 9 modules).
+- The all-pages CDP sweep (89 seeded page routes) was cut short by
+  that restart; re-run after the fixed roll. Early results: pages
+  whose module is NOT on prf-a (app-store → appstore, biomining) show
+  honest 404 panels (config, not merge); cntfet detail pages carry a
+  `<pre class="equation">` in the characteristic explorer — intended,
+  the sweep now excludes it; `/display/cntfet-cells` says "payload has
+  no netlist" for cell `cdff` (to check against the pre-merge deploy).
