@@ -254,3 +254,46 @@ desktop deb and rerun A1 → identical result = the round trip holds.
 What to send back: the PASS/FAIL/FINDING list with the exact sentences
 for every refusal, and screenshots of any page where the picture does
 not match the checklist row.
+
+---
+
+## Phase B addendum — online vs offline module debs (B9, added 2026-09-06)
+
+Both desktops' `modules/` folders now also hold two OFFLINE-flavor debs:
+`polari-app-techtree-offline_*.deb` (techtree has no pip dependencies,
+so it carries no wheels — the flavor is the only difference) and
+`polari-app-vpn-offline_*.deb` (4.4 MB: the `cryptography` wheels ride
+inside under `wheels/`). Online and offline share the version
+(`0.1.0+g<content-hash>`); the offline package `Provides`, `Conflicts`
+and `Replaces` the online name.
+
+**B9a — online flavor first, then offline (expected dpkg conflict).**
+On econ-core (no internet needed for either step, but note which box):
+```
+sudo apt install ./modules/polari-app-vpn_*.deb          # online flavor
+cat /var/lib/polari/apps/vpn/manifest.json | python3 -m json.tool | head -40
+```
+Expected: the manifest lists the pip libraries that would install
+DYNAMICALLY at admission (with sizes) and names any system engine.
+Then:
+```
+sudo apt install ./modules/polari-app-vpn-offline_*.deb
+```
+Expected: dpkg REPLACES the online package (Replaces/Conflicts) — the
+online one is gone from `dpkg -l`, the payload now has `wheels/`
+(`ls /var/lib/polari/apps/vpn/wheels`). Then try the reverse order on
+isle-core (offline first, then online) → Expected: apt refuses the online
+one while offline is installed, or replaces it — record which; both are
+"never both at once", which is the rule.
+
+**B9b — same content, same version.** `dpkg-deb --info` on both vpn
+flavors: the Version strings differ only because the flavor is folded
+into the content hash; techtree's two files differ by name and flavor
+field only. A rebuilt deb from unchanged content must reproduce the
+same file name (byte-deterministic) — FINDING if a rebuild changes it.
+
+**B9c — where offline matters (FINDING to note, not a step):** the
+offline flavor only pays off once admission can install wheels from
+the staged payload; today (B5) the payload is not reachable from the
+container, so both flavors stage equally. That is the ver-3 / prd-3b
+seam.
