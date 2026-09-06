@@ -95,7 +95,11 @@ keep their component versions. Images get BOTH tags: the Polari version
 (immutable, what the manifest pins) and the tier tag (`staging`, a
 moving pointer for the swarm files).
 
-**2.4 Compatibility = the manifest, checked at the seams:**
+**2.4 Compatibility checks — DEFERRED (his ruling 2026-09-06: "we do not
+really need mismatch checkers because we are still experimental, we just
+want to be tracking our incrementing for now").** The manifest RECORDS
+what went together; nothing refuses or banners on a mismatch. The list
+below is kept only as the later option:
 - the frontend's `runtime-config.json` carries the Polari version it was
   built in; the backend `/api/health` carries its own; the frontend shows
   a banner when they differ (a rolled backend under an old frontend, the
@@ -135,11 +139,11 @@ prd-5: `polari-complete` (online: images pulled from the registry) and
   the superproject, write `ReleaseManifest` (row + `release.json` next
   to the pool), name the merged deb by the Polari version, tag images
   twice. This IS prd-5's release script; ci-2 runs it on merge to main.
-- **ver-3 — the seams.** Frontend/backend mismatch banner; isle
-  major check; module-deb generation stamps the Polari version in its
-  manifest and admission warns on older cores; `pol build parity`
-  version checks; the downloads page reads the manifest for every
-  version + date it shows.
+- **ver-3 — record-only surfaces.** Module-deb manifests and the
+  downloads page carry the Polari version + component versions they
+  came from; `pol build parity` checks that every `VERSION` file is a
+  valid semver (a syntax check, not a compatibility check). No
+  mismatch banners, no refusals — deferred until past experimental.
 - **ver-4 — first tagged Polari.** After the readiness gate
   (CICD §3a): `polari-v2026.09.xx` on the promoted main, the manifest
   published with the debs.
