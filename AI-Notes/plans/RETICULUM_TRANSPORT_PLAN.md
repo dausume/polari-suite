@@ -1535,3 +1535,66 @@ stated, when the sidecar is down); `RETICULUM_ACTOR_MODE=keycloak`
 restores the strict tier. Applied to `POST /peers/{name}/adjudicate` and
 `POST /inbound` (still a proposal, never a write). Selftest +6.
 KC-tied per-person Reticulum identities = the later option (ret-10).
+
+## 5c-c. Two standing requirements (Dustin 2026-09-07) — what exists, what ret-5 must become
+
+**R1 — static isle identities, always on.** "The static Reticulum
+identities need to be maintained for routing purposes and so that the
+isle identities can be used for .arch and .mesh app access at all times,
+and so they can act as relays even when someone is not logged in."
+- Exists: the sidecar's identity lives in the named volume
+  `pol-reticulum-data` (survives restarts/recreates — proven ret-2),
+  the container restarts `unless-stopped`, and `enable_transport = True`
+  makes every isle a Reticulum TRANSPORT node — it already forwards for
+  others with nobody logged in. The isle identity is now the default
+  actor (5c-b ruling).
+- Missing (ret-10a): the identity as a first-class Polari row bound to
+  the isle (`ReticulumIdentity` ↔ islemesh `IsleDevice`, `role='isle'`,
+  `static=True`), re-announced on a cadence (today: once at start —
+  announce cadence knob, default 10 min, silent on RF bearers per row 19
+  unless declared), backed up/restored with the isle (`isle uninstall`
+  must NOT wipe it without `--everything`; export in the isle's trust
+  bundle), and the `.arch`/`.mesh` name → identity binding served by the
+  isle's dnsmasq (the ret-3 router half, still isle-core's request).
+  Per-person KC-tied identities are ADDITIONAL identities on the same
+  node, never replacements.
+
+**R2 — real websites over Reticulum, indistinguishable from normal
+web.** "We can run actual website access over Reticulum nodes with the
+routing and experience being no different from normal websites."
+This is the target ret-5 was pointing at; restated as the acceptance:
+a browser on isle B opens `https://<app>.<isle-a>.arch`, gets the isle
+A app's page with all assets, and the user cannot tell it crossed a
+Reticulum path (within the archipelago floor, 5c-b).
+- The honest physics (§2 stands): Reticulum packets are ≤ 500 B, a
+  Link costs ~3 RTTs to set up, and there is no TCP inside. Over the
+  LAN/wifi TCP bearer (Phase E) RTTs are milliseconds, so "no
+  different" is achievable there; over LoRa it is not, which is exactly
+  why the archipelago is defined by a measured floor.
+- Shape of ret-5 (the web gateway), four walks:
+  - **ret-5a names.** `*.arch` resolves on the isle's dnsmasq to a
+    synthetic IP (ret-3 pool, netledger-allocated) owned by the LOCAL
+    gateway; `.mesh` names resolve the same way but the gateway answers
+    with the store-and-forward page (queued/deferred states).
+  - **ret-5b transport.** The gateway terminates HTTP/1.1 and HTTP/2 at
+    each end and carries request/response over ONE persistent Link per
+    (isle pair) with multiplexed streams (Reticulum Channel/Buffer),
+    bodies as Resources (fragmented, sha-verified, resumable). Keep-alive
+    is the whole game: one Link, many requests, no per-request setup.
+    WebSocket/STOMP ride the same Buffer.
+  - **ret-5c TLS.** The browser sees a certificate for `*.arch` issued
+    by the isle CA (already trusted on every member — `isle trust`);
+    the gateway terminates it, the Reticulum Link is the encrypted hop,
+    the far gateway re-originates to the app over the isle's own TLS.
+    End-to-end TLS to the origin is impossible through a proxy and is
+    not claimed; the trust chain is isle-CA → isle-CA, stated on the
+    page's cert.
+  - **ret-5d measured.** Page-load time and bytes for the same app
+    direct vs over `.arch`, per archipelago pair, as `LinkMeasurement`
+    rows on the reticulum page; the number, not the claim, says
+    "indistinguishable". Degradation feeds the 5c-b suggestions
+    (`.mesh` conversion, `arch-relay` placement).
+- Boundary: the gateway is a Polari-side engine (the sidecar container
+  grows the proxy, still the only RNS importer — licence boundary
+  unchanged); dnsmasq/synthetic-IP steering on the router is isle-core's
+  half (RETICULUM_ISLE_CORE_REQUEST.md).
