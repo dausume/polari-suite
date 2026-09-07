@@ -313,3 +313,15 @@ behave identically — the medium, not the network, decides.
 - D7 switching modes: **only by installing the other flavor's deb** vs a
   runtime toggle.
 - D8 proof tooling: **tcpdump + nft counter, both filed** vs one of them.
+
+### H. Documentation + the inspectable build cache (his follow-up, same day)
+"documentation that details the formatting of the directory for
+templating the offline installs and how offline installs work … a build
+folder/cache we can inspect that we git ignore but can look at in Polari
+itself." → `AI-Notes/guides/OFFLINE_BUILD_TEMPLATE.md` (written; the
+format, the sections table, the install walk-through, the cache) is the
+source the pol-hub docs page is generated from (off-5). The cache is
+`offline-build/<ver>/` at the suite root, `.gitignore`d (added), the
+exact tree the deb is wrapped from; Polari mounts it read-only and the
+`release` module scans it into `OfflineBuild` / `OfflineBuildSection`
+rows shown on `/display/offline-builds` as configured tables (off-5).
