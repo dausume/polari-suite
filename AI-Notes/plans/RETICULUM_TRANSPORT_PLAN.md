@@ -1651,3 +1651,106 @@ page = ret-10 (with 5c-b's degrade suggestions and relay placement);
 the per-app numbers arrive with the gateway (ret-5d). Phase E gives T2's
 first real RTT on a wifi route; T3 numbers need a live stream to
 measure (LiveKit between isles is the natural test).
+
+## 5c-e. Traffic classes, relay/use policy, duty cycles, and the fork question (Dustin 2026-09-07)
+
+**The question:** split baseline Reticulum messaging traffic from
+mesh-app traffic from archipelago-app traffic; control which apps we
+USE vs which we RELAY; opt in to relaying normal Reticulum messaging;
+and whether a fork at the last MIT point can do all of it while still
+enabling normal messaging.
+
+### Four classes (recommendation)
+Reticulum itself has NO traffic classes or QoS: a transport node
+forwards every packet it has a path for. The split is therefore OURS,
+enforced in the fork (below) at two points — the forwarding decision
+and the per-bearer outbound queue:
+| Class | What | Identified by | Default relay knob |
+|---|---|---|---|
+| C0 control | announces, path requests/replies, link keepalives | packet type | always (a transport node that drops control is not a node) |
+| C1 baseline messaging | LXMF delivery for ANYONE (Sideband/MeshChat-style users), third-party destinations we know nothing about | destination hash not in our tables; announce aspect `lxmf.delivery` | `relay_baseline` ON for wifi/LAN, OFF for RF bearers until the operator declares the use (row 19) |
+| C2 mesh apps (`.mesh`) | store-and-forward app data: Resources, deferred proposals, lighthouse state | destination hash learned from an announce whose app_data names a Polari mesh app | `relay_mesh_apps` = allow-list of app kinds (default: the kinds this isle also USES) |
+| C3 archipelago apps (`.arch`) | interactive Links: the ret-5 gateway streams | destination hash of a known `.arch` gateway/app + Link traffic | `relay_arch_apps` = allow-list + the route must meet the app's tier floor (5c-d) — relaying a T2 app over a route that cannot carry T2 is refused, stated |
+Classification keys on the DESTINATION HASH learned from announces (the
+only per-app fact a forwarded packet exposes; payloads are encrypted
+end to end and we never look inside). Unknown destination → C1.
+
+### USE vs RELAY are two columns, not one
+Per isle, per app kind (and per bearer): `use` (we run/consume it) and
+`relay` (we forward it for others). All four combinations are valid:
+relay a mesh app we never run (a good neighbour), run an app we refuse
+to relay (a heavy one on a thin bearer). `RelayPolicy` row: bearer,
+class, allow-list, share, burst, `declared_use` (the row-19 gate for RF).
+Receiving is never rate-limited — listening is free and legal; what we
+STORE/process is gated by the existing LXMF policy (whitelist + per-
+sender window) and the app-data rules (ret-1c).
+
+### Duty cycles (per bearer, per class) — weighted fair queue with floors
+- Each bearer has a budget: on LAN/wifi effectively its measured
+  throughput; on RF the `AirtimeBudget` row (legal duty cycle first —
+  e.g. 1 %/10 % sub-bands in EU 868 — then the operator's share).
+- Classes get **shares** of that budget as a weighted fair queue with a
+  guaranteed minimum each: defaults C0 10 % (priority, pre-emptive),
+  C3 40 %, C1 30 %, C2 20 %; unused share flows to others; C2 (bulk)
+  never starves and never blocks — Resources are already fragmented,
+  so they yield between fragments.
+- Strict priority only for C0; everything else is weighted, because a
+  strict-priority C3 would let one interactive session silence
+  messaging for everyone behind the relay.
+- Per-class token buckets (rate + burst) at the outbound queue of each
+  interface, plus a global "relay ceiling" (`relay_max_share`, default
+  50 % of the bearer) so our own traffic is never crowded out by what
+  we forward for others.
+- All of it is knobs with evidence: the reticulum page shows per bearer
+  the measured bytes per class per window beside the shares, and the
+  drops per class with reasons (ceiling / tier / not-allowed / airtime).
+
+### The fork — what it can and cannot do (facts from RETICULUM_LICENCE_GATE.md)
+- **Yes to the fork, from the exact last MIT commits**: `rns 0.9.4`
+  (2025-04-15, tag LICENSE = MIT, published before the licence commit)
+  + `lxmf 0.6.3`. Forked as `dausume/reticulum` + `dausume/lxmf` pins
+  per the standing rule (adopted upstreams forked as dausume pins);
+  verify the LICENSE file AT THAT COMMIT + headers before the first
+  pin (the gate's three-way check). Nothing from any post-relicence
+  commit may be copied in — patches are ours, from scratch.
+- **Yes to everything above**: classes, use/relay policy, duty cycles
+  are stack-level patches (a forwarding-policy hook in Transport + a
+  per-interface class queue) and are exactly why a fork is needed —
+  stock Reticulum, any version, has none of it.
+- **"Still enable normal messaging" — two different things:**
+  1. LXMF messaging BETWEEN OUR NODES and any peer on the pinned
+     stack: yes, unchanged (ret-7 proven).
+  2. Messaging with the LIVE ECOSYSTEM (people running current
+     Sideband/MeshChat on rns 1.x): **NO, today.** The gate ledgered
+     it: 0.9.5→1.0.0 moved links to AES-256 and 1.0.0 REMOVED the
+     AES-128 handlers, so a 0.9.4 node cannot form a Link with any
+     1.x node. Relaying their traffic (C1) is possible only where
+     forwarding needs no Link with us — announces and packets pass
+     through a transport node without a Link to it — but any
+     Link-bearing exchange that terminates or is proxied at us fails.
+     So "help relay normal Reticulum messaging" is honest ONLY as
+     pass-through, and even that must be tested against a 1.x node
+     before it is claimed.
+- **The clean way to real interop: implement the 1.x link crypto
+  ourselves in the fork.** The change is a cipher/handshake version,
+  not a licence problem — the wire format is a fact, not code; we
+  re-implement it from the protocol (documented publicly) without
+  copying post-relicence source, dual-mode (accept 0.9.4 links from
+  our own old nodes, speak 1.x links to the ecosystem). RetiNet
+  (AGPL-3.0 fork, "RNS 1.0 compatible") is the gate's named fallback
+  if we would rather adopt than write; AGPL + GPLv3 combine, gate it
+  first. microReticulum's dual-mode is untested against 0.9.4.
+- **Verification before any claim (ret-11a):** a current-version
+  `rnsd` in a throwaway VM peered with our fork: (a) announces cross,
+  (b) a 1.x↔1.x LXMF exchange relayed THROUGH our node succeeds,
+  (c) a Link 1.x→us fails today and succeeds after the crypto patch.
+  Numbers into TESTING_OWED; no interop sentence in any doc until (b).
+
+### Rungs
+- **ret-11 — the fork + traffic classes**: dausume pins of the MIT
+  commits; forwarding-policy hook + per-interface class queues;
+  `RelayPolicy`/`AirtimeBudget` wiring; use/relay columns on the app
+  rows; the page's per-class bytes/drops table.
+- **ret-11a — ecosystem interop**: the 1.x link-crypto re-implementation
+  (dual-mode) + the throwaway-VM proof above; until it lands the pin-
+  isolation note stays on every messaging response.
