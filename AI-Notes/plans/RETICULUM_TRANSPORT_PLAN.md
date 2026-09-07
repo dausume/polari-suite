@@ -1523,3 +1523,15 @@ Consequences (amend §5c; ret-8 and DECIDED row 8 stand):
    isles is Phase E of `DEB_TOPOLOGY_TEST_SCENARIOS.md` (2026-09-07):
    two isles over wifi, RTT recorded, so the default floor is set from a
    number rather than a guess.
+
+**Ruling 2026-09-07 — the actor on the lightweight tier.** "Naming a
+peer should not require Keycloak. A single static isle identity for the
+Reticulum should be sufficient; we can enable multiple Keycloak-tied
+Reticulum identities, but the default can be an isle identity for more
+lightweight isles." BUILT the same day: `discovery_basis.resolve_actor`
++ `ReticulumAPI._actor` — a KC user always wins; otherwise the isle's
+sidecar identity acts (`isle:<hash>`; the instance name stands in,
+stated, when the sidecar is down); `RETICULUM_ACTOR_MODE=keycloak`
+restores the strict tier. Applied to `POST /peers/{name}/adjudicate` and
+`POST /inbound` (still a proposal, never a write). Selftest +6.
+KC-tied per-person Reticulum identities = the later option (ret-10).

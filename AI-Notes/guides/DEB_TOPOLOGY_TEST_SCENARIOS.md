@@ -425,11 +425,17 @@ the FIRST archipelago floor measurement (plan §5c-b, knob `max_rtt_ms`
 default 150 — set it from what you see).
 
 **E5 — what will NOT work yet (expected, write it down):**
-- `.arch` naming: `POST /api/reticulum/peers/<name>/adjudicate` needs a
-  Keycloak-verified caller; the lean isle has no Keycloak → 401. The
-  archipelago rows (`ArchipelagoNode`) therefore stay empty on the lean
-  tier; `/api/reticulum/resolve/<name>.arch` refuses by name. Gap = the
-  lean tier needs a local-operator identity (the same gap vpn-3 noted).
+- `.arch` naming now WORKS on the lean tier (his ruling 2026-09-07: the
+  isle identity is the default actor; no Keycloak needed). After E3, on
+  each side: `curl -sk --resolve api.polari.isle:443:127.0.0.1 -X POST
+  -H 'Content-Type: application/json' -d '{"decision":"archipelago",
+  "archName":"<other-isle-name>","heard":{"destHash":"<heard dest hash>"}}'
+  https://api.polari.isle/api/reticulum/peers/<other-isle-name>/adjudicate`
+  → `by: isle:<hash>`, an `ArchipelagoNode` row, and
+  `/api/reticulum/resolve/<other-isle-name>.arch` answers. ⚠ this needs
+  the prf image REBUILT with today's framework (the isle runs the image
+  it loaded) — until then the old 401 is what you will see; that is the
+  image's age, not the design.
 - Direct website access over `.arch` (his definition) needs ret-5
   (HTTP/2 over Reticulum); today the proof of the bearer is LXMF.
 - The `.mesh`-conversion / relay suggestion is ret-10 (not built).
