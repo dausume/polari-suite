@@ -432,10 +432,11 @@ default 150 — set it from what you see).
   "archName":"<other-isle-name>","heard":{"destHash":"<heard dest hash>"}}'
   https://api.polari.isle/api/reticulum/peers/<other-isle-name>/adjudicate`
   → `by: isle:<hash>`, an `ArchipelagoNode` row, and
-  `/api/reticulum/resolve/<other-isle-name>.arch` answers. ⚠ this needs
-  the prf image REBUILT with today's framework (the isle runs the image
-  it loaded) — until then the old 401 is what you will see; that is the
-  image's age, not the design.
+  `/api/reticulum/resolve/<other-isle-name>.arch` answers. ⚠ isle-core
+  runs the image it loaded on 09-05; load today's first (it is in the
+  kit): `docker load -i ~/Desktop/polari-reticulum-2026-09-07/prf-backend_staging.tar`
+  BEFORE `reticulum-enable.sh` (which re-ups the backend on the new
+  image). econ-core's medium and pol-core already carry today's image.
 - Direct website access over `.arch` (his definition) needs ret-5
   (HTTP/2 over Reticulum); today the proof of the bearer is LXMF.
 - The `.mesh`-conversion / relay suggestion is ret-10 (not built).
