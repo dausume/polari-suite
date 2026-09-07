@@ -1598,3 +1598,56 @@ Reticulum path (within the archipelago floor, 5c-b).
   grows the proxy, still the only RNS importer — licence boundary
   unchanged); dnsmasq/synthetic-IP steering on the router is isle-core's
   half (RETICULUM_ISLE_CORE_REQUEST.md).
+
+## 5c-d. Archipelago metrics: what Reticulum can measure, per route and per app, and the tiered thresholds (Dustin 2026-09-07)
+
+**What the stack can measure (rns 0.9.4, verified against the API we pin):**
+| Metric | How | Scope |
+|---|---|---|
+| round trip (RTT) | `Link.get_rtt()` — measured at link establishment (request → proof); repeated probes (the `rnprobe` idiom: a packet with proof requested, timed) give a series → median + jitter | per destination = per ROUTE (Reticulum picks the path; we record which) |
+| hops + next hop | `Transport.hops_to(dest)`, next-hop interface name from the path table | per route; a hop-count change = a re-route event, logged |
+| throughput | a `Resource` transfer of N bytes timed at both ends (ret-0/ret-6 already did 50 KB sha-verified); `Link.get_establishment_rate()` as the cheap first estimate | per route, per direction |
+| reliability | probe success ratio over a window, Link teardowns/timeouts per hour, Resource retransmit counts | per route |
+| interface bitrate | `Interface.bitrate` is DECLARED (nominal), not measured — never treat it as throughput | per bearer |
+What Reticulum cannot give: per-app numbers. Those come from OUR
+gateway (ret-5): request latency, page-load time, bytes, success ratio
+per `(app, route)` — measured where the HTTP is terminated. So: route
+metrics from the stack, app metrics from the gateway, both as
+`LinkMeasurement` rows (the ret-6 battery generalised: `kind` =
+probe|resource|app-request, `route` = dest + hops + next-hop, `app`).
+
+**Measurement cost is real traffic.** On LAN/wifi bearers probes are
+free; on RF bearers a probe is a transmission — row 19 (idle radios are
+silent) and the TX-legality gate apply: probes run only on bearers with
+a declared use, at a cadence the airtime budget allows, never as a
+background "health check" on a dark radio. Cadence knobs per bearer;
+measurements older than `stale_after` (default 15 min) render as stale.
+
+**Tiers: thresholds gate KINDS of functionality, not membership.** A
+route is not "in or out"; each functionality class has its own floor
+and an app declares which class it needs (a knob on the app's
+`IsleCatalogEntry`/`AppVpnExposure`-style exposure row; default from the
+app kind). Defaults (placeholders until Phase E and later multi-node
+runs replace them with measured numbers):
+| Tier | Functionality | RTT (median) | jitter | throughput | probe success | loss |
+|---|---|---|---|---|---|---|
+| T0 | store-and-forward: LXMF messages, deferred app data (`.mesh`) | any | any | any | any | any — queued is the design |
+| T1 | polled status / small JSON API, dashboards refreshing every few seconds | ≤ 2 s | — | ≥ 50 kbit/s | ≥ 90 % | ≤ 10 % |
+| T2 | interactive web pages over `.arch` (the R2 target) | ≤ 150 ms | ≤ 50 ms | ≥ 1 Mbit/s | ≥ 99 % | ≤ 1 % |
+| T3 | live streams: STOMP/WebSocket pushes, sim streaming, LiveKit voice/video | ≤ 50 ms | ≤ 20 ms | ≥ 5 Mbit/s | ≥ 99.5 % | ≤ 0.5 % |
+| T4 | real-time hardware control | isle only — never over an archipelago route (refused by name) |
+Per `(app, route)` the gateway renders one of: **available** (all floors
+met), **degraded** (met within 2× — served, with the measurement shown
+and the 5c-b suggestion queued), **barred** (below floor — refused by
+name with the numbers; T0 fallback offered where the app supports it).
+A route can be T2 for one app and barred for a T3 app at the same time;
+that is the point of tiers. Thresholds are knobs on the
+`ArchipelagoDefinition` (per tier), overridable per app; every refusal
+cites the measurement row it came from.
+
+**Rung placement:** the metrics + rows = ret-6b (extend the battery,
+route-scoped, cadence/legality-gated); the tiers + per-app state + the
+page = ret-10 (with 5c-b's degrade suggestions and relay placement);
+the per-app numbers arrive with the gateway (ret-5d). Phase E gives T2's
+first real RTT on a wifi route; T3 numbers need a live stream to
+measure (LiveKit between isles is the natural test).
