@@ -297,3 +297,143 @@ offline flavor only pays off once admission can install wheels from
 the staged payload; today (B5) the payload is not reachable from the
 container, so both flavors stage equally. That is the ver-3 / prd-3b
 seam.
+
+---
+
+## Phase D — OFFLINE base install on econ-core + an offline app (2026-09-07)
+
+**What is on econ-core:** `~/Desktop/polari-offline-2026.09.07/` = the
+whole offline medium (`offline-build/2026.09.07-dev+6f94a3e` on pol-core,
+2.0 GB; template `AI-Notes/guides/OFFLINE_BUILD_TEMPLATE.md`): debs/ (the
+`polari-complete-offline` deb), apt/ (the Ubuntu 22.04 closure incl.
+docker, 421 debs, already preflighted in a network-less container),
+images/ (prf-backend, prf-frontend, nginx:alpine, python:3.11-slim,
+the sample app), modules/ (household, reticulum, techtree, vpn offline
+debs), engines/ (the Reticulum sidecar), scripts/. router/ and
+hardware/ are EMPTY on purpose (no libvirt on econ-core → routerless
+single-device isle, same as isle-core today).
+
+**D0 — clean start.** econ-core has no polari packages (verified
+2026-09-07). Keep Odoo running; it is untouched.
+
+**D1 — cut the internet, arm the proof.** Disconnect econ-core's
+uplink the way you want to test (wifi off is the strict version; the
+"roommates' LAN, no WAN" version = unplug the router's WAN or block
+econ-core at the router). Then:
+```
+cd ~/Desktop/polari-offline-2026.09.07
+sudo bash scripts/offproof.sh start        # nft counters + pcap; drops + counts any public-address egress or DNS
+```
+
+**D2 — install the platform from the medium.**
+```
+sudo bash scripts/install-offline.sh
+```
+Expected: verify → `/etc/polari/install-mode=offline` → distro closure
+from `apt/` via a `file:` source (only socat + dpkg-dev/avahi/gnupg on
+econ-core; docker is already there) → 5 images docker-loaded →
+`polari-complete-offline 0.1.33` installed (its postinst prints the
+offline notice). No prompt should mention a URL.
+
+**D3 — create the isle like a normal user.** Menu → Isle App Store →
+"Create my own isle" (or `sudo isle core-install`). Expected: the
+create step says `offline install-mode: no libvirt — continuing WITHOUT
+the router`, the sample app starts `from the offline medium's image (no
+build)`, prf-isle comes up with the loaded images, `https://polari.isle`
+answers, the store lists apps. FAILURE BY DESIGN to look for: nothing
+may print "pulling"/"Downloading"; if any step does, it is a network
+touch the gate missed — note the step name.
+
+**D4 — the household app, offline.**
+```
+sudo bash scripts/install-app-offline.sh household
+```
+Expected: deb staged under `/var/lib/polari/apps/household` (manifest
+says flavor offline, no wheels — household has no pip deps), then admit
+200 from the running image; `/display/household` renders on polari.isle.
+Negative: `sudo bash scripts/install-app-offline.sh gears` → refused
+"not on the medium (section modules/)", nothing fetched.
+
+**D5 — the proof.**
+```
+sudo bash scripts/offproof.sh report      # verdict line: CLEAN — zero packets
+sudo bash scripts/offproof.sh stop
+```
+Paste the report (`/var/log/polari-offline-proof.txt`) into TESTING_OWED
+§16. A DIRTY verdict is a finding, not a failure of the test: the
+counter names the packets, and the step that caused them is the gap.
+
+## Phase E — the Reticulum app on isle-core, a second isle on pol-core, and the archipelago over wifi (2026-09-07)
+
+Context: an archipelago = a set of Reticulum nodes whose measured path
+is internet-like (plan §5c-b); this phase measures the first real pair.
+Both isles are routerless; the bearer is the Reticulum TCP interface on
+port 4242 over the house wifi/LAN (192.168.0.x) — "two roommates sharing
+a connection". Kit on both boxes: `engines/reticulum/` (sidecar image +
+`reticulum-isle.yml` + enable/peer/status helpers) and the
+`polari-app-reticulum-offline` deb (on isle-core:
+`~/Desktop/polari-reticulum-2026-09-07/`; on pol-core:
+`~/Desktop/polari-debs-2026-09-07/`).
+
+**E1 — isle-core: the reticulum app via deb.**
+```
+cd ~/Desktop/polari-reticulum-2026-09-07
+sudo dpkg -i polari-app-reticulum-offline_*.deb        # stages /var/lib/polari/apps/reticulum
+sudo bash engines/reticulum/reticulum-enable.sh        # loads the sidecar image, runs it on isle-agent-net, RETICULUM_URL into prf-isle, reticulum into the boot set
+bash engines/reticulum/reticulum-status.sh
+```
+Expected: sidecar identity + interfaces `Auto Discovery` and `TCP
+Server` ONLINE; backend capability ok with the licence pins
+(rns 0.9.4 / lxmf 0.6.3); `/display/reticulum` renders. Note the boot
+takes the lean isle down ~1 min (backend re-up with the module in
+POLARI_ISLE_MODULES).
+
+**E2 — pol-core: a separate isle.** Install
+`~/Desktop/polari-debs-2026-09-07/polari-complete_0.1.33_amd64.deb`
+(online flavor is fine here) → store → "Create my own isle" (routerless,
+like isle-core). Then the same E1 steps from `~/Desktop/polari-debs-2026-09-07/`
+(`sudo dpkg -i modules/polari-app-reticulum-offline_*.deb`, then
+`engines/reticulum/reticulum-enable.sh`). ⚠ pol-core also hosts the
+staging swarm; keep it down during this phase (`pol swarm down` /
+`docker service ls` empty) — both use the prf images and ports.
+
+**E3 — link the isles (the archipelago bearer).**
+```
+# on pol-core (dials isle-core; use isle-core's LAN address)
+bash engines/reticulum/reticulum-peer.sh <isle-core-ip>
+# on isle-core, once, so it announces after the link exists
+docker restart pol-reticulum && sleep 8 && bash engines/reticulum/reticulum-status.sh
+# on pol-core
+bash engines/reticulum/reticulum-status.sh
+```
+Expected: each side's `peersHeard` lists the other's destination
+(announce count ≥ 1), interface `Isle <ip>` ONLINE on pol-core.
+`/api/reticulum/peers` on each backend shows the sighting as
+`unadjudicated` — HEARING IS NOT ADMITTING.
+
+**E4 — a real exchange (ret-7 messages).** On isle-core take the
+delivery hash from `reticulum-status.sh` (`lxmf facts`). On pol-core:
+```
+curl -sk --resolve api.polari.isle:443:127.0.0.1 -X POST -H 'Content-Type: application/json' \
+  -d '{"destinationHash":"<isle-core delivery hash>","content":"hello from pol-core","title":"arch test"}' \
+  https://api.polari.isle/api/reticulum/messages
+```
+then on isle-core `reticulum-status.sh` → the message is listed with a
+receive time. Send one back. Record the round trip (send time → listed
+time on the far side) and `ping <other-ip>` RTT: those two numbers are
+the FIRST archipelago floor measurement (plan §5c-b, knob `max_rtt_ms`
+default 150 — set it from what you see).
+
+**E5 — what will NOT work yet (expected, write it down):**
+- `.arch` naming: `POST /api/reticulum/peers/<name>/adjudicate` needs a
+  Keycloak-verified caller; the lean isle has no Keycloak → 401. The
+  archipelago rows (`ArchipelagoNode`) therefore stay empty on the lean
+  tier; `/api/reticulum/resolve/<name>.arch` refuses by name. Gap = the
+  lean tier needs a local-operator identity (the same gap vpn-3 noted).
+- Direct website access over `.arch` (his definition) needs ret-5
+  (HTTP/2 over Reticulum); today the proof of the bearer is LXMF.
+- The `.mesh`-conversion / relay suggestion is ret-10 (not built).
+
+**E6 — teardown order:** `docker compose -p pol-reticulum -f engines/reticulum/reticulum-isle.yml down`
+on both (keep `-v` off to keep identities), then the usual
+`isle uninstall` per box; econ-core: `offproof.sh stop` before uninstall.

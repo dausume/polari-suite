@@ -1470,3 +1470,56 @@ none is treated as settled the way the 18 DECIDED rows are.**
   - **ASSUMED as written:** own traffic + named handful. The gateway
     refuses unmapped/unnamed protocols by name (§3), which is also
     what makes widening the set later a data change.
+
+## 5c-b. What an archipelago IS — his definition (2026-09-07), and what it changes
+
+"An archipelago is a mesh network that is high speed enough to allow
+direct access to websites over .arch, even if you are not on the same
+isle. Being on the same isle is being on your own private LAN and fully
+trusted. An archipelago is a specified set of Reticulum nodes where
+speeds are internet-like (probably would want to define a specific
+latency speed). Some archipelago apps may become too slow (due to high
+traffic and too large of an archipelago) to where it then makes sense to
+suggest converting to a .mesh despite being on the same archipelago. Or
+it may be we need to build in relay apps in parts of the archipelago if
+it gets too large."
+
+Consequences (amend §5c; ret-8 and DECIDED row 8 stand):
+1. **Membership is a measured property, not a label.** A node is IN an
+   archipelago only while its measured path meets the archipelago's
+   service floor: `ArchipelagoDefinition` gains knobs `max_rtt_ms`
+   (default **150** — the interactive-web threshold; his number to set),
+   `max_loss_pct` (default 1) and `min_bitrate_kbps` (default 1000), and
+   every `ArchipelagoNode` carries the last `LinkMeasurement` against
+   them (`meets_floor`, `measured_at`). Trust (row 8) and floor are two
+   axes: a trusted node below the floor is still trusted, but `.arch`
+   names for it render with the "slow" state and the site is not
+   promised to load.
+2. **`.arch` = direct web access across isles.** The `.arch` rung
+   (RETICULUM row 20 ladder `.isle → .arch → .vpn → .mesh → web`) means:
+   an app exposed at `<app>.<isle>.arch` is reachable by any member whose
+   path meets the floor, over the Reticulum bearer (ret-5 gRPC/HTTP-2
+   termination is what makes that real; until it lands, `.arch`
+   resolution answers and the transport proof is LXMF + resources).
+3. **Degradation is a suggestion, never a silent change.** When an
+   archipelago app's measured latency crosses the floor for
+   `degrade_window` (default 10 min), the topology emits a
+   `TopologySuggestion` with evidence (the measurements, the node count,
+   the traffic) and TWO options: (a) convert that app's exposure to
+   `.mesh` (the store-and-forward rung, where slowness is the design), or
+   (b) place **relay apps** — a new app kind `arch-relay` (the same
+   shape as the VPN relay kinds: Blind, forwards only) — at the
+   partition points the measurements name. Applying either is a human
+   act (ret-8 / mtg-8 seam).
+4. **Size has a cost the plan did not account for.** Announce and path
+   traffic grow with the node count; the relay kind and a
+   `max_nodes_before_relay_suggestion` knob (default 24) carry that.
+   The number is a placeholder until ret-6-style measurement on a real
+   multi-node archipelago replaces it.
+5. **Rung: ret-10 — archipelago health.** Floor knobs + measured
+   membership + the degrade suggestion + the `arch-relay` app kind +
+   `/display/reticulum` archipelago table with the floor state per node
+   (configured tables only). The first measurement on a real pair of
+   isles is Phase E of `DEB_TOPOLOGY_TEST_SCENARIOS.md` (2026-09-07):
+   two isles over wifi, RTT recorded, so the default floor is set from a
+   number rather than a guess.

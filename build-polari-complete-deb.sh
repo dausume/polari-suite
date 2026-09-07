@@ -23,12 +23,23 @@
 # headline). REFUSES unless every member is present — no silent
 # partial bundle.
 #
-#   ./build-polari-complete-deb.sh [--debs-dir .generated/debs]
+#   ./build-polari-complete-deb.sh [--debs-dir .generated/debs] [--flavor online|offline]
+#
+# FLAVORS (OFFLINE_INSTALL_PLAN.md §C, 2026-09-06): the same merged
+# tree, but `--flavor offline` names the package polari-complete-offline
+# (Provides/Conflicts/Replaces polari-complete — the two can never
+# coexist; switching mode = installing the other flavor), stamps
+# X-Polari-Install-Mode, and its postinst writes /etc/polari/install-mode
+# BEFORE any member script runs — the one file every later step (isle
+# create / core-install / onboard, and Polari via POLARI_INSTALL_MODE)
+# reads. An offline install never falls back to the network.
 set -eu
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEBS_DIR="$ROOT/.generated/debs"
+FLAVOR="online"
 while [ $# -gt 0 ]; do case "$1" in
     --debs-dir) DEBS_DIR="$2"; shift 2 ;;
+    --flavor) FLAVOR="$2"; shift 2 ;;
     *) echo "unknown arg $1" >&2; exit 1 ;;
 esac; done
 G="\033[0;32m"; R="\033[0;31m"; C="\033[0;36m"; N="\033[0m"
@@ -91,23 +102,34 @@ DEPS=$(echo "$ALLDEPS" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | \
         [ "$skip" = 0 ] && echo "$dep"
     done | sort -u | tr '\n' '\001' | sed 's/\x01$//; s/\x01/, /g')
 PROVIDES=$(echo "$MEMBERS" | tr ' ' ',' | sed 's/,/, /g')
+case "$FLAVOR" in
+    online)  PKG="polari-complete"; PROVIDES_ALL="$PROVIDES" ;;
+    offline) PKG="polari-complete-offline"; PROVIDES_ALL="$PROVIDES, polari-complete" ;;
+    *) fail "--flavor must be online|offline (got $FLAVOR)" ;;
+esac
 cat > "$MERGED/DEBIAN/control" <<EOF
-Package: polari-complete
+Package: $PKG
 Version: $VERSION
 Section: net
 Priority: optional
 Architecture: $OUTARCH
 Depends: $DEPS
-Provides: $PROVIDES
-Conflicts: $PROVIDES
-Replaces: $PROVIDES
+Provides: $PROVIDES_ALL
+Conflicts: $PROVIDES_ALL
+Replaces: $PROVIDES_ALL
+X-Polari-Install-Mode: $FLAVOR
 Maintainer: Polari Systems <dustinetts@gmail.com>
-Description: Polari + Isle Mesh — everything in one installer
+Description: Polari + Isle Mesh — everything in one installer ($FLAVOR)
  The complete suite as a single package: the isle networking CLI,
  the shared desktop shell runtime, the Isle App Store, and the
  finishing meta-package, merged so one install replaces the four
- piece-by-piece downloads. Distro dependencies still arrive from
- the internet during install (offline flavor is separate).
+ piece-by-piece downloads.
+$( [ "$FLAVOR" = offline ] \
+  && echo " OFFLINE flavor: installs only from the offline medium (docker" \
+  && echo " images, distro debs, module debs) and never falls back to the" \
+  && echo " network; a missing part is refused by section name." \
+  || echo " ONLINE flavor: distro dependencies and images arrive from the" \
+  && echo " internet / the mesh registry during install." )
 EOF
 ok "Depends: $DEPS"
 
@@ -116,6 +138,15 @@ concat_scripts() { # $1 = script name, $2 = member order
     local out="$MERGED/DEBIAN/$1" any=0
     {   echo '#!/bin/sh'
         echo 'set -e'
+        if [ "$1" = postinst ]; then
+            # the install-mode file FIRST (OFFLINE_INSTALL_PLAN.md §C)
+            echo '# ---- polari install mode (written before any member script) ----'
+            echo 'mkdir -p /etc/polari'
+            echo "printf '%s\\n' '$FLAVOR' > /etc/polari/install-mode"
+            if [ "$FLAVOR" = offline ]; then
+                echo 'echo "polari: install-mode=offline — every later step (isle core-install / onboard) installs from the offline medium only; nothing falls back to the network"'
+            fi
+        fi
         for m in $2; do
             local src="$STAGE/m-$m/DEBIAN/$1"
             [ -f "$src" ] || continue
@@ -139,9 +170,9 @@ for s in preinst postinst prerm postrm; do
 done
 
 step "build + prune"
-OUTDEB="$DEBS_DIR/polari-complete_${VERSION}_${OUTARCH}.deb"
+OUTDEB="$DEBS_DIR/${PKG}_${VERSION}_${OUTARCH}.deb"
 dpkg-deb -b --root-owner-group "$MERGED" "$OUTDEB" >/dev/null
-for old in "$DEBS_DIR"/polari-complete_*.deb; do
+for old in "$DEBS_DIR"/${PKG}_*.deb; do
     [ "$old" = "$OUTDEB" ] || rm -f "$old"
 done
 ok "$(basename "$OUTDEB") ($(du -h "$OUTDEB" | cut -f1))"

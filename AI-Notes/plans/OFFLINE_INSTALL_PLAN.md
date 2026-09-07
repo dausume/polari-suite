@@ -325,3 +325,29 @@ source the pol-hub docs page is generated from (off-5). The cache is
 exact tree the deb is wrapped from; Polari mounts it read-only and the
 `release` module scans it into `OfflineBuild` / `OfflineBuildSection`
 rows shown on `/display/offline-builds` as configured tables (off-5).
+
+### I. Status 2026-09-07 — off-2 first cut BUILT, off-3 partial, off-4 in his hands
+- `build-offline-medium.sh` (suite root) assembles `offline-build/<ver>/`
+  per the template from `.generated/debs`, the bundle closure (reused via
+  `--bundle`), docker-saved images, `app_deb_builder` offline debs, the
+  Reticulum engine kit and `polari-cli/shells/offline/` (installer,
+  verifier, proof, app installer, reticulum helpers). First medium:
+  `2026.09.07-dev+6f94a3e`, ubuntu-22.04, 2.0 GB, 459 files; router/ and
+  hardware/ EMPTY by statement.
+- `build-polari-complete-deb.sh --flavor offline` → `polari-complete-offline`
+  (Provides/Conflicts/Replaces the online name, `X-Polari-Install-Mode`,
+  postinst writes `/etc/polari/install-mode` first). Both flavors rebuilt.
+- Isle-Mesh `dev-off-3` (pol-core edit, for isle-core's ratification —
+  NOTES-FROM-POL-CORE.md 2026-09-07): `polari_install_mode()` in
+  `create.sh`; offline → sample app from the loaded image with
+  `--no-build`, or a refusal naming images/; offline + no libvirt →
+  routerless without a prompt. The rest of off-3 (core-install / onboard /
+  isle-polari-deploy `--pull` / apt-repo / store install through one
+  `isle_source` helper) is still isle-core's.
+- Preflight: network-less `ubuntu:22.04` container + the medium → closure
+  (81 packages) and the platform deb install clean; mode file = offline.
+- His run (Phase D of DEB_TOPOLOGY_TEST_SCENARIOS.md) = off-4's proof;
+  `offproof.sh` is the counter + pcap from §E.
+- Not yet: Polari reading `POLARI_INSTALL_MODE` (module_fetcher/pip/on-demand
+  generator refusals), `pol build offline` as a CLI verb, the cache page
+  (`/display/offline-builds`), chunking of this medium to USB sets.
