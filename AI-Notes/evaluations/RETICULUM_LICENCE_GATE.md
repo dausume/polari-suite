@@ -117,3 +117,26 @@ needed: RetiNet** (Python fork, AGPL-3.0, created before the
 relicense, "fully RNS 1.0 compatible... drop-in replacement") —
 AGPLv3 and GPLv3 combine via their §13s; gate it properly before
 adopting.
+
+## 2026-09-07 — the forks exist (his go: "yes make forks of them")
+- **dausume/reticulum** — cut from `markqvist/Reticulum` tag 0.9.4
+  (upstream commit `bfe5b876defa1de816b2f3fa0cc23ed0f0951d05`,
+  2025-04-15T16:04Z, LICENSE = MIT verified at that commit AND in the
+  PyPI sdist). Fork commit `40a1edc6953ab58f7a6f60268e33faeb4a826dde` adds POLARI-FORK.md (the rules:
+  history ends at 0.9.4, no upstream remote, no post-relicence code
+  ever, patches under MIT, consumers pin a commit) and removes the
+  upstream CI workflow. Built as a fresh repository holding only the
+  history up to that tag, so nothing relicensed is reachable in it.
+  (The upstream `0.9.4` tag object was not pushed — the CLI token lacks
+  the `workflow` scope; main contains the commit. Optional:
+  `gh auth refresh -h github.com -s workflow` then push the tag.)
+- **dausume/lxmf** — cut from `markqvist/LXMF` tag 0.6.3 (upstream
+  `326c0eed8f767e298eb3f09340a41314c254ddda`, 2025-03-13, LICENSE = MIT
+  verified). Fork commit `d67419288397a535c084fcfc55835dcc0b506502`; tag 0.6.3 pushed.
+- The sidecar (`polari-rf-node/reticulum/Dockerfile`) now installs BOTH
+  from the fork commits (GitHub archive tarballs, rns first so lxmf's
+  dependency resolves to it) and asserts `RNS.__version__ == '0.9.4'`
+  at build time. PyPI is no longer in the path.
+- Standing: any patch (ret-11 traffic classes, ret-11a link crypto)
+  lands in these forks on a Polari branch, MIT, and is pinned by
+  commit here.
