@@ -311,3 +311,75 @@ lists nested custom code; `conform` flags stray subdirectories.
 Verified: 826/826 imports, 49/49 conform, selftest_manifests 8/8, the
 dependent suites (nutrition activity/data, grpcbridge contracts/c_twin,
 hwfpga, materials_science 5/5, agro_forestry 3/3) pass.
+
+## 7. The compromise (his correction 2026-09-08): one class per file, taxonomies as folders, an index per concept
+
+"A lot of the materials science was written the way I wanted it by
+hand … it is better for [custom code] to be broken out per class and
+have scaffolding like that … the materials science code … is probably
+closer to what would have made sense to the average person compared to
+the other modules that were mostly AI generated. We need classes split
+apart."
+
+**What the hand-written shape does (materials_science, 172 files):**
+one class per file, named after the class (`meltingPoint.py` →
+`MeltingPoint`); a long docstring per class saying what the concept IS,
+its related concepts and how it is measured; taxonomy folders up to four
+deep (`properties/thermal/meltingPoint/`), each a package whose
+`__init__` re-exports its classes AND explains the taxonomy; the
+module's `__init__` re-exports everything. **What the AI shape does:**
+`<pkg>_basis.py` files holding 1–25 classes (476 classes in 221 files,
+110 multi-class) with seeds, constants and helpers beside them.
+
+**The compromise — both are legal, the human shape is the default the
+scaffold produces, and the concept entry files become INDEXES:**
+```
+modules/<pkg>/
+  polari-app.json · README.md · __init__.py
+  objects/                          ROW CLASSES, ONE CLASS PER FILE, taxonomy folders welcome (any depth)
+    <ClassName>.py                  a core row at the root (file named after the class, casing as written)
+    <taxonomy>/__init__.py          re-exports + the taxonomy's explanation (the properties/__init__ style)
+    <taxonomy>/<sub>/<ClassName>.py
+  <pkg>_basis.py                    the INDEX of rows: re-exports every class from objects/ (so every existing
+                                    `from pkg.pkg_basis import X` keeps working) + the shared constants/seeds
+                                    those classes need; an AI module not yet split still holds classes here
+  <pkg>_seed.py · <pkg>_page.py · <pkg>_api.py · <pkg>_catalog.py · <pkg>_remote.py · <pkg>_selftest.py   (unchanged)
+  engine/                           pure functions, one concern per file (optional)
+  custom/                           anything else (unchanged)
+```
+Rules:
+1. A row class lives in its own file under `objects/`, named after the
+   class; the file's docstring is the class's explanation (what it is,
+   related concepts, how it is measured or derived — his template).
+2. Taxonomy folders are packages; their `__init__` re-exports and
+   documents. Depth is free. `objects/` itself is the only fixed name.
+3. The `_basis.py` index re-exports so imports never break and holds
+   what several classes share (constants, SEED_* lists). Module-level
+   code that references the classes stays in the index, after the
+   re-exports.
+4. Splitting an AI basis file is MECHANICAL (`standardize_layout
+   split-objects`): each class → `objects/<stem>/<ClassName>.py`; the
+   file's non-class module-level code → the index; classes that
+   reference each other at module level (bases, decorators, mutual
+   method references detected by name) stay together in one file;
+   the index re-exports all. Verified by the same import-all /
+   selftest / boot proof as sap-2.
+5. Scaffolding for humans: `pol modules new <id>` writes the tree with
+   `objects/`, and `pol modules add-object <module> <ClassName>
+   [--under <taxonomy/path>] [--base <Class>]` writes ONE per-class
+   file with the treeObject boilerplate and the docstring template, the
+   taxonomy `__init__` re-export, and the index line. The legacy
+   scaffolder is retired.
+6. The manifest lists `objects/` files under concept `objects` (nested);
+   `conform` reports a multi-class basis file as "not yet split" (info,
+   never a gate) and a class outside `objects/` or a basis index as a
+   finding.
+7. materials_science is RESTORED to its hand-written split (the sap-2b
+   consolidation reverted): its taxonomies and per-class files move
+   intact under `objects/`; the seven `<sub>_basis.py` files go away;
+   `materials_science_basis.py` becomes the index.
+
+## 8. Status 2026-09-08 (evening) — §7 BUILT (sap-2c); the §6 consolidation is reverted
+See `AI-Notes/handoffs/SAP_2C_REVISION_LOG.md` for the log, the report and
+the samples to review. Companion plan for the rules/linter/scaffolds/
+admit road: `AI-Notes/plans/POLARI_DEV_TOOLS_PLAN.md`.
