@@ -519,3 +519,12 @@ classic vs skip; D11 which paid stores (Apple/Google/Microsoft) if any.
   (ci-6a), the distribution VM for apt-repo (prd), a signing key, GitHub
   token for releases (his account — put the file in `secrets/github/`),
   the dev→main promotion (ci-1 gate), hardening beyond loopback.
+
+## 7. ci-3 baseline = the test coverage plan (his ruling 2026-09-08)
+"This will be a foundation for how we do testing and eventually a
+baseline for how Jenkins will operate too." The test stage the
+pipelines deliberately lack today becomes: `pol modules testplan plan`
+→ for each chosen app, boot it under the StandardComputerBudget cgroup
+limits and run the selftests of its closure; distributed verdicts run on
+the named swarm/isle node over ssh; refusals are rows. Plan:
+AI-Notes/plans/TEST_COVERAGE_PLAN.md (tcov-4/5).
