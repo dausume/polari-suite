@@ -291,3 +291,23 @@ or skips — recorded either way.
 - **Not yet:** the ten tables are still hand-written (sap-3 generates them
   from the manifests); AI-Notes references to old file names are stale
   (the code is not); `scanning/` (empty) removed; `video` registered.
+
+## 6. Status 2026-09-08 (later) — sap-2b: stray subpackages folded, 49/49 conform
+His ruling: "they should be folded under custom and if possible be
+reworked to adhere more to new patterns." Done: `standardize_layout
+fold-subpackages` (generic: any top-level subdir that is not custom/ or
+initialData/ → custom/<sub>/ with references rewritten) applied to
+grpcbridge (`custom/renode_twin/`, the firmware/Renode/Verilator assets)
+and nutrition (`custom/vendor/`, the licence-clean CSVs; the loader path
+follows). materials_science REWORKED: its seven object subpackages
+(one legacy class per file) consolidated into standard
+`dataProvenance_basis.py`, `formulation_basis.py`, `materialAdditives_basis.py`,
+`materialSourcing_basis.py`, `rawMaterials_basis.py`, `referenceMaterials_basis.py`,
+`targetProfiles_basis.py` (15 row classes); the plain-class taxonomies
+(properties, purposes, devices, resolutions + the non-row halves of
+referenceMaterials / materialSourcing, 90+ files) fold under `custom/`
+unchanged. The two legacy modules gained selftests. `manifests.classify`
+lists nested custom code; `conform` flags stray subdirectories.
+Verified: 826/826 imports, 49/49 conform, selftest_manifests 8/8, the
+dependent suites (nutrition activity/data, grpcbridge contracts/c_twin,
+hwfpga, materials_science 5/5, agro_forestry 3/3) pass.
