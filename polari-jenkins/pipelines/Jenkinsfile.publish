@@ -1,0 +1,36 @@
+// polari-publish — ci-6: one stage per route, each a script under routes/. DRY_RUN=true is the default and renders only.
+pipeline {
+  agent any
+  options { timestamps(); timeout(time: 90, unit: 'MINUTES') }
+  environment { POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}"; ROUTES_DIR = "${env.POLARI_ROUTES ?: '/var/polari-jenkins/routes'}" }
+  stages {
+    stage('verify pool') {
+      steps { sh 'test -n "$VERSION" || { echo "VERSION required"; exit 1; }; test -f "$POOL/$VERSION/release.json" || { echo "no pool/$VERSION/release.json — run polari-release first"; exit 1; }; cd "$POOL/$VERSION" && sha256sum --quiet -c SHA256SUMS && echo "pool $VERSION verified"' }
+    }
+    stage('routes') {
+      steps {
+        script {
+          def routes = params.ROUTES.split(',').collect { it.trim() }.findAll { it }
+          def creds = [
+            'github-release': [string(credentialsId: 'github_token', variable: 'GITHUB_TOKEN')],
+            'apt-repo':       [string(credentialsId: 'apt_signing_gpg', variable: 'APT_SIGNING_GPG'), string(credentialsId: 'apt_signing_keyid', variable: 'APT_SIGNING_KEYID'), string(credentialsId: 'distribution_host_key', variable: 'DISTRIBUTION_HOST_KEY')],
+            'ghcr':           [string(credentialsId: 'ghcr_token', variable: 'GHCR_TOKEN'), string(credentialsId: 'cosign_key', variable: 'COSIGN_KEY'), string(credentialsId: 'cosign_password', variable: 'COSIGN_PASSWORD')],
+            'homebrew':       [string(credentialsId: 'github_token', variable: 'GITHUB_TOKEN')],
+          ]
+          for (r in routes) {
+            stage(r) {
+              if (['dockerhub','npm','pypi','launchpad','snap'].contains(r)) { error("route '${r}' is PARKED — it needs an outside account/review (routes/later/README.md)") }
+              if (!creds.containsKey(r)) { error("unknown route '${r}' — see routes/") }
+              withCredentials(creds[r]) {
+                withEnv(["DRY_RUN=${params.DRY_RUN ? '1' : '0'}", "VERSION=${params.VERSION}", "POOL_DIR=${env.POOL}/${params.VERSION}"]) {
+                  sh "bash '${env.ROUTES_DIR}/${r}.sh'"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  post { always { sh 'echo "publish run: VERSION=$VERSION DRY_RUN=$DRY_RUN ROUTES=$ROUTES"' } }
+}

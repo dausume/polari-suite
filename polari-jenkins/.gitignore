@@ -1,0 +1,17 @@
+# polari-jenkins — nothing that authenticates, nothing that is built, ever enters git
+secrets/**
+!secrets/README.md
+!secrets/**/
+!secrets/**/*.example
+!secrets/**/.gitkeep
+.env
+pool/**
+!pool/.gitkeep
+jenkins_home/
+*.token
+*.gpg
+*.asc
+*.key
+*.pem
+*.pub
+id_*

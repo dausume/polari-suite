@@ -485,3 +485,37 @@ KC rotation done first.
   first, then OBS for rpm, then the rest).
 Decisions for him: D9 Docker Hub org name and npm scope; D10 Snap
 classic vs skip; D11 which paid stores (Apple/Google/Microsoft) if any.
+
+## 6. Status 2026-09-08 — `polari-jenkins/` BUILT (ci-1a): the host-tier controller exists and runs
+- Sub-project `polari-jenkins/` (in the superproject for now; split to its
+  own repo + submodule = his go): compose (loopback-only UI, docker socket,
+  built-in node), `controller/Dockerfile` (jenkins lts-jdk21 + docker cli/
+  compose/buildx, jdk21 jpackage, node 20, dpkg-dev, gh, cosign), Configuration
+  as Code (`casc/jenkins.yaml`: local admin only, no anonymous — HTTP 403,
+  credentials from `secrets/`, jobs seeded from `jobs/seed.groovy`), three
+  pipelines (`polari-dev-build` polls dev, `polari-release` polls main →
+  `pool/<version>/` + release.json + offline medium → triggers publish with
+  DRY_RUN=true, `polari-publish` = one stage per route). `pol jenkins
+  up|down|restart|status|logs|secrets`.
+- **Auth material**: `secrets/<area>/<name>` (admin, github, registries,
+  signing, packaging, ssh), one file = one variable, `*.example` documents
+  the format; `.gitignore` proven (`git check-ignore`) to block real files,
+  `.env`, `pool/`, `jenkins_home/`; the controller entrypoint flattens the
+  areas into a private dir for Configuration as Code at start (duplicate
+  names refuse). `pol jenkins secrets` lists presence, never values.
+- **His rule 2026-09-07 applied** ("only things we can do without needing
+  authorization from any kind of authority"): ACTIVE routes = github-release,
+  apt-repo (our VM), ghcr (our GitHub packages), homebrew (a tap repo we own);
+  PARKED in `routes/later/` (written, dry-runnable, not wired): dockerhub,
+  npm, pypi, launchpad, snap — each names the authority it waits on.
+- **Proven**: boot with CasC (after two fixes: crumb-issuer attribute, DSL
+  file read without a workspace), admin login from the generated secret,
+  7 credentials declared, dry-run publish against a seeded `pool/test-0/`
+  = SUCCESS rendering every command and naming each absent secret; a real
+  run refuses by secret name (exit 3). First dev-build: FAILED on Isle-Mesh's
+  nested `isle-manager-app` submodule (ssh URL, no key on the poller) →
+  pipelines now check out top-level submodules only.
+- **Not yet**: tests (his call), `ReleasePublication` rows + downloads page
+  (ci-6a), the distribution VM for apt-repo (prd), a signing key, GitHub
+  token for releases (his account — put the file in `secrets/github/`),
+  the dev→main promotion (ci-1 gate), hardening beyond loopback.

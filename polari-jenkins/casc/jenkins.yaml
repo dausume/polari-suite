@@ -1,0 +1,49 @@
+# Configuration as Code — the whole instance from this file + secrets/.
+# Secrets arrive as ${name} from /run/secrets/<name> (docker-secrets
+# source); a missing file resolves to the empty default so boot never
+# depends on a credential being present — the ROUTE refuses instead.
+jenkins:
+  systemMessage: "polari-jenkins — host-tier build + publish. Polls GitHub; publishes only with DRY_RUN=false and a present secret."
+  numExecutors: 2
+  mode: NORMAL
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: admin
+          password: "${jenkins_admin_password:-change-me-now}"
+  authorizationStrategy:
+    globalMatrix:
+      entries:
+        - user:
+            name: admin
+            permissions: [ "Overall/Administer" ]
+  crumbIssuer: standard
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: POLARI_POOL
+            value: /var/polari-pool
+          - key: POLARI_ROUTES
+            value: /var/polari-jenkins/routes
+          - key: DRY_RUN_DEFAULT
+            value: "1"
+unclassified:
+  location:
+    url: "http://127.0.0.1:8080/"
+    adminAddress: "polari-jenkins (local)"
+# Parked routes' credentials (dockerhub, npm, pypi, snapcraft, launchpad) are
+# NOT declared — routes/later/README.md; add them back with the route.
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string: { scope: GLOBAL, id: github_token,        description: "GitHub token (releases)",        secret: "${github_token:-}" }
+          - string: { scope: GLOBAL, id: ghcr_token,          description: "GHCR write:packages",            secret: "${ghcr_token:-}" }
+          - string: { scope: GLOBAL, id: apt_signing_gpg,     description: "apt repo signing key (armored)",  secret: "${apt_signing_gpg:-}" }
+          - string: { scope: GLOBAL, id: apt_signing_keyid,   description: "apt repo signing key id",         secret: "${apt_signing_keyid:-}" }
+          - string: { scope: GLOBAL, id: cosign_key,          description: "cosign private key",              secret: "${cosign_key:-}" }
+          - string: { scope: GLOBAL, id: cosign_password,     description: "cosign key password",             secret: "${cosign_password:-}" }
+          - string: { scope: GLOBAL, id: distribution_host_key, description: "deploy key: distribution VM",  secret: "${distribution_host_key:-}" }
+jobs:
+  - file: /var/polari-jenkins/jobs/seed.groovy

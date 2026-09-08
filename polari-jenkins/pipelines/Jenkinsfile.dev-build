@@ -1,0 +1,23 @@
+// polari-dev-build — build only (no tests yet, no publish)
+pipeline {
+  agent any
+  options { timestamps(); timeout(time: 120, unit: 'MINUTES'); disableConcurrentBuilds() }
+  stages {
+    stage('checkout dev (top-level submodules — Isle-Mesh nests an ssh-URL submodule the poller cannot clone; the builders do not need it)') {
+      steps {
+        checkout([$class: 'GitSCM', branches: [[name: '*/dev']],
+                  userRemoteConfigs: [[url: 'https://github.com/dausume/polari-suite.git']],
+                  extensions: [[$class: 'SubmoduleOption', recursiveSubmodules: false, parentCredentials: false, trackingSubmodules: false, shallow: true]]])
+        sh 'git rev-parse --short HEAD > .polari-sha; cat .polari-sha'
+      }
+    }
+    stage('debs (isle bundle + both merged flavors)') {
+      steps { sh 'bash ./build-polari-isle-deb.sh && bash ./build-polari-complete-deb.sh --flavor online && bash ./build-polari-complete-deb.sh --flavor offline && ls -la .generated/debs' }
+    }
+    stage('images') {
+      steps { sh 'cd polari-rf-node && docker compose -f docker-compose.yml build backend frontend && docker compose -f docker-compose.reticulum.yml build && docker images --format "{{.Repository}}:{{.Tag}} {{.Size}}" | grep -E "^(prf-|pol-reticulum)"' }
+    }
+    // stage('tests') — deliberately absent (his ruling 2026-09-07); ci-3 adds the isle tests here.
+  }
+  post { always { archiveArtifacts artifacts: '.generated/debs/*.deb', fingerprint: true, allowEmptyArchive: true; cleanWs() } }
+}

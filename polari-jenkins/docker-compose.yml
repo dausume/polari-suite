@@ -1,0 +1,31 @@
+# polari-jenkins — host-tier controller. Built-in node runs the jobs
+# (single-host setup); the docker socket is mounted so jobs build images
+# and run the suite's builders. Nothing published; UI on loopback only.
+services:
+  jenkins:
+    build:
+      context: ./controller
+    image: polari-jenkins:local
+    container_name: polari-jenkins
+    restart: unless-stopped
+    user: "${UID:-1000}:${GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:-999}"
+    ports:
+      - "127.0.0.1:${JENKINS_PORT:-8080}:8080"
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Dhudson.model.DirectoryBrowserSupport.CSP=
+      - CASC_JENKINS_CONFIG=/var/jenkins_casc/jenkins.yaml
+      - JENKINS_OPTS=--httpListenAddress=0.0.0.0
+      - HOME=/var/jenkins_home
+      - POLARI_POOL=/var/polari-pool
+    volumes:
+      - ${JENKINS_HOME:-./jenkins_home}:/var/jenkins_home
+      - ./casc:/var/jenkins_casc:ro
+      - ./jobs:/var/polari-jenkins/jobs:ro
+      - ./pipelines:/var/polari-jenkins/pipelines:ro
+      - ./routes:/var/polari-jenkins/routes:ro
+      - ./secrets:/run/secrets:ro
+      - ./pool:/var/polari-pool
+      - /var/run/docker.sock:/var/run/docker.sock
+    mem_limit: 2g

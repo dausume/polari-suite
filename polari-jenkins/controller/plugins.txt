@@ -1,0 +1,15 @@
+configuration-as-code
+job-dsl
+workflow-aggregator
+pipeline-stage-view
+git
+github
+credentials
+credentials-binding
+plain-credentials
+ssh-credentials
+docker-workflow
+timestamper
+ws-cleanup
+build-timeout
+matrix-auth
