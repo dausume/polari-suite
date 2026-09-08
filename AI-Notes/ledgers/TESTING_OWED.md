@@ -1229,3 +1229,20 @@ version). Image rebuilt: RS256 JWT round-trip on 50.0.1, vpn 89/89,
 islemesh 95/95 in-container; rolled to prf-a. The alerts close only when
 `dev` (or main) is pushed — his ritual. Note for prd-2: pip + setuptools
 should not ship in the runtime venv at all.
+
+## §17 — sap-1/sap-2 layout migration proof (2026-09-08)
+Migration: `moduleService/standardize_layout.py apply` + `rewrite-from-git`
+(848 files git-mv'd: postfix concept names, 290 into `custom/`, two legacy
+dirs renamed; 1046 files' references rewritten incl. `from pkg import
+module` forms and `__file__`-relative data paths in moved files).
+| check | before | after |
+|---|---|---|
+| every module file imports (`standardize_layout import-all`) | 818/818 | 818/818 |
+| `selftest_lazy_imports` drift guard | 23/23 | 23/23 |
+| module selftest suites (16 modules, 64 suites) | recorded | identical results (vpn 89/89, gears 68/68, reticulum 184/184, islemesh 95/95, techtree 74/74, appstore 7 suites, nutrition 32 suites all PASS/0 failures, …) |
+| `selftest_manifests` | — | 7/8 (agro_forestry + materials_science have no selftest — real gap) |
+| `manifests conform --all` | — | 46/48 (the same two) |
+| one-off backend boot on the migrated checkout (prf-backend:staging image, host checkout at /app, 10 modules) | — | `/api/health` 200 in ~10 s, `/polariServer` 200, `/api/gears/types` `/api/reticulum/capability` `/api/islemesh/catalog` 200, CRUDE `/GearDefinition` `/VpnNetwork` 200, 677 class inits, 0 tracebacks; legacy dynamic modules report `disabled` as before |
+Not proven here: a full 24-module staging boot and the browser sweep on
+the new layout (unchanged logic, but run them at the next deploy); docs
+in AI-Notes still cite old file names.

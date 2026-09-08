@@ -267,3 +267,27 @@ or skips — recorded either way.
   /modules/create` stays (no-code module creation) once the scaffold is a
   CLI verb; D5 `requires.libraries` declared AND scanned (mismatch =
   finding) vs scanned only.
+
+## 5. Status 2026-09-08 — sap-1 + sap-2 BUILT (his rules applied)
+- **His rules:** hardware KVM apps are a KIND beside the others → manifest
+  `app.kind ∈ library | polari-app | isle-app | hardware-app`; POSTFIX names
+  take precedence and are the standard; module-name PREFIXES only for
+  custom code; custom code that fits no concept lives in `modules/<pkg>/custom/`;
+  the overall logic unchanged.
+- **Done (moduleService/manifests.py, moduleService/standardize_layout.py):**
+  848 files renamed/moved by `git mv` (postfix concept names; 290 into
+  `custom/`), the two legacy dirs → `materials_science` / `agro_forestry`,
+  1046 files had references rewritten (dotted, path, `from pkg import
+  module`, and `__file__`-relative data paths in moved files); 48
+  `polari-app.json` generated from the ten core tables + AST; 48 first
+  `README.md`; `pol modules conform|manifests {conform,generate,list,
+  readme,selftest}`; `moduleService/selftest_manifests.py` (7/8 — the two
+  legacy modules have no selftest, a real gap); selftest runners accept
+  `<topic>_selftest.py` (the standard) and the old prefix.
+- **Verified:** 818/818 module files import (same as before); the
+  lazy-import drift guard 23/23; 64 module selftest suites re-run with
+  identical results to the baseline; a one-off backend boot on the
+  migrated checkout (see TESTING_OWED §17).
+- **Not yet:** the ten tables are still hand-written (sap-3 generates them
+  from the manifests); AI-Notes references to old file names are stale
+  (the code is not); `scanning/` (empty) removed; `video` registered.
