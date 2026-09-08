@@ -354,3 +354,134 @@ Deploying to the home swarm from the pipeline (dev stays `pol swarm
 deploy`), multi-branch Jenkins jobs, nightly builds (the night-run
 sessions do that job today), Jenkins as an isle app or module-hosted
 service (ruled out: the builder must sit above the isle it builds).
+
+## 5. ci-6 — PUBLICATION: the official distribution routes (Dustin 2026-09-07)
+
+"Set up a Jenkins project that takes the different deb builds and
+publishes them to official distribution centers like the ones for the
+Ubuntu store, apt, npm install routes, docker images and stuff like
+that. What all more official distribution routes should we take so
+that people can easily do installs via the various open source app
+install and terminal install routes?"
+
+### 5.1 What we ship, and what shape each route wants
+| Artifact | Built by | Natural routes |
+|---|---|---|
+| `polari-complete` / members (isle-mesh-cli, polari-shell-core, isle-app-store, polari-isle) + `-offline` | build-polari-isle-deb / -complete-deb | our apt repo, GitHub Releases, Launchpad PPA (source-built only), Snap/Flatpak (the GUI shell), OBS (rpm + multi-distro) |
+| module app debs (`polari-app-<m>[-offline]`) | app_deb_builder (on demand) | our apt repo + the on-demand generator; GitHub Releases per module repo |
+| images: prf-backend, prf-frontend, prf-proxy, pol-reticulum, engines | pol node build / compose | GHCR (primary), Docker Hub (discovery), signed with cosign, multi-arch |
+| `pol` CLI, `isle` CLI (node wrapper + bash) | polari-cli, Isle-Mesh | npm (`@polari/pol`, `@polari/isle`), Homebrew tap, our apt repo |
+| polari-framework (Python) | setup.py | PyPI (`polari-framework`), for people embedding the backend |
+| the JavaFX shell (desktop) | jpackage | deb (ours), Snap (classic), Flathub, winget + MSI, Homebrew cask + notarized dmg |
+| the app shell (android/ios) | polari-app-shell | F-Droid (open-source route, reproducible build), Google Play, App Store |
+| offline media | build-offline-medium.sh | GitHub Releases (chunked) + the downloads page; never a store |
+| the forks (dausume/reticulum, dausume/lxmf) | — | NOT republished to PyPI under upstream names (that would collide); consumers pin the commit |
+
+### 5.2 The routes, ranked by reach ÷ cost, with the honest catch for each
+**Tier 1 — build these first (ci-6a):**
+1. **GitHub Releases** — the canonical artifact home: every deb, image
+   digest list, tarball, offline chunk set, SHA256SUMS, signatures and
+   SBOM. Every other route points at a release; the ReleaseManifest
+   (ver-2) IS the release notes body.
+2. **Our signed apt repo on the web** (`apt.polari-systems.org`, pub-4):
+   reprepro/aptly, a dedicated GPG signing key (rotation plan alongside
+   the KC rotation — ⛔ the KC rotation is still the blocker for
+   anything internet-facing), `deb [signed-by=/usr/share/keyrings/…]`
+   one-liner + the keyring deb. This is what "sudo apt install
+   polari-complete" means for the world.
+3. **Container registries** — GHCR as primary (`ghcr.io/dausume/…`,
+   the manifest already names it) + Docker Hub mirror for discovery;
+   multi-arch (amd64 + arm64 — the SBC/router class); cosign-signed
+   with SLSA provenance; tags = Polari calendar version + tier (D4).
+4. **AppStream metadata in our debs** (`/usr/share/metainfo/*.metainfo.xml`
+   + desktop file + icon): with our apt repo added, the shell and store
+   appear in Ubuntu App Center / GNOME Software / KDE Discover
+   searches — the "Ubuntu store" effect for near-zero cost, no snap.
+
+**Tier 2 — terminal routes developers expect (ci-6b):**
+5. **npm** — scoped org `@polari`: `npm i -g @polari/pol` and
+   `@polari/isle` (bash scripts ship fine in an npm package). Semver =
+   the component VERSION (ver-1). Needs the npm org + a publish token.
+6. **PyPI** — `pip install polari-framework` for embedding/dev; also
+   makes `pipx` work. Trusted-publisher (OIDC) is GitHub-Actions-shaped;
+   from Jenkins use an API token scoped to the project.
+7. **Homebrew tap** — `brew install dausume/polari/pol` (formula points
+   at the GitHub release tarball); works on macOS AND Linuxbrew; a tap
+   repo is just a git repo we own.
+8. **Launchpad PPA** — `ppa:polari/stable`. Catch: Launchpad builds
+   from SOURCE packages with no network and refuses binary uploads, so
+   it fits isle-mesh-cli / pol-cli / polari-isle (debhelper packaging
+   needed) and NOT the jpackage shell with its bundled JRE. Worth it
+   for the CLIs because "add-apt-repository ppa:" is what Ubuntu users
+   know.
+
+**Tier 3 — GUI stores and other distros (ci-6c):**
+9. **Snap Store** (= Ubuntu App Center's native route): the store
+   shell as a snap. Catch: it launches `pkexec isle core-install`,
+   docker, libvirt, nftables → needs **classic** confinement, which is
+   a manual review by Canonical; strict confinement cannot do it.
+   Publish the shell as classic, never the CLI (a classic snap of a
+   bash CLI adds nothing over apt).
+10. **Flathub** — cross-distro GUI route (GNOME Software / Discover on
+    Fedora, Arch, etc.). Same catch: host access only via
+    `flatpak-spawn --host` and reviewers push back; feasible, decide
+    after Snap.
+11. **openSUSE Build Service (OBS)** — one source, builds deb AND rpm
+    for Debian/Ubuntu/Fedora/openSUSE and hosts the repos; jpackage
+    can also emit rpm directly. The cheapest way to be honest about
+    "Linux", not "Ubuntu".
+12. **Arch AUR** (`polari-complete-bin`, a PKGBUILD pointing at the
+    release deb/tarball — community-maintained shape, we can own it),
+    **Nix flake** in-repo (nix users install from the repo, no store
+    needed).
+13. **winget + MSI** (jpackage emits MSI; winget manifest PR to the
+    community repo — free) and **Homebrew cask + notarized dmg** for
+    macOS (Apple developer account, paid) — for the shell only; the
+    isle itself stays Linux.
+14. **F-Droid** for the android shell (needs a reproducible build with
+    no proprietary deps — check the app-shell's Gradle deps first),
+    then Google Play / App Store (paid accounts).
+
+**Tier 4 — the archive itself:** Debian (mentors → sponsor → unstable →
+Ubuntu universe sync). Only ever for isle-mesh-cli / pol-cli with
+proper debhelper packaging and no vendored deps; months, not a
+pipeline stage. Record as the long-term goal, not a rung.
+
+### 5.3 The Jenkins project (shape)
+- `polari-publish` pipeline, triggered by the release job (ci-2) with
+  the ReleaseManifest as input; a **matrix over routes**, each route
+  one stage with its own credential id from the Jenkins store (never
+  in a repo), **idempotent** (skip when that version is already
+  published there — checked by asking the route), **`DRY_RUN`**
+  parameter that renders every command without pushing, and a
+  per-route retry that never re-signs.
+- Outbound-only: every route is a push from Jenkins to a public
+  service — consistent with the no-tunnel rule (§ci-0).
+- Every publication becomes a row: `ReleasePublication(version,
+  route, url, installCommand, publishedAt, digest, status)` → the
+  downloads page and `/api/release` show "install via: apt · snap ·
+  npm · brew · docker" WITH the real command per route, and a
+  `polari-publish` failure is a visible row, not a hidden log.
+- Order inside a run: GitHub Release first (everything links to it),
+  then apt + registries (the routes our own installers use), then the
+  rest; the run is green only when Tier 1 is green — Tier 2/3 failures
+  are rows with reasons.
+
+### 5.4 Prerequisites (his side) before ci-6a can push anywhere
+accounts/orgs: npm org `polari`, Docker Hub org, PyPI project name,
+Launchpad team + PPA, Snapcraft developer name, Flathub (PR-based),
+winget (PR-based, free), Apple/Google (paid, later); a **release
+signing key** (GPG for apt + minisign/cosign key for tarballs/images)
+with its rotation written down next to the KC rotation; the
+`apt.polari-systems.org` host (the production small VM, prd) — and the
+KC rotation done first.
+
+### 5.5 Rungs
+- **ci-6a** Tier 1 (GitHub Releases, signed apt, GHCR/Docker Hub +
+  cosign, AppStream) + the `ReleasePublication` rows + downloads page.
+- **ci-6b** Tier 2 (npm, PyPI, Homebrew tap, Launchpad PPA for the
+  CLIs with debhelper packaging).
+- **ci-6c** Tier 3 as decided per route (Snap classic for the shell
+  first, then OBS for rpm, then the rest).
+Decisions for him: D9 Docker Hub org name and npm scope; D10 Snap
+classic vs skip; D11 which paid stores (Apple/Google/Microsoft) if any.
