@@ -5,13 +5,13 @@ def pipe = { name -> new File("/var/polari-jenkins/pipelines/${name}").text }  /
 
 pipelineJob('polari-dev-build') {
     description('Poll dev every 10 min; recursive checkout; build debs (both flavors) + images. Publishes nothing.')
-    logRotator { numToKeep(20) }
+    logRotator { numToKeep(5); artifactNumToKeep(2) }   // dev artifacts: two builds' debs, no more
     triggers { scm('H/10 * * * *') }
     definition { cps { script(pipe('Jenkinsfile.dev-build')); sandbox(true) } }
 }
 pipelineJob('polari-release') {
     description('Poll main every 10 min; build everything + release.json + offline medium into pool/<version>/; triggers polari-publish with DRY_RUN=true.')
-    logRotator { numToKeep(30) }
+    logRotator { numToKeep(10); artifactNumToKeep(3) }  // the pool itself is pruned by retention.sh (POOL_KEEP)
     triggers { scm('H/10 * * * *') }
     parameters { booleanParam('BUILD_OFFLINE_MEDIUM', true, 'assemble offline-build/<version>/ (2 GB, minutes)') }
     definition { cps { script(pipe('Jenkinsfile.release')); sandbox(true) } }

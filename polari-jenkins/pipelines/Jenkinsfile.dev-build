@@ -1,8 +1,11 @@
 // polari-dev-build — build only (no tests yet, no publish)
 pipeline {
   agent any
-  options { timestamps(); timeout(time: 120, unit: 'MINUTES'); disableConcurrentBuilds() }
+  // ONE dev build at a time (his rule 2026-09-08): a newer trigger ABORTS the running one (latest commit wins,
+  // queued duplicates collapse), and the global 'polari-build' lock keeps dev-build/release/publish from overlapping.
+  options { timestamps(); timeout(time: 120, unit: 'MINUTES'); disableConcurrentBuilds(abortPrevious: true); lock(resource: 'polari-build') }
   stages {
+    stage('disk guard') { steps { sh 'bash /var/polari-jenkins/retention.sh guard' } }
     stage('checkout dev (top-level submodules — Isle-Mesh nests an ssh-URL submodule the poller cannot clone; the builders do not need it)') {
       steps {
         checkout([$class: 'GitSCM', branches: [[name: '*/dev']],
@@ -19,5 +22,5 @@ pipeline {
     }
     // stage('tests') — deliberately absent (his ruling 2026-09-07); ci-3 adds the isle tests here.
   }
-  post { always { archiveArtifacts artifacts: '.generated/debs/*.deb', fingerprint: true, allowEmptyArchive: true; cleanWs() } }
+  post { always { archiveArtifacts artifacts: '.generated/debs/*.deb', fingerprint: true, allowEmptyArchive: true; sh 'bash /var/polari-jenkins/retention.sh prune || true'; cleanWs() } }
 }

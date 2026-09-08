@@ -28,7 +28,16 @@ jenkins:
             value: /var/polari-jenkins/routes
           - key: DRY_RUN_DEFAULT
             value: "1"
+          # data retention knobs (his rule 2026-09-08: no automated process overwhelms the host)
+          - key: POOL_KEEP
+            value: "3"
+          - key: DISK_MIN_FREE_GB
+            value: "20"
 unclassified:
+  lockableResourcesManager:
+    declaredResources:
+      - name: polari-build
+        description: "ONE build at a time on this host (dev-build, release, publish share the docker daemon + the prf-*:staging tags)"
   location:
     url: "http://127.0.0.1:8080/"
     adminAddress: "polari-jenkins (local)"

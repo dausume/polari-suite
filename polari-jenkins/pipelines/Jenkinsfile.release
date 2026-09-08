@@ -1,9 +1,10 @@
 // polari-release — main → pool/<version>/ (debs, images as tarballs + digests, release.json, offline medium). No publish here.
 pipeline {
   agent any
-  options { timestamps(); timeout(time: 180, unit: 'MINUTES'); disableConcurrentBuilds() }
+  options { timestamps(); timeout(time: 180, unit: 'MINUTES'); disableConcurrentBuilds(); lock(resource: 'polari-build') }  // never overlaps a dev build (same daemon, same staging tags)
   environment { POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}" }
   stages {
+    stage('disk guard') { steps { sh 'bash /var/polari-jenkins/retention.sh guard' } }
     stage('checkout main (top-level submodules only)') {
       steps {
         checkout([$class: 'GitSCM', branches: [[name: '*/main']],
@@ -52,6 +53,6 @@ PY'''
   }
   post {
     success { build job: 'polari-publish', wait: false, parameters: [string(name: 'VERSION', value: env.POLARI_VERSION), booleanParam(name: 'DRY_RUN', value: true), string(name: 'ROUTES', value: 'github-release,apt-repo,ghcr')] }
-    always { cleanWs() }
+    always { sh 'bash /var/polari-jenkins/retention.sh prune || true'; cleanWs() }
   }
 }

@@ -25,6 +25,7 @@ services:
       - ./jobs:/var/polari-jenkins/jobs:ro
       - ./pipelines:/var/polari-jenkins/pipelines:ro
       - ./routes:/var/polari-jenkins/routes:ro
+      - ./retention.sh:/var/polari-jenkins/retention.sh:ro
       - ./secrets:/run/secrets:ro
       - ./pool:/var/polari-pool
       - /var/run/docker.sock:/var/run/docker.sock

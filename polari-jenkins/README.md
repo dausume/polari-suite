@@ -51,6 +51,12 @@ First login: user `admin`, password = `secrets/admin/jenkins_admin_password`
 | polari-release | poll `main` every 10 min | the same, plus `release.json` (shas of every component) and the offline medium → `pool/<version>/` | no — it triggers polari-publish with DRY_RUN=true |
 | polari-publish | manual / from release | routes/*.sh per selected route | only with DRY_RUN=false AND the route's secret present |
 
+## Data retention (an automated process must never overwhelm the host)
+- `retention.sh guard` runs FIRST in every build: refuses when free disk < `DISK_MIN_FREE_GB` (20).
+- `retention.sh prune` runs LAST: keeps the newest `POOL_KEEP` (3) pool versions, removes older ones and the images tagged with them, prunes dangling layers. It never touches developer images (`prf-*:staging`), anything outside `pool/`, or any Polari instance data — the pipelines deploy nothing.
+- Job history: dev-build keeps 5 runs / 2 artifact sets; release 10 / 3. Workspaces are cleaned after every run.
+- ONE build at a time: a global `polari-build` lock across dev-build, release and publish; a newer dev trigger aborts the running dev build (latest commit wins).
+
 ## Not yet
 Tests (his call, later), the `ReleasePublication` rows in Polari (ci-6a),
 agent nodes beyond the built-in one, the throwaway-VM isle tests (ci-3).

@@ -1,7 +1,7 @@
 // polari-publish — ci-6: one stage per route, each a script under routes/. DRY_RUN=true is the default and renders only.
 pipeline {
   agent any
-  options { timestamps(); timeout(time: 90, unit: 'MINUTES') }
+  options { timestamps(); timeout(time: 90, unit: 'MINUTES'); lock(resource: 'polari-build') }  // publish loads/tags images — waits for any build to finish
   environment { POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}"; ROUTES_DIR = "${env.POLARI_ROUTES ?: '/var/polari-jenkins/routes'}" }
   stages {
     stage('verify pool') {
