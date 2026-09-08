@@ -117,3 +117,33 @@ hw-app-1 (seam, both halves) → hw-app-2 guestnet → hw-app-3 relay →
 hw-app-4 sdr-rx. Gates: his D1–D4; isle-core's `isle vm` extraction;
 the manifest kind `hardware-app` exists already (sap-1) so the first
 module can be scaffolded the day the seam lands.
+
+## 6. Status 2026-09-08 (evening) — the Polari half of hw-app-1/2/3 BUILT
+His rulings: hardware apps = KVMs with "shell-ish handling"; the router IS
+one but stays woven into the isle; reticulum = a `hardware-extension-app`
+(extends the relay guest); build the relay and guest versions of the KVM.
+- Standard: `app.kind` gains `hardware-extension-app` + `app.extends`;
+  hardware kinds require `agentTier: hardware`; `generate` preserves a
+  hand-set app block. reticulum's manifest: kind hardware-extension-app,
+  extends isle-relay.
+- Catalog: `CATALOG_KINDS` + `HARDWARE_KINDS`; `IsleCatalogEntry` gains
+  requires_tier / guest_kind / vm_image_ref / image_sha256_raw / memory_mb
+  / vcpus / passthrough_json / extends; `install_plan` for both kinds
+  (isle vm define/start/status; status/extend).
+- `hardwareapps` (library): `HardwareAppDefinition` / `HardwareAppState`,
+  `custom/domain_xml.py` (the router template generalised; named
+  refusals: sha pin, memory, bridges, extension apps render no guest),
+  `custom/uci_profiles.py` (relay: forward ACCEPT + bearer port; guestnet:
+  REJECT, wan-only, allow-list rules, client isolation; PSK deploy-time),
+  `/api/hardwareapps[/render/<name>|/state]`, `/display/hardware-apps`.
+- `isle_relay` (RelayNodeDefinition/State, seed relay-1 + the guest row +
+  the store row, `/api/isle-relay/summary`, `/display/isle-relay`) and
+  `isle_guestnet` (GuestNetworkDefinition/Exposure/State, seed guest-1, no
+  exposures by default, `/api/isle-guestnet/summary`, `/display/isle-guestnet`).
+- Proven: selftests 10/10, 6/6, 6/6; lazy guard 23/23; 52/52 manifests
+  conform; test-build boot with the six modules: both guests listed with
+  the honest refusal "image_sha256_raw is empty" (pin at deploy), UCI
+  renders (2.1 KB), pages seeded, 0 tracebacks.
+- Isle half requested: NOTES-FROM-POL-CORE.md 2026-09-08 (`isle vm`
+  verbs, tier, state push). "Shell-ish handling" on the store = the
+  install plan steps + `requires_tier` (the store refuses without libvirt).
