@@ -458,3 +458,36 @@ voron = rows):
 declared: `ProductionRun` (the request) + `RunStepRecord` (the per-step
 cache) in printing_suite walk the chain automatically; D6 "suite app" and
 D7 "print camera" ratified; `printcam` is the first extension app built.
+
+## 10. The suite apps we already had without the name (2026-09-09)
+
+Test applied: parts of MORE THAN ONE KIND (Polari modules + containers +
+KVM guests + external services) and/or spanning MORE THAN ONE MACHINE, held
+together by object contracts. Sources: the 18 `PolariAppDefinition` seeds,
+the topology instance assignments (prf-a 7 modules, engines 2, cnt-engines
+1, psc-a 1, livekit 1, reticulum 1), the compose worker roles (msci-engines,
+cnt-engines, cad-engines, dask, livekit, reticulum, remote-worker, twin-b),
+the isle deployment, econ-core's Odoo.
+
+| existing thing | parts (kinds) | spans machines? | verdict |
+|---|---|---|---|
+| **The isle itself** (isle-core) | router KVM (hardware-app, woven in) + isle-vlan-agent + registry + apt.isle + store shell (polari-app shell) + prf-isle lean instance (islemesh, vpn) | core + members | **suite app** — the base one every other suite assumes; not a row because it IS the platform |
+| **Democratic Scorecard** (`political-scorecard-node`) | PSC Angular frontend + Java backend + MariaDB/KeyDB/Keycloak/proxy containers (7 compose services) + Polari `scoring` + `dmvdata` (`psc-a` instance) + the seeded apps app-policy / app-scorecards-data-analysis / dmv-policy-analysis / judicial-lean | pol-core (psc-a) | **suite app** — the clearest prior one: a separate project consuming Polari scoring as a client |
+| **Business ops / Odoo** (econ-core) | pol-odoo + pol-odoo-postgres containers + `odooconnect` + `bizops` + `supplychain` modules (seeded app-business, engine `/engines/business-ops`) | econ-core + pol-core | **suite app** |
+| **Wax printing research stack** (seeded `wax-print-shop`) | waxprint + waxsupply + supplychain + mathshapes + materials modules + the msci/cad engine containers (engine-msci, engine-cad) + `simulations` | pol-core + engines on isle-core (SPICE stays on isle-core) | **suite app** (research); the production printing suite is its production sibling |
+| **Meetings / collaboration** | pol-livekit container (`livekit` instance) + `collab` module (seeded app-collaboration, engine `/engines/livekit`) | livekit worker | **suite app** (small) |
+| **Archipelago / mesh** | pol-reticulum sidecar container (`reticulum` instance) + `reticulum` module (now a hardware-extension-app) + isle-relay guest (hardware-app) + the archipelago pages (seeded app-archipelago, engine `/engines/reticulum`) | relay guests on hardware-tier devices + the core | **suite app** — the second one after printing whose parts are of three kinds |
+| **AI assistant** (ai-assistant-reasoning, ai-voice) | LocalAI container (dausume fork) + reasoning/voice engines + ai modules/tools + Odoo SSO pieces | engine host | **suite app** (parts exist; the seeded apps carry 0 modules — the composition was never written down) |
+| **Science engines** (engine-msci, engine-cad, cnt-engines instance) | msci-engines / cad-engines / cnt-engines containers + materials_science / mathshapes / cntfet / sifet modules + dask + twin-b | pol-core + isle-core | **suite app** (the "engines" suite: every compute worker + the modules that call it) |
+| Meal planning app (nutrition-planner: 15 pages) | nutrition + household + mealoptions + foodstate + pspp modules; data stays home | one instance | **app**, not a suite (one kind, one machine) — becomes a suite only if a container part joins (a scale, a barcode scanner guest) |
+| Climate & Atmosphere, magnetics, mechanical, topology-network, software-engineering | modules + pages only | one instance | **apps** |
+
+So: seven things were suite apps already — the isle, the Scorecard, Odoo
+business ops, the wax research stack, meetings, the archipelago, the AI
+assistant — plus the engines suite that underlies several. None had the
+composition written as rows; each had it spread over a PolariAppDefinition
+(modules + pages), a topology instance, and a compose role. Writing them as
+`SuiteAppDefinition` + `SuitePart` + `SuiteContract` rows is mechanical
+(the printing suite is the template) and would give each a placement plan
+and a contract list for free — recommended order: archipelago (its parts
+are all built now), engines, Scorecard, Odoo, meetings, wax research, AI.
