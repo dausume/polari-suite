@@ -383,3 +383,73 @@ Rules:
 See `AI-Notes/handoffs/SAP_2C_REVISION_LOG.md` for the log, the report and
 the samples to review. Companion plan for the rules/linter/scaffolds/
 admit road: `AI-Notes/plans/POLARI_DEV_TOOLS_PLAN.md`.
+
+## 9. The Hardware App, generalised from four instances (2026-09-08 night) — and the kinds above it
+
+**The four we now have** (router = woven into the isle; relay, guestnet,
+voron = rows):
+| | router (isle-core) | isle-relay | isle-guestnet | voron-printer |
+|---|---|---|---|---|
+| guest | OpenWrt, sha-pinned image | same image | same image | Debian cloud image (pin at deploy) |
+| what it owns | NICs, USB WiFi | a WiFi adapter (usb hostdev) | a WiFi adapter | the printer boards (serial usb hostdev, by-id or usb path) |
+| configuration | UCI over the router ssh idiom | UCI profile `relay` (forward ACCEPT, bearer 4242) | UCI profile `guestnet` (REJECT, isolate, allow-list) | a rendered POSIX provisioner (Klipper/Moonraker/Mainsail at pinned shas, systemd, nginx) + a rendered printer.cfg |
+| needs it declares | — | `usb role=wifi` | `usb role=wifi` | `serial` |
+| twin | IsleDevice.router_running | RelayNodeState | GuestNetworkState | PrinterState (Moonraker) |
+| extension apps | — | reticulum (`hardware-extension-app`) | — | (a camera / timelapse pusher; a filament dryer controller) |
+| sim mode | — | — | — | Klipper linux-process MCU, `kinematics: none` |
+
+**What generalised out of them (the refined Hardware App format):**
+1. **One row shape for every guest**: `HardwareAppDefinition` = image (ref +
+   RAW sha, pinned at deploy, render REFUSES until pinned), memory/vcpus,
+   bridges in NIC order, `passthrough_json` (port names from the hardware
+   map), `hardware_needs_json` (what it needs, as port matchers the map
+   answers), and ONE of `uci_profile` (OpenWrt guests) or `provisioner`
+   (`module.path:function` for Debian/Alpine guests). Nothing else is
+   per-app in the guest row.
+2. **Two pure renderers**, one per guest family: `domain_xml` (the router
+   template generalised: q35, host-passthrough, 8 spare PCIe ports, virtio
+   disk under the AppArmor-safe path, bridges, then hostdev/macvtap per
+   passthrough) and `uci_profiles` / a module's `render_provision`. Every
+   gap is a named refusal.
+3. **The hardware map decides placement**: `hwmap` scans a device (usb,
+   pci + IOMMU groups, serial by-id, nics, cpu-virt/kvm/libvirt) and
+   answers per port how it can be handed to a guest (usb hostdev, pci vfio
+   only in an IOMMU group of its own and not host-critical, nic macvtap
+   never the only uplink, wireless NICs as their USB device) and which
+   app's needs it satisfies. Real scans 2026-09-08: isle-core is
+   hardware-tier ready (10 IOMMU groups, 10 mappable ports); econ-core has
+   cpu-virt + kvm but no libvirt; pol-core has no /dev/kvm.
+4. **The store row** carries `requires_tier`, the VM fields and `extends`;
+   the install plan is `isle vm define --from-polari` / `start` / `status`
+   or `isle vm extend`. "Shell-ish handling" = those steps + the tier gate.
+5. **Extension apps** add to a running guest, never own one. Sensible
+   ones, all `hardware-extension-app`:
+   - on `isle-relay`: **reticulum** (built), an **arch-relay** policy pusher,
+     a **captive-portal** for the relay segment;
+   - on `isle-guestnet`: a **guest DNS filter** (allow-list as rows), a
+     **bandwidth cap**;
+   - on `voron-printer`: **printcam** (USB camera in the guest → Moonraker
+     webcam + timelapse), **filament-dryer / enclosure-heater controller**
+     (a second serial board), **KlipperScreen**-style local display;
+   - on any guest: **exporter** (guest metrics → HardwareAppState twin).
+6. **Suite apps** (his "overarching purpose oriented apps … too big for one
+   computer"): kind `suite-app` = a purpose composed of PARTS of any kind
+   with a placement need each (core / hardware tier / a node / any /
+   same-as another part) and CONTRACTS (the row classes parts pass through
+   Polari). `suiteapps` places parts against the coverage planner's
+   devices + the hardware map; `printing_suite` is the first. Naming: I
+   recommend **suite app** — "suite" already means "the whole of it" in
+   this project (polari-suite), a suite app is the whole of one purpose;
+   the alternatives considered: *workshop* (good for printing, wrong for a
+   nutrition planner), *program*, *ensemble*, *composite app* (accurate,
+   cold). His call (D6).
+7. **The printing contracts** (owned by `printing_suite`, named in
+   SuiteContract rows): `ImportedCadObject`/`MathShapeDefinition`
+   (mathshapes) → `MoldDefinition` (casting; the research result reused)
+   → `PrintProfile` (derived from `Material` rows, cited) → `SliceJob` →
+   `GcodeArtifact` (checksummed row, never a path) → `PrintJob` (state
+   from Moonraker via `PrinterState`) → `PrintOutcome` (measured; feeds
+   `MoldLifecycleRecord` / `CastingRunRecord` / material rows). Plus
+   `MaterialLot` (what is loaded) and `PassthroughCandidate` (which device
+   can host the printer). "Mathshapes converting CAD objects into
+   material-specific molds" is the design→mold contract exactly.

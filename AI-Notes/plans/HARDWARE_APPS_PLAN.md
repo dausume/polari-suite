@@ -147,3 +147,29 @@ one but stays woven into the isle; reticulum = a `hardware-extension-app`
 - Isle half requested: NOTES-FROM-POL-CORE.md 2026-09-08 (`isle vm`
   verbs, tier, state push). "Shell-ish handling" on the store = the
   install plan steps + `requires_tier` (the store refuses without libvirt).
+
+## 7. Status 2026-09-08 night — the map, the printer, the slicer, the suite (all Polari-side, proven in test builds)
+- **hwmap** (hwm-1): scanner + mapping rules + rows + ingest/query API +
+  page + `pol hwmap scan|push|devices|ports|candidates`; fixtures from all
+  three boxes; selftest 15/15. Real: isle-core hardware-tier ready.
+- **voron** (built by an agent on the standard, 16/16): PrinterDefinition /
+  PrinterBoard / PrinterState, printer.cfg renderer (Voron 2.4/Trident
+  reference pins for Octopus 1.1 + EBB36/42, refusals for unmeasured
+  boards), Debian provisioner (Klipper `8c29c0a8`, Moonraker v0.11.0,
+  Mainsail v2.19.0 — pinned from PRINTER_STACK_GATE.md; update_manager
+  omitted; sim mode = Klipper linux-process MCU, `kinematics: none`).
+- **kirimoto** (isle-app, MIT, pinned `ff769224`): Dockerfile from the pin,
+  SlicerInstance/SlicerProfile rows, store row (`isle app deploy kirimoto
+  --image polari/kirimoto:ff7692241c …`).
+- **suiteapps** + **printing_suite** (sa-1/2): suite-app kind, parts,
+  contracts, placement; the production suite placed 6/8 in the test
+  build — printer + relay wait for a hardware-tier device (isle-core
+  qualifies once its scan is pushed to the live instance).
+- Licence gate: `AI-Notes/evaluations/PRINTER_STACK_GATE.md` — whole stack
+  green; simulation ladder recorded (stack-runs → kinematics batch mode →
+  simulavr on the wire; no open-source physics FDM sim — the physics rung
+  is waxprint).
+- Still isle-core's: `isle vm` (define/start/status/extend/attach), tier
+  onboarding, state pushes. Still ours: printcam + dryer extensions,
+  Kiri:Moto → Moonraker upload wiring (cors_domains), the SliceJob →
+  GcodeArtifact hand-off automation, the physics rung.
