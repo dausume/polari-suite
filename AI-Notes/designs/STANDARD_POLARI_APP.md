@@ -491,3 +491,16 @@ composition written as rows; each had it spread over a PolariAppDefinition
 (the printing suite is the template) and would give each a placement plan
 and a contract list for free — recommended order: archipelago (its parts
 are all built now), engines, Scorecard, Odoo, meetings, wax research, AI.
+
+**§10 status (2026-09-09, his go):** the seven prior suites are SEEDED as
+rows in `suiteapps/suiteapps_seed.py` (archipelago 5 parts / 5 contracts,
+engines 9/4, scorecard 4/4, business-ops 4/4, meetings 2/2, wax-research
+8/6, ai-assistant 3/2); every polari-app part is a real module, every
+contract names a class its owner really has (selftest 15/15). Test-build
+boot: all eight suites place — only the printing suite's printer part
+blocks (needs a hardware-tier device with a mapped serial board), and the
+archipelago's relay is optional and unplaced for the same reason.
+Container parts that are compose roles (pol-reticulum, msci-engines,
+cad-engines, cnt-engines, dask, pol-livekit, pol-odoo, localai, the two
+scorecard services) are named as such in notes — store rows for them are
+the next mechanical step.
