@@ -553,3 +553,37 @@ CRUDE `/Widget`, `/api/demo-widgets/summary`, `/display/demo-widgets`,
 seed row upserted) → status → remove → down → build
 (`polari-app-demo-widgets_0.1.0+g…_all.deb`, 13 payload files incl. the
 manifest). Layout check ignores workspace dirs (`.git/.vscode/.polari/dist`).
+
+## 12. The module registrar + unified health check (reg-1, 2026-09-09)
+
+His ask: a registrar the modules update as they start loading and when
+their functionality is confirmed deployed — one health check that shows
+each module's state, including failed and invalid.
+
+**Built.** `moduleService/module_registrar.py` (`ModuleRegistrar` +
+durable `ModuleRegistration` rows), `polariApiServer/module_health.py`
+(`/api/modules/health[/{m}[/verify|/confirm]]`), hooks in the lazy-boot
+worker (`_transition` → registrar; declare_all at plan; verify_all +
+mirror_all at BOOT COMPLETE), live admission (put-away, manifest
+invalid), manifest admission (declare from the manifest), the
+monolithic boot (declare present + disabled, verify), page
+`/display/module-health`, `pol modules health`, and `pol project status`.
+States: declared / disabled / loading / online / degraded / failed /
+blocked / invalid / put-away. Expected pieces come from the declaration
+(manifest → core tables → core classes), confirmation from the live
+server (typing dict, router walk, endpointConstructed, rows by name).
+
+**Proven on the local `pol project` instance.** Monolithic boot: 19
+core packages online, 48 gated modules `disabled`, health OK; deploy
+demo_widgets → `online` 2/2 classes, 2/2 CRUDE, 1/1 endpoint, 1/1
+route, 1/1 seed, 1/1 page; put-away → `put-away`; re-admit → `online`.
+Lazy boot with hwmap/voron/printcam/islemesh: all four `online` and
+verified by the worker path, health OK. The registrar caught two real
+faults while being built: an empty table is not a missing class (fixed
+the check), and the JSON seed pass imported a module's selftest file,
+which `SystemExit`s at import and 500'd every re-admit (fixed in
+`json_seeds._class_lookup`: selftests never scanned, `BaseException`
+caught). Known quirk, no functional effect found: classes typed AFTER
+boot log `initializeVarsFromSignature: failed … can only concatenate
+tuple` per field (monolithic boot only; `POLARI_TYPING_TRACE=1` prints
+the traceback) — CRUDE, seeds and columns are all live regardless.
