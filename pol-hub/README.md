@@ -58,7 +58,16 @@ docker build -t pol-hub . && docker run --rm -p 4200:4200 pol-hub
 sidebar on every doc page (static fallbacks stay in the HTML). Doc pages
 live under `site/docs/` and load `assets/docs.css` on top of `styles.css`;
 they use inline SVG and no CDN, so they render on an air-gapped isle.
-To add a page: write `site/docs/<name>.html` from an existing one, add it to
-`docs.json`, and copy the static sidebar list. nginx keeps every `.html`
-and `.json` `no-store` by one pattern rule. Pages today: the networking and
-topology model, Isle VPN.
+Most pages are GENERATED from Markdown already in the suite by
+`pol-hub/build-docs.py` (stdlib only): a manifest entry with a `source`
+(path from the suite root) becomes `site/docs/<slug>.html`, with the
+static sidebar and the index rewritten into every page between
+`<!-- docs-nav -->` / `<!-- docs-index -->` markers. Edit the Markdown,
+rerun `python3 pol-hub/build-docs.py`, commit the output (`--check` says
+whether anything is stale; the generated HTML is committed because the
+site has no build step). Hand-written pages (no `source`) live under
+`site/docs/` and keep the same markers. To add a page: add its manifest
+entry (and, for a hand page, the file), run the script. nginx keeps every
+`.html` and `.json` `no-store` by one pattern rule. Six categories today:
+Start here, Install, Networking and topology, Running an isle, Building
+modules and apps, Reference — 31 pages, 28 generated.

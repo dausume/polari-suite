@@ -1,6 +1,6 @@
 {
   "schema": "polari-docs/1",
-  "note": "The documentation manifest: categories in reading order, pages under each. docs.js renders the sidebar and the index from this file; add a page here and it appears everywhere. Only pages that exist are listed.",
+  "note": "The documentation manifest: categories in reading order, pages under each. A page with a `source` is generated from that Markdown file in the suite by pol-hub/build-docs.py (edit the source, then rerun); a page without one is hand-written under site/docs/. docs.js renders the sidebar and the index from this file; build-docs.py writes the same into every page as static markup.",
   "categories": [
     {
       "id": "start",
@@ -11,12 +11,68 @@
       ]
     },
     {
+      "id": "install",
+      "title": "Install",
+      "blurb": "Standing up an isle, installing without internet, and reaching Polari from your own devices.",
+      "pages": [
+        { "href": "docs/install-an-isle.html", "title": "Install an isle", "gist": "The Isle-Mesh getting-started: from a fresh machine to a running isle.", "source": "Isle-Mesh/GETTING-STARTED.md" },
+        { "href": "docs/offline-install.html", "title": "Offline and air-gapped install", "gist": "The offline medium: its sections, how it is built, and how an install refuses instead of fetching.", "source": "AI-Notes/guides/OFFLINE_BUILD_TEMPLATE.md" },
+        { "href": "docs/home-network-access.html", "title": "Reaching Polari on your home network", "gist": "Off-isle access over the LAN and what to expect from phones and laptops.", "source": "AI-Notes/guides/LAN_ACCESS_HOME_TEST.md" }
+      ]
+    },
+    {
       "id": "networking",
       "title": "Networking and topology",
       "blurb": "The isle, the archipelago and the mesh: what each level is, what crosses it, and who is in charge.",
       "pages": [
         { "href": "docs/networking-model.html", "title": "The networking and topology model", "gist": "Isle, archipelago, mesh; the exposure ladder; measured paths; authority and consent." },
-        { "href": "docs/isle-vpn.html", "title": "Isle VPN", "gist": "Two providers, ten kinds, three placements; how it stands in for a managed overlay; why not Tailscale or Headscale." }
+        { "href": "docs/isle-vpn.html", "title": "Isle VPN", "gist": "Two providers, ten kinds, three placements; how it stands in for a managed overlay; why not Tailscale or Headscale." },
+        { "href": "docs/which-vpn-app.html", "title": "Which VPN app do I install?", "gist": "The ten kinds in plain words, the rule of thumb, and where each one runs.", "source": "AI-Notes/guides/VPN_APP_KINDS.md" },
+        { "href": "docs/join-protocol.html", "title": "How devices join and get names", "gist": "mDNS discovery, .local and .isle names, and the router's DNS.", "source": "Isle-Mesh/openwrt-router/JOIN-PROTOCOL.md" },
+        { "href": "docs/dual-domain.html", "title": "Dual-domain access", "gist": "Serving the same app under .local and .isle at once.", "source": "Isle-Mesh/isle-cli/DUAL-DOMAIN-SUPPORT.md" },
+        { "href": "docs/availability-modes.html", "title": "Availability modes", "gist": "Always-available by default, on-demand as the keystone for the rest.", "source": "Isle-Mesh/docs/AVAILABILITY-MODES.md" }
+      ]
+    },
+    {
+      "id": "isle",
+      "title": "Running an isle",
+      "blurb": "The parts of Isle-Mesh, the router, the agent, and taking an isle down again.",
+      "pages": [
+        { "href": "docs/isle-mesh-structure.html", "title": "How Isle-Mesh is put together", "gist": "The project's parts and how they relate.", "source": "Isle-Mesh/PROJECT-STRUCTURE.md" },
+        { "href": "docs/isle-router.html", "title": "The isle router", "gist": "The OpenWrt router VM: images, VLAN, DHCP, DNS, firewall, the config library.", "source": "Isle-Mesh/openwrt-router/README.md" },
+        { "href": "docs/isle-agent.html", "title": "The isle agent", "gist": "What runs on every member device: registration, the nginx ingress, the join daemon.", "source": "Isle-Mesh/isle-agent/README.md" },
+        { "href": "docs/uninstall.html", "title": "Uninstalling", "gist": "Taking apps, devices and a whole isle down cleanly.", "source": "Isle-Mesh/isle-cli/UNINSTALL-GUIDE.md" }
+      ]
+    },
+    {
+      "id": "build",
+      "title": "Building modules and apps",
+      "blurb": "For developers: the standard app format, the dev loop, scaffolding, the frontend, testing.",
+      "pages": [
+        { "href": "docs/module-format.html", "title": "The standard module and app format", "gist": "polari-app.json, the file conventions, objects one per file, the pol project loop, the registrar.", "source": "polari-rf-node/polari-framework/modules/README.md" },
+        { "href": "docs/developer-getting-started.html", "title": "Developer getting started", "gist": "Clone, build images, build debs, stand up an isle, run a node directly.", "source": "GETTING_STARTED_DEV.md" },
+        { "href": "docs/build-run-test.html", "title": "Build, run and test the suite", "gist": "Prerequisites, environment tiers, the pol CLI, gotchas.", "source": "README.md" },
+        { "href": "docs/mesh-app-scaffolding.html", "title": "Scaffolding a mesh app", "gist": "Turning a compose app into a mesh app that weaves itself into an isle.", "source": "Isle-Mesh/SCAFFOLDING-GUIDE.md" },
+        { "href": "docs/mesh-app-scaffolding-reference.html", "title": "Mesh-app scaffolding reference", "gist": "The scaffolding package in detail.", "source": "Isle-Mesh/mesh-app-scaffolding/README.md" },
+        { "href": "docs/mesh-apps-in-docker.html", "title": "Mesh apps in Docker", "gist": "Networks, DNS and lifecycle for containerized mesh apps.", "source": "Isle-Mesh/mesh-app-scaffolding/DOCKER.md" },
+        { "href": "docs/shell-bridge-contract.html", "title": "The shell bridge contract", "gist": "What the native app shells expose to the web frontend.", "source": "polari-app-shell/docs/BRIDGE_CONTRACT.md" },
+        { "href": "docs/frontend.html", "title": "The frontend", "gist": "The Angular platform: displays as data, the no-code editor, CRUDE, live updates.", "source": "polari-rf-node/polari-platform-angular/README.md" },
+        { "href": "docs/testing.html", "title": "Testing the framework", "gist": "Test suites, how to run them in containers, coverage.", "source": "polari-rf-node/polari-framework/tests/README.md" },
+        { "href": "docs/extending-pol.html", "title": "Extending the pol CLI", "gist": "Adding a module script to the suite CLI.", "source": "polari-cli/docs/EXTENSION-GUIDE.md" }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "blurb": "Lookup, not reading: the CLIs, environment configuration, remote access, the AI-facing surface.",
+      "pages": [
+        { "href": "docs/pol-quick-reference.html", "title": "pol CLI quick reference", "gist": "Every pol module and verb on one page.", "source": "polari-cli/docs/QUICK-REFERENCE.md" },
+        { "href": "docs/pol-architecture.html", "title": "pol CLI architecture", "gist": "How the suite CLI is put together.", "source": "polari-cli/docs/CLI-ARCHITECTURE.md" },
+        { "href": "docs/remote-access.html", "title": "Remote access", "gist": "Reaching a node from outside: the one-peer tunnel, DDNS notes.", "source": "polari-cli/docs/REMOTE-ACCESS.md" },
+        { "href": "docs/isle-cli.html", "title": "isle CLI reference", "gist": "The isle command index.", "source": "Isle-Mesh/isle-cli/INDEX.md" },
+        { "href": "docs/isle-discover.html", "title": "isle discover", "gist": "Scanning for isles, devices and apps.", "source": "Isle-Mesh/isle-cli/DISCOVER.md" },
+        { "href": "docs/environment-configuration.html", "title": "Environment configuration", "gist": "Every environment variable the node reads, by tier.", "source": "polari-rf-node/docs/ENVIRONMENT_CONFIGURATION.md" },
+        { "href": "docs/mcp-surface.html", "title": "The MCP surface for AI agents", "gist": "What an AI agent can read and propose through the Polari MCP server.", "source": "polari-mcp/README.md" }
       ]
     }
   ]
