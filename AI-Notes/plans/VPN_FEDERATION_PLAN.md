@@ -351,3 +351,53 @@ proposal into the isle's inbox; only the isle applies:
   config delivery to the member — the join-status poll carries the
   scope + token today; the member still fetches its conf from the isle
   (`isle vpn export`), never from Polari (the private key rule).
+
+## 10. vpn-4 — placement topology + the three levels (2026-09-09, built)
+
+His ask: the VPN variants need a topology of their own — KVMs in some
+cases, containers in others, as apps or OpenWRT extensions — usable at
+all three levels (isle, archipelago, mesh), each level with a dedicated
+topology display.
+
+**What our VPN solutions are (his question).** Two providers under one
+family `isle-vpn`: **Isle Link** (WireGuard-based; also the one-peer
+`pol remote` tunnel that predates it) and **Isle Bridge** (OpenVPN-based,
+§7.7). Rejected or absent, verified: Tailscale (rejected), Headscale
+(absent), OpenVPN 3 (AGPL — only if accepted, D13). Reticulum is the
+transport for `.arch`/`.mesh`, not a VPN. The isle-side prototypes
+`mesh-prototypes/planned-work/archipelago/vpn-mesh-{client,node,host}`
+(OpenVPN + 802.1Q, VLANs bridged as one network) are the Bridge Span /
+Bridge Server idea before it had the name — superseded by the kinds.
+
+**Built (Polari side).** `vpn/custom/vpn_placement.py` (placement per
+kind: kvm / openwrt-extension / container; role per level; install plan
+per placement; `SEED_VPN_HARDWARE_APPS`: four guests — Link Hub, Link
+Exit as OpenWrt guests with uci profiles `vpn-hub`/`vpn-exit`; Bridge
+Server, Bridge Exit as Debian guests with `vpn.custom.vpn_provision` —
+and two router extensions, Link Gateway and Bridge Span, extending the
+woven router guest `isle-router` with uci profiles `vpn-gateway`/
+`vpn-span`); `VpnPlacement` rows (ten, seeded); store rows carry
+placement + guest fields and the install plan branches by placement;
+`vpn/custom/vpn_uci.py` (keys made on the guest at apply time, exit
+masquerade OFF by default) dispatched from `hardwareapps` for any
+`vpn-*` profile; `/api/vpn/placements`, `/api/vpn/topology/{level}`;
+pages `/display/topology-isle` (islemesh), `/display/topology-archipelago`
+and `/display/topology-mesh` (reticulum_page, new); `pol vpn placements`,
+`pol vpn topology <level>`. Selftest 104/104; local boot with islemesh +
+vpn + reticulum + hardwareapps + relay/guestnet: registrar verifies all
+25 present modules online, vpn 7/7 classes, 10/10 seeds, page live.
+
+**Rules stated (D15–D17, his call; defaults in bold).**
+- D15 archipelago floor: **rtt ≤ 150 ms, loss ≤ 1 %, bitrate ≥ 1000 kbps**
+  (RETICULUM §5c-b; carried on the archipelago topology panel).
+- D16 placement rule: **sees-traffic authorities = own guest (kvm);
+  isle-subnet/VLAN carriers = router extension; everything else =
+  container.** A Link Relay may ALSO ride the isle-relay guest as an
+  extension (not seeded — his call whether that is a second listing).
+- D17 mesh level: **never a membership authority** — relay bodies,
+  TCP/443 rendezvous and opt-in exits only.
+
+**Isle half (isle-core):** `isle vpn install <kind> [--in <guest> |
+--on-router]`, the VPN guests through the `isle vm` contract, the router
+extension path, and HardwareAppState pushes — requested in
+`Isle-Mesh/NOTES-FROM-POL-CORE.md` (2026-09-09).
