@@ -47,8 +47,9 @@ hardware-apps, hardware-map, voron, kirimoto, suite-apps, printing-suite.
 ## What is NOT done
 - The isle side: `isle vm` verbs (define/start/status/extend/attach),
   `agent.tier=hardware`, state pushes — requested in NOTES-FROM-POL-CORE.md.
-- Building the Kiri:Moto image was started at the end of the night (see the
-  commit message / kirimoto summary for the result); the Voron guest image
-  is not fetched (deploy-time pin).
+- The Kiri:Moto image BUILT from the pinned commit (`polari/kirimoto:ff7692241c`,
+  2.09 GB — the upstream Dockerfile mirrored; one git+ssh dependency rewritten
+  to https at build time) and SERVES: `GET /kiri/` → HTTP 200 from the container.
+  The Voron guest image is not fetched (deploy-time pin).
 - No physics simulation of printing exists open-source; the ladder and the
   waxprint rung are in the gate.
