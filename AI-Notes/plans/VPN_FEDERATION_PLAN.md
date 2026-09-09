@@ -362,8 +362,15 @@ topology display.
 **What our VPN solutions are (his question).** Two providers under one
 family `isle-vpn`: **Isle Link** (WireGuard-based; also the one-peer
 `pol remote` tunnel that predates it) and **Isle Bridge** (OpenVPN-based,
-§7.7). Rejected or absent, verified: Tailscale (rejected), Headscale
-(absent), OpenVPN 3 (AGPL — only if accepted, D13). Reticulum is the
+§7.7). Rejected or absent, verified — and WHY (his question 2026-09-09):
+Tailscale is rejected on LICENCE: the client is BSD-3 (open) but the
+coordination server it depends on is proprietary SaaS (§3 ⛔). Headscale
+(BSD-3, GPLv3-compatible) has NO licence problem — it is left out on
+ARCHITECTURE: a coordination server is a central membership authority
+for the whole network, which cuts against D9 (isle-side authority) and
+D10 (blind relays by default), and it is a third stack to drive; it
+stays a possible adapter (vpn-5 / D1), not a provider. OpenVPN 3 is
+AGPL — only if accepted (D13). Reticulum is the
 transport for `.arch`/`.mesh`, not a VPN. The isle-side prototypes
 `mesh-prototypes/planned-work/archipelago/vpn-mesh-{client,node,host}`
 (OpenVPN + 802.1Q, VLANs bridged as one network) are the Bridge Span /
