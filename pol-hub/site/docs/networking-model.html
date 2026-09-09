@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en" data-theme="">
+<head>
+  <meta charset="utf-8" />
+  <title>Polari — the networking and topology model</title>
+  <base href="/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="How networking works in Polari: the isle, the archipelago and the mesh, the exposure ladder, measured paths, and who is in charge of what." />
+  <link rel="icon" type="image/png" href="assets/polari-mark.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <link rel="stylesheet" href="assets/docs.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="index.html"><img src="assets/polari-mark.png" alt="" /> Polari</a>
+      <nav class="navlinks">
+        <a href="index.html" class="hide-sm">Home</a>
+        <a href="docs.html" class="active">Docs</a>
+        <button class="theme-toggle" type="button">Theme</button>
+      </nav>
+    </div>
+
+    <div class="docs-layout">
+      <nav class="docs-nav" data-docs-nav aria-label="Documentation">
+        <div class="col-h">Start here</div>
+        <a href="docs.html">How Polari fits together</a>
+        <div class="col-h">Networking and topology</div>
+        <a href="docs/networking-model.html" class="active">The networking and topology model</a>
+        <a href="docs/isle-vpn.html">Isle VPN</a>
+      </nav>
+
+      <article class="article">
+        <span class="eyebrow">Networking and topology</span>
+        <h1>The networking and topology model</h1>
+        <p class="lede">Polari does not treat "the network" as one thing. A device sits on an <strong>isle</strong>, isles can federate into an <strong>archipelago</strong>, and beyond that lies a zero-trust <strong>mesh</strong>. Every capability, budget and timeout is a property of the path to one specific place right now, never of the network as a whole. This page is the model behind all of it.</p>
+        <dl class="meta">
+          <dt>Audience</dt><dd>Anyone running or extending an isle; network engineers evaluating the design</dd>
+          <dt>Companion</dt><dd><a href="docs/isle-vpn.html">Isle VPN</a> covers the tunnel providers and their placement</dd>
+        </dl>
+
+        <h2 id="isle">The isle</h2>
+        <p>An isle is your own local network, made deliberately: a VLAN carved on top of the normal LAN by a small OpenWrt router that runs as a virtual machine on the host. The router owns the subnet, hands out addresses, and serves names. Every device on the isle is a full member of a private LAN and fully trusted there.</p>
+        <figure class="fig">
+          <svg viewBox="0 0 720 300" role="img" aria-label="An isle: an OpenWrt router VM with the isle VLAN, member devices, the host's guests, and an uplink to the internet through the host">
+            <rect class="zone" x="12" y="60" width="696" height="228" rx="10" />
+            <text class="label" x="26" y="82">isle · one VLAN · fully trusted · names end in .isle</text>
+            <rect class="box accent" x="290" y="100" width="150" height="58" rx="6" />
+            <text x="365" y="123" text-anchor="middle">OpenWrt router (VM)</text>
+            <text class="mono" x="365" y="141" text-anchor="middle">DHCP · DNS · firewall zones</text>
+            <rect class="box" x="40" y="200" width="130" height="50" rx="6" />
+            <text x="105" y="222" text-anchor="middle">member device</text>
+            <text class="mono" x="105" y="238" text-anchor="middle">agent · apps</text>
+            <rect class="box" x="200" y="200" width="130" height="50" rx="6" />
+            <text x="265" y="222" text-anchor="middle">member device</text>
+            <text class="mono" x="265" y="238" text-anchor="middle">phone / laptop</text>
+            <rect class="box amber" x="400" y="200" width="140" height="50" rx="6" />
+            <text x="470" y="222" text-anchor="middle">hardware guests</text>
+            <text class="mono" x="470" y="238" text-anchor="middle">relay · guest net · KVM apps</text>
+            <rect class="box" x="570" y="200" width="120" height="50" rx="6" />
+            <text x="630" y="222" text-anchor="middle">exposed app</text>
+            <text class="mono" x="630" y="238" text-anchor="middle">agent nginx only</text>
+            <path class="wire" d="M105 200 L105 175 L630 175 L630 200" />
+            <path class="wire" d="M265 200 L265 175" /><path class="wire" d="M470 200 L470 175" /><path class="wire accent" d="M365 158 L365 175" />
+            <rect class="box" x="290" y="10" width="150" height="34" rx="6" />
+            <text x="365" y="32" text-anchor="middle">internet / home LAN</text>
+            <path class="wire dash" d="M365 44 L365 100" />
+            <text class="mono" x="378" y="66">uplink through the host</text>
+          </svg>
+          <figcaption>The router VM is the only thing that knows the isle's subnet. Traffic that leaves does so through an explicit gateway, never by accident.</figcaption>
+        </figure>
+        <h3>Names and containment</h3>
+        <p>Devices announce themselves with mDNS; the router's join protocol turns what it sees into DNS records, so a device is reachable as <code>name.local</code> and <code>name.isle</code>. The <code>.isle</code> namespace never leaves the isle. "Exposing" an app to the outside never moves it; it grants an <em>additional</em> outside URL through a dedicated gateway container, with authentication, and only once the isle's entrypoint has been enabled by its owner.</p>
+        <h3>The agent proxy is the policy</h3>
+        <p>Each device runs an isle agent whose nginx is the sole ingress for that device's apps. The proxies are generated from the device's registry, and Polari derives the <em>protocol matrix</em> from those proxies: which app permits <code>http</code>, <code>https</code> or mutual-TLS <code>https</code>, per device. What the proxies allow is the policy; there is no second list to drift out of sync.</p>
+        <h3>Connectivity modes and uplinks</h3>
+        <p>A device is either <strong>sole-isle</strong> (it lives on the isle and nothing else) or <strong>dual-home</strong> (internet and isle at once, with the separation enforced). Dual-home is first-class, not a workaround. Uplinks are typed per device (<code>ethernet</code>, <code>wifi</code>, <code>usb-wifi</code>) and measured (latency, jitter, loss, link state), so a topology page can say what a device is actually connected through.</p>
+        <h3>Availability</h3>
+        <p>The default availability mode is <strong>always available</strong>: the isle survives reboots unattended, with no interactive login in the way. On-demand modes, where parts of the isle come up when asked and go down when idle, build on the same control plane and are the keystone for the more elaborate modes.</p>
+
+        <h2 id="devices">Devices, tiers and hardware guests</h2>
+        <p>Devices join with an agent in one of two roles. A <strong>core</strong> hosts the router and can create the isle; a <strong>remote</strong> joins one. Beyond the role, a device declares a <em>tier</em> that bounds what can be placed on it:</p>
+        <div class="tablewrap">
+        <table class="ref">
+          <thead><tr><th>Tier</th><th>Means</th><th>Can host</th></tr></thead>
+          <tbody>
+            <tr><td>reach</td><td>Reachable, not a member: a consumer on the mesh, a phone at arm's length</td><td>Nothing placed; receives state</td></tr>
+            <tr><td>member</td><td>A member of the isle with the agent</td><td>Containers: ordinary isle apps, VPN endpoints, blind relays</td></tr>
+            <tr><td>hardware</td><td>A member with virtualization and device passthrough (KVM, libvirt, IOMMU groups)</td><td>Hardware apps: OpenWrt or Debian guests with a WiFi radio, a serial bridge, a camera or a PCI device handed to them</td></tr>
+            <tr><td>core</td><td>The host of the router VM</td><td>Everything above, plus extensions of the router itself</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>A <strong>hardware app</strong> is a guest of its own with a declared shape: image, memory, CPUs, the bridges it attaches to, what it needs passed through, and either an OpenWrt UCI profile or a provisioner script. The router is the first such guest, woven into the isle. The <em>isle relay</em> is a second OpenWrt guest that extends the isle across its own WiFi segment; the <em>guest network</em> is an isolated segment with client isolation and an allow-list. A <strong>hardware extension app</strong> rides inside an existing guest rather than being one: the Reticulum bearer in the relay, a print camera in a printer guest, a VPN gateway in the router. A hardware map scans a host's ports and slots and says what can be mapped to which potential guest before anything is defined.</p>
+
+        <h2 id="ladder">The exposure ladder</h2>
+        <p>An app is not "public" or "private". It is exposed rung by rung, each rung a deliberate enablement, and the default is always the most restrictive. Exposure is a row that names the app, the rung, the scope and our role toward the app at that rung, and it can be switched off at will.</p>
+        <div class="ladder">
+          <div class="rung"><span class="name">.isle</span>Own LAN. Fully trusted. The default and the floor.</div>
+          <div class="rung"><span class="name">.arch</span>Isles federated as one network, while the measured path meets the floor.</div>
+          <div class="rung hi"><span class="name">.vpn</span>Reachable by members of the VPN this isle's gateway belongs to.</div>
+          <div class="rung"><span class="name">.mesh</span>Zero-trust state relays. Consumers are not peers.</div>
+          <div class="rung"><span class="name">web</span>Public, through an explicit expose gateway with authentication.</div>
+        </div>
+        <p>Two rules keep the ladder honest. A rung only appears as an option when the thing that makes it real is installed: <code>.vpn</code> exists on a device only when a gateway-kind VPN app is registered there. And an app can hold exposure rows at several rungs at once, each stating our role: server, user, observer, or relay-only.</p>
+
+        <h2 id="archipelago">The archipelago</h2>
+        <p>An archipelago is a set of isles meshed as one network, fast enough that a site on another isle loads directly under an <code>.arch</code> name. The picture is a farmers' market: vendors mesh their isles so customers move between stalls as if on one network. The transport underneath is Reticulum, a self-configuring, encrypted, bearer-agnostic packet network that runs over WiFi, ethernet, LoRa, or a serial link alike.</p>
+        <h3>Membership is measured, not declared</h3>
+        <p>A node is in an archipelago only while its measured path meets the archipelago's service floor: round-trip time, loss and bitrate against thresholds (defaults <span class="num">150</span> ms, <span class="num">1</span> percent, <span class="num">1000</span> kbps, to be tuned). Reachability is a measurement with a timestamp, kept separate from trust. A trusted node below the floor is still trusted, but its <code>.arch</code> names render as slow and no site is promised to load. When an archipelago app slips under the floor, the system suggests a change, converting the app to a mesh app or adding relays, and never changes anything silently.</p>
+        <h3>A path, not a network</h3>
+        <p>The same Reticulum network is fast in places and slow in others, and a multi-hop path is as slow as its worst hop. So every measurement is keyed on the path to a specific destination, with hop count and the worst hop named, and every decision reads that path at send time: encoding, forward error correction versus retransmission, snapshot versus delta, admission, and timeout. Timeouts are derived from measured round-trip time with a margin, never constant. Capability is answered per peer, with the number: streaming no, this path is 1.2 kbps at four hops; small messages yes. Stale measurements are not measurements; past a freshness horizon the honest answer is "unknown, measure first".</p>
+        <h3>Trust is graded and never means write</h3>
+        <p>Trust on an archipelago node is a grade, not a boolean, and it says what that peer may <em>ask</em> for. A higher grade may raise the auto-approval level for named low-authority operations such as telemetry ingest, never for irreversible ones. "Extension of our isle" describes routing and naming, not authority: every change still arrives as a proposal.</p>
+        <h3>Traffic classes and the right to relay</h3>
+        <p>Reticulum has no traffic classes of its own, so the split is ours, enforced in our maintained fork at the forwarding decision and the per-bearer outbound queue. Four classes: control (announces, path requests, keepalives, always forwarded), baseline messaging for anyone, mesh-app data, and archipelago app streams. Classification keys on the destination hash learned from announces; payloads are end-to-end encrypted and never inspected. <em>Use</em> and <em>relay</em> are two separate knobs per isle, per app kind and per bearer, so a household can relay a neighbour's app it never runs, or run a heavy app it refuses to relay. Duty cycles and airtime budgets cap what a bearer may transmit, and nothing transmits on a radio until its legal basis is confirmed and recorded.</p>
+
+        <h2 id="mesh">The mesh</h2>
+        <p>The mesh is the zero-trust tier. A mesh app has a broadcast core, a <em>relay</em> that fans out the app's current state, and optionally some prior states, to consumers who are tracked only by their Reticulum identity hash. Consumers are not peers and are not trusted: they receive state and send returns, and nothing they send changes anything except through the same proposal seam everyone else uses. Consumers may optionally link an identity on the app's own login server; a mode that <em>requires</em> enrolment deliberately does not exist, because a zero-trust tier that demands enrolment is not zero-trust.</p>
+        <p>Two accountability mechanisms ride with every relay. <strong>Adaptive cadence</strong>: the publisher paces itself to what consumers collectively demonstrate, clamped by an airtime floor and a staleness ceiling, and every adjustment names the numbers that drove it. <strong>User census</strong>: how many users should exist versus how many distinct identities were seen in the window, reported as a finding, because a relay that silently gains a thousand consumers is a problem worth naming.</p>
+
+        <h2 id="vpn">The VPN rung</h2>
+        <p>Between the archipelago and the mesh sits the VPN: point-to-point and hub tunnels for devices and isles that are elsewhere, run by the isle itself with two providers and ten purpose-named kinds, placed as router extensions, guests of their own, or containers depending on what each carries. It has its own page: <a href="docs/isle-vpn.html">Isle VPN</a>.</p>
+
+        <h2 id="authority">Who is in charge of what</h2>
+        <ul>
+          <li><strong>The isle is authoritative over networking.</strong> Names, addresses, firewall zones, tunnels and exposure are decided on the isle. Polari holds a mirror of that state, fed by the isle's own pushes, and an inbox of proposals that a local operator applies. Configuration APIs bind to isle-local addresses and refuse requests arriving over a tunnel or from outside the isle.</li>
+          <li><strong>Consent is a row both sides keep.</strong> Joining, federating, or becoming a VPN member starts as a request; a person on the isle approves it, and the approval mints a scoped, revocable token. Nothing is auto-admitted.</li>
+          <li><strong>Keys never leave the device that made them.</strong> Private keys and certificates are generated where they are used. Public material rides the push to Polari; proposals never carry secrets.</li>
+          <li><strong>No free-text hooks.</strong> Where a tunnel needs a firewall or routing change, the change is a named toggle rendered from a template: forward, masquerade, route-add. Exits and forwarding are off until turned on.</li>
+          <li><strong>Blind by default.</strong> Anything that forwards traffic for others holds no keys and sees no plaintext unless it is a hub you own on hardware you own, and every such row is labelled <span class="tag sees">sees traffic</span> or <span class="tag blind">blind</span> so nobody mistakes one for the other.</li>
+        </ul>
+
+        <h2 id="polari">What Polari adds on top</h2>
+        <p>Polari's side is the model, the mirror and the views. Machines, instances, and the assignment of modules to instances are rows; placement is recorded as an observation against that intent, so drift shows up as a difference rather than a surprise. Module health comes from a registrar that verifies every module's declared pieces against the live server. The networking levels each have a dedicated topology display that pairs the level's definition with its live rows:</p>
+        <div class="tablewrap">
+        <table class="ref">
+          <thead><tr><th>Display</th><th>Shows</th></tr></thead>
+          <tbody>
+            <tr><td>isle-mesh</td><td>The isle as Polari accepts it: devices, uplinks, mesh-apps, the protocol matrix derived from the agent proxies</td></tr>
+            <tr><td>topology-isle</td><td>Devices, uplinks, router guests and extensions with their state, VPN networks on the isle, and where each VPN kind runs here</td></tr>
+            <tr><td>topology-archipelago</td><td>Archipelago nodes with measured reachability, declared trust, link measurements against the floor, federation links and relays, apps exposed at <code>.arch</code></td></tr>
+            <tr><td>topology-mesh</td><td>Mesh-app relays and their consumers, transport bindings, the Reticulum interfaces and destinations beneath them</td></tr>
+            <tr><td>vpn</td><td>The VPN mirror and proposal inbox: networks, peers with public keys only, access rules, federation links, exposures</td></tr>
+            <tr><td>hardware-apps</td><td>Guest and extension definitions with their rendered domain XML, UCI or provisioner, and the isle's reported guest state</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <h2 id="glossary">Terms</h2>
+        <div class="tablewrap">
+        <table class="ref">
+          <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>Isle</td><td>One VLAN behind a small OpenWrt router VM; a private, fully trusted LAN with <code>.isle</code> names</td></tr>
+            <tr><td>Archipelago</td><td>Isles meshed as one network over Reticulum, membership measured against a service floor; <code>.arch</code> names</td></tr>
+            <tr><td>Mesh</td><td>The zero-trust tier: state relays and pseudonymous consumers; <code>.mesh</code> names</td></tr>
+            <tr><td>Bearer</td><td>The physical or link layer a Reticulum interface runs over: ethernet, WiFi, LoRa, serial, TCP</td></tr>
+            <tr><td>Path</td><td>The measured route to one destination: hops, worst hop, round trip, loss, throughput, with a timestamp</td></tr>
+            <tr><td>Exposure row</td><td>The record that an app is reachable at a rung, with scope and our role; switchable, never a config file</td></tr>
+            <tr><td>Proposal</td><td>A requested change that a person on the isle applies; the only way state changes from outside</td></tr>
+            <tr><td>Hardware app</td><td>A guest VM with a declared shape, defined and started on a hardware-tier device; an extension app rides inside one</td></tr>
+            <tr><td>Blind relay</td><td>A forwarder that holds no keys and sees no plaintext; the default for federation and safe on rented hardware</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p style="margin-top:2.5rem;"><a href="docs.html">← All documentation</a></p>
+      </article>
+    </div>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <div class="brand-foot"><img src="assets/polari-mark.png" alt="" /> Polari</div>
+      <p class="foot-note">Free and <span class="em">open source</span>, GPLv3.</p>
+    </div>
+  </footer>
+  <script src="assets/app.js"></script>
+  <script src="assets/docs.js"></script>
+</body>
+</html>

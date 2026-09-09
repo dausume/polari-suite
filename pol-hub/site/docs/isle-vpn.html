@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en" data-theme="">
+<head>
+  <meta charset="utf-8" />
+  <title>Polari — Isle VPN</title>
+  <base href="/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Isle VPN: two providers, ten purpose-named kinds, three placements, the three network levels, how it stands in for a managed overlay, and why Tailscale and Headscale were passed over." />
+  <link rel="icon" type="image/png" href="assets/polari-mark.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <link rel="stylesheet" href="assets/docs.css" />
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a class="brand" href="index.html"><img src="assets/polari-mark.png" alt="" /> Polari</a>
+      <nav class="navlinks">
+        <a href="index.html" class="hide-sm">Home</a>
+        <a href="docs.html" class="active">Docs</a>
+        <button class="theme-toggle" type="button">Theme</button>
+      </nav>
+    </div>
+
+    <div class="docs-layout">
+      <nav class="docs-nav" data-docs-nav aria-label="Documentation">
+        <div class="col-h">Start here</div>
+        <a href="docs.html">How Polari fits together</a>
+        <div class="col-h">Networking and topology</div>
+        <a href="docs/networking-model.html">The networking and topology model</a>
+        <a href="docs/isle-vpn.html" class="active">Isle VPN</a>
+      </nav>
+
+      <article class="article">
+        <span class="eyebrow">Networking and topology</span>
+        <h1>Isle VPN</h1>
+        <p class="lede">What we built, what it gives you, and why we passed on Tailscale and Headscale. Written for a reader with a networking background; the <a href="docs/networking-model.html">networking and topology model</a> is the context.</p>
+        <dl class="meta">
+          <dt>Family</dt><dd><code>isle-vpn</code>: Isle Link (WireGuard-based) and Isle Bridge (OpenVPN-based)</dd>
+          <dt>Authority</dt><dd>The isle. Polari mirrors state and files proposals; an operator applies them on the isle</dd>
+        </dl>
+
+        <h2 id="short">The short version</h2>
+        <p>We run our own WireGuard and OpenVPN deployments under one app family and we keep the control plane on the isle itself. Tailscale is out because its coordination server is proprietary SaaS. Headscale is licence-clean but is a central coordination authority, which is the one thing this design refuses to have. Everything a managed overlay is liked for at the user level, except automatic NAT traversal, is covered by machinery we already control. NAT traversal is the gap, and it is a planned item rather than a surprise.</p>
+
+        <h2 id="rung">Where a VPN sits in the addressing</h2>
+        <p>An app on an isle is exposed rung by rung, each rung a deliberate enablement, default most restrictive. The VPN is a rung of its own between the archipelago and the mesh.</p>
+        <div class="ladder">
+          <div class="rung"><span class="name">.isle</span>Own VLAN behind the router. Fully trusted. Names never cross.</div>
+          <div class="rung"><span class="name">.arch</span>Isles federated as one L3 network while the measured path meets a floor.</div>
+          <div class="rung hi"><span class="name">.vpn</span>Reachable by members of the VPN this isle's gateway belongs to. Names served by the gateway's DNS.</div>
+          <div class="rung"><span class="name">.mesh</span>Zero-trust state relays. Consumers are not peers.</div>
+          <div class="rung"><span class="name">web</span>Public. Only through an explicit expose gateway.</div>
+        </div>
+        <p>Two consequences matter. The <code>.vpn</code> option exists on a device only when a gateway-kind VPN app is installed there, so exposure cannot outrun the tunnel. And the isle side is the configuration authority: the VPN app's config API binds to isle-local addresses and refuses anything arriving over the tunnel interface. Polari mirrors state and files proposals; an operator applies them on the isle with <code>isle vpn apply</code>. Nothing reachable through the VPN can change the VPN.</p>
+
+        <h2 id="kinds">Two providers, ten kinds</h2>
+        <p><strong>Isle Link</strong> is WireGuard-based: Noise-framework key-based tunnels, kernel data plane, driven through <code>wg</code> and netlink and never embedded, so our GPLv3 tree stays clear of the GPLv2 tools. <strong>Isle Bridge</strong> is OpenVPN 2.x-based: x509 identity with a CA and revocation list, TCP/443 traversal, and layer-2 tap bridging, driven through the management interface. The rule of thumb: Link when both ends run ours, Bridge when joining a network or an OpenVPN-only box. Every row carries one of two labels so nobody mistakes a blind relay for a hub.</p>
+        <div class="tablewrap">
+        <table class="ref">
+          <thead><tr><th>Kind</th><th>What it does</th><th>Label</th><th>Placement</th></tr></thead>
+          <tbody>
+            <tr><td>Link Node</td><td>The device gets its own /32 on a Link network; nothing behind it is shared</td><td>endpoint</td><td><span class="tag place">container</span></td></tr>
+            <tr><td>Link Gateway</td><td>Carries the isle subnet; makes the <code>.vpn</code> rung available</td><td>endpoint</td><td><span class="tag place">router extension</span></td></tr>
+            <tr><td>Link Relay</td><td>Forwards encrypted datagrams between peers that cannot reach each other; holds no keys</td><td><span class="tag blind">blind</span></td><td><span class="tag place">container</span></td></tr>
+            <tr><td>Link Hub</td><td>Membership authority; routes between members; can carry other isles' subnets</td><td><span class="tag sees">sees traffic</span></td><td><span class="tag place">KVM guest</span></td></tr>
+            <tr><td>Link Exit</td><td>A hub plus WAN masquerade; off until the knob is turned</td><td><span class="tag sees">sees traffic</span></td><td><span class="tag place">KVM guest</span></td></tr>
+            <tr><td>Bridge Client</td><td>Joins a Bridge server with a certificate; works over TCP/443</td><td>endpoint</td><td><span class="tag place">container</span></td></tr>
+            <tr><td>Bridge Server</td><td>Certificate-issuing hub with live per-client control and revocation</td><td><span class="tag sees">sees traffic</span></td><td><span class="tag place">KVM guest</span></td></tr>
+            <tr><td>Bridge Span</td><td>Stretches the isle VLAN across sites at layer 2 (a tap bridged into the isle bridge)</td><td><span class="tag sees">sees traffic</span></td><td><span class="tag place">router extension</span></td></tr>
+            <tr><td>Bridge Exit</td><td>A Bridge server plus WAN masquerade; off until the knob is turned</td><td><span class="tag sees">sees traffic</span></td><td><span class="tag place">KVM guest</span></td></tr>
+            <tr><td>Bridge Peer</td><td>An OpenVPN-only box joined as a gateway peer</td><td>endpoint</td><td><span class="tag place">container</span></td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <h2 id="placement">Placement: one rule per body</h2>
+        <ul>
+          <li><strong>KVM guest</strong> for every kind that sees traffic and holds authority: hub, server, exit. Own failure domain, own bridge, WAN masquerade on its own interface, keys and CA on its own disk. Never inside the router, never a container sharing the host network namespace. Link guests run OpenWrt; Bridge guests run Debian with the CA built on first boot and the management interface bound to localhost.</li>
+          <li><strong>Router extension</strong> for every kind that carries the isle's own subnet or VLAN: gateway, span. The subnet, DHCP, DNS and firewall zones live on the OpenWrt router guest, so the tunnel that carries them lives there too. WireGuard in its own zone with the listen port opened on the WAN-facing zone only, or an OpenVPN tap bridged into the isle VLAN.</li>
+          <li><strong>Container</strong> for endpoints, clients, peers and the blind relay. No subnet, nobody else's keys, fine on rented hardware.</li>
+        </ul>
+        <p>Private keys are generated on the device at apply time and never rendered or pushed. Hooks are templated toggles (forward, masquerade, route-add), never free-text scripts. Exits render with masquerade off.</p>
+
+        <h2 id="levels">The three levels and who serves them</h2>
+        <div class="tablewrap">
+        <table class="ref">
+          <thead><tr><th>Level</th><th>Definition</th><th>VPN kinds used</th><th>Never</th></tr></thead>
+          <tbody>
+            <tr><td>Isle</td><td>Own LAN, fully trusted. A VPN extends it to a device elsewhere or joins two sites as one isle.</td><td>All ten</td><td>—</td></tr>
+            <tr><td>Archipelago</td><td>Isles federated as one network while the measured path meets the floor: round trip ≤ <span class="num">150</span> ms, loss ≤ <span class="num">1</span> percent, ≥ <span class="num">1000</span> kbps (placeholders). Membership is measured, not declared.</td><td>All ten; gateway-to-gateway links through a blind relay by default</td><td>Routing hubs on hardware you do not own</td></tr>
+            <tr><td>Mesh</td><td>Zero-trust state relays. Consumers receive state and send returns through the proposal seam; they are not peers.</td><td>Relay bodies, TCP/443 rendezvous, opt-in exits</td><td>Any membership authority</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p>Each level has its own topology display on the Polari side, pairing the level's definition and the kinds usable there with the live rows crossing it.</p>
+
+        <h2 id="overlay">How this stands in for a managed overlay</h2>
+        <p>What people like about a managed overlay is not the protocol; Tailscale runs WireGuard, same as Isle Link. The value is the coordination layer, and each of its functions maps onto machinery we already have:</p>
+        <div class="tablewrap">
+        <table class="ref">
+          <thead><tr><th>Function</th><th>Managed overlay</th><th>Isle VPN</th></tr></thead>
+          <tbody>
+            <tr><td>Identity and join</td><td>Identity-provider login to the coordination server</td><td>A join request that a person on the isle approves; consent is a row both sides keep, revocable per child</td></tr>
+            <tr><td>Key exchange</td><td>Node keys registered with the coordinator</td><td>Keys made on the device; public keys ride the isle's push; proposals carry peers, never private material</td></tr>
+            <tr><td>Relay behind NAT</td><td>Encrypted HTTPS relays</td><td>Link Relay: a blind UDP forwarder with no keys, safe on a rented box</td></tr>
+            <tr><td>Names</td><td>Magic DNS</td><td>The gateway's DNS serves <code>&lt;app&gt;.vpn</code> to members; <code>.isle</code> never crosses</td></tr>
+            <tr><td>Access control</td><td>An ACL policy file at the coordinator</td><td>Access-rule rows rendered to nftables on the router</td></tr>
+            <tr><td>Subnet routes, exits</td><td>Advertised routes, an exit-node flag</td><td>The gateway carries the isle subnet; exit kinds masquerade only when the knob is on</td></tr>
+            <tr><td>Client onboarding</td><td>App login</td><td>The rendered config imported by the stock WireGuard app from a QR code; OpenVPN for Android (GPLv2) for Bridge</td></tr>
+            <tr><td>Observability</td><td>An admin console</td><td><code>wg show</code> counters and the OpenVPN management interface mirrored as rows; per-level topology pages</td></tr>
+            <tr><td>Direct-path discovery</td><td>STUN, hole punching, relay fallback</td><td><em>Not built.</em> Relay fallback exists; direct-path discovery is the open item below</td></tr>
+          </tbody>
+        </table>
+        </div>
+
+        <h2 id="tailscale">Why not Tailscale</h2>
+        <div class="callout no"><strong>Rejected on licence.</strong><p>The client and relay code are BSD-3-Clause and would be fine. The coordination server the client depends on, for login, key registration and ACL distribution, is proprietary software run as a service by Tailscale Inc. Polari is GPLv3 and a proprietary dependency is a hard blocker. Using the open client without that control plane means replacing it, which is the Headscale question.</p></div>
+
+        <h2 id="headscale">Why not Headscale</h2>
+        <div class="callout no"><strong>Passed on architecture, not licence.</strong><p>Headscale is BSD-3-Clause and GPLv3-compatible; we could ship it. It is a central coordination server: one authority holding identity, keys and policy for the whole network. Two of our rulings run the other way. The isle is the authority for its own VPN and refuses configuration from over the tunnel, and federation between isles goes through blind relays by default, with routing hubs only on hardware the household owns. It would also be a third stack to drive next to WireGuard and OpenVPN, with an overlapping feature set. It stays on the books as a possible adapter for anyone who wants the tailnet model wholesale; it is not a provider.</p></div>
+
+        <h2 id="gap">The honest gap</h2>
+        <div class="callout"><strong>Direct-path discovery.</strong><p>A managed overlay finds a direct UDP path with STUN and hole punching and falls back to a relay only when it must. We have the relay fallback and we already record link measurements per destination. The missing piece is small: probe direct reachability, prefer it when it meets the floor, drop to the blind relay when it does not. It belongs in the VPN plan as its own phase and does not change the placement or authority model above.</p></div>
+
+        <h2 id="reference">Reference</h2>
+        <pre><code>pol vpn kinds              the ten kinds and the rule of thumb
+pol vpn placements         where each kind runs and at which levels
+pol vpn topology &lt;level&gt;   isle | archipelago | mesh — definition, floor, kinds, live rows
+pol vpn qr &lt;peer&gt;          a rendered config as a QR code for the stock WireGuard app
+isle vpn install &lt;kind&gt;    on the isle: container, --in &lt;guest&gt;, or --on-router
+isle vpn apply &lt;proposal&gt;  apply what Polari proposed</code></pre>
+        <p style="margin-top:2.5rem;"><a href="docs.html">← All documentation</a></p>
+      </article>
+    </div>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      <div class="brand-foot"><img src="assets/polari-mark.png" alt="" /> Polari</div>
+      <p class="foot-note">Free and <span class="em">open source</span>, GPLv3.</p>
+    </div>
+  </footer>
+  <script src="assets/app.js"></script>
+  <script src="assets/docs.js"></script>
+</body>
+</html>

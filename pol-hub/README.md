@@ -50,3 +50,15 @@ docker build -t pol-hub . && docker run --rm -p 4200:4200 pol-hub
 - Mermaid loads from CDN in `docs.html`; for a fully offline/self-hosted build,
   vendor `mermaid.esm.min.mjs` into `site/assets/` and repoint the import.
 - Fonts (Roboto, Roboto Mono) load from Google Fonts; self-host them for offline.
+
+## Documentation section (2026-09-09)
+
+`site/docs.html` is the index; `site/assets/docs.json` is the ONE manifest
+(categories → pages) that `assets/docs.js` renders as the index and as the
+sidebar on every doc page (static fallbacks stay in the HTML). Doc pages
+live under `site/docs/` and load `assets/docs.css` on top of `styles.css`;
+they use inline SVG and no CDN, so they render on an air-gapped isle.
+To add a page: write `site/docs/<name>.html` from an existing one, add it to
+`docs.json`, and copy the static sidebar list. nginx keeps every `.html`
+and `.json` `no-store` by one pattern rule. Pages today: the networking and
+topology model, Isle VPN.

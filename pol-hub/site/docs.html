@@ -9,6 +9,7 @@
   <link rel="icon" type="image/png" href="assets/polari-mark.png" />
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/styles.css" />
+  <link rel="stylesheet" href="assets/docs.css" />
 </head>
 <body>
   <div class="wrap">
@@ -25,8 +26,26 @@
   <section>
     <div class="wrap doc">
       <span class="eyebrow">Documentation</span>
-      <h1 style="font-size:clamp(2rem,5vw,3rem); letter-spacing:-0.03em; margin:0.8rem 0 0;">How Polari fits together</h1>
-      <p class="lede">A light, open documentation front. Diagrams are rendered client-side with
+      <h1 style="font-size:clamp(2rem,5vw,3rem); letter-spacing:-0.03em; margin:0.8rem 0 0;">Polari documentation</h1>
+      <p class="lede">Reference pages for people running, joining or extending Polari. The index below is
+        generated from one manifest (<code>assets/docs.json</code>); every page listed here exists.</p>
+
+      <div class="docs-index" data-docs-index>
+        <div class="cat">
+          <h3>Start here</h3>
+          <p class="blurb">What Polari is and how its projects fit together.</p>
+          <a href="docs.html#fits">How Polari fits together<small>The four projects, the suite at a glance, what each is for.</small></a>
+        </div>
+        <div class="cat">
+          <h3>Networking and topology</h3>
+          <p class="blurb">The isle, the archipelago and the mesh: what each level is, what crosses it, and who is in charge.</p>
+          <a href="docs/networking-model.html">The networking and topology model<small>Isle, archipelago, mesh; the exposure ladder; measured paths; authority and consent.</small></a>
+          <a href="docs/isle-vpn.html">Isle VPN<small>Two providers, ten kinds, three placements; how it stands in for a managed overlay; why not Tailscale or Headscale.</small></a>
+        </div>
+      </div>
+
+      <h2 id="fits" style="margin-top:3rem; padding-top:1.4rem; border-top:1px solid var(--line);">How Polari fits together</h2>
+      <p>Diagrams on this page are rendered client-side with
         <a href="https://mermaid.js.org" target="_blank" rel="noopener">Mermaid</a> — an open-source, text-to-diagram
         tool — so the docs stay cheap to host and easy to edit. For the deep, interactive tools, follow the links
         into the <a href="index.html#projects">full apps</a>.</p>
@@ -85,6 +104,7 @@ graph LR
   </footer>
 
   <script src="assets/app.js"></script>
+  <script src="assets/docs.js"></script>
   <!-- Mermaid from CDN. For a fully self-hosted / offline build, vendor
        mermaid.esm.min.mjs into assets/ and point the import below at it. -->
   <script type="module">

@@ -1,0 +1,23 @@
+{
+  "schema": "polari-docs/1",
+  "note": "The documentation manifest: categories in reading order, pages under each. docs.js renders the sidebar and the index from this file; add a page here and it appears everywhere. Only pages that exist are listed.",
+  "categories": [
+    {
+      "id": "start",
+      "title": "Start here",
+      "blurb": "What Polari is and how its projects fit together.",
+      "pages": [
+        { "href": "docs.html", "title": "How Polari fits together", "gist": "The four projects, the suite at a glance, what each is for." }
+      ]
+    },
+    {
+      "id": "networking",
+      "title": "Networking and topology",
+      "blurb": "The isle, the archipelago and the mesh: what each level is, what crosses it, and who is in charge.",
+      "pages": [
+        { "href": "docs/networking-model.html", "title": "The networking and topology model", "gist": "Isle, archipelago, mesh; the exposure ladder; measured paths; authority and consent." },
+        { "href": "docs/isle-vpn.html", "title": "Isle VPN", "gist": "Two providers, ten kinds, three placements; how it stands in for a managed overlay; why not Tailscale or Headscale." }
+      ]
+    }
+  ]
+}
