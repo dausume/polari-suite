@@ -74,11 +74,18 @@ http {
         server pol-hub:4200;
     }
 
-    # HTTP redirect to HTTPS
+    # HTTP: the ACME HTTP-01 webroot (Let's Encrypt without a DNS provider
+    # API — pol cert prod letsencrypt with LE_CHALLENGE=http), then redirect.
     server {
         listen 80;
         server_name *.${PROD_DOMAIN} ${PROD_DOMAIN};
-        return 301 https://$host$request_uri;
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+            default_type text/plain;
+        }
+        location / {
+            return 301 https://$host$request_uri;
+        }
     }
 
     # Landing page - ${PROD_DOMAIN}
@@ -98,6 +105,39 @@ http {
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
+
+        # The download front door at the apex: the appstore module's
+        # server-rendered pages (/downloads, /downloads/apps,
+        # /downloads/offline) and the deb files themselves, straight from
+        # prf-backend. Platform debs are staged in .generated/debs (the
+        # release pool); per-app debs are built on demand and TTL-cached.
+        location /downloads {
+            proxy_pass http://prf-backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 600s;      # on-demand deb builds
+            proxy_buffering off;
+        }
+    }
+
+    # apt repository - apt.${PROD_DOMAIN}
+    # Static: the reprepro tree the Jenkins apt-repo route publishes
+    # (dists/, pool/, the public signing key) mounted at /srv/apt.
+    # Clients: deb [signed-by=/usr/share/keyrings/polari.gpg] https://apt.${PROD_DOMAIN} stable main
+    server {
+        listen 443 ssl;
+        server_name apt.${PROD_DOMAIN};
+
+        ssl_certificate /etc/nginx/certs/pol-proxy.crt;
+        ssl_certificate_key /etc/nginx/certs/pol-proxy.key;
+
+        root /srv/apt;
+        autoindex on;
+        autoindex_exact_size off;
+        location = /health { add_header Content-Type application/json; return 200 '{"status":"ok","service":"apt"}'; }
+        location / { try_files $uri $uri/ =404; }
     }
 
     # Keycloak Auth - auth.${PROD_DOMAIN}

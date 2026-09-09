@@ -156,6 +156,30 @@ sed "s/\${PROD_DOMAIN}/$PROD_DOMAIN/g" "$TEMPLATE_FILE" > "$OUTPUT_FILE"
 
 echo -e "  Generated: ${GREEN}$OUTPUT_FILE${NC}"
 
+# ---- the public edge certificate + the distribution-point directories ------
+# The proxy mounts .generated/certs/edge/{fullchain,privkey}.pem over the pair
+# baked into its image. Stage the Let's Encrypt cert when one has been issued
+# (pol cert prod letsencrypt — DNS-01 or LE_CHALLENGE=http), else the
+# self-signed pair so the stack still comes up (browsers warn until then).
+EDGE_DIR="$GENERATED_DIR/certs/edge"
+LE_LIVE="${CERTBOT_CONFIG_DIR:-$SCRIPT_DIR/polari-rf-node/ca/.generated/letsencrypt}/live/${LE_CERT_NAME:-pol-proxy-public}"
+mkdir -p "$EDGE_DIR" "$GENERATED_DIR/certbot-www" "$GENERATED_DIR/apt" "$GENERATED_DIR/debs"
+if [ -s "$LE_LIVE/fullchain.pem" ] && [ -s "$LE_LIVE/privkey.pem" ]; then
+    cp -L "$LE_LIVE/fullchain.pem" "$EDGE_DIR/fullchain.pem"
+    cp -L "$LE_LIVE/privkey.pem" "$EDGE_DIR/privkey.pem"; chmod 600 "$EDGE_DIR/privkey.pem"
+    EDGE_STATE="Let's Encrypt ($(openssl x509 -in "$EDGE_DIR/fullchain.pem" -noout -enddate 2>/dev/null | cut -d= -f2))"
+elif [ -s "$PROXY_DIR/certs/pol-proxy.crt" ] && [ -s "$PROXY_DIR/certs/pol-proxy.key" ]; then
+    cp "$PROXY_DIR/certs/pol-proxy.crt" "$EDGE_DIR/fullchain.pem"
+    cp "$PROXY_DIR/certs/pol-proxy.key" "$EDGE_DIR/privkey.pem"; chmod 600 "$EDGE_DIR/privkey.pem"
+    EDGE_STATE="SELF-SIGNED — browsers will warn; issue a public cert with: pol cert prod letsencrypt"
+else
+    EDGE_STATE="MISSING — run pol security setup prod first"
+fi
+echo -e "  Edge certificate: ${GREEN}$EDGE_STATE${NC}"
+echo -e "  Distribution dirs: ${GREEN}$GENERATED_DIR/debs${NC} (platform debs → /downloads), ${GREEN}$GENERATED_DIR/apt${NC} (apt.$PROD_DOMAIN)"
+DEB_COUNT=$(ls "$GENERATED_DIR"/debs/*.deb 2>/dev/null | wc -l)
+[ "$DEB_COUNT" -gt 0 ] || echo -e "  ${YELLOW}No platform debs staged yet — build them (bash build-polari-isle-deb.sh; bash build-polari-complete-deb.sh --flavor online|offline) or copy the release pool's debs/ into $GENERATED_DIR/debs${NC}"
+
 # ==============================================================================
 # STEP 4: Generate environment file
 # ==============================================================================

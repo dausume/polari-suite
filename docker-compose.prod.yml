@@ -153,6 +153,15 @@ services:
     volumes:
       # Mount generated nginx config (from prod-setup.sh)
       - ./.generated/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      # The public edge certificate, staged by prod-setup.sh into
+      # .generated/certs/edge: the Let's Encrypt fullchain/privkey when
+      # `pol cert prod letsencrypt` has issued one, else the self-signed
+      # pair (browsers warn until then). Overrides the pair baked in the image.
+      - ./.generated/certs/edge/fullchain.pem:/etc/nginx/certs/pol-proxy.crt:ro
+      - ./.generated/certs/edge/privkey.pem:/etc/nginx/certs/pol-proxy.key:ro
+      # ACME HTTP-01 webroot (LE_CHALLENGE=http) and the apt repository tree.
+      - ./.generated/certbot-www:/var/www/certbot:ro
+      - ./.generated/apt:/srv/apt:ro
     deploy:
       resources:
         limits:
@@ -327,11 +336,19 @@ services:
       # WebSocket (STOMP) notifications
       - WEBSOCKET_ENABLED=true
       - WEBSOCKET_PORT=3001
+      # The distribution point (PRODUCTION_DEPLOY_PLAN §2c): platform debs
+      # staged from the release pool are served at /downloads; per-app debs
+      # are built on demand into a pool that persists with the data volume.
+      - POLARI_DOWNLOADS_DIR=/app/downloads
+      - POLARI_APP_DEBS_DIR=/app/data/app-debs
     volumes:
       # Persist the framework object DB (SQLite at /app/data) across recreates
       # — without this, all module/user data lives in the container layer and
       # is wiped on every down/recreate. Mirrors the dev prf_backend_data mount.
       - prf_backend_data:/app/data
+      # Platform debs (polari-isle, polari-complete online/offline, …) —
+      # copy the release pool's debs/ here (Jenkinsfile.release stage 'debs').
+      - ./.generated/debs:/app/downloads:ro
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/', timeout=5)"]
       interval: 10s

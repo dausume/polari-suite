@@ -328,6 +328,8 @@ def build(check=False):
                 source=html.escape(page['source']), category=html.escape(cat['title']),
                 nav_start=NAV_START, nav=nav_html(docs, page['href']), nav_end=NAV_END, body=body)
             write(path, content)
+        elif page.get('external'):
+            continue   # a link to something the running stack serves (e.g. /downloads)
         elif os.path.isfile(path):
             text = open(path, encoding='utf-8').read()
             new = replace_between(text, NAV_START, NAV_END, nav_html(docs, page['href']))

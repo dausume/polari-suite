@@ -408,3 +408,57 @@ debs pull AND the platform debs the server hands out.
 Engines images on the small VM (they stay on owned hardware or a bigger
 box — `prf-*-engines` are 2+ GB and compute-bound), the PSC/Odoo suite
 (compose `suite` tier), horizontal scaling (one droplet = one node).
+
+## 9. Distribution + public TLS in the prod stack (2026-09-09, his two asks)
+
+**Ask 1 — prod builds and serves the debs (or has the capability).**
+What existed: the builders (`build-polari-isle-deb.sh`,
+`build-polari-complete-deb.sh --flavor online|offline`,
+`build-offline-medium.sh`), the Jenkins release stage that runs them into
+the pool, the appstore module's server-rendered download surfaces
+(`/downloads`, `/downloads/apps`, `/downloads/offline`, per-app debs on
+demand), and the apt-repo publish route (reprepro + rsync to a
+distribution host). What was missing in the prod STACK: the backend had
+no staged-deb directory or pool, nothing exposed `/downloads` at the
+apex, and nothing served an apt repository. Built:
+- `docker-compose.prod.yml`: prf-backend gets `POLARI_DOWNLOADS_DIR=
+  /app/downloads` ← `./.generated/debs` (the release pool's debs/) and
+  `POLARI_APP_DEBS_DIR=/app/data/app-debs` (on-demand pool, persisted);
+  pol-proxy mounts `./.generated/apt` at `/srv/apt`.
+- `pol-proxy/nginx.prod.conf.template`: apex `location /downloads` →
+  prf-backend (long read timeout, no buffering, for on-demand builds);
+  new `apt.${PROD_DOMAIN}` server serving `/srv/apt` (autoindex) — the
+  apt-repo route can rsync to this VM (`APT_REPO_DIR=<suite>/.generated/apt`).
+- `prod-setup.sh` creates `.generated/{debs,apt}` and says when no
+  platform deb is staged yet. The hub gets a Download link (nav +
+  footer + the Install category) → `/downloads`.
+Remaining (his side): run the builders (or copy the release pool) into
+`.generated/debs` on the server; the apt route's signing key + host key
+(polari-jenkins/secrets) and ⛔ KC rotation before the host faces the web.
+
+**Ask 2 — HTTPS with a publicly trusted certificate.**
+What existed: `pol cert prod letsencrypt` (certbot DNS-01 via
+DigitalOcean) + weekly `renew.sh`, but the issued cert was never wired
+into the stack (the proxy image bakes the self-signed pair; the manifest
+had no row named `pol-proxy-public`, and its `prf-proxy` row lists the
+rf-node hostnames, not the suite's). Built:
+- `ca/cert-manifest.conf`: row `pol-proxy-public | edge | apex, www,
+  auth, psc, api.psc, prf, api.prf, files, s3, odoo, apt` — every name
+  the prod proxy terminates, resolved from PROD_DOMAIN.
+- `setup-letsencrypt.sh`: `LE_CHALLENGE=http` = HTTP-01 through the
+  proxy's `/.well-known/acme-challenge/` webroot (`.generated/
+  certbot-www`, served on :80 before the redirect) — any registrar, no
+  DNS API; DNS-01 stays the default. After issue (either mode) the new
+  `ca/stage-edge-cert.sh` copies fullchain/privkey into
+  `.generated/certs/edge/` and reloads the running proxy; `renew.sh`
+  does the same after each renewal (docker exec reload when the proxy
+  is a container).
+- `docker-compose.prod.yml`: pol-proxy mounts `.generated/certs/edge/
+  {fullchain,privkey}.pem` over `/etc/nginx/certs/pol-proxy.{crt,key}`;
+  `prod-setup.sh` stages the LE pair when issued, else the self-signed
+  pair (stack comes up either way; the setup output says which).
+Verified: rendered prod nginx config passes `nginx -t`; `docker compose
+config` validates; the manifest row resolves to the eleven names.
+Remaining (his side): point DNS at the VM, run `pol cert prod
+letsencrypt` (DNS-01 with DO_API_TOKEN, or `LE_CHALLENGE=http` with
+the stack up), `pol cert auto-renew install`.
