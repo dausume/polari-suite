@@ -28,6 +28,24 @@ container talking to Polari over HTTP — the process boundary that already
 settles Reticulum/Renode/ngspice. Our own extension is ours (GPLv3), which
 is fine for a VS Code extension (extensions are independent programs).
 
+## 1b. His ruling (2026-09-09): VS Code-first, usable independently OR through Polari
+"The point is to find the candidate that can be used with Polari or
+independently (like VS Code since many people use it already) and to
+develop out the dev tool so it is compatible with that and we can leverage
+it as much as possible." So the ORDER inverts: the primary deliverable is
+the **Polari extension + dev-tools working in stock VS Code** on anyone's
+laptop (no isle required: it talks to any Polari instance URL, or works
+offline on a checkout with the linter/scaffold), and the in-browser
+`polari-code` isle-app is the SAME extension served by code-server for
+people who do not install anything. One extension, four hosts: VS Code,
+VSCodium, code-server, Theia (all run VS Code extensions). Distribution:
+our extension is published to BOTH the VS Code Marketplace (publishing our
+own extension there is allowed; only CONSUMING that marketplace from
+non-Microsoft products is forbidden) and Open VSX — a ci-6 route pair.
+The extension leverages what people already have: their VS Code, their
+Python/Java/Angular extensions, git — the dev-tools add the Polari-specific
+parts (rules, scaffolds, object tree, admit) and nothing else.
+
 ## 2. Recommendation
 **de-1 = code-server as the isle-app `polari-code`** (fastest path to "VS
 Code in the browser through Polari"), with **Theia kept as the platform
@@ -69,14 +87,22 @@ extension, so the choice is not a lock-in.
   runtime.
 
 ## 4. Phases
-- **de-1** `polari-code`: Dockerfile from the pinned code-server release +
+- **de-1 (moved first) the Polari extension for stock VS Code** (`polari-vscode`,
+  TypeScript, GPLv3 or MIT per D5): workspace detection (a Polari checkout
+  or a single module dir), `polari-app.json` schema + linter diagnostics
+  (dt-1 JSON), commands new-module / add-object / conform / admit-to-instance
+  (runs `pol dev …` or the framework's python directly), the object tree
+  view against `POLARI_API`, a status item for the bound instance; packaged
+  as .vsix; published to Open VSX + the VS Code Marketplace (ci-6). Proof:
+  install the .vsix in VS Code on this box, open the checkout, see
+  diagnostics for a deliberately broken module, scaffold a module, admit it
+  to the test build.
+- **de-2** `polari-code`: Dockerfile from the pinned code-server release +
   pinned Open VSX extensions, compose with the checkout mount + UID map,
   store row (mesh-app, `code.isle`), Keycloak via the proxy (fallback
   password), the `.vscode/` files in the repo. Proof: open the checkout in
   the browser, run `pol modules conform gears` in its terminal, edit a
   module, run its selftest.
-- **de-2** the Polari extension: tree view + manifest diagnostics + the
-  scaffold/conform/admit commands (needs dt-1's JSON linter output).
 - **de-3** `polari-notebooks` (JupyterLab) with the framework kernel; the
   `dev-environment` suite row (parts: polari-code, polari-notebooks,
   dev-tools module, the instance) with contracts (`PolariAppDefinition`,
@@ -88,7 +114,7 @@ extension, so the choice is not a lock-in.
   constraining.
 
 ## 5. Decisions (his)
-- D1 code-server (default) vs OpenVSCode Server vs Theia for de-1.
+- D1 code-server (default) vs OpenVSCode Server vs Theia for the in-browser host (the extension is host-agnostic).
 - D2 auth: Keycloak through the isle proxy (default) vs code-server password.
 - D3 workspaces: one shared checkout per isle member (default: the member's
   own `~/polari-suite`) vs per-user containers.

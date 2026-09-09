@@ -504,3 +504,12 @@ Container parts that are compose roles (pol-reticulum, msci-engines,
 cad-engines, cnt-engines, dask, pol-livekit, pol-odoo, localai, the two
 scorecard services) are named as such in notes — store rows for them are
 the next mechanical step.
+
+**§10 store rows (2026-09-09, his go):** the ten container parts now have
+IsleCatalogEntry rows (`suiteapps/suiteapps_seed.py:SEED_SUITE_CATALOG`):
+pol-reticulum, msci-engines, cad-engines, cnt-engines, dask, pol-livekit,
+pol-odoo, localai (unpublished until the fork image is pinned), and the two
+scorecard services — images/ports from their compose roles, each with an
+`isle app deploy` plan; multi-service ones say "deploy with --compose".
+Test build: 28 catalog entries, plans render (e.g. livekit → image, port
+7880, meet.isle, engine livekit), 0 tracebacks.
