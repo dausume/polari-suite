@@ -173,3 +173,36 @@ one but stays woven into the isle; reticulum = a `hardware-extension-app`
   onboarding, state pushes. Still ours: printcam + dryer extensions,
   Kiri:Moto → Moonraker upload wiring (cors_domains), the SliceJob →
   GcodeArtifact hand-off automation, the physics rung.
+
+## 8. 2026-09-09 morning — his rulings applied: suite app (D6 ✓), print camera (D7 ✓), the automation (D8)
+"Automate the process of enabling just defining what you want in Polari:
+upload a CAD design, define what material you want the object made of, it
+runs the mold nesting automation, you get the outermost nested PLA or wax
+filament mold from the simulation, that mold is passed to the slicer and
+sent to the printer, cached at each step so we can print again or retry."
+- **ProductionRun** + **RunStepRecord** (printing_suite): a run walks
+  design → material → nesting → mold → slice → print → measure through
+  `custom/pipeline.py`; each step's result is a cached, checksummed
+  record (rows + artifact bytes in MinIO or the data dir); `retry`
+  re-runs one step and invalidates later records; `reprint` reuses the
+  cached gcode. Real adapters (`custom/adapters.py`): casting's
+  `plan_nesting`, mathshapes' `export_shape` (STL), the Kiri:Moto CLI in
+  the built container, Moonraker's upload API on the guest's ip from
+  `HardwareAppState`. Every absent dependency is a named refusal.
+  API: `POST /api/printing-suite/runs`, `…/{name}/advance|retry|reprint`,
+  `GET …/runs`. The "outermost nested mold" = the lowest-sequence
+  CastingStageDefinition whose mold material is the printable feedstock;
+  its MoldDefinition body shape is what gets exported and sliced.
+- Proof: pipeline selftest 10/10 (fake adapters, every refusal path,
+  retry/reprint); live test build: a run created through the API passed
+  design + material against real rows and stopped at nesting with the
+  planner's own refusal (the seeded CAD row had no real shape) — three
+  cached records, 0 tracebacks.
+- **printcam** (hardware-extension-app, extends voron-printer): USB camera
+  passthrough (need `usb role=camera`; the map tags UVC devices),
+  ustreamer service, Moonraker `[webcam]`, nginx `/webcam/`, timelapse
+  component at a pinned commit (PIN ME until gated). Store plan `isle vm
+  extend voron-printer --with printcam`. 5/5.
+- Still to do for a real print: a CAD import through the CAD worker (the
+  design step then names a real shape), the voron guest image pin, the
+  isle's `isle vm` verbs, a camera plugged into isle-core.

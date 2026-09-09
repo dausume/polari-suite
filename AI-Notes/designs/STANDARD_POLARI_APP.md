@@ -453,3 +453,8 @@ voron = rows):
    `MaterialLot` (what is loaded) and `PassthroughCandidate` (which device
    can host the printer). "Mathshapes converting CAD objects into
    material-specific molds" is the design→mold contract exactly.
+
+**§9.7 addendum (2026-09-09):** the contracts are now DRIVEN, not only
+declared: `ProductionRun` (the request) + `RunStepRecord` (the per-step
+cache) in printing_suite walk the chain automatically; D6 "suite app" and
+D7 "print camera" ratified; `printcam` is the first extension app built.
