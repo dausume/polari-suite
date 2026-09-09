@@ -70,6 +70,10 @@ http {
         server pol-file-store:9001;
     }
 
+    upstream pol-hub {
+        server pol-hub:4200;
+    }
+
     # HTTP redirect to HTTPS
     server {
         listen 80;
@@ -85,10 +89,14 @@ http {
         ssl_certificate /etc/nginx/certs/pol-proxy.crt;
         ssl_certificate_key /etc/nginx/certs/pol-proxy.key;
 
+        # The public site (pol-hub: the hub + the documentation section) —
+        # the same block staging serves; docs pages are static and no-store.
         location / {
-            # TODO: Configure landing page service or static files
-            return 200 'Polari Systems - Coming Soon';
-            add_header Content-Type text/plain;
+            proxy_pass http://pol-hub;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
         }
     }
 
