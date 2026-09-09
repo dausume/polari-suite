@@ -513,3 +513,43 @@ scorecard services — images/ports from their compose roles, each with an
 `isle app deploy` plan; multi-service ones say "deploy with --compose".
 Test build: 28 catalog entries, plans render (e.g. livekit → image, port
 7880, meet.isle, engine livekit), 0 tracebacks.
+
+**Developer reference (2026-09-09):** the contract itself is now
+`polari-rf-node/polari-framework/modules/README.md` — kinds and their
+meaning, every directory/file's purpose, the manifest field by field, row
+rules, suite rows, the tools, a checklist. Per-module READMEs are generated
+from the manifests (marker line; `manifests readme --refresh` rewrites only
+generated ones) and point at it.
+
+## 11. `pol project` + manifest admission — the first sap-3 slice (2026-09-09)
+
+His ask: terminal commands so a Polari Developer works on ONE module or app
+as its own project (its own repo, opened alone in VS Code / VSCodium) and
+builds / deploys / updates / removes it without the suite checkout.
+
+**Built.** `pol project init|lint|test|up|down|logs|status|deploy|update|
+remove|build|open` (`polari-cli/scripts/project.sh`; reference
+`modules/README.md` §9). Every tool runs inside the backend image with the
+project mounted as `modules/<id>`; `up` boots a local lean Polari on :3300;
+`deploy` admits the mounted module (or fetch-admits from the project's git
+remote with `--api`); `build` writes the module deb to `dist/pool/`.
+
+**The missing piece it exposed.** A project module is not in the
+hand-threaded core tables, so live admission reported "online, 0 classes".
+`polariApiServer/manifest_admission.py` (hooked into
+`live_admission._admit_locked`) now admits a table-unknown module FROM its
+`polari-app.json`: `files.*` imported → its treeObject classes tabled
+(`*API` never), `endpoints` constructor registered and called once,
+`seedPairs` + `pages` upserted by name after the tables exist; broken code
+is a refusal naming the exception. Two conventions the scaffold now writes
+make a manifest complete: `<pkg>_endpoints.py::construct_<pkg>_endpoints`
+and `<PKG>_SEED_PAIRS` in `<pkg>_seed.py`. Table-declared modules are
+untouched — this is the first slice of sap-3 (manifests as the source of
+truth); generating the core tables from manifests remains NOT started.
+
+**Proven (demo_widgets, scratch dir).** init → lint 1/1 → add-object
+(Widget under objects/catalog/) → test 3/3 → up → deploy (2 classes,
+CRUDE `/Widget`, `/api/demo-widgets/summary`, `/display/demo-widgets`,
+seed row upserted) → status → remove → down → build
+(`polari-app-demo-widgets_0.1.0+g…_all.deb`, 13 payload files incl. the
+manifest). Layout check ignores workspace dirs (`.git/.vscode/.polari/dist`).
