@@ -31,6 +31,12 @@
           "external": true
         },
         {
+          "href": "docs/production-server.html",
+          "title": "Setting up a production server",
+          "gist": "pol prod guide: domain, certificate (auto-generated or provider-issued and auto-approved), logins, modules, installers \u2014 then it deploys the lean swarm profile.",
+          "source": "AI-Notes/guides/PROD_SERVER_GUIDE.md"
+        },
+        {
           "href": "docs/install-an-isle.html",
           "title": "Install an isle",
           "gist": "The Isle-Mesh getting-started: from a fresh machine to a running isle.",

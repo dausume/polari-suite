@@ -504,3 +504,78 @@ pending → bad hash 409 → accept recorded → that session clear, another
 still pending; page renders). Selftest 14/14. What makes it binding is
 the operator's and a lawyer's call; the mechanics record the elements
 clickwrap is usually judged on. Frontends type-check; not browser-verified.
+
+## 11. `pol prod` — the guided production flow + the lean swarm role (prd-4 built, 2026-09-09)
+
+His ask: the prod shells were built around one compose file; carry the
+concepts forward to the swarm-first approach, with a better TUI that
+guides a user through every choice, and keep both routes — swarm
+(developers, AI-assisted) and apps/KVM (people).
+
+**Audit (agent, 2026-09-09) in one line:** `start-prod.sh` → `setup-polari-
+security.sh prod` → `prod-setup.sh` (5 steps: domain, credentials, nginx
+by sed + cert staging + dirs, `.env.prod`, three runtime configs) →
+`docker compose up --build`; `pol suite up --env prod` never runs the
+setup; `swarm.sh` knew only engines|cnt-engines|node|suite (suite pinned
+to the STAGING file) — no prod role, no lean profile; the jinja sources
+under `pol-services/` are stale against the hand-edited prod compose and
+proxy template (a `pol build render && promote` would REGRESS §9's
+downloads/apt/edge-cert work — bld debt, flagged, not fixed here); the
+user-friendly route is the store shell's zenity three-door dialog →
+`isle core-install` in a terminal; no release→deploy-to-prod step exists
+anywhere.
+
+**Built.**
+- `docker-compose.lean.yml` — the lean profile, swarm-first (no build:,
+  mem_limit, profiles or depends_on conditions; deploy.resources /
+  placement / restart_policy; configs for nginx.lean.conf + the two
+  runtime configs; SECRETS for the edge cert; host-mode 80/443; the
+  proxy + backend pinned to the manager where the debs / apt / ACME
+  webroot directories live). Four services: nginx:1.27-alpine proxy,
+  pol-hub (site + docs baked in), prf-frontend, prf-backend on sqlite
+  with `POLARI_MODULES=polariapps,appstore,islemesh,terms`, lazy boot,
+  no Keycloak (D2), `/app/downloads` + on-demand pool.
+- `pol-proxy/nginx.lean.conf.template` — five names, one cert
+  (`ca/cert-manifest.conf` row `pol-proxy-lean`): apex/www → hub +
+  `/downloads` + `/terms/`; prf → frontend; api.prf → backend (HTTP +
+  STOMP upgrade); apt → `/srv/apt`; :80 = ACME webroot + redirect;
+  resolver 127.0.0.11 with variable proxy_pass so the proxy boots first.
+- `pol prod` (`polari-cli/scripts/prod.sh`): `guide` (whiptail menus on a
+  terminal, plain prompts otherwise; route → domain + live DNS check →
+  certificate: provider-issued/auto-approved (Let's Encrypt, http or dns
+  challenge, e-mail) or auto-generated → logins → modules → installers
+  (build | copy | skip) → demo notice → image tag → plan → apply),
+  `check` (preflight), `plan`, `apply [--yes]` (10 idempotent steps),
+  `status` (board: stack, services, cert issuer/expiry + PUBLIC or not,
+  DNS per name vs this host, staged debs, apt tree, /api/health, terms
+  gate, next action), `cert`, `debs build|copy`, `render|deploy|down`.
+  Every answer = `.generated/prod-answers.env` and/or `POL_PROD_*` env
+  → the AI/script route is `pol prod apply --yes`. Self-signed edge
+  certs are signed by the suite CA with the five SANs; LE goes through
+  `ca/setup-letsencrypt.sh` with `LE_CERT_NAME=pol-proxy-lean`, then
+  the stack re-deploys with the new secret and auto-renew is installed.
+- `pol swarm deploy lean` (role added; records env production); the
+  store shell gains a fourth door "Set up a public server" → `pol prod
+  guide` in a terminal (or instructions when `pol` is absent).
+- Docs: `AI-Notes/guides/PROD_SERVER_GUIDE.md` → hub page
+  "Setting up a production server" (Install category).
+
+**Proven on the home swarm (3 nodes, this manager), then removed:**
+`POL_PROD_DOMAIN=example.org … pol prod apply --yes` → preflight
+(manager, ports free, images present, 6 debs staged), configs, CA-signed
+cert with the 5 SANs, hub image, stack rendered (no compose-only keys),
+`polari-lean` 4/4 replicas; through the proxy by Host header: apex hub
+200 + docs page 200 + `/downloads` 200 (Downloads page), prf frontend 200
+with the demo stanza, `api.prf /api/health` online 4/4 modules,
+`/api/terms/active` pending demo-terms + bar on, `apt /health` 200, :80
+→ 301 https, the served cert carries exactly the five names.
+`pol prod down` left the swarm clean.
+
+**Remaining.** (1) bld debt: re-sync `pol-services/` jinja sources with
+the hand-edited prod compose/proxy (or retire the sed path) — until then
+`pol build promote` must not touch prod; (2) images from GHCR (D3/prd-5)
+so a fresh VM needs no local build — today the guide asks for a tag
+present on the manager; (3) `pol prod` for the FULL profile (Keycloak)
+still hands off to `start-prod.sh`; (4) the isle-side KVM route is the
+store shell's own guide, untouched; (5) his: DNS, the real domain, the
+LE issue, the apt signing key, KC rotation for the full profile.
