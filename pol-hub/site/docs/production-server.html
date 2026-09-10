@@ -117,6 +117,10 @@ pol deploy status &lt;node&gt;                                    what runs ther
 pol deploy uninstall &lt;node&gt; --route … [--yes]               the reverse; the isle wipe needs --yes</code></pre>
 <p>The app route is meant for people through the Isle App Store, but every step of it is also a terminal command, so a developer or an AI assistant can install, check and remove an isle over ssh.</p>
 <p>Add <code>--dry-run</code> to see the exact commands first.</p>
+<p>Root on the target is the one thing ssh cannot supply. Two permission groups make it unnecessary after a single setup:</p>
+<pre><code>pol deploy grant &lt;node&gt; --group remote     ssh + swarm + AI-assisted setup: exactly the commands pol deploy sends, no password
+pol deploy grant &lt;node&gt; --group app        the app-setup route: what the Isle App Store&#x27;s doors run for a person</code></pre>
+<p>The first grant needs a password once (the command prints the one line to run). The two groups are separate on purpose: a machine set up for people gets <code>app</code>; a machine an operator or an assistant drives remotely gets <code>remote</code>.</p>
 <h2 id="afterwards">Afterwards</h2>
 <pre><code>pol prod status        stack, services, certificate issuer and expiry, DNS, health, terms gate
 pol prod cert          issue or re-issue the provider certificate

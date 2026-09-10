@@ -776,3 +776,46 @@ Tested live: status on isle-core (router ✓, agent healthy, polari.isle
 200, no doors, tier hardware) and econ-core (swarm-only); dry-runs of
 every uninstall; the isle-core wipe refuses without `--yes`. Real
 isle install/uninstall runs need a spare hardware-tier box (his).
+
+## 15. The remote lifecycle test (2026-09-10): wipe, reinstall, tier — and the permission groups
+
+His test: bring down the isles on other devices and their dependencies,
+do an isle core-install on isle-core, make econ-core a hardware-tier
+member of it — all remotely through the Polari terminal.
+**isle-core — done, unattended, from pol-core:**
+- `pol deploy uninstall isle-core --route isle-core --yes` → backup,
+  destroy --purge, network handback (NetworkManager owns every
+  interface again), volumes backed up + removed, packages purged;
+  status after: no agent, no prf-isle, no router VM.
+- `pol deploy install isle-core --route isle-core --yes` → the staged
+  polari-complete 0.1.33 shipped + installed, `isle core-install
+  --skip-security`: router VM `openwrt-isle-router` running, CA minted
+  (D6:9F:DB:E3…), prf-isle up (islemesh), `polari.isle` 200, apt-on-mesh,
+  store 16 apps, JOIN INFO printed. Security walkthrough deferred (as
+  the unattended form must) — `isle security setup` before any door.
+**econ-core — blocked on one thing: sudo asks for a password there**,
+so nothing needing root (libvirt for the hardware tier, the isle
+bootstrap) can run unattended. That is the permission-group question,
+answered per his ruling (two groups):
+- `polari-remote` — ssh + swarm + AI-assisted setup: NOPASSWD for
+  exactly the commands `pol deploy` sends (docker install/usermod,
+  `isle`, the bootstrap script, the isle-mesh scripts, the platform deb
+  installs, libvirt install + groups, reading the isle CA). Files:
+  `polari-cli/shells/groups/polari-remote.sudoers` (+ `!requiretty`).
+- `polari-app` — the app-setup route, what the store's doors run for a
+  person: `isle core-install|onboard|app|url|status|uninstall`, the
+  platform/app deb installs. `polari-app.sudoers`. Separate on purpose.
+- `install-groups.sh <remote|app> <user>` creates the group, validates
+  the file with visudo, installs it, adds the user. `pol deploy grant
+  <node> --group remote|app` ships both and runs it; where sudo still
+  needs a password it prints the ONE interactive line and (with a
+  terminal) runs it with `ssh -t`. Both files pass `visudo -c`.
+- `pol deploy tier <node> hardware --install` puts libvirt on a
+  kvm-capable target through that group, then labels it.
+**Next, his one line on econ-core** (or `ssh -t econ-core …` from here):
+`sudo bash /tmp/install-groups.sh remote dausume` — the files are
+already staged on econ-core. After it: `pol deploy tier econ-core
+hardware --install`, `ISLE_CORE_IP=192.168.0.25 pol deploy install
+econ-core --route isle-member --host`, `pol deploy status econ-core`.
+The member dry-run already resolves the new isle's fingerprint and the
+bootstrap sha from the core.

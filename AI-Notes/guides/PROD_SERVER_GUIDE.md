@@ -97,6 +97,15 @@ The app route is meant for people through the Isle App Store, but every step of 
 
 Add `--dry-run` to see the exact commands first.
 
+Root on the target is the one thing ssh cannot supply. Two permission groups make it unnecessary after a single setup:
+
+```
+pol deploy grant <node> --group remote     ssh + swarm + AI-assisted setup: exactly the commands pol deploy sends, no password
+pol deploy grant <node> --group app        the app-setup route: what the Isle App Store's doors run for a person
+```
+
+The first grant needs a password once (the command prints the one line to run). The two groups are separate on purpose: a machine set up for people gets `app`; a machine an operator or an assistant drives remotely gets `remote`.
+
 ## Afterwards
 
 ```

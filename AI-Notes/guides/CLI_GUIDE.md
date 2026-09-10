@@ -111,7 +111,7 @@ You cannot click. You can run every command above, read their output, and act on
 - `--dry-run` prints the exact commands without running them. Use it first.
 - Irreversible steps refuse without an explicit flag: the isle wipe needs `--yes`, exposure needs a designated entrypoint, a certificate cannot be accepted for a text that is not the one served.
 - State is readable as data: `pol modules health`, `pol prod status`, `pol deploy status`, `/api/modules/health`, `/api/terms/active`. Trust those over a command's return code.
-- Remote work goes through `pol deploy` and the ssh aliases in the nodes manifest; nothing secret travels, the target generates its own credentials.
+- Remote work goes through `pol deploy` and the ssh aliases in the nodes manifest; nothing secret travels, the target generates its own credentials. Root on the target comes from the `polari-remote` permission group (`pol deploy grant <node> --group remote`), granted once by a person; without it, anything needing root stops and says so.
 - Keycloak credentials are never yours to read or move. The setup generates them on the target; rotation (`pol security rotate prod`) is a step a person runs and confirms. Prefer the lean profile, which has no Keycloak, unless the work needs logins.
 - The Polari instance itself is reachable to an assistant through its MCP surface, which proposes changes and never applies them without confirmation.
 
