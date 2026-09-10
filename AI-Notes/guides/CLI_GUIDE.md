@@ -79,7 +79,7 @@ pol hwmap scan | push                what this device can hand to a lab instrume
 pol node up --env dev                a local instance of your own, for trying a module set
 ```
 
-Data leaves the way it came in: a module's non-regenerable data is its `initialData`, served by the instance and pulled by another (`GET /modules/<m>/initial-data`), and an app's package is plain JSON. If you write a module, the developer path below is yours too; the standard format keeps it installable by anyone.
+Data leaves the way it came in: a module's non-regenerable data is its `initialData`, served by the instance and pulled by another (`GET /modules/<m>/initial-data`), and an app's package is plain JSON. If you write a module, the developer path above is yours too; the standard format keeps it installable by anyone.
 
 ### An operator
 

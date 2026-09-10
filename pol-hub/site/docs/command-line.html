@@ -123,7 +123,7 @@ pol modules get &lt;module&gt;             fetch a split-out module&#x27;s code 
 pol modules health &lt;module&gt;          is it fully online (classes, routes, seeds, pages)
 pol hwmap scan | push                what this device can hand to a lab instrument guest
 pol node up --env dev                a local instance of your own, for trying a module set</code></pre>
-<p>Data leaves the way it came in: a module's non-regenerable data is its <code>initialData</code>, served by the instance and pulled by another (<code>GET /modules/&lt;m&gt;/initial-data</code>), and an app's package is plain JSON. If you write a module, the developer path below is yours too; the standard format keeps it installable by anyone.</p>
+<p>Data leaves the way it came in: a module's non-regenerable data is its <code>initialData</code>, served by the instance and pulled by another (<code>GET /modules/&lt;m&gt;/initial-data</code>), and an app's package is plain JSON. If you write a module, the developer path above is yours too; the standard format keeps it installable by anyone.</p>
 <h3 id="an-operator">An operator</h3>
 <p>You run an isle or a server for other people.</p>
 <pre><code>pol prod guide                 the production walkthrough (domain, certificate, logins, modules, installers)
