@@ -1,0 +1,45 @@
+# os-security scenario: the LEAN production stack on a swarm manager (pol prod, docker-compose.lean.yml).
+# Rings 2–5 (the app surface ring is the stack file itself). Only 80/443 face the world.
+name: swarm-lean
+rings: [dac, mac, network, host]
+tier: member
+mode: enforce
+fixed_mode: enforce
+
+docker:
+  userns_remap: ""          # swarm services do not support userns-remap per service; the daemon-wide remap is D1's call
+  no_new_privileges: true
+  icc: false
+  networks: [polari-lean]
+  overlay_encrypted: true   # stack networks get driver_opts encrypted=true (multi-node traffic under IPsec)
+
+allow_to_host:
+  - { proto: udp, port: 53,  why: "DNS" }
+  - { proto: tcp, port: 53,  why: "DNS" }
+deny_to_host_ports: [22, 2375, 2376, 2377, 7946, 4789, 16509, 8080, 50000]
+
+ufw:
+  enabled: true
+  default_incoming: deny
+  allow:
+    - { port: 22,   proto: tcp, from: "admin-lan", why: "ssh from the operator's network only" }
+    - { port: 80,   proto: tcp, from: "any",       why: "ACME + redirect" }
+    - { port: 443,  proto: tcp, from: "any",       why: "the edge" }
+    - { port: 2377, proto: tcp, from: "swarm",     why: "swarm management (peers only)" }
+    - { port: 7946, proto: any, from: "swarm",     why: "swarm gossip (peers only)" }
+    - { port: 4789, proto: udp, from: "swarm",     why: "overlay VXLAN (peers only)" }
+
+fixed:
+  - { name: pol-proxy,    profile: gateway, image: nginx:1.27-alpine, writable: ["/var/cache/nginx", "/var/run"], network: [isle, internet], capabilities: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID], ports: [80, 443] }
+  - { name: pol-hub,      profile: web-app, image: pol-hub, writable: ["/var/cache/nginx", "/var/run"], network: [isle], capabilities: [CHOWN, SETUID, SETGID], ports: [4200] }
+  - { name: prf-frontend, profile: web-app, image: prf-frontend, writable: ["/var/cache/nginx", "/var/run"], network: [isle], capabilities: [CHOWN, SETUID, SETGID], ports: [4200] }
+  - { name: prf-backend,  profile: worker,  image: prf-backend, writable: ["/app/data", "/tmp"], network: [isle, internet], capabilities: [], ports: [3000, 3001], why_network: "internet: fetch-admit pulls module repos; the on-demand deb builder" }
+
+host:
+  sysctl: true
+  auditd: true
+  unattended_upgrades: true
+  perms:
+    - { path: .generated/certs/edge,        owner: root, group: root, mode: "0700" }
+    - { path: .generated/.env.lean,         owner: root, group: root, mode: "0600" }
+    - { path: polari-jenkins/secrets,       owner: root, group: root, mode: "0700" }

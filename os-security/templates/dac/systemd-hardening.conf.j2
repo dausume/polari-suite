@@ -1,0 +1,20 @@
+# os-security · systemd drop-in for the isle's HOST services · scenario {{ scenario }} · generated (do not edit)
+# Installed as /etc/systemd/system/<unit>.service.d/50-os-security.conf for each of:
+# {{ host_units | join(', ') }}
+# Same posture isle-host-agent already ships; here it becomes the rule for every isle host unit.
+[Service]
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=no
+SystemCallArchitectures=native
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_ADMIN
+# ReadWritePaths is per unit: the isle adds exactly the state it owns (e.g. /etc/isle-mesh/agent, /run/isle-mesh)
+ReadWritePaths={{ host_rw_paths | join(' ') }}

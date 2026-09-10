@@ -49,6 +49,12 @@
         <a href="docs/join-protocol.html">How devices join and get names</a>
         <a href="docs/dual-domain.html">Dual-domain access</a>
         <a href="docs/availability-modes.html">Availability modes</a>
+        <div class="col-h">Security</div>
+        <a href="docs/security.html">Security in Polari</a>
+        <a href="docs/os-security.html">OS security</a>
+        <a href="docs/proxy-security.html">Proxy security</a>
+        <a href="docs/firewall-security.html">Firewall security</a>
+        <a href="docs/network-security.html">Network security</a>
         <div class="col-h">Running an isle</div>
         <a href="docs/isle-mesh-structure.html">How Isle-Mesh is put together</a>
         <a href="docs/isle-router.html">The isle router</a>
@@ -146,6 +152,17 @@ POST /api/modules/health/&lt;module&gt;/verify   re-check now
 pol modules health [--api URL] [&lt;module&gt;] [--verify]
 /display/module-health                   the page (ModuleRegistration rows + summary)</code></pre>
 <p><code>ok</code> is false while any module is degraded, failed, blocked or invalid. The record is mirrored to a <code>ModuleRegistration</code> row per module per instance, so the state survives a restart and is a table like any other.</p>
+<h2 id="11-the-security-stanza-what-the-app-may-touch">11. The security stanza — what the app may touch</h2>
+<p>Every <code>polari-app.json</code> carries a <code>security</code> stanza (the scaffold and <code>manifests generate</code> add the deny-all default; a hand-tuned stanza survives regeneration). <code>os-security/render.py</code> turns it into the app's AppArmor profile, seccomp allow-list and the compose/stack security fragment (<code>security_opt</code>, <code>cap_drop: [ALL]</code> + declared <code>cap_add</code>, <code>read_only</code>, <code>tmpfs</code>) — see <code>os-security/README.md</code> and ISLE_HARDENING_PLAN.md.</p>
+<pre><code class="lang-json">&quot;security&quot;: {
+  &quot;profile&quot;: &quot;web-app&quot;,        // web-app | worker | gateway | vpn-gateway | hardware-extension
+  &quot;writable&quot;: [&quot;/data&quot;],       // the ONLY writable paths; everything else is read-only
+  &quot;network&quot;: [&quot;isle&quot;],         // isle | internet | none
+  &quot;capabilities&quot;: [],          // allow-list only: NET_ADMIN NET_BIND_SERVICE CHOWN SETUID SETGID DAC_READ_SEARCH
+  &quot;devices&quot;: [],               // /dev paths, only for hardware-extension (hardware lives in a guest)
+  &quot;ports&quot;: [3000]              // listening ports inside the container
+}</code></pre>
+<p><code>pol modules conform</code> refuses values outside those lists. Declare the least: an app that needs nothing special keeps the default and still runs; an app that declares <code>NET_ADMIN</code> gets it and nothing more.</p>
         <p style="margin-top:2.5rem;"><a href="docs.html">← All documentation</a></p>
       </article>
     </div>

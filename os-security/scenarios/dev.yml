@@ -1,0 +1,30 @@
+# os-security scenario: a DEVELOPER's machine. Nothing enforced that would get in
+# the way; profiles render and load in COMPLAIN mode so denials are visible in the
+# log, the audit still scores every ring honestly, sysctl only on the host ring.
+name: dev
+rings: [mac, host]
+tier: member
+mode: complain
+fixed_mode: complain
+
+docker:
+  userns_remap: ""
+  no_new_privileges: false
+  icc: true
+  networks: []
+
+allow_to_host: []
+deny_to_host_ports: []
+
+ufw:
+  enabled: false
+  default_incoming: deny
+  allow: []
+
+fixed: []
+
+host:
+  sysctl: true
+  auditd: false
+  unattended_upgrades: false
+  perms: []

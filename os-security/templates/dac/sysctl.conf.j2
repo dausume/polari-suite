@@ -1,0 +1,24 @@
+# os-security · /etc/sysctl.d/60-polari-os-security.conf · scenario {{ scenario }} · generated (do not edit)
+# Kernel knobs that reduce what an escaped process could learn or do. All of these
+# are Ubuntu-supported settings; none break docker, libvirt or the isle networking.
+kernel.kptr_restrict = 2
+kernel.dmesg_restrict = 1
+kernel.unprivileged_bpf_disabled = 1
+kernel.yama.ptrace_scope = 1
+kernel.sysrq = 0
+fs.protected_symlinks = 1
+fs.protected_hardlinks = 1
+fs.protected_fifos = 2
+fs.protected_regular = 2
+fs.suid_dumpable = 0
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.all.send_redirects = 0
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv4.tcp_syncookies = 1
+# user namespaces stay ON: docker's userns-remap and rootless modes need them; AppArmor confines who creates them (Ubuntu 24.04+)
+kernel.unprivileged_userns_clone = 1
+# ip forwarding: docker/libvirt need it; the DOCKER-USER chain decides what may be forwarded
+net.ipv4.ip_forward = 1

@@ -115,3 +115,102 @@ Defense in depth means each ring holds on its own; an attacker must break all of
 - `Isle-Mesh/isle-agent/docker-compose.remote.yml` (NET_ADMIN for udhcpc), `isle-cli/scripts/url.sh` (gateway containers), `Isle-Mesh/polari-isle/docker-compose.yml`.
 - `polari-cli/shells/groups/` (the two sudoers groups), PRODUCTION_DEPLOY_PLAN §15.
 - Ubuntu: AppArmor (docker-default, libvirt sVirt, `userns` rules on 24.04), docker `userns-remap`, `DOCKER-USER`, ufw, auditd, unattended-upgrades.
+
+## 8. Per-deployment scenarios (his ask 2026-09-10)
+
+The controls are not one policy but a policy PER SCENARIO, declared in
+`os-security/scenarios/<name>.yml` and rendered for that kind of machine:
+
+| scenario | rings | fixed pieces | edge ports | notes |
+|---|---|---|---|---|
+| `isle` | all five | isle-agent, isle-gateway, prf-isle backend/frontend, isle-apt, isle-remote-agent (NET_ADMIN for DHCP) | 80/443 on the isle interface; doors added by the isle | userns-remap `isle`; hardware tier; sVirt required for guests |
+| `swarm-lean` | 2–5 | pol-proxy, pol-hub, prf-frontend, prf-backend | 80/443 to anyone; swarm ports to peers | overlay encrypted; secrets/env 0600 |
+| `swarm-full` | 2–5 | + psc-frontend/backend, keycloak, mariadb, minio, redis | same | credential files 0600 |
+| `dev` | 3 (complain), 5 (sysctl) | none | untouched | the audit still reports |
+
+Each scenario also carries the DOCKER-USER allow/deny lists, the ufw rules
+with named source sets (isle, isle-lan, admin-lan, swarm — resolved from
+the environment, never widened to "any" when unresolved), and the
+host-side ownership rules. `pol security os` auto-detects the scenario
+(isle agent present → isle; stack polari-prod → swarm-full; polari-lean →
+swarm-lean; else dev).
+
+## 9. Dynamics — the policy follows the apps
+
+Profiles are per app and exist only while the app is up: `render.py`
+takes the apps from the manifests (`--apps-from-manifests`), from a
+running core's registrar (`--apps-from-core URL`: only modules the
+registrar says are online), or from a file the isle writes from its
+registry; it writes `out/<scenario>/manifest.json` naming every profile
+it produced, and `apply.sh` unloads and removes any `isle-app-*` profile
+NOT in that manifest. So: app admitted → render + apply → its profile is
+loaded and its compose fragment carries `security_opt`; app put away →
+render + apply → its profile is gone. The isle-side hook is `isle app
+install|remove` calling the same two steps (sec-3, isle-core); on the
+swarm route `pol prod apply` renders after every deploy and applies when
+`POL_PROD_HARDEN=on`. Templates are jinja2 (`templates/apparmor/app.j2`
+is the one profile template; `seccomp/kind.json.j2` one allow-list per
+kind; firewall/dac templates per scenario), rendered with StrictUndefined
+so a missing value fails loudly rather than rendering a hole.
+
+## 10. Network + firewall — what the check found (his doubt 2026-09-10)
+
+His instinct was right that nginx + the ingress policy carry most of the
+network security on an isle: the agent's nginx is the sole ingress,
+generated from the registry, TLS 1.2/1.3 with isle-CA leaves, a
+per-app protocol class incl. mutual TLS, and the router's zones forward
+nothing between the isle and the real interface (verified by the isle's
+own network-isolation check). What was NOT covered, now addressed:
+1. **Doors are plain HTTP** on the outside leg (`isle url expose` publishes
+   `0.0.0.0:<port>:80`, basic auth in the clear) — reported to isle-core;
+   the door must terminate TLS. Docs say "VPN or trusted network only"
+   until then.
+2. **Host firewall off** on isle-core (ufw inactive), sshd on all
+   interfaces, DOCKER-USER empty (containers could reach host services),
+   swarm ports open to the world on pol-core → the firewall ring
+   (scenario ufw rules + DOCKER-USER) renders and applies; the audit
+   reports each.
+3. **Swarm overlays unencrypted** → every stack overlay now carries
+   `encrypted: "true"` (lean/prod compose + stackify promotion).
+4. **The suite's edge proxy had no hardening** beyond TLS 1.2/1.3 →
+   both templates now set modern ciphers, server preference, no session
+   tickets, `server_tokens off`, nosniff/frame/referrer headers, request
+   rate + connection limits on `/downloads`, and HSTS rendered ONLY once
+   the staged edge cert is publicly trusted (a self-signed edge with HSTS
+   would lock browsers out). `pol proxy guard` passes for lean and prod.
+5. Docker's published ports bypass ufw — documented; container traffic is
+   governed by DOCKER-USER, host admission by ufw, and the lean stack
+   publishes 80/443 in host mode on the manager only.
+
+## 11. Built 2026-09-10 (sec-0 → the first slices of sec-2/3/4/5/6)
+
+- `os-security/` — README, four scenarios, templates (AppArmor app
+  profile, seccomp per kind, DOCKER-USER, ufw, docker daemon.json,
+  sysctl, systemd hardening drop-in, perms, audit rules), `render.py`
+  (validates the stanza vocabulary; StrictUndefined), `apply.sh`
+  (enforce/complain, removes gone apps' profiles, diffs daemon.json,
+  never restarts docker), `audit.sh` (24 controls across the rings,
+  verdict, `--json`), `escape-test.sh` (14 cross-over attempts).
+- Manifest `security` stanza: `SECURITY_*` vocabulary + `security_findings`
+  in `moduleService/manifests.py`; generate adds the deny-all default,
+  hand-tuned stanzas survive; conform refuses bad values; all 59 modules
+  regenerated (59/59 conform); standard README §11.
+- CLI: `pol security os render|apply|audit|escape-test [--scenario]`,
+  `pol deploy audit <node>` (ships audit.sh over ssh), `pol prod apply`
+  renders the scenario after every deploy and applies with
+  `POL_PROD_HARDEN=on`.
+- Proofs: 63 rendered profiles pass `apparmor_parser -Q`; seccomp lists
+  are valid JSON (255 syscalls allowed per kind); on isle-core, with the
+  `isle-app-prf-backend` profile LOADED AND ENFORCED, the escape test
+  blocked all 14 attempts (docker socket, host /etc/shadow, mount,
+  sysrq, sysctl, kernel module, ptrace init, raw socket, userns, write
+  outside declared paths, chroot, keyctl, bpf, firmware); profile
+  unloaded after. `pol deploy audit isle-core`: verdict OPEN (12/13) —
+  the honest baseline the phases move from.
+- Docs: a Security section on the public site — overview (the property,
+  the layers, how policy is applied, every dependency with its licence:
+  fully open source), OS security, proxy security, firewall security,
+  network security (with the known gaps named).
+Remaining: the isle-side apply at install/remove (sec-3 isle half),
+userns-remap migration (sec-1), TLS on doors, auditd → SecurityEvent
+rows + `/display/security` (sec-5/6), the store card (sec-7), D1–D8.

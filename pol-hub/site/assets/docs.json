@@ -141,6 +141,43 @@
       ]
     },
     {
+      "id": "security",
+      "title": "Security",
+      "blurb": "Fully open source, layer by layer: the operating system (DAC and MAC), the proxy, the firewall, the network \u2014 and what each depends on.",
+      "pages": [
+        {
+          "href": "docs/security.html",
+          "title": "Security in Polari",
+          "gist": "The property we are after, the layers, how policy is declared and applied, every dependency with its licence.",
+          "source": "AI-Notes/guides/security/SECURITY_OVERVIEW.md"
+        },
+        {
+          "href": "docs/os-security.html",
+          "title": "OS security",
+          "gist": "Who runs as whom (DAC) and what a process may touch (AppArmor, seccomp, sVirt), rendered per scenario and per app.",
+          "source": "AI-Notes/guides/security/OS_SECURITY.md"
+        },
+        {
+          "href": "docs/proxy-security.html",
+          "title": "Proxy security",
+          "gist": "One nginx per world: the isle agent's ingress and the suite's edge \u2014 TLS, certificates, headers, doors.",
+          "source": "AI-Notes/guides/security/PROXY_SECURITY.md"
+        },
+        {
+          "href": "docs/firewall-security.html",
+          "title": "Firewall security",
+          "gist": "The host firewall, docker's user chain, the isle router's zones, swarm ports \u2014 per scenario.",
+          "source": "AI-Notes/guides/security/FIREWALL_SECURITY.md"
+        },
+        {
+          "href": "docs/network-security.html",
+          "title": "Network security",
+          "gist": "Containment on the isle, the exposure ladder, Reticulum, VPN kinds and relays, encrypted overlays, known gaps.",
+          "source": "AI-Notes/guides/security/NETWORK_SECURITY.md"
+        }
+      ]
+    },
+    {
       "id": "isle",
       "title": "Running an isle",
       "blurb": "The parts of Isle-Mesh, the router, the agent, and taking an isle down again.",

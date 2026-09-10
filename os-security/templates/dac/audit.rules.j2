@@ -1,0 +1,22 @@
+# os-security · /etc/audit/rules.d/60-polari-os-security.rules · scenario {{ scenario }} · generated (do not edit)
+# What we want to KNOW happened: changes to the isle's state and trust material,
+# to sudo policy, to docker/libvirt, and any execve by an app's service uid.
+# The isle turns these into SecurityEvent rows (plan sec-5); nothing is blocked here.
+-D
+-b 8192
+-f 1
+-w /etc/isle-mesh/ -p wa -k isle-state
+-w /etc/isle-mesh/ca/ -p rwa -k isle-trust
+-w /etc/sudoers -p wa -k sudo-policy
+-w /etc/sudoers.d/ -p wa -k sudo-policy
+-w /etc/docker/daemon.json -p wa -k docker-config
+-w /var/run/docker.sock -p rwa -k docker-socket
+-w /run/docker.sock -p rwa -k docker-socket
+-w /var/run/libvirt/ -p rwa -k libvirt
+-w /etc/apparmor.d/ -p wa -k mac-policy
+-w /etc/ufw/ -p wa -k firewall
+-w /etc/systemd/system/ -p wa -k units
+-a always,exit -F arch=b64 -S execve -F auid>=10000 -F auid<=19999 -k app-exec
+-a always,exit -F arch=b64 -S mount,umount2,pivot_root -k mount-ops
+-a always,exit -F arch=b64 -S init_module,finit_module,delete_module -k kernel-modules
+-a always,exit -F arch=b64 -S ptrace -k ptrace

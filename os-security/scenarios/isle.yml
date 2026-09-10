@@ -1,0 +1,59 @@
+# os-security scenario: an ISLE device (core, or a member running the agent).
+# All five rings apply. The fixed pieces are the isle's own containers; apps
+# come from the manifests of what is installed (render.py --apps-from-manifests
+# or the isle's registry.json turned into --apps).
+name: isle
+rings: [surface, dac, mac, network, host]
+tier: hardware            # reach | member | hardware | core — what this machine may host
+mode: enforce             # enforce | complain (D7: fixed pieces complain for one release; apps enforce)
+fixed_mode: complain
+
+docker:
+  userns_remap: isle       # /etc/docker/daemon.json "userns-remap" (rendered + diffed, never auto-applied)
+  no_new_privileges: true
+  icc: false               # containers talk through the agent, not to each other by default
+  networks: [isle-agent-net, isle-br-0]
+
+# the host services the containers may reach (everything else on the host is denied by DOCKER-USER)
+allow_to_host:
+  - { proto: udp, port: 53,  why: "DNS via the router / agent" }
+  - { proto: tcp, port: 53,  why: "DNS" }
+  - { proto: tcp, port: 443, why: "the agent's ingress (apps reach each other by .isle name through it)" }
+  - { proto: tcp, port: 80,  why: "the agent's ingress" }
+deny_to_host_ports: [22, 2375, 2376, 16509, 16514, 2377, 7946, 4789, 5900, 5901, 8080]
+
+ufw:
+  enabled: true
+  default_incoming: deny
+  allow:
+    - { port: 22,   proto: tcp, from: "isle-lan", why: "ssh from the isle side and the owner's LAN only" }
+    - { port: 80,   proto: tcp, from: "isle",     why: "agent ingress" }
+    - { port: 443,  proto: tcp, from: "isle",     why: "agent ingress" }
+    - { port: 5353, proto: udp, from: "isle",     why: "mDNS (join protocol)" }
+    - { port: 4242, proto: tcp, from: "isle",     why: "Reticulum bearer on the relay segment" }
+  # exposure doors (isle url expose --port N) are added/removed by the isle itself, not here
+
+# the isle's own containers, declared like apps (their profiles render from the same template)
+fixed:
+  - { name: isle-agent,        profile: gateway, image: nginx, writable: ["/etc/nginx/configs", "/var/log/nginx", "/etc/nginx/nginx.conf"], network: [isle], capabilities: [NET_BIND_SERVICE], ports: [80, 443] }
+  - { name: isle-gateway,      profile: gateway, image: nginx:alpine, writable: [], network: [isle, internet], capabilities: [NET_BIND_SERVICE], ports: [80] }
+  - { name: prf-isle-backend,  profile: web-app, image: prf-backend, writable: ["/data", "/app/data"], network: [isle], capabilities: [], ports: [3000, 3001] }
+  - { name: prf-isle-frontend, profile: web-app, image: prf-frontend, writable: [], network: [isle], capabilities: [], ports: [4200] }
+  - { name: isle-apt,          profile: web-app, image: nginx:alpine, writable: [], network: [isle], capabilities: [], ports: [80] }
+  - { name: isle-remote-agent, profile: gateway, image: nginx, writable: ["/etc/nginx/configs", "/var/log/nginx"], network: [isle], capabilities: [NET_BIND_SERVICE, NET_ADMIN], ports: [80, 443], why_caps: "NET_ADMIN: udhcpc on the macvlan (remote members)" }
+
+guests:
+  svirt_required: true      # isle vm define refuses a guest without a libvirt-<uuid> profile
+  passthrough_from_hwmap_only: true
+  no_filesystem_shares: true
+  console_localhost_only: true
+
+host:
+  sysctl: true
+  auditd: true
+  unattended_upgrades: true
+  perms:
+    - { path: /etc/isle-mesh,          owner: root, group: isle-admin, mode: "0750" }
+    - { path: /etc/isle-mesh/ca,       owner: root, group: isle-admin, mode: "0750" }
+    - { path: /etc/isle-mesh/agent,    owner: root, group: isle-agent, mode: "0750" }
+    - { path: /var/lib/isle/apps,      owner: root, group: root,       mode: "0711" }

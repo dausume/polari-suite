@@ -85,12 +85,15 @@ for svc in (doc.get("services") or {}).values():
 for net in (doc.get("networks") or {}).values():
     if isinstance(net, dict) and net.pop("external", False):
         net["driver"] = "overlay"
+        net.setdefault("driver_opts", {}).setdefault("encrypted", "true")
         net.pop("name", None)
     elif isinstance(net, dict):
         # swarm services can only attach to swarm-scoped networks;
         # compose bundles declare plain bridge networks — promote them.
         if net.get("driver") in (None, "bridge"):
             net["driver"] = "overlay"
+            # sec: multi-node traffic between services under IPsec (no cost on one node)
+            net.setdefault("driver_opts", {}).setdefault("encrypted", "true")
 
 # prd-4: configs/secrets are immutable in swarm — give each a content-versioned
 # name so a changed file deploys as a new object (old ones can be pruned later).

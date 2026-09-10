@@ -161,4 +161,6 @@ volumes:
 networks:
   polari-lean:
     driver: overlay
+    driver_opts:
+      encrypted: "true"
     attachable: true

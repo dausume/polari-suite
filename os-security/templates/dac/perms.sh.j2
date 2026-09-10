@@ -1,0 +1,14 @@
+#!/bin/bash
+# os-security · ownership + modes for the deployment's state · scenario {{ scenario }} · generated (do not edit)
+# DAC ring: who owns what. Groups are created if missing; paths that do not exist are skipped (reported).
+set -eu
+ROOT="${OS_SEC_SUITE_ROOT:-.}"
+ensure_group() { getent group "$1" >/dev/null 2>&1 || groupadd --system "$1"; }
+{% for p in host.perms %}
+{% if p.group not in ('root',) %}ensure_group {{ p.group }}
+{% endif %}
+P="{{ p.path }}"; case "$P" in /*) ;; *) P="$ROOT/$P" ;; esac
+if [ -e "$P" ]; then chown {{ p.owner }}:{{ p.group }} "$P" && chmod {{ p.mode }} "$P" && echo "  {{ p.mode }} {{ p.owner }}:{{ p.group }}  $P"; else echo "  (absent) $P"; fi
+{% endfor %}
+# private keys are never group- or world-readable, wherever they are
+for K in /etc/isle-mesh/ca/*.key "$ROOT"/.generated/certs/edge/privkey.pem "$ROOT"/pol-proxy/certs/*.key "$ROOT"/pol-keycloak/certs/*.key; do [ -f "$K" ] && chmod 600 "$K" && echo "  0600 $K"; done; true
