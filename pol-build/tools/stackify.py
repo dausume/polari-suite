@@ -90,4 +90,14 @@ for net in (doc.get("networks") or {}).values():
         if net.get("driver") in (None, "bridge"):
             net["driver"] = "overlay"
 
+# prd-4: configs/secrets are immutable in swarm — give each a content-versioned
+# name so a changed file deploys as a new object (old ones can be pruned later).
+import hashlib, os
+for section in ("configs", "secrets"):
+    for key, entry in (doc.get(section) or {}).items():
+        path = (entry or {}).get("file")
+        if path and os.path.isfile(path):
+            digest = hashlib.sha256(open(path, "rb").read()).hexdigest()[:8]
+            base = (entry.get("name") or key).split("-v")[0] if False else key
+            entry["name"] = f"{key}-{digest}"
 yaml.safe_dump(doc, sys.stdout, sort_keys=False, default_flow_style=False)
