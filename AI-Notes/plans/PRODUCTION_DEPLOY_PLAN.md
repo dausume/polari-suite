@@ -759,3 +759,20 @@ Not run for real: a swarm-server install on econ-core (ports 80/443
 free there but it is the Odoo box; his call) and an isle-member
 bootstrap (needs sudo on the target — `ssh -t` lets sudo prompt).
 Isle-side `isle onboard --hardware` remains isle-core's requested verb.
+
+**§14 addendum — the goal, restated (his message 2026-09-10) and where it stands.**
+Polari must fully do both routes from a terminal: the APP route (isle,
+hardware setup) drivable by a pro dev or an AI over ssh — install,
+uninstall, status — even though the AI cannot click the store; and
+non-isle swarm deployments as the usual choice when no hardware setup
+is needed. `pol deploy` is that surface now:
+| verb | swarm | isle |
+|---|---|---|
+| install | `--route swarm-worker` (join) / `swarm-server` (pol prod there) | `--route isle-member [--host]` (bootstrap from the core, sudo) / `isle-core [--yes]` (deb + `isle core-install`, `--skip-security` when unattended) |
+| status | node role/state/labels + tasks placed there | router, agent, polari.isle HTTP, open doors, virsh guests, versions |
+| uninstall | drain + `docker swarm leave` + node rm / `pol prod down` | `isle uninstall --everything --force` with `ISLE_CONFIRM_DELETE=yes` — only with `--yes` |
+| tier | `polari.tier` label + machine row | same, hardware refuses without kvm + libvirt |
+Tested live: status on isle-core (router ✓, agent healthy, polari.isle
+200, no doors, tier hardware) and econ-core (swarm-only); dry-runs of
+every uninstall; the isle-core wipe refuses without `--yes`. Real
+isle install/uninstall runs need a spare hardware-tier box (his).

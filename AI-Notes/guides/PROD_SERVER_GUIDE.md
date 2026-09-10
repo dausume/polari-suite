@@ -88,8 +88,12 @@ pol deploy tier <node> hardware                             label it; needs KVM 
 pol deploy install <node> --route swarm-worker              join this swarm
 pol deploy install <node> --route swarm-server --domain D   a standalone production server there
 pol deploy install <node> --route isle-member [--host]      join this isle (sudo on the target)
-pol deploy install <node> --route isle-core                 ship the deb and run the isle install
+pol deploy install <node> --route isle-core [--yes]         ship the deb and run the isle install (unattended with --yes)
+pol deploy status <node>                                    what runs there, either route
+pol deploy uninstall <node> --route … [--yes]               the reverse; the isle wipe needs --yes
 ```
+
+The app route is meant for people through the Isle App Store, but every step of it is also a terminal command, so a developer or an AI assistant can install, check and remove an isle over ssh.
 
 Add `--dry-run` to see the exact commands first.
 
