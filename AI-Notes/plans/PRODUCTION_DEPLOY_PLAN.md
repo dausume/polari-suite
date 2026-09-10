@@ -608,3 +608,42 @@ Rendered: stack-prod.yml = 10 services (odoo pair dropped), 6 configs +
 2 secrets, no compose-only keys, 5 manager pins, KC issuer set on the
 backend, rendered nginx.prod.conf passes `nginx -t`, the staged
 CA-signed cert carries all 11 names.
+
+**§11 addendum 2 — the FULL profile proven on swarm (2026-09-09/10).**
+`POL_PROD_AUTH=keycloak … pol prod apply --yes` on the home swarm (this
+manager): security material reused, `.env.prod` with generated
+credentials (0600), CA-signed edge cert with all 11 names, the nine
+profile images built by compose (~40 min cold: Keycloak from UBI, the
+scorecard backend's maven), stack `polari-prod` = 10 services. Three
+things surfaced and were fixed:
+1. nginx would not boot: static `upstream { server prf-backend:3000 }`
+   blocks fail DNS until the backend TASK runs (swarm publishes a
+   service name only then) → the prod template now resolves every
+   upstream lazily (`set $up_x …; proxy_pass $up_x`, resolver
+   127.0.0.11), the pattern the lean template already used.
+2. swarm configs/secrets are immutable → `stackify` names each by
+   content hash (`nginx_prod_conf-032c218e`), so a changed file
+   redeploys as a new object and `pol prod deploy` can update a running
+   stack.
+3. the backend never reached healthy: the compose carried 384 M / 0.4
+   cpu and no module set, so a full monolithic boot of every module at
+   0.4 cpu ran past the 15-minute start window (no OOM, just slow) →
+   explicit `POLARI_MODULES` from the answers (+ scoring), lazy boot,
+   1200 M / 1.5 cpu (D1). Core-ready in ~2 min after that.
+After the fixes, through the proxy by Host header: apex hub 200,
+`/downloads` 200, prf frontend 200 with the Keycloak authority + demo
+stanza in its runtime config, `api.prf /api/health` online 5/5,
+`auth /realms/Polari` 200, psc frontend 200 + `api.psc /health` 200,
+MinIO console 200 + S3 live 200, `apt /health` 200, the served
+certificate carrying 11 names, `/api/terms/active` pending demo-terms.
+The registrar then reported appstore and scoring degraded — all three
+were REGISTRAR heuristics, not deployment faults (page-server classes
+expected as tables; a route compared with its trailing slash; an
+`add_route` literal split across two source lines) — fixed and
+re-verified locally (24 online, 0 degraded). `pol prod down` removed
+the stack; `apply` now persists its answers so later verbs act on the
+same profile, and `down` removes any pol prod stack left behind.
+**Swarm is THE production process now**; compose remains the authoring
+form and the laptop try-out. Remaining: release images in a registry
+(prd-5/D3) so a fresh VM pulls instead of building; re-templating the
+jinja sources; his DNS / Let's Encrypt / apt signing key / KC rotation.
