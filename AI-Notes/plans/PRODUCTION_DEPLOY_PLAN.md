@@ -724,3 +724,38 @@ stack. What was NOT tested: creating a fresh isle from scratch (needs a
 hardware-tier machine that is not the live one — DEB_TOPOLOGY_TEST_
 SCENARIOS Phase D/E, his hands-on), and the Let's Encrypt issue (needs
 real DNS).
+
+## 14. Remote install + tier from the CLI (his question 2026-09-10)
+
+"We should be able to remote install a Polari instance or upgrade it to
+hardware tier via polari cli, correct?" — partly true before, true now.
+Before: `pol deploy run <node> --role engines|remote-worker|node` (ssh:
+pull + compose up, staging), `pol swarm join <node>`, `pol dev deploy`
+(ssh isle-polari-deploy — BROKEN on isle-core today: the binary is not
+installed by polari-complete 0.1.33 though isle-polari-teardown is),
+and the isle member route was a manual curl + sudo of the core's
+bootstrap. Nothing said "install a Polari instance THERE" for either
+route, and no tier existed on a machine row or a swarm node.
+Built (`pol deploy`, the ssh-to-nodes tool; targets in nodes.yml):
+- `pol deploy install <node> --route swarm-worker|swarm-server|isle-member|isle-core [--profile lean|full --domain D] [--host] [--dry-run]`
+  swarm-worker = docker + join this manager's swarm (label); swarm-server
+  = docker + suite checkout + pol + `pol prod apply --yes` there;
+  isle-member = fetch the core's bootstrap (fingerprint read from the
+  core over ssh) + `sudo bash isle-bootstrap.sh --fingerprint … --core
+  <ip> [--host]`; isle-core = ship the staged polari-complete deb, apt
+  install, `sudo isle core-install` (interactive, `ssh -t`).
+- `pol deploy tier <node> --check | reach|member|hardware|core`:
+  remote probe (docker, virt flags, /dev/kvm, libvirt, IOMMU groups,
+  isle agent/cli) → what the machine qualifies for; setting a tier
+  labels the swarm node `polari.tier=<t>` and posts `tier` onto the
+  topology machine row (`PolariNodeMachine.tier`, new field; endpoint
+  whitelists it). Hardware refuses without kvm + libvirt on the target.
+Tested: isle-core --check → hardware (12 virt flags, kvm, libvirt, 10
+IOMMU groups, agent up); econ-core --check → member (kvm yes, libvirt
+no — the fix is named); `tier isle-core hardware` → node label set;
+`install econ-core --route swarm-worker` → idempotent, already joined;
+swarm-server and isle-member dry-runs print the exact ssh steps.
+Not run for real: a swarm-server install on econ-core (ports 80/443
+free there but it is the Odoo box; his call) and an isle-member
+bootstrap (needs sudo on the target — `ssh -t` lets sudo prompt).
+Isle-side `isle onboard --hardware` remains isle-core's requested verb.

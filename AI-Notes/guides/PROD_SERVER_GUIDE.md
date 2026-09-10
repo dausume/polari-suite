@@ -78,6 +78,21 @@ sudo isle url entrypoint disable                             back to fully conta
 
 The door refuses to open until the device is designated and its deploy-time credentials pass the security gate. Closing it removes the gateway container; nothing inside changes.
 
+## From another machine
+
+`pol deploy` drives machines listed in the nodes manifest over ssh:
+
+```
+pol deploy tier <node> --check                              what it qualifies for (member, hardware)
+pol deploy tier <node> hardware                             label it; needs KVM + libvirt on the target
+pol deploy install <node> --route swarm-worker              join this swarm
+pol deploy install <node> --route swarm-server --domain D   a standalone production server there
+pol deploy install <node> --route isle-member [--host]      join this isle (sudo on the target)
+pol deploy install <node> --route isle-core                 ship the deb and run the isle install
+```
+
+Add `--dry-run` to see the exact commands first.
+
 ## Afterwards
 
 ```
