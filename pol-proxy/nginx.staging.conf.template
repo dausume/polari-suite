@@ -42,38 +42,6 @@ http {
     }
 
     # Upstream definitions
-    upstream keycloak {
-        server pol-keycloak:8443;
-    }
-
-    upstream psc-frontend {
-        server psc-frontend:4200;
-    }
-
-    upstream psc-backend {
-        server psc-backend:8080;
-    }
-
-    upstream prf-frontend {
-        server prf-frontend:4200;
-    }
-
-    upstream prf-backend {
-        server prf-backend:3000;
-    }
-
-    upstream minio-api {
-        server pol-file-store:9000;
-    }
-
-    upstream minio-console {
-        server pol-file-store:9001;
-    }
-
-    upstream pol-hub {
-        server pol-hub:4200;
-    }
-
     # HTTP redirect to HTTPS
     server {
         listen 80;
@@ -90,7 +58,8 @@ http {
         ssl_certificate_key /etc/nginx/certs/nip.io/server.key;
 
         location / {
-            proxy_pass http://pol-hub;
+            set $up_pol_hub http://pol-hub:4200;   # resolved lazily (swarm DNS appears when the task runs)
+            proxy_pass $up_pol_hub;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -107,7 +76,8 @@ http {
         ssl_certificate_key /etc/nginx/certs/nip.io/server.key;
 
         location / {
-            proxy_pass https://keycloak;
+            set $up_keycloak https://pol-keycloak:8443;   # resolved lazily (swarm DNS appears when the task runs)
+            proxy_pass $up_keycloak;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -131,7 +101,8 @@ http {
         ssl_certificate_key /etc/nginx/certs/nip.io/server.key;
 
         location / {
-            proxy_pass http://psc-frontend;
+            set $up_psc_frontend http://psc-frontend:4200;   # resolved lazily (swarm DNS appears when the task runs)
+            proxy_pass $up_psc_frontend;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -175,7 +146,8 @@ h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
         }
 
         location / {
-            proxy_pass http://psc-backend;
+            set $up_psc_backend http://psc-backend:8080;   # resolved lazily (swarm DNS appears when the task runs)
+            proxy_pass $up_psc_backend;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -193,7 +165,8 @@ h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
         ssl_certificate_key /etc/nginx/certs/nip.io/server.key;
 
         location / {
-            proxy_pass http://prf-frontend;
+            set $up_prf_frontend http://prf-frontend:4200;   # resolved lazily (swarm DNS appears when the task runs)
+            proxy_pass $up_prf_frontend;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -293,7 +266,8 @@ h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
         client_max_body_size 100M;
 
         location / {
-            proxy_pass http://minio-console;
+            set $up_minio_console http://pol-file-store:9001;   # resolved lazily (swarm DNS appears when the task runs)
+            proxy_pass $up_minio_console;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -322,7 +296,8 @@ h1{color:#22c55e;margin-bottom:0.5rem;}p{color:#666;}</style></head>
         proxy_request_buffering off;
 
         location / {
-            proxy_pass http://minio-api;
+            set $up_minio_api http://pol-file-store:9000;   # resolved lazily (swarm DNS appears when the task runs)
+            proxy_pass $up_minio_api;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

@@ -93,6 +93,8 @@
 <pre><code>POL_PROD_DOMAIN=example.org POL_PROD_CERT_MODE=letsencrypt POL_PROD_LE_CHALLENGE=http \
 POL_PROD_LE_EMAIL=ops@example.org POL_PROD_DEBS=build pol prod apply --yes</code></pre>
 <p><code>pol prod plan</code> prints what apply would do without changing anything. <code>pol prod check</code> is the preflight alone.</p>
+<h2 id="one-access-point-several-machines">One access point, several machines</h2>
+<p>The proxy runs on the manager and is the only entry point. It reaches every other service by name over the swarm's overlay network, wherever that service was placed, so adding machines does not change the proxy. With locally built images every service stays on the manager (only it has the images); with a registry prefix the services may spread across nodes. An isle is a different world: there the isle agent's own nginx fronts Polari as <code>polari.isle</code>, and nothing here touches it.</p>
 <h2 id="afterwards">Afterwards</h2>
 <pre><code>pol prod status        stack, services, certificate issuer and expiry, DNS, health, terms gate
 pol prod cert          issue or re-issue the provider certificate

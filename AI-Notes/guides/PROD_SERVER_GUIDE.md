@@ -60,6 +60,10 @@ POL_PROD_LE_EMAIL=ops@example.org POL_PROD_DEBS=build pol prod apply --yes
 
 `pol prod plan` prints what apply would do without changing anything. `pol prod check` is the preflight alone.
 
+## One access point, several machines
+
+The proxy runs on the manager and is the only entry point. It reaches every other service by name over the swarm's overlay network, wherever that service was placed, so adding machines does not change the proxy. With locally built images every service stays on the manager (only it has the images); with a registry prefix the services may spread across nodes. An isle is a different world: there the isle agent's own nginx fronts Polari as `polari.isle`, and nothing here touches it.
+
 ## Afterwards
 
 ```

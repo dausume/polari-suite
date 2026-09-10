@@ -54,7 +54,9 @@ for name, svc in (doc.get("services") or {}).items():
     for expr in constraints.get(name, []):
         placement = svc.setdefault("deploy", {}).setdefault(
             "placement", {})
-        placement.setdefault("constraints", []).append(expr)
+        cons = placement.setdefault("constraints", [])
+        if expr not in cons:
+            cons.append(expr)
 
 for svc in (doc.get("services") or {}).values():
     svc.pop("container_name", None)

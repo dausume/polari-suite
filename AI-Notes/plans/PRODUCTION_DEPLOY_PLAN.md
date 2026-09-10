@@ -647,3 +647,47 @@ same profile, and `down` removes any pol prod stack left behind.
 form and the laptop try-out. Remaining: release images in a registry
 (prd-5/D3) so a fresh VM pulls instead of building; re-templating the
 jinja sources; his DNS / Let's Encrypt / apt signing key / KC rotation.
+
+## 12. nginx: two worlds, one suite template per env (his question 2026-09-10)
+
+**Two nginx worlds exist and they do not share code:**
+1. **Isle.** On an isle member the isle AGENT's nginx is the sole ingress
+   for that device's apps, generated from the agent's `registry.json`
+   (`Isle-Mesh/isle-agent/isle-vlan-agent/generate-nginx-configs.sh`) —
+   `<app>.isle` names, the protocol matrix. Polari on an isle
+   (`Isle-Mesh/polari-isle/docker-compose.yml`: prf-isle-backend +
+   prf-isle-frontend on the agent network) is fronted by THAT nginx as
+   `polari.isle`. pol-proxy is not used on an isle at all. Verified
+   untouched by the swarm work: no commit under `Isle-Mesh/polari-isle`
+   or the agent generator since ae8f5af; the only Isle-Mesh change is
+   NOTES-FROM-POL-CORE.md. The isle stays exactly as it was.
+2. **Suite (compose or swarm).** pol-proxy from ONE template per env
+   (`pol-proxy/nginx.{staging,prod,lean}.conf.template`). The CONFIG is
+   the same for a single host and a swarm: services are reached by name
+   over the docker network either way, and every upstream is resolved
+   lazily (`set $up_x http://host:port; proxy_pass $up_x;` + resolver
+   127.0.0.11) so nginx boots before every service exists — mandatory on
+   swarm (a service name resolves only once its task runs), harmless
+   under compose. Staging's eight static upstreams were converted today
+   like prod's. What differs per topology is the STACK, not nginx: the
+   proxy's ports mode (host-mode 80/443 on the manager) and placement.
+
+**So the setting is the route, made explicit:** `pol proxy mode` says
+which world this machine is in (isle agent present → isle; swarm active
+→ suite/swarm; else suite/single). `pol proxy template <env> [--domain D]
+[--topology single|swarm]` renders the template into
+`.generated/nginx.<env>.conf` — the file compose mounts AND the stack
+ships as a config — and REFUSES a template with static `upstream{}`
+blocks; `pol proxy guard <env>` runs nginx -t with the edge cert + CA
+mounted and every service name stubbed. `pol prod` renders through it.
+All three envs pass the guard.
+
+**Multi-computer with one access point: yes, by construction.** The
+proxy is pinned to the manager (the access point) and reaches every
+service by name over the overlay wherever the task lands; `pol allocate`
+/ `POL_STACK_CONSTRAINTS` place services across nodes. One rule: with
+LOCAL image builds only the manager has the images, so `pol prod` pins
+every service to the manager; with a registry (`POL_PROD_IMAGE_REPO`)
+services may spread. Profile-gated services (odoo) are named explicitly
+for swarm (`POL_SWARM_PROFILES=odoo` / `POL_PROD_ODOO=on`): compose
+config omits them otherwise, which is what every swarm role did before.
