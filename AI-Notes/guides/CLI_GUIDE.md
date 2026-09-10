@@ -62,6 +62,25 @@ pol build render | parity      the compose bundles from their annotated sources
 pol proxy template <env>       the proxy config, one template for compose and swarm
 ```
 
+### A researcher
+
+You use Polari for the work itself: a science module, a simulation, a dataset, an app built from them. Most of that is the web interface; the command line is for getting the right modules onto an instance and taking your work with you.
+
+```
+pol modules list                     every module package (which have selftests)
+pol apps list                        the apps this instance knows (use-case module sets)
+pol apps plan <app>                  which modules an app needs and where they stand
+pol apps deploy <app> --plan         what enabling it would do, touching nothing
+pol apps deploy <app>                enable it: the modules are admitted, the pages appear
+pol apps export <app> [file]         a portable package of the app to carry to another instance
+pol modules get <module>             fetch a split-out module's code onto this instance
+pol modules health <module>          is it fully online (classes, routes, seeds, pages)
+pol hwmap scan | push                what this device can hand to a lab instrument guest
+pol node up --env dev                a local instance of your own, for trying a module set
+```
+
+Data leaves the way it came in: a module's non-regenerable data is its `initialData`, served by the instance and pulled by another (`GET /modules/<m>/initial-data`), and an app's package is plain JSON. If you write a module, the developer path below is yours too; the standard format keeps it installable by anyone.
+
 ### An operator
 
 You run an isle or a server for other people.

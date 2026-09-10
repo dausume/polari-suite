@@ -64,7 +64,7 @@
         {
           "href": "docs/command-line.html",
           "title": "The Polari command line",
-          "gist": "Two tools, two deployment routes, and what each kind of person \u2014 average user, tester, developer, operator, AI assistant \u2014 actually runs.",
+          "gist": "Two tools, two deployment routes, and what each kind of person \u2014 average user, tester, researcher, developer, operator, AI assistant \u2014 actually runs.",
           "source": "AI-Notes/guides/CLI_GUIDE.md"
         },
         {

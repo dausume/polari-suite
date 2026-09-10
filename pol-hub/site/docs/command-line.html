@@ -5,7 +5,7 @@
   <title>Polari — The Polari command line</title>
   <base href="/" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Two tools, two deployment routes, and what each kind of person — average user, tester, developer, operator, AI assistant — actually runs." />
+  <meta name="description" content="Two tools, two deployment routes, and what each kind of person — average user, tester, researcher, developer, operator, AI assistant — actually runs." />
   <link rel="icon" type="image/png" href="assets/polari-mark.png" />
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/styles.css" />
@@ -111,6 +111,19 @@ pol modules conform            every module against the standard
 pol node up --env dev          the framework alone, dev tier
 pol build render | parity      the compose bundles from their annotated sources
 pol proxy template &lt;env&gt;       the proxy config, one template for compose and swarm</code></pre>
+<h3 id="a-researcher">A researcher</h3>
+<p>You use Polari for the work itself: a science module, a simulation, a dataset, an app built from them. Most of that is the web interface; the command line is for getting the right modules onto an instance and taking your work with you.</p>
+<pre><code>pol modules list                     every module package (which have selftests)
+pol apps list                        the apps this instance knows (use-case module sets)
+pol apps plan &lt;app&gt;                  which modules an app needs and where they stand
+pol apps deploy &lt;app&gt; --plan         what enabling it would do, touching nothing
+pol apps deploy &lt;app&gt;                enable it: the modules are admitted, the pages appear
+pol apps export &lt;app&gt; [file]         a portable package of the app to carry to another instance
+pol modules get &lt;module&gt;             fetch a split-out module&#x27;s code onto this instance
+pol modules health &lt;module&gt;          is it fully online (classes, routes, seeds, pages)
+pol hwmap scan | push                what this device can hand to a lab instrument guest
+pol node up --env dev                a local instance of your own, for trying a module set</code></pre>
+<p>Data leaves the way it came in: a module's non-regenerable data is its <code>initialData</code>, served by the instance and pulled by another (<code>GET /modules/&lt;m&gt;/initial-data</code>), and an app's package is plain JSON. If you write a module, the developer path below is yours too; the standard format keeps it installable by anyone.</p>
 <h3 id="an-operator">An operator</h3>
 <p>You run an isle or a server for other people.</p>
 <pre><code>pol prod guide                 the production walkthrough (domain, certificate, logins, modules, installers)
