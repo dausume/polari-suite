@@ -482,3 +482,25 @@ language, explicitly not legal advice — what a demo instance is, no
 personal information, nothing private or kept, demo accounts only,
 acceptable use, no warranty (GPLv3, as is), run your own, versioned
 changes. Both frontends type-check; not yet seen in a browser.
+
+**Generalised the same day (his follow-up): the `terms` module.**
+Terms are now rows, not a stanza. `TermsDocument` (versioned; `scope`
+global or app + `app_name`; `kind` demo|standard|privacy|custom; `active`,
+`requires_acceptance`, `show_bar`; Markdown body) and `TermsAcceptance`
+(append-only: who — the Keycloak `sub` when logged in, else the browser's
+anonymous terms session id — which version, sha256 of the exact text
+shown, when, how = clickwrap, app, hashed client fingerprint; never a raw
+address). Seeded boilerplate: `demo-terms` ACTIVE, `standard-terms` and
+`privacy-notice` templates off — plain language, explicitly not legal
+advice. API: `GET /api/terms/active?app=&session=` (what this subject
+must still accept; bar on/off), `POST /api/terms/accept` (refuses a
+version/text that is not the one served → 409), `GET /api/terms/status`,
+`GET /terms/<name>` (plain page). Page `/display/terms` (documents +
+ledger). Both frontends' gate now reads the API first — every pending
+document in turn, full text shown, click recorded — and falls back to
+the runtime-config stanza only where the module is absent. Proven on a
+local instance (registrar online 2/2 classes, 3/3 seeds; fresh session
+pending → bad hash 409 → accept recorded → that session clear, another
+still pending; page renders). Selftest 14/14. What makes it binding is
+the operator's and a lawyer's call; the mechanics record the elements
+clickwrap is usually judged on. Frontends type-check; not browser-verified.
