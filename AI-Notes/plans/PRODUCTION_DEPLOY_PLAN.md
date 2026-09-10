@@ -462,3 +462,23 @@ config` validates; the manifest row resolves to the eleven names.
 Remaining (his side): point DNS at the VM, run `pol cert prod
 letsencrypt` (DNS-01 with DO_API_TOKEN, or `LE_CHALLENGE=http` with
 the stack up), `pol cert auto-renew install`.
+
+## 10. Demo notice + demo terms (2026-09-09, his ask)
+
+Public instances must say they are demonstrations and that no personal
+information belongs in them. Built: a `demo` stanza in both frontends'
+runtime-config (`enabled`, `title`, `message`, `termsUrl`, `version`),
+written by `nip-staging-setup.sh` and `prod-setup.sh` (on unless
+`POLARI_DEMO_NOTICE=false`; `termsUrl` = `https://<domain>/docs/demo-terms.html`);
+a `demo-notice` component in the Polari frontend (standalone, in the
+root above everything) and in the scorecard frontend (same behaviour):
+a persistent amber bar on every page ("Demonstration instance. Do not
+enter personal information …" + the terms link) and a first-visit dialog
+that must be acknowledged, remembered in localStorage per terms
+`version` so changed terms re-prompt everyone. Isles and developer nodes
+have no stanza and show nothing. The terms page is hand-written in the
+hub (`pol-hub/site/docs/demo-terms.html`, Start here + footer): plain
+language, explicitly not legal advice — what a demo instance is, no
+personal information, nothing private or kept, demo accounts only,
+acceptable use, no warranty (GPLv3, as is), run your own, versioned
+changes. Both frontends type-check; not yet seen in a browser.

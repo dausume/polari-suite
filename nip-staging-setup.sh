@@ -344,6 +344,23 @@ echo ""
 echo -e "${YELLOW}[5/6] Generating frontend runtime configurations...${NC}"
 
 # PRF Frontend runtime-config.json
+
+# ---- demo notice (his ask 2026-09-09): the apps show "Demonstration instance —
+# do not enter personal information" + a first-visit acknowledgement when the
+# runtime config carries this stanza. On for staging/prod unless POLARI_DEMO_NOTICE=false.
+DEMO_ENABLED=$([ "${POLARI_DEMO_NOTICE:-true}" = "false" ] && echo false || echo true)
+DEMO_TERMS_URL="https://${BASE_DOMAIN}/docs/demo-terms.html"
+DEMO_VERSION="2026-09-09"
+DEMO_STANZA=$(cat <<DEMO
+  "demo": {
+    "enabled": $DEMO_ENABLED,
+    "title": "Demonstration instance",
+    "message": "This is a public demonstration of Polari. It exists so you can try the software, not to hold anyone's data.",
+    "termsUrl": "$DEMO_TERMS_URL",
+    "version": "$DEMO_VERSION"
+  },
+DEMO
+)
 PRF_CONFIG_FILE="$GENERATED_DIR/prf-runtime-config.json"
 cat > "$PRF_CONFIG_FILE" << EOF
 {
@@ -351,6 +368,7 @@ cat > "$PRF_CONFIG_FILE" << EOF
   "_generated": "$(date)",
   "_ip": "${LOCAL_IP}",
 
+$DEMO_STANZA
   "backend": {
     "http": {
       "protocol": "http",
@@ -417,6 +435,7 @@ cat > "$PSC_CONFIG_FILE" << EOF
   "_generated": "$(date)",
   "_ip": "${LOCAL_IP}",
 
+$DEMO_STANZA
   "backendUri": "https://api.psc.${BASE_DOMAIN}/",
   "backendHttpsUri": "https://api.psc.${BASE_DOMAIN}/",
 

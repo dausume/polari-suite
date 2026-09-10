@@ -11,6 +11,11 @@
           "href": "docs.html",
           "title": "How Polari fits together",
           "gist": "The four projects, the suite at a glance, what each is for."
+        },
+        {
+          "href": "docs/demo-terms.html",
+          "title": "Demo terms",
+          "gist": "What using a public demonstration instance means: no personal information, nothing is private or kept, demo accounts only, no warranty."
         }
       ]
     },
