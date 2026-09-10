@@ -57,6 +57,49 @@
       ]
     },
     {
+      "id": "cli",
+      "title": "Command line",
+      "blurb": "pol and isle: both deployment routes from a terminal, by skill level and use \u2014 people, testers, developers, operators, AI assistants.",
+      "pages": [
+        {
+          "href": "docs/command-line.html",
+          "title": "The Polari command line",
+          "gist": "Two tools, two deployment routes, and what each kind of person \u2014 average user, tester, developer, operator, AI assistant \u2014 actually runs.",
+          "source": "AI-Notes/guides/CLI_GUIDE.md"
+        },
+        {
+          "href": "docs/pol-quick-reference.html",
+          "title": "pol CLI quick reference",
+          "gist": "Every pol module and verb on one page.",
+          "source": "polari-cli/docs/QUICK-REFERENCE.md"
+        },
+        {
+          "href": "docs/pol-architecture.html",
+          "title": "pol CLI architecture",
+          "gist": "How the suite CLI is put together.",
+          "source": "polari-cli/docs/CLI-ARCHITECTURE.md"
+        },
+        {
+          "href": "docs/extending-pol.html",
+          "title": "Extending the pol CLI",
+          "gist": "Adding a module script to the suite CLI.",
+          "source": "polari-cli/docs/EXTENSION-GUIDE.md"
+        },
+        {
+          "href": "docs/isle-cli.html",
+          "title": "isle CLI reference",
+          "gist": "The isle command index.",
+          "source": "Isle-Mesh/isle-cli/INDEX.md"
+        },
+        {
+          "href": "docs/isle-discover.html",
+          "title": "isle discover",
+          "gist": "Scanning for isles, devices and apps.",
+          "source": "Isle-Mesh/isle-cli/DISCOVER.md"
+        }
+      ]
+    },
+    {
       "id": "networking",
       "title": "Networking and topology",
       "blurb": "The isle, the archipelago and the mesh: what each level is, what crosses it, and who is in charge.",
@@ -186,49 +229,19 @@
           "title": "Testing the framework",
           "gist": "Test suites, how to run them in containers, coverage.",
           "source": "polari-rf-node/polari-framework/tests/README.md"
-        },
-        {
-          "href": "docs/extending-pol.html",
-          "title": "Extending the pol CLI",
-          "gist": "Adding a module script to the suite CLI.",
-          "source": "polari-cli/docs/EXTENSION-GUIDE.md"
         }
       ]
     },
     {
       "id": "reference",
       "title": "Reference",
-      "blurb": "Lookup, not reading: the CLIs, environment configuration, remote access, the AI-facing surface.",
+      "blurb": "Lookup, not reading: remote access, environment configuration, the AI-facing surface.",
       "pages": [
-        {
-          "href": "docs/pol-quick-reference.html",
-          "title": "pol CLI quick reference",
-          "gist": "Every pol module and verb on one page.",
-          "source": "polari-cli/docs/QUICK-REFERENCE.md"
-        },
-        {
-          "href": "docs/pol-architecture.html",
-          "title": "pol CLI architecture",
-          "gist": "How the suite CLI is put together.",
-          "source": "polari-cli/docs/CLI-ARCHITECTURE.md"
-        },
         {
           "href": "docs/remote-access.html",
           "title": "Remote access",
           "gist": "Reaching a node from outside: the one-peer tunnel, DDNS notes.",
           "source": "polari-cli/docs/REMOTE-ACCESS.md"
-        },
-        {
-          "href": "docs/isle-cli.html",
-          "title": "isle CLI reference",
-          "gist": "The isle command index.",
-          "source": "Isle-Mesh/isle-cli/INDEX.md"
-        },
-        {
-          "href": "docs/isle-discover.html",
-          "title": "isle discover",
-          "gist": "Scanning for isles, devices and apps.",
-          "source": "Isle-Mesh/isle-cli/DISCOVER.md"
         },
         {
           "href": "docs/environment-configuration.html",
