@@ -339,6 +339,9 @@ services:
       - ./.generated/.env.prod
       - ./pol-file-store/client.env
     environment:
+      # prd-4: an explicit module set + lazy two-phase boot (core-ready in ~1–2 min; modules admit after)
+      - POLARI_MODULES=${POLARI_PROD_MODULES:-polariapps,appstore,islemesh,terms,scoring}
+      - POLARI_LAZY_BOOT=1
       - DEPLOY_ENV=production
       # CORS_ORIGINS and PRF_API_URL come from .env.prod file
       # INTERNAL_API_URL: For API profiler self-call rewriting (avoids hairpin NAT)
@@ -376,8 +379,8 @@ services:
         constraints: ["node.role == manager"]
       resources:
         limits:
-          memory: 384M
-          cpus: '0.4'
+          memory: ${POLARI_BACKEND_MEM:-1200M}
+          cpus: '1.5'
         reservations:
           memory: 128M
           cpus: '0.1'
