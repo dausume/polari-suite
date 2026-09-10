@@ -22,17 +22,33 @@ import sys
 import yaml
 
 constraints = {}
+with_profiles = set()
 args = sys.argv[1:]
 while args:
     if args[0] == "--constraint" and len(args) > 1:
         svc, _, expr = args[1].partition("=")
         constraints.setdefault(svc, []).append(expr)
         args = args[2:]
+    elif args[0] == "--with-profile" and len(args) > 1:
+        with_profiles.add(args[1])
+        args = args[2:]
     else:
         args = args[1:]
 
 doc = yaml.safe_load(sys.stdin)
+if not doc:
+    sys.exit("stackify: empty compose config on stdin (docker compose config failed?)")
 doc.pop("name", None)
+# prd-4: swarm has no profiles — a profile-gated service (odoo) deploys only
+# when named with --with-profile; `build:` is authoring-only (compose builds
+# the image locally; the stack pulls it by name).
+for name in list(doc.get("services") or {}):
+    svc = doc["services"][name]
+    profs = svc.pop("profiles", None) or []
+    if profs and not (set(profs) & with_profiles):
+        del doc["services"][name]
+        continue
+    svc.pop("build", None)
 
 for name, svc in (doc.get("services") or {}).items():
     for expr in constraints.get(name, []):

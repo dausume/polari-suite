@@ -48,7 +48,7 @@ services:
       context: ./pol-mariadb
       dockerfile: Dockerfile
     container_name: pol-mariadb
-    image: pol-mariadb:prod
+    image: ${POLARI_IMAGE_REPO:-}pol-mariadb:${POLARI_IMAGE_TAG:-prod}
     restart: always
     networks:
       - polari-network
@@ -64,6 +64,8 @@ services:
       timeout: 5s
       retries: 3
     deploy:
+      placement:
+        constraints: ["node.role == manager"]
       resources:
         limits:
           memory: 512M
@@ -85,7 +87,7 @@ services:
       context: ./pol-file-store
       dockerfile: Dockerfile
     container_name: pol-file-store
-    image: pol-file-store:prod
+    image: ${POLARI_IMAGE_REPO:-}pol-file-store:${POLARI_IMAGE_TAG:-prod}
     restart: always
     networks:
       - polari-network
@@ -104,6 +106,8 @@ services:
       timeout: 5s
       retries: 3
     deploy:
+      placement:
+        constraints: ["node.role == manager"]
       resources:
         limits:
           memory: 256M
@@ -115,7 +119,7 @@ services:
   psc-redis:
     build: ./political-scorecard-node/political-scorecard-backend/redis
     container_name: psc-redis
-    image: psc-redis:prod
+    image: ${POLARI_IMAGE_REPO:-}psc-redis:${POLARI_IMAGE_TAG:-prod}
     networks:
       - polari-network
     volumes:
@@ -144,7 +148,17 @@ services:
       args:
         NGINX_CONF: nginx.dev.conf
     container_name: pol-proxy
-    image: pol-proxy:prod
+    image: nginx:1.27-alpine
+    configs:
+      - source: nginx_prod_conf
+        target: /etc/nginx/nginx.conf
+      - source: pol_ca_crt
+        target: /etc/nginx/certs/ca/pol-ca.crt
+    secrets:
+      - source: edge_fullchain
+        target: /etc/nginx/certs/pol-proxy.crt
+      - source: edge_privkey
+        target: /etc/nginx/certs/pol-proxy.key
     ports:
       - "80:80"
       - "443:443"
@@ -152,17 +166,16 @@ services:
       - polari-network
     volumes:
       # Mount generated nginx config (from prod-setup.sh)
-      - ./.generated/nginx.prod.conf:/etc/nginx/nginx.conf:ro
       # The public edge certificate, staged by prod-setup.sh into
       # .generated/certs/edge: the Let's Encrypt fullchain/privkey when
       # `pol cert prod letsencrypt` has issued one, else the self-signed
       # pair (browsers warn until then). Overrides the pair baked in the image.
-      - ./.generated/certs/edge/fullchain.pem:/etc/nginx/certs/pol-proxy.crt:ro
-      - ./.generated/certs/edge/privkey.pem:/etc/nginx/certs/pol-proxy.key:ro
       # ACME HTTP-01 webroot (LE_CHALLENGE=http) and the apt repository tree.
       - ./.generated/certbot-www:/var/www/certbot:ro
       - ./.generated/apt:/srv/apt:ro
     deploy:
+      placement:
+        constraints: ["node.role == manager"]
       resources:
         limits:
           memory: 64M
@@ -193,7 +206,10 @@ services:
       context: ./pol-keycloak
       dockerfile: Dockerfile.pol-kc
     container_name: pol-keycloak
-    image: pol-keycloak:prod
+    image: ${POLARI_IMAGE_REPO:-}pol-keycloak:${POLARI_IMAGE_TAG:-prod}
+    configs:
+      - source: keycloak_conf
+        target: /opt/keycloak/conf/keycloak.conf
     networks:
       - polari-network
     env_file:
@@ -202,8 +218,6 @@ services:
       # keeping Keycloak in sync with the generated DB credentials.
       - ./pol-mariadb/mariadb.env
       - ./.generated/.env.prod
-    volumes:
-      - ./pol-keycloak/environments/keycloak-suite.conf:/opt/keycloak/conf/keycloak.conf
     environment:
       - JAVA_OPTS_APPEND=-Xms256m -Xmx768m -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.net.preferIPv4Stack=true
       - KEYCLOAK_MODE=production
@@ -212,6 +226,8 @@ services:
         condition: service_healthy
     entrypoint: ["/opt/startup_shells/kc_entrypoint.sh"]
     deploy:
+      placement:
+        constraints: ["node.role == manager"]
       resources:
         limits:
           memory: 1024M
@@ -229,12 +245,12 @@ services:
       context: ./political-scorecard-node/political-scorecard-frontend
       dockerfile: Dockerfile.prod
     container_name: psc-frontend
-    image: psc-frontend:prod
+    image: ${POLARI_IMAGE_REPO:-}psc-frontend:${POLARI_IMAGE_TAG:-prod}
+    configs:
+      - source: psc_runtime_config
+        target: /usr/share/nginx/html/assets/runtime-config.json
     networks:
       - polari-network
-    volumes:
-      # Mount generated runtime config for production URLs
-      - ./.generated/psc-runtime-config.prod.json:/usr/share/nginx/html/assets/runtime-config.json:ro
     deploy:
       resources:
         limits:
@@ -251,7 +267,7 @@ services:
       context: ./political-scorecard-node/political-scorecard-backend
       dockerfile: Dockerfile.prod
     container_name: psc-backend
-    image: psc-backend:prod
+    image: ${POLARI_IMAGE_REPO:-}psc-backend:${POLARI_IMAGE_TAG:-prod}
     networks:
       - polari-network
     env_file:
@@ -295,12 +311,12 @@ services:
       context: ./polari-rf-node/polari-platform-angular
       dockerfile: Dockerfile.prod
     container_name: prf-frontend
-    image: prf-frontend:prod
+    image: ${POLARI_IMAGE_REPO:-}prf-frontend:${POLARI_IMAGE_TAG:-prod}
+    configs:
+      - source: prf_runtime_config
+        target: /usr/share/nginx/html/assets/runtime-config.json
     networks:
       - polari-network
-    volumes:
-      # Mount generated runtime config for production URLs
-      - ./.generated/prf-runtime-config.prod.json:/usr/share/nginx/html/assets/runtime-config.json:ro
     deploy:
       resources:
         limits:
@@ -316,7 +332,7 @@ services:
     build:
       context: ./polari-rf-node/polari-framework
     container_name: prf-backend
-    image: prf-backend:prod
+    image: ${POLARI_IMAGE_REPO:-}prf-backend:${POLARI_IMAGE_TAG:-prod}
     networks:
       - polari-network
     env_file:
@@ -356,6 +372,8 @@ services:
       start_period: 900s   # cold first-boot DB seed is ~10-15 min (verbose per-instance logging); keep container in "starting" so a one-pass `up` waits it out
       retries: 5
     deploy:
+      placement:
+        constraints: ["node.role == manager"]
       resources:
         limits:
           memory: 384M
@@ -374,12 +392,12 @@ services:
     build:
       context: ./pol-hub
     container_name: pol-hub
-    image: pol-hub:prod
+    image: ${POLARI_IMAGE_REPO:-}pol-hub:${POLARI_IMAGE_TAG:-prod}
+    configs:
+      - source: hub_runtime_config
+        target: /usr/share/nginx/html/assets/runtime-config.json
     networks:
       - polari-network
-    volumes:
-      # Per-env project URLs (prf / dps / mesh / oseb), read by the site JS.
-      - ./.generated/pol-hub-runtime-config.prod.json:/usr/share/nginx/html/assets/runtime-config.json:ro
     deploy:
       resources:
         limits:
@@ -406,7 +424,7 @@ services:
       context: ./pol-odoo-postgres
       dockerfile: Dockerfile
     container_name: odoo-postgres
-    image: pol-odoo-postgres:prod
+    image: ${POLARI_IMAGE_REPO:-}pol-odoo-postgres:${POLARI_IMAGE_TAG:-prod}
     restart: always
     networks:
       - polari-network
@@ -421,6 +439,8 @@ services:
       timeout: 5s
       retries: 3
     deploy:
+      placement:
+        constraints: ["node.role == manager"]
       resources:
         limits:
           memory: 512M
@@ -443,14 +463,16 @@ services:
       context: ./pol-odoo
       dockerfile: Dockerfile
     container_name: odoo
-    image: pol-odoo:prod
+    image: ${POLARI_IMAGE_REPO:-}pol-odoo:${POLARI_IMAGE_TAG:-prod}
+    configs:
+      - source: odoo_conf
+        target: /etc/odoo/odoo.conf
     restart: always
     networks:
       - polari-network
     env_file:
       - ./pol-odoo/odoo.env
     volumes:
-      - ./pol-odoo/odoo.conf:/etc/odoo/odoo.conf:ro
       - odoo-filestore:/var/lib/odoo
     depends_on:
       odoo-postgres:
@@ -490,3 +512,27 @@ volumes:
 networks:
   polari-network:
     driver: bridge
+
+# prd-4: everything a node needs travels as a config/secret (generated by pol prod);
+# the host-path binds that remain (debs, apt, certbot-www) sit on the manager.
+configs:
+  nginx_prod_conf:
+    file: ${POL_SUITE_ROOT:-.}/.generated/nginx.prod.conf
+  pol_ca_crt:
+    file: ${POL_SUITE_ROOT:-.}/pol-proxy/certs/ca/pol-ca.crt
+  prf_runtime_config:
+    file: ${POL_SUITE_ROOT:-.}/.generated/prf-runtime-config.prod.json
+  psc_runtime_config:
+    file: ${POL_SUITE_ROOT:-.}/.generated/psc-runtime-config.prod.json
+  hub_runtime_config:
+    file: ${POL_SUITE_ROOT:-.}/.generated/pol-hub-runtime-config.prod.json
+  keycloak_conf:
+    file: ${POL_SUITE_ROOT:-.}/pol-keycloak/environments/keycloak-suite.conf
+  odoo_conf:
+    file: ${POL_SUITE_ROOT:-.}/pol-odoo/odoo.conf
+
+secrets:
+  edge_fullchain:
+    file: ${POL_SUITE_ROOT:-.}/.generated/certs/edge/fullchain.pem
+  edge_privkey:
+    file: ${POL_SUITE_ROOT:-.}/.generated/certs/edge/privkey.pem

@@ -5,4 +5,8 @@ bundles:
     outputs:
       - { env: dev,     file: docker-compose.yml }
       - { env: staging, file: docker-compose.staging-nip.yml }
-      - { env: prod,    file: docker-compose.prod.yml }
+      # prod is AUTHORED DIRECTLY since 2026-09-09 (prd-4: swarm-first configs/secrets,
+      # downloads/apt/edge-cert seams) — the jinja sources are behind it. Re-template
+      # it before adding this row back; `pol build promote` must not regress it.
+      # - { env: prod,    file: docker-compose.prod.yml }
+      # docker-compose.lean.yml is likewise authored directly (the lean swarm role).

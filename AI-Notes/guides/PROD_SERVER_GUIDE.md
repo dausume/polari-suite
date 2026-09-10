@@ -7,7 +7,12 @@ Polari has two production routes. Pick by who is doing it.
 | **A home computer, for people** | Anyone | Install the `polari-complete` deb, open **Isle App Store**, choose **Create my own isle**. The store runs the guided isle install in a window. Nothing else. |
 | **A server (a small VM or your own swarm)** | Developers, or an AI assistant driving a terminal | `pol prod guide` — one walkthrough with menus, then it deploys. |
 
-This page is the server route. It deploys the **lean profile**: the site and documentation, the download page and apt repository, and one Polari backend with the floor set of modules, on SQLite, with no login server. That is the public distribution point. It runs on a $12-class VM.
+This page is the server route. It deploys one of two profiles, both as a docker swarm stack:
+
+- **Lean** (logins off, the default): the site and documentation, the download page and apt repository, and one Polari backend with the floor set of modules, on SQLite, with no login server. The public distribution point; runs on a $12-class VM. Four services.
+- **Full** (logins on): the lean set plus Keycloak logins, MariaDB, the MinIO file store, the Democratic Political Scorecard, and optionally Odoo. Eleven public names, about 7 GB of declared memory limits. Its credentials are generated at apply time, never typed defaults.
+
+On a fresh VM start with `pol prod bootstrap`: it installs docker if missing, initialises the swarm, and opens the guide.
 
 ## One command
 
@@ -22,11 +27,11 @@ The guide asks, in order, and remembers every answer in `.generated/prod-answers
 3. **HTTPS certificate** — two doors:
    - **Provider-issued, auto-approved** (Let's Encrypt): one certificate for all five names, trusted by every browser, renewed weekly. Verified either by an HTTP challenge through this server's port 80 (any registrar, nothing to configure) or by a DNS challenge through the DigitalOcean API.
    - **Auto-generated**: signed by the suite's own certificate authority. Works immediately; browsers warn until that root is imported. You can switch to the provider door later with `pol prod cert`.
-4. **Logins** — none (the lean profile, the default) or Keycloak (the full profile, a different and heavier stack).
+4. **Logins** — none (the lean profile, the default) or Keycloak (the full profile). With Keycloak the guide also asks whether to deploy Odoo.
 5. **Modules** — the floor set (`polariapps, appstore, islemesh, terms`); add more at the cost of memory.
 6. **Installers** — build the platform debs here, copy them from a release pool, or skip for now. The Download page lists whatever is staged.
 7. **Demonstration notice** — whether the apps show the "no personal information" bar and the terms gate.
-8. **Image tag** — the Polari images present on the manager.
+8. **Images** — a registry prefix to pull the release images from (for example `ghcr.io/dausume/`), or empty to build them on this machine from the checkout, and the image tag.
 
 Then it shows the plan and asks once whether to apply.
 
@@ -36,12 +41,13 @@ Every step is idempotent, so re-running after a fix is safe.
 
 1. Preflight: docker, swarm manager, ports 80 and 443 free, images present, DNS, certificate, staged debs, apt signing key.
 2. Writes the inputs: `.generated/.env.lean`, the frontend and hub runtime configs, `nginx.lean.conf`.
-3. Stages the edge certificate: the Let's Encrypt pair when issued, else one signed by the suite CA for the five names.
-4. Stages the installers per your answer.
-5. Builds the hub image (the site and its documentation are inside it, so any swarm node can run it).
-6. Renders the stack from `docker-compose.lean.yml` and deploys it as `polari-lean`. Configuration and the certificate travel as docker configs and secrets; the debs, apt tree and ACME webroot are directories on the manager, where the proxy and backend are pinned.
-7. If you chose the provider certificate, issues it now (the HTTP challenge needs the proxy up), re-deploys with the new secret, and installs weekly renewal.
-8. Prints the status board.
+3. For the full profile, runs the security setup once: the suite's certificate authority, the Keycloak certificate and admin, random database and file-store credentials.
+4. Stages the edge certificate: the Let's Encrypt pair when issued, else one signed by the suite CA for every name the profile serves (five for lean, eleven for full).
+5. Stages the installers per your answer.
+6. Pulls the release images from the registry, or builds them locally with compose; the hub image carries the site and its documentation, so any swarm node can run it.
+7. Renders the stack from the profile's compose file (`docker-compose.lean.yml` or `docker-compose.prod.yml`) and deploys it as `polari-lean` or `polari-prod`. Configuration and the certificate travel as docker configs and secrets; the debs, apt tree and ACME webroot are directories on the manager, where the proxy and backend are pinned.
+8. If you chose the provider certificate, issues it now (the HTTP challenge needs the proxy up), re-deploys with the new secret, and installs weekly renewal.
+9. Prints the status board.
 
 ## Unattended
 
@@ -69,4 +75,5 @@ The status board says plainly when the certificate is not yet publicly trusted, 
 
 - Point DNS at the server before choosing the provider certificate.
 - The apt repository is served from `.generated/apt`; publishing into it needs the signing key, which lives with the build pipeline's secrets.
-- The full profile with Keycloak (`docker-compose.prod.yml`, `start-prod.sh`) is a different stack; rotate its credentials before it faces the internet.
+- The full profile's Keycloak credentials are generated by the security setup on first apply; rotate them with `pol security rotate prod` before the server faces the internet, and keep the generated env file private.
+- The old `start-prod.sh` and `prod-setup.sh` still exist but only hand over to `pol prod`.

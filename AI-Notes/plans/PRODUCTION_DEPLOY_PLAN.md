@@ -579,3 +579,32 @@ present on the manager; (3) `pol prod` for the FULL profile (Keycloak)
 still hands off to `start-prod.sh`; (4) the isle-side KVM route is the
 store shell's own guide, untouched; (5) his: DNS, the real domain, the
 LE issue, the apt signing key, KC rotation for the full profile.
+
+**§11 addendum, same day — the FULL profile on swarm too, one process.**
+His ruling: "we need to transition to a fully working prod deployment
+process based on docker swarm". Done in the same shape as lean:
+- `docker-compose.prod.yml` converted swarm-first: every generated-file
+  bind is now a config or secret (`nginx.prod.conf`, the CA cert, the
+  three runtime configs, `keycloak-suite.conf`, `odoo.conf`; the edge
+  pair as secrets); the proxy is `nginx:1.27-alpine` + config + secrets
+  (no custom image); images are `${POLARI_IMAGE_REPO:-}name:${POLARI_
+  IMAGE_TAG:-prod}`; stateful/bind-mounting services pinned to the
+  manager. `build:` blocks stay for the compose (authoring) route.
+- `stackify.py` drops `build:` and drops profile-gated services unless
+  `--with-profile <name>` (odoo rides `POL_PROD_ODOO=on`); refuses an
+  empty compose config loudly instead of crashing.
+- `pol swarm deploy prod` role; `pol prod` profile = logins: off → lean,
+  keycloak → full (`security_setup` runs `setup-polari-security.sh prod`
+  non-interactively with RANDOM passwords, `write_configs_full` replaces
+  prod-setup.sh's five steps — weak literal defaults are gone; `.env.prod`
+  is 0600). `POL_PROD_IMAGE_REPO` pulls release images (with registry
+  auth) instead of building; `pol prod bootstrap` = fresh VM (docker,
+  swarm init, guide).
+- `start-prod.sh` / `prod-setup.sh` retired into delegators to `pol prod`.
+- `pol build promote` no longer touches `docker-compose.prod.yml`
+  (manifest row commented out with the reason) — the prod and lean files
+  are authored directly until the jinja sources are re-templated.
+Rendered: stack-prod.yml = 10 services (odoo pair dropped), 6 configs +
+2 secrets, no compose-only keys, 5 manager pins, KC issuer set on the
+backend, rendered nginx.prod.conf passes `nginx -t`, the staged
+CA-signed cert carries all 11 names.
