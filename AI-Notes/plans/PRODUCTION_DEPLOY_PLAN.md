@@ -691,3 +691,36 @@ every service to the manager; with a registry (`POL_PROD_IMAGE_REPO`)
 services may spread. Profile-gated services (odoo) are named explicitly
 for swarm (`POL_SWARM_PROFILES=odoo` / `POL_PROD_ODOO=on`): compose
 config omits them otherwise, which is what every swarm role did before.
+
+## 13. Into and out of production, both routes, by terminal (tested 2026-09-10)
+
+**Isle route (over SSH to isle-core, the live isle from polari-complete
+0.1.33).** "Prod mode" on an isle = designating the device an entrypoint
+and opening a door; "out" = closing it. Sequence and results:
+1. `isle url expose polari.isle --port 18443 --user tester` while NOT an
+   entrypoint → refused ("exposure is regulated") ✓
+2. `sudo isle url entrypoint enable` ✓ (`/etc/isle-mesh/entrypoint.enabled`)
+3. `sudo isle url expose polari.isle --port 18443 --user tester --password …`
+   → security gate clean → gateway container `isle-expose-18443` on
+   0.0.0.0:18443 → from another machine: 401 without credentials, 200
+   (the Polari frontend) with them; `.isle` itself never left the isle ✓
+4. `sudo isle url unexpose --port 18443` → container gone, connection
+   refused from outside ✓; `sudo isle url entrypoint disable` → "not an
+   entrypoint", "the isle is fully contained" ✓
+Found: `isle security gate` answers differently as root vs the login
+user (the user path checks the dev checkout, not the installed
+material), so `isle url expose` needs sudo today — reported to
+isle-core in NOTES-FROM-POL-CORE.md. The isle's Polari (prf-isle-backend
++ frontend, up 4 days) was untouched by the swarm work.
+
+**Swarm route (this manager).** `pol prod apply --yes` (lean) → stack
+polari-lean 4/4, apex/downloads/prf/api health (4/4 modules)/apt all 200
+→ `pol prod down` → no stack, ports 80/443 closed, the apex no longer
+answers. Same day the full profile did the same loop (§11 addendum 2).
+
+Both routes go into production and back out from a terminal alone; the
+isle's exposure is per door and per person, the swarm's is the whole
+stack. What was NOT tested: creating a fresh isle from scratch (needs a
+hardware-tier machine that is not the live one — DEB_TOPOLOGY_TEST_
+SCENARIOS Phase D/E, his hands-on), and the Let's Encrypt issue (needs
+real DNS).

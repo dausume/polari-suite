@@ -64,6 +64,20 @@ POL_PROD_LE_EMAIL=ops@example.org POL_PROD_DEBS=build pol prod apply --yes
 
 The proxy runs on the manager and is the only entry point. It reaches every other service by name over the swarm's overlay network, wherever that service was placed, so adding machines does not change the proxy. With locally built images every service stays on the manager (only it has the images); with a registry prefix the services may spread across nodes. An isle is a different world: there the isle agent's own nginx fronts Polari as `polari.isle`, and nothing here touches it.
 
+## Opening and closing an isle to the outside
+
+An isle has its own, smaller version of "production": one door at a time, one person per door, and the isle's names never leave. From a terminal on the isle's core device:
+
+```
+sudo isle url entrypoint enable                              this device may open doors
+sudo isle url expose polari.isle --port 18443 --user alice   a door to Polari, basic auth at the door
+isle url exposures                                           what is open
+sudo isle url unexpose --port 18443                          close the door
+sudo isle url entrypoint disable                             back to fully contained
+```
+
+The door refuses to open until the device is designated and its deploy-time credentials pass the security gate. Closing it removes the gateway container; nothing inside changes.
+
 ## Afterwards
 
 ```
