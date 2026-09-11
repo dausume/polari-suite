@@ -78,6 +78,32 @@ sudo isle url entrypoint disable                             back to fully conta
 
 The door refuses to open until the device is designated and its deploy-time credentials pass the security gate. Closing it removes the gateway container; nothing inside changes.
 
+## On a DigitalOcean droplet
+
+The droplet tells the server its own addresses. `pol prod addresses` reads DigitalOcean's metadata service (nothing to configure, no token) and lists the public IPv4, the public IPv6 if enabled, the reserved IP if one is attached, and the private VPC address. The **exposure address** is the one every DNS A record must carry: the reserved IP when there is one, else the droplet's public IPv4.
+
+Attach a reserved IP before you set DNS. A wiped and rebuilt droplet gets a new public address; a reserved IP stays yours and follows the rebuilt droplet, so the records never change. The guide warns when none is attached and links to the page.
+
+The detected address is a suggestion. The guide asks whether to keep it or to type the address you know is right, for the cases where the machine sees the wrong one or the address is about to change. `pol prod addresses --use <ip>` records your answer at any time; `--auto` goes back to detection. The preflight and the status board say which one is in use.
+
+If a DigitalOcean cloud firewall is attached to the droplet it must allow inbound 22, 80 and 443; the host firewall itself is rendered by os-security.
+
+## Providers, and where to go
+
+`pol prod providers` shows which provider fills which role for this deployment, hosting, DNS, certificate, registry and code, with the pages to visit for each. The guide shows the same links at the step where they matter: the DNS page where the A records are set, Let's Encrypt's rate limits and status before a certificate is requested, and the API token page when the DNS challenge is chosen. Provider credentials are never typed into the guide, except the DNS-challenge token, which is read from the environment and never written down.
+
+## Credentials and the vault
+
+Nothing the guide generates is left for you to protect by hand. On the full profile the Keycloak admin, the database passwords and the file-store keys are generated once, at random, and recorded in an encrypted, root-only vault at `/etc/polari/vault`. Read it with `sudo pol security vault show`; nothing in it is ever printed to a log.
+
+At the start the guide tells you this and asks one rule for **provider** credentials, the ones you bring yourself, such as a DigitalOcean API token for the DNS challenge: stash all of them in the vault, ask for each one, or none. A stashed token is reused on the next run, so you are not asked twice. The advice stays the same either way: record provider credentials in your own password manager and remove them from the vault afterwards with `sudo pol security vault forget 'provider <name>'`. `pol security status` reminds you while any are stashed.
+
+When apply finishes the guide asks what to do with the vault: keep it here, show everything once so you can write it down and then shred it, or export it (with its key, kept apart) to a path you choose and shred the local copy. Unattended runs keep it.
+
+The vault protects against anyone external: a copied disk, a backup, another user, a tarball of the checkout. It does not hide values from the account that runs the deployment, which is deliberate while the setup is being iterated on; an off-machine-key mode exists for later.
+
+One more thing the vault fixed: credential files that still carry placeholder values are no longer reused. Apply moves them aside, generates real ones, and tells you that a database volume created with the old values has to be recreated.
+
 ## From another machine
 
 `pol deploy` drives machines listed in the nodes manifest over ssh:
