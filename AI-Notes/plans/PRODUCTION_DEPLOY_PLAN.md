@@ -819,3 +819,30 @@ hardware --install`, `ISLE_CORE_IP=192.168.0.25 pol deploy install
 econ-core --route isle-member --host`, `pol deploy status econ-core`.
 The member dry-run already resolves the new isle's fingerprint and the
 bootstrap sha from the core.
+
+## 16. The credential vault — what happens to auto-generated secrets (his ask 2026-09-11)
+
+_"If we are autogenerating everything, make a secure file that has sudo-only permissions… clear labelling and encryption… ask the user to either leave it so they can access it later with their password, or write it down / put it somewhere safe and delete the file."_ Adopted, with one addition: the machine's own copy moves into swarm secrets so the vault is the ONLY copy on disk.
+
+**Two copies, two audiences.**
+- The **machine copy** is docker swarm secrets (`pol prod apply` already ships credentials as secrets; the Raft store is encrypted at rest and `docker swarm update --autolock=true` keeps its key off disk). After the stack is up, the plaintext env files under the checkout (`pol-keycloak/keycloak-admin.env`, `pol-mariadb/mariadb.env`, `pol-file-store/*.env`, `.generated/.env.prod`) are **shredded**; the services never read them again. Compose (non-swarm) keeps 0600 env files because compose has no secret store — the guide says so.
+- The **human copy** is the vault: `/etc/polari/vault/polari-credentials-<domain>-<date>.enc`, directory `root:root 0700`, file `0600`. Outside the repo (survives reclones and `pol repos slim`), one file per generation, never overwritten (rotation writes a new one and names the old as superseded).
+
+**Format.** The plaintext is a labelled, self-describing text: a banner line (`POLARI CREDENTIALS — <domain> — generated <date> on <host> — keep this file or write these down; every value below is the ONLY copy`), then one block per credential with its purpose, where it is used, and how to rotate it (Keycloak admin, Keycloak DB, PSC DB, MariaDB root, MinIO root + client, the apt signing key passphrase when one exists, the CA key's LOCATION, never its bytes). Encryption: `openssl enc -aes-256-cbc -pbkdf2 -iter 600000` with a **vault passphrase the operator chooses in the TUI** (never their login or sudo password — we must not capture those; typed twice, minimum length, or `--passphrase-file` for unattended runs, or a generated one printed once). No new dependency (openssl is already required); `age` stays an option if a keypair flow is wanted later.
+
+**The prompt at the end of `pol prod apply` (and `pol node up --env prod`)**, after the stack is healthy:
+```
+Credentials were generated for this deployment and encrypted at
+  /etc/polari/vault/polari-credentials-<domain>-2026-09-11.enc   (root only)
+  1) Keep the vault here — read it later with:  sudo pol security vault show
+  2) Show them now ONCE so you can write them down or put them in a password manager,
+     then shred the vault (nothing recoverable stays on this machine)
+  3) Export the vault to a path (USB, another machine) and shred the local copy
+```
+Choice 2 and 3 end with `shred -u`; the TUI confirms the operator saw the values before shredding. Unattended (`--auto`): choice 1, and the summary prints the vault path.
+
+**Verbs.** `pol security vault show|export <path>|import <file>|list|shred` (all `sudo`, all prompt for the passphrase; `show` prints to the terminal only, never to a log); `pol security rotate prod` writes a new vault entry; `pol security status` reports the vault (present / shredded-by-choice / missing = generated but never vaulted — a failure).
+
+**What this fixes from §15 / today's finding.** The security setup skips itself when credential files EXIST; with the vault flow the setup treats a placeholder-bearing or shredded file as absent and regenerates (fresh DB volume required, said out loud), so "one run of apply" is true on a used box too, not only on a fresh VM.
+
+Phase **prd-9**: vault write + prompt + verbs + shred-after-swarm-secrets + the placeholder-counts-as-missing fix; proof = a full-profile apply on a clean VM leaves no plaintext credential on disk, `vault show` recovers every value, Keycloak login works with the recovered admin password. His **D9**: passphrase always chosen by the operator, or allow a generated-and-printed-once passphrase for headless runs? **D10**: shred the checkout env files by default on the swarm route, or keep them 0600 until he has used the vault once?
