@@ -33,6 +33,12 @@ It installs the few packages the CLI needs, then docker, gets the Polari suite i
 
 Later, from the same console: `pol prod status`, `pol prod cert`, `pol security vault show`.
 
+## The guide's screens
+
+`pol prod guide` opens a full-screen guide (Python, Textual) that resizes with your terminal, including the DigitalOcean browser console. The left column lists the steps and marks where you are: credentials and vault, domain, exposure address, DNS check, certificate, logins and modules, images, installers and notice, review, apply. The right column is the current step's form, or the live log once apply runs. Every fact on screen comes from the machine itself, and every answer is checked before the next step: a step with a problem says what is wrong and does not advance. The pairs that must match are set together and shown together on the review screen, so a registry cannot be chosen without a tag the registry has, a DNS challenge cannot be chosen without DigitalOcean DNS, and Odoo cannot be chosen without the full profile. Apply asks for one more press, writes the answers file, and streams the run. Ctrl+R re-checks DNS after you change records; Ctrl+B goes back; Ctrl+Q quits.
+
+The plain dialogs remain as the fallback when Python's Textual is not installed (`pol prod tui-install` installs it; `POL_PROD_TUI=whiptail` forces the old dialogs). Both front ends write the same answers file and run the same steps.
+
 ## One command
 
 ```

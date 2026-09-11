@@ -37,7 +37,7 @@ done
 echo "   apt-get update …"
 $SUDO apt-get update -qq 2>&1 | grep -v "^$" | tail -2 || true
 echo "   installing git, node, whiptail, python (a minute or two; the lines below are apt's) …"
-$SUDO apt-get install -y -q git curl ca-certificates nodejs whiptail python3 python3-yaml python3-jinja2 openssl 2>&1 | grep -E "^(Setting up|Unpacking|E:|W:)" | sed 's/^/   /' | tail -n 30
+$SUDO apt-get install -y -q git curl ca-certificates nodejs whiptail python3 python3-pip python3-venv python3-yaml python3-jinja2 openssl 2>&1 | grep -E "^(Setting up|Unpacking|E:|W:)" | sed 's/^/   /' | tail -n 30
 command -v node >/dev/null 2>&1 || { echo "node did not install — run: apt-get install -y nodejs"; exit 1; }
 ok "git $(git --version | awk '{print $3}'), node $(node --version), whiptail"
 
@@ -77,6 +77,9 @@ if command -v pol >/dev/null 2>&1; then ok "pol installed: $(command -v pol)"; e
     for c in "$HOME/.local/bin" /usr/local/bin; do [ -x "$c/pol" ] && { export PATH="$c:$PATH"; ok "pol installed at $c/pol (this shell's PATH updated)"; break; }; done
     command -v pol >/dev/null 2>&1 || { warn "pol is installed but not on PATH yet — open a new terminal and run: pol prod bootstrap"; exit 0; }
 fi
+
+step "4b  the guided screens (Textual, python)"
+( cd "$DIR" && pol prod tui-install 2>&1 | tail -1 ) || warn "Textual not installed — the guide uses plain dialogs"
 
 step "5/5 the production guide"
 cd "$DIR"
