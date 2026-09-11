@@ -28,8 +28,17 @@ command -v apt-get >/dev/null 2>&1 || { echo "get-polari.sh expects Ubuntu or De
 
 step "1/5 packages"
 export DEBIAN_FRONTEND=noninteractive
-$SUDO apt-get update -qq
-$SUDO apt-get install -y -qq git curl ca-certificates nodejs npm whiptail python3 python3-yaml python3-jinja2 openssl >/dev/null
+# a fresh machine runs its first-boot updates right after login and holds the package lock for minutes —
+# say so instead of looking frozen
+n=0; while $SUDO fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock >/dev/null 2>&1; do
+    [ $n = 0 ] && echo "   waiting for the system's own first-boot package updates to finish (this can take a few minutes) …"
+    n=$((n+1)); sleep 5; [ $((n % 12)) = 0 ] && echo "   still waiting ($((n*5))s) — nothing is wrong"
+done
+echo "   apt-get update …"
+$SUDO apt-get update -qq 2>&1 | grep -v "^$" | tail -2 || true
+echo "   installing git, node, whiptail, python (a minute or two; the lines below are apt's) …"
+$SUDO apt-get install -y -q git curl ca-certificates nodejs whiptail python3 python3-yaml python3-jinja2 openssl 2>&1 | grep -E "^(Setting up|Unpacking|E:|W:)" | sed 's/^/   /' | tail -n 30
+command -v node >/dev/null 2>&1 || { echo "node did not install — run: apt-get install -y nodejs"; exit 1; }
 ok "git $(git --version | awk '{print $3}'), node $(node --version), whiptail"
 
 step "2/5 docker"
@@ -38,7 +47,8 @@ elif command -v docker >/dev/null 2>&1; then ok "docker already installed: $(doc
 else
     # docker's own script first (current engine, its repo carries every Ubuntu release incl. 26.04 'resolute');
     # if it refuses this release, Ubuntu's own packages (docker.io + the compose v2 plugin) — swarm works on both
-    if curl -fsSL https://get.docker.com | $SUDO sh >/dev/null 2>&1 && command -v docker >/dev/null 2>&1; then
+    echo "   installing docker from docker's own repository (one to three minutes) …"
+    if curl -fsSL https://get.docker.com | $SUDO sh 2>&1 | grep -E "^(\+ sh -c|E:|W:|ERROR)" | sed 's/^/   /' | tail -n 8; command -v docker >/dev/null 2>&1; then
         ok "docker installed (docker's repo): $(docker --version | cut -d, -f1)"
     else
         warn "docker's install script did not work on this release — using Ubuntu's docker.io package instead"
