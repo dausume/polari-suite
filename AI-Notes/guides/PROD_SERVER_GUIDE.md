@@ -14,6 +14,25 @@ This page is the server route. It deploys one of two profiles, both as a docker 
 
 On a fresh VM start with `pol prod bootstrap`: it installs docker if missing, initialises the swarm, and opens the guide.
 
+## From zero, in the browser (no ssh)
+
+You do not need ssh or a terminal program on your own computer. DigitalOcean gives every droplet a terminal in the browser.
+
+1. **Attach a reserved IP** (Networking → Reserved IPs → assign to the droplet). It stays yours across rebuilds, so the DNS you set next never changes. Point your five names at it now if you already know the domain.
+2. **Rebuild the droplet** (Droplet → Rebuild → Ubuntu 24.04 LTS). This wipes the disk and keeps the droplet, its addresses and its firewall. Add your SSH key when it asks; you will not need it, but it keeps the root password out of e-mail.
+3. **Open the console** (Droplet → Access → Launch Droplet Console). You are root on the fresh machine.
+4. **Paste one line** and press Enter:
+
+```
+curl -fsSL https://raw.githubusercontent.com/dausume/polari-suite/main/get-polari.sh | bash
+```
+
+It installs the few packages the CLI needs, then docker, gets the Polari suite into `/opt/polari`, installs the `pol` command, initialises the swarm, and opens the guide. Paste the same line again if anything was interrupted; every step picks up where it left off.
+
+5. **Answer the guide's questions.** It shows the droplet's addresses and asks you to confirm the exposure address, checks DNS, asks about the certificate, the profile, the modules, and applies.
+
+Later, from the same console: `pol prod status`, `pol prod cert`, `pol security vault show`.
+
 ## One command
 
 ```

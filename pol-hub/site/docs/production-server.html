@@ -88,6 +88,13 @@
 <p>This page is the server route. It deploys one of two profiles, both as a docker swarm stack:</p>
 <ul><li><strong>Lean</strong> (logins off, the default): the site and documentation, the download page and apt repository, and one Polari backend with the floor set of modules, on SQLite, with no login server. The public distribution point; runs on a $12-class VM. Four services.</li><li><strong>Full</strong> (logins on): the lean set plus Keycloak logins, MariaDB, the MinIO file store, the Democratic Political Scorecard, and optionally Odoo. Eleven public names, about 7 GB of declared memory limits. Its credentials are generated at apply time, never typed defaults.</li></ul>
 <p>On a fresh VM start with <code>pol prod bootstrap</code>: it installs docker if missing, initialises the swarm, and opens the guide.</p>
+<h2 id="from-zero-in-the-browser-no-ssh">From zero, in the browser (no ssh)</h2>
+<p>You do not need ssh or a terminal program on your own computer. DigitalOcean gives every droplet a terminal in the browser.</p>
+<ol><li><strong>Attach a reserved IP</strong> (Networking → Reserved IPs → assign to the droplet). It stays yours across rebuilds, so the DNS you set next never changes. Point your five names at it now if you already know the domain.</li><li><strong>Rebuild the droplet</strong> (Droplet → Rebuild → Ubuntu 24.04 LTS). This wipes the disk and keeps the droplet, its addresses and its firewall. Add your SSH key when it asks; you will not need it, but it keeps the root password out of e-mail.</li><li><strong>Open the console</strong> (Droplet → Access → Launch Droplet Console). You are root on the fresh machine.</li><li><strong>Paste one line</strong> and press Enter:</li></ol>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/dausume/polari-suite/main/get-polari.sh | bash</code></pre>
+<p>It installs the few packages the CLI needs, then docker, gets the Polari suite into <code>/opt/polari</code>, installs the <code>pol</code> command, initialises the swarm, and opens the guide. Paste the same line again if anything was interrupted; every step picks up where it left off.</p>
+<ol><li><strong>Answer the guide's questions.</strong> It shows the droplet's addresses and asks you to confirm the exposure address, checks DNS, asks about the certificate, the profile, the modules, and applies.</li></ol>
+<p>Later, from the same console: <code>pol prod status</code>, <code>pol prod cert</code>, <code>pol security vault show</code>.</p>
 <h2 id="one-command">One command</h2>
 <pre><code>pol prod guide</code></pre>
 <p>The guide asks, in order, and remembers every answer in <code>.generated/prod-answers.env</code>:</p>
