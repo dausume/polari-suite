@@ -15,10 +15,10 @@
 #   5. opens `pol prod bootstrap` — swarm init, then the guided questions
 #
 # Knobs (environment): POLARI_BRANCH=main|dev   POLARI_DIR=<path>
-#   POLARI_PIECES="polari-cli polari-rf-node"   POLARI_NO_DOCKER=1   POLARI_NO_GUIDE=1
+#   POLARI_PIECES="polari-cli polari-rf-node Isle-Mesh polari-app-shell"   POLARI_NO_DOCKER=1   POLARI_NO_GUIDE=1
 set -e
 BRANCH="${POLARI_BRANCH:-main}"
-PIECES="${POLARI_PIECES:-polari-cli polari-rf-node}"
+PIECES="${POLARI_PIECES:-polari-cli polari-rf-node Isle-Mesh polari-app-shell}"   # the last two only for building the installers (debs)
 if [ "$(id -u)" = 0 ]; then DIR="${POLARI_DIR:-/opt/polari}"; SUDO=""; else DIR="${POLARI_DIR:-$HOME/polari}"; SUDO="sudo"; fi
 G="\033[0;32m"; Y="\033[1;33m"; C="\033[0;36m"; N="\033[0m"
 ok(){ echo -e "${G}[ OK ]${N} $*"; }; warn(){ echo -e "${Y}[WARN]${N} $*"; }; step(){ echo; echo -e "${C}==> $*${N}"; }
