@@ -66,8 +66,12 @@ else
     $SUDO mkdir -p "$(dirname "$DIR")"; [ -n "$SUDO" ] && $SUDO chown "$USER" "$(dirname "$DIR")" 2>/dev/null || true
     git clone -q --branch "$BRANCH" --filter=blob:none https://github.com/dausume/polari-suite.git "$DIR" && ok "cloned"
 fi
+# public pieces over https, never a prompt; nested pieces that are private or ssh-only are skipped with a note
+export GIT_TERMINAL_PROMPT=0
+git config --global url."https://github.com/".insteadOf "git@github.com:" 2>/dev/null || true
 for p in $PIECES; do
-    git -C "$DIR" submodule update -q --init --recursive --filter=blob:none "$p" && ok "piece $p"
+    git -C "$DIR" submodule update -q --init --filter=blob:none "$p" && ok "piece $p" || { warn "piece $p could not be pulled"; continue; }
+    git -C "$DIR/$p" submodule update -q --init --recursive --filter=blob:none 2>/dev/null || warn "some nested pieces of $p are private or ssh-only — skipped (not needed for a server)"
 done
 
 step "4/5 the pol command"
