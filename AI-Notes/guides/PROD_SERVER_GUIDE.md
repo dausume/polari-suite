@@ -54,7 +54,7 @@ The guide asks, in order, and remembers every answer in `.generated/prod-answers
    - **Auto-generated**: signed by the suite's own certificate authority. Works immediately; browsers warn until that root is imported. You can switch to the provider door later with `pol prod cert`.
 4. **Logins** — none (the lean profile, the default) or Keycloak (the full profile). With Keycloak the guide also asks whether to deploy Odoo.
 5. **Modules** — the floor set (`polariapps, appstore, islemesh, terms`); add more at the cost of memory.
-6. **Installers** — build the platform debs here, copy them from a release pool, or skip for now. The Download page lists whatever is staged.
+6. **Installers** — installers are release artifacts: built once, published, fetched here. The guide lists the official releases that carry installers (GitHub Releases of the suite, free for a public project) and stages the chosen one; or build them here, or name another pool (a directory, a release page URL, or `github:<owner/repo>@<tag>`), or skip. The Download page lists whatever is staged.
 7. **Demonstration notice** — whether the apps show the "no personal information" bar and the terms gate.
 8. **Images** — a registry prefix to pull the release images from (for example `ghcr.io/dausume/`), or empty to build them on this machine from the checkout, and the image tag.
 
