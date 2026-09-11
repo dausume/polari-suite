@@ -36,9 +36,17 @@ step "2/5 docker"
 if [ -n "${POLARI_NO_DOCKER:-}" ]; then warn "skipped (POLARI_NO_DOCKER)"
 elif command -v docker >/dev/null 2>&1; then ok "docker already installed: $(docker --version | cut -d, -f1)"
 else
-    curl -fsSL https://get.docker.com | $SUDO sh >/dev/null
+    # docker's own script first (current engine, its repo carries every Ubuntu release incl. 26.04 'resolute');
+    # if it refuses this release, Ubuntu's own packages (docker.io + the compose v2 plugin) — swarm works on both
+    if curl -fsSL https://get.docker.com | $SUDO sh >/dev/null 2>&1 && command -v docker >/dev/null 2>&1; then
+        ok "docker installed (docker's repo): $(docker --version | cut -d, -f1)"
+    else
+        warn "docker's install script did not work on this release — using Ubuntu's docker.io package instead"
+        $SUDO apt-get install -y -qq docker.io docker-compose-v2 docker-buildx >/dev/null
+        $SUDO systemctl enable --now docker >/dev/null 2>&1 || true
+        ok "docker installed (Ubuntu package): $(docker --version | cut -d, -f1)"
+    fi
     [ -n "$SUDO" ] && $SUDO usermod -aG docker "$USER" && warn "added $USER to the docker group — log out and in once for it to apply"
-    ok "docker installed: $(docker --version | cut -d, -f1)"
 fi
 
 step "3/5 the Polari suite → $DIR (branch $BRANCH)"
