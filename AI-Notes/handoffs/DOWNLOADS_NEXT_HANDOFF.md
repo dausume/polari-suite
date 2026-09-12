@@ -127,7 +127,7 @@ bundles with real links; 13/13) — and
 four surfaces with real data (same resource classes, no twin
 routes). Live pass caught + fixed: offline manifests belong IN
 the pool; nested chunk paths need the {filename:path} route.
-Preview left running: http://192.168.0.210:8090/downloads
+Preview left running: http://<pol-core LAN address>:8090/downloads
 
 ## dl-7 (same day): dependency/engine accounting + two deb flavors
 

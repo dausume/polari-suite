@@ -12,14 +12,14 @@
 #   sudo docker compose -f docker-compose.staging-nip.yml --env-file .generated/.env.staging up -d --build
 #
 # ACCESS (auto-rendered from the configured LOCAL_IP):
-#   - Landing:        https://192.168.0.210.nip.io
-#   - Keycloak:       https://auth.192.168.0.210.nip.io
-#   - PSC Frontend:   https://psc.192.168.0.210.nip.io
-#   - PSC API:        https://api.psc.192.168.0.210.nip.io
-#   - PRF Frontend:   https://prf.192.168.0.210.nip.io
-#   - PRF API:        https://api.prf.192.168.0.210.nip.io
-#   - MinIO Console:  https://files.192.168.0.210.nip.io
-#   - MinIO S3 API:   https://s3.192.168.0.210.nip.io
+#   - Landing:        https://192.168.1.50.nip.io
+#   - Keycloak:       https://auth.192.168.1.50.nip.io
+#   - PSC Frontend:   https://psc.192.168.1.50.nip.io
+#   - PSC API:        https://api.psc.192.168.1.50.nip.io
+#   - PRF Frontend:   https://prf.192.168.1.50.nip.io
+#   - PRF API:        https://api.prf.192.168.1.50.nip.io
+#   - MinIO Console:  https://files.192.168.1.50.nip.io
+#   - MinIO S3 API:   https://s3.192.168.1.50.nip.io
 #
 # NOTE: extra_hosts use ${LOCAL_IP}, resolved from --env-file at LAUNCH time
 # (the runtime knob); the doc URLs above are rendered from the CONFIGURED

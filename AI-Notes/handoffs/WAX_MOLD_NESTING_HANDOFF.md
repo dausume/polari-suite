@@ -192,7 +192,7 @@ pol modules selftest <module>        # in-container
 ```
 
 Backend is a **swarm service** — `docker cp` is discarded on restart.
-Live API `https://api.prf.192.168.0.210.nip.io` (https; http 301s).
+Live API `https://api.prf.<pol-core LAN address>.nip.io` (https; http 301s).
 Selftests can be run directly in the container:
 `docker exec <backend> python -m modules.<mod>.selftest_<x>`.
 

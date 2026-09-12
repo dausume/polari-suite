@@ -160,7 +160,7 @@ grpc-2's plan. 13/13 + baseline-identical 66-suite + 22/22 smoke.**
   (services prf-backend/prf-frontend); after EVERY `up -d --build`
   run `docker exec pol-proxy nginx -s reload` (proxy caches container
   IPs → 502s otherwise). Backend boot ~150 s. API via
-  `curl -sk -H 'Host: api.prf.192.168.0.210.nip.io' https://localhost/...`
+  `curl -sk -H 'Host: api.prf.<pol-core LAN address>.nip.io' https://localhost/...`
   (use --form-string for CRUDE PUT tests, -F mangles JSON). Smoke:
   `python3 polari-rf-node/polari-framework/tests/live_api_smoke.py`
   (22/22 expected). Selftests `python3 -m <pkg>.<mod>` from

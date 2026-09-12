@@ -8,7 +8,7 @@ SUITE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FW="$SUITE_ROOT/polari-rf-node/polari-framework"
 RF="$SUITE_ROOT/polari-rf-node"
 GH_OWNER=dausume
-export LOCAL_IP=${LOCAL_IP:-192.168.0.210}
+export LOCAL_IP=${LOCAL_IP:-192.168.1.50}
 
 BOLD=$'\033[1m'; CYAN=$'\033[0;36m'; RED=$'\033[0;31m'; GREEN=$'\033[0;32m'; NC=$'\033[0m'
 

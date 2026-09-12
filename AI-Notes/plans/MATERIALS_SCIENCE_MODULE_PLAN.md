@@ -52,7 +52,7 @@ configurable at that object), small files split by concern, branch per confirmed
 
 ### Track 1 — Distribute load over the 3 computers
 
-Machines: **this box** (192.168.0.210 — staging stack + twin B), **isle-core**
+Machines: **this box** (<pol-core LAN address> — staging stack + twin B), **isle-core**
 (detts@192.168.0.24), **lightweight** (dausume@192.168.0.66).
 
 Proven ladder to build on (DISTRIBUTED_COMPUTE_PLAN.md): Dask parallel search (6×),

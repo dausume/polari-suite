@@ -766,7 +766,7 @@ BEFORE declaring live. NOTE THE PAYLOAD SHAPE — it is not obvious:
 task makes swarm respawn from the IMAGE and your `docker cp` is
 LOST. Deploy = `pol node build backend --env staging` then
 `docker service update --force --image prf-backend:staging
-polari-node_backend`. Live host is `api.prf.192.168.0.210.nip.io`.
+polari-node_backend`. Live host is `api.prf.<pol-core LAN address>.nip.io`.
 
 TESTS: motors 200/200, magnetics 51/51, gears 62/62, meshassets
 36/36 — all IN CONTAINER. Endpoints live-verified:
@@ -1468,7 +1468,7 @@ source" has already been wrong once here.
 - API-verified live: bizops economy/sellability/deal-pricing/
   walkthrough, sourcing, odoo status (honest unreachable — no local
   odoo pair). biz_liveboot_probe 16/16 pre-deploy.
-- ⚠ Proxy serves the NIP.IO domain (https://prf.192.168.0.210.nip.io)
+- ⚠ Proxy serves the NIP.IO domain (https://prf.<pol-core LAN address>.nip.io)
   — prf.polari-staging.test gets 'proxy host mismatch' on this
   render (BASE_DOMAIN=nip.io).
 - ⚠⚠ SAME-TAG REDEPLOY GOTCHA (bit us live): `docker stack deploy`
@@ -2664,7 +2664,7 @@ NOT pushed.
   json is authoritative (FEATURE_REQUIRES pinned subset).
 
 ## Deploy cmd that WORKS (constraints + knobs at render)
-  export LOCAL_IP=192.168.0.210
+  export LOCAL_IP=<pol-core LAN address>
   C="node.labels.polari.machine==staging-a"
   POL_STACK_CONSTRAINTS="backend=$C frontend=$C prf-file-store=$C \
     prf-keycloak=$C prf-mariadb=$C prf-proxy=$C" \
@@ -2771,7 +2771,7 @@ precursor/route, never a gate that hides one.
 ## The running system (verify first: `docker service ls`)
 - Swarm stacks: `polari-node` (all services pinned staging-a) +
   `polari-engines` (msci worker pinned isle-core, :9500 via ingress).
-- App: https://prf.192.168.0.210.nip.io  API: https://api.prf.192.168.0.210.nip.io
+- App: https://prf.<pol-core LAN address>.nip.io  API: https://api.prf.<pol-core LAN address>.nip.io
 - Deploy loop that WORKS: edit → `pol node build backend`(and/or
   frontend) → `docker service update --image prf-<x>:staging --force
   polari-node_<svc> --detach` → wait ~10-15 min cold seed (backend
@@ -3345,7 +3345,7 @@ Dustin's semantic corrections (screenshots) encoded end-to-end:
   other instance rows' db_backend may drift the same way
   (observation-reconcile is a follow-up).
 - **Machine pings fixed**: isle-core now pings GREEN (node-addressed
-  http://192.168.0.25:9500/capability); lightweight row corrected to
+  http://<isle-core LAN address>:9500/capability); lightweight row corrected to
   swarm worker + honestly 'unpingable — nothing serving' instead of
   a scary 404; sim rows marked synthetic.
 - **UI fixes**: light-mode white-on-white text swept to explicit
@@ -3853,7 +3853,7 @@ aqp-3 was always "the one remaining phase". aqp-7/aqp-8 are NEW
 polariServer wiring points are in AQUAPONICS_PHASE2_PLAN.md §0.
 
 ## Live-verify commands for the aqp-3/7/8 endpoints
-After `export LOCAL_IP=192.168.0.210` + `docker compose -f
+After `export LOCAL_IP=<pol-core LAN address>` + `docker compose -f
 docker-compose.staging-nip.yml up -d --build prf-backend` and the cold
 seed finishes (backend serves :3000), from the suite root:
 
@@ -3875,10 +3875,10 @@ r=u.Request('http://localhost:3000/api/aquaponics/plants/sweet-basil/grow',\
 data=json.dumps({'days':120}).encode(),headers={'Content-Type':'application/json'}); \
 print(u.urlopen(r).read()[:400])"
 ```
-Public proxy equivalent: `https://api.prf.192.168.0.210.nip.io/api/aquaponics/...`
+Public proxy equivalent: `https://api.prf.<pol-core LAN address>.nip.io/api/aquaponics/...`
 
 ## Deploy discipline (bit me repeatedly)
-- `export LOCAL_IP=192.168.0.210` before ANY docker compose on
+- `export LOCAL_IP=<pol-core LAN address>` before ANY docker compose on
   docker-compose.staging-nip.yml (else pol-file-store crash-loops).
 - prf-backend serves :3000 only after cold-seed (minutes; healthcheck
   flaps). Selftests run in-container: `pol modules selftest aquaponics`.

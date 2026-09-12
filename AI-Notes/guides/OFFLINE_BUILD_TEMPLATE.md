@@ -125,7 +125,7 @@ that we git ignore but can look at in Polari itself")
 | builder (apt closure, marker, chunks) | `Isle-Mesh/polari-isle/build-offline-bundle.sh`, `appstore/offline_chunker.py` | exists (off-1) |
 | builder sections images/router/modules/engines/hardware | `pol build offline` (polari-cli) wrapping the above | off-2 |
 | module offline debs | `modules/appstore/app_deb_builder.py --offline` | exists (dl-4); wheels-from-release-image = tree-2 |
-| mode file + `isle_source` + refusals | Isle-Mesh CLI lib (isle-core's Claude) + framework `POLARI_INSTALL_MODE` | off-3 |
+| mode file + `isle_source` + refusals | Isle-Mesh CLI lib (the isle host's Claude) + framework `POLARI_INSTALL_MODE` | off-3 |
 | installers | `scripts/install-offline.sh`, `isle-bootstrap-offline.sh` | off-4 |
 | build cache rows + page | framework `release` module, `/display/offline-builds` | off-5 (with ver-2) |
 | docs page | `pol-hub/docs/offline.html` generated from this guide + the manifest | off-5 / tree-4 |

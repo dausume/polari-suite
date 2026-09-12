@@ -62,7 +62,7 @@ you the foundation this plan builds on:
   suggestion, NEVER auto-apply), file-size-decomposition, honest-absence
   (missing data = a NAMED refusal carrying the knob), labels-travel-
   with-numbers.
-- Deploy: `export LOCAL_IP=192.168.0.210` before ANY compose on
+- Deploy: `export LOCAL_IP=<pol-core LAN address>` before ANY compose on
   docker-compose.staging-nip.yml; backend serves :3000 only after cold
   seed (minutes). Branch per phase; commit locally (nothing pushed —
   repos PUBLIC).

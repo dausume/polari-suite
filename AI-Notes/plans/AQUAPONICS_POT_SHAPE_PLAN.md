@@ -245,7 +245,7 @@ would recreate it). Build succeeded, only pre-existing warnings, and
 confirmed the served bundle contains the `mathshape:` code
 (`grep -l 'mathshape:' *.js` hit chunk `539.2299f5aa4d59c5f0.js`, the
 three-renderer chunk). Confirmed reachable:
-`https://prf.192.168.0.210.nip.io/sim-spaces/demo-herb-pot-viz` → 200.
+`https://prf.<pol-core LAN address>.nip.io/sim-spaces/demo-herb-pot-viz` → 200.
 
 **Dustin looked at it (screenshots, 2026-07-13) — it was badly wrong.**
 The rendered pot looked like a single flapping, torn, one-sided sheet
@@ -400,7 +400,7 @@ review pass, not silently dropped.
 Data-level checks (curl, bounding-box math, selftests) all check out,
 but nobody has looked at the actual render with eyes since this
 redesign. **Next thing to do, this needs an actual human/browser**:
-open `https://prf.192.168.0.210.nip.io/sim-spaces/demo-herb-pot-viz`
+open `https://prf.<pol-core LAN address>.nip.io/sim-spaces/demo-herb-pot-viz`
 and confirm it now reads as an actual hollow vessel — visible wall
 thickness, a solid-looking base, short hole bores on two opposite
 sides (one higher, one lower) — not the flapping-sheet look from the
@@ -611,7 +611,7 @@ either.** Every data-level check passes and the geometry is now
 mathematically principled (equations, not hand-picked numbers) with
 real bugs caught and fixed along the way, but nobody has looked at the
 actual pixels since this rewrite. Open
-`https://prf.192.168.0.210.nip.io/sim-spaces/demo-herb-pot-viz` and
+`https://prf.<pol-core LAN address>.nip.io/sim-spaces/demo-herb-pot-viz` and
 check: does the wall now read as one continuous solid vessel (not two
 separate floating surfaces, not a flapping sheet)? Do the 4 holes look
 like real openings with visible depth, not gray rods poking through a
@@ -751,7 +751,7 @@ via curl). Both `/display/pot-geometry` and the API are reachable
 **STILL NOT visually verified — no browser tool available.** The
 backend contract this UI depends on is now proven correct end-to-end,
 but nobody has looked at the actual form. Next: open
-`https://prf.192.168.0.210.nip.io/display/pot-geometry`, edit a field,
+`https://prf.<pol-core LAN address>.nip.io/display/pot-geometry`, edit a field,
 confirm the save/validate/re-derive flow works and the SimSpace at
 `/sim-spaces/demo-herb-pot-viz` reflects the edit.
 

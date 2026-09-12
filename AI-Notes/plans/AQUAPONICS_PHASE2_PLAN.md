@@ -92,14 +92,14 @@ branches off the scoring stack; NOT yet deployed to staging):
   value carries how it was derived).
 
 ### Deploy / verify loop (per phase)
-- Rebuild only what changed: `export LOCAL_IP=192.168.0.210` (MANDATORY
+- Rebuild only what changed: `export LOCAL_IP=<pol-core LAN address>` (MANDATORY
   — else pol-file-store crash-loops on MINIO_BROWSER_REDIRECT_URL),
   then `docker compose -f docker-compose.staging-nip.yml up -d --build
   prf-backend` from the suite root. Backend serves :3000 only AFTER
   cold-seed finishes (minutes; healthcheck flaps meanwhile).
 - Selftest in-container, then hit the live API via `docker exec
   prf-backend python3 -c "...urllib..."` or the public proxy
-  `https://api.prf.192.168.0.210.nip.io/api/aquaponics/...`.
+  `https://api.prf.<pol-core LAN address>.nip.io/api/aquaponics/...`.
 - Nothing is pushed to GitHub — local commits, branch per phase.
 
 ---
@@ -417,7 +417,7 @@ env-impact scoring.
   (`materialsScience/engines/remote.py` → `topology/provider_registry`)
   — no env var needed on the suite backend; the engines worker
   currently runs on the lightweight swarm node.
-- **Deploy discipline**: `LOCAL_IP=192.168.0.210` on every compose
+- **Deploy discipline**: `LOCAL_IP=<pol-core LAN address>` on every compose
   command; selftests in-container; branch per phase; commit locally
   (nothing pushed); update `aquaponics-module` memory + this doc's
   status as each phase lands.

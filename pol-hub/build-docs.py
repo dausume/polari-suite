@@ -34,6 +34,22 @@ IDX_START, IDX_END = '<!-- docs-index -->', '<!-- /docs-index -->'
 
 # ----------------------------------------------------------------- markdown
 
+# ---- privacy guard (2026-09-12): nothing personal or network-identifying may reach the public site ----
+# Real identifiers are refused (the build fails and names the page); machine names are generalised in the HTML.
+import re as _re
+# private LAN ranges are never publishable examples of THIS network; anything else personal (a public address, a
+# machine name, an e-mail) is listed in the gitignored .polari/privacy-denylist.txt, one literal per line
+_DENY = [l.strip() for l in open(os.path.join(os.path.dirname(HERE), '.polari', 'privacy-denylist.txt'), encoding='utf-8')] if os.path.exists(os.path.join(os.path.dirname(HERE), '.polari', 'privacy-denylist.txt')) else []
+PRIVATE_GUARD = _re.compile("|".join([r"192\.168\.0\.\d+", r"\b10\.17\.0\.\d+\b"] + [_re.escape(x) for x in _DENY if x and not x.startswith("#")]))
+GENERALISE = [("pol-core", "the main computer"), ("isle-core", "the isle host"), ("econ-core", "the second computer")]
+def privacy_scrub(html, page):
+    for old, new in GENERALISE:
+        html = html.replace(old, new)
+    m = PRIVATE_GUARD.search(html)
+    if m:
+        raise SystemExit(f"privacy guard: {page} contains {m.group(0)!r} — a real address or identity; fix the source, never publish it")
+    return html
+
 def slug(text):
     s = re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')
     return s or 'section'
@@ -312,7 +328,7 @@ def build(check=False):
             stale.append(rel); return
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w', encoding='utf-8') as fh:
-            fh.write(content)
+            fh.write(privacy_scrub(content, str(out_path) if "out_path" in dir() else "page"))
         changed.append(rel)
 
     for cat, page in all_pages(docs):

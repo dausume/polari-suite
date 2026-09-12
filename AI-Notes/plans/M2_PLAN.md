@@ -47,7 +47,7 @@
 ### cons-2 — roll staging + legend check  (30 min, mechanical)
 The M1 shaft/coil material fixes are committed but not live.
 1. Deploy ritual (box above), poll
-   `https://api.prf.192.168.0.210.nip.io/api/motors/parts/
+   `https://api.prf.<pol-core LAN address>.nip.io/api/motors/parts/
    reluctance-6s4p-m1` until 200 (~8 min).
 2. Verify in the JSON: m1-shaft material
    `opt-galvanized-bio-steel`, m1-coils `opt-copper-magnet-wire`.

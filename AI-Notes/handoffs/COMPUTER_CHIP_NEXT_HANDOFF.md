@@ -125,7 +125,7 @@ databases · FPGA · more as data. Assess against what exists.
   (framework 9d4e3cb, rf-node bb10455, Isle-Mesh a5a7667, suite
   dev) — his push via ./push-all-dev.sh (suite-root wrapper →
   polari-cli/shells/push-all-dev.sh) --with-isle --push.
-- Preview server (threaded) http://192.168.0.210:8090/downloads.
+- Preview server (threaded) http://<pol-core LAN address>:8090/downloads.
 - Gates untouched: framework dev-nmp-1 (nutrition), angular
   dev-cnt-2, dev-dyn-1 merge (unblocks dl-4 admit wiring).
 - Dustin's open queue: TESTING_OWED item 18 (installs, browser

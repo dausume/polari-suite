@@ -94,7 +94,7 @@
 <p><strong>Why:</strong> the threat model demands (a) <em>survive reboots unattended</em> — no interactive login needed — and (b) <em>minimize emissions/footprint</em> — don't run apps nobody is using. Those two pull in opposite directions, so availability becomes an explicit per-unit property: <strong>always-available</strong> (up whenever the host is up) vs <strong>on-demand</strong> (up only while someone is actively using it). Applies to the <strong>router</strong> and to each <strong>isle-app</strong>.</p>
 <p><code>availability_mode: always-available | on-demand</code>  — default <strong>always-available</strong>. Stored on each app's registry entry + installed-app marker (and on the router config). The management app reads/sets it; the CLI enforces it.</p>
 <hr />
-<h2 id="login-dependency-findings-2026-07-05-isle-core">Login-dependency findings (2026-07-05, isle-core)</h2>
+<h2 id="login-dependency-findings-2026-07-05-the isle host">Login-dependency findings (2026-07-05, the isle host)</h2>
 <p>Core services are already system-level and survive reboot without login:</p>
 <ul><li>docker.service <strong>enabled</strong>; <code>isle-vlan-agent</code> + <code>isle-sample-app</code> are <code>restart=unless-stopped</code>.</li><li><code>isle-mesh-boot.service</code> is <code>WantedBy=multi-user.target</code> (runs at boot, no <code>User=</code>).</li><li>no <code>systemctl --user</code> isle services exist.</li></ul>
 <p>Real gaps for TRUE always-available:</p>

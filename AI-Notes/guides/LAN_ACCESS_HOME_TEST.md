@@ -3,7 +3,7 @@
 **Date:** 2026-08-10 · **Scope: LAN ONLY.** Nothing here is published to
 the internet, and that distinction is deliberate — see §4.
 
-Everything below is live right now on **pol-core (192.168.0.210)** and
+Everything below was verified on **a computer on your home network (192.168.1.50 in the examples)** and
 verified from the box. What is *not* verified is a real second device,
 because that is the part only you can do.
 
@@ -15,7 +15,7 @@ These are different problems and this document only closes the first.
 |---|---|---|
 | who can reach it | any device on the home wifi | anyone, anywhere |
 | DNS | `nip.io` — public DNS that resolves a name to the IP baked in it, so no isle DNS and no `.isle` involved | a real domain you own |
-| the address | `prf.192.168.0.210.nip.io` — a **private** address; useless off the LAN | a public name pointed at your WAN IP |
+| the address | `prf.192.168.1.50.nip.io` — a **private** address; useless off the LAN | a public name pointed at your WAN IP |
 | TLS | self-signed Polari Root CA — you install it once per device | a real cert (Let's Encrypt) |
 | router | nothing to change | port-forward 443 + dynamic DNS |
 | gating | Keycloak login | Keycloak login **plus** the exposure/allowlist work in `EXTERNAL_APPS_PLAN.md` |
@@ -35,7 +35,7 @@ talking to a normal HTTPS port. That is the thing being proven.
 On a phone or laptop **on the home wifi**:
 
 1. **Install the CA** (once per device):
-   `https://prf.192.168.0.210.nip.io/root-ca.crt`
+   `https://prf.192.168.1.50.nip.io/root-ca.crt`
    - **iOS**: it downloads as a profile → Settings → *Profile
      Downloaded* → Install. Then, and this is the step everyone
      misses, **Settings → General → About → Certificate Trust
@@ -45,14 +45,14 @@ On a phone or laptop **on the home wifi**:
      Install a certificate → CA certificate.
    - **macOS**: open in Keychain Access → System → set to *Always
      Trust*.
-2. Go to **`https://prf.192.168.0.210.nip.io`** — no certificate
+2. Go to **`https://prf.192.168.1.50.nip.io`** — no certificate
    warning if step 1 took.
 3. Log in. You are redirected to Keycloak at
-   `auth.prf.192.168.0.210.nip.io`, and back to the app after.
+   `auth.prf.192.168.1.50.nip.io`, and back to the app after.
 
-Verified from pol-core with the CA trusted and no `-k`: frontend 200,
+Verified from your computer with the CA trusted and no `-k`: frontend 200,
 `api.../api/health` 200, and the Keycloak OIDC discovery document 200,
-issuer `https://auth.prf.192.168.0.210.nip.io/realms/Polari`. The
+issuer `https://auth.prf.192.168.1.50.nip.io/realms/Polari`. The
 Keycloak client `polari-frontend` accepts the LAN redirect URI and
 requires PKCE (S256).
 
@@ -97,7 +97,7 @@ expect a re-login when the access token lapses until the
 
 ## 4. What is proven, and what is not
 
-Proven from pol-core:
+Proven from your computer:
 - the three LAN names resolve and serve (frontend / api / auth)
 - the TLS chain validates against the downloadable root CA
 - the SPA's `runtime-config.json` points at those LAN names, so a

@@ -366,5 +366,5 @@ review.
 `pol` only. Per phase: `pol modules selftest casting` in-container;
 cast-5+ add sim probes; cast-9 is the deploy + browser pass. Backend
 is a swarm service — rebuild + `docker service update --force`,
-never `docker cp`. Live API `https://api.prf.192.168.0.210.nip.io`.
+never `docker cp`. Live API `https://api.prf.<pol-core LAN address>.nip.io`.
 Commit innermost-first; push stays Dustin's manual step.

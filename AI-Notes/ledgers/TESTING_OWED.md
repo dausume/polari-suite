@@ -679,7 +679,7 @@ pointer). Machine-proven: 7 specs green, headless-browser acceptance
 passed (chrome hidden, foreign route redirected). Owed = the human
 eyeball in a real browser:
 
-- `https://prf.192.168.0.210.nip.io/?shellApp=app-archipelago` —
+- `https://prf.<pol-core LAN address>.nip.io/?shellApp=app-archipelago` —
   expect: NO Apps/Core switchers, NO "Polari core" side-nav block,
   "Mesh Archipelago" pill + its own menu only; deep links elsewhere
   (e.g. `/topology`) bounce to the app home. The lock is

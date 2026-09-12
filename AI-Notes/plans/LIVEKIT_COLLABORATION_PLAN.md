@@ -260,10 +260,10 @@ The blocking proof ran on a throwaway rig (session scratchpad
   (two headless Chromes, WebAudio tones as tracks): inbound-rtp both
   sides ~51 pkt/s, audioLevel 0.61, packetsLost 0, and
   `connectionType: udp` with selected ICE candidates ON the published
-  range (192.168.0.210:50010 / :50004) — the first `/udp` docker
+  range (<pol-core LAN address>:50010 / :50004) — the first `/udp` docker
   publish in the suite, carrying real media past nginx.
 - **TLS under the Polari CA**: leaf for
-  `livekit.prf.192.168.0.210.nip.io` issued offline from `ca/.step`
+  `livekit.prf.<pol-core LAN address>.nip.io` issued offline from `ca/.step`
   (same intermediate as the live proxy); wss + page verified against
   `root_ca.crt`.
 - **Token minting is pure-stdlib HS256** (`mint_token.py`) — accepted

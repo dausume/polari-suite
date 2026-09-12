@@ -209,6 +209,6 @@ green; scoring parity intact). NOT deployed to staging yet. aqp-3
 
 ## Conventions
 Branch per phase (dev-aqp-1…); selftests per module; staging deploy per
-the rebuild-staging convention (LOCAL_IP=192.168.0.210, nip.io hosts);
+the rebuild-staging convention (LOCAL_IP=<pol-core LAN address>, nip.io hosts);
 knobs-and-suggestions; object-coherence; labels/derived-values travel
 with their numbers (the scoring-engine honesty idiom).

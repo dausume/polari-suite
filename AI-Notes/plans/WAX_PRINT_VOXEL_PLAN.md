@@ -186,7 +186,7 @@ Branch `dev-wp-1-auger-melt`.
 
 ## Next
 1. Dustin review + browser check; then a staging redeploy (suite-root
-   `docker-compose.staging-nip.yml`, `LOCAL_IP=192.168.0.210`, cold seed,
+   `docker-compose.staging-nip.yml`, `LOCAL_IP=<pol-core LAN address>`, cold seed,
    `pol-proxy nginx -s reload`) to live-verify the endpoints + seeds.
 2. Scoring bridge: a `print-resolution-quality` ScoreConcept ranking
    persisted conditions (aqp-6 objectRef idiom) — deferred to avoid

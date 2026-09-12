@@ -223,7 +223,7 @@
 >    `pol topology assign polariapps prf-a` (row) then the stack
 >    deploy below; nav now carries both groups + all 11 links.
 > 3. ✅ **Frontend pin is now IN THE STACK SPEC** (the open item):
->    deployed with `CNTFET_ENGINES_URL=http://192.168.0.210:9700
+>    deployed with `CNTFET_ENGINES_URL=http://<pol-core LAN address>:9700
 >    POL_STACK_CONSTRAINTS="backend=node.labels.polari.machine==pol-core
 >    frontend=node.labels.polari.machine==pol-core" pol swarm deploy
 >    node` — ⚠ a bare `pol swarm deploy node` DROPS
@@ -267,7 +267,7 @@
 > Everything is BUILT + DEPLOYED + 34/34 live-probed; this pass is
 > the last verification. Execute:**
 >
-> 1. Open https://prf.192.168.0.210.nip.io/display/mealplan — the
+> 1. Open https://prf.<pol-core LAN address>.nip.io/display/mealplan — the
 >    front door. Expect: Me panel (anon = honest refusal),
 >    dashboard demo-alex, plans + account-links tables.
 > 2. /display/mealplan/planner — entries table, rollup vs

@@ -815,7 +815,7 @@ answered per his ruling (two groups):
 **Next, his one line on econ-core** (or `ssh -t econ-core …` from here):
 `sudo bash /tmp/install-groups.sh remote dausume` — the files are
 already staged on econ-core. After it: `pol deploy tier econ-core
-hardware --install`, `ISLE_CORE_IP=192.168.0.25 pol deploy install
+hardware --install`, `ISLE_CORE_IP=<isle-core LAN address> pol deploy install
 econ-core --route isle-member --host`, `pol deploy status econ-core`.
 The member dry-run already resolves the new isle's fingerprint and the
 bootstrap sha from the core.

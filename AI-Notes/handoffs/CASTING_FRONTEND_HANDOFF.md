@@ -35,7 +35,7 @@ The `/casting` page today is seeded plumbing, not the product:
 
 1. **Cert, then eyeball** (blocked me): accept the self-signed cert
    once (or run the CA-import walkthrough) at
-   `https://prf.192.168.0.210.nip.io/casting`, verify: mold-fill-3d
+   `https://prf.<pol-core LAN address>.nip.io/casting`, verify: mold-fill-3d
    scene renders its voxel cloud (blue fluid/gray channels/RED
    trapped/ORANGE unfed), chains/molds/plans tables render as tables.
 2. **The wizard UI** — Dustin's stated ideal: pick a part (math shape

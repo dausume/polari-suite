@@ -309,10 +309,10 @@ generic form. The domain idioms to mirror (LAMMPS input decks / GROMACS
 
 ## Conventions checklist (unchanged)
 Selftests from polari-framework/ via `python3 -m materialsScience.<mod>`;
-staging deploy `cd polari-rf-node && export LOCAL_IP=192.168.0.210 &&
+staging deploy `cd polari-rf-node && export LOCAL_IP=<pol-core LAN address> &&
 docker compose -f docker-compose.staging-nip.yml build backend && up -d
 backend` (~150s restore; API curl -sk -H "Host:
-api.prf.192.168.0.210.nip.io" https://localhost/...); branch per confirmed
+api.prf.<pol-core LAN address>.nip.io" https://localhost/...); branch per confirmed
 phase; edited seeds do NOT reach existing volumes (new rows fine);
 knobs-and-suggestions; literature values labeled with provenance; honest
 refusals name the knob.

@@ -479,7 +479,7 @@
 >   score/cells/compare. Then derive the comparator so the ranking
 >   has two real FETs: `curl -sk -X POST -H 'Content-Type:
 >   application/json' -d '{"action":"derive"}'
->   https://api.prf.192.168.0.210.nip.io/api/cntfet/devices/cnt-aligned-s1-lg30`.
+>   https://api.prf.<pol-core LAN address>.nip.io/api/cntfet/devices/cnt-aligned-s1-lg30`.
 > - NEXT: fi-4 remainder (TableDefinition per device for the
 >   Tables/Graphs tabs, library_report links), then cell-3.
 

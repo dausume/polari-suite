@@ -54,7 +54,7 @@ Order (Dustin's framing):
   (imports ~L158–200, defClassList ~L730, API instantiation ~L636,
   seed_pairs ~L1620–1700). Standing principles: object-coherence,
   knobs-and-suggestions, honest-absence, labels-travel-with-numbers,
-  file-size-decomposition. Deploy: `export LOCAL_IP=192.168.0.210` then
+  file-size-decomposition. Deploy: `export LOCAL_IP=<pol-core LAN address>` then
   `docker compose -f docker-compose.staging-nip.yml up -d --build
   prf-backend`; cold seed takes minutes; selftests in-container.
 - **numpy IS in the backend image** (skfem/Darcy run in-backend). Keep

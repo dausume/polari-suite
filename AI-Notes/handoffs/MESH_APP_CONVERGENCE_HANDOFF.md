@@ -208,7 +208,7 @@ scaffolded/planned.
 ALREADY swarm nodes of polari's cluster.**
 ```
 docker node ls   (from pol-core)
-  user-HP-ProDesk-600-G1-SFF   Leader   polari.machine=pol-core
+  <pol-core hostname>   Leader   polari.machine=pol-core
   dustin-etts-mesh-core        Ready    polari.machine=isle-core
   dausume-DNB20-series         Down     polari.machine=econ-core
 ```

@@ -632,7 +632,7 @@ per-class routing note from the original sketch still applies.
   This is the selftest idiom for XR — every phase ships specs that
   run headless in CI/karma.
 - Live verification on real hardware is Dustin-side, on BOTH
-  devices: Quest 2 browser → https://prf.192.168.0.210.nip.io after
+  devices: Quest 2 browser → https://prf.<pol-core LAN address>.nip.io after
   /cert-trust, and the Vive via a SteamVR-backed desktop Chrome/Edge
   opening the same URL (cert trust is the desktop browser's, easier).
   Phases are ordered so each ships something he can put on a headset.
