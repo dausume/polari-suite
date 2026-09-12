@@ -5,7 +5,7 @@
 name: isle
 rings: [surface, dac, mac, network, host]
 tier: hardware            # reach | member | hardware | core — what this machine may host
-mode: enforce             # enforce | complain (D7: fixed pieces complain for one release; apps enforce)
+mode: complain             # WARN-ONLY by default (his rule 2026-09-12): nothing enforced until proven one piece at a time; --enforce is explicit
 fixed_mode: complain
 
 docker:

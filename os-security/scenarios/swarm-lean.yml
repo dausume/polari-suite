@@ -3,8 +3,8 @@
 name: swarm-lean
 rings: [dac, mac, network, host]
 tier: member
-mode: enforce
-fixed_mode: enforce
+mode: complain             # WARN-ONLY by default (his rule 2026-09-12): nothing enforced until proven one piece at a time; --enforce is explicit
+fixed_mode: complain
 
 docker:
   userns_remap: ""          # swarm services do not support userns-remap per service; the daemon-wide remap is D1's call

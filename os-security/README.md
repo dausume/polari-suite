@@ -23,6 +23,10 @@ os-security/
   out/                        rendered (gitignored)
 ```
 
+## Warn-only by default (his rule 2026-09-12)
+
+Every scenario renders in `complain` mode and `apply.sh` loads AppArmor profiles in complain: everything an enforced profile would deny is logged (`ALLOWED` audit lines), nothing is denied. The rings that cannot warn — DOCKER-USER, ufw, sysctl, permissions, systemd drop-ins — are only printed. `--enforce` applies one piece on purpose, after it has been proven with the test loop in `AI-Notes/handoffs/SECURITY_ARC_HANDOFF.md` §4. Change one piece, re-test, record, then the next.
+
 ## The model
 
 Five rings, each independent (plan §2): the app's declared surface → DAC
