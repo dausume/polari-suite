@@ -51,7 +51,7 @@
     {
      "href": "docs/home-network-access.html",
      "title": "Reaching Polari on your home network",
-     "gist": "Off-isle access over the LAN and what to expect from phones and laptops.",
+     "gist": "Private addresses and why they are safe, a name for one, the local-instance profile, and what stays inside the house.",
      "source": "AI-Notes/guides/LAN_ACCESS_HOME_TEST.md"
     }
    ]

@@ -118,7 +118,7 @@ Provides: $PROVIDES_ALL
 Conflicts: $PROVIDES_ALL
 Replaces: $PROVIDES_ALL
 X-Polari-Install-Mode: $FLAVOR
-Maintainer: Polari Systems <maintainers@polari-systems.org>
+Maintainer: Polari Systems <dustinetts@gmail.com>
 Description: Polari + Isle Mesh — everything in one installer ($FLAVOR)
  The complete suite as a single package: the isle networking CLI,
  the shared desktop shell runtime, the Isle App Store, and the

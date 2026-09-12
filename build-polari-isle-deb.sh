@@ -153,7 +153,7 @@ Section: utils
 Priority: optional
 Architecture: all
 Depends: isle-mesh-cli (>= 0.1.20), isle-app-store
-Maintainer: polari-systems <maintainers@polari-systems.org>
+Maintainer: polari-systems <dustinetts@gmail.com>
 Description: polari + isle-mesh bundled install (single download)
  Meta-package: the isle CLI (agents, DNS, store plumbing) and the
  native app store shell as one install. Security material is put in
