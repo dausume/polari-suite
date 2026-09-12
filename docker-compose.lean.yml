@@ -64,7 +64,7 @@ services:
       restart_policy: { condition: any, delay: 5s }
 
   pol-hub:
-    image: pol-hub:${POLARI_IMAGE_TAG:-lean}
+    image: ${POLARI_IMAGE_REPO:-}pol-hub:${POLARI_IMAGE_TAG:-lean}
     networks: [polari-lean]
     configs:
       - source: hub_runtime_config
@@ -82,7 +82,7 @@ services:
       restart_policy: { condition: any, delay: 5s }
 
   prf-frontend:
-    image: prf-frontend:${POLARI_IMAGE_TAG:-lean}
+    image: ${POLARI_IMAGE_REPO:-}prf-frontend:${POLARI_IMAGE_TAG:-lean}
     networks: [polari-lean]
     configs:
       - source: prf_runtime_config
@@ -95,7 +95,7 @@ services:
       restart_policy: { condition: any, delay: 5s }
 
   prf-backend:
-    image: prf-backend:${POLARI_IMAGE_TAG:-lean}
+    image: ${POLARI_IMAGE_REPO:-}prf-backend:${POLARI_IMAGE_TAG:-lean}
     networks: [polari-lean]
     environment:
       - DEPLOY_ENV=production
