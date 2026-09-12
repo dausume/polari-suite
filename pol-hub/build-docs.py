@@ -40,7 +40,9 @@ import re as _re
 # private LAN ranges are never publishable examples of THIS network; anything else personal (a public address, a
 # machine name, an e-mail) is listed in the gitignored .polari/privacy-denylist.txt, one literal per line
 _DENY = [l.strip() for l in open(os.path.join(os.path.dirname(HERE), '.polari', 'privacy-denylist.txt'), encoding='utf-8')] if os.path.exists(os.path.join(os.path.dirname(HERE), '.polari', 'privacy-denylist.txt')) else []
-PRIVATE_GUARD = _re.compile("|".join([r"192\.168\.0\.\d+", r"\b10\.17\.0\.\d+\b"] + [_re.escape(x) for x in _DENY if x and not x.startswith("#")]))
+# only the literals in the denylist are refused (private RANGES are legitimate documentation examples); the file
+# is gitignored and lists this network's real addresses, the hostname and the e-mail
+PRIVATE_GUARD = _re.compile("|".join([_re.escape(x) for x in _DENY if x and not x.startswith("#")]) or r"(?!x)x")
 GENERALISE = [("pol-core", "the main computer"), ("isle-core", "the isle host"), ("econ-core", "the second computer")]
 def privacy_scrub(html, page):
     for old, new in GENERALISE:
