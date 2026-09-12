@@ -1,0 +1,168 @@
+<title>Polari OS-Security Rings</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #F3F5F7; --bg-2: #E9EDF1; --ink: #1C2128; --ink-2: #4B5560; --line: #D3D9DF;
+    --amber: #B8730A; --amber-bg: #FBF1DF; --teal: #1F6F6B; --teal-bg: #E1F0EF;
+    --pass: #2E7D4F; --fail: #B23A3A; --fail-bg: #F8E6E6; --mono-bg: #E9EDF1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14181D; --bg-2: #1B2128; --ink: #E6EAEE; --ink-2: #A5AFB9; --line: #2A323B;
+      --amber: #E2A23A; --amber-bg: #2C2314; --teal: #4FB3AD; --teal-bg: #12302E;
+      --pass: #5CBF86; --fail: #E07070; --fail-bg: #331B1B; --mono-bg: #1B2128;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14181D; --bg-2: #1B2128; --ink: #E6EAEE; --ink-2: #A5AFB9; --line: #2A323B;
+    --amber: #E2A23A; --amber-bg: #2C2314; --teal: #4FB3AD; --teal-bg: #12302E;
+    --pass: #5CBF86; --fail: #E07070; --fail-bg: #331B1B; --mono-bg: #1B2128;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; font-size: 16px; line-height: 1.55; }
+  main { max-width: 1040px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1, h2, h3 { font-family: "IBM Plex Sans Condensed", "Arial Narrow", "Helvetica Neue", sans-serif; text-wrap: balance; line-height: 1.15; margin: 0; }
+  h1 { font-size: 2.6rem; font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 1.55rem; font-weight: 600; margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin-top: 28px; }
+  p, li { max-width: 70ch; }
+  p { margin: 12px 0; }
+  ul, ol { padding-left: 1.2em; margin: 10px 0; }
+  li { margin: 6px 0; }
+  code, .mono { font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace; font-size: 0.86em; }
+  code { background: var(--mono-bg); padding: 1px 5px; border-radius: 3px; }
+  pre { background: var(--mono-bg); padding: 14px 16px; border-radius: 4px; overflow-x: auto; font-family: "IBM Plex Mono", monospace; font-size: 0.84rem; line-height: 1.5; margin: 12px 0; }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); }
+  header .eyebrow { margin-bottom: 10px; }
+  .lede { font-size: 1.12rem; color: var(--ink-2); max-width: 66ch; margin-top: 14px; }
+  .status { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 28px 0 8px; }
+  .status div { border-left: 3px solid var(--amber); background: var(--amber-bg); padding: 10px 14px; }
+  .status div.teal { border-color: var(--teal); background: var(--teal-bg); }
+  .status .k { display: block; font-family: "IBM Plex Mono", monospace; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); }
+  .status .v { font-family: "IBM Plex Sans Condensed", sans-serif; font-weight: 600; font-size: 1.15rem; }
+  .tablewrap { overflow-x: auto; margin: 16px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-family: "IBM Plex Mono", monospace; font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); font-weight: 500; }
+  td.num { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tag { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 7px; border-radius: 2px; white-space: nowrap; }
+  .tag.warn { background: var(--amber-bg); color: var(--amber); }
+  .tag.enf { background: var(--teal-bg); color: var(--teal); }
+  .tag.off { background: var(--bg-2); color: var(--ink-2); }
+  .tag.fail { background: var(--fail-bg); color: var(--fail); }
+  .pass { color: var(--pass); font-weight: 600; } .fail { color: var(--fail); font-weight: 600; }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-top: 16px; }
+  .two > div { border-top: 3px solid var(--line); padding-top: 10px; }
+  .two > div.app { border-color: var(--teal); } .two > div.swarm { border-color: var(--amber); }
+  .two h3 { margin-top: 4px; }
+  .note { border-left: 3px solid var(--teal); padding: 6px 14px; margin: 16px 0; color: var(--ink-2); max-width: 70ch; }
+  footer { margin-top: 56px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 0.85rem; }
+</style>
+
+<main>
+<header>
+  <div class="eyebrow">Polari · security arc · report for the owner · 2026-09-12</div>
+  <h1>Polari OS-Security Rings</h1>
+  <p class="lede">What was built today, which scenario and ring secures what, how the rings react when a module goes up or down, and where a Docker Swarm deployment and a Polari App deployment (debs, KVM guests, hardware) part ways. Everything is warn-only. Nothing touched the public server.</p>
+  <div class="status">
+    <div><span class="k">Assurance ladder</span><span class="v">Rung 2, built · rung 3 begun</span></div>
+    <div><span class="k">Loaded anywhere</span><span class="v">isle-core only, complain</span></div>
+    <div class="teal"><span class="k">Enforced anywhere</span><span class="v">Nothing</span></div>
+    <div><span class="k">Branch</span><span class="v mono">dev-sec-1 · not pushed</span></div>
+  </div>
+</header>
+
+<h2>1. What exists now</h2>
+<p>One declaration renders per scenario into everything the OS needs. The declaration is the <code>security</code> stanza in every module's <code>polari-app.json</code> plus the scenario's list of fixed pieces (proxy, hub, frontend, backend, the isle agent and gateway).</p>
+<div class="tablewrap"><table>
+<tr><th>Piece</th><th>What it does</th><th>State</th></tr>
+<tr><td><code>templates/apparmor/app.j2</code></td><td>One AppArmor profile per app or fixed piece, rewritten today as an allow-list: the image readable and executable, the declared paths writable, the declared network and capabilities, the runtime's signals.</td><td><span class="tag warn">complain by default</span></td></tr>
+<tr><td><code>templates/seccomp/kind.json.j2</code></td><td>One syscall allow-list per kind (web-app, worker, gateway, vpn-gateway, hardware-extension). In complain it logs instead of denying; an enforce twin is always rendered.</td><td><span class="tag warn">log mode</span></td></tr>
+<tr><td><code>render.py</code></td><td>Scenario + the apps that are up → profiles, seccomp lists, compose fragments, a stack overlay, DOCKER-USER and ufw scripts, sysctl, audit rules, daemon settings, a manifest of what was rendered.</td><td><span class="tag enf">proven</span></td></tr>
+<tr><td><code>apply.sh</code></td><td>Loads profiles in complain, swaps the node-wide profile live where the route needs it, stages seccomp files, prints the rings that cannot warn. <code>--enforce</code> is explicit; <code>--revert-docker-default</code> restores docker's stock profile.</td><td><span class="tag warn">warn-only</span></td></tr>
+<tr><td><code>allowed.py</code></td><td>The harvest: the kernel's AppArmor ALLOWED/DENIED lines and seccomp log lines, grouped per profile, with the rule that would allow each. Empty list = the gate for enforce.</td><td><span class="tag enf">proven</span></td></tr>
+<tr><td><code>audit.sh</code></td><td>25 controls across the rings, route-aware, verdict open / partial / hardened.</td><td><span class="tag enf">proven</span></td></tr>
+<tr><td><code>escape-test.sh</code></td><td>14 cross-over attempts from inside a throwaway container, in two passes: the full confinement, and the AppArmor profile alone.</td><td><span class="tag enf">proven</span></td></tr>
+<tr><td><code>pol security os …</code>, <code>pol prod harden</code>, <code>pol deploy harden &lt;node&gt;</code></td><td>The same loop from the CLI: locally, for the server profile, and shipped to another machine over ssh (render here, apply there, audit, report, revert).</td><td><span class="tag enf">built</span></td></tr>
+<tr><td><code>moduleService/hardware_reach.py</code></td><td>Your rule from today: hardware apps install anywhere, and the user is told plainly when only the Polari side can work here.</td><td><span class="tag warn">not yet seen live</span></td></tr>
+</table></div>
+
+<h2>2. Five findings that changed the design</h2>
+<ol>
+  <li><strong>AppArmor enforces explicit <code>deny</code> rules even in complain mode, silently.</strong> Proven on isle-core with a probe profile. The first template was "allow everything, then deny a list", so warn-only would have bitten without a log line. The template is now an allow-list; complain keeps only docker's own stock denies, so a complain profile never denies more than every container gets today.</li>
+  <li><strong>Swarm services cannot carry a profile.</strong> <code>docker stack deploy</code> drops <code>security_opt</code>. On the server route the only MAC lever is the node-wide <code>docker-default</code> profile, which the daemon leaves alone if one is already loaded and which the parser can replace live. The renderer now writes it as the union of the stack's pieces, with docker's stock copy alongside for the revert.</li>
+  <li><strong>The escape test had never consulted AppArmor.</strong> Under the full confinement it blocked 14 of 14 with zero AppArmor decisions; dropped capabilities, seccomp and the read-only root did all the work. A profile-only pass now measures the profile's own share.</li>
+  <li><strong>The worker seccomp list broke python on alpine.</strong> Exactly one syscall was missing, <code>open</code>, which musl's loader uses. The backend image is alpine-based, so this would have taken the backend down on first attach. Found by the new log mode, fixed, and re-proven.</li>
+  <li><strong>A path-based profile cannot tell a bind of the host's files from the image.</strong> Reading the host's <code>/etc/shadow</code> through a bind mount is not AppArmor's to stop; it is user-namespace remapping's (your decision D1) and the mount policy's.</li>
+</ol>
+
+<h2>3. Scenarios × rings</h2>
+<p>Each scenario is one file under <code>os-security/scenarios/</code>. The table says what each ring renders to, how it attaches on that route, and whether anything is loaded today.</p>
+<div class="tablewrap"><table>
+<tr><th>Ring</th><th>isle (app route)</th><th>swarm-lean (server)</th><th>swarm-full (server + logins)</th><th>dev (a developer's box)</th></tr>
+<tr><td><strong>App surface</strong><br><span class="eyebrow">the container's own flags</span></td><td>Per-app compose fragment: <code>security_opt</code> AppArmor + seccomp + no-new-privileges, cap_drop ALL, read-only root, tmpfs, pid limit. Applied by the agent at <code>isle app install</code> (isle-core's half, not built).</td><td>Stack overlay <code>stack.security.yml</code>: cap_drop/add, read-only, tmpfs, pid limit. Rendered; merging it is a production stack change (yours).</td><td>Same overlay, ten services.</td><td>Not rendered (the ring is the developer's compose).</td></tr>
+<tr><td><strong>DAC</strong><br><span class="eyebrow">who runs as whom</span></td><td>userns-remap <code>isle</code>, ownership of <code>/etc/isle-mesh</code>, sudo groups. Rendered and diffed only.</td><td colspan="2">No per-service remap on swarm; daemon-wide remap is D1. Ownership of certs and env files rendered. Printed, not applied.</td><td>sysctl only.</td></tr>
+<tr><td><strong>MAC · AppArmor</strong></td><td>One profile per app, attached per container. Plus, today, the node-wide union loaded in complain as a baseline over every isle container until the agent attaches per-app profiles. <span class="tag warn">loaded on isle-core</span></td><td>Node-wide union of proxy, hub, frontend, backend replaces <code>docker-default</code>. Modules fold into the backend's profile. <span class="tag off">not loaded</span></td><td>Same, union of ten pieces. <span class="tag off">not loaded</span></td><td>Per-app profiles in complain, nothing fixed. <span class="tag off">not loaded</span></td></tr>
+<tr><td><strong>MAC · seccomp</strong></td><td>Per kind, attached per container through the fragment. Staged on isle-core, inert until attached.</td><td colspan="2">Cannot attach per service; the daemon's <code>seccomp-profile</code> setting is the lever (a restart window, not yet rendered).</td><td>Rendered, not attached.</td></tr>
+<tr><td><strong>Network</strong></td><td>DOCKER-USER: containers reach only DNS and the agent's 80/443 on the host; ufw default deny, ssh from the isle LAN only, mDNS and the Reticulum bearer on the isle side.</td><td colspan="2">DOCKER-USER denies 22, docker, libvirt and the swarm ports from containers; ufw allows 22 from the admin LAN, 80/443 to anyone, swarm ports from peers. Overlays encrypted (already live).</td><td>Not rendered.</td></tr>
+<tr><td><strong>Host</strong></td><td colspan="3">sysctl (kptr, dmesg, bpf, protected links), auditd rules, unattended upgrades, systemd hardening drop-ins for the isle units. Printed, not applied.</td><td>sysctl only.</td></tr>
+</table></div>
+
+<h2>4. How the rings react to module deployments</h2>
+<p>The policy is meant to follow the apps up and down. Here is exactly what happens today at each event, and what does not happen yet.</p>
+<div class="tablewrap"><table>
+<tr><th>Event</th><th>On the isle (app route)</th><th>On the swarm (server route)</th></tr>
+<tr><td>A module is admitted (fetch-admit, console, or a deb)</td><td>Rendering with <code>--apps-from-core</code> takes only the modules the registrar says are online, so a new module gets its own <code>isle-app-&lt;id&gt;</code> profile and fragment. The agent applying them at install is the isle-side phase, not built. Today nothing re-renders automatically.</td><td>Modules are not containers; they run inside the backend. The module's stanza folds into the backend's profile (network and capabilities union; writable stays the backend's). All 59 stanzas are identical today, so nothing widens. No automatic re-render either; <code>pol prod apply</code> renders after a deploy.</td></tr>
+<tr><td>A module is put away</td><td>Its profile leaves the rendered manifest; <code>apply.sh</code> unloads and removes any <code>isle-app-*</code> profile not in the manifest.</td><td>It leaves the fold; the union does not shrink until the next apply.</td></tr>
+<tr><td>A hardware app or extension is admitted</td><td>Its Polari side runs in the isle's backend; its hardware half is a KVM guest under libvirt's per-VM profile with the devices the hardware map assigns. Nothing to warn about at the Polari level.</td><td>Admitted, for development. The health row, the fetch-admit reply, <code>pol modules health</code> and the download page all carry the notice: only the Polari side runs here; the hardware half needs a full isle with the hardware agent tier. A notice, never a refusal.</td></tr>
+<tr><td>An app declares devices without the hardware-extension profile</td><td colspan="2">Refused at render and by conform: devices belong in a guest.</td></tr>
+<tr><td>A hardware-extension app on an in-core scenario</td><td>n/a</td><td>Left out of the fold by name (<code>folded_skipped</code> in the manifest); it cannot run inside the backend.</td></tr>
+<tr><td>A module needs the internet or a capability</td><td>Its own profile gets it, nobody else's.</td><td>The backend's profile gets it for everyone inside.</td></tr>
+</table></div>
+<p class="note">Reaction to deployments is still manual: rendering and applying happen when someone runs <code>pol prod apply</code>, <code>pol deploy harden</code> or the isle's install hook. Making admission and put-away trigger the render is a later piece, and on the swarm the profile is node-wide anyway.</p>
+
+<h2>5. Two routes, two shapes of the same rings</h2>
+<div class="two">
+  <div class="app">
+    <h3>Polari App deployment (the isle)</h3>
+    <p>Installed from debs. The isle agent starts every app as its own plain docker container, so every app carries its own AppArmor profile and seccomp list. Hardware apps get a KVM guest with passthrough of what the hardware map assigns, under libvirt's per-VM profile; the hardware agent tier reaches the kernel and devices. The network ring is the agent's own firewall. This is the only route where per-app confinement and hardware access exist.</p>
+    <p>State: the union baseline and 65 per-app profiles loaded in complain on isle-core; per-app attachment is isle-core's half.</p>
+  </div>
+  <div class="swarm">
+    <h3>Docker Swarm deployment (the server)</h3>
+    <p>The lean or full stack as swarm services. A service cannot carry a profile, so the MAC ring is one node-wide profile shared by every container on the node; seccomp can only be set for the whole daemon; the app-surface ring lives in the stack file. Modules run inside the backend and share its profile. No KVM guests, no device access, ever. Hardware apps still install, for development, and the user is told.</p>
+    <p>State: rendered and dry-run on econ-core; loading needs your sudo on pol-core and econ-core. Nothing on the public server.</p>
+  </div>
+</div>
+<p>On the rule "hardware modules cannot run on swarm": before today the only implementation was a conform lint (hardware kinds must declare the hardware agent tier). Nothing at admission or on any page said so. Per your ruling it is now a notice rather than a block, carried by <code>POLARI_DEPLOY_ROUTE</code> (set to <code>swarm</code> in the lean and prod stacks; isle-core is asked to set <code>isle</code>) through the registrar, the API, the CLI and the download card. It has not been seen live yet, since the core image was not rebuilt today.</p>
+
+<h2>6. Evidence</h2>
+<p>All live runs were on isle-core with throwaway profiles unloaded in the same script; every isle container was up before and after. The public server was never touched.</p>
+<div class="tablewrap"><table>
+<tr><th>Test</th><th>Mode</th><th>Result</th></tr>
+<tr><td>Probe profile with an explicit deny</td><td>complain</td><td>deny <span class="fail">enforced</span>, no log line</td></tr>
+<tr><td>Escape test, full confinement</td><td>complain and enforce</td><td class="num">14 blocked / 0 escaped, 0 AppArmor lines</td></tr>
+<tr><td>Escape test, profile alone</td><td>complain</td><td class="num">6 blocked (docker's masks and default caps) / 8 escaped, 43 accesses harvested</td></tr>
+<tr><td>Escape test, profile alone</td><td>enforce</td><td class="num">11 blocked / 3 escaped (host bind read; keyctl and bpf, which are seccomp's)</td></tr>
+<tr><td>Node-wide profile swap</td><td>complain</td><td>attached live, a container's write to its image logged as 3 ALLOWED lines, stock profile restored, no file left</td></tr>
+<tr><td>seccomp worker list, python workload + nginx</td><td>log mode</td><td class="num">1 syscall outside the list: open ×20</td></tr>
+<tr><td>seccomp lists after adding open</td><td>enforce</td><td>python workload runs; nginx serves under web-app and gateway; 0 lines</td></tr>
+<tr><td>Warn-only apply on isle-core</td><td>complain</td><td>union + 65 profiles loaded, seccomp staged, other rings printed; audit <span class="mono">open 12 pass / 14 fail</span></td></tr>
+</table></div>
+<p>Baseline audits, before any apply: pol-core <span class="mono">partial 10/7/3</span>, isle-core <span class="mono">open 12/13/1</span>, econ-core <span class="mono">partial 9/8/3</span> (pass / fail / skip). The common fails: no user-namespace remap, root inside containers, writable root filesystems, empty DOCKER-USER, ufw inactive, sshd on all interfaces, no auditd.</p>
+<p>Seven bugs in the test tooling were found and fixed on the way, each of which had made an earlier "proof" vacuous: a socket probe that hung forever, three probes that needed a python the image lacked, a lost exit status, a parser cache that silently skipped a reload, a render flag that left the fixed pieces in complain, wrong errno semantics, and a noexec tmpfs. The 2026-09-10 "14 of 14 blocked" is re-read as: the container flags blocked 14 of 14; the profile's own share was unmeasured until today.</p>
+
+<h2>7. What comes next, and what needs you</h2>
+<ul>
+  <li><strong>Tomorrow, no input needed:</strong> <code>pol deploy harden isle-core --report --rules</code>, the first real day of harvested lines from a live isle. Fix the template until a normal day reports nothing.</li>
+  <li><strong>Your sudo:</strong> the same warn-only apply on pol-core (swarm leader) and econ-core. Dry-runs already pass on both.</li>
+  <li><strong>Your go:</strong> deploying the app-surface overlay with the lean stack on the home swarm. On the swarm this ring, not AppArmor, is what blocks escapes.</li>
+  <li><strong>Next image build:</strong> the hardware-app notice seen live on health, admission and the download page.</li>
+  <li><strong>Decisions still open:</strong> hardening D1 to D8 (D1, user-namespace remap, now matters more than it seemed), interfaces D1 to D9, and the scope of an independent test.</li>
+  <li><strong>Revert at any time:</strong> <code>pol deploy harden isle-core --revert</code> puts docker's stock profile back with no restart.</li>
+</ul>
+<pre>pol deploy harden &lt;node&gt; [--scenario S] [--dry-run|--enforce] | --report [--rules] | --revert
+pol prod harden [--enforce|--dry-run] | harden report [--rules] | harden revert
+pol security os render|apply|audit|escape-test [--alone]|allowed [--rules]|revert</pre>
+
+<footer>Records: ISLE_HARDENING_PLAN.md §13 and §14 · SECURITY_ARC_HANDOFF.md · TESTING_OWED.md §18 and §19 · os-security/README.md · the public OS security page (status banner kept). Branch dev-sec-1 in the suite, polari-cli, polari-framework and Isle-Mesh; nothing pushed.</footer>
+</main>
