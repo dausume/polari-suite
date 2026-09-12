@@ -30,7 +30,7 @@ if has mac; then
         name=$(basename "$P"); m=$(python3 -c "import json; m=json.load(open('$OUT/manifest.json')); print(next((x['mode'] for x in m['apps']+m['fixed'] if x['profile']=='$name'), 'enforce'))")
         [ -n "$MODE" ] && m=$MODE
         [ -n "$MODE" ] && m="$MODE"; flag=""; [ "$m" = complain ] && flag="-C"
-        warn_only install -m 0644 "$P" "/etc/apparmor.d/$name"
+        run install -m 0644 "$P" "/etc/apparmor.d/$name"
         run apparmor_parser -r $flag "/etc/apparmor.d/$name" && ok "$name ($m)"
     done
     # profiles for apps that are gone: unload + remove
