@@ -123,6 +123,14 @@ One thing is external: the primary domain, registered somewhere, with its DNS ma
 
 The internet still needs a DNS record to find each name. That is one A record for the primary domain, and then either one wildcard record, `*.yourdomain` pointing at the exposure address, which covers every subdomain now and later, or one A record per subdomain. The guide's Names step shows each name with the component that enables it, whether it resolves here, and what external record it needs, and it detects a wildcard.
 
+## Profiles: not answering everything every time
+
+The guide's first screen asks where to start: continue from your last run, a profile you saved, one of the standard profiles, or walk through everything again. Whatever you pick, every step is still shown with the answers filled in, so you change what differs and press through the rest. At the review screen you can save the answers under a name for next time.
+
+Standard profiles ship with the command line: **local-instance**, a normally hosted, locally accessible Polari on this machine with user logins, reachable on the LAN by name; **public-server**, a public site with logins and a publicly trusted certificate; **demo-server**, a public demonstration instance with the notice and terms gate; **distribution-server**, installers only. Yours are saved beside the checkout and never leave the machine.
+
+From the command line: `pol prod profile list`, `pol prod profile use <name>` (then `pol prod plan` and `pol prod apply`), `pol prod profile save <name>`, and for automation `pol prod apply --profile <name> --yes`, which applies a profile without a single question.
+
 ## Credentials and the vault
 
 Nothing the guide generates is left for you to protect by hand. On the full profile the Keycloak admin, the database passwords and the file-store keys are generated once, at random, and recorded in an encrypted, root-only vault at `/etc/polari/vault`. Read it with `sudo pol security vault show`; nothing in it is ever printed to a log.
