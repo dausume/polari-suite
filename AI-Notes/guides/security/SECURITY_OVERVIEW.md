@@ -49,6 +49,21 @@ Each app states what it needs in its manifest: a profile kind, the paths it may 
 
 Polari itself is GPL-3.0. Nothing in this stack is proprietary, and nothing phones home.
 
+## The assurance ladder
+
+Security is not one state but a ladder, and every rung has to be earned before the next means anything. Polari states which rung it is on rather than implying a higher one:
+
+| rung | what it means | Polari today |
+|---|---|---|
+| 1. designed | the model is written down: the rings, the taxonomy, what each control protects against | yes |
+| 2. built | the controls exist as code: templates, renderers, interfaces | partly: templates and scripts; the interfaces are plans |
+| 3. applied by default | every deployment route turns the controls on without an operator remembering to | no |
+| 4. self-tested | the audit and the escape test run on every deployment and their results are recorded | no, run once by hand on one machine |
+| 5. independently tested | a third party, not the authors, tests the deployed system and publishes what it found and what was fixed | no |
+| 6. insurable | an insurer will underwrite data storage and processing on it, which in practice requires rung 5 and evidence it is kept | no |
+
+Rungs 5 and 6 are outside what the project can do for itself: independent testing has to be bought or contributed, and insurance is an underwriter's decision. Until rung 5, Polari makes no assurance claim about the safety of data stored on it, and nobody should rely on it for data whose loss or exposure they cannot bear. The point of the ladder is to be honest about that on the day it is true, and to make each rung a visible, checkable step.
+
 ## Where things stand
 
 Plainly: this security model is designed and partly prototyped, not deployed.

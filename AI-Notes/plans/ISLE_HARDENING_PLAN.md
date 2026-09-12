@@ -214,3 +214,11 @@ own network-isolation check). What was NOT covered, now addressed:
 Remaining: the isle-side apply at install/remove (sec-3 isle half),
 userns-remap migration (sec-1), TLS on doors, auditd → SecurityEvent
 rows + `/display/security` (sec-5/6), the store card (sec-7), D1–D8.
+
+## 12. The assurance ladder (his point 2026-09-12) and the honest state
+
+His correction: the security is not built; rendered templates tested once are not protection. And beyond building it, another step exists: independent third-party testing, which is what anyone would need before insurance on data storage and security using Polari can even be discussed.
+
+Rungs: designed → built → applied by default on every route → self-tested on every deployment (audit + escape test, results recorded) → independently tested (a third party, findings and fixes published) → insurable (an underwriter's decision, needs the previous rung and evidence it is kept). Today Polari is at rung 1, partly 2. The docs carry a "designed and prototyped, not deployed" banner until rung 3 and say plainly that no assurance claim is made until rung 5.
+
+Order of the arc from here: (a) sec-1..3 on the server and the isle so the rings apply by default (rung 3); (b) audit + escape test in every deployment's verify and in CI (rung 4); (c) the security interfaces (SECURITY_INTERFACES_PLAN) so an operator can see the state; (d) scope and budget an independent test — what to test (the droplet profile, an isle), against which references (CIS benchmarks for Docker and Ubuntu, OWASP ASVS for the apps), and where findings are published — his decision D9 here.
