@@ -56,7 +56,7 @@ The guide asks, in order, and remembers every answer in `.generated/prod-answers
 5. **Modules** — the floor set (`polariapps, appstore, islemesh, terms`); add more at the cost of memory.
 6. **Installers** — installers are release artifacts: built once, published, fetched here. The guide lists the official releases that carry installers (GitHub Releases of the suite, free for a public project) and stages the chosen one; or build them here, or name another pool (a directory, a release page URL, or `github:<owner/repo>@<tag>`), or skip. The Download page lists whatever is staged.
 7. **Demonstration notice** — whether the apps show the "no personal information" bar and the terms gate.
-8. **Images** — a registry prefix to pull the release images from (for example `ghcr.io/dausume/`), or empty to build them on this machine from the checkout, and the image tag.
+8. **Images** — pull a published release from an official source (default) or a registry you name, at a tag the registry actually lists, or build here. A release comes in two variants: **core** (tag `…-core`, the default) carries only the core modules, the ones that make Polari a networking and app system; optional modules you list are fetched from their GitHub repositories on admission. **all-official** (tag `…-all`) carries every official module baked in.
 
 Then it shows the plan and asks once whether to apply.
 
