@@ -6,6 +6,18 @@ tier: member
 mode: complain             # WARN-ONLY by default (his rule 2026-09-12): nothing enforced until proven one piece at a time; --enforce is explicit
 fixed_mode: complain
 
+# How the MAC ring attaches on this route (found 2026-09-12): `docker stack deploy` DROPS security_opt
+# (docker/cli UnsupportedProperties), so a per-service AppArmor or seccomp profile cannot be attached to
+# a swarm task. The one lever is the node-wide `docker-default` profile: dockerd only loads its own when
+# none of that name is loaded (moby daemon/apparmor_default.go), and `apparmor_parser -r` replaces it
+# live for running containers. So render.py writes apparmor/docker-default = the UNION of the fixed
+# pieces' surfaces (plus docker-default.moby, the stock one, for revert) and apply.sh loads it.
+mac_attach: docker-default
+# Modules are not containers here — they run INSIDE prf-backend — so they get no profile of their own;
+# their stanzas fold into the core piece (network + capabilities union; writable stays the core's).
+apps_run: in-core
+core: prf-backend
+
 docker:
   userns_remap: ""          # swarm services do not support userns-remap per service; the daemon-wide remap is D1's call
   no_new_privileges: true

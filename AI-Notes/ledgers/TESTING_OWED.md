@@ -1246,3 +1246,35 @@ module` forms and `__file__`-relative data paths in moved files).
 Not proven here: a full 24-module staging boot and the browser sweep on
 the new layout (unchanged logic, but run them at the next deploy); docs
 in AI-Notes still cite old file names.
+
+## §18 — sec-1a, Polari side (2026-09-12, branch dev-sec-1; ISLE_HARDENING_PLAN §13)
+
+His rules: warn-only everywhere; one piece; re-test each. ⛔ NOT the droplet (his correction, same day): tests across pol-core / econ-core / isle-core via app deployments. All live runs below = isle-core (root over ssh), throwaway profiles loaded and unloaded in the same script; every isle container up before and after (5/5); nothing left on the machine.
+
+| piece | machine | check | result |
+|---|---|---|---|
+| deny-in-complain probe | isle-core | `deny /tmp/x r` under `flags=(complain)` | ENFORCED (Permission denied, no log line) → template rewritten as an allow-list |
+| render | pol-core | 4 scenarios, `--apps-from-manifests` | swarm-lean/full: 0 app profiles, 59 modules folded, docker-default + stock copy; isle: 59 apps + 6 fixed; dev: 59 |
+| parse | pol-core | `apparmor_parser -Q --skip-cache` | 142/142 (complain); swarm-lean enforce 6/6 |
+| apply dry-run | pol-core | `apply.sh --scenario swarm-lean --dry-run` | docker-default step + 4 fixed profiles in complain; rings printed |
+| allowed.py | pol-core | `--selftest`; `--since 1d` (adm) | PASS 5 groups; 0 lines locally |
+| audit | pol-core | `audit.sh --scenario swarm-lean` | partial 10 pass / 7 fail / 3 skip (no root) |
+| docker-default swap | isle-core | swap in complain → plain container writes /usr/bin → revert to stock | attached live (complain section), 3 ALLOWED lines under `docker-default` with rules, stock deny (sysrq) still enforced, revert = enforce stock, no file left |
+| escape-test full, complain | isle-core | 14 probes, python image | 9 blocked, 0 escaped, **5 BROKEN**: python cannot start under the `worker` seccomp list ("Error relocating python3") |
+| escape-test profile-only, complain | isle-core | `--alone` | 5 blocked (docker's masks/caps), 7 escaped as expected, 43 ALLOWED accesses harvested (34 = python `__pycache__` writes into the image, `/usr/bin/pwned`, `capability sys_chroot`) |
+| escape-test profile-only, ENFORCE | isle-core | `--alone`, real enforce (`--mode` now overrides fixed_mode); probes repaired and re-run | **11 blocked** (socket, mount, sysrq, sysctl, module, ptrace, raw socket, userns, image write, chroot, firmware), 3 escaped (host bind read → DAC/userns D1; keyctl, bpf → seccomp), 0 broken; harvest 8 DENIED lines |
+| pol prod verify / modules health | — | not run: no deployment was changed | — |
+
+Test-tool bugs found and fixed on the way (each had made an earlier "proof" vacuous): busybox `nc -U` socket probe hangs forever; 3 probes needed python3 absent from alpine; `PIPESTATUS` lost in `$(…)`; parser cache skipped a same-name reload ("same as current profile"); `--mode enforce` left fixed pieces in complain; keyctl/bpf probes read the wrong errno; tmpfs noexec broke the chroot probe. The 2026-09-10 "14/14 blocked under an enforced profile" is therefore re-read as: the container flags blocked 14/14; the profile's own share was never measured until today.
+
+Owed: the warn-only apply on the home swarm (pol-core manager, needs his sudo) + a day's `pol prod harden report`; the app-surface ring in the lean stack file (his go); seccomp warn mode (sec-1c) before any list touches the musl backend; audits before/after on all three machines; `pol prod verify` after each; isle-core's Claude told about the allow-list template + `--skip-cache` (NOTES-FROM-POL-CORE).
+
+**Baseline audit across the three home machines (2026-09-12, `pol deploy audit <node>`, no root on pol-core/econ-core → MAC controls skipped there):**
+
+| machine | verdict | pass / fail / skip | the fails |
+|---|---|---|---|
+| pol-core (swarm leader, docker 27.3.1) | partial | 10 / 7 / 3 | userns-remap, a docker.sock mount, a writable rootfs, sudo groups, DOCKER-USER empty, kptr_restrict=1, no auditd |
+| isle-core (worker + the isle, docker 29.1.3) | open | 12 / 13 / 1 | + 5 containers root inside, /etc/isle-mesh 755, no isle-app-* profiles, all on stock docker-default, builtin seccomp, ufw inactive, sshd on all interfaces |
+| econ-core (worker, docker 29.1.3) | partial | 9 / 8 / 3 | userns-remap, a root container, 2 writable rootfs, sudo groups, DOCKER-USER empty, sshd on all interfaces, kptr_restrict=1, no auditd |
+
+These are the "before" rows the loop compares against after each warn-only apply on the home swarm.

@@ -8,6 +8,11 @@ tier: hardware            # reach | member | hardware | core — what this machi
 mode: complain             # WARN-ONLY by default (his rule 2026-09-12): nothing enforced until proven one piece at a time; --enforce is explicit
 fixed_mode: complain
 
+# isle route: every app is its own container started by the agent (plain docker, not swarm), so each
+# gets its own profile attached through the rendered compose fragment's security_opt.
+mac_attach: security_opt
+apps_run: containers
+
 docker:
   userns_remap: isle       # /etc/docker/daemon.json "userns-remap" (rendered + diffed, never auto-applied)
   no_new_privileges: true

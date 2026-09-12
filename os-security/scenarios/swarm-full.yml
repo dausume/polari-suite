@@ -5,6 +5,12 @@ tier: member
 mode: complain             # WARN-ONLY by default (his rule 2026-09-12): nothing enforced until proven one piece at a time; --enforce is explicit
 fixed_mode: complain
 
+# swarm route: services cannot carry security_opt (see swarm-lean.yml) → the node-wide docker-default
+# profile is the MAC lever; modules run inside prf-backend and fold into its stanza.
+mac_attach: docker-default
+apps_run: in-core
+core: prf-backend
+
 docker:
   userns_remap: ""
   no_new_privileges: true

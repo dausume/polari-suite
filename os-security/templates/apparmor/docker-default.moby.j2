@@ -1,0 +1,46 @@
+{#- os-security: docker's STOCK docker-default profile, verbatim from moby
+    profiles/apparmor/template.go (checked against v27.3.1 on 2026-09-12; the
+    daemon's own profile taken as unconfined — dockerd has no profile on Ubuntu).
+    Re-check against the engine version in play before relying on the revert
+    (docker version --format '{{ '{{' }}.Server.Version{{ '}}' }}'). Rendered as out/<scenario>/apparmor/docker-default.moby
+    so `apply.sh --revert-docker-default` can put the stock profile back in the
+    kernel with one apparmor_parser -r — no docker restart, no container bounce.
+    Only rendered for scenarios with mac_attach: docker-default (the swarm route,
+    where services cannot carry security_opt, so the node-wide profile is the
+    one lever the MAC ring has). -#}
+#include <tunables/global>
+
+# docker-default — moby's stock profile, rendered by os-security/render.py for scenario {{ scenario }} (revert copy)
+profile docker-default flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  network,
+  capability,
+  file,
+  umount,
+  signal (receive) peer=unconfined,
+  signal (receive) peer=runc,
+  signal (receive) peer=crun,
+  signal (receive) peer=unconfined,
+  signal (send,receive) peer=docker-default,
+
+  deny @{PROC}/* w,
+  deny @{PROC}/{[^1-9],[^1-9][^0-9],[^1-9s][^0-9y][^0-9s],[^1-9][^0-9][^0-9][^0-9/]*}/** w,
+  deny @{PROC}/sys/[^k]** w,
+  deny @{PROC}/sys/kernel/{?,??,[^s][^h][^m]**} w,
+  deny @{PROC}/sysrq-trigger rwklx,
+  deny @{PROC}/kcore rwklx,
+
+  deny mount,
+
+  deny /sys/[^f]*/** wklx,
+  deny /sys/f[^s]*/** wklx,
+  deny /sys/fs/[^c]*/** wklx,
+  deny /sys/fs/c[^g]*/** wklx,
+  deny /sys/fs/cg[^r]*/** wklx,
+  deny /sys/firmware/** rwklx,
+  deny /sys/devices/virtual/powercap/** rwklx,
+  deny /sys/kernel/security/** rwklx,
+
+  ptrace (trace,read,tracedby,readby) peer=docker-default,
+}

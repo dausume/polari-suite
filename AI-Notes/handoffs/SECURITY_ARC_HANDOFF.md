@@ -31,12 +31,13 @@ _For the next instance (or the next session of this one). Written after the firs
 
 ## 3. What exists, precisely
 
-- `os-security/scenarios/{isle,swarm-lean,swarm-full,dev}.yml` — **all `mode: complain` now.**
-- `os-security/render.py` — validates the stanza vocabulary, renders AppArmor per app (`templates/apparmor/app.j2`), seccomp per kind, DOCKER-USER, ufw, daemon.json, sysctl, systemd hardening, perms, audit rules → `out/<scenario>/` + `manifest.json`. `--apps-from-manifests` or `--apps-from-core URL` (only online modules).
-- `os-security/apply.sh` — **warn-only by default**: profiles load in complain (`-C`); the rings that cannot warn (DOCKER-USER, ufw, sysctl, perms, daemon.json) are only printed unless `--enforce`. `--dry-run` prints everything. Removes profiles of apps no longer in the manifest.
-- `os-security/audit.sh` — 24 controls, verdict open|partial|hardened, `--json`. `pol deploy audit <node>` runs it remotely.
-- `os-security/escape-test.sh` — 14 cross-over attempts under a named profile.
-- `pol security os render|apply|audit|escape-test [--scenario …]` (scenario auto-detected). `pol prod apply` renders after deploy; applies only with `POL_PROD_HARDEN=on` (still warn-only inside).
+- `os-security/scenarios/{isle,swarm-lean,swarm-full,dev}.yml` — **all `mode: complain`**; swarm ones declare `mac_attach: docker-default` + `apps_run: in-core` (2026-09-12), isle `security_opt` + `containers`.
+- `os-security/render.py` — validates the stanza vocabulary, renders AppArmor per app (`templates/apparmor/app.j2`, an ALLOW-LIST since 2026-09-12: complain keeps only docker's stock denies, enforce adds Polari's), the node-wide `docker-default` + stock `docker-default.moby` on swarm, seccomp per kind, route-legal compose fragments, DOCKER-USER, ufw, daemon.json, sysctl, systemd hardening, perms, audit rules → `out/<scenario>/` + `manifest.json` (incl. `folded`, `node`, `mac_attach`). `--apps-from-manifests` or `--apps-from-core URL` (only online modules).
+- `os-security/apply.sh` — **warn-only by default**: profiles load in complain (`-C --skip-cache`); on swarm the docker-default swap (live); the rings that cannot warn (DOCKER-USER, ufw, sysctl, perms, daemon.json) are only printed unless `--enforce`. `--dry-run` prints everything. `--revert-docker-default`. Removes profiles of apps no longer in the manifest.
+- `os-security/allowed.py` — the harvest: kernel `ALLOWED`/`DENIED` lines for our profiles → per profile/operation/object with counts and the rule that would allow each; exit 1 when non-empty. `--selftest`.
+- `os-security/audit.sh` — 25 controls (route-aware MAC controls; `no-audit-lines-24h`), verdict open|partial|hardened, `--json`. `pol deploy audit <node>` runs it remotely.
+- `os-security/escape-test.sh` — 14 cross-over attempts under a named profile, two passes (full / `--alone`), python image, time-limited, `--verbose` names the blocking error.
+- `pol security os render|apply|audit|escape-test|allowed|revert [--scenario …]` (scenario auto-detected). `pol prod harden [--enforce|--dry-run] | harden report [--rules] | harden revert` for the server; `pol prod apply` still renders after deploy and applies only with `POL_PROD_HARDEN=on` (warn-only inside).
 - Manifest stanza: `security: {profile, writable, network, capabilities, devices, ports}` in every `polari-app.json`; `conform` reports, never gates.
 - Proxy: `pol-proxy/nginx.{lean,prod}.conf.template` hardened (ciphers, headers, rate limits, HSTS once public); `pol proxy guard`.
 - Vault: `pol security vault …`, root-only, encrypted with a local identity; provider stash policy all/some/none.
@@ -71,15 +72,38 @@ Record each run's result in `AI-Notes/ledgers/TESTING_OWED.md` (a line per piece
 - `pkill -f <pattern>` with the pattern in your own command line kills your shell; use `ps | grep "[p]attern"`.
 - Textual: a RadioButton mounted into an existing set never becomes its pressed button; rebuild the set. Visibility sync after a radio change must be deferred.
 
+Added 2026-09-12 (sec-1a, Polari side — plan §13):
+- **Explicit `deny` rules are enforced even in complain mode**, quietly. A "warn-only" profile must be an allow-list; the template is one now. Never add a `deny` line outside the enforce-only block of `app.j2`.
+- **Swarm services cannot carry `security_opt`** (dropped by `docker stack deploy`). On the server the MAC ring = the node-wide `docker-default` profile (`mac_attach: docker-default`); per-app profiles exist only on the isle route. `pol security os revert` puts docker's stock profile back.
+- **The parser's cache is keyed by basename**: loading a changed profile with the same file name can be skipped as "same as current profile" (a complain→enforce switch silently stayed complain). Always `apparmor_parser --skip-cache` (apply.sh does); check the mode in `aa-status` after loading.
+- **The full escape test never consults AppArmor**: cap_drop/seccomp/read-only block everything first (14/14 with zero audit lines). Run `--alone` too; that is the profile's own score. Three probes need python3 in the image (default image is python:3.12-alpine now); the old busybox `nc -U` socket probe hangs forever.
+- A `$(… | tail)` command substitution loses `PIPESTATUS`; capture the exit status before the pipe (escape-test does, via a temp file).
+- Killing by a pattern over ssh: the remote shell's own command line contains every path you typed — `ps | grep "[p]attern" | xargs kill` still matched it through an unrelated argument and killed the session. Prefer killing by name/pid you recorded.
+- ⛔ The droplet is off limits for this work (his rule 2026-09-12: "you should not be working in the droplet"; it accepts no ssh key from pol-core anyway). Test across pol-core, econ-core and isle-core via app deployments.
+- docker's `--tmpfs` mounts are noexec: a probe that copies a binary under /tmp and executes it fails for that reason, not confinement.
+- Under `attach_disconnected` a connect to a bind-mounted unix socket is reported as path "/" — the docker-socket probe is blocked by the implicit deny of "/", not by the `docker.sock` deny lines (those never matched anything in the log).
+
 ## 6. The first slices, in order (each one = change → §4 loop → record)
 
-1. **sec-1a, server:** `pol prod apply` renders the swarm scenario (it does) and applies it warn-only on the droplet: AppArmor profiles in complain for the four services, firewall rings printed only. Then read `dmesg`/`journalctl` for `ALLOWED` audit lines over a day: that is the list of what enforcing would break. Fix the templates until the list is empty for a normal day of use.
-2. **sec-1b, the same on an isle** (isle-core's half: `isle app install` renders + loads complain profiles; contract in NOTES-FROM-POL-CORE.md).
-3. **Only then** `--enforce` for the MAC ring on the server, one service at a time (backend first; frontend; hub; proxy), verify after each.
-4. **Firewall ring** with `--enforce`, DOCKER-USER first (it cannot lock you out of ssh), ufw last and only with the ssh rule proven from a second session.
-5. **Audit + escape test into `pol prod verify`** and into the CI plan (rung 4).
-6. **Interfaces** (SECURITY_INTERFACES_PLAN sec-i-0): the `security` module, taxonomy, AppSecurityRecord ledger, the three screens — read-only first.
-7. Decisions for him before going further: hardening D1–D8; interfaces D1–D9; §12's D9 (scope of an independent test).
+1. **sec-1a — Polari side DONE 2026-09-12 (branch dev-sec-1, plan §13). ⛔ HIS RULE (2026-09-12): do NOT work in the droplet. Test across pol-core, econ-core and isle-core via app deployments** — the home swarm is the server route's test bed (lean stack on the manager, the audit on every node), isle-core the isle route's. On the swarm manager, as root in the checkout:
+   ```
+   pol prod harden --dry-run      # what it would do: the node-wide docker-default (complain) + printed rings
+   pol prod harden                # warn-only: loads it, audits; nothing is denied beyond stock docker
+   pol prod verify                # all four routes still pass
+   … a normal day of use …
+   pol prod harden report --rules # what enforcing would break, per profile, with the rule for each
+   pol prod harden revert         # docker's stock docker-default back, any time, no restart
+   ```
+   Then fix `templates/apparmor/app.j2` (or the fixed pieces' stanzas in the scenario) until the report is empty for a normal day. Expect python `__pycache__` writes into the image first (seen on the isle): the honest fix is `read_only: true` + tmpfs in the stack file (sec-1b-swarm), not a wider profile.
+   Note there is NO per-service profile on the swarm route: the four services share the node-wide union profile; per-app confinement is the isle route's. Root: pol-core's sudo needs his password (dry-run and audit work without); isle-core has passwordless root over ssh; econ-core = `pol deploy grant`.
+   Measured 2026-09-12 on isle-core (worker profile, python:3.12-alpine): the profile ALONE in enforce blocks 11/14 (socket, mount, sysrq, sysctl, module, ptrace, raw socket, userns, image write, chroot, firmware), cannot block reading a host bind (path rules cannot tell a bind from the image → D1 userns-remap) nor keyctl/bpf (seccomp's job); the full confinement blocks everything but BREAKS python on musl (the `worker` seccomp list is too tight: 5 probes "Error relocating python3") — so **sec-1c = seccomp in warn mode** (`defaultAction: SCMP_ACT_LOG` in complain, harvested from `type=1326` lines) before any seccomp list goes near the alpine-based backend.
+2. **sec-1b-swarm, the app-surface ring in `docker-compose.lean.yml`** (`cap_drop: [ALL]` + declared `cap_add`, `read_only: true`, `tmpfs`, `deploy.resources.limits.pids` — the rendered `out/swarm-lean/compose/*.security.yml` fragments say exactly what): a production stack change → his go, then `pol prod apply` + `verify`. On the swarm this ring, not AppArmor, is what blocked 14/14 in the escape test.
+3. **sec-1b-isle, the same warn-only apply on an isle** (isle-core's half: `isle app install` renders + loads complain profiles through the compose fragment's `security_opt`; contract in NOTES-FROM-POL-CORE.md — tell isle-core about the allow-list template and `--skip-cache`).
+4. **Only then** `--enforce` for the MAC ring on the server (`pol prod harden --enforce` = the one docker-default profile; there is no per-service order on swarm), verify after; on the isle one app profile at a time.
+5. **Firewall ring** with `--enforce`, DOCKER-USER first (it cannot lock you out of ssh), ufw last and only with the ssh rule proven from a second session.
+6. **Audit + escape test (both passes) into `pol prod verify`** and into the CI plan (rung 4). seccomp on the swarm = the daemon-wide `seccomp-profile` setting (render into daemon.json; diffed, applied in a window) — not yet rendered.
+7. **Interfaces** (SECURITY_INTERFACES_PLAN sec-i-0): the `security` module, taxonomy, AppSecurityRecord ledger, the three screens — read-only first.
+8. Decisions for him before going further: hardening D1–D8 (D1 userns-remap matters more than thought: a path-based profile cannot tell a bind of the host's /etc from the image, so reading host files through a bind is DAC's to stop); interfaces D1–D9; §12's D9 (scope of an independent test).
 
 ## 7. Boundaries
 

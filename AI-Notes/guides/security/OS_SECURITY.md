@@ -44,20 +44,34 @@ The renderer produces `isle-app-<name>` from one template: the image tree readab
 
 **The kernel's own knobs.** Pointer and dmesg restriction, unprivileged BPF disabled, ptrace scope, protected symlinks and hardlinks, reverse-path filtering; user namespaces stay enabled because the remap needs them.
 
+## Warn mode, precisely
+
+Every profile loads in complain mode first. Two facts shape how the profiles are written:
+
+- AppArmor enforces **explicit** `deny` rules even in complain mode, and quietly. Complain only turns *implicit* denials (accesses no rule allows) into logged, permitted `ALLOWED` events. A profile built as "allow everything, then deny a list" would bite silently in warn mode and log nothing. So each profile is an **allow-list**: the image readable and executable, the declared paths writable, the declared network and capabilities, the runtime's signals. In complain mode everything outside it is permitted and logged; the only explicit denies kept are docker's own stock ones, which every container already runs under, so a complain profile never denies more than stock docker does. Enforce mode adds Polari's stricter explicit denies on top.
+- The list of what enforcing would break is therefore readable from the kernel log: `pol security os allowed --since 1d --rules` groups the `ALLOWED` lines per profile, with the rule that would allow each. An empty list after a normal day of use is the gate for `--enforce`, one profile at a time.
+
+## On the swarm route
+
+Docker's `stack deploy` drops `security_opt` (with `privileged`, `devices` and `userns_mode`), so a swarm service cannot be given an AppArmor or seccomp profile of its own. The production server runs the lean stack as a swarm, so there the MAC ring has one lever: the node-wide `docker-default` profile that every container gets. The daemon loads its own only when no profile of that name is already loaded, and a replacement takes effect live for running containers. The renderer therefore writes `docker-default` as the union of the stack's pieces (proxy, hub, frontend, backend) and keeps docker's stock profile alongside it so `pol security os revert` restores it with one command, without restarting docker. Modules on the swarm are not containers, they run inside the Polari backend, so their declarations fold into the backend's profile rather than getting one each. The compose fragment for the swarm carries only what the swarm honours: dropped capabilities, read-only root filesystem, tmpfs, a process limit.
+
 ## Proving it
 
-`audit.sh` reports every control with evidence and a verdict. `escape-test.sh` starts a throwaway container with exactly an app's confinement, deliberately mounting the docker socket and the host's `/etc` to prove the profile denies them even when present, and tries fourteen cross-overs: the socket, the host's shadow file, mounting, sysrq, sysctl writes, kernel modules, ptrace of init, raw sockets, a new user namespace, writing outside the declared paths, chroot, keyctl, bpf, firmware. Each must fail. On an isle with a real enforced profile, all fourteen were blocked.
+`audit.sh` reports every control with evidence and a verdict, including the count of audit lines in the last day. `escape-test.sh` starts a throwaway container with exactly an app's confinement, deliberately mounting the docker socket and the host's `/etc` to prove the profile denies them even when present, and tries fourteen cross-overs: the socket, the host's shadow file, mounting, sysrq, sysctl writes, kernel modules, ptrace of init, raw sockets, a new user namespace, writing outside the declared paths, chroot, keyctl, bpf, firmware. Each must fail. It runs in two passes: the full confinement (profile, seccomp, dropped capabilities, read-only root) and, with `--alone`, the AppArmor profile by itself. The second pass exists because the full pass proves little about the profile: on 2026-09-12 all fourteen attempts were blocked on an isle with the profile loaded, and the kernel recorded no AppArmor decision at all, every block having come from the other rings. The profile-only pass is what shows the MAC ring's own contribution.
 
 ## Commands
 
 ```
 pol security os render [--scenario isle]        render for the auto-detected or named scenario
-pol security os apply [--complain|--enforce]    load it (root)
+pol security os apply [--complain|--enforce]    load it (root; complain unless told otherwise)
 pol security os audit [--json]                  score this machine
-pol security os escape-test [--profile P]       prove it
+pol security os escape-test [--profile P] [--alone]   prove it (full confinement; --alone = the profile by itself)
+pol security os allowed [--since 1d] [--rules]  what enforcing would break, from the kernel log
+pol security os revert                          swarm: docker's stock docker-default back
+pol prod harden [--enforce] | harden report | harden revert   the same for the server, from its answered profile
 pol deploy audit <node>                         the audit on another machine, over ssh
 ```
 
 ## Where it stands
 
-Templates, the renderer, the apply script and the audit exist and pass their own checks; the escape test was run once by hand on one isle. Nothing here is applied on any machine by default: no generated AppArmor profile is loaded on the production server or on an isle, user-namespace remapping is not enabled, and the audit reports both as open. Applying the rings per scenario, and the isle-side application when an app is installed, are the next work.
+Templates, the renderer, the apply script, the audit and the harvest of audit lines exist and pass their own checks. On 2026-09-12 the warn-mode mechanics were proven on one isle: a complain-mode profile logs what enforcing would deny and permits it; the node-wide `docker-default` replacement attaches live, logs, and reverts cleanly; the fourteen-probe escape test blocks all fourteen under the full confinement in both modes, and the profile-only pass measures what the profile itself adds. Nothing here is applied on any machine by default: no generated profile is loaded on the production server or on an isle, user-namespace remapping is not enabled, the swarm stack file does not yet carry the dropped-capability and read-only settings, and the audit reports all of that as open. The next work is the warn-only application on the production server, a day of harvested audit lines, and only then enforcement one piece at a time.

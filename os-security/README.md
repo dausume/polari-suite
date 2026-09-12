@@ -27,6 +27,18 @@ os-security/
 
 Every scenario renders in `complain` mode and `apply.sh` loads AppArmor profiles in complain: everything an enforced profile would deny is logged (`ALLOWED` audit lines), nothing is denied. The rings that cannot warn — DOCKER-USER, ufw, sysctl, permissions, systemd drop-ins — are only printed. `--enforce` applies one piece on purpose, after it has been proven with the test loop in `AI-Notes/handoffs/SECURITY_ARC_HANDOFF.md` §4. Change one piece, re-test, record, then the next.
 
+**What "complain" really means (proven on an isle, 2026-09-12).** AppArmor enforces *explicit* `deny` rules even in complain mode, and quietly: `apparmor.d(5)` — "complain mode will only convert implicit denials to ALLOWED". A profile written as a blanket `file,` allow with `deny …` carve-outs (the first draft) would therefore have bitten silently and logged nothing about files. So the one template (`templates/apparmor/app.j2`) is an **allow-list**: the image readable and executable, the declared paths writable, the declared network and capabilities, the runtime's signals. In complain mode everything outside it is permitted and logged as `ALLOWED`; the only explicit denies kept are docker's own stock ones, which every container is under today, so a complain profile never denies more than stock docker does. Enforce mode adds Polari's explicit denies on top (they win over any allow). `allowed.py` (`pol security os allowed [--since 1d] [--profile P] [--rules]`) reduces the kernel's lines to the list of what enforcing would break, with the rule that would allow each; an empty list is the gate for `--enforce`.
+
+## The swarm route: services cannot carry a profile (found 2026-09-12)
+
+`docker stack deploy` drops `security_opt` (docker/cli `UnsupportedProperties`, with `privileged`, `devices`, `userns_mode`), so no swarm task can be given an AppArmor or seccomp profile of its own. Two consequences, declared per scenario:
+
+- `mac_attach: docker-default` (swarm-lean, swarm-full): the MAC ring's one lever is the node-wide `docker-default` profile. dockerd loads its own only when none of that name is loaded (moby `daemon/apparmor_default.go`), and `apparmor_parser -r` replaces it live for running containers. `render.py` writes `apparmor/docker-default` = the **union** of the fixed pieces' surfaces, plus `docker-default.moby` (docker's stock profile) so `apply.sh --revert-docker-default` (`pol security os revert`) puts it back with one command, no docker restart. The per-piece `isle-app-*` profiles are still rendered for the escape test. seccomp per kind cannot attach either; the daemon-wide `seccomp-profile` setting is the equivalent lever (rendered into daemon.json in a later piece).
+- `apps_run: in-core` (swarm-lean, swarm-full): modules are not containers on the swarm — they run inside `prf-backend` — so they get no profile of their own; their stanzas fold into the core's (network and capabilities union; writable stays the core's; hardware extensions are left out by name). `manifest.json` records `folded`.
+- The compose fragment carries only what the route honours: on swarm `cap_drop/cap_add`, `read_only`, `tmpfs`, `deploy.resources.limits.pids`; on the isle route additionally `security_opt` and `pids_limit`.
+
+The isle route (`mac_attach: security_opt`, `apps_run: containers`) is unchanged: the agent starts plain containers, so each app carries its own profile through the fragment.
+
 ## The model
 
 Five rings, each independent (plan §2): the app's declared surface → DAC
@@ -72,8 +84,11 @@ compose/stack fragment (`security_opt`, `cap_drop/cap_add`, `read_only`,
 python3 os-security/render.py --scenario isle --apps-from-manifests      # or --apps apps.json
 sudo bash os-security/apply.sh --scenario isle [--complain|--enforce]   # loads profiles, firewall, sysctl; removes gone apps' profiles
 bash os-security/audit.sh [--json]                                      # pass/fail per control, this machine
-sudo bash os-security/escape-test.sh --profile isle-app-<name>          # prove it
-pol security os render|apply|audit|escape-test …                        # the same through the CLI; pol deploy audit <node> remotely
+sudo bash os-security/escape-test.sh --profile isle-app-<name>          # prove it (image needs python3: python:3.12-alpine by default)
+python3 os-security/allowed.py [--since 1d] [--profile P] [--rules]     # what enforcing would break (root or adm)
+sudo bash os-security/apply.sh --scenario swarm-lean --revert-docker-default   # swarm: docker's stock profile back
+pol security os render|apply|audit|escape-test|allowed|revert …         # the same through the CLI; pol deploy audit <node> remotely
+pol prod harden [--enforce|--dry-run] | harden report [--rules] | harden revert   # the server route, from the answered profile
 ```
 
 Nothing here restarts docker on its own: `daemon.json` changes (userns
