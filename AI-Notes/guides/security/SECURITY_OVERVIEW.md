@@ -1,5 +1,7 @@
 # Security in Polari
 
+> **Status, 2026-09-12: designed and prototyped, not deployed.** The controls on this page exist as templates, scripts and plans in the repository. None of them is applied on the production server or on any isle unless an operator runs them by hand, and several pieces are still plans. Security is the next thing being built; the honest state of each piece is at the end of the page.
+
 Polari is free and open-source software, and so is everything it relies on to be secure. There is no proprietary agent, no vendor console, no service you must trust: every control is a standard Linux mechanism you can read, and every policy Polari applies is a file you can inspect before it lands.
 
 This section is the map. Each page below covers one layer; this page says how they fit and what they depend on.
@@ -49,4 +51,11 @@ Polari itself is GPL-3.0. Nothing in this stack is proprietary, and nothing phon
 
 ## Where things stand
 
-The controls are declared, rendered and validated. The escape test has been run against a real enforced profile on an isle and every attempt was blocked. Applying the full set on a live isle, and the isle-side pieces (per-app profiles at install time, the firewall chain, the audit feed), are tracked in the hardening plan and its phases; the audit says, per machine, exactly which controls are in place and which are not.
+Plainly: this security model is designed and partly prototyped, not deployed.
+
+- **Exists as code:** the `os-security` directory (scenario files, jinja2 templates for AppArmor, seccomp, the firewall chains, sysctl and audit rules; render, apply, audit and escape-test scripts), the `security` stanza in every module manifest, the proxy hardening in the nginx templates, encrypted swarm overlays, and the credential vault.
+- **Tested once:** the escape test was run on one isle with one profile loaded and enforced by hand, and every attempt was blocked. That is evidence the template works, not evidence that anything is protected today.
+- **Not applied anywhere by default:** the production server runs with the proxy hardening and encrypted overlays only. No AppArmor profile from these templates is loaded there, the host firewall chains are not rendered onto it, and the audit reports it as open. Isles are the same.
+- **Still plans:** the security interfaces (App, Network, OS as screens and rows), content policies derived from the data model, verification between services, the hardware trials, per-app security directories in modules, and the isle-side application at install time.
+
+This is the next arc of work. Until it lands, treat every page in this section as a description of the intended design, with the state of each piece stated on it.

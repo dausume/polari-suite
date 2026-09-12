@@ -91,6 +91,7 @@
         <dl class="meta">
           <dt>Source</dt><dd><code>AI-Notes/guides/security/FIREWALL_SECURITY.md</code> in the suite repository. This page is generated from it; edits go there.</dd>
         </dl>
+<blockquote><p><strong>Status, 2026-09-12: designed and prototyped, not deployed.</strong> The controls on this page exist as templates, scripts and plans in the repository. None of them is applied on the production server or on any isle unless an operator runs them by hand, and several pieces are still plans. Security is the next thing being built; the honest state of each piece is at the end of the page.</p></blockquote>
 <p>Two firewalls matter on a Polari machine, and they answer different questions. The <strong>host firewall</strong> (ufw) decides what the machine admits from the outside. <strong>Docker's user chain</strong> decides what containers may reach on the host and each other. A third, the <strong>isle router's zones</strong>, decides what crosses between the isle's VLAN and everything else. All three are rendered per scenario from <code>os-security</code>, and the audit reports each.</p>
 <h2 id="the-host-firewall-ufw">The host firewall: ufw</h2>
 <p>Default deny incoming, allow outgoing. Each allowed port names a source set, resolved at apply time and skipped with a warning if unresolved, never widened to "any":</p>
@@ -106,7 +107,7 @@
 <h2 id="proving-it">Proving it</h2>
 <p><code>pol security os audit</code> reports: the user chain carries Polari's rules, ufw is active, sshd is not bound to every interface, no docker TCP socket, every overlay encrypted. <code>pol deploy audit &lt;node&gt;</code> runs the same on another machine. The escape test includes reaching host ports from inside a confined container.</p>
 <h2 id="where-it-stands">Where it stands</h2>
-<p>Rendered and validated for every scenario. Applied where an operator runs <code>pol security os apply</code>; on the live isle today ufw is inactive and the user chain is empty, which the audit reports as failures until the isle-side apply lands.</p>
+<p>The rules render and validate for every scenario, and nothing more: no host firewall rules from these templates are applied on the production server or on an isle, docker's user chain is empty on both, and the audit reports it. Applying them per scenario, on the server and at isle install time, is the next work.</p>
         <p style="margin-top:2.5rem;"><a href="docs.html">← All documentation</a></p>
       </article>
     </div>

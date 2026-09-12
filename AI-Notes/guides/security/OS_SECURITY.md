@@ -1,5 +1,7 @@
 # OS security: DAC and MAC
 
+> **Status, 2026-09-12: designed and prototyped, not deployed.** The controls on this page exist as templates, scripts and plans in the repository. None of them is applied on the production server or on any isle unless an operator runs them by hand, and several pieces are still plans. Security is the next thing being built; the honest state of each piece is at the end of the page.
+
 The operating-system layer answers two questions for every process Polari runs: **who is it** (discretionary access control: users, groups, file modes, capabilities) and **what may it touch** (mandatory access control: an AppArmor profile and a seccomp filter the process cannot change). Both are standard Ubuntu mechanisms. Polari declares them once and renders them per machine.
 
 ## The `os-security` directory
@@ -55,3 +57,7 @@ pol security os audit [--json]                  score this machine
 pol security os escape-test [--profile P]       prove it
 pol deploy audit <node>                         the audit on another machine, over ssh
 ```
+
+## Where it stands
+
+Templates, the renderer, the apply script and the audit exist and pass their own checks; the escape test was run once by hand on one isle. Nothing here is applied on any machine by default: no generated AppArmor profile is loaded on the production server or on an isle, user-namespace remapping is not enabled, and the audit reports both as open. Applying the rings per scenario, and the isle-side application when an app is installed, are the next work.

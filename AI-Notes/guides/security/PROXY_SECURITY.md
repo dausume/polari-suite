@@ -1,5 +1,7 @@
 # Proxy security
 
+> **Status, 2026-09-12: designed and prototyped, not deployed.** The controls on this page exist as templates, scripts and plans in the repository. None of them is applied on the production server or on any isle unless an operator runs them by hand, and several pieces are still plans. Security is the next thing being built; the honest state of each piece is at the end of the page.
+
 Every request into Polari passes through exactly one nginx, and that nginx is the policy. There are two of them, one per world, and they do not share code.
 
 ## The isle agent's nginx
@@ -31,3 +33,7 @@ On a server (lean or full profile) and under compose, `pol-proxy` is plain nginx
 ## What the proxy does not do
 
 It does not authenticate users; Keycloak does, on the full profile only. It does not inspect application payloads. It does not reach the internet on an isle. And it is itself confined: the proxy runs under its own AppArmor profile with no capabilities beyond binding its ports, a read-only filesystem, and a seccomp allow-list for a gateway.
+
+## Where it stands
+
+The suite proxy's hardening (TLS versions and ciphers, security headers, rate limits, HSTS once the certificate is public) is real and running on the production server. The isle agent's proxy behaves as described. Per-app proxy snippets, the security interface for proxies, and content policies are designed, not built.

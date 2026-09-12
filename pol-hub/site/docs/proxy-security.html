@@ -91,6 +91,7 @@
         <dl class="meta">
           <dt>Source</dt><dd><code>AI-Notes/guides/security/PROXY_SECURITY.md</code> in the suite repository. This page is generated from it; edits go there.</dd>
         </dl>
+<blockquote><p><strong>Status, 2026-09-12: designed and prototyped, not deployed.</strong> The controls on this page exist as templates, scripts and plans in the repository. None of them is applied on the production server or on any isle unless an operator runs them by hand, and several pieces are still plans. Security is the next thing being built; the honest state of each piece is at the end of the page.</p></blockquote>
 <p>Every request into Polari passes through exactly one nginx, and that nginx is the policy. There are two of them, one per world, and they do not share code.</p>
 <h2 id="the-isle-agent-s-nginx">The isle agent's nginx</h2>
 <p>On an isle, each member device runs an agent whose nginx is the sole ingress for that device's apps. Its configuration is generated from the agent's registry of apps: for each app, which services exist, on which subdomain, over which protocol. Polari reads those generated proxies back as the <strong>protocol matrix</strong>, so what is allowed is exactly what the proxies say and nothing can drift.</p>
@@ -102,6 +103,8 @@
 <p><code>pol proxy guard &lt;env&gt;</code> refuses a template with static upstreams and runs the nginx configuration test with the certificate and CA mounted before anything deploys.</p>
 <h2 id="what-the-proxy-does-not-do">What the proxy does not do</h2>
 <p>It does not authenticate users; Keycloak does, on the full profile only. It does not inspect application payloads. It does not reach the internet on an isle. And it is itself confined: the proxy runs under its own AppArmor profile with no capabilities beyond binding its ports, a read-only filesystem, and a seccomp allow-list for a gateway.</p>
+<h2 id="where-it-stands">Where it stands</h2>
+<p>The suite proxy's hardening (TLS versions and ciphers, security headers, rate limits, HSTS once the certificate is public) is real and running on the production server. The isle agent's proxy behaves as described. Per-app proxy snippets, the security interface for proxies, and content policies are designed, not built.</p>
         <p style="margin-top:2.5rem;"><a href="docs.html">← All documentation</a></p>
       </article>
     </div>

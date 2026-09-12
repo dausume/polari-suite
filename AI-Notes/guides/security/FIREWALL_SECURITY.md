@@ -1,5 +1,7 @@
 # Firewall security
 
+> **Status, 2026-09-12: designed and prototyped, not deployed.** The controls on this page exist as templates, scripts and plans in the repository. None of them is applied on the production server or on any isle unless an operator runs them by hand, and several pieces are still plans. Security is the next thing being built; the honest state of each piece is at the end of the page.
+
 Two firewalls matter on a Polari machine, and they answer different questions. The **host firewall** (ufw) decides what the machine admits from the outside. **Docker's user chain** decides what containers may reach on the host and each other. A third, the **isle router's zones**, decides what crosses between the isle's VLAN and everything else. All three are rendered per scenario from `os-security`, and the audit reports each.
 
 ## The host firewall: ufw
@@ -40,4 +42,4 @@ Swarm's management port, gossip and overlay tunnel are open only to peers. Overl
 
 ## Where it stands
 
-Rendered and validated for every scenario. Applied where an operator runs `pol security os apply`; on the live isle today ufw is inactive and the user chain is empty, which the audit reports as failures until the isle-side apply lands.
+The rules render and validate for every scenario, and nothing more: no host firewall rules from these templates are applied on the production server or on an isle, docker's user chain is empty on both, and the audit reports it. Applying them per scenario, on the server and at isle install time, is the next work.

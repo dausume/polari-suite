@@ -91,6 +91,7 @@
         <dl class="meta">
           <dt>Source</dt><dd><code>AI-Notes/guides/security/NETWORK_SECURITY.md</code> in the suite repository. This page is generated from it; edits go there.</dd>
         </dl>
+<blockquote><p><strong>Status, 2026-09-12: designed and prototyped, not deployed.</strong> The controls on this page exist as templates, scripts and plans in the repository. None of them is applied on the production server or on any isle unless an operator runs them by hand, and several pieces are still plans. Security is the next thing being built; the honest state of each piece is at the end of the page.</p></blockquote>
 <p>Polari's network model is containment first: an isle is your own private network, and everything beyond it is a deliberate rung on a ladder. This page is the security reading of that model; the networking and topology model (<code>../networking-model.html</code>) describes it in full.</p>
 <h2 id="containment-on-the-isle">Containment on the isle</h2>
 <ul><li>One VLAN behind a router the isle owns. Names end in <code>.isle</code> and are served only inside; they never cross.</li><li>The agent's nginx is the only way into a device's apps, and what its proxies allow is the policy. Mutual TLS is a per-app option.</li><li>Devices are sole-isle or dual-home (internet and isle at once, with the separation enforced). A dual-home device does not bridge the two.</li><li>Containers cannot reach host services (docker's user chain) and do not talk to each other except through the agent.</li><li>Trust is established once: a joining device verifies the isle CA's fingerprint out of band, then everything inside is under that authority.</li></ul>
@@ -107,6 +108,8 @@
 <ul><li>One certificate for every public name, publicly trusted through Let's Encrypt or signed by the suite CA until then.</li><li>Overlay networks between swarm nodes are encrypted; management and gossip ports are open to peers only.</li><li>The proxy on the manager is the only entry point; every service is reached by name over the overlay, never by a published port.</li><li>Keycloak, on the full profile only, is reached through the proxy; its credentials are generated, never typed, and rotated before the server faces the internet.</li></ul>
 <h2 id="known-gaps-tracked">Known gaps, tracked</h2>
 <ul><li>An isle door (<code>isle url expose</code>) speaks plain HTTP on its outside leg until the gateway terminates TLS; open doors only across a VPN or a trusted network for now.</li><li>Direct-path discovery for VPN peers behind NAT (STUN, hole punching) is not built; the blind relay is the fallback.</li><li>The isle-side application of the firewall chain and per-app profiles is a phase of the hardening plan, and the audit reports its absence honestly.</li></ul>
+<h2 id="where-it-stands">Where it stands</h2>
+<p>What is real today: the isle's containment model, Reticulum's encryption between isles, encrypted swarm overlays, and one publicly trusted certificate on the production server. What is not: verification between services inside a network (a foothold on the overlay can still talk to a backend), the isle doors speak plain HTTP on their outside leg, and the network security interface is a plan. These are the next work.</p>
         <p style="margin-top:2.5rem;"><a href="docs.html">← All documentation</a></p>
       </article>
     </div>

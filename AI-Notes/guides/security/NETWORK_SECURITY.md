@@ -1,5 +1,7 @@
 # Network security
 
+> **Status, 2026-09-12: designed and prototyped, not deployed.** The controls on this page exist as templates, scripts and plans in the repository. None of them is applied on the production server or on any isle unless an operator runs them by hand, and several pieces are still plans. Security is the next thing being built; the honest state of each piece is at the end of the page.
+
 Polari's network model is containment first: an isle is your own private network, and everything beyond it is a deliberate rung on a ladder. This page is the security reading of that model; the [networking and topology model](../networking-model.html) describes it in full.
 
 ## Containment on the isle
@@ -43,3 +45,7 @@ A mesh app's relay broadcasts state to consumers known only by their Reticulum i
 - An isle door (`isle url expose`) speaks plain HTTP on its outside leg until the gateway terminates TLS; open doors only across a VPN or a trusted network for now.
 - Direct-path discovery for VPN peers behind NAT (STUN, hole punching) is not built; the blind relay is the fallback.
 - The isle-side application of the firewall chain and per-app profiles is a phase of the hardening plan, and the audit reports its absence honestly.
+
+## Where it stands
+
+What is real today: the isle's containment model, Reticulum's encryption between isles, encrypted swarm overlays, and one publicly trusted certificate on the production server. What is not: verification between services inside a network (a foothold on the overlay can still talk to a backend), the isle doors speak plain HTTP on their outside leg, and the network security interface is a plan. These are the next work.

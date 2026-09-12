@@ -91,6 +91,7 @@
         <dl class="meta">
           <dt>Source</dt><dd><code>AI-Notes/guides/security/OS_SECURITY.md</code> in the suite repository. This page is generated from it; edits go there.</dd>
         </dl>
+<blockquote><p><strong>Status, 2026-09-12: designed and prototyped, not deployed.</strong> The controls on this page exist as templates, scripts and plans in the repository. None of them is applied on the production server or on any isle unless an operator runs them by hand, and several pieces are still plans. Security is the next thing being built; the honest state of each piece is at the end of the page.</p></blockquote>
 <p>The operating-system layer answers two questions for every process Polari runs: <strong>who is it</strong> (discretionary access control: users, groups, file modes, capabilities) and <strong>what may it touch</strong> (mandatory access control: an AppArmor profile and a seccomp filter the process cannot change). Both are standard Ubuntu mechanisms. Polari declares them once and renders them per machine.</p>
 <h2 id="the-os-security-directory">The <code>os-security</code> directory</h2>
 <pre><code>os-security/
@@ -118,6 +119,8 @@ pol security os apply [--complain|--enforce]    load it (root)
 pol security os audit [--json]                  score this machine
 pol security os escape-test [--profile P]       prove it
 pol deploy audit &lt;node&gt;                         the audit on another machine, over ssh</code></pre>
+<h2 id="where-it-stands">Where it stands</h2>
+<p>Templates, the renderer, the apply script and the audit exist and pass their own checks; the escape test was run once by hand on one isle. Nothing here is applied on any machine by default: no generated AppArmor profile is loaded on the production server or on an isle, user-namespace remapping is not enabled, and the audit reports both as open. Applying the rings per scenario, and the isle-side application when an app is installed, are the next work.</p>
         <p style="margin-top:2.5rem;"><a href="docs.html">← All documentation</a></p>
       </article>
     </div>
