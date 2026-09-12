@@ -52,7 +52,7 @@ The guide asks, in order, and remembers every answer in `.generated/prod-answers
 3. **HTTPS certificate** — two doors:
    - **Provider-issued, auto-approved** (Let's Encrypt): one certificate for all five names, trusted by every browser, renewed weekly. Verified either by an HTTP challenge through this server's port 80 (any registrar, nothing to configure) or by a DNS challenge through the DigitalOcean API.
    - **Auto-generated**: signed by the suite's own certificate authority. Works immediately; browsers warn until that root is imported. You can switch to the provider door later with `pol prod cert`.
-4. **Logins** — none (the lean profile, the default) or Keycloak (the full profile). With Keycloak the guide also asks whether to deploy Odoo.
+4. **User logins** — Keycloak handles authentication and user login: accounts, sign-in, and access control per user. It is the default, and brings the scorecard and the file store with it. Without logins the server is open to everyone with no accounts, which suits a plain distribution or demonstration server and is about 1 GB lighter. With Keycloak the guide also asks whether to run Odoo.
 5. **Modules** — the floor set (`polariapps, appstore, islemesh, terms`); add more at the cost of memory.
 6. **Installers** — installers are release artifacts: built once, published, fetched here. The guide lists the official releases that carry installers (GitHub Releases of the suite, free for a public project) and stages the chosen one; or build them here, or name another pool (a directory, a release page URL, or `github:<owner/repo>@<tag>`), or skip. The Download page lists whatever is staged.
 7. **Demonstration notice** — whether the apps show the "no personal information" bar and the terms gate.
