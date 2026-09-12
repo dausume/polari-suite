@@ -35,6 +35,14 @@
         <a href="docs/install-an-isle.html">Install an isle</a>
         <a href="docs/offline-install.html">Offline and air-gapped install</a>
         <a href="docs/home-network-access.html">Reaching Polari on your home network</a>
+        <div class="col-h">Deployment routes</div>
+        <a href="docs/routes-overview.html">One Polari, four ways to get it</a>
+        <a href="docs/route-desktop.html">The desktop route</a>
+        <a href="docs/route-server.html">The server route</a>
+        <a href="docs/route-automated.html">The automated route</a>
+        <a href="docs/route-ai-driven.html">The AI-driven route</a>
+        <a href="docs/route-offline.html">Offline</a>
+        <a href="docs/modules-by-every-route.html">Modules and apps by every route</a>
         <div class="col-h">Command line</div>
         <a href="docs/command-line.html">The Polari command line</a>
         <a href="docs/pol-quick-reference.html">pol CLI quick reference</a>
@@ -164,7 +172,7 @@ pol modules health [--api URL] [&lt;module&gt;] [--verify]
 }</code></pre>
 <p><code>pol modules conform</code> refuses values outside those lists. Declare the least: an app that needs nothing special keeps the default and still runs; an app that declares <code>NET_ADMIN</code> gets it and nothing more.</p>
 <h2 id="12-tiers-and-image-variants-2026-09-12">12. Tiers and image variants (2026-09-12)</h2>
-<p>Every module in the register carries a <code>tier</code>: <strong>core</strong> — what makes Polari a networking and app system (polariapps, appstore, islemesh, terms, vpn, isle_relay, isle_guestnet, reticulum, mqttbridge, hardwareapps, suiteapps, hwmap, testing, and resources/xr which the core requires) — or <strong>optional</strong> (the sciences, household and meals, scoring, video, …), which only some users need. A core module may never require an optional one (<code>pol modules deps</code> checks). The backend image is built in two variants from the same Dockerfile (<code>--build-arg POLARI_MODULE_SET=core|all</code>): the <strong>core</strong> image carries only core modules plus the register, so an optional module is fetched from its <code>polari-module-*</code> repository on admission (<code>POST /modules/&lt;m&gt;/fetch-admit</code>, dependencies first); the <strong>all-official</strong> image carries every official module. Release tags: <code>polari-vYYYY.MM.DD-core</code>, <code>polari-vYYYY.MM.DD-all</code> (the plain tag is the all variant). Every other image of a release carries both suffixes with identical content so a stack pulls one tag.</p>
+<p>Every module in the register carries a <code>tier</code>: <strong>core</strong> — what makes Polari a networking and app system (polariapps, appstore, islemesh, terms, vpn, isle_relay, isle_guestnet, reticulum, mqttbridge, grpcbridge, scoring, hardwareapps, suiteapps, hwmap, testing, and resources/xr which the core requires) — or <strong>optional</strong> (the sciences, household and meals, scoring, video, …), which only some users need. A core module may never require an optional one (<code>pol modules deps</code> checks). The backend image is built in two variants from the same Dockerfile (<code>--build-arg POLARI_MODULE_SET=core|all</code>): the <strong>core</strong> image carries only core modules plus the register, so an optional module is fetched from its <code>polari-module-*</code> repository on admission (<code>POST /modules/&lt;m&gt;/fetch-admit</code>, dependencies first); the <strong>all-official</strong> image carries every official module. Release tags: <code>polari-vYYYY.MM.DD-core</code>, <code>polari-vYYYY.MM.DD-all</code> (the plain tag is the all variant). Every other image of a release carries both suffixes with identical content so a stack pulls one tag.</p>
         <p style="margin-top:2.5rem;"><a href="docs.html">← All documentation</a></p>
       </article>
     </div>
