@@ -52,14 +52,17 @@ log_header "Let's Encrypt edge cert ($LE_CERT_NAME)"
 
 # ---- resolve the manifest row first (so we know the domain set early) ----
 log_step "Resolve manifest row '$LE_CERT_NAME'"
-SANS="$(manifest_sans "$LE_CERT_NAME" || true)"
+# LE_SANS (comma-separated) overrides the manifest row: pol prod computes the names from the ENABLED components
+SANS="${LE_SANS:-$(manifest_sans "$LE_CERT_NAME" || true)}"
+[[ -n "$LE_SANS" ]] && log_warn "SANs from LE_SANS (the enabled components), not from the manifest row: $LE_SANS"
 [[ -n "$SANS" ]] || die "No letsencrypt row named '$LE_CERT_NAME' in $MANIFEST_FILE." \
     "Add a row:  $LE_CERT_NAME | letsencrypt | host1, host2, ..." \
     "Or set LE_CERT_NAME to an existing letsencrypt row."
 
 # Verify it is actually a letsencrypt-issuer row.
 ROW_ISSUER="$(manifest_rows letsencrypt | awk -F'\t' -v n="$LE_CERT_NAME" '$1==n{print $2}')"
-[[ "$ROW_ISSUER" == "letsencrypt" ]] || die \
+# 'edge' rows resolve to letsencrypt on a public edge (cert-manifest.conf); an LE_SANS override needs no row at all
+[[ "$ROW_ISSUER" == "letsencrypt" || "$ROW_ISSUER" == "edge" || -n "${LE_SANS:-}" ]] || die \
     "Manifest row '$LE_CERT_NAME' is not issuer=letsencrypt." \
     "The edge cert must be a letsencrypt row in $MANIFEST_FILE."
 

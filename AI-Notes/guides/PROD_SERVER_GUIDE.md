@@ -117,6 +117,12 @@ If a DigitalOcean cloud firewall is attached to the droplet it must allow inboun
 
 `pol prod providers` shows which provider fills which role for this deployment, hosting, DNS, certificate, registry and code, with the pages to visit for each. The guide shows the same links at the step where they matter: the DNS page where the A records are set, Let's Encrypt's rate limits and status before a certificate is requested, and the API token page when the DNS challenge is chosen. Provider credentials are never typed into the guide, except the DNS-challenge token, which is read from the environment and never written down.
 
+## Domain, subdomains, and what is yours versus external
+
+One thing is external: the primary domain, registered somewhere, with its DNS managed at the registrar, DigitalOcean or Cloudflare. Everything else is a subdomain Polari defines, and a subdomain exists only because a component you enabled needs it: `prf` and `api.prf` always, `auth`, `psc`, `api.psc`, `files` and `s3` with logins, `odoo` with Odoo, `apt` once installers are handed out, and `www` only if you ask for it. It is a hostname convention, not a protocol, and most sites just redirect it to the apex. Enable a component later and its name appears; Polari re-renders the proxy and re-issues the certificate to cover exactly the enabled names. Nothing about subdomains is configured at your DNS host.
+
+The internet still needs a DNS record to find each name. That is one A record for the primary domain, and then either one wildcard record, `*.yourdomain` pointing at the exposure address, which covers every subdomain now and later, or one A record per subdomain. The guide's Names step shows each name with the component that enables it, whether it resolves here, and what external record it needs, and it detects a wildcard.
+
 ## Credentials and the vault
 
 Nothing the guide generates is left for you to protect by hand. On the full profile the Keycloak admin, the database passwords and the file-store keys are generated once, at random, and recorded in an encrypted, root-only vault at `/etc/polari/vault`. Read it with `sudo pol security vault show`; nothing in it is ever printed to a log.
