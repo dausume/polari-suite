@@ -47,7 +47,7 @@ if $SUDO aa-status >/dev/null 2>&1; then
         if [ "$ATT" = docker-default ]; then
             $OURS_DD && res mac containers-per-app-profile pass "$GEN container(s) on the union docker-default (per-service profiles impossible on swarm)" || res mac containers-per-app-profile fail "$GEN container(s) on docker's stock profile"
         else
-            [ "$GEN" = 0 ] && res mac containers-per-app-profile pass "no container on the generic profile" || res mac containers-per-app-profile fail "$GEN container(s) on docker-default (generic)"
+            [ "$GEN" = 0 ] && res mac containers-per-app-profile pass "no container on the generic profile" || res mac containers-per-app-profile fail "$GEN container(s) on docker-default ($($OURS_DD && echo 'the os-security union — a warn-only baseline until each app carries its own profile' || echo generic))"
         fi
         SEC=$(for c in $(docker ps -q); do docker inspect "$c" --format '{{.HostConfig.SecurityOpt}}'; done | grep -c seccomp || true)
         DSEC=$(docker info --format '{{json .SecurityOptions}}' 2>/dev/null | grep -o 'seccomp,profile=[^"]*')

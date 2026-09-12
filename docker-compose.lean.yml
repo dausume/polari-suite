@@ -100,6 +100,7 @@ services:
     environment:
       - DEPLOY_ENV=production
       - IN_DOCKER_CONTAINER=true
+      - POLARI_DEPLOY_ROUTE=swarm       # hardware kinds: Polari side only here (moduleService/hardware_reach.py — a notice, never a refusal)
       - POLARI_INSTANCE_NAME=prf-public
       - POLARI_INSTANCE_ID=public
       # sqlite, no object store, no Keycloak issuer → auth off (D2 default for the distribution server)

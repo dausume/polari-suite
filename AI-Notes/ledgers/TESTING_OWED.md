@@ -1278,3 +1278,20 @@ Owed: the warn-only apply on the home swarm (pol-core manager, needs his sudo) +
 | econ-core (worker, docker 29.1.3) | partial | 9 / 8 / 3 | userns-remap, a root container, 2 writable rootfs, sudo groups, DOCKER-USER empty, sshd on all interfaces, kptr_restrict=1, no auditd |
 
 These are the "before" rows the loop compares against after each warn-only apply on the home swarm.
+
+## §19 — sec-1c + the loop across the home machines + the hardware-app notice (2026-09-12 evening, dev-sec-1; plan §14)
+
+| piece | machine | check | result |
+|---|---|---|---|
+| seccomp LOG lists | isle-core | python:3.12-alpine workload (threads, subprocess, sqlite, ssl, asyncio, multiprocessing, tempfiles) + nginx under `worker.json` (SCMP_ACT_LOG) | ran; harvest: ONE syscall outside the list, `open` ×20 (python3, nginx, docker-entrypoint) |
+| seccomp ENFORCE lists, before the fix | isle-core | same under `worker.enforce.json` / `web-app` / `gateway` | python "Error loading shared library libpython3.12 … Operation not permitted"; nginx "can't open /docker-entrypoint.sh" |
+| seccomp ENFORCE lists, after adding `open` | isle-core | same | python workload ok; nginx serves a page under web-app and gateway lists; 0 seccomp lines |
+| allowed.py selftest | pol-core | 7 groups incl. seccomp by name | PASS |
+| render all scenarios | pol-core | 4 scenarios | 144 profiles parse; `.enforce.json` twins; `stack.security.yml` per scenario; isle renders the node union (`node_profile: true`) |
+| `pol deploy harden --dry-run` | isle-core, econ-core | remote ship + dry-run | both print the full plan (isle: 65 profiles + union; econ-core: swarm-lean union + 4 fixed); econ-core sudo prompts for the real run |
+| `pol deploy harden isle-core` (REAL, warn-only) | isle-core | apply + audit | union docker-default loaded in complain (live), 65 isle-app-* in complain, seccomp staged, firewall/host/DAC printed; audit open 12 pass / 14 fail / 0 skip (baseline was 12/13/1; the new no-audit-lines-24h control counts today's test lines: 377); all 5 isle containers up |
+| apply.sh warn-only aborts | pol-core | seccomp dir / unit drop-in dirs created only under --enforce, files installed regardless (`set -e`) | fixed: seccomp staged as inert files; unit drop-ins enforce-only |
+| hardware-app notice | pol-core | `hardware_reach` unit check per route (voron, printcam, hwmap) | swarm/dev: "polari-side-only" + sentence; isle: ok; non-hardware: none; py_compile of the 5 touched files |
+| `pol prod verify` / a real module admission with the notice | — | not run: no core rebuilt/deployed with the new code today | owed at the next image build |
+
+Owed: the first real harvest from isle-core after a day (`pol deploy harden isle-core --report --rules`); the same warn-only apply on econ-core + pol-core (his sudo); the stack overlay deployed on the home swarm (his go, then `pol prod verify`); the notice seen live (rebuild core image → `pol modules health`, fetch-admit voron, /downloads/apps card); isle-core's Claude: set `POLARI_DEPLOY_ROUTE=isle` in polari-isle/docker-compose.yml.

@@ -37,7 +37,11 @@ Every scenario renders in `complain` mode and `apply.sh` loads AppArmor profiles
 - `apps_run: in-core` (swarm-lean, swarm-full): modules are not containers on the swarm — they run inside `prf-backend` — so they get no profile of their own; their stanzas fold into the core's (network and capabilities union; writable stays the core's; hardware extensions are left out by name). `manifest.json` records `folded`.
 - The compose fragment carries only what the route honours: on swarm `cap_drop/cap_add`, `read_only`, `tmpfs`, `deploy.resources.limits.pids`; on the isle route additionally `security_opt` and `pids_limit`.
 
-The isle route (`mac_attach: security_opt`, `apps_run: containers`) is unchanged: the agent starts plain containers, so each app carries its own profile through the fragment.
+The isle route (`mac_attach: security_opt`, `apps_run: containers`) is unchanged: the agent starts plain containers, so each app carries its own profile through the fragment. `node_profile: true` (isle.yml) additionally renders and loads the node-wide union in complain as a warn-only baseline over every isle container until the agent attaches per-app profiles.
+
+**seccomp warn mode.** In complain the per-kind lists render with `defaultAction: SCMP_ACT_LOG` (a syscall outside the list is permitted and logged, audit type=1326; an `<kind>.enforce.json` twin is always rendered); `allowed.py` names the logged syscalls (`syscalls_x86_64.json`) and suggests the list entry. Nothing attaches a seccomp file until a container is started with it, so staging them is inert. The first harvest found the one call musl's loader needs, `open`.
+
+**Across the home machines.** `pol deploy harden <node> [--scenario S] [--dry-run|--enforce] | --report [--rules] | --revert` renders here, ships the rendered scenario and the scripts to the node, applies there warn-only and audits (scenario auto-detected: an isle agent → isle, else swarm-lean). The stack overlay `out/<scenario>/stack.security.yml` carries the app-surface ring for the swarm route (`docker stack deploy -c <stack>.yml -c stack.security.yml`).
 
 ## The model
 

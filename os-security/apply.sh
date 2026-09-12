@@ -22,6 +22,7 @@ run() { if $DRY; then echo "  [dry-run] $*"; else "$@"; fi; }
 warn_only() { if $ENFORCE; then "$@"; else echo "  [warn-only — not applied; --enforce to apply] $*"; fi; }   # rings that cannot warn
 G="\033[0;32m"; Y="\033[1;33m"; N="\033[0m"; ok(){ echo -e "${G}[ OK ]${N} $*"; }; warn(){ echo -e "${Y}[WARN]${N} $*"; }
 ATTACH=$(python3 -c "import json; print(json.load(open('$OUT/manifest.json')).get('mac_attach','security_opt'))")
+HAS_NODE=$(python3 -c "import json; print('yes' if json.load(open('$OUT/manifest.json')).get('node') else 'no')")   # node-wide union rendered (swarm, or node_profile: true)
 
 if $REVERT; then
     # put docker's STOCK docker-default back in the kernel (live: running containers switch at once), forget ours
@@ -34,8 +35,9 @@ fi
 if has mac; then
     echo "== MAC: AppArmor profiles ($SC, attach via $ATTACH)"
     command -v apparmor_parser >/dev/null || { warn "apparmor_parser missing (apt install apparmor)"; }
-    if [ "$ATTACH" = docker-default ]; then
-        # swarm: services cannot carry security_opt, so the ONE profile every container gets is replaced
+    if [ "$HAS_NODE" = yes ]; then
+        # swarm: services cannot carry security_opt, so the ONE profile every container gets is replaced (on the isle,
+        # node_profile: true does the same as a warn-only baseline until the agent attaches per-app profiles)
         # (apparmor_parser -r swaps it live for running containers; dockerd only loads its own when none is
         # loaded, and /etc/apparmor.d/docker-default is loaded at boot before docker). In complain mode the
         # profile keeps docker's stock explicit denies and logs everything narrower as ALLOWED — nothing
@@ -60,8 +62,10 @@ if has mac; then
         [ -e "$F" ] || continue; n=$(basename "$F")
         case " $WANT " in *" $n "*) ;; *) run apparmor_parser -R "$F" 2>/dev/null || true; run rm -f "$F"; ok "$n removed (app no longer up)" ;; esac
     done
-    warn_only install -d -m 0755 /etc/polari/seccomp; for S in $OUT/seccomp/*.json; do run install -m 0644 "$S" "/etc/polari/seccomp/$(basename "$S")"; done
-    ok "seccomp allow-lists in /etc/polari/seccomp/"
+    # the seccomp files are inert until a container is started with security_opt seccomp=<file> (or the daemon's
+    # seccomp-profile setting names one), so staging them is safe in warn-only mode; the complain render is SCMP_ACT_LOG
+    run install -d -m 0755 /etc/polari/seccomp; for S in $OUT/seccomp/*.json; do run install -m 0644 "$S" "/etc/polari/seccomp/$(basename "$S")"; done
+    ok "seccomp allow-lists staged in /etc/polari/seccomp/ (inert until attached; complain = SCMP_ACT_LOG)"
 fi
 if has network; then
     echo "== NETWORK: DOCKER-USER + ufw"
@@ -76,9 +80,11 @@ if has host; then
     else warn "auditd not installed (apt install auditd) — rules staged only"; fi
     for U in isle-host-agent mesh-mdns polari-isle-push; do
         [ -f "/etc/systemd/system/$U.service" ] || [ -f "/lib/systemd/system/$U.service" ] || continue
-        warn_only install -d "/etc/systemd/system/$U.service.d" && run install -m 0644 "$OUT/systemd-hardening.conf" "/etc/systemd/system/$U.service.d/50-os-security.conf" && ok "$U hardened (restart to take effect)"
+        # a unit drop-in cannot warn: the whole step is enforce-only
+        if $ENFORCE; then run install -d "/etc/systemd/system/$U.service.d" && run install -m 0644 "$OUT/systemd-hardening.conf" "/etc/systemd/system/$U.service.d/50-os-security.conf" && ok "$U hardened (restart to take effect)"
+        else echo "  [warn-only — not applied; --enforce to apply] install $OUT/systemd-hardening.conf → /etc/systemd/system/$U.service.d/50-os-security.conf"; fi
     done
-    $DRY || systemctl daemon-reload
+    $DRY || $ENFORCE && systemctl daemon-reload || true
 fi
 if has dac; then
     echo "== DAC: ownership, docker daemon settings"

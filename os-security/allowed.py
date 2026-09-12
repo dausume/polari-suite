@@ -23,6 +23,26 @@ import sys
 
 OURS = re.compile(r'profile="(isle-app-[^"]+|docker-default)"')
 KV = re.compile(r'(\w+)=("([^"]*)"|(\S+))')
+SECCOMP_LOG = re.compile(r'type=1326 .*code=0x7ffc0000')   # SECCOMP_RET_LOG: permitted and logged (our SCMP_ACT_LOG lists)
+SECCOMP_ANY = re.compile(r'type=1326 ')
+HERE = __import__('os').path.dirname(__import__('os').path.abspath(__file__))
+try:
+    _T = json.load(open(HERE + '/syscalls_x86_64.json'))
+    SYSCALLS = {int(k): v for k, v in _T['names'].items()}; AUDIT_ARCH = _T['audit_arch']
+except (OSError, ValueError):
+    SYSCALLS, AUDIT_ARCH = {}, 'c000003e'
+
+
+def parse_seccomp(line):
+    """type=1326 (seccomp): with SCMP_ACT_LOG the code is 0x7ffc0000 and the call went through — the syscall
+    the allow-list lacks. ERRNO/KILL codes are the enforce-mode denials. No profile name: seccomp is per kind,
+    so the comm/exe is the attribution."""
+    d = {m.group(1): (m.group(3) if m.group(3) is not None else m.group(4)) for m in KV.finditer(line)}
+    if 'syscall' not in d:
+        return None
+    n = int(d['syscall']); name = SYSCALLS.get(n, str(n)) if d.get('arch', AUDIT_ARCH) == AUDIT_ARCH else f"{n}@arch{d.get('arch')}"
+    verdict = 'ALLOWED' if d.get('code') == '0x7ffc0000' else 'DENIED'
+    return {'verdict': verdict, 'profile': 'seccomp', 'op': 'syscall', 'class': 'seccomp', 'object': f"syscall {name}", 'mask': '', 'comm': d.get('comm', '?')}
 SELFTEST_LINES = """\
 kernel: audit: type=1400 audit(1.1:1): apparmor="ALLOWED" operation="open" class="file" profile="isle-app-prf-backend" name="/etc/hosts" pid=5 comm="python3" requested_mask="w" denied_mask="w" fsuid=0 ouid=0
 kernel: audit: type=1400 audit(1.1:2): apparmor="ALLOWED" operation="open" class="file" profile="isle-app-prf-backend" name="/etc/hosts" pid=6 comm="python3" requested_mask="w" denied_mask="w" fsuid=0 ouid=0
@@ -32,10 +52,15 @@ kernel: audit: type=1400 audit(1.1:5): apparmor="ALLOWED" operation="signal" cla
 kernel: audit: type=1400 audit(1.1:6): apparmor="DENIED" operation="mount" class="mount" info="failed flags match" error=-13 profile="isle-app-prf-backend" name="/mnt/" pid=9 comm="mount" fstype="tmpfs" srcname="none"
 kernel: audit: type=1400 audit(1.1:7): apparmor="DENIED" operation="open" class="file" profile="snap.gh.gh" name="/etc/gitconfig" pid=10 comm="git" requested_mask="r" denied_mask="r" fsuid=1000 ouid=0
 kernel: audit: type=1400 audit(1.1:8): apparmor="STATUS" operation="profile_load" profile="unconfined" name="isle-app-prf-backend" pid=11 comm="apparmor_parser"
+kernel: audit: type=1326 audit(1.1:9): auid=4294967295 uid=0 gid=0 ses=4294967295 subj=docker-default pid=12 comm="python3" exe="/usr/local/bin/python3" sig=0 arch=c000003e syscall=334 compat=0 ip=0x7f1 code=0x7ffc0000
+kernel: audit: type=1326 audit(1.1:10): auid=4294967295 uid=0 gid=0 ses=4294967295 subj=docker-default pid=12 comm="python3" exe="/usr/local/bin/python3" sig=0 arch=c000003e syscall=334 compat=0 ip=0x7f1 code=0x7ffc0000
+kernel: audit: type=1326 audit(1.1:11): auid=4294967295 uid=0 gid=0 ses=4294967295 subj=docker-default pid=13 comm="nginx" exe="/usr/sbin/nginx" sig=0 arch=c000003e syscall=302 compat=0 ip=0x7f1 code=0x50001
 """
 
 
 def parse(line):
+    if SECCOMP_ANY.search(line):
+        return parse_seccomp(line)
     if 'apparmor="' not in line or not OURS.search(line):
         return None
     d = {m.group(1): (m.group(3) if m.group(3) is not None else m.group(4)) for m in KV.finditer(line)}
@@ -61,6 +86,8 @@ def parse(line):
 
 def rule_for(g):
     c, obj, mask = g['class'], g['object'], g['mask']
+    if c == 'seccomp':
+        return f'"{obj.split()[-1]}",   # add to the kind\'s list in templates/seccomp/kind.json.j2'
     if c == 'file':
         return f"{obj} {mask or 'r'},"
     if obj.startswith('capability '):
@@ -114,12 +141,13 @@ def main():
         gs = reduce(SELFTEST_LINES.splitlines())
         want = [('isle-app-prf-backend', 'ALLOWED', '/etc/hosts', 2), ('isle-app-prf-backend', 'ALLOWED', 'capability sys_admin', 1),
                 ('docker-default', 'ALLOWED', 'network inet raw', 1), ('docker-default', 'ALLOWED', 'signal term peer=unconfined', 1),
-                ('isle-app-prf-backend', 'DENIED', 'mount /mnt/ tmpfs', 1)]
+                ('isle-app-prf-backend', 'DENIED', 'mount /mnt/ tmpfs', 1),
+                ('seccomp', 'ALLOWED', 'syscall rseq', 2), ('seccomp', 'DENIED', 'syscall prlimit64', 1)]
         got = [(g['profile'], g['verdict'], g['object'], g['count']) for g in gs]
         rules = [rule_for(g) for g in gs]
         ok = got == want and rules[0] == '/etc/hosts w,' and rules[1] == 'capability sys_admin,' and rules[2] == 'network inet raw,' \
-            and rules[3] == 'signal (receive) peer=unconfined,' and rules[4].startswith('# mount')
-        print(f"selftest {'PASS' if ok else 'FAIL'}: {len(gs)} groups (foreign snap profile and STATUS lines ignored)")
+            and rules[3] == 'signal (receive) peer=unconfined,' and rules[4].startswith('# mount') and rules[5].startswith('"rseq",')
+        print(f"selftest {'PASS' if ok else 'FAIL'}: {len(gs)} groups (foreign snap profile and STATUS lines ignored; seccomp lines by syscall name)")
         if not ok:
             print(got, rules)
         sys.exit(0 if ok else 1)

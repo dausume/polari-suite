@@ -203,7 +203,17 @@ def main():
             frag = compose_fragment(app, name, os.path.join(out, 'seccomp', app['profile'] + '.json'), mac_attach)
             yaml.safe_dump(frag, open(os.path.join(out, 'compose', f"{app['name']}.security.yml"), 'w', encoding='utf-8'), sort_keys=False)
             rendered[group].append({'name': app['name'], 'profile': name, 'kind': app['profile'], 'mode': m})
-    if mac_attach == 'docker-default':
+    # the stack overlay: every fixed piece's fragment in one file the route can merge as a whole
+    # (swarm: docker stack deploy -c docker-compose.<role>.yml -c out/<scenario>/stack.security.yml)
+    overlay = {'services': {}}
+    for f in glob.glob(os.path.join(out, 'compose', '*.security.yml')):
+        overlay['services'].update(yaml.safe_load(open(f, encoding='utf-8'))['services'])
+    for svc in overlay['services'].values():
+        svc.pop('x-os-security', None)
+    yaml.safe_dump(overlay, open(os.path.join(out, 'stack.security.yml'), 'w', encoding='utf-8'), sort_keys=False)
+    if mac_attach == 'docker-default' or sc.get('node_profile'):
+        # node_profile: a scenario with per-app attachment can ALSO carry the node-wide union as a warn-only
+        # baseline for every container until each app's own profile is attached (the isle, today)
         node = node_profile(fixed)
         open(os.path.join(out, 'apparmor', 'docker-default'), 'w', encoding='utf-8').write(
             tpl.render(profile_name='docker-default', app=node, scenario=a.scenario, mode=fixed_mode))
@@ -214,9 +224,12 @@ def main():
                             'union_of': [f['name'] for f in fixed], 'revert': 'docker-default.moby'}
     stpl = env.get_template('seccomp/kind.json.j2')
     for k in sorted(kinds):
-        txt = stpl.render(kind=k, scenario=a.scenario)
-        json.loads(txt)   # must be valid JSON
-        open(os.path.join(out, 'seccomp', k + '.json'), 'w', encoding='utf-8').write(txt)
+        # complain → SCMP_ACT_LOG (permit + log, the seccomp "complain"); enforce → SCMP_ACT_ERRNO. The enforce
+        # variant is always rendered too (<kind>.enforce.json) so a proven list can be attached without re-rendering.
+        for m, suffix in ((fixed_mode, '.json'), ('enforce', '.enforce.json')):
+            txt = stpl.render(kind=k, scenario=a.scenario, mode=m)
+            json.loads(txt)   # must be valid JSON
+            open(os.path.join(out, 'seccomp', k + suffix), 'w', encoding='utf-8').write(txt)
     rendered['kinds'] = sorted(kinds)
     ctx = {'scenario': a.scenario, 'docker': sc.get('docker', {}), 'allow_to_host': sc.get('allow_to_host', []),
            'deny_to_host_ports': sc.get('deny_to_host_ports', []), 'ufw': sc.get('ufw', {'enabled': False, 'allow': [], 'default_incoming': 'deny'}),
