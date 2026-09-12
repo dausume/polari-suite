@@ -92,7 +92,7 @@ ensure_dependencies certbot-do dig curl openssl
 
 # ---- interactive walkthrough for the human-only steps (each preflight-gated) ----
 walkthrough_domain_email "$LE_ENV_FILE"
-walkthrough_do_token     "$LE_ENV_FILE"
+[[ "${LE_CHALLENGE:-dns}" == "dns" ]] && walkthrough_do_token     "$LE_ENV_FILE"   # DNS-01 only; HTTP-01 needs no token
 walkthrough_dns_delegation "$LE_DOMAIN"
 walkthrough_port_forward
 
@@ -100,7 +100,12 @@ walkthrough_port_forward
 log_step "Preflight (issuance)"
 [[ -n "${LE_DOMAIN:-}" ]]    || die "LE_DOMAIN unset."  "Set LE_DOMAIN and re-run."
 [[ -n "${LE_EMAIL:-}" ]]     || die "LE_EMAIL unset."   "Set LE_EMAIL and re-run."
-[[ -n "${DO_API_TOKEN:-}" ]] || die "DO_API_TOKEN unset." "Provide the DigitalOcean token and re-run."
+LE_CHALLENGE="${LE_CHALLENGE:-dns}"
+if [[ "$LE_CHALLENGE" == "dns" ]]; then
+    [[ -n "${DO_API_TOKEN:-}" ]] || die "DO_API_TOKEN unset." "Provide the DigitalOcean token and re-run (or LE_CHALLENGE=http)."
+else
+    [[ -n "${LE_WEBROOT:-}" ]] || die "LE_WEBROOT unset (HTTP-01 needs the webroot the proxy serves at /.well-known/acme-challenge/)."
+fi
 log_ok "All required values present."
 
 # ---- idempotency check against existing issued cert ----
@@ -113,7 +118,9 @@ fi
 
 # ---- write the DO credentials ini (certbot-dns-digitalocean expects this) ----
 log_step "DigitalOcean credentials file"
-if [[ "$DRY_RUN" == "true" ]]; then
+if [[ "$LE_CHALLENGE" != "dns" ]]; then
+    log_ok "HTTP-01 challenge: no DigitalOcean credentials needed"
+elif [[ "$DRY_RUN" == "true" ]]; then
     echo "  ${C_YELLOW}DRY-RUN${C_RESET} would write $DO_CREDS_FILE (chmod 600) with dns_digitalocean_token=***"
 else
     mkdir -p "$CERTBOT_CONFIG_DIR"
@@ -124,13 +131,18 @@ else
 fi
 
 # ---- AUTO-BUILD + run certbot from the manifest SANs ----
-log_step "Issue edge cert via DNS-01 (DigitalOcean)"
+if [[ "$LE_CHALLENGE" == "dns" ]]; then
+    log_step "Issue edge cert via DNS-01 (DigitalOcean)"
+    CHALLENGE_ARGS="--dns-digitalocean --dns-digitalocean-credentials $DO_CREDS_FILE --dns-digitalocean-propagation-seconds 60"
+else
+    log_step "Issue edge cert via HTTP-01 (webroot $LE_WEBROOT, served by the proxy on port 80)"
+    mkdir -p "$LE_WEBROOT/.well-known/acme-challenge" 2>/dev/null || true
+    CHALLENGE_ARGS="--webroot -w $LE_WEBROOT"
+fi
 NONINT_FLAG="--non-interactive --agree-tos"
-# shellcheck disable=SC2086  # $CERTBOT_D_ARGS must word-split into -d flags
+# shellcheck disable=SC2086  # $CERTBOT_D_ARGS / $CHALLENGE_ARGS must word-split
 run certbot certonly \
-    --dns-digitalocean \
-    --dns-digitalocean-credentials "$DO_CREDS_FILE" \
-    --dns-digitalocean-propagation-seconds 60 \
+    $CHALLENGE_ARGS \
     --cert-name "$LE_CERT_NAME" \
     --config-dir "$CERTBOT_CONFIG_DIR" \
     --work-dir "$CERTBOT_CONFIG_DIR/work" \
