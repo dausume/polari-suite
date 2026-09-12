@@ -1295,3 +1295,13 @@ These are the "before" rows the loop compares against after each warn-only apply
 | `pol prod verify` / a real module admission with the notice | — | not run: no core rebuilt/deployed with the new code today | owed at the next image build |
 
 Owed: the first real harvest from isle-core after a day (`pol deploy harden isle-core --report --rules`); the same warn-only apply on econ-core + pol-core (his sudo); the stack overlay deployed on the home swarm (his go, then `pol prod verify`); the notice seen live (rebuild core image → `pol modules health`, fetch-admit voron, /downloads/apps card); isle-core's Claude: set `POLARI_DEPLOY_ROUTE=isle` in polari-isle/docker-compose.yml.
+
+## §20 — the `security` module: three security topology views + simulations (2026-09-12 night, dev-sec-1; SECURITY_INTERFACES_PLAN §13)
+
+| check | result |
+|---|---|
+| module selftest (host, `PYTHONPATH=.:modules`) | 19/19 |
+| seed counts | domains 3 · areas 13 · scenarios 4 · controls 92 · nodes 285 · edges 413 |
+| API handlers smoked without a server (request/response doubles) | `/api/security` (dev here, 3 views, 28 systems); scenarios (isle security_opt/containers; swarm-* docker-default/in-core); topology os/swarm-lean today; simulate prf-isle-backend on isle (3 logged, 8 blocked); visitor on lean (API open) vs full (refused); compare by role |
+| manifest conform | after moving the helpers under `custom/`: custom files must be listed — see the commit |
+| in-container boot with the module in POLARI_MODULES, the four displays in a browser, CRUDE on the six classes | OWED (next image build; the classes are in polariServer's literal and the endpoint table) |

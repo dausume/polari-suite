@@ -104,7 +104,7 @@ Added 2026-09-12 (sec-1a, Polari side — plan §13):
 4. **Only then** `--enforce` for the MAC ring on the server (`pol prod harden --enforce` = the one docker-default profile; there is no per-service order on swarm), verify after; on the isle one app profile at a time.
 5. **Firewall ring** with `--enforce`, DOCKER-USER first (it cannot lock you out of ssh), ufw last and only with the ssh rule proven from a second session.
 6. **Audit + escape test (both passes) into `pol prod verify`** and into the CI plan (rung 4). seccomp on the swarm = the daemon-wide `seccomp-profile` setting (render into daemon.json; diffed, applied in a window) — not yet rendered.
-7. **Interfaces** (SECURITY_INTERFACES_PLAN sec-i-0): the `security` module, taxonomy, AppSecurityRecord ledger, the three screens — read-only first.
+7. **Interfaces** (SECURITY_INTERFACES_PLAN sec-i-0/1 — BEGUN 2026-09-12 night, plan §13): the `security` module exists with the taxonomy rows, `SecurityControl` per system × scenario with provenance stock/qemu/polari, and the THREE SECURITY TOPOLOGY VIEWS (`/display/security-os|network|app`) as reach simulations (`/api/security/topology|simulate|compare`, modes stock|today|complain|enforce; selftest 19/19). Not yet booted in a container or seen in a browser; the drawing of `nodes`/`edges` is a frontend decision (D10). Remaining: AppSecurityRecord, TrustChannel, ProxySnippet, HardwareTrial; `APPLIED_TODAY` fed by the audit.
 8. Decisions for him before going further: hardening D1–D8 (D1 userns-remap matters more than thought: a path-based profile cannot tell a bind of the host's /etc from the image, so reading host files through a bind is DAC's to stop); interfaces D1–D9; §12's D9 (scope of an independent test).
 
 ## 7. Boundaries
