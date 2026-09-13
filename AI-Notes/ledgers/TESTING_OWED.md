@@ -1305,3 +1305,13 @@ Owed: the first real harvest from isle-core after a day (`pol deploy harden isle
 | API handlers smoked without a server (request/response doubles) | `/api/security` (dev here, 3 views, 28 systems); scenarios (isle security_opt/containers; swarm-* docker-default/in-core); topology os/swarm-lean today; simulate prf-isle-backend on isle (3 logged, 8 blocked); visitor on lean (API open) vs full (refused); compare by role |
 | manifest conform | after moving the helpers under `custom/`: custom files must be listed — see the commit |
 | in-container boot with the module in POLARI_MODULES, the four displays in a browser, CRUDE on the six classes | OWED (next image build; the classes are in polariServer's literal and the endpoint table) |
+
+## §21 — threat simulations on the topology (2026-09-12 night, dev-sec-1; SECURITY_INTERFACES_PLAN §13 addendum)
+
+| check | result |
+|---|---|
+| module selftest | 28/28 — stock: image backdoor, raw sniff and the socket (if mounted) get THROUGH; today: the socket is blocked by the mount policy; enforce: blocked with the policy named; every counterexample path reaches its target; isle has guest-escape and an open device counterexample, the swarm has none; lean's anonymous API is allowed and says so, full blocks it at Keycloak; the animation path stops at the block |
+| seed | SecurityThreat 45 rows (4 scenarios) |
+| manifest conform | OK after `manifests generate` refilled `imports` |
+| frontend `npx tsc --noEmit -p tsconfig.app.json` | passes with the new panel + registry entry |
+| in a browser | OWED (next frontend image build) |
