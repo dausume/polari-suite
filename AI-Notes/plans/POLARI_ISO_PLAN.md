@@ -1,6 +1,6 @@
 # Polari ISO plan — computers that are Polari from the first boot (iso-0, 2026-09-12)
 
-_His direction (2026-09-12): "developing out ISOs so we can just make computers that use Polari from the start and have a full isle on the OS install, and/or profile-based installs that the core isle can derive and push to other systems. Ubuntu with KDE Plasma so it can be adaptive for both headless and normal desktop situations, giving different look and feels according to what people want." Plan only; nothing built._
+_Status: iso-0 CLOSED 2026-09-13 — every decision D1–D15 made; §6 says how it meets the interfaces. His direction (2026-09-12): "developing out ISOs so we can just make computers that use Polari from the start and have a full isle on the OS install, and/or profile-based installs that the core isle can derive and push to other systems. Ubuntu with KDE Plasma so it can be adaptive for both headless and normal desktop situations, giving different look and feels according to what people want." Plan only; nothing built._
 
 ## 0. The shape in one paragraph
 
@@ -107,6 +107,24 @@ Same base, kernel, apt and LTS; only the desktop differs, and on headless profil
 - **D10 — DECIDED (from his words, 2026-09-13):** command sets are DERIVED FROM THE ROLE (isle-management verbs only on core/control; member verbs on members), a fixed menu, no free-form; `shell only` is not a member variant (a member must carry the isle CLI to join) — it exists only for the plain `desktop` and `server` roles.
 - **D11 — DECIDED (his "ssh from the beginning", 2026-09-13):** the core's key and the owner's key placed at install; a per-device key generated on the device for the isle CA; never a shared key baked into an image.
 
-## 6. What this reuses (no new engines)
+## 6. How the ISO arc meets the interfaces (finalised 2026-09-13; iso-0 closed)
+
+Everything the builder asks and everything a device reports is a Polari object, shown on the screens that already exist or are planned — no ISO-only UI.
+
+| ISO piece | object(s) | screen / door |
+|---|---|---|
+| a profile (role × desktop/headless, choices, ssh keys, command set, look, security, first-boot) | `DeviceProfile` (module `deployplans`, new) | `/display/deployment-plans`; `pol iso build --profile` reads it; the store's "Create my own isle" door writes one |
+| a deployment plan (machines × profiles, from the topology or ahead of the hardware) | `DeploymentPlan`, `PlannedDevice` → the existing `PolariNodeMachine` rows once real | the topology page (drag a planned device to a role); `pol iso build --plan`, `isle plan push` |
+| choices at build (Secure Boot off + reason, encryption on, desktop never, pool kept …) with their warnings | fields on `DeviceProfile` with the warning text seeded as `SecurityControl` notes | the builder's walk (Textual, like `pol prod guide`) and the same form on the display |
+| detections at deploy (display capability, KVM, NICs, TPM, disks) and the refusals | `DeviceDetection` rows reported to the core; a refusal = a `SecurityEvent` (sec-5) on the device row | the device's own page (per-object rule); the security overview counts refusals |
+| the desktop look (preset + knobs → package + steps) | `DesktopLook`, `DesktopLookPreset`, `DesktopLookKnob`, `DesktopLookStep` (module `desktoplook`, new; desktop profiles only) | the store / manager app's Look page (D14); the profile's `look` field |
+| the rings on from first boot | the existing `SecurityControl` rows: state `enforce` from the first boot on the ISO route, per scenario | `/display/security` and the three views — the ISO route is where "applied by default" (rung 3) reads true |
+| Secure Boot and disk encryption as chosen | two new OS-domain systems (`secure-boot`, `disk-encryption`) in the security module, audited on the device (`mokutil`, `lsblk` crypt) | the OS view's physical-access actor and its two threats (§ security module) |
+| deb installs on the desktop | AppStream metainfo in every deb (the deb builder), DEP-11 in `apt.isle`, the service menu + helper (packaged in `polari-desktop`) | Discover's page; the right-click menu; the app's own page lists what the deb carries |
+| command sets | derived from the role: packages + sudoers groups (`polari-remote`, `polari-app`) | the profile's row shows the set; `pol deploy grant` is the same grant on an existing machine |
+
+Order of building: iso-1 (the build command + the installer ISO + the VM boot proof + the two refusals) → iso-2 (first boot: join / become core; the `deployplans` module's `DeviceProfile` + `DeviceDetection` rows and their display) → iso-3 (plans, preinstalled images, netboot with isle-core) → iso-4 (`desktoplook` module, the look interface, deb handling) → iso-5 (CI) → iso-6 (release artifacts). The security arc continues in parallel; the ISO route consumes its rings and never re-implements them.
+
+## 7. What this reuses (no new engines)
 
 The apt publisher (`apt.isle`), the platform debs and their release pipeline, the offline chunk sets (dl-5), the isle trust flow (fingerprint, `isle trust fetch`), the topology's tier labels (`pol deploy tier`), the router VM (dnsmasq for PXE), the os-security rings (applied at first boot), the CI throwaway-VM test, Canonical's ubuntu-image and autoinstall.
