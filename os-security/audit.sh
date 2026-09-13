@@ -72,6 +72,14 @@ if docker info >/dev/null 2>&1 && docker info --format '{{.Swarm.LocalNodeState}
     ENC=$(docker network ls --filter driver=overlay -q | xargs -r docker network inspect --format '{{.Name}} {{index .Options "encrypted"}}' 2>/dev/null | grep -v ingress | grep -vc 'true' || true)
     [ "$ENC" = 0 ] && res network overlay-encrypted pass "every overlay encrypted" || res network overlay-encrypted fail "$ENC overlay network(s) unencrypted"
 fi
+# ---- PHYSICAL (his ask 2026-09-13: Secure Boot and disk encryption as OS-level controls against someone holding the machine)
+if [ -d /sys/firmware/efi ]; then
+    SB=$(command -v mokutil >/dev/null 2>&1 && mokutil --sb-state 2>/dev/null | head -1); [ -n "$SB" ] || SB=$(f=$(ls /sys/firmware/efi/efivars/SecureBoot-* 2>/dev/null | head -1); [ -n "$f" ] && { [ "$(od -An -tu1 -j4 -N1 "$f" 2>/dev/null | tr -d ' ')" = 1 ] && echo "SecureBoot enabled" || echo "SecureBoot disabled"; })
+    case "$SB" in *enabled*) res physical secure-boot pass "$SB (Ubuntu's signed boot chain)" ;; *disabled*) res physical secure-boot fail "$SB — a tampered boot loader/kernel would start (ISO plan D6: off only deliberately, with a written reason)" ;; *) res physical secure-boot skip "state not readable (mokutil / efivars)" ;; esac
+else res physical secure-boot skip "legacy BIOS boot: Secure Boot does not exist here"; fi
+CRYPT=$(lsblk -rno TYPE 2>/dev/null | grep -c '^crypt$' || true); ROOTSRC=$(findmnt -no SOURCE / 2>/dev/null)
+if [ "$CRYPT" -gt 0 ]; then res physical disk-encryption pass "$CRYPT encrypted volume(s) (LUKS); root on $ROOTSRC"
+else res physical disk-encryption fail "no encrypted volume: the drive is readable in another machine (an option, off by default; never on headless — ISO plan D8)"; fi
 # ---- HOST
 for k in kernel.kptr_restrict=2 kernel.dmesg_restrict=1 kernel.unprivileged_bpf_disabled=1 fs.protected_symlinks=1 fs.protected_hardlinks=1; do
     v=$(sysctl -n "${k%=*}" 2>/dev/null); { [ "$v" = "${k#*=}" ] || { [ "${k%=*}" = kernel.unprivileged_bpf_disabled ] && [ "${v:-0}" -ge 1 ]; }; } && res host "sysctl ${k%=*}" pass "$v" || res host "sysctl ${k%=*}" fail "is ${v:-unset}, want ${k#*=}"

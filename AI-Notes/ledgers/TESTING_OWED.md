@@ -1315,3 +1315,11 @@ Owed: the first real harvest from isle-core after a day (`pol deploy harden isle
 | manifest conform | OK after `manifests generate` refilled `imports` |
 | frontend `npx tsc --noEmit -p tsconfig.app.json` | passes with the new panel + registry entry |
 | in a browser | OWED (next frontend image build) |
+
+## §22 — physical access: Secure Boot + disk encryption in the security module (2026-09-13)
+
+| check | result |
+|---|---|
+| module selftest | 32/32 — encryption off → the drive is readable; Secure Boot stops a tampered kernel but not a live USB; enforce on a desktop profile → encryption blocks the drive and the USB; enforce on a headless profile → encryption stays OFF (never on headless); both physical threats carry counterexamples |
+| audit on pol-core (dev, no root) | `physical secure-boot` and `physical disk-encryption` report (this box: see the run) |
+| on isle-core / econ-core (`pol deploy audit`) | OWED next session |

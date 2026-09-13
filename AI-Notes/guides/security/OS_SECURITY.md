@@ -53,6 +53,13 @@ Every profile loads in complain mode first. Two facts shape how the profiles are
 
 **seccomp has a warn mode too.** In complain the rendered allow-lists use the log action instead of the error action: a syscall outside the list goes through and the kernel records it, and the same harvest command names it (the syscall table ships with the scripts). The first run of it found the one call the worker list lacked, `open`, which musl's loader uses and which had stopped python from starting at all under the list; with it added, the python workload and nginx run under the enforce lists with nothing logged.
 
+## Someone holding the machine
+
+No container ring applies to a person who has the hardware in their hands: a thief, a repair shop, a curious visitor who can boot it or pull the drive. Two controls exist for them, both OS-level, both now in the security module's OS view as their own actor and in the threat simulations:
+
+- **Secure Boot** makes the firmware run only a signed boot chain, so a tampered boot loader or kernel planted on the disk does not start. Ubuntu's shim and kernel are signed with the key every PC trusts, so it stays on by default and Polari adds no kernel modules of its own; an image turns it off only deliberately, at build time, with the reason written down. It protects the boot path and nothing else: a signed live USB still boots, and reads the files.
+- **Disk encryption** is what protects the files. The disk is unreadable without the passphrase typed at start-up, so a drive read in another machine, or from a live USB, yields nothing. It is an option, off by default, because it puts a second password on the machine that nobody can recover if lost, and it can never be on for a headless machine, where nobody is there to type it. The audit reports both states on every machine.
+
 ## Two routes, two shapes of the same rings
 
 Polari deploys two ways, and the rings attach differently on each:
