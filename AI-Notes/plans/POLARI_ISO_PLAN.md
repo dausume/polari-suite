@@ -11,7 +11,7 @@ One image builder, `pol iso build --profile <name>`, produces a bootable Ubuntu 
 - **Base: Ubuntu 24.04 LTS** (what isle-core and the swarm run; docker's repo covers it; the debs are built for it). 26.04 when it is LTS.
 - **Builder: `ubuntu-image classic`** (Canonical's own tool, an `image-definition.yaml`: base seeds, extra packages, customization hooks, the apt sources) — produces the same kind of image Canonical ships. Alternatives: `live-build` (more knobs, more maintenance), Cubic (interactive remaster, not reproducible). Recommended: ubuntu-image, in a container on the hardware-tier box.
 - **Install: subiquity autoinstall** (the `autoinstall` YAML embedded in the image, or served per device): storage, identity, network, `late-commands` that install the isle from the image's own offline apt pool and run first-boot.
-- **Desktop: `kubuntu-desktop`** task (KDE Plasma, SDDM). Headless profile: the same packages minus the desktop task, or the desktop installed but SDDM disabled (`systemctl disable sddm`) so the box can become a desktop later with one command — adaptive both ways.
+- **Desktop: `kubuntu-desktop`** task (KDE Plasma, SDDM). Precisely (his question 2026-09-12): Plasma does NOT adapt to headless by itself — when no graphical session starts (multi-user target, SDDM disabled) none of it runs and its RAM/CPU cost is zero; what an installed-but-disabled desktop still costs is disk (~2–3 GB), update volume, and the services the desktop task drags in that DO run without a screen (cups, avahi, bluetooth, power-profiles, packagekit …) unless masked per profile. So the desktop task is a per-profile choice: desktop / hardware / core profiles install it; reach and server profiles do not, and gain it later from the offline pool with one command (which means the pool must carry it — a bigger image — if that is wanted on headless profiles: D3).
 - **Offline first:** the image carries the apt pool it needs (our `apt.isle` publisher tree + the platform debs, the existing offline chunk sets from dl-5), so a machine installs with no internet and joins the isle for updates.
 
 ## 2. Profiles
@@ -33,7 +33,7 @@ A profile = `autoinstall.yaml` (answers) + `packages` (the task list) + `securit
 
 - A **Polari global theme** for Plasma (`lookandfeel` package) generated from the frontend's theme tokens (memory: tokenize by property, `--brand-*` with text pairs), so the desktop and the web app match; light and dark.
 - Per-profile defaults, per-user override: Plasma's own settings stay the user's; the profile only sets the default.
-- Headless keeps the same packages so `sudo systemctl enable --now sddm` turns a reach node into a desktop without a reinstall.
+- A headless profile becomes a desktop by installing the desktop task from the pool and enabling SDDM — not by having it installed and idle (see §1).
 
 ## 4. Phases
 
@@ -51,7 +51,7 @@ A profile = `autoinstall.yaml` (answers) + `packages` (the task list) + `securit
 
 - **D1** Base: 24.04 LTS now, 26.04 at its LTS — or 26.04 already (the droplet runs it)?
 - **D2** Builder: ubuntu-image (recommended) vs live-build.
-- **D3** Default desktop: Kubuntu Plasma on every profile with SDDM disabled for headless (recommended: one image family), or separate headless images (smaller)?
+- **D3** The desktop task per profile: installed on desktop / hardware / core, absent on reach / server (recommended), or installed everywhere with SDDM disabled (costs disk, updates and the desktop's background services on headless boxes)? And does the headless image's offline pool carry the desktop packages for a later switch (bigger image) or not?
 - **D4** Unattended install by default (autoinstall, the machine is wiped) vs a guided installer with Polari's questions added? (Recommended: unattended for pushed profiles, guided for the downloadable desktop image.)
 - **D5** Network boot from the router VM (PXE/iPXE on OpenWrt) in scope for iso-3, or USB only first?
 - **D6** Secure Boot: sign nothing (installs with Secure Boot off), or use Ubuntu's signed shim/kernel and keep our packages unsigned (works with Secure Boot on)? (Recommended: Ubuntu's shim; we add no kernel modules.)
