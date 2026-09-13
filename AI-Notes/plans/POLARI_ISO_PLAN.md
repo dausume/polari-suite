@@ -1,0 +1,64 @@
+# Polari ISO plan — computers that are Polari from the first boot (iso-0, 2026-09-12)
+
+_His direction (2026-09-12): "developing out ISOs so we can just make computers that use Polari from the start and have a full isle on the OS install, and/or profile-based installs that the core isle can derive and push to other systems. Ubuntu with KDE Plasma so it can be adaptive for both headless and normal desktop situations, giving different look and feels according to what people want." Plan only; nothing built._
+
+## 0. The shape in one paragraph
+
+One image builder, `pol iso build --profile <name>`, produces a bootable Ubuntu image whose unattended install ends with the isle installed and the machine in its role, with Polari's security rings on from the first boot. A **profile** is what a machine is meant to be — core isle, member, hardware tier, reach node, a server, a bare desktop — expressed as an autoinstall answer file plus a package set plus a look-and-feel; the core isle can **derive** a profile for a device (from what the topology says that device should be) and **push** it: onto a USB stick, or over the isle by network boot from the router VM. KDE Plasma is the desktop; the same image serves headless by not starting the display manager, and the desktop look is a Plasma global theme chosen per profile (a Polari theme generated from the frontend's own tokens, or the user's own).
+
+## 1. Base and tools (facts to decide on)
+
+- **Base: Ubuntu 24.04 LTS** (what isle-core and the swarm run; docker's repo covers it; the debs are built for it). 26.04 when it is LTS.
+- **Builder: `ubuntu-image classic`** (Canonical's own tool, an `image-definition.yaml`: base seeds, extra packages, customization hooks, the apt sources) — produces the same kind of image Canonical ships. Alternatives: `live-build` (more knobs, more maintenance), Cubic (interactive remaster, not reproducible). Recommended: ubuntu-image, in a container on the hardware-tier box.
+- **Install: subiquity autoinstall** (the `autoinstall` YAML embedded in the image, or served per device): storage, identity, network, `late-commands` that install the isle from the image's own offline apt pool and run first-boot.
+- **Desktop: `kubuntu-desktop`** task (KDE Plasma, SDDM). Headless profile: the same packages minus the desktop task, or the desktop installed but SDDM disabled (`systemctl disable sddm`) so the box can become a desktop later with one command — adaptive both ways.
+- **Offline first:** the image carries the apt pool it needs (our `apt.isle` publisher tree + the platform debs, the existing offline chunk sets from dl-5), so a machine installs with no internet and joins the isle for updates.
+
+## 2. Profiles
+
+| profile | what the machine becomes | desktop | notes |
+|---|---|---|---|
+| `isle-core` | the core isle: agent, router VM (KVM), apt/registry, Polari on the isle | Plasma | needs virtualization; hardware tier |
+| `isle-member` | joins an existing isle (QR / fingerprint trust flow) | Plasma or headless | the common household machine |
+| `isle-hardware` | a member with the hardware tier (libvirt, VFIO, hardware groups) | either | printers, cameras, the workbench |
+| `reach` | a small member that only relays (Reticulum / VPN) | headless | a Pi-class box or a VM |
+| `server` | the swarm route: docker, swarm, `pol prod` from an answers profile | headless | the home server; the droplet is NOT built this way |
+| `desktop` | Polari as a desktop app (the store, the shell) without an isle | Plasma | the "older person" route from the deployment docs |
+
+A profile = `autoinstall.yaml` (answers) + `packages` (the task list) + `security` (which rings, all on by default here: the ISO route is where "applied by default" is true from the first boot; §ISLE_HARDENING_PLAN §15) + `look` (a Plasma global theme + wallpaper + panel layout) + `first-boot` (join or become core).
+
+**Derived by the core:** `isle profile derive <device>` reads the topology (`PolariNodeMachine.tier`, role, the assignments) and writes the profile; `isle profile push <device> --usb /dev/sdX | --netboot` writes the image to a stick or registers the device for PXE from the router VM (dnsmasq on OpenWrt can serve it) so a fresh box on the isle VLAN boots straight into its install. Identity at first boot: the device's key pair is generated on the device; the core signs the leaf (the existing isle CA flow); the profile carries the core's fingerprint for the trust step.
+
+## 3. Look and feel
+
+- A **Polari global theme** for Plasma (`lookandfeel` package) generated from the frontend's theme tokens (memory: tokenize by property, `--brand-*` with text pairs), so the desktop and the web app match; light and dark.
+- Per-profile defaults, per-user override: Plasma's own settings stay the user's; the profile only sets the default.
+- Headless keeps the same packages so `sudo systemctl enable --now sddm` turns a reach node into a desktop without a reinstall.
+
+## 4. Phases
+
+| phase | build | proof |
+|---|---|---|
+| iso-0 | this plan; decisions below | — |
+| iso-1 | `pol iso build --profile isle-member` with ubuntu-image + autoinstall + the offline apt pool; the image boots in KVM on isle-core and installs unattended | a VM comes up with the isle deb installed and `isle status` answering |
+| iso-2 | first-boot: join by fingerprint (member) or become core (`isle-core` profile with the router VM) | a second VM joins the first over the isle VLAN |
+| iso-3 | profiles derived and pushed by the core (USB; PXE from the router VM) | a device registered in the topology boots its own profile |
+| iso-4 | KDE: the Polari global theme, headless/desktop switch, per-profile defaults | the theme installs; sddm toggles |
+| iso-5 | CI: the throwaway-VM test boots every profile's image and runs the security audit + escape test (rung 4 of the ladder from the first boot) | green in Jenkins |
+| iso-6 | release: images as release artifacts beside the platform debs (built at home, published with the release; the server only hands them out) | the downloads page lists them with checksums |
+
+## 5. Decisions for him
+
+- **D1** Base: 24.04 LTS now, 26.04 at its LTS — or 26.04 already (the droplet runs it)?
+- **D2** Builder: ubuntu-image (recommended) vs live-build.
+- **D3** Default desktop: Kubuntu Plasma on every profile with SDDM disabled for headless (recommended: one image family), or separate headless images (smaller)?
+- **D4** Unattended install by default (autoinstall, the machine is wiped) vs a guided installer with Polari's questions added? (Recommended: unattended for pushed profiles, guided for the downloadable desktop image.)
+- **D5** Network boot from the router VM (PXE/iPXE on OpenWrt) in scope for iso-3, or USB only first?
+- **D6** Secure Boot: sign nothing (installs with Secure Boot off), or use Ubuntu's signed shim/kernel and keep our packages unsigned (works with Secure Boot on)? (Recommended: Ubuntu's shim; we add no kernel modules.)
+- **D7** Where images are built: isle-core (hardware tier, KVM for the proof) — and are they release artifacts like the platform debs (yes, recommended)?
+- **D8** Disk encryption by default on desktop profiles (LUKS with a passphrase; TPM-bound is a later piece)?
+- **D9** The Polari Plasma theme: generated from the web tokens (recommended) or hand-made?
+
+## 6. What this reuses (no new engines)
+
+The apt publisher (`apt.isle`), the platform debs and their release pipeline, the offline chunk sets (dl-5), the isle trust flow (fingerprint, `isle trust fetch`), the topology's tier labels (`pol deploy tier`), the router VM (dnsmasq for PXE), the os-security rings (applied at first boot), the CI throwaway-VM test, Canonical's ubuntu-image and autoinstall.

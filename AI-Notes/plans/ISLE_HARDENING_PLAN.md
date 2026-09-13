@@ -242,3 +242,26 @@ Consequence for the order of the arc: on the swarm route the strongest ring the 
 - **Stack overlay:** `out/<scenario>/stack.security.yml` = every fixed piece's swarm-legal fragment (cap_drop/add, read_only, tmpfs, pids) in one file to merge with `-c` — the app-surface ring for the swarm route; not yet deployed (a stack change, his go).
 - **apply.sh fixes:** seccomp staging and unit drop-ins no longer abort a warn-only run (dir created only under --enforce, file installed regardless → `set -e` exit); `--skip-cache` everywhere; node union loaded whenever the manifest has a `node` entry.
 - **The hardware-app rule, as HE ruled it (2026-09-12):** hardware kinds (`app.kind` hardware-app / hardware-extension-app, or a `security.profile` hardware-extension / `devices`) may be installed anywhere — the Polari side is useful for development — but a normal user must be told they will not actually work there: the hardware half needs the full isle (deb route: KVM guest + passthrough from the hardware map, the `hardware` agent tier) to reach the OS kernel and devices; a Docker Swarm deployment never can. Built as a NOTICE, never a refusal: `moduleService/hardware_reach.py` (route = `POLARI_DEPLOY_ROUTE` isle|swarm|dev, set in the lean/prod compose; inferred otherwise) → the registrar row's `hardware` {reach: ok | polari-side-only | none, notice}, `/api/modules/health` (brief too), the fetch-admit reply (`notice`), `pol modules health` (per-module line + list flag), the download page card. Before today the only rule was a conform lint (hardware kinds need `agentTier: hardware`) — nothing at admission or on the pages.
+
+## 15. When the rings apply, and what has to restart (his question 2026-09-12)
+
+Not every piece needs a reboot; most need nothing, some need a container to be recreated, a few need the docker daemon restarted in a window, and only kernel-level changes need the machine. The honest ladder, per piece:
+
+| piece | takes effect | what must restart | why |
+|---|---|---|---|
+| AppArmor profile load, complain↔enforce switch, the node-wide docker-default swap | immediately | nothing | `apparmor_parser -r` replaces the policy in the kernel for running processes |
+| seccomp list attached per container (`security_opt`) | at container start | that container (service update / `isle app restart`) | the filter is installed at exec time and cannot be changed after |
+| daemon-wide seccomp-profile, `icc=false`, `no-new-privileges` (daemon.json) | at daemon start | dockerd (`live-restore` keeps containers up for most keys) | daemon settings |
+| user-namespace remap (daemon.json) | at daemon start | dockerd AND every container recreated; image/volume ownership shifts | the biggest change; a real maintenance window, not a reboot |
+| cap_drop / read-only root / tmpfs / pid limit (compose fragment, stack overlay) | at container start | the service (rolling update) | container config |
+| DOCKER-USER, ufw rules | immediately | nothing (existing ssh sessions stay; new rules apply to new connections) | iptables |
+| sysctl | immediately (`sysctl --system`) | nothing; persisted in `/etc/sysctl.d` for boot | kernel knobs are live |
+| auditd rules | `augenrules --load` | auditd service if newly installed | |
+| systemd hardening drop-ins for the isle units | after `daemon-reload` | those units | unit properties are read at start |
+| a kernel update (unattended-upgrades), boot parameters, LSM changes | at boot | **the machine** | the only true reboot case |
+
+Rules that follow:
+1. **Never reboot from a script.** A deb's postinst or `apply.sh` records what is pending and says so; the person restarts. Use Ubuntu's own convention so the desktop and the CLI both show it: touch `/var/run/reboot-required` and append the package to `/var/run/reboot-required.pkgs` only for the kernel-tier case; for the daemon tier write `/run/polari/restart-required` (`docker`, `containers:<names>`, `units:<names>`) and have `pol security os status`, `isle status` and the store's status card read it.
+2. **`apply.sh --needs`** (to build): after an apply, print the restart tier per applied piece and the one command that completes it (`docker service update --force <svc>`, `systemctl restart docker` in a window, `isle app restart <app>`, reboot). Warn-only applies need nothing today (profiles are live); the first enforce of the surface ring needs a service update; the remap needs the window.
+3. **Order of a setup** so that at most one window is needed: (a) load profiles complain (live) → harvest a day → enforce (live); (b) the compose fragment / stack overlay at the NEXT deploy (a deploy recreates containers anyway); (c) the firewall rings live; (d) daemon.json changes batched into ONE dockerd restart, the remap last and only with the migration of volumes planned; (e) a kernel update reboots on the owner's schedule. On the ISO route (§ POLARI_ISO_PLAN) none of this is a migration: the rings are on from first boot, which is what "applied by default on every route" (rung 3) means there.
+4. **The store / manager app** asks for the restart the way the desktop does (a notice, a button), never a surprise; the deb route reuses the desktop's reboot notification.
