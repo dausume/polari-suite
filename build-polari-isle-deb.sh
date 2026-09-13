@@ -74,6 +74,14 @@ step "isle-mesh-cli (from Isle-Mesh/)"
 # version = 0.1.<commit-count> — monotonic with the branch, no hand-picked
 # number to collide with (continues past the hand-staged 0.1.2x series)
 CLI_VERSION="0.1.$(cd "$ROOT/Isle-Mesh" && git log --oneline | wc -l)"
+# the PUBLISHED image tag the shipped polari-isle compose pulls (2026-09-13 finding: a deb from the website must bring
+# Polari up without a local build) — stamped into polari-isle/.env (gitignored; copied into ~/polari-isle at deploy).
+# Default: the newest polari-v* release tag of the suite + "-core"; override: POLARI_IMAGE_TAG=… POLARI_IMAGE_REPO=…
+IMAGE_TAG="${POLARI_IMAGE_TAG:-$(git -C "$ROOT" tag -l 'polari-v*' | sort -V | tail -1)}"
+[ -n "$IMAGE_TAG" ] || IMAGE_TAG="polari-v$(date +%Y.%m.%d)"
+case "$IMAGE_TAG" in *-core|*-all) ;; *) IMAGE_TAG="${IMAGE_TAG}-core" ;; esac
+printf 'POLARI_IMAGE_REPO=%s\nPOLARI_IMAGE_TAG=%s\n' "${POLARI_IMAGE_REPO:-ghcr.io/dausume/}" "$IMAGE_TAG" > "$ROOT/Isle-Mesh/polari-isle/.env"
+ok "polari-isle images pinned: ${POLARI_IMAGE_REPO:-ghcr.io/dausume/}prf-*:$IMAGE_TAG (polari-isle/.env)"
 ( cd "$ROOT/Isle-Mesh/isle-cli/shells" \
     && bash build-cli-deb.sh --version "$CLI_VERSION" --output "$OUT" ) | tail -1
 [ -f "$OUT/isle-mesh-cli_${CLI_VERSION}_all.deb" ] || { echo "cli deb not produced" >&2; exit 1; }
