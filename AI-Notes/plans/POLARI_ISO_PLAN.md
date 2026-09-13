@@ -9,8 +9,12 @@ One image builder, `pol iso build --profile <name>`, produces a bootable Ubuntu 
 ## 1. Base and tools (facts to decide on)
 
 - **Base: Ubuntu 24.04 LTS** (what isle-core and the swarm run; docker's repo covers it; the debs are built for it). 26.04 when it is LTS.
-- **Builder: `ubuntu-image classic`** (Canonical's own tool, an `image-definition.yaml`: base seeds, extra packages, customization hooks, the apt sources) — produces the same kind of image Canonical ships. Alternatives: `live-build` (more knobs, more maintenance), Cubic (interactive remaster, not reproducible). Recommended: ubuntu-image, in a container on the hardware-tier box.
-- **Install: subiquity autoinstall** (the `autoinstall` YAML embedded in the image, or served per device): storage, identity, network, `late-commands` that install the isle from the image's own offline apt pool and run first-boot.
+- **Two build shapes (corrected 2026-09-13, his check "using subiquity we can wrap the startup"):**
+  1. **The installer ISO** = the Ubuntu **Server live ISO** (subiquity) + our `autoinstall.yaml` + the offline apt pool, with the desktop task added through autoinstall's `packages`. NOT a remaster of Kubuntu's ISO: Kubuntu 24.04 installs with **Calamares**, which does not read autoinstall. For the downloadable image and USB installs.
+  2. **Preinstalled images** with `ubuntu-image classic` (an `image-definition.yaml`: seeds, packages, hooks) — no installer at all; everything happens at first boot. For pushed profiles, network boot and VMs.
+  Alternatives rejected: `live-build` (more maintenance), Cubic (interactive, not reproducible). Both shapes build in a container on the hardware-tier box.
+- **Wrapping the startup, two stages:** *install time* — autoinstall `early-commands` / `late-commands` (chroot into `/target`: install the isle deb from the pool, place keys, grant the command set's sudoers groups, enable or disable SDDM, mask services), `ssh` (server + authorized keys), `packages`; *first boot* — a once-only `polari-firstboot.service` (`ConditionFirstBoot=yes`, placed by late-commands) that runs the join-by-fingerprint or become-core step and records the result — preferred over cloud-init `runcmd` (one-shot, harder to make idempotent); cloud-init `user-data` stays for users/keys on preinstalled images.
+- **Install: subiquity autoinstall** (the `autoinstall` YAML embedded in the image, or served per device by the core): storage, identity, network, ssh, packages, the late-commands above.
 - **Desktop: `kubuntu-desktop`** task (KDE Plasma, SDDM). Precisely (his question 2026-09-12): Plasma does NOT adapt to headless by itself — when no graphical session starts (multi-user target, SDDM disabled) none of it runs and its RAM/CPU cost is zero; what an installed-but-disabled desktop still costs is disk (~2–3 GB), update volume, and the services the desktop task drags in that DO run without a screen (cups, avahi, bluetooth, power-profiles, packagekit …) unless masked per profile. So the desktop task is a per-profile choice: desktop / hardware / core profiles install it; reach and server profiles do not, and gain it later from the offline pool with one command (which means the pool must carry it — a bigger image — if that is wanted on headless profiles: D3).
 - **Offline first:** the image carries the apt pool it needs (our `apt.isle` publisher tree + the platform debs, the existing offline chunk sets from dl-5), so a machine installs with no internet and joins the isle for updates.
 
@@ -54,7 +58,7 @@ Same base, kernel, apt and LTS; only the desktop differs, and on headless profil
 ## 5. Decisions for him
 
 - **D1** Base: 24.04 LTS now, 26.04 at its LTS — or 26.04 already (the droplet runs it)?
-- **D2** Builder: ubuntu-image (recommended) vs live-build.
+- **D2** Build shapes: the Server-live + autoinstall installer ISO for downloads and USB, preinstalled `ubuntu-image` images for pushed profiles / PXE / VMs (recommended: both, one profile format feeding both) — or only one of them first?
 - **D3** The desktop task per profile: installed on desktop / hardware / core, absent on reach / server (recommended), or installed everywhere with SDDM disabled (costs disk, updates and the desktop's background services on headless boxes)? And does the headless image's offline pool carry the desktop packages for a later switch (bigger image) or not?
 - **D4** Unattended install by default (autoinstall, the machine is wiped) vs a guided installer with Polari's questions added? (Recommended: unattended for pushed profiles, guided for the downloadable desktop image.)
 - **D5** Network boot from the router VM (PXE/iPXE on OpenWrt) in scope for iso-3, or USB only first?
