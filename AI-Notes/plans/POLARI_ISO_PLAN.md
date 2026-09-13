@@ -58,7 +58,7 @@ Same base, kernel, apt and LTS; only the desktop differs, and on headless profil
 ## 5. Decisions for him
 
 - **D1** Base: 24.04 LTS now, 26.04 at its LTS — or 26.04 already (the droplet runs it)?
-- **D2** Build shapes: the Server-live + autoinstall installer ISO for downloads and USB, preinstalled `ubuntu-image` images for pushed profiles / PXE / VMs (recommended: both, one profile format feeding both) — or only one of them first?
+- **D2 — DECIDED 2026-09-13 (his): both shapes.** The Server-live + autoinstall installer ISO (downloads, USB) AND preinstalled `ubuntu-image` images (pushed profiles, PXE, VMs), one profile format feeding both; `pol iso build --profile <p> --shape installer|preinstalled`. Order: the installer ISO in iso-1, preinstalled images with the pushed profiles in iso-3.
 - **D3** The desktop task per profile: installed on desktop / hardware / core, absent on reach / server (recommended), or installed everywhere with SDDM disabled (costs disk, updates and the desktop's background services on headless boxes)? And does the headless image's offline pool carry the desktop packages for a later switch (bigger image) or not?
 - **D4** Unattended install by default (autoinstall, the machine is wiped) vs a guided installer with Polari's questions added? (Recommended: unattended for pushed profiles, guided for the downloadable desktop image.)
 - **D5** Network boot from the router VM (PXE/iPXE on OpenWrt) in scope for iso-3, or USB only first?
