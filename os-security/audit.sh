@@ -80,6 +80,21 @@ else res physical secure-boot skip "legacy BIOS boot: Secure Boot does not exist
 CRYPT=$(lsblk -rno TYPE 2>/dev/null | grep -c '^crypt$' || true); ROOTSRC=$(findmnt -no SOURCE / 2>/dev/null)
 if [ "$CRYPT" -gt 0 ]; then res physical disk-encryption pass "$CRYPT encrypted volume(s) (LUKS); root on $ROOTSRC"
 else res physical disk-encryption fail "no encrypted volume: the drive is readable in another machine (an option, off by default; never on headless — ISO plan D8)"; fi
+# ---- SSH (his ask 2026-09-13: track ssh capabilities across Polari devices as a security vector)
+if ss -ltn 2>/dev/null | grep -qE ':22$|:22 '; then
+    SSHT=$($SUDO sshd -T 2>/dev/null)
+    if [ -n "$SSHT" ]; then
+        PA=$(echo "$SSHT" | awk '/^passwordauthentication/ {print $2}'); PR=$(echo "$SSHT" | awk '/^permitrootlogin/ {print $2}'); KI=$(echo "$SSHT" | awk '/^kbdinteractiveauthentication/ {print $2}')
+        [ "$PA" = no ] && [ "$KI" != yes ] && res ssh key-only-login pass "password and keyboard-interactive authentication off" || res ssh key-only-login fail "PasswordAuthentication=$PA KbdInteractive=$KI — a guessable password is the vector; keys only (sshd_config: PasswordAuthentication no)"
+        [ "$PR" = no ] && res ssh no-root-login pass "PermitRootLogin no" || res ssh no-root-login fail "PermitRootLogin=$PR — log in as a person and sudo (sshd_config: PermitRootLogin no)"
+    else res ssh key-only-login skip "sshd -T needs root"; res ssh no-root-login skip "sshd -T needs root"; fi
+    AK=$(for h in /root /home/*; do $SUDO cat "$h/.ssh/authorized_keys" 2>/dev/null | grep -cvE '^\s*(#|$)'; done | awk '{s+=$1} END {print s+0}')
+    WEAK=$(for h in /root /home/*; do $SUDO cat "$h/.ssh/authorized_keys" 2>/dev/null | grep -vE '^\s*(#|$)' | awk '{print $1}'; done | grep -cE '^(ssh-rsa|ssh-dss)$' || true)
+    [ "$WEAK" = 0 ] && res ssh authorized-key-types pass "$AK authorized key(s), all ed25519/ecdsa" || res ssh authorized-key-types fail "$WEAK rsa/dss key(s) of $AK — prefer ed25519"
+    F2B=$(systemctl is-active fail2ban 2>/dev/null); [ "$F2B" = active ] && res ssh brute-force-guard pass "fail2ban active" || res ssh brute-force-guard fail "no fail2ban / rate limit on sshd (ufw limit 22 or fail2ban)"
+    FL=$($SUDO journalctl -u ssh -u sshd --since '24 hours ago' --no-pager 2>/dev/null | grep -c 'Failed password\|Invalid user' || true)
+    [ "${FL:-0}" -lt 20 ] && res ssh failed-logins-24h pass "$FL failed login(s) in 24 h" || res ssh failed-logins-24h fail "$FL failed login(s) in 24 h — someone is knocking"
+else res ssh sshd-listening skip "no sshd listening: nobody can ssh in (nor can pol deploy)"; fi
 # ---- CERTS (his ask 2026-09-13: expired certificates must be noticed; auto-renew must be on)
 if ss -ltn 2>/dev/null | grep -qE ':443 '; then
     END=$(echo | timeout 6 openssl s_client -connect 127.0.0.1:443 -servername localhost 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)

@@ -1342,3 +1342,13 @@ Owed: the first real harvest from isle-core after a day (`pol deploy harden isle
 | audit `certs` ring on pol-core | edge-cert skip (nothing on :443 here); auto-renew pass (1 systemd timer) |
 | frontend `app-system-notice` | tsc passes; unseen in a browser (image rebuild) |
 | the live probe against a real instance | OWED (home swarm lean deploy) |
+
+## §25 — inventory of the three home machines + ssh as a vector (2026-09-13; role names only, per the privacy rule)
+
+| machine | what is installed, in what form | ssh surface |
+|---|---|---|
+| pol-core (swarm leader, 22.04, docker 27.3.1, no KVM) | the 20 GB dev checkout on dev-sec-1; `pol` in ~/.local/bin; 40 Polari images (ghcr release tags + local builds), 10 Polari volumes, NO stacks up; only the Jenkins container running; no debs, no isle files, no AppArmor/sudoers rings; a certbot timer | NO sshd (nobody can ssh in; this box is the hub: it holds the ed25519 key and the client config for isle-core / econ-core) |
+| isle-core (24.04, kernel 7.0, docker 29.1.3, KVM + IOMMU) | `polari-complete` 0.1.33 deb; `isle` + `pol` in /usr/local/bin + /usr/share/isle-mesh; the 5 isle containers (agent, apt, prf-isle backend/frontend, sample app); the OpenWrt router guest; isle-host-agent + mesh-mdns units, polari-isle-push timer; /etc/isle-mesh + /etc/polari; 66 AppArmor files (the warn-only rings from yesterday); a 514 MB suite checkout on dev + ~/polari-isle; NO apt.isle source configured on itself | sshd on ALL interfaces; **PasswordAuthentication yes** and **PermitRootLogin without-password** (findings); 1 ed25519 key for the owner; passwordless sudo for that user; no fail2ban; ufw inactive; 0 failed logins in 24 h; edge cert 361 days left; **no auto-renew scheduled** |
+| econ-core (22.04, docker 29.1.3, KVM + IOMMU) | the Odoo pair (odoo + postgres, up 6 weeks); 5 images incl. a 4.5 GB engines image; a 1.2 GB suite checkout on dev and an Isle-Mesh checkout on dev-consolidation; NO pol, NO isle CLI, no debs, no isle files, no rings | sshd on all interfaces; auth methods unreadable without root (sudo prompts); 2 ed25519 authorized keys; no private key, no outbound relationships; no fail2ban; **no auto-renew** |
+
+Audit `ssh` + `certs` rings ran on isle-core and econ-core through `pol deploy audit` (rows above). Owed: `pol deploy inventory <node> --post` against a live core (the rows and the isle topology panels), `PasswordAuthentication no` + `PermitRootLogin no` on isle-core (isle-core's Claude / his call), fail2ban or `ufw limit 22` everywhere, `pol cert auto-renew install` on isle-core.
