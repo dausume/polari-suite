@@ -1333,3 +1333,12 @@ Owed: the first real harvest from isle-core after a day (`pol deploy harden isle
 | manifest conform | OK (23 classes) |
 | CLI `pol security os audit --post`, `propose --profile --accept` | syntax-checked; not run against a live core yet |
 | POST /api/security/audit, /propose; the pages | OWED: a core booted with the module (next image build) |
+
+## §24 — certificate notices (2026-09-13)
+
+| check | result |
+|---|---|
+| notices reduction (selftest) | expired → error + renew action; expiring ≤14 d → warning; auto-renew absent → info; internal expired → warning; unreachable host → info (40/40) |
+| audit `certs` ring on pol-core | edge-cert skip (nothing on :443 here); auto-renew pass (1 systemd timer) |
+| frontend `app-system-notice` | tsc passes; unseen in a browser (image rebuild) |
+| the live probe against a real instance | OWED (home swarm lean deploy) |

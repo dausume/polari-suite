@@ -80,6 +80,17 @@ else res physical secure-boot skip "legacy BIOS boot: Secure Boot does not exist
 CRYPT=$(lsblk -rno TYPE 2>/dev/null | grep -c '^crypt$' || true); ROOTSRC=$(findmnt -no SOURCE / 2>/dev/null)
 if [ "$CRYPT" -gt 0 ]; then res physical disk-encryption pass "$CRYPT encrypted volume(s) (LUKS); root on $ROOTSRC"
 else res physical disk-encryption fail "no encrypted volume: the drive is readable in another machine (an option, off by default; never on headless — ISO plan D8)"; fi
+# ---- CERTS (his ask 2026-09-13: expired certificates must be noticed; auto-renew must be on)
+if ss -ltn 2>/dev/null | grep -qE ':443 '; then
+    END=$(echo | timeout 6 openssl s_client -connect 127.0.0.1:443 -servername localhost 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+    if [ -n "$END" ]; then D=$(( ( $(date -d "$END" +%s) - $(date +%s) ) / 86400 ))
+        if [ "$D" -lt 0 ]; then res certs edge-cert fail "the edge certificate EXPIRED ${D#-} day(s) ago ($END) — pol cert renew"
+        elif [ "$D" -lt 14 ]; then res certs edge-cert fail "the edge certificate expires in $D day(s) ($END) — pol cert renew"
+        else res certs edge-cert pass "$D day(s) left ($END)"; fi
+    else res certs edge-cert skip "443 answers but no certificate could be read"; fi
+else res certs edge-cert skip "nothing listens on 443 here"; fi
+AR=$( { crontab -l 2>/dev/null; cat /etc/cron.d/* 2>/dev/null; } | grep -c "renew.sh" || true); SYSAR=$(systemctl list-timers --all 2>/dev/null | grep -ciE "certbot|renew" || true)
+[ "$AR" -gt 0 ] || [ "$SYSAR" -gt 0 ] && res certs auto-renew pass "renewal scheduled ($AR cron entr(y|ies), $SYSAR timer(s))" || res certs auto-renew fail "no renewal scheduled: certificates will expire silently — pol cert auto-renew install"
 # ---- HOST
 for k in kernel.kptr_restrict=2 kernel.dmesg_restrict=1 kernel.unprivileged_bpf_disabled=1 fs.protected_symlinks=1 fs.protected_hardlinks=1; do
     v=$(sysctl -n "${k%=*}" 2>/dev/null); { [ "$v" = "${k#*=}" ] || { [ "${k%=*}" = kernel.unprivileged_bpf_disabled ] && [ "${v:-0}" -ge 1 ]; }; } && res host "sysctl ${k%=*}" pass "$v" || res host "sysctl ${k%=*}" fail "is ${v:-unset}, want ${k#*=}"
