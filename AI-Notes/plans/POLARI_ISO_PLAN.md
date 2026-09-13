@@ -25,9 +25,13 @@ One image builder, `pol iso build --profile <name>`, produces a bootable Ubuntu 
 | `server` | the swarm route: docker, swarm, `pol prod` from an answers profile | headless | the home server; the droplet is NOT built this way |
 | `desktop` | Polari as a desktop app (the store, the shell) without an isle | Plasma | the "older person" route from the deployment docs |
 
-A profile = `autoinstall.yaml` (answers) + `packages` (the task list) + `security` (which rings, all on by default here: the ISO route is where "applied by default" is true from the first boot; §ISLE_HARDENING_PLAN §15) + `look` (a Plasma global theme + wallpaper + panel layout) + `first-boot` (join or become core).
+A profile = `autoinstall.yaml` (answers) + `packages` (the task list) + `ssh` (his ask 2026-09-12: reachable from the first boot — autoinstall installs the ssh server and places the core's and the owner's public keys before anyone has logged in; the `polari-remote` sudoers group lands with it, so remote setup needs no password from day one) + `commands` (which command surfaces the machine exposes and to whom — a chosen SET, not everything: `isle` CLI · `pol` CLI · the store's doors (`polari-app` group) · remote operations (`polari-remote` group) · shell only; each set = packages installed + sudoers groups granted; the guided installer walks the choice, a pushed profile answers it) + `security` (which rings, all on by default here: the ISO route is where "applied by default" is true from the first boot; §ISLE_HARDENING_PLAN §15) + `look` (a Plasma global theme + wallpaper + panel layout) + `first-boot` (join or become core).
 
 **Derived by the core:** `isle profile derive <device>` reads the topology (`PolariNodeMachine.tier`, role, the assignments) and writes the profile; `isle profile push <device> --usb /dev/sdX | --netboot` writes the image to a stick or registers the device for PXE from the router VM (dnsmasq on OpenWrt can serve it) so a fresh box on the isle VLAN boots straight into its install. Identity at first boot: the device's key pair is generated on the device; the core signs the leaf (the existing isle CA flow); the profile carries the core's fingerprint for the trust step.
+
+## 2b. Why KDE Plasma over Ubuntu's GNOME (his question 2026-09-12)
+
+Same base, kernel, apt and LTS; only the desktop differs, and on headless profiles neither runs. The benefits are for the desktop profiles: Plasma's look is files (global themes, panels, colour schemes) that a profile can ship and switch, where GNOME's look is fixed and changing it means extensions that break on upgrades; the KDE kiosk framework locks settings and actions down per profile (the tool for a locked household or workbench machine — GNOME has no equivalent short of policy files); a lighter idle footprint by a few hundred MB; Qt matches the instrument/CAD tooling world and KDE Connect ties phones to the isle. Costs: GNOME is the polished newcomer default with more documentation; Plasma's knobs mean a locked profile is deliberate work. Decision stands: KDE, because per-profile looks and lockdown are goals.
 
 ## 3. Look and feel
 
@@ -58,6 +62,8 @@ A profile = `autoinstall.yaml` (answers) + `packages` (the task list) + `securit
 - **D7** Where images are built: isle-core (hardware tier, KVM for the proof) — and are they release artifacts like the platform debs (yes, recommended)?
 - **D8** Disk encryption by default on desktop profiles (LUKS with a passphrase; TPM-bound is a later piece)?
 - **D9** The Polari Plasma theme: generated from the web tokens (recommended) or hand-made?
+- **D10** Command sets: the five above as the fixed menu (recommended), or free-form per profile? And is `shell only` allowed on a member at all (it cannot join the isle by itself)?
+- **D11** Keys at first boot: the core's key always, the owner's key by profile — and a per-device key generated on the device for the isle CA (recommended), never a shared key baked into the image.
 
 ## 6. What this reuses (no new engines)
 
