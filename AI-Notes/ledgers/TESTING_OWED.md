@@ -1323,3 +1323,13 @@ Owed: the first real harvest from isle-core after a day (`pol deploy harden isle
 | module selftest | 32/32 — encryption off → the drive is readable; Secure Boot stops a tampered kernel but not a live USB; enforce on a desktop profile → encryption blocks the drive and the USB; enforce on a headless profile → encryption stays OFF (never on headless); both physical threats carry counterexamples |
 | audit on pol-core (dev, no root) | `physical secure-boot` and `physical disk-encryption` report (this box: see the run) |
 | on isle-core / econ-core (`pol deploy audit`) | OWED next session |
+
+## §23 — the security module's remaining rows, ledger, live feed, write-back (2026-09-13)
+
+| check | result |
+|---|---|
+| module selftest | 39/39 (ledger blocks nothing at conform; the isle backend blocks at mac_enforced; Keycloak public clients asymmetric / confidential symmetric, no symmetric user channel; the isle union complain today, swarm unions rendered; expired internal certs reported; proposal: /app/data + CHOWN + open proposed, pycache ignored, /etc write / sys_admin / mount not expressible; audit feed: loaded+not-enforcing → complain, ufw pass → live, secure-boot fail → off) |
+| derivations on the real tree | MacProfile 151 · DacPolicy 140 · PermissionGroup 12 · ProxyConfig 5 · ProxySnippet 60 (all absent) · ServiceIdentity 12 (internal certs EXPIRED −25/−9 d — a real finding for `pol cert renew`) · FirewallRuleSet 8 · TrustChannel 19 · AuthzRule 1 · BrowserPolicy 6 · AppSecurityRecord 260 |
+| manifest conform | OK (23 classes) |
+| CLI `pol security os audit --post`, `propose --profile --accept` | syntax-checked; not run against a live core yet |
+| POST /api/security/audit, /propose; the pages | OWED: a core booted with the module (next image build) |
