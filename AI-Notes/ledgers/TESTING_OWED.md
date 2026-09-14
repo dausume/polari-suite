@@ -1448,3 +1448,12 @@ What is NOT proven here: the droplet itself (his rule — never test there); the
 | inventory.sh on isle-core | allow_groups '', groups sudo|<user>, 4 sudoers grants incl. a blanket NOPASSWD ALL for the user, posture null, no root Match drop-ins |
 | audit posture-assurance on isle-core | FAIL "UNSECURED: passwords accepted — no posture allows that"; ssh-groups FAIL; sudo-scoped FAIL |
 | OWED | a live core with the new image: POST inventory → SshPermissionLevel rows + the isle topology panels + the notice bar showing dev-mode; a node under a declared dev posture (posture.json) reading DEV |
+
+## §34 — his questions 2026-09-14: the website deb on two machines, and the member tier choice
+
+| question | answer today |
+|---|---|
+| website deb → isle-core core-install | tested §27: install OK; core-install as PUBLISHED fails at 3/7 (hardcoded prf-*:staging images); after the compose fix in this checkout the isle came up and was driven. The website STILL serves that 0.1.34 — a fresh download fails the same way until the deb is rebuilt (build now stamps the ghcr tag into polari-isle/.env) and republished |
+| the same deb → econ-core as a HARDWARE member connecting to the core | NOT tested, and not possible yet: the isle side has no hardware tier (`isle onboard` = plain or `--host` only; agent.tier=hardware + `isle vm` requested 2026-09-08, open); econ-core is wiped since the purge |
+| does non-core setup ask "hardware, heavier" vs "lighter, no hardware"? | NO. The CLI has only `--host`; the store's door 2 shows text with `[--host]` and wraps nothing. Design recorded (contract note): `isle onboard --tier light|host|hardware`, interactive three-way question in plain words, the store door = the same three cards wrapping the verb (his rule: CLI verbs first, UI wraps them) |
+| owed | republish the deb; isle side: the tier verb + hardware tier + door 2 wrapper; then the two-machine test with econ-core as HARDWARE |
