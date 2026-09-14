@@ -1389,3 +1389,12 @@ Fix landed in the suite's Isle-Mesh copy (the live copy now): `polari-isle/docke
 | CLI | `pol apps status|request|fetch <module> [--flavor] [--from <core>] [-o file]` (fetch waits, downloads, verifies the sha256) — syntax-checked, not run against a live core |
 | manifest conform (appstore) | OK |
 | against a live core / the production server | OWED (image rebuild; the request route's repository fetch needs a manager → live only) |
+
+## §29 — the downloads interface revised (2026-09-13; his rulings 1 + 4)
+
+| check | result |
+|---|---|
+| `/downloads` | ONLINE / OFFLINE are the top-level tabs of the page itself; under each: the installer (online: one-file + the stepped option; offline: the offline installer when staged, else the honest note), then EVERY registered app as a card for that flavour, then the first-start, explainers, plan link; the offline media set (staged chunks or the honest "not built yet") under Offline. Renders with tabs and 59 app cards even when no platform installer is staged |
+| every official app on production | a registered module whose code is not on the instance gets "Generate & download" with the note "Fetched first: … pulls it from its repository, then packages it"; the HTML status route calls the API's `ensure_code` before generating; only a module with no repository (or a refusal) still says "Not available here" |
+| selftests (host) | downloads 16/16 (+ the tabs/apps/media check) · app_debs 19/19 · offline 6/6 · apps_api 12/12 · appstore manifest conforms |
+| on the production server / a live core | OWED (image rebuild): the fetch-first cards need a manager; the 43 refused modules on the site become offered |
