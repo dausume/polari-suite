@@ -281,3 +281,10 @@ App kinds gain `access-app` = the shell of an app (build-launcher-deb.sh): every
 access-only member installs. `moduleService/tier_reach.py` is the one place that says which kinds run on which
 tier and words the notice; the apps API carries `hosts_on` / `access_form` / `notice_on_access` per app. The isle CLI
 refuses hosting kinds on an access member (contract note); at the Polari level it is a notice, never a refusal.
+
+## Addendum 2026-09-14 (2) — forms, refusals, finders (his rulings)
+Every app has two FORMS: install (the app) and access (its shell), for online and offline, software and hardware;
+the download pages show them SIDE BY SIDE and group Software / Hardware / Expansions-under-their-hardware-app.
+Install-time REFUSALS ride in the deb (preinst): hardware app on a lightweight docker-swarm isle or a non-hardware
+member; expansion without its base. An ACCESS app FINDS its target (core's /api/access, conventional .isle names)
+and otherwise asks the person to pick from the isle's .isle addresses. Code: appstore/custom/app_forms.py.

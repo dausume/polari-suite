@@ -1475,3 +1475,14 @@ What is NOT proven here: the droplet itself (his rule — never test there); the
 | apps API (apps_api 15/15, app_debs 19/19) | `hosts_on`, `access_form`, `notice_on_access` per app (status + catalogue); gears → hosts_on host/hardware with the ACCESS ONLY notice; the downloads card says "Runs on: host / hardware members — on an Access-only computer install the app's shell instead" |
 | store flow | the tier door says "Access only" (shells only, hosts nothing); `store-setup.sh join --tier access` = plain onboard; 'light' alias |
 | OWED (isle side) | `isle onboard --tier`, the store listing shells only on an access member, `isle app install` refusing hosting kinds there, the launcher deb's `Polari-Kind: access-app` |
+
+## §37 — two forms per app, install-time refusals, access apps that find their target (2026-09-14; his rulings)
+
+| check | result |
+|---|---|
+| apps_api selftest (host, real generation) | 25/25: status/request/download with `form=access` (a launcher deb < 200 KB: .desktop, executable open.sh, access.json, Depends polari-shell-core online); `/api/access` + `/api/access/{m}` answer url + candidates; preinst for an expansion refuses without its base and on a lightweight isle in his words; a hardware app's preinst names both refusals; a software app carries none; grouping nests expansions under their base |
+| page selftests | app_debs 19/19 · downloads 16/16 · offline 6/6 after the card rewrite (two form columns, grouped sections) |
+| rendered `/downloads` app section (this checkout, 58 modules) | Software apps / Hardware apps (3: isle_relay, isle_guestnet, voron) with Expansions subsections (reticulum under isle_relay, printcam under voron); every card = Install + Access only side by side |
+| manifests | isle_relay + isle_guestnet → hardware-app (tier hardware), printcam extends voron, hardwareapps → library; conform re-run after `manifests generate` |
+| CLI | `pol apps access <m>`, `--form` on status/request/fetch, `pol apps usb write --forms install,access` — syntax-checked; NOT run against a live core (the home stack still runs the previous image) |
+| OWED | the debs installed for real: a hardware app's preinst refusing on pol-core (swarm-only) and on a non-hardware member; an access deb opened on a member (open.sh finding the app via /api/access, then the pick list); offline access deb carrying polari-shell-core (needs the shell deb staged); the isle side (contract note) |
