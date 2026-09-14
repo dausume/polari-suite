@@ -1486,3 +1486,16 @@ What is NOT proven here: the droplet itself (his rule — never test there); the
 | manifests | isle_relay + isle_guestnet → hardware-app (tier hardware), printcam extends voron, hardwareapps → library; conform re-run after `manifests generate` |
 | CLI | `pol apps access <m>`, `--form` on status/request/fetch, `pol apps usb write --forms install,access` — syntax-checked; NOT run against a live core (the home stack still runs the previous image) |
 | OWED | the debs installed for real: a hardware app's preinst refusing on pol-core (swarm-only) and on a non-hardware member; an access deb opened on a member (open.sh finding the app via /api/access, then the pick list); offline access deb carrying polari-shell-core (needs the shell deb staged); the isle side (contract note) |
+
+## §38 — the home stack redeployed from this checkout; the day's surfaces LIVE (2026-09-14; his ask: assessable later, security stays WARN)
+
+| check | result |
+|---|---|
+| `pol prod apply --profile home-lean --yes` | backend + frontend + pol-hub images rebuilt, stack redeployed; backend BOOT COMPLETE 5/5 modules (security online); the old task's exit 137 was the replacement, not a crash |
+| `/downloads?flavor=offline` on the API host | top-level tabs, the USB-stick section first, 61 cards each with Install + Access-only side by side, Software apps (54) / Hardware apps (3) with Expansions of Isle Relay (1) and Expansions of Voron (1) |
+| `/downloads?flavor=online` | offers the rebuilt `isle-app-store_0.2.0_all.deb` (the revised setup doors + store-setup.sh inside; staged under .generated/debs) |
+| `/api/apps/gears/status?form=access`, `/api/access/gears`, `/api/downloads` | answer live: the access package name, group, title; the app's address candidates; the staged installer |
+| inventories posted (`/api/security/inventory`) | pol-core CLOSED (no sshd) · isle-core UNSECURED (passwords accepted; root with key; no AllowGroups; blanket sudo — 3 permission-level rows) · econ-core UNKNOWN (no root there: auth methods unreadable) |
+| audits posted (`/api/security/audit`) | isle-core (sudo): 38 controls, 16 pass / 22 fail, verdict open · pol-core (no sudo): 25 controls, 12 pass / 9 fail / 4 skip, verdict partial — every ring WARN-ONLY, nothing enforced anywhere |
+| notices | `ssh-unsecured` (error) now shows on the live core for isle-core |
+| NOT done | a browser pass (the Chrome extension was not connected this session): the security screens, the threat animation, the isle topology ssh panels, the notice bar — unseen; econ-core needs a root-capable run for its ssh reading |
