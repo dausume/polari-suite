@@ -265,3 +265,46 @@ Rules that follow:
 2. **`apply.sh --needs`** (to build): after an apply, print the restart tier per applied piece and the one command that completes it (`docker service update --force <svc>`, `systemctl restart docker` in a window, `isle app restart <app>`, reboot). Warn-only applies need nothing today (profiles are live); the first enforce of the surface ring needs a service update; the remap needs the window.
 3. **Order of a setup** so that at most one window is needed: (a) load profiles complain (live) → harvest a day → enforce (live); (b) the compose fragment / stack overlay at the NEXT deploy (a deploy recreates containers anyway); (c) the firewall rings live; (d) daemon.json changes batched into ONE dockerd restart, the remap last and only with the migration of volumes planned; (e) a kernel update reboots on the owner's schedule. On the ISO route (§ POLARI_ISO_PLAN) none of this is a migration: the rings are on from first boot, which is what "applied by default on every route" (rung 3) means there.
 4. **The store / manager app** asks for the restart the way the desktop does (a notice, a button), never a surprise; the deb route reuses the desktop's reboot notification.
+
+## §16 — Development postures (his ask 2026-09-14): relax for testing, never beyond one isle
+
+**The ask.** Some testing needs parts of the security relaxed (root over ssh for a harness, a debugger port, a
+profile in complain while a new module is exercised). A development mode must be able to switch those parts off —
+and must NEVER expose anything beyond the scope of a single isle.
+
+**The rule: a posture, not a switch.** "Dev" is a named POSTURE alongside the scenarios (isle / swarm-lean /
+swarm-full / dev already exist as scenarios; this adds posture = the enforcement stance), never "security off".
+A posture is a LIST of named relaxations, each scoped by the isle boundary, each visible, each time-boxed.
+
+**The isle boundary — invariants no posture may break (audit rings mark a breach FAIL, never WARN):**
+1. Inbound from any non-isle interface stays closed: the DOCKER-USER / ufw ring keeps accepting only from the
+   isle's WireGuard + LAN subnets; a relaxation may open a port ON THE ISLE INTERFACES ONLY (`-i wg0`, `-s <isle cidr>`).
+2. Nothing binds 0.0.0.0 on an upstream/public interface in dev; a debugger/inspector port binds the isle address.
+3. ssh: key-only from the isle subnet is the most a relaxation grants (`Match Address <isle cidr>` →
+   `PermitRootLogin prohibit-password`); PasswordAuthentication is never re-enabled by any posture.
+4. No key or cert material leaves the node; the inventory keeps recording types + hashes only.
+5. Dev posture is REFUSED on nodes whose deploy route is production (the droplet/server role, `pol prod`): it exists
+   for isle members, the home swarm and standalone dev nodes only. Refusal is loud and names the role.
+6. Federation/VPN doors stay as the applied scenario left them — a posture never widens what other isles can reach.
+
+**What a relaxation looks like** (each = a row in the security module, provenance polari, with its scope):
+- `mac.complain <profile>` — one profile to complain (the allow-list template already keeps explicit denies).
+- `seccomp.log <kind>` — SCMP_ACT_LOG for one kind (worker/python already in warn mode).
+- `net.isle-port <port>` — open a port on the isle interfaces only.
+- `ssh.root-key-from-isle` — root with key from the isle cidr (the one that would have let this session in).
+- `host.core-dumps` / `host.ptrace-scope 0` — debugging knobs, host-local.
+- `dac.dev-group-write <path>` — group write on a dev tree, never on /etc, /var/lib/polari keys, the vault.
+
+**Visible, time-boxed, audited.** `pol deploy harden --posture dev --for 8h` (default 8h; reverts on expiry AND on
+reboot; `--until` never exceeds 7 days); the security overview + the app-system-notice bar say "DEV POSTURE until
+<time>: <n> relaxations"; `pol security os audit` gains a `posture` ring: each active relaxation listed with its
+scope, plus the six invariants checked — a breach is FAIL. Every apply/revert is a SecurityAuditRun row.
+
+**Shape on the existing pieces.** render.py: `--posture dev` = the scenario's fixed_mode with the relaxation list
+applied (per-ring overrides, already how `--mode` works); apply.sh: relaxations are drop-ins with an expiry unit
+(`polari-posture-revert.timer`); audit.sh: the posture ring; security module: posture as a fourth view mode
+(stock | today | complain | enforce | dev) so the topology shows exactly what dev opens and to whom (the isle only).
+
+**Not decided (his):** D1 the default duration; D2 whether a dev posture may be applied remotely by the core to a
+member, or only locally; D3 whether `ssh.root-key-from-isle` should exist at all or the harness should use
+sudo as the user (isle-core today: user key + passwordless sudo works, root has no key — stock Ubuntu, not us).
