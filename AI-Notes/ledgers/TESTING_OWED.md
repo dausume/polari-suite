@@ -1379,3 +1379,13 @@ Audit `ssh` + `certs` rings ran on isle-core and econ-core through `pol deploy a
 | inventory | polari-complete deb; 4 containers; router guest; ssh: passwords on, root-with-key, no fail2ban (unchanged findings) |
 
 Fix landed in the suite's Isle-Mesh copy (the live copy now): `polari-isle/docker-compose.yml` images default to the PUBLISHED `ghcr.io/dausume/prf-*:polari-v2026.09.12-core`, overridable through `polari-isle/.env` (`POLARI_IMAGE_REPO`, `POLARI_IMAGE_TAG`); the deb build should stamp the release tag into that `.env` (owed). For isle-core's Claude (contract note): the `--help` bug, the non-root partial run, `arp` (net-tools) missing, `app list` under sudo, `dns list` empty, the store-shell deb not shipped in polari-complete (→ apt-on-mesh + join door absent), status "Could not determine router IP".
+
+## §28 — the app-deb API (2026-09-13; his ask: status / request / download, online vs offline first-class)
+
+| check | result |
+|---|---|
+| `modules/appstore/apps_api_selftest.py` (host, real generation into a temp pool) | 12/12: catalogue lists every registered module with both flavours; unknown → 404 sentence; online/offline differ in what they carry; space check with numbers; not-generated before a request; download before request → 409 with the request URL; offline names system engines as NOT inside; request → 202 with URLs; generation ready with bytes + sha256; download streams with `X-Polari-Sha256`; request when ready → 200 "already available"; `/api/downloads` answers |
+| routes | `GET /api/apps` · `GET /api/apps/{m}/status?flavor=` · `POST /api/apps/{m}/request?flavor=` (fetches the repository when the code is absent, refuses 507 on space) · `GET /api/apps/{m}/download?flavor=` (200 deb / 202 generating / 409 request first) · `GET /api/downloads` |
+| CLI | `pol apps status|request|fetch <module> [--flavor] [--from <core>] [-o file]` (fetch waits, downloads, verifies the sha256) — syntax-checked, not run against a live core |
+| manifest conform (appstore) | OK |
+| against a live core / the production server | OWED (image rebuild; the request route's repository fetch needs a manager → live only) |
