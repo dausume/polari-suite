@@ -1512,7 +1512,8 @@ What is NOT proven here: the droplet itself (his rule — never test there); the
 | `posture.sh status` | posture, until, relaxations, by; the timer's next elapse; the drop-in's text |
 | `posture.sh production` | drop-in removed, sshd reloaded, timer + units removed, posture.json = production |
 | fixed on the way | the timer pointed at the /tmp copy pol deploy removes → the script now installs itself to /usr/local/lib/polari/posture.sh for the timer |
-| OWED | letting the timer fire for real; `production-route` marker on a real-domain deploy (prod.sh writes it; no real-domain deploy on the home machines); a base `PermitRootLogin no` on isle-core so the isle-scoped Match is the ONLY root door (his call: his machine) |
+| the timer fired for real | `dev --for 2m` on isle-core: four seconds after the expiry the `polari-posture-revert.service` ran (journal: Started → Deactivated successfully), posture.json = production (applied_by root, the timer), the sshd drop-in and the timer units gone |
+| OWED | `production-route` marker on a real-domain deploy (prod.sh writes it; no real-domain deploy on the home machines); a base `PermitRootLogin no` on isle-core so the isle-scoped Match is the ONLY root door (his call: his machine) |
 
 ## §40 — the hand-back ring and the Dependabot fix (2026-09-14)
 
