@@ -128,3 +128,13 @@ Order of building: iso-1 (the build command + the installer ISO + the VM boot pr
 ## 7. What this reuses (no new engines)
 
 The apt publisher (`apt.isle`), the platform debs and their release pipeline, the offline chunk sets (dl-5), the isle trust flow (fingerprint, `isle trust fetch`), the topology's tier labels (`pol deploy tier`), the router VM (dnsmasq for PXE), the os-security rings (applied at first boot), the CI throwaway-VM test, Canonical's ubuntu-image and autoinstall.
+
+## Addendum 2026-09-13 — the app stick and the ISO (his ruling)
+
+The USB app stick (`pol apps usb write`; layout `polari-apps/index.json` schema polari-app-stick/1 + the platform
+deb + offline app debs + a presence-checked installer) and the ISO are INDEPENDENT deliverables: a stick installs
+onto any Ubuntu (apps only, or all of Polari as an app alongside other apps, or a bulk set), and the ISO installs an
+OS. Later, at build time, the ISO may ROLL UP the app portion — the same `polari-apps/` folder copied onto the ISO
+and handed to the first-boot unit, which runs `install-apps.sh` after the platform (presence-checked, so a re-run
+never installs anything twice). Both keep working on their own: the ISO without the folder is a plain Polari OS
+install; the stick without the ISO is an app installer. Decision knob at build: `--apps <stick dir|none>`.
