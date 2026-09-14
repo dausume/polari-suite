@@ -27,6 +27,13 @@ echo "\"sudoers_polari\": $(ls /etc/sudoers.d/ 2>/dev/null | grep -c '^polari-' 
 SSHD=$( $S sshd -T 2>/dev/null )
 echo "\"ssh\": {\"listen\": $(ss -ltn 2>/dev/null | awk '$4 ~ /:22$/ {print $4}' | python3 -c 'import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))'),"
 echo " \"password_auth\": \"$(echo "$SSHD" | awk '/^passwordauthentication/ {print $2}')\", \"pubkey_auth\": \"$(echo "$SSHD" | awk '/^pubkeyauthentication/ {print $2}')\", \"permit_root\": \"$(echo "$SSHD" | awk '/^permitrootlogin/ {print $2}')\", \"kbd_interactive\": \"$(echo "$SSHD" | awk '/^kbdinteractiveauthentication/ {print $2}')\", \"max_auth_tries\": \"$(echo "$SSHD" | awk '/^maxauthtries/ {print $2}')\", \"allow_users\": \"$(echo "$SSHD" | awk '/^allowusers/ {print $2}')\", \"sshd_t_readable\": $( [ -n "$SSHD" ] && echo true || echo false ),"
+# ---- permission levels behind ssh (his ask 2026-09-14): who may log in (AllowGroups), the groups and their members,
+#      every sudoers grant (blanket ALL vs a command list), and the declared posture (/etc/polari/posture.json: secure|dev + until)
+echo " \"allow_groups\": \"$(echo "$SSHD" | awk '/^allowgroups/ {$1=""; print}' | xargs)\", \"allow_users_list\": \"$(echo "$SSHD" | awk '/^allowusers/ {$1=""; print}' | xargs)\","
+echo " \"groups\": $( { getent group sudo admin wheel; getent group | grep -E '^polari-'; } 2>/dev/null | awk -F: '{print $1"|"$4}' | python3 -c 'import sys,json; print(json.dumps(sorted({l.strip() for l in sys.stdin if l.strip()})))'),"
+echo " \"sudoers\": $( $S cat /etc/sudoers /etc/sudoers.d/* 2>/dev/null | grep -vE '^[[:space:]]*(#|$|Defaults|@include|#include)' | python3 -c 'import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))'),"
+echo " \"posture\": $( $S cat /etc/polari/posture.json 2>/dev/null | python3 -c 'import sys,json; print(json.dumps(json.load(sys.stdin)))' 2>/dev/null || echo null ),"
+echo " \"root_match_dropins\": $(grep -lsE 'PermitRootLogin' /etc/ssh/sshd_config.d/* 2>/dev/null | python3 -c 'import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))'),"
 echo " \"authorized_keys\": $(for h in /root /home/*; do f=$h/.ssh/authorized_keys; [ -r "$f" ] || f=$( $S test -r "$f" 2>/dev/null && echo "$f" ); [ -n "$f" ] && $S cat "$f" 2>/dev/null | grep -vE '^\s*(#|$)' | awk -v u="$(basename $h)" '{c=$NF; if (NF<3) c=""; print u"|"$1"|"c}'; done | python3 -c '
 import sys,json,hashlib
 out=[]

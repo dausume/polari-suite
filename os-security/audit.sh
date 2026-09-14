@@ -91,9 +91,21 @@ if ss -ltn 2>/dev/null | grep -qE ':22$|:22 '; then
         # GROUPS allowed over ssh, each with a scoped sudo command set — never a blanket NOPASSWD: ALL
         AG=$(echo "$SSHT" | awk '/^allowgroups/ {$1=""; print}' | xargs)
         [ -n "$AG" ] && res ssh ssh-groups pass "AllowGroups: $AG" || res ssh ssh-groups fail "no AllowGroups — every account with a key may log in; name the permission groups allowed over ssh (sshd_config: AllowGroups polari-ops polari-dev)"
+        # his ask 2026-09-14: one reading — SECURE, or DEV (declared in /etc/polari/posture.json, unexpired), else UNSECURED
+        POST=$(python3 -c 'import json,sys,time
+try: p=json.load(open("/etc/polari/posture.json"))
+except Exception: p={}
+u=p.get("until","");
+print(("dev-expired" if u and time.strptime(u[:19],"%Y-%m-%dT%H:%M:%S")<time.gmtime() else "dev") if p.get("posture")=="dev" else "secure", u)' 2>/dev/null)
+        PSTATE=${POST%% *}; PUNTIL=${POST#* }
+        if [ "$PA" = yes ] || [ "$KI" = yes ] || [ "$PR" = yes ]; then res ssh posture-assurance fail "UNSECURED: passwords accepted — no posture allows that"
+        elif [ "$PR" = no ] && [ -n "$AG" ]; then res ssh posture-assurance pass "SECURE: keys only, no root, AllowGroups $AG"
+        elif [ "$PSTATE" = dev ]; then res ssh posture-assurance warn "DEV posture until ${PUNTIL:-unset}: root=$PR AllowGroups='${AG:-none}'"
+        elif [ "$PSTATE" = dev-expired ]; then res ssh posture-assurance fail "UNSECURED: dev posture EXPIRED at $PUNTIL and root=$PR AllowGroups='${AG:-none}'"
+        else res ssh posture-assurance fail "UNSECURED: root=$PR AllowGroups='${AG:-none}' and no dev posture declared (/etc/polari/posture.json)"; fi
         BLANKET=$(grep -rhsE '^[^#]*ALL[[:space:]]*=[[:space:]]*\(ALL(:ALL)?\)[[:space:]]*(NOPASSWD:[[:space:]]*)?ALL' /etc/sudoers /etc/sudoers.d 2>/dev/null | grep -vE '^(root|%admin|%sudo)[[:space:]]' | xargs -0 echo | head -c 300)
         [ -z "$BLANKET" ] && res ssh sudo-scoped pass "no account or group beyond root/admin/sudo holds a blanket ALL" || res ssh sudo-scoped fail "blanket sudo: $BLANKET — give each ssh group its own command list (/etc/sudoers.d/polari-<group>: %polari-ops ALL=(root) /usr/bin/pol, ...)"
-    else res ssh key-only-login skip "sshd -T needs root"; res ssh no-root-login skip "sshd -T needs root"; res ssh ssh-groups skip "sshd -T needs root"; res ssh sudo-scoped skip "reading sudoers needs root"; fi
+    else res ssh key-only-login skip "sshd -T needs root"; res ssh no-root-login skip "sshd -T needs root"; res ssh ssh-groups skip "sshd -T needs root"; res ssh sudo-scoped skip "reading sudoers needs root"; res ssh posture-assurance skip "sshd -T needs root"; fi
     AK=$(for h in /root /home/*; do $SUDO cat "$h/.ssh/authorized_keys" 2>/dev/null | grep -cvE '^\s*(#|$)'; done | awk '{s+=$1} END {print s+0}')
     WEAK=$(for h in /root /home/*; do $SUDO cat "$h/.ssh/authorized_keys" 2>/dev/null | grep -vE '^\s*(#|$)' | awk '{print $1}'; done | grep -cE '^(ssh-rsa|ssh-dss)$' || true)
     [ "$WEAK" = 0 ] && res ssh authorized-key-types pass "$AK authorized key(s), all ed25519/ecdsa" || res ssh authorized-key-types fail "$WEAK rsa/dss key(s) of $AK — prefer ed25519"

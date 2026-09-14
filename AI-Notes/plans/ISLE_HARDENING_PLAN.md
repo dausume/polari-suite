@@ -333,3 +333,27 @@ that are allowed to be used over ssh." So:
   both revert on reboot, both are audited; outside dev posture root over ssh never exists.
 - Isle side (contract): the isle CLI creates the groups + sudoers files at install, puts the installing person in
   `polari-ops`, and the uninstall hand-back removes only what it created (the journal rule).
+
+### §16b — dev-mode installs vs production installs; the standing warning (his rulings 2026-09-14)
+
+- ssh, and even root over ssh, is something dev mode CAN enable. What matters is that a DEV-MODE INSTALL of Polari
+  and a PRODUCTION-MODE install are different, declared things: `POLARI_POSTURE=dev|production` on the instance
+  (compose/env, set by the installer's mode choice: `isle install --mode dev|production`; the deb's debconf question;
+  the ISO's build knob), and `/etc/polari/posture.json` on each node:
+  `{"posture": "dev", "until": "<UTC>", "relaxations": ["ssh.root-key-from-isle", ...], "applied_by": "<who>"}`.
+- **The standing warning in dev mode** (his words): *any connection to systems that are not your own is extremely
+  dangerous.* Shown by the app-system-notice bar on every page of a dev-mode instance (`dev-mode`, warning), on the
+  security overview, by `pol` on every verb that opens a connection (`pol deploy`, `pol prod`, federation/VPN join,
+  `pol apps fetch` from a foreign core) and by the isle CLI's join/peer verbs. Text lives in one place
+  (security_notices.DEV_MODE_TEXT) so every surface says the same thing.
+- **Tracking (built):** the inventory reports AllowGroups, the groups and their members, every sudoers grant and the
+  posture file; the security module derives per device an ASSURANCE — `secure` (keys only, no root, AllowGroups set,
+  sudo scoped), `dev` (declared and unexpired, listing what it relaxes), `unsecured` (anything else, with reasons;
+  passwords accepted is unsecured even in dev — the invariant), `closed`, `unknown` — and one SshPermissionLevel row
+  per person/group (allowed over ssh or not; root / blanket-sudo / scoped-sudo / shell; via; expires under dev).
+  `/api/security/ssh` serves `assurance` + `levels_detail`; the isle topology shows both; the audit's
+  `posture-assurance` control gives the one-line reading; `pol deploy inventory --post` prints it.
+- **Production mode refuses** dev relaxations (§16 invariant 5) and shows no warning; a production instance whose
+  devices are `unsecured` shows the `ssh-unsecured` error notice instead.
+- Owed: `pol deploy harden --posture dev|production --for`, the installer's mode question, the isle CLI's warning on
+  join/peer, PermissionGroup rows tied to the tracked groups.
