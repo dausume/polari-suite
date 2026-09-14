@@ -272,3 +272,12 @@ prose stays and the numbers follow the build.
   tree-3 and tree-4.
 - Dustin: D1–D6, the first Hardware App to build (the radio? the FPGA
   programmer?), the pol-hub words.
+
+## Addendum 2026-09-14 — the Access-only tier and the `access-app` kind (his ruling)
+
+Member tiers: **access** (Access only: only app shells — launchers — are installed; nothing is hosted, nothing runs;
+the device uses the apps the isle hosts), **host** (also Polari apps + containers), **hardware** (also KVM guests).
+App kinds gain `access-app` = the shell of an app (build-launcher-deb.sh): every app has one; it is the only kind an
+access-only member installs. `moduleService/tier_reach.py` is the one place that says which kinds run on which
+tier and words the notice; the apps API carries `hosts_on` / `access_form` / `notice_on_access` per app. The isle CLI
+refuses hosting kinds on an access member (contract note); at the Polari level it is a notice, never a refusal.

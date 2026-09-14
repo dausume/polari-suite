@@ -1466,3 +1466,12 @@ What is NOT proven here: the droplet itself (his rule — never test there); the
 | `store-setup.sh` dry runs (DRY=1) | core-install --mode dev: posture written, dev warning printed, falls back to plain `isle core-install` with a WARN when the CLI lacks --mode; join --tier hardware: fetches the bootstrap from the core, prints its sha256 for the out-of-band compare, falls back to --host with an honest WARN; join without --fingerprint refuses; posture production OK; stick with no stick refuses with the make-one hint; usage on no verb |
 | packaging | build-store-deb.sh ships store-setup.sh; compose files (isle, lean, prod) pass POLARI_POSTURE (default production) |
 | OWED | the dialogs themselves on a desktop (zenity flows unclicked); a rebuilt isle-app-store deb; the isle CLI's --mode / --tier so the fallbacks stop; a polkit .policy for a friendlier prompt text |
+
+## §36 — the Access-only tier + the `access-app` kind (2026-09-14; his ruling: shells only, no hosting of swarm or KVM apps)
+
+| check | result |
+|---|---|
+| `python3 -m moduleService.selftest_tier_reach` | three tiers; every manifest kind has a lowest tier; access-app runs everywhere; polari/isle/library need host; hardware kinds need hardware; the access-only notice names the shell; the access form = the launcher package |
+| apps API (apps_api 15/15, app_debs 19/19) | `hosts_on`, `access_form`, `notice_on_access` per app (status + catalogue); gears → hosts_on host/hardware with the ACCESS ONLY notice; the downloads card says "Runs on: host / hardware members — on an Access-only computer install the app's shell instead" |
+| store flow | the tier door says "Access only" (shells only, hosts nothing); `store-setup.sh join --tier access` = plain onboard; 'light' alias |
+| OWED (isle side) | `isle onboard --tier`, the store listing shells only on an access member, `isle app install` refusing hosting kinds there, the launcher deb's `Polari-Kind: access-app` |
