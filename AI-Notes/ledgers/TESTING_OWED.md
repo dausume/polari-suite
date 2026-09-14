@@ -1409,3 +1409,21 @@ Fact that sets the scope: Polari runs inside its backend image, which BAKES the 
 | the API's flavour statement | offline: "installed from the carried wheels, skipping what is already present"; engines classified `in_runtime_image` / `host_level` / `not_available_anywhere_yet` (verilator for hwdigital/hwfpga is a named gap: in no image and no installer) |
 | selftest | apps_api 15/15 (incl. the presence-checked offline install against an empty wheel dir: `pip` skipped as present, an unknown package refused with --no-index) |
 | OWED | the platform installer's own offline flavour with the apt closure (the off-1 pool builder, target release/arch, signed) — the media set; verilator into the runtime image or an engines image; a live admission of a staged offline deb on a core |
+
+## §31 — the swarm proof on the home swarm (2026-09-13; his ask: "ensure this can work on the docker swarm deployment we will be putting out on the droplet")
+
+The lean stack deployed on pol-core from THIS checkout (`pol prod apply --profile home-lean --yes`: images built here, self-signed cert, no logins — the droplet's shape), verified through the proxy as a user or a script would:
+
+| check | result |
+|---|---|
+| `/downloads` and `?flavor=offline` through the edge | 200; the top-level Online / Offline tabs; 59 app cards under each (headless Chrome render checked by eye: the tabs are the first choice on the page, self-describing; the installer form is a small secondary pair) |
+| `GET /api/apps` through `api.prf.<domain>` | 59 modules, both flavours, free-space probe |
+| the fetch-first path, live | with `gears` removed from BOTH the image copy and the data volume and its pool file purged: `POST …/request` → `fetched: True` (cloned from GitHub inside the container into `/app/data/modules/gears`), generated, `GET …/download` 200 with the checksum — the path the droplet's `-core` image (which lacks the 43 optional modules) will take |
+| downloads stream | the file is streamed (never read into the backend's memory) with `X-Polari-Sha256` + Content-Length |
+| security on the lean stack | `security` added to the lean floor set (compose default + every shipped prod profile): `/api/security` = scenario swarm-lean, three views; `/api/security/notices` probed the stack's own hosts (level ok) |
+| the fetched-modules volume | `POLARI_FETCHED_MODULES_DIR=/app/data/modules` was MISSING from the lean/prod stacks (fetched code would have vanished on restart) — added to both |
+| `pol prod verify --module mealoptions` | 10/10 (the earlier run with `--module gears` failed only because gears requires mathshapes — not a regression) |
+| the backend image build | one `curl … 404` inside the freetype fetch step (a mirror; the Dockerfile falls back to the next host) — benign |
+| state left | the lean stack is UP on pol-core (ports 80/443, swarm re-initialised, single node) as the home proof; `pol prod down` removes it |
+
+What is NOT proven here: the droplet itself (his rule — never test there); the offline flavour's wheel fetch on the droplet's outbound network; the app-store deb in polari-complete (the isle side).

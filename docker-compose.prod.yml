@@ -344,6 +344,7 @@ services:
       - POLARI_LAZY_BOOT=1
       - DEPLOY_ENV=production
       - POLARI_DEPLOY_ROUTE=swarm       # hardware kinds: Polari side only here (moduleService/hardware_reach.py — a notice, never a refusal)
+      - POLARI_FETCHED_MODULES_DIR=/app/data/modules   # modules fetched at runtime (fetch-admit, the apps API) live on the data volume, not in the container
       # CORS_ORIGINS and PRF_API_URL come from .env.prod file
       # INTERNAL_API_URL: For API profiler self-call rewriting (avoids hairpin NAT)
       - INTERNAL_API_URL=http://localhost:3000

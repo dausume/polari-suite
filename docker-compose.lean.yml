@@ -101,6 +101,7 @@ services:
       - DEPLOY_ENV=production
       - IN_DOCKER_CONTAINER=true
       - POLARI_DEPLOY_ROUTE=swarm       # hardware kinds: Polari side only here (moduleService/hardware_reach.py — a notice, never a refusal)
+      - POLARI_FETCHED_MODULES_DIR=/app/data/modules   # modules fetched at runtime (fetch-admit, the apps API) live on the data volume, not in the container
       - POLARI_INSTANCE_NAME=prf-public
       - POLARI_INSTANCE_ID=public
       # sqlite, no object store, no Keycloak issuer → auth off (D2 default for the distribution server)
@@ -113,7 +114,7 @@ services:
       - WEBSOCKET_ENABLED=true
       - WEBSOCKET_PORT=3001
       # the floor set (§2c) + terms; lazy two-phase boot so /api/health flips early
-      - POLARI_MODULES=${POLARI_LEAN_MODULES:-polariapps,appstore,islemesh,terms}
+      - POLARI_MODULES=${POLARI_LEAN_MODULES:-polariapps,appstore,islemesh,terms,security}
       - POLARI_LAZY_BOOT=1
       - POLARI_MESH_AUTOCONFIG=false
       # the distribution point: staged platform debs + the on-demand pool
