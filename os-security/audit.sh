@@ -87,7 +87,13 @@ if ss -ltn 2>/dev/null | grep -qE ':22$|:22 '; then
         PA=$(echo "$SSHT" | awk '/^passwordauthentication/ {print $2}'); PR=$(echo "$SSHT" | awk '/^permitrootlogin/ {print $2}'); KI=$(echo "$SSHT" | awk '/^kbdinteractiveauthentication/ {print $2}')
         [ "$PA" = no ] && [ "$KI" != yes ] && res ssh key-only-login pass "password and keyboard-interactive authentication off" || res ssh key-only-login fail "PasswordAuthentication=$PA KbdInteractive=$KI — a guessable password is the vector; keys only (sshd_config: PasswordAuthentication no)"
         [ "$PR" = no ] && res ssh no-root-login pass "PermitRootLogin no" || res ssh no-root-login fail "PermitRootLogin=$PR — log in as a person and sudo (sshd_config: PermitRootLogin no)"
-    else res ssh key-only-login skip "sshd -T needs root"; res ssh no-root-login skip "sshd -T needs root"; fi
+        # his ruling 2026-09-14: root over ssh must not exist at all (with a key included); what exists is PERMISSION
+        # GROUPS allowed over ssh, each with a scoped sudo command set — never a blanket NOPASSWD: ALL
+        AG=$(echo "$SSHT" | awk '/^allowgroups/ {$1=""; print}' | xargs)
+        [ -n "$AG" ] && res ssh ssh-groups pass "AllowGroups: $AG" || res ssh ssh-groups fail "no AllowGroups — every account with a key may log in; name the permission groups allowed over ssh (sshd_config: AllowGroups polari-ops polari-dev)"
+        BLANKET=$(grep -rhsE '^[^#]*ALL[[:space:]]*=[[:space:]]*\(ALL(:ALL)?\)[[:space:]]*(NOPASSWD:[[:space:]]*)?ALL' /etc/sudoers /etc/sudoers.d 2>/dev/null | grep -vE '^(root|%admin|%sudo)[[:space:]]' | xargs -0 echo | head -c 300)
+        [ -z "$BLANKET" ] && res ssh sudo-scoped pass "no account or group beyond root/admin/sudo holds a blanket ALL" || res ssh sudo-scoped fail "blanket sudo: $BLANKET — give each ssh group its own command list (/etc/sudoers.d/polari-<group>: %polari-ops ALL=(root) /usr/bin/pol, ...)"
+    else res ssh key-only-login skip "sshd -T needs root"; res ssh no-root-login skip "sshd -T needs root"; res ssh ssh-groups skip "sshd -T needs root"; res ssh sudo-scoped skip "reading sudoers needs root"; fi
     AK=$(for h in /root /home/*; do $SUDO cat "$h/.ssh/authorized_keys" 2>/dev/null | grep -cvE '^\s*(#|$)'; done | awk '{s+=$1} END {print s+0}')
     WEAK=$(for h in /root /home/*; do $SUDO cat "$h/.ssh/authorized_keys" 2>/dev/null | grep -vE '^\s*(#|$)' | awk '{print $1}'; done | grep -cE '^(ssh-rsa|ssh-dss)$' || true)
     [ "$WEAK" = 0 ] && res ssh authorized-key-types pass "$AK authorized key(s), all ed25519/ecdsa" || res ssh authorized-key-types fail "$WEAK rsa/dss key(s) of $AK — prefer ed25519"

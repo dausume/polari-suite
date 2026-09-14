@@ -291,7 +291,10 @@ A posture is a LIST of named relaxations, each scoped by the isle boundary, each
 - `mac.complain <profile>` — one profile to complain (the allow-list template already keeps explicit denies).
 - `seccomp.log <kind>` — SCMP_ACT_LOG for one kind (worker/python already in warn mode).
 - `net.isle-port <port>` — open a port on the isle interfaces only.
-- `ssh.root-key-from-isle` — root with key from the isle cidr (the one that would have let this session in).
+- `ssh.group <group> <user> --for` — a person joins a permission group that is allowed over ssh, for the time-box.
+- `ssh.root-key-from-isle --for` — DEV POSTURE ONLY (his ruling 2026-09-14): `Match Address <isle cidr>` →
+  `PermitRootLogin prohibit-password`; key-only, from the isle subnet, time-boxed, reverted on expiry/reboot, shown
+  in the notice bar and the audit as an active relaxation. Never exists in any non-dev posture.
 - `host.core-dumps` / `host.ptrace-scope 0` — debugging knobs, host-local.
 - `dac.dev-group-write <path>` — group write on a dev tree, never on /etc, /var/lib/polari keys, the vault.
 
@@ -306,5 +309,27 @@ applied (per-ring overrides, already how `--mode` works); apply.sh: relaxations 
 (stock | today | complain | enforce | dev) so the topology shows exactly what dev opens and to whom (the isle only).
 
 **Not decided (his):** D1 the default duration; D2 whether a dev posture may be applied remotely by the core to a
-member, or only locally; D3 whether `ssh.root-key-from-isle` should exist at all or the harness should use
-sudo as the user (isle-core today: user key + passwordless sudo works, root has no key — stock Ubuntu, not us).
+member, or only locally; D3 DECIDED 2026-09-14: root over ssh does not exist in a secure posture; in DEV POSTURE it may (key-only, isle cidr, time-boxed).
+
+### §16a — ssh is for PERMISSION GROUPS, never root (his ruling 2026-09-14)
+
+"In an actually secure situation root with key ssh should definitely not exist; what can exist is permission groups
+that are allowed to be used over ssh." So:
+- `PermitRootLogin no` everywhere, every posture (the audit's `no-root-login` already fails on `prohibit-password`).
+- `AllowGroups` names the groups that may log in at all (audit control `ssh-groups`, added): a starting set
+  `polari-ops` (operate: pol, systemctl for polari units, journalctl), `polari-dev` (the dev posture: docker, the
+  module trees, debuggers), `polari-observe` (read-only: `ForceCommand` a fixed status shell). Being in no group =
+  no ssh, key or not.
+- Each group gets its OWN sudo command list in `/etc/sudoers.d/polari-<group>` — never `NOPASSWD: ALL` for a person
+  or a group beyond root/admin/sudo (audit control `sudo-scoped`, added; isle-core's passwordless sudo for the user
+  account will show as the first finding).
+- `Match Group` blocks scope further: `polari-observe` gets ForceCommand + no forwarding; `polari-dev` may get
+  forwarding on the isle interfaces only; every group is still key-only, from the isle cidr.
+- The groups are OBJECTS in the security module (PermissionGroup rows with their ssh allowance + sudo list) and
+  appear in the counterexamples ("a valid group holding exactly what it needs") and on the isle topology's ssh
+  panel (who may reach which node, by group).
+- The dev posture's ssh relaxations: membership (`ssh.group polari-dev <user> --for 8h`) and, his ruling, ROOT OVER
+  SSH (`ssh.root-key-from-isle --for 8h`: key-only, from the isle cidr only, password auth still off). Both expire,
+  both revert on reboot, both are audited; outside dev posture root over ssh never exists.
+- Isle side (contract): the isle CLI creates the groups + sudoers files at install, puts the installing person in
+  `polari-ops`, and the uninstall hand-back removes only what it created (the journal rule).
