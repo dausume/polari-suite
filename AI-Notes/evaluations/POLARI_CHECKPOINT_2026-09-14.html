@@ -1,0 +1,106 @@
+<title>Polari Checkpoint 14 Sep</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{--ink:#1d2430;--ink-2:#4a5260;--ground:#f5f4ef;--panel:#ffffff;--line:#d9d6cc;--accent:#0f6e74;--accent-text:#ffffff;--ok:#3d7a4a;--warn:#a8741a;--fail:#a5432e;--muted:#8a8f99;--chip:#e9ede9}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ink:#e8e6df;--ink-2:#b5b3aa;--ground:#151a20;--panel:#1d232b;--line:#343b45;--accent:#4fb3b8;--accent-text:#0b1d1f;--ok:#7fc48b;--warn:#e0b25a;--fail:#e2846e;--muted:#7d838d;--chip:#242c34}}
+:root[data-theme="dark"]{--ink:#e8e6df;--ink-2:#b5b3aa;--ground:#151a20;--panel:#1d232b;--line:#343b45;--accent:#4fb3b8;--accent-text:#0b1d1f;--ok:#7fc48b;--warn:#e0b25a;--fail:#e2846e;--muted:#7d838d;--chip:#242c34}
+body{background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5;margin:0}
+main{max-width:1080px;margin:0 auto;padding:2rem 1.2rem 4rem}
+h1{font-size:2rem;margin:0 0 .3rem;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:1.15rem;margin:2.2rem 0 .8rem;padding-bottom:.35rem;border-bottom:1px solid var(--line)}
+h3{font-size:1rem;margin:0 0 .5rem}
+p{max-width:68ch}
+.lede{color:var(--ink-2);font-size:1.05rem;margin:0 0 1.2rem}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:0 0 .4rem}
+.banner{display:flex;gap:.9rem;align-items:flex-start;background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:8px;padding:.9rem 1.1rem;margin:1.2rem 0}
+.banner strong{display:block;margin-bottom:.15rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.1rem}
+.card ul{margin:.3rem 0 0;padding-left:1.1rem}
+.card li{margin:.25rem 0}
+.pill{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:.74rem;font-weight:500;letter-spacing:.04em;padding:.12rem .55rem;border-radius:999px;color:#fff;vertical-align:middle}
+.pill.ok{background:var(--ok)}.pill.warn{background:var(--warn)}.pill.fail{background:var(--fail)}.pill.info{background:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+.tablewrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+th,td{padding:.55rem .8rem;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+th{font-weight:600;color:var(--ink-2);font-size:.82rem;letter-spacing:.04em;text-transform:uppercase}
+tr:last-child td{border-bottom:0}
+td.num{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+code,pre{font-family:"IBM Plex Mono",monospace;font-size:.86em}
+code{background:var(--chip);padding:.08rem .35rem;border-radius:4px}
+pre{background:var(--chip);padding:.8rem 1rem;border-radius:8px;overflow-x:auto;margin:.5rem 0 1rem}
+.owed li{margin:.35rem 0}
+.mono{font-family:"IBM Plex Mono",monospace}
+.foot{color:var(--muted);font-size:.85rem;margin-top:3rem}
+a{color:var(--accent)}
+a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+<main>
+<p class="eyebrow">Polari suite · dev branch · home stack</p>
+<h1>Polari Checkpoint, 14 September 2026</h1>
+<p class="lede">Where security, downloads and the app setup flow stand after today's autonomous run, with what is live on the home stack and what is still owed. Every security ring is warn-only, everywhere.</p>
+
+<div class="banner"><span class="pill warn">WARN-ONLY</span><div><strong>Nothing is enforced on any machine.</strong>Profiles load in complain, seccomp logs instead of killing, the firewall, host and DAC rings are only printed. The audits below score the stock state of the machines; the numbers say what would change when rings apply, not what is applied. This stays so until more rigorous testing, by decision.</div></div>
+
+<h2>Security by machine</h2>
+<div class="grid">
+<div class="card"><h3>isle-core <span class="pill fail">UNSECURED</span></h3>
+<p>The isle core. ssh accepts passwords, root may log in with a key, no permission groups are named, and the everyday account holds a blanket passwordless sudo. Stock Ubuntu, not a regression: no Polari security ever applied here.</p>
+<ul><li>Audit: 38 controls, 16 pass, 22 fail, verdict open</li><li>Permission levels tracked: the person (blanket sudo), root, the sudo group</li><li>No dev posture declared, so the reading is unsecured rather than dev</li></ul></div>
+<div class="card"><h3>pol-core <span class="pill ok">CLOSED</span></h3>
+<p>This development box and swarm manager. No sshd listens, so the ssh surface is closed. The physical ring reads no Secure Boot and no disk encryption. The audit ran without root, so the MAC and ssh rings were skipped.</p>
+<ul><li>Audit: 25 controls, 12 pass, 9 fail, 4 skipped, verdict partial</li><li>Runs the home lean stack that serves everything on this page</li></ul></div>
+<div class="card"><h3>econ-core <span class="pill info">UNKNOWN</span></h3>
+<p>The inventory posted, but sudo prompts for a password there, so the ssh daemon's settings could not be read. Two permission-level rows exist. A root-capable run turns this into a real reading.</p>
+<ul><li>Wiped of Polari since the purge; nothing installed</li></ul></div>
+</div>
+
+<h2>What fails on isle-core, by ring</h2>
+<div class="tablewrap"><table>
+<tr><th>Ring</th><th>Pass</th><th>Fail</th><th>Failing controls</th></tr>
+<tr><td>ssh</td><td class="num">2</td><td class="num">6</td><td>key-only login, no root login, ssh groups, posture assurance, scoped sudo, brute-force guard</td></tr>
+<tr><td>DAC</td><td class="num">2</td><td class="num">5</td><td>userns remap, containers non-root, read-only rootfs, isle state perms, sudo groups</td></tr>
+<tr><td>MAC</td><td class="num">3</td><td class="num">4</td><td>per-app profiles, containers per-app profile, seccomp per kind, no audit lines in 24 h</td></tr>
+<tr><td>network</td><td class="num">2</td><td class="num">3</td><td>DOCKER-USER rules, ufw, ssh on all interfaces</td></tr>
+<tr><td>host</td><td class="num">5</td><td class="num">2</td><td>kptr_restrict sysctl, auditd rules</td></tr>
+<tr><td>physical</td><td class="num">1</td><td class="num">1</td><td>disk encryption</td></tr>
+<tr><td>certs</td><td class="num">1</td><td class="num">1</td><td>auto-renew</td></tr>
+</table></div>
+<p>Every one of these has a rendered fix in the os-security tree; applying any of them is the enforce step that is deliberately not taken.</p>
+
+<h2>Rulings folded in today</h2>
+<div class="grid">
+<div class="card"><h3>ssh is for permission groups</h3><p>No root over ssh in a secure posture. Named groups are allowed in, each with its own sudo command list. Dev posture may enable root over ssh, key-only, from the isle subnet, time-boxed. The audit checks both, and every device gets one reading: secure, dev until a time, or unsecured.</p></div>
+<div class="card"><h3>Dev mode versus production mode</h3><p>An install is one or the other, recorded in a posture file and the instance env. Dev mode carries the standing warning that any connection to systems that are not your own is extremely dangerous. It shows in the notice bar, in the setup door, and in the CLI.</p></div>
+<div class="card"><h3>Development postures never leave the isle</h3><p>Six boundary invariants written into the plan: inbound stays closed off-isle, nothing binds upstream interfaces, passwords never return, no key material leaves, refused on production routes, federation doors untouched. Design only, not built.</p></div>
+</div>
+
+<h2>Downloads and apps, live on the home stack</h2>
+<div class="grid">
+<div class="card"><h3>Two forms of every app <span class="pill ok">LIVE</span></h3><p>Every app card shows Install and Access only side by side, in both the Online and Offline tabs. The access form is the app's shell: a launcher that finds the app your isle hosts, or asks you to pick its .isle address, then remembers.</p><ul><li>61 cards on the offline tab, 60 access forms</li><li>Software apps 54, Hardware apps 3, expansions nested under Isle Relay and Voron</li></ul></div>
+<div class="card"><h3>Refusals before anything installs <span class="pill ok">IN THE DEB</span></h3><p>A hardware app's deb refuses on a lightweight docker-swarm isle with your sentence, and on a member without the hardware tier. An expansion refuses without the hardware app it expands. A developer override exists and says so.</p></div>
+<div class="card"><h3>The USB app stick <span class="pill ok">LIVE</span></h3><p>The Offline tab leads with it. A stick carries the platform and any apps, prompts on insert with Install, Not now or Wipe, verifies the install finished, then wipes or keeps by policy. Written from the live stack; a physical stick is still owed.</p></div>
+<div class="card"><h3>Access-only tier and access-app kind</h3><p>Members join as Access only, Host or Hardware. Access only installs shells and hosts nothing. The store deb rebuilt today carries the revised doors: install mode, tier, USB stick, public server.</p></div>
+</div>
+
+<h2>How to look for yourself</h2>
+<p>The home lean stack on pol-core serves the current dev branch. From the suite checkout:</p>
+<pre>pol prod status                       # the stack and its addresses
+pol apps status gears --form access --from &lt;api url&gt; --insecure
+pol apps access gears --flavor offline --from &lt;api url&gt; --insecure -o gears-access.deb
+pol deploy inventory isle-core        # the machine's ssh surface and permission levels
+pol security os audit                 # this machine's rings, warn-only reading</pre>
+<p>In a browser: the Downloads page under both tabs, the isle topology's ssh panels, the security overview and the threat simulations, and the notice bar. None of these were seen in a browser today because the Chrome extension was not connected, so the first browser pass is yours.</p>
+
+<h2>Owed</h2>
+<ul class="owed">
+<li><strong>Isle side, from the contract notes:</strong> onboard with a tier, core-install with a mode, the hardware tier, the store listing shells only on an access member, the watcher enabled by the platform deb, and the install path letting the deb's own refusal govern.</li>
+<li><strong>Republish the platform deb.</strong> The one on the website still hardcodes local image names; the build now stamps the published tag. The two-machine test, core on isle-core and econ-core joining as hardware, waits on that and on the tier.</li>
+<li><strong>A physical stick and a real desktop</strong> for the insert prompt, the wipe, and the store doors.</li>
+<li><strong>A root-capable run on econ-core</strong> for its ssh reading.</li>
+<li><strong>The dev-posture verb</strong> that applies and reverts a time-boxed posture, plus its audit ring.</li>
+<li><strong>Six Dependabot alerts</strong> on the framework repository.</li>
+</ul>
+
+<p class="foot">Everything on this page is committed and pushed on dev across the suite and its submodules. Ledger sections 32 to 38 carry the per-check evidence.</p>
+</main>
