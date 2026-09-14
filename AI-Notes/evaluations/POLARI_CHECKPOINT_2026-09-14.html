@@ -80,6 +80,8 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
 <div class="card"><h3>Two forms of every app <span class="pill ok">LIVE</span></h3><p>Every app card shows Install and Access only side by side, in both the Online and Offline tabs. The access form is the app's shell: a launcher that finds the app your isle hosts, or asks you to pick its .isle address, then remembers.</p><ul><li>61 cards on the offline tab, 60 access forms</li><li>Software apps 54, Hardware apps 3, expansions nested under Isle Relay and Voron</li></ul></div>
 <div class="card"><h3>Refusals before anything installs <span class="pill ok">IN THE DEB</span></h3><p>A hardware app's deb refuses on a lightweight docker-swarm isle with your sentence, and on a member without the hardware tier. An expansion refuses without the hardware app it expands. A developer override exists and says so.</p></div>
 <div class="card"><h3>The USB app stick <span class="pill ok">LIVE</span></h3><p>The Offline tab leads with it. A stick carries the platform and any apps, prompts on insert with Install, Not now or Wipe, verifies the install finished, then wipes or keeps by policy. Written from the live stack; a physical stick is still owed.</p></div>
+<div class="card"><h3>Proven for real on isle-core <span class="pill ok">TESTED</span></h3><p>The expansion deb refused at pre-install with nothing staged. The access deb found Gears on the isle and remembered its address. A 30-minute dev posture applied an isle-scoped ssh drop-in, armed its revert timer, printed the warning, and reverted clean.</p></div>
+<div class="card"><h3>Platform debs rebuilt <span class="pill ok">STAGED</span></h3><p>polari-complete 0.2.0 now ships the compose pointing at the published images, the fix the website's copy lacks. The home stack offers all five installers, and the offline access deb carries the shell runtime. Publishing to the website is yours.</p></div>
 <div class="card"><h3>Access-only tier and access-app kind</h3><p>Members join as Access only, Host or Hardware. Access only installs shells and hosts nothing. The store deb rebuilt today carries the revised doors: install mode, tier, USB stick, public server.</p></div>
 </div>
 
@@ -95,12 +97,12 @@ pol security os audit                 # this machine's rings, warn-only reading<
 <h2>Owed</h2>
 <ul class="owed">
 <li><strong>Isle side, from the contract notes:</strong> onboard with a tier, core-install with a mode, the hardware tier, the store listing shells only on an access member, the watcher enabled by the platform deb, and the install path letting the deb's own refusal govern.</li>
-<li><strong>Republish the platform deb.</strong> The one on the website still hardcodes local image names; the build now stamps the published tag. The two-machine test, core on isle-core and econ-core joining as hardware, waits on that and on the tier.</li>
+<li><strong>Republish the platform deb.</strong> The website still serves the copy with local image names; 0.2.0 with the fix is built and staged on the home stack. The two-machine test, core on isle-core and econ-core joining as hardware, waits on the publish and on the tier.</li>
 <li><strong>A physical stick and a real desktop</strong> for the insert prompt, the wipe, and the store doors.</li>
 <li><strong>A root-capable run on econ-core</strong> for its ssh reading.</li>
-<li><strong>The dev-posture verb</strong> that applies and reverts a time-boxed posture, plus its audit ring.</li>
+<li><strong>The posture verb exists now</strong> (<code>pol deploy posture</code>); letting its timer fire for real, and a production-route deploy to see the refusal, are still to do.</li>
 <li><strong>Six Dependabot alerts</strong> on the framework repository.</li>
 </ul>
 
-<p class="foot">Everything on this page is committed and pushed on dev across the suite and its submodules. Ledger sections 32 to 38 carry the per-check evidence.</p>
+<p class="foot">Everything on this page is committed and pushed on dev across the suite and its submodules. Ledger sections 32 to 39 carry the per-check evidence.</p>
 </main>

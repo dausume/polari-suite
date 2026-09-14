@@ -1499,6 +1499,9 @@ What is NOT proven here: the droplet itself (his rule — never test there); the
 | inventories posted (`/api/security/inventory`) | pol-core CLOSED (no sshd) · isle-core UNSECURED (passwords accepted; root with key; no AllowGroups; blanket sudo — 3 permission-level rows) · econ-core UNKNOWN (no root there: auth methods unreadable) |
 | audits posted (`/api/security/audit`) | isle-core (sudo): 38 controls, 16 pass / 22 fail, verdict open · pol-core (no sudo): 25 controls, 12 pass / 9 fail / 4 skip, verdict partial — every ring WARN-ONLY, nothing enforced anywhere |
 | notices | `ssh-unsecured` (error) now shows on the live core for isle-core |
+| `pol prod debs build` | the five platform debs rebuilt and staged (.generated/debs): polari-complete 0.2.0 (53 MB, the compose defaults to the published ghcr images — the fix the website's 0.1.34 lacks), polari-shell-core 0.1.36, isle-mesh-cli 0.1.149, isle-app-store 0.2.0 (the revised doors), polari-isle; `/api/downloads` lists all five; the script's final `syntax error` line came from editing prod.sh while bash was still reading it (bash -n clean after) |
+| offline ACCESS deb from the live stack | `pol apps usb write --forms install,access`: polari-access-gears-offline (54.7 MB) CARRIES polari-shell-core_0.1.36 under deps/ (Depends curl, python3; Recommends polari-shell-core; Polari-Kind access-app) — the offline flavour of the access form is self-sufficient once the shell deb is staged |
+| `pol prod verify` after the redeploy | 10/10 |
 | NOT done | a browser pass (the Chrome extension was not connected this session): the security screens, the threat animation, the isle topology ssh panels, the notice bar — unseen; econ-core needs a root-capable run for its ssh reading |
 
 ## §39 — the dev posture verb (2026-09-14; plan §16)
