@@ -1500,3 +1500,13 @@ What is NOT proven here: the droplet itself (his rule — never test there); the
 | audits posted (`/api/security/audit`) | isle-core (sudo): 38 controls, 16 pass / 22 fail, verdict open · pol-core (no sudo): 25 controls, 12 pass / 9 fail / 4 skip, verdict partial — every ring WARN-ONLY, nothing enforced anywhere |
 | notices | `ssh-unsecured` (error) now shows on the live core for isle-core |
 | NOT done | a browser pass (the Chrome extension was not connected this session): the security screens, the threat animation, the isle topology ssh panels, the notice bar — unseen; econ-core needs a root-capable run for its ssh reading |
+
+## §39 — the dev posture verb (2026-09-14; plan §16)
+
+| check | result |
+|---|---|
+| `posture.sh dev --for 30m --relax ssh.root-key-from-isle` on isle-core (sudo) | no isle interface → the LAN of the default route taken as the isle subnet (WARN, `--cidr` narrows); sshd drop-in written (Match Address + PermitRootLogin prohibit-password, `sshd -t` checked, reloaded); posture.json = dev until +30m; `polari-posture-revert.timer` armed; the standing dev warning printed |
+| `posture.sh status` | posture, until, relaxations, by; the timer's next elapse; the drop-in's text |
+| `posture.sh production` | drop-in removed, sshd reloaded, timer + units removed, posture.json = production |
+| fixed on the way | the timer pointed at the /tmp copy pol deploy removes → the script now installs itself to /usr/local/lib/polari/posture.sh for the timer |
+| OWED | letting the timer fire for real; `production-route` marker on a real-domain deploy (prod.sh writes it; no real-domain deploy on the home machines); a base `PermitRootLogin no` on isle-core so the isle-scoped Match is the ONLY root door (his call: his machine) |

@@ -357,3 +357,13 @@ that are allowed to be used over ssh." So:
   devices are `unsecured` shows the `ssh-unsecured` error notice instead.
 - Owed: `pol deploy harden --posture dev|production --for`, the installer's mode question, the isle CLI's warning on
   join/peer, PermissionGroup rows tied to the tracked groups.
+
+### §16c — BUILT 2026-09-14: `pol deploy posture <node> status|dev|production`
+`os-security/posture.sh` runs on the node as root: `dev --for 8h [--relax a,b] [--cidr]` writes /etc/polari/posture.json
+(dev, until, relaxations, by), applies the named relaxations (`ssh.root-key-from-isle` = an sshd drop-in
+`Match Address <isle cidr>` → `PermitRootLogin prohibit-password`, meaningful once the base is `no`; `host.ptrace-scope`,
+`host.core-dumps` = sysctl drop-ins; the ring-level ones are recorded for apply.sh / the isle CLI), installs a
+non-persistent systemd timer that runs `production` at expiry (so a reboot reverts too), prints the standing dev
+warning; `--for` never exceeds 7 days; REFUSED when /etc/polari/production-route exists (written by `pol prod apply`
+for a real domain). `production` reverts everything. Proven on isle-core (apply → drop-in + timer → revert clean).
+Still design: D1 default duration (8h today), D2 remote-by-core vs local-only (today: whoever runs pol deploy).
