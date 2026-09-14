@@ -1398,3 +1398,14 @@ Fix landed in the suite's Isle-Mesh copy (the live copy now): `polari-isle/docke
 | every official app on production | a registered module whose code is not on the instance gets "Generate & download" with the note "Fetched first: … pulls it from its repository, then packages it"; the HTML status route calls the API's `ensure_code` before generating; only a module with no repository (or a refusal) still says "Not available here" |
 | selftests (host) | downloads 16/16 (+ the tabs/apps/media check) · app_debs 19/19 · offline 6/6 · apps_api 12/12 · appstore manifest conforms |
 | on the production server / a live core | OWED (image rebuild): the fetch-first cards need a manager; the 43 refused modules on the site become offered |
+
+## §30 — the self-sufficient offline app deb, as it applies to app debs (2026-09-13; his ruling 2)
+
+Fact that sets the scope: Polari runs inside its backend image, which BAKES the system engines in (Dockerfile apk: ngspice, ffmpeg); host-level engines (docker, libvirt, qemu, wireguard-tools) belong to the platform installer / the offline media set, not to an app deb. So for an app deb "carry and install all dependencies" = the pip wheels, consumed at admission.
+
+| check | result |
+|---|---|
+| admission with a staged offline deb (`<module>/wheels/` present) | `pip install --no-index --find-links wheels/ …` — never the internet; already-present packages skipped (pip's "Requirement already satisfied", reported as `skippedPresent`); a package neither carried nor present = an honest failure, never a download (`module_dependency_tracker.install_packages(find_links=…)`, `live_admission._install_module_deps`) |
+| the API's flavour statement | offline: "installed from the carried wheels, skipping what is already present"; engines classified `in_runtime_image` / `host_level` / `not_available_anywhere_yet` (verilator for hwdigital/hwfpga is a named gap: in no image and no installer) |
+| selftest | apps_api 15/15 (incl. the presence-checked offline install against an empty wheel dir: `pip` skipped as present, an unknown package refused with --no-index) |
+| OWED | the platform installer's own offline flavour with the apt closure (the off-1 pool builder, target release/arch, signed) — the media set; verilator into the runtime image or an engines image; a live admission of a staged offline deb on a core |
