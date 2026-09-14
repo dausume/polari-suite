@@ -1513,3 +1513,11 @@ What is NOT proven here: the droplet itself (his rule — never test there); the
 | `posture.sh production` | drop-in removed, sshd reloaded, timer + units removed, posture.json = production |
 | fixed on the way | the timer pointed at the /tmp copy pol deploy removes → the script now installs itself to /usr/local/lib/polari/posture.sh for the timer |
 | OWED | letting the timer fire for real; `production-route` marker on a real-domain deploy (prod.sh writes it; no real-domain deploy on the home machines); a base `PermitRootLogin no` on isle-core so the isle-scoped Match is the ONLY root door (his call: his machine) |
+
+## §40 — the hand-back ring and the Dependabot fix (2026-09-14)
+
+| check | result |
+|---|---|
+| audit `handback` ring (his rule 2026-09-13: a working default Ubuntu after uninstall) | six controls: default-route, public-dns, resolver-upstream, apt-reachable, nm-connections, no-isle-residue (skip while the isle is installed, fail on residue after uninstall). pol-core: 6 pass. isle-core: 5 pass + residue skip (isle installed) |
+| Dependabot (Polari-Framework) | all six open alerts were PyJWT < 2.13.0 in requirements.txt → pinned `PyJWT[crypto]>=2.13.0` (2.14.0 on PyPI); takes effect at the next image build. GitHub closes the alerts once the default branch carries the pin (main == dev is his go) |
+| OWED | running the handback ring right after a real `isle uninstall` (the CI test the rule asks for) |

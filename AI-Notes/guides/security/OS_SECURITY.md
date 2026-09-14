@@ -77,6 +77,30 @@ The `security` module answers the three questions as three views, each a page of
 
 **Threats played on the topology.** `/display/security-threats` takes each named threat (a compromised app writing a backdoor into its image, taking the docker socket, reading the host's password file through a bind, attaching to a neighbour, loading a kernel module, sniffing with a raw socket, opening an unassigned device; a guest escaping; the internet reaching sshd or the swarm ports; a container reaching the host's sshd; a visitor calling the API without a login; a remote member escalating; a docker-group member becoming root) and plays it hop by hop through the boundaries until a policy blocks it, naming the system and the policy line. Beside each threat is the counterexample: the actor, group or permission that legitimately reaches the same target, by the intended means, and whether that path even exists on this route (hardware has no legitimate path on a swarm). The mode selector replays the same threat under stock docker alone, as applied today, under a warn-only apply, and with every Polari ring enforced, so the difference each ring makes is watched rather than asserted.
 
+## Postures: dev versus production
+
+A machine is in one of two postures. **Production** is the standing one: no relaxations, and on a real-domain
+server `pol prod apply` records `/etc/polari/production-route` so a dev posture is refused there outright.
+**Dev** is a named list of relaxations, each scoped to the isle, time-boxed and reverted by a timer and on reboot:
+
+    pol deploy posture <node> status
+    pol deploy posture <node> dev --for 8h --relax ssh.root-key-from-isle,host.ptrace-scope [--cidr <isle cidr>]
+    pol deploy posture <node> production
+
+`ssh.root-key-from-isle` writes an sshd drop-in (`Match Address <isle cidr>` → `PermitRootLogin prohibit-password`);
+it only narrows anything once the base is `PermitRootLogin no`, which is what a secure posture means. Passwords
+over ssh are never re-enabled by any posture. Every apply prints the standing dev warning: any connection to
+systems that are not your own is extremely dangerous in dev mode. The inventory, the audit's `posture-assurance`
+control and the security module read `/etc/polari/posture.json`, so each device reads secure, dev (until a time),
+or unsecured. Design and invariants: ISLE_HARDENING_PLAN §16.
+
+## The hand-back ring
+
+An uninstall must hand back a working default Ubuntu. The audit's `handback` ring measures exactly that on any
+machine: a default route, public names resolving, a resolver upstream, the Ubuntu archive answering, an active
+NetworkManager connection, and no isle DNS or NetworkManager drop-ins left behind. Run it after `isle uninstall`
+before calling the machine done.
+
 ## Proving it
 
 `audit.sh` reports every control with evidence and a verdict, including the count of audit lines in the last day. `escape-test.sh` starts a throwaway container with exactly an app's confinement, deliberately mounting the docker socket and the host's `/etc` to prove the profile denies them even when present, and tries fourteen cross-overs: the socket, the host's shadow file, mounting, sysrq, sysctl writes, kernel modules, ptrace of init, raw sockets, a new user namespace, writing outside the declared paths, chroot, keyctl, bpf, firmware. Each must fail. It runs in two passes: the full confinement (profile, seccomp, dropped capabilities, read-only root) and, with `--alone`, the AppArmor profile by itself. The second pass exists because the full pass proves little about the profile: on 2026-09-12 all fourteen attempts were blocked on an isle with the profile loaded, and the kernel recorded no AppArmor decision at all, every block having come from the other rings. The profile-only pass is what shows the MAC ring's own contribution.

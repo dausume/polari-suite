@@ -113,6 +113,25 @@ print(("dev-expired" if u and time.strptime(u[:19],"%Y-%m-%dT%H:%M:%S")<time.gmt
     FL=$($SUDO journalctl -u ssh -u sshd --since '24 hours ago' --no-pager 2>/dev/null | grep -c 'Failed password\|Invalid user' || true)
     [ "${FL:-0}" -lt 20 ] && res ssh failed-logins-24h pass "$FL failed login(s) in 24 h" || res ssh failed-logins-24h fail "$FL failed login(s) in 24 h — someone is knocking"
 else res ssh sshd-listening skip "no sshd listening: nobody can ssh in (nor can pol deploy)"; fi
+# ---- HANDBACK (his rule 2026-09-13: an uninstall must hand back a working default Ubuntu — route, public DNS, apt, the
+#      desktop's connections; measured here so the same checks gate "complete" and catch a broken hand-back later)
+DR=$(ip -4 route show default 2>/dev/null | head -1)
+[ -n "$DR" ] && res handback default-route pass "$(echo "$DR" | awk '{print "via "$3" dev "$5}')" || res handback default-route fail "no IPv4 default route — the machine cannot reach anything beyond its links"
+if getent hosts archive.ubuntu.com >/dev/null 2>&1; then res handback public-dns pass "archive.ubuntu.com resolves ($(getent hosts archive.ubuntu.com | awk '{print $1; exit}'))"
+else res handback public-dns fail "public names do not resolve — check resolvectl status / nmcli connection (the 2026-09-13 isle-core failure: split DNS with no upstream scope)"; fi
+RS=$(resolvectl status 2>/dev/null | grep -m1 -E "DNS Servers?:" | sed 's/^ *//')
+[ -n "$RS" ] && res handback resolver-upstream pass "$RS" || res handback resolver-upstream fail "systemd-resolved reports no DNS server on any link"
+if curl -sI -m 6 http://archive.ubuntu.com/ubuntu/ 2>/dev/null | head -1 | grep -qE "HTTP/[0-9.]+ (200|30[0-9])"; then res handback apt-reachable pass "archive.ubuntu.com answers over HTTP"
+else res handback apt-reachable fail "the Ubuntu archive does not answer — apt would fail; check the route, DNS and any proxy left behind"; fi
+if command -v nmcli >/dev/null 2>&1; then
+    AC=$(nmcli -t -f NAME,TYPE,DEVICE connection show --active 2>/dev/null | grep -vE "^lo:|:loopback:" | cut -d: -f1 | tr '\n' ' ')
+    [ -n "$AC" ] && res handback nm-connections pass "active: $AC" || res handback nm-connections fail "NetworkManager has no active connection (the desktop shows disconnected) — nmcli connection up <name>"
+else res handback nm-connections skip "no NetworkManager here (server: netplan/systemd-networkd)"; fi
+LEFT=$(ls /etc/dnsmasq.d/*isle* /etc/dnsmasq.d/split-dns.conf /etc/systemd/resolved.conf.d/*isle* /etc/systemd/resolved.conf.d/*polari* /etc/NetworkManager/conf.d/*isle* /etc/NetworkManager/dnsmasq.d/*isle* 2>/dev/null | tr '\n' ' ')
+if command -v isle >/dev/null 2>&1 || [ -d /etc/isle-mesh ]; then res handback no-isle-residue skip "the isle is installed here — its DNS drop-ins are expected (${LEFT:-none}); this control judges the machine AFTER isle uninstall"
+elif [ -z "$LEFT" ]; then res handback no-isle-residue pass "no isle DNS/NM drop-ins left behind"
+else res handback no-isle-residue fail "isle drop-ins left behind after uninstall: $LEFT — the hand-back is broken (remove them; isle rescue network)"; fi
+
 # ---- CERTS (his ask 2026-09-13: expired certificates must be noticed; auto-renew must be on)
 if ss -ltn 2>/dev/null | grep -qE ':443 '; then
     END=$(echo | timeout 6 openssl s_client -connect 127.0.0.1:443 -servername localhost 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
