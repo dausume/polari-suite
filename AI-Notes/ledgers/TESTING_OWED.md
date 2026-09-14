@@ -1457,3 +1457,12 @@ What is NOT proven here: the droplet itself (his rule — never test there); the
 | the same deb → econ-core as a HARDWARE member connecting to the core | NOT tested, and not possible yet: the isle side has no hardware tier (`isle onboard` = plain or `--host` only; agent.tier=hardware + `isle vm` requested 2026-09-08, open); econ-core is wiped since the purge |
 | does non-core setup ask "hardware, heavier" vs "lighter, no hardware"? | NO. The CLI has only `--host`; the store's door 2 shows text with `[--host]` and wraps nothing. Design recorded (contract note): `isle onboard --tier light|host|hardware`, interactive three-way question in plain words, the store door = the same three cards wrapping the verb (his rule: CLI verbs first, UI wraps them) |
 | owed | republish the deb; isle side: the tier verb + hardware tier + door 2 wrapper; then the two-machine test with econ-core as HARDWARE |
+
+## §35 — the store setup flow revised around the new choices (2026-09-14; his ask: CLI verbs wrapped by the UI via pkexec)
+
+| check | result |
+|---|---|
+| doors | Create (mode Production/Development + dev warning) · Join (tier Light/Host/Hardware + fingerprint + core address) · Install apps from a USB stick · Set up a public server · Just browse; a plugged-in stick is offered first even on a member |
+| `store-setup.sh` dry runs (DRY=1) | core-install --mode dev: posture written, dev warning printed, falls back to plain `isle core-install` with a WARN when the CLI lacks --mode; join --tier hardware: fetches the bootstrap from the core, prints its sha256 for the out-of-band compare, falls back to --host with an honest WARN; join without --fingerprint refuses; posture production OK; stick with no stick refuses with the make-one hint; usage on no verb |
+| packaging | build-store-deb.sh ships store-setup.sh; compose files (isle, lean, prod) pass POLARI_POSTURE (default production) |
+| OWED | the dialogs themselves on a desktop (zenity flows unclicked); a rebuilt isle-app-store deb; the isle CLI's --mode / --tier so the fallbacks stop; a polkit .policy for a friendlier prompt text |

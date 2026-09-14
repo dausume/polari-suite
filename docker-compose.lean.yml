@@ -101,6 +101,7 @@ services:
       - DEPLOY_ENV=production
       - IN_DOCKER_CONTAINER=true
       - POLARI_DEPLOY_ROUTE=swarm       # hardware kinds: Polari side only here (moduleService/hardware_reach.py — a notice, never a refusal)
+      - POLARI_POSTURE=${POLARI_POSTURE:-production}   # a swarm server is production unless a developer says dev (the notice bar warns)
       - POLARI_FETCHED_MODULES_DIR=/app/data/modules   # modules fetched at runtime (fetch-admit, the apps API) live on the data volume, not in the container
       - POLARI_INSTANCE_NAME=prf-public
       - POLARI_INSTANCE_ID=public
