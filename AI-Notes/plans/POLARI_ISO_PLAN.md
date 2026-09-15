@@ -213,3 +213,14 @@ autoinstall per D1–D15, the builder (bases from Ubuntu's SHA256SUMS, kernel ta
 pool, `/downloads/iso`, `/api/iso`, `/display/iso`, `pol iso …`, `pol apps usb write --probe`. Still to prove: a real
 base + a real image + the VM boot to first boot (the iso-1 proof), then iso-2 (DeviceDetection reporting, the plans
 module) and iso-3 (preinstalled images, netboot).
+
+### After the ISO prototyping (his sequencing 2026-09-15)
+1. **Refine the plan first**: the refinement portion touches what already exists (the probe kit, the catalogue, the
+   posture rings, the stick, the security module) and tracks how the work we do not yet have is chunked into
+   pieces — planning and research only, no building until the plan is refined.
+2. **Then the frontend**: refine and test it so a person finds it intuitive and the diagnosis is QUICK (the probe
+   → verdict → choose loop measured in minutes and clicks), on real Windows/Mac/Linux machines.
+3. **Then automate the deploy**: the ISO puts Polari and Ubuntu on the machine with AppArmor and DAC FROM THE
+   BEGINNING — the profiles loaded and the groups/permissions placed by the autoinstall's late commands and first
+   boot (his standing rule: everything stays WARN/complain in deployments until more rigorous testing; "from the
+   beginning" means present and loaded on the first boot, enforcement a later flip).
