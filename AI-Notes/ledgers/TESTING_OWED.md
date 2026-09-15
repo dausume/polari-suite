@@ -1618,3 +1618,14 @@ overlay tree; xorriso assembly with genisoimage fallback; the ISO pool under the
 | the fresh image | `polari-member-headless-ubuntu-26.04-amd64-c673cb51f69b.iso` (builder v2: serial console on the kernel line, no null plan fields), 2.97 GB, built in ~2 min from the cached base; isle-core downloading it straight from the stack for the KVM boot |
 | the VM boot on isle-core (UEFI OVMF, 3 GB, serial log) | the fresh image boots our GRUB entry unattended, subiquity partitions (LVM), extracts Ubuntu, runs curthooks (kernel, GRUB to the target), then installs the autoinstall packages one by one over the guest's NAT link: openssh-server, curl, jq, python3 fine; **zenity stalled ~35 min** (a GTK dependency chain on a server install) before the late commands ran — the test's 45-min cap ends it. Fix: zenity/policykit only for desktop shapes (headless pulls no GTK); the next run uses that image |
 | OWED | the re-run through late commands + first boot; the probe kit on a real Windows and Mac; Ventoy on a real stick; D-P4 join tokens |
+
+## §46 — ssh scaffolding from the core outward (2026-09-15; his ask)
+
+| piece | state |
+|---|---|
+| `pol iso keys init` | an ed25519 pair under `.polari/keys/core` (untracked), the public half staged at `.generated/keys/core.pub`; the lean/prod stacks mount it at `/app/data/keys` |
+| every image | the core's public key joins the authorised keys (keys-only ssh, user `polari`); the plan the machine keeps carries `report_to` (the building core's API) and its own hash |
+| first boot | POSTs `/api/iso/joined` with hash, hostname, addresses, role, shape, detections; the DeviceProbe row gains joined_at/joined_hostname/joined_addresses/joined_role/joined_shape/detected/ssh_user |
+| `pol iso ssh <hash|hostname> [--jump] [--port]` | a session through the core key to the reported address |
+| selftest | 44/44 (core key in the keys, plan carries report_to + hash, first boot reports, /api/iso/joined + /api/iso/core-key with doubles) |
+| OWED | the live proof: an image built after the key is staged, booted in the isle-core guest with ssh forwarded (2222 → 22), the join report arriving at the core, `pol iso ssh` opening the session through isle-core; in production posture the key must land in `polari-ops` with scoped sudo (the group + sudoers file are still the isle side's) |
