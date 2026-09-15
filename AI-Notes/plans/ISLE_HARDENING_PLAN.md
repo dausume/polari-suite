@@ -367,3 +367,38 @@ non-persistent systemd timer that runs `production` at expiry (so a reboot rever
 warning; `--for` never exceeds 7 days; REFUSED when /etc/polari/production-route exists (written by `pol prod apply`
 for a real domain). `production` reverts everything. Proven on isle-core (apply → drop-in + timer → revert clean).
 Still design: D1 default duration (8h today), D2 remote-by-core vs local-only (today: whoever runs pol deploy).
+
+## §17 — DEV APPS and dev builds: security that does not block, and says so (his rulings 2026-09-15)
+
+His words: dev builds are their own thing where we specifically turn OFF securing things so everything can be tested
+via APIs and we SEE WARNINGS when we do the wrong thing; Polari instances and objects must be able to dynamically form
+new connections without breaking on security. So a **dev app** = a version of an app (and a dev build = a version of
+an instance) where security is deliberately NON-BLOCKING: every control still evaluates, nothing is denied, and each
+would-have-been-denial becomes a WARNING a person and an API can see.
+
+- **One switch, one ledger.** `POLARI_POSTURE=dev` (the install-level mode, §16b) puts the security module into
+  OBSERVE: AuthzRule / ContentPolicy / BrowserPolicy / TrustChannel checks return "allow + would-deny" instead of
+  deny; the decision lands as a `SecurityEvent` row (who, what, which rule would have denied, when) and a `warning`
+  notice on the notice bar; `/api/security/events` lists them; the audit counts them ("N actions ran that
+  production would deny"). The invariants of §16 still hold (no passwords over ssh, nothing on upstream interfaces,
+  refused on production routes).
+- **Dynamic connections.** In dev, a connector (mqttbridge, grpcbridge, ThingSet, federation/VPN, module fetch from
+  a foreign core, instance-to-instance links) ADMITS a new peer at once — recorded as a `TrustChannel` row in state
+  `dev-admitted` with a warning — instead of waiting for the PeerAgreement/admission step; production requires the
+  agreement. Self-signed and expired certificates are accepted in dev with a warning (`--insecure` becomes the
+  posture, not a flag).
+- **Dev apps as a variant, not a fork.** The app manifest gains `security.devVariant` = the list of controls the dev
+  variant relaxes (default: all authz + content + trust checks → observe); the store shows a "DEV" badge and the
+  standing warning; the catalogue offers the dev variant only on a dev-posture instance; the deb's preinst refuses a
+  dev variant on a production route (like the hardware refusal). Same code, one posture check — never two code paths.
+- **SSH scaffolding from the core outward** (his ask, same day): every machine the ISO builds authorises the core's
+  dev key at install (D11 placed it; now it is generated and tracked): `pol iso keys init` makes the core's ed25519
+  pair (untracked, `.polari/keys/`), every `pol iso build` includes its public half, first boot reports the device
+  (hash, hostname, addresses) to `/api/iso/joined`, the core writes an ssh config stanza per device, and
+  `pol iso ssh <device>` opens the session — one device manipulates all of them for development and testing. In
+  production posture the key lands in the `polari-ops` group with its scoped sudo; in dev posture it may be root
+  (§16a).
+- What warns but never blocks in dev — the list is the contract: authz decisions, content policy, trust channels,
+  certificate validity, peer admission, posture relaxations, hardware-tier notices. What still refuses even in dev:
+  the six §16 invariants, dev variants on production routes, ISO refusals that protect the person (encryption on
+  headless).
