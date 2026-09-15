@@ -260,6 +260,62 @@ registry row, the canonical classes, and a native_sim twin service on vcan in th
 state read-back, or UPDATE of a `w` item? Q-T3 does Brill Power's involvement count as durable second-vendor adoption?
 Q-T4 do any inverters exist as ThingSet nodes, or only via SunSpec/OpenEMS?
 
+### 3.O OpenEMS — the site-level dispatcher (survey 2026-09-15)
+
+**Capabilities.** Edge (Java 21, OSGi; the on-site controller), Backend (aggregates edges over JSON-RPC/websocket), UI
+(Angular). Edge runs an input-process-output cycle (~1 s): bridges read devices into a frozen process image, a
+scheduler runs controllers in priority order (earlier setpoints win), writes flush. Devices are components with typed
+channels through natures (ElectricityMeter, ManagedSymmetricEss, Battery, BatteryInverter, PvInverter, Evcs/Evse,
+DigitalOutput). Bridges: Modbus TCP/RTU, HTTP, MQTT, M-Bus, OneWire — **no CAN bridge**. External control: JSON-RPC
+(getEdgeConfig, subscribeChannels, setChannelValue, component config, historic queries), a REST controller, an MQTT
+controller, and a Modbus-slave API whose writes EXPIRE after a timeout (a fail-safe pattern worth copying). Simulators
+exist (ESS, grid/production meters, EVSE, CSV datasources incl. H0 load profiles) but are behavioural stand-ins, not
+physics twins. An Energy Scheduler (genetic algorithm, 15-min periods over 24 h, with predictors and tariff providers)
+makes it more than purely operational — still no sizing, no what-if. Images for amd64 + arm64; ~1 GB headless is
+enough, a Pi CM4-class board recommended.
+
+**Device families.** Open-protocol and worth adapting as DATA: generic SunSpec PV inverter + meter, OCPP server, Modbus
+meters (Eastron SDM, Janitza, Carlo Gavazzi, Socomec, Siemens, ABB, Schneider, Phoenix, Chint …), Modbus EVSE (KEBA,
+Alpitronic, Hardy Barth, Heidelberg, Mennekes, Alfen, go-e, openWB, Webasto), relays/IO (KMtronic, WAGO, Shelly,
+RevPi, GPIO), heat (SG-Ready relay controller, my-PV). Vendor-specific register maps: GoodWe, SMA, Kostal, Fronius,
+SolarEdge, Victron, Huawei, KACO, Tesla Powerwall, Fenecon, Pylontech, BYD … Absent: Sungrow, Deye, Solax, Growatt,
+Enphase, any CAN BMS. Controllers to reuse CONCEPTUALLY (never their Java): ESS balancing, peak shaving,
+grid-optimised charge, time-of-use, EVSE single/cluster (with a phase-switch guard), heat-pump SG-Ready (four states
+on two relays with minimum switch times), emergency capacity reserve, AC island, and `io.offgridswitch` (main +
+grounding contactor with interlock and auxiliary-contact feedback — the closest thing to our transfer device).
+
+**Licence — the decisive finding.** Edge and Backend are EPL-2.0 WITHOUT the GPL secondary-licence designation
+(no file headers, no Exhibit A), which the FSF lists as GPL-incompatible; the UI is AGPL-3.0 (compatible, but not
+wanted). Consequence: **never vendor or link OpenEMS Java into Polari.** Running Edge as its own container and
+talking JSON-RPC/REST/Modbus is a separate program — no conflict. Transcribing register maps and algorithm
+descriptions from the docs into Polari's own code and data is fine (facts). Ask the OpenEMS Association whether they
+would add the GPL secondary licence; it would unlock vendoring.
+
+**Integration.** `OpenEMSAdapter`: run `openems/edge` on a hosting member (arm64 fine, ~1 GB), Polari as the JSON-RPC
+websocket client — getEdgeConfig materialises components as Polari rows, subscribeChannels feeds telemetry,
+setpoints only through the write-expiring API pattern. Device definitions (SunSpec + selected open Modbus maps) as
+Polari module initialData citing the bundle as source; proprietary vendor maps only once a member owns that
+hardware. OpenEMS simulators only for adapter integration tests; physics twins stay in Polari's own sim framework.
+Do NOT reimplement balancing/peak-shaving/ToU/EVSE state machines, do not fork the Java.
+
+**ThingSet vs OpenEMS: complementary layers.** ThingSet = MCU-level BMS/MPPT/relay telemetry and control (CAN/serial);
+OpenEMS = site-level dispatch of third-party inverters/meters/EVSE (Modbus/SunSpec/OCPP); Polari = topology,
+per-circuit switching rules, planning and sizing simulations, provenance. Note evcc (Go, MIT, a large SunSpec/Modbus
+device list) as a lighter comparison point.
+
+**Gaps.** One site-level off-grid switch, no per-circuit ATS, no break-before-make timing model, no multi-cell
+topology; telemetry without attested provenance; planning is 24 h operational only; no thermal thermodynamics
+(SG-Ready is a relay hint); no CAN.
+
+**Recommended Polari App.** The `energy_cell` module's second adapter (`OpenEMSAdapter`, JSON-RPC) beside the
+ThingSet one; the nature channel vocabulary (ActivePower, Soc, AllowedCharge/DischargePower, GridMode …) is a
+ready-made canonical schema to borrow for the Polari objects.
+
+**Open questions (his).** Q-O1 does any member own SunSpec/Modbus hardware to validate against, or simulator-only at
+first? Q-O2 keep OpenEMS Edge as the real-time dispatcher permanently or only until Polari's own loop is proven?
+Q-O3 Polari as a Modbus slave OpenEMS pulls, or Polari pushing over JSON-RPC? Q-O4 a 1 GB JVM per hosting member
+under the swarm memory caps? Q-O5 ask the OpenEMS Association for the GPL secondary licence?
+
 ## 4. Chunking the work we do not have
 
 (sprints, gates, and the order — filled after §3, so the API freeze follows the survey as the plan requires)
