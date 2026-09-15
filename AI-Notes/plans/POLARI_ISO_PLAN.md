@@ -138,3 +138,49 @@ OS. Later, at build time, the ISO may ROLL UP the app portion — the same `pola
 and handed to the first-boot unit, which runs `install-apps.sh` after the platform (presence-checked, so a re-run
 never installs anything twice). Both keep working on their own: the ISO without the folder is a plain Polari OS
 install; the stick without the ISO is an app installer. Decision knob at build: `--apps <stick dir|none>`.
+
+## §P — the PROBE STICK: diagnose first, plan on the core, install from the same stick (his idea 2026-09-15)
+
+**The flow.** One USB stick, prepared once, carries (1) the Polari Probe for Windows, macOS and Linux, (2) the probe
+cache, (3) the ISOs Polari builds, (4) each device's install plan. A person probes a machine (or many, one at a
+time), plugs the stick into any Polari, assigns each probed device a role (core / member / hardware / access) and the
+ISO options (shape, encryption, look preset, posture), Polari renders the autoinstall per device and copies the ISO
+and the plan onto the stick, the person boots the target from the stick, first boot installs Ubuntu + Polari and
+joins the isle as pre-selected, the core's topology shows it arrive.
+
+**The stick base: Ventoy (GPL-3.0, compatible).** Ventoy makes the stick bootable once and boots any ISO copied onto
+its exFAT data partition; the data partition holds the probe apps, the cache and the plans, so "flashing" an ISO is a
+file copy and nothing is destroyed per device; several ISOs and several devices' plans ride together. Ventoy's
+auto_install plugin injects subiquity autoinstall; first boot matches the device's hardware hash to `plans/<hash>/`.
+Licence gate: verify the pin (dausume/ fork if needed) before vendoring anything.
+
+**The probe: one JSON, three launchers.** Windows = PowerShell over WMI/CIM (Win32_Processor, _BaseBoard, _DiskDrive,
+_VideoController, _NetworkAdapter, Get-PnpDevice for PCI/USB IDs, Confirm-SecureBootUEFI, Get-Tpm, BitLocker status,
+RAID/AHCI from the storage controller, Fast Startup); macOS = `system_profiler -json` (SPHardware, SPPCI, SPUSB,
+SPStorage, SPNetwork; FileVault via fdesetup; Apple silicon detected → NOT COMPATIBLE, stated plainly); Linux = the
+hwmap scanner (usb, pci, IOMMU groups, serial). All write the same report keyed by a hardware hash (DMI UUID + board
+serial hashed); cached at `probe/cache/<hash>.json`. Scripts first (`.ps1` + `.bat`, `.command`, `.sh`; no signing,
+inspectable); signed binaries later for SmartScreen/Gatekeeper.
+
+**Compatibility is DERIVED.** For each ISO Polari can build it holds the kernel's `modules.alias` and the
+`linux-firmware` file list; every PCI/USB id in a report maps to: in-kernel · needs firmware · needs a third-party
+driver (bcmwl, nvidia) · no driver. Plus a short curated trap list (T2 Macs, RAID mode, BitLocker, Fast Startup,
+32-bit UEFI, Secure Boot + NVIDIA). The verdict per device: compatible with <ISO> / compatible with notes / not
+compatible — with the evidence. Never a hand-typed HCL.
+
+**On the core (mostly built).** The stick watcher already finds sticks; a probe stick's cache becomes `DeviceProbe`
+rows; the planner suggests roles from evidence (always-on + most memory → core; IOMMU + KVM → hardware; laptops →
+access) as knobs with reasons; the person confirms; Polari renders the autoinstall (hostname, tier, posture, join
+token, CA fingerprint, the ISO plan's D-decisions), copies ISO + plan to the stick, and waits: the device row turns
+from "planned" to "joined" when it arrives. Fleet planning = probing every machine first with one stick.
+
+**Not promised.** "Re-check you plugged it back in" cannot run on a powered-off target; instead the probe app offers
+"restart from the stick now" (Windows: a one-time firmware boot entry via bcdedit; Intel Macs: Option-key boot, or
+`bless --nextonly`). Apple silicon Macs are out of scope (Ubuntu does not run there).
+
+**Secrets on the stick.** A plan carries a join token: one-time, burned by the install, revocable by the core if the
+stick is lost; the plans folder encrypted with a passphrase the installer asks for once (headless: the same passphrase
+typed at the console). Decide before the first token is written.
+
+**His decisions:** D-P1 Ventoy as the base · D-P2 scripts first, signed apps later · D-P3 one stick for probe +
+install (Ventoy makes it possible) or two · D-P4 token handling · D-P5 Apple silicon out of scope. Not started.
