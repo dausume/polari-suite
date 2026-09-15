@@ -1630,3 +1630,18 @@ overlay tree; xorriso assembly with genisoimage fallback; the ISO pool under the
 | `pol iso ssh <hash|hostname> [--jump] [--port]` | a session through the core key to the reported address |
 | selftest | 44/44 (core key in the keys, plan carries report_to + hash, first boot reports, /api/iso/joined + /api/iso/core-key with doubles) |
 | OWED | the live proof: an image built after the key is staged, booted in the isle-core guest with ssh forwarded (2222 → 22), the join report arriving at the core, `pol iso ssh` opening the session through isle-core; in production posture the key must land in `polari-ops` with scoped sudo (the group + sudoers file are still the isle side's) |
+
+## §47 — the first full ISO install in a guest (2026-09-15; isle-core, KVM, UEFI, 3 GB, 2 vCPU)
+
+The member/headless image (0bbba8f7…) went end to end: partitioning → curtin → the eleven late commands → reboot → the installed Ubuntu 26.04 booted from disk → login prompt in **16 minutes**, and the core's key opened a session on it through isle-core (`ssh -p 2222 -i .polari/keys/core polari@isle-core`). What the guest showed:
+
+| found | fixed |
+|---|---|
+| `/etc/polari/plan.json` and `posture.json` landed as `{role: member, shape: headless, …}` — every double quote eaten by the nested `curtin in-target -- sh -c "printf … '{"role": …}'"`; first boot could not read its plan (`role= shape=`) and never reported | `write_file()` lands files byte-exact through base64; a selftest check refuses any late command that nests `"` inside `sh -c "…"` |
+| `report_to` was `http://…` — the proxy set no `X-Forwarded-Proto` and falcon's scheme is the backend socket's; the POST would have been redirected and lost | `X-Forwarded-Proto` when present, else https unless the core is loopback |
+| the `polari` user has no password (keys only, D11) AND sudo asks for one → nobody could administer the machine | keys-only install writes `/etc/sudoers.d/90-polari-iso` (`NOPASSWD`, mode 440); a password set → no drop-in |
+| `polari-complete 0.1.36` installed offline from the ISO ✅ but **docker is not installed** (not carried; apt fell back offline) and **`isle` is missing** (the core role's `isle core-install` would fail) | not yet — this is the offline apt POOL slice (§45): docker-ce + the isle deb + the packages' closure on the ISO |
+| subiquity's `updates: security` step fetched over the network (three minutes here; unbounded on a slow link) | not yet — with the pool on the ISO the security pocket is absent and the step is a no-op; a `security_updates` knob is the alternative |
+| Secure Boot: the OVMF guest reports it disabled (no enrolled keys) — the image's `secure_boot: on` is honoured by the firmware, not the installer | nothing to fix; the real-hardware proof stays owed |
+
+selftest 48/48 after the fixes. OWED: the second run of the same test after the redeploy (the plan readable, the join report at the core, `pol iso ssh --jump isle-core --port 2222 --host isle-core`), then the pool slice.
