@@ -206,3 +206,10 @@ install (Ventoy makes it possible) or two · D-P4 token handling · D-P5 Apple s
   glance before it goes on the public site.
 - D-P2 (scripts first) · D-P3 (one stick) · D-P4 (tokens) · D-P5 (Apple silicon out of scope — now a message, not a
   silence) remain his; the first build starts when he says so.
+
+### iso-1 BUILT 2026-09-15 (his go) — see TESTING_OWED §45
+`modules/iso` (core-exclusive; in the lean floor so production carries it): the probe kit, derived compatibility, the
+autoinstall per D1–D15, the builder (bases from Ubuntu's SHA256SUMS, kernel table from the archive, xorriso), the ISO
+pool, `/downloads/iso`, `/api/iso`, `/display/iso`, `pol iso …`, `pol apps usb write --probe`. Still to prove: a real
+base + a real image + the VM boot to first boot (the iso-1 proof), then iso-2 (DeviceDetection reporting, the plans
+module) and iso-3 (preinstalled images, netboot).
