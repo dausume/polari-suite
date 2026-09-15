@@ -1525,3 +1525,21 @@ What is NOT proven here: the droplet itself (his rule — never test there); the
 | (later) PermissionGroup tie-in | on a posted inventory the designed PermissionGroup rows (sudo/admin/docker/libvirt/kvm, polari-*) get `members` per device (merged, this device's segment replaced) and `installed`; unknown polari-* groups become observed rows. Selftest 54/57 (the 3 host-state FAILs unchanged). LIVE only after the next image build |
 
 (§38 correction, his ruling: the line stays 0.1.X. My hand-passed `--version 0.2.0` on the store deb had pulled the bundle to 0.2.0 — both removed, `pol prod debs build` re-run: versions are 0.1.<commit count> per repo and polari-complete takes the store member's: now isle-app-store 0.1.36, polari-complete 0.1.36, isle-mesh-cli 0.1.151, polari-shell-core 0.1.36; the store deb carries store-setup.sh; `/api/downloads` lists the five.)
+
+## §41 — the all-variants sweep on the live stack (2026-09-14; his question: will it serve and generate every variant?)
+
+| variant | asked | result |
+|---|---|---|
+| install · online | 59 | 59 ready |
+| access · online | 59 | 59 ready |
+| install · offline | 59 | 47 ready, 12 REFUSED — every refusal = a junk pip requirement from the import scanner (`json,` `hashlib,` `tempfile,` from `import a, b` lines; `—` `x\`` `keeps` `lands` from docstring prose; `paho` for paho-mqtt; `java`; `simulationlocks`, a framework-internal package) |
+| access · offline | 3 (each carries the 55 MB shell runtime) | 3 ready |
+| total | 180 in 394 s | 168 ready |
+
+Fix (same day): `moduleService.moduleDiscovery.scan_python_imports` parses with `ast` (real import statements only; a
+line-pattern fallback with identifiers only when a file does not parse); `module_scan` drops names that are packages
+or files under the framework root (internal) and maps well-known import→distribution mismatches when the library is
+not installed here (paho→paho-mqtt, yaml→PyYAML, cv2, PIL, sklearn, serial, usb, dateutil, bs4, jwt, grpc, RNS, LXMF …).
+The 12 modules now scan clean (appstore: argon2/falcon/minio/…; mqttbridge: paho-mqtt; grpcbridge: grpcio/protobuf;
+composition/mealoptions/nutrition/resources: none). Page render: 25–70 s → 4.6 s cold / instant warm (§ caching).
+OWED: the offline-install re-sweep of the 12 after the redeploy.
