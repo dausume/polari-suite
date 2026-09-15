@@ -213,6 +213,53 @@ binaries per circuit-year)? Q-G2 kit granularity for `p_nom_mod` (per 400 W pane
 only or atlite/ERA5 with a key? Q-G4 accept PyPSA's ~300 MB geo/plot tail in the image? Q-G5 tariff model (flat, TOU,
 net metering)? Q-G6 wear proxy (cycle cost vs throughput cap)?
 
+### 3.T ThingSet — the Energy Cell's telemetry and control interface (survey 2026-09-15)
+
+**Capabilities.** A self-describing tree of groups and leaves, each with a 16-bit id (binary/CBOR) and a name (text/JSON)
+whose prefix says what it is: `r` measurement, `w` writable control, `s` stored config, `p` protected, `c` constant, `x`
+function, `t` timestamp; units in the names; subsets and records (e.g. cells). Operations aligned with CoAP: GET,
+FETCH, UPDATE, EXEC, CREATE, DELETE, plus unsolicited REPORT and DESIRE (unacknowledged); per-group reporting periods.
+Transports: serial, WebSocket, CAN (29-bit ids with priority/type/bus/address, masterless EUI-64 address claiming,
+single-frame CBOR reports carrying the item id in the CAN id, ISO-TP for request/response), BLE; mappings for MQTT,
+CoAP, LoRaWAN. Auth: a plaintext password unlocking `p` items; encryption left to the link. Spec v0.6 (Feb 2025) is
+declared the last breaking revision before 1.0 (CC-BY-SA-4.0). The spec itself rejects Modbus, CANopen, J1939,
+UAVCAN for not being self-describing; SunSpec is a device profile on Modbus for grid-tie inverters, OCPP is
+EV-specific — neither competes for the cell-level role.
+
+**Repositories (all Apache-2.0, verified).** thingset-node-c (v0.6 node library; DESIRE unimplemented; ztest on
+native_sim; Nov 2025); thingset-zephyr-sdk (serial, shell, BLE, CAN with address claim + ISO-TP, LoRaWAN, storage;
+WebSocket sample on native_sim; MQTT "under development"; Zephyr 4.4, Apr 2026); python-thingset 0.2.8 (serial, CAN,
+IP; wraps python-can, can-isotp, cbor2, pyserial; Feb 2026, Brill Power authors); C++ and .NET clients (Mar 2026);
+the Flutter app; a two-commit serial→WebSocket forwarder. No Rust or JS library; the old Python client is archived.
+Only two companies behind it (Libre Solar Technologies GmbH, Brill Power).
+
+**Digital twin.** A Zephyr `native_sim` node runs on Linux: WebSocket works today; CAN through `CONFIG_CAN_NATIVE_LINUX`
+on a `vcan0` interface — so the SAME adapter code talks to the twin and to real hardware with no branch. Libre Solar's
+BMS simulator is protocol-level only (no BMS-IC mock).
+
+**Safety semantics: none in the protocol.** No safe-state, watchdog, heartbeat or command acknowledgement; only
+request/response has a client timeout. So the plan's rule holds by construction: the GRID/MICROGRID switch is a `w`
+or `x` REQUEST whose result is read back as an `r` state, the hardware interlock enforces, and Polari treats report
+staleness as a fault. Auth is weak: rely on physical CAN and TLS on WebSocket.
+
+**Integration.** `ThingSetAdapter` (Python, on the isle member): SocketCAN via python-can/can-isotp (a CANable /
+candleLight `gs_usb` adapter or Libre Solar's MCP2515 Pi hat), serial, WebSocket; passive telemetry from single-frame
+reports, ISO-TP for FETCH/UPDATE/EXEC; a device registry keyed by EUI-64 holding the id→path table; discovery through
+FETCH-null + `_Paths`; prefixed names mapped to the canonical Battery/BMS, MPPT, Inverter → EnergyCell. Twin parity:
+the same adapter against native_sim on vcan/WebSocket in the compose stack, so tests run without hardware.
+**Stance: adopt ThingSet as the preferred interface for Polari-built and Libre-Solar-class cells;** SunSpec/Modbus
+through OpenEMS for third-party inverters; OCPP only if an EVSE appears.
+
+**Gaps.** No standard device profiles (no SunSpec-style models; `_Metadata` WIP); DESIRE unimplemented; MQTT in the SDK
+unfinished; small ecosystem.
+
+**Recommended Polari App.** The `energy_cell` module carries the `ThingSetAdapter` connector, a `ThingSetDevice`
+registry row, the canonical classes, and a native_sim twin service on vcan in the compose stack.
+
+**Open questions (his).** Q-T1 pre-1.0 (v0.6) acceptable now, or wait for 1.0? Q-T2 switch semantics: EXEC with
+state read-back, or UPDATE of a `w` item? Q-T3 does Brill Power's involvement count as durable second-vendor adoption?
+Q-T4 do any inverters exist as ThingSet nodes, or only via SunSpec/OpenEMS?
+
 ## 4. Chunking the work we do not have
 
 (sprints, gates, and the order — filled after §3, so the API freeze follows the survey as the plan requires)
