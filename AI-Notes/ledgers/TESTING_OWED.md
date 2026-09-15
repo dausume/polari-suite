@@ -1543,3 +1543,21 @@ not installed here (paho→paho-mqtt, yaml→PyYAML, cv2, PIL, sklearn, serial, 
 The 12 modules now scan clean (appstore: argon2/falcon/minio/…; mqttbridge: paho-mqtt; grpcbridge: grpcio/protobuf;
 composition/mealoptions/nutrition/resources: none). Page render: 25–70 s → 4.6 s cold / instant warm (§ caching).
 OWED: the offline-install re-sweep of the 12 after the redeploy.
+
+## §42 — the deb pool policy (2026-09-14; his rulings + the refinements he asked me to advise)
+
+His policy: track when each deb was requested (a re-request refreshes); measure download times over a slow connection;
+predict the slow download from the size and hold the deb at least THREE times that; after the hold, remove only when
+room is needed for another requested deb; cap the pool's space; free everything untouched for over a day.
+Refinements folded in: downloads refresh the hold too and a deb in flight is never evicted; the slow speed is the
+slower of a knob (250 KB/s) and the slow quartile of measured downloads; the hold is floored at ten minutes; the cap is
+the knob (2 GiB) bounded by free disk minus the margin; a full pool refuses with 507 naming the earliest hold; the
+idle purge is per file. Advised, not changed: offline access debs each carry the same 55 MB runtime — carry it only
+when no installer is staged (his call).
+
+| check | result |
+|---|---|
+| `apps_api_selftest` (32/32) | the ledger knows requested_at/requests/hold; hold(55 MB) = 3 × size / slow_bps; a re-request refreshes; make_room refuses while in flight or inside the hold (blocked_by + the earliest hold); after the hold it evicts least-recently-accessed first; the idle purge frees a day-old deb inside a long hold; pool_status carries used/max/free + knobs |
+| `app_debs_selftest` (19/19) | a 2-hour-old deb is KEPT by the policy; an explicit ttl still purges by age |
+| API | status carries requested_at, requests, downloads, hold_until, hold_remaining_seconds, evictable, retention sentence, pool {used,max,free,slow_bps}; request answers 507 when the pool is full past every hold; the download stream is tracked (in flight, timed, counted) |
+| knobs | POLARI_APP_POOL_MAX_BYTES (2 GiB), POLARI_SLOW_DOWNLOAD_BPS (250000), POLARI_APP_DEB_TTL=0 = delete after delivery |
