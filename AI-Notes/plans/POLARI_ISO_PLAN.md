@@ -192,11 +192,17 @@ install (Ventoy makes it possible) or two · D-P4 token handling · D-P5 Apple s
   policy bypass; macOS: a `.command` plus the one Terminal line for a FAT stick; Linux: the shell script); plain-
   language verdicts ("Ubuntu will run on this computer; the WiFi needs one extra driver, the installer adds it");
   never a raw ID list without the sentence that explains it.
-- **The Apple silicon message (his ruling: say it blatantly).** The probe on an Apple silicon Mac stops and shows:
-  *"This is an Apple silicon Mac. Apple does not publish the hardware documentation or drivers an open-source
-  operating system needs, so Ubuntu does not run on this computer and Polari cannot be installed on it. The only
-  Linux that runs here is the volunteer Asahi project, with partial support. To run Polari, use a computer built on
-  open hardware documentation — any PC, or an Intel Mac."* (Blunt about Apple's choice; accurate about Asahi, so a
-  person who searches finds nothing we misstated.)
+- **The Apple silicon message (his ruling 2026-09-15: blunt, and inside the line — facts we can source, opinion
+  labelled as ours, no claims about intent, no "only chips").** The probe on an Apple silicon Mac stops and shows:
+  *"This is an Apple silicon Mac. Apple publishes no hardware documentation and no drivers for these chips, and
+  dropped Boot Camp when it introduced them, so no open-source operating system supports them. The one Linux that
+  runs here exists because volunteers spent years reverse-engineering the hardware, and it is still incomplete.
+  Ubuntu does not run on this computer, and Polari cannot be installed on it. Nearly every other computer sold today
+  runs Ubuntu out of the box. In our view, a computer that will not let you run free software is one you rent, not
+  one you own. To run Polari, use one built on open documentation: any PC, or an Intel Mac."*
+  Rules for any edit: every factual sentence must stay sourceable (no docs/drivers; Boot Camp dropped; Asahi is
+  volunteer reverse engineering and incomplete; Ubuntu runs on nearly every other computer); the opinion stays
+  marked "in our view"; never assert Apple's motives; never "the only"; name Apple, never use its logo. A lawyer's
+  glance before it goes on the public site.
 - D-P2 (scripts first) · D-P3 (one stick) · D-P4 (tokens) · D-P5 (Apple silicon out of scope — now a message, not a
   silence) remain his; the first build starts when he says so.
