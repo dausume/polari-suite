@@ -125,6 +125,7 @@ services:
     volumes:
       - prf_lean_data:/app/data
       - ${POL_SUITE_ROOT:-.}/.generated/debs:/app/downloads:ro
+      - ${POL_SUITE_ROOT:-.}/.generated/keys:/app/data/keys:ro   # the core's outward ssh public key (pol iso keys init) — placed on every image
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/api/health', timeout=5)"]
       interval: 30s
