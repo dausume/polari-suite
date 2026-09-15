@@ -115,7 +115,7 @@ services:
       - WEBSOCKET_ENABLED=true
       - WEBSOCKET_PORT=3001
       # the floor set (§2c) + terms; lazy two-phase boot so /api/health flips early
-      - POLARI_MODULES=${POLARI_LEAN_MODULES:-polariapps,appstore,islemesh,terms,security}
+      - POLARI_MODULES=${POLARI_LEAN_MODULES:-polariapps,appstore,islemesh,terms,security,iso}
       - POLARI_LAZY_BOOT=1
       - POLARI_MESH_AUTOCONFIG=false
       # the distribution point: staged platform debs + the on-demand pool

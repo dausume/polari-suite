@@ -1591,3 +1591,23 @@ materials first.
 | checks | selftest_tier_reach 13/13 (his rule table); rendered: platform-operations under access → 0 installs / 9 access; member → 0 installs (all core-only); core → 8 installs; Hardware category on a member → 6 installs off, all access forms present |
 | store | Join door: Access only / Isle member / Hardware (core = Create my own isle) |
 | LIVE (Hardware category, 12 listings) | access → 0 installs offered, 12 access forms · isle member → 5 installs (the web apps cross-listed here), 6 off · hardware member → 10 installs, 1 off (the core-only hardwareapps) · isle core → 11 installs · no radios; dark-mode rule present; `/api/apps?tier=member` marks install false for isle_relay/isle_guestnet/hardwareapps and true for hwdigital/hwfpga/kirimoto |
+
+## §45 — the ISO module: probe → choose → install (2026-09-15; his go: "start building out the iso capabilities and interface module")
+
+Built as `modules/iso` (a core-exclusive Polari app, in the LEAN FLOOR SET so the production deployment carries it):
+rows IsoBase / DeviceProbe / IsoBuild; `custom/iso_compat.py` (compatibility DERIVED from the kernel's modules.alias +
+the trap list; the Apple silicon message verbatim), `custom/iso_autoinstall.py` (subiquity autoinstall per D1–D15:
+unattended, ssh keys from the first boot, Secure Boot on unless chosen off with its warning, encryption off unless chosen
+with its warning and REFUSED on headless — at build and at deploy, the platform installed OFFLINE from the ISO, the
+posture and the plan written, first boot detects and becomes the core or joins), `custom/iso_probe_kit.py` (README.html
+with one button per OS + the Windows/Mac/Linux launchers writing one report shape), `custom/iso_builder.py` (bases
+discovered from Ubuntu's SHA256SUMS and cached with the checksum verified; the kernel table from the archive; the
+overlay tree; xorriso assembly with genisoimage fallback; the ISO pool under the deb-pool policy with an 8 GiB cap);
+`/downloads/iso` (three steps, server-rendered) + `/api/iso/*`; `/display/iso`; `pol iso kit|probe|probes|bases|fetch-base|preview|build|status|fetch|ventoy`;
+`pol apps usb write --probe`; the Dockerfile gains xorriso; `/downloads` signposts "A brand-new computer?".
+
+| check | result |
+|---|---|
+| `python3 -m iso.iso_selftest` | 36/36: ids normalise (Windows PnP → modalias); derived statuses in-kernel / third-party / no-driver; traps (RAID, BitLocker, Secure Boot + NVIDIA); unchecked when no kernel table; Apple silicon = the message, no motives, no "only"; suggested role with evidence; D8 refusal at build and at deploy; the three warnings; D11 keys-only ssh; offline platform install + posture + plan + first boot; the kit; the overlay tree; the ISO pool holds; the API with doubles; the human page |
+| conform | 61/61 (the manifest regenerated; category platform-operations, agentTier core) |
+| OWED | a base actually cached (2–3 GB) and an image actually assembled with xorriso in the image; that image booted in a VM through to first boot (iso-1's VM proof); the probe kit run on a real Windows and Mac; Ventoy on a real stick; the join token handling (D-P4) — plans carry the fingerprint only today |
