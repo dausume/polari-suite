@@ -1580,3 +1580,13 @@ materials first.
 | page suites | downloads 16/16 · app_debs 19/19 · module_requirements 14/14 · apps_api 32/32 |
 | LIVE after the redeploy | /downloads 1.2 s; /downloads/apps 7–9 s cold then instant; Network page 0.08 s; search 0.06 s; API q=wifi → isle_guestnet, isle_relay; business-work → bizops, collab, odooconnect |
 | OWED | a browser pass of the controls (a form, zero JS) |
+
+## §44 — his corrections from the phone (2026-09-14): dark-mode colours, no scope radios, the tier rules
+
+| item | result |
+|---|---|
+| dark mode | links/chips/tabs take the theme tokens (`a{color:var(--accent)}`, chips + tabs `--ink`); search box / selects / button use `--card`/`--ink` |
+| scope radios | removed — the All apps / category tabs ARE the scope (a search runs inside the open tab; All apps searches everything) |
+| "runs on" (tier) | never hides an app; it changes the FORMS: access → access form only; isle member → install for web apps only (hardware + core-exclusive apps show "Install — not on this member" + their access form: remote control); hardware member → everything except core-exclusive; isle core → everything. Tiers are now access / member / hardware / core (host = alias of member). Core-exclusive apps declare `agentTier: core` (9 platform modules; one manifest field to change) |
+| checks | selftest_tier_reach 13/13 (his rule table); rendered: platform-operations under access → 0 installs / 9 access; member → 0 installs (all core-only); core → 8 installs; Hardware category on a member → 6 installs off, all access forms present |
+| store | Join door: Access only / Isle member / Hardware (core = Create my own isle) |
