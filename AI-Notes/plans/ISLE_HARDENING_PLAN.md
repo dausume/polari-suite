@@ -402,3 +402,9 @@ would-have-been-denial becomes a WARNING a person and an API can see.
   certificate validity, peer admission, posture relaxations, hardware-tier notices. What still refuses even in dev:
   the six §16 invariants, dev variants on production routes, ISO refusals that protect the person (encryption on
   headless).
+
+**BUILT 2026-09-15 (same day):** the switch (`moduleService/posture.py`), the ledger (`SecurityEvent`), the contract
+(`security_observe.OBSERVED_CONTROLS` / `INVARIANT_CONTROLS`), three enforcement points threaded (CRUDE authz gate, peer
+admission, join-flow TLS), `/api/security/events` + the `observe-mode` notice + the `security-events` page + the audit
+control, and the DEV VARIANT store form (`polari-dev-<m>`, preinst refusals, `security.devVariant`). Ledger §48. Still to
+thread: content/browser policy hooks, TrustChannel rows for dev-admitted peers, the production landing of the core key.

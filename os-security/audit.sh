@@ -103,6 +103,9 @@ print(("dev-expired" if u and time.strptime(u[:19],"%Y-%m-%dT%H:%M:%S")<time.gmt
         elif [ "$PSTATE" = dev ]; then res ssh posture-assurance warn "DEV posture until ${PUNTIL:-unset}: root=$PR AllowGroups='${AG:-none}'"
         elif [ "$PSTATE" = dev-expired ]; then res ssh posture-assurance fail "UNSECURED: dev posture EXPIRED at $PUNTIL and root=$PR AllowGroups='${AG:-none}'"
         else res ssh posture-assurance fail "UNSECURED: root=$PR AllowGroups='${AG:-none}' and no dev posture declared (/etc/polari/posture.json)"; fi
+        # ISLE_HARDENING_PLAN §17: a DEV BUILD observes — every Polari security control evaluates but never denies; the count lives at /api/security/events
+        if [ "$PSTATE" = dev ]; then res ssh observe-mode warn "OBSERVE MODE: Polari's controls (authz, peer admission, certificates, trust channels) warn and never block on this machine until ${PUNTIL:-unset} — see /api/security/events"
+        else res ssh observe-mode pass "production posture: Polari's controls enforce"; fi
         BLANKET=$(grep -rhsE '^[^#]*ALL[[:space:]]*=[[:space:]]*\(ALL(:ALL)?\)[[:space:]]*(NOPASSWD:[[:space:]]*)?ALL' /etc/sudoers /etc/sudoers.d 2>/dev/null | grep -vE '^(root|%admin|%sudo)[[:space:]]' | xargs -0 echo | head -c 300)
         [ -z "$BLANKET" ] && res ssh sudo-scoped pass "no account or group beyond root/admin/sudo holds a blanket ALL" || res ssh sudo-scoped fail "blanket sudo: $BLANKET — give each ssh group its own command list (/etc/sudoers.d/polari-<group>: %polari-ops ALL=(root) /usr/bin/pol, ...)"
     else res ssh key-only-login skip "sshd -T needs root"; res ssh no-root-login skip "sshd -T needs root"; res ssh ssh-groups skip "sshd -T needs root"; res ssh sudo-scoped skip "reading sudoers needs root"; res ssh posture-assurance skip "sshd -T needs root"; fi
