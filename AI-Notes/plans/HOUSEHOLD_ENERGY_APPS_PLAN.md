@@ -111,6 +111,108 @@ EnergyCell, TopologyState, SafetyVerdict (per-question SAFE/UNSAFE/UNPROVEN + ev
 Q-F2 inverter `k`: manufacturer data or defaults 1.2 / 2.5? Q-F3 is a UL 1741-SB / IEEE 1547 certificate acceptable
 as the islanding proof or does it stay UNPROVEN? Q-F4 do cells share neutral/ground across GRID and MICROGRID states?
 
+### 3.C Libre Solar — the physical Energy Cell (survey 2026-09-15)
+
+**Capabilities.** BMS C1 (beta; 3–16s Li-ion, 70–100 A, bq76952 + ESP32-C3; CAN, RS-485, USB, UART, I2C, BLE, WiFi;
+12–48 V nominal, 70 V max; KiCad, BOM, FreeCAD housing, manual, a v0.3 test report — PCB v0.4.2, 2026-03); BMS 8S50 IC
+(3–8s, ISL94202); MPPT 2420 HC (eval; 80 V PV, 12/24 V battery, 20 A charge + 20 A load, STM32G431, CAN over RJ45 —
+hardware untouched since 2021); MPPT 1210 HUS (eval; 40 V PV, 150 W, 12 V/10 A, dual USB, >98 % peak efficiency);
+PWM 2420 LUS. Interfaces: LS.one (6P6C UART jack carrying ThingSet) and LS.bus (CAN on RJ45, CANopen pinout only,
+ThingSet binary, "under development"). The Libre Solar Box (third-party, CC-BY-SA-4.0): MPPT + BMS + 4×72 Ah LFP,
+300 W PV, 920 Wh, an optional Victron 250 W inverter. **No design carries regulatory certification.**
+
+**Repositories.** bms-firmware and charge-controller-firmware (Zephyr; Apache-2.0; active 2026); bms-c1 and the MPPT
+boards (CERN-OHL-W-2.0 hardware, CC-BY-SA-4.0 docs); esp32-edge-firmware (CAN/UART → WiFi/BLE/HTTP gateway + web UI;
+early; MQTT "ToDo"; 2022); dcdc-control (Octave PID + ngspice firmware-in-the-loop; NO licence stated — ask before
+reuse); the ThingSet org: thingset-node-c, thingset-zephyr-sdk (CAN/serial/WebSocket/LoRaWAN transports, native_sim),
+python-thingset (`pip install python-thingset`: serial, SocketCAN, TCP), thingset-app (Flutter), C++/C# clients — all
+Apache-2.0.
+
+**Reusable.** The charger state machine (Standby/Bulk/Topping/Equalization/Float), P&O MPPT, buck/boost/nanogrid
+modes; the ThingSet data objects (charger: Device/Battery/Charger/Solar/Load/USB/Nanogrid; BMS: Conf with SC/OC/temp/
+cell limits + chemistry presets + OCV/SOC lookup, Meas, Input chg/dis enable, exec presets/reset/shutdown); SOC =
+coulomb counting + OCV table; DFU over CAN. **Digital twin:** the BMS builds for `native_sim` and speaks ThingSet but
+does NOT mock the BMS IC; the charger's unit tests run on `native_posix`; both pin Zephyr v4.4 + thingset-zephyr-sdk.
+CAN layout: 29-bit ids (priority/type), ISO-TP request/response with bus + node addresses, single-frame reports with
+16-bit data ids, EUI-64 address claiming, fixed 500 kbit/s — ThingSet, not CANopen.
+
+**Data.** OCV-vs-SOC curves (lead-acid, LFP, NMC), charge-voltage tables, DC/DC design equations (learn.libre.solar,
+CC-BY-SA-4.0); the BMS C1 v0.3 thermal/protection test report. No published efficiency curves or field datasets.
+
+**Licence verdict.** Apache-2.0 firmware and libraries: one-way compatible with GPLv3 — Polari may link, vendor or wrap
+(keep NOTICE, mark modified files; the combined work is GPLv3). Hardware CERN-OHL-W needs no code alignment. Avoid the
+archived LGPL Arduino lib and the unlicensed dcdc-control. Fork upstreams as `dausume/` pins.
+
+**Integration.** LibreSolarThingSetAdapter = wrap `python-thingset` (never rewrite the codec); LibreSolarCANAdapter =
+SocketCAN + ThingSet CAN framing via the same lib (report subscription for telemetry, ISO-TP for config);
+LibreSolarDeviceAdapter = discovery through the ThingSet schema + Device group; BMS and MPPT adapters map the groups
+above (chg/dis enable as Polari knobs behind an explicit legality gate; ErrorFlags → fault rows);
+LibreSolarDigitalTwin = the native_sim BMS + charger builds in a container speaking ThingSet over pty/WebSocket, with
+Polari supplying the cell/PV stimulus the firmware cannot mock.
+
+**Gaps.** No inverter, no AC transfer switch, no per-circuit GRID/MICROGRID/DISCONNECTED switching, no break-before-make
+interlock, no load scheduling, no fleet/cloud, no certification, no IC emulation; LS.bus still moving.
+
+**Recommended Polari Apps.** `energy_cell` (Hardware App, hardware tier: device registry + live ThingSet views);
+`energy_cell_sim` (the twin + Polari-side PV/battery models fed from the OCV tables); `microgrid_switching` (the
+Polari-owned transfer-switch objects — exactly the part Libre Solar lacks).
+
+**What Libre Solar gains.** GitHub-first community, a Discourse forum, founder Martin Jäger (ThingSet by Libre Solar
+Technologies GmbH), partner A Labs. Polari adds system-level simulation and planning, provenance-tracked configs, fleet
+views, and the AC-side story they do not have.
+
+**Open questions (his).** Q-C1 which firmware release's ThingSet ids to pin; Q-C2 a BMS-IC mock upstream (a PR
+opportunity); Q-C3 the dcdc-control licence; Q-C4 first target board (BMS C1 vs the 2021-era MPPT 2420 HC); Q-C5
+should Polari's switching hardware be designed under CERN-OHL-W to match.
+
+### 3.G PyPSA — Energy Simulation and Optimization (survey 2026-09-15)
+
+**Capabilities.** PyPSA 1.3 (MIT): buses with any carrier (AC, DC, heat, EV), generators with capacity-factor series,
+loads, StorageUnit or Store + Link (the recommended battery form when energy and inverter size are independent), links
+with static or time-varying efficiency and bidirectional flow, global constraints; arbitrary snapshots with
+weightings; multi-year through investment periods with build_year/lifetime and discounting; linopy optimisation
+(LP/MILP), capacity expansion, discrete blocks (`p_nom_mod` → integers), unit commitment on generators AND links
+(binary status), pathway planning, custom constraints through linopy. "One source per circuit per hour" is
+expressible: status_grid + status_inverter ≤ 1 per snapshot (MILP), or a Polari-side 0/1 schedule written into both
+links' `p_max_pu` (LP). No household-microgrid notebook exists, but every piece appears in the examples: EV charging
+(Store + driving Load + availability-windowed charger Link, `e_min_pu` "75 % full every morning"), heat pump + tank
+(COP as time-varying link efficiency, 1 %/h standing loss), load shedding as a costly generator, modular expansion,
+committable + extendable.
+
+**Component mapping (Polari → PyPSA).** EnergyCell.pv → Generator on the cell's DC bus; MPPT → Link PV→DC (0.95–0.98);
+battery → Store on the DC bus (reserve floor, standing loss; charger/discharger Links when C-rate limits matter);
+inverter → Link DC→circuit AC bus (committable when exclusivity is optimised); house circuit → AC bus with its Loads;
+grid service → grid bus + Generator (tariff series as marginal cost, breaker limit as p_nom) + export Link; the
+GRID/MICROGRID switch → Link grid→circuit with the exclusivity constraint; curtailable load tiers → shed generators
+priced at value-of-lost-load; deferrable load / EV → EV bus + Store with `e_min_pu` hitting the target at the deadline
++ driving Load + charger Link with availability; heat pump → Link AC→heat with COP(T); thermal store → Store on the
+heat bus with a comfort floor; resistive backup → Link AC→heat; an upgrade step → a component copy with
+build_year = month, `p_nom_mod` = kit size, annualised capital cost.
+
+**Upgrade sequences.** Multi-period PyPSA gives build_year/lifetime and growth limits but NO per-period capex budget
+for generators/stores (only for lines/links); a ≤ $300 budget is one custom linopy constraint and "nothing obsolete"
+is lifetime ≥ horizon. But months × 8760 h × integer kits × switch binaries is a large MILP: the clean split is
+Polari searching candidate sequences (greedy or beam over ≤ $300 steps) with PyPSA evaluating each as an LP with
+fixed capacities, MILP only for short windows.
+
+**Dependencies and licences.** PyPSA MIT, linopy MIT, atlite MIT, pvlib BSD-3, HiGHS/highspy MIT (musllinux wheels
+exist, so the Alpine image just `pip install pypsa`; the geo/plot tail ≈ 300 MB); PyPSA-Eur code MIT (pattern source,
+e.g. the COP(ΔT) regression); PyPSA-Earth AGPLv3 (patterns only — never imported). Weather: PVGIS hourly 2005–2023 via
+pvlib (free, no key); ERA5 via atlite (needs an ECMWF key).
+
+**Gaps.** No electrical safety, no transients/inrush/sub-hourly surges, no wear beyond a cycling-cost proxy, no thermal
+derating, no forecast error unless rolling-horizon; results are cost-optimal dispatch, not a real controller's.
+
+**Recommended Polari App.** `energy_cells` (or the plan's polari-energy-simulation): the objects per the mapping, a
+`PyPSAEngineAdapter` (build → solve lp|milp → per-hour results: grid import/export, PV used/curtailed, cycles, unserved
+energy, EV completion, thermal reserve, cost), scenario rows (weather year, tariff, switch policy, upgrade sequence),
+the UpgradePlanner search, Table/Graph displays; pandapower alongside for the safety questions.
+
+**Open questions (his).** Q-G1 the switch as a planning knob (schedule → LP) or an hourly decision (MILP, ~8760
+binaries per circuit-year)? Q-G2 kit granularity for `p_nom_mod` (per 400 W panel vs per cell)? Q-G3 weather: PVGIS
+only or atlite/ERA5 with a key? Q-G4 accept PyPSA's ~300 MB geo/plot tail in the image? Q-G5 tariff model (flat, TOU,
+net metering)? Q-G6 wear proxy (cycle cost vs throughput cap)?
+
 ## 4. Chunking the work we do not have
 
 (sprints, gates, and the order — filled after §3, so the API freeze follows the survey as the plan requires)
