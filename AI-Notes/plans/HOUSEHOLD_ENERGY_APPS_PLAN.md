@@ -316,6 +316,129 @@ first? Q-O2 keep OpenEMS Edge as the real-time dispatcher permanently or only un
 Q-O3 Polari as a Modbus slave OpenEMS pulls, or Polari pushing over JSON-RPC? Q-O4 a 1 GB JVM per hosting member
 under the swarm memory caps? Q-O5 ask the OpenEMS Association for the GPL secondary licence?
 
+### 3.H OpenModelica and the thermal libraries — winter survivability (survey 2026-09-15)
+
+**Capabilities.** OpenModelica 1.27.1 (Sep 2026) compiles Modelica to C, simulates headless (`omc`), exports FMI 2.0
+ME+CS (FMI 3 experimental, FMU import experimental). Python: OMPython (`ModelicaSystem`: parameters, simulate,
+results as numpy, FMU export), OMSimulator, BuildingsPy (runs OM, reads `.mat`). Docker images
+`openmodelica/openmodelica` v1.27.1 `-minimal` (278 MB) / `-ompython` (301 MB), amd64 + arm64; libraries NOT bundled.
+No published 8760-h house benchmark: reduced-order RC zones + table heat pump + tank are small stiff ODEs, expect
+seconds to minutes — measure before committing.
+
+**Libraries (all BSD-3 unless noted).** Buildings (LBNL) 13 — CI-tested on OM (98 % simulate): reduced-order VDI 6007
+zones, modular reversible heat pumps with 2-D COP tables, stratified storage with losses and internal HX, heat
+exchangers/radiators (EN 442), DHW tank + mixing valve, TMY3/EPW weather reader. IBPSA 4 (98 % on OM). AixLib 3
+("OM-ready" badge; the public coverage page is stale — verify locally). TEASER (MIT): an archetype building from year
+/ area / type → RC parameters and ready models — the "house from a few numbers" tool. BESMod: modular heat pump +
+storage + DHW systems. hplib (MIT): Keymark-fitted COP/P_el(T_source, T_sink) for real and six generic heat pumps,
+pure Python. IDEAS is Dymola-first; BuildingSystems unreleased; ThermoPower (Modelica License 2, plant scale) — skip.
+
+**A first pass without Modelica.** RC_BuildingSimulator (ETH, MIT + citation clause): a 5R1C zone (ISO 13790) with
+window/wall/floor areas, U-values, ventilation/infiltration ACH, thermal capacitance per m², heating set-point and
+system limits → hourly indoor temperature, heating demand, COP, heat-pump electricity; its core is ~200 lines — port,
+do not depend. pyBuildingEnergy (EURAC, BSD-3): ISO 52016-1 hourly + EN 15316 heat pump/storage/DHW, PVGIS/EPW
+weather. Modelica becomes necessary for stratified tanks, hydraulic control loops, multi-zone, sub-hourly transients.
+
+**Weather.** PVGIS TMY (global, 2005–2023, hourly, CSV/JSON/EPW, no registration, attribution); NREL NSRDB for the
+Americas (free key; the site was unreachable from this box — verify terms); ERA5 via atlite (CDS account, attribution);
+Meteostat station data (CC BY 4.0, MIT library).
+
+**Licences.** OpenModelica is OSMC-PL 1.8 = a CHOICE of AGPLv3 or the members-only EPL variant — only the AGPL mode is
+GPL-compatible: run `omc` as its own container, keep an `OSMC-USAGE-MODE.txt`; Polari code that shells out is
+unaffected. OMPython is BSD-3 / AGPLv3 / OSMC-PL — choose BSD-3. Exported FMUs carry the runtime under the same
+triple licence. Everything else BSD-3 or MIT. Footprint ≈ 300 MB image + the Buildings sources + gcc: an engine tier,
+never a core dependency.
+
+**Integration.** Sprint 1 = a native RC engine on the canonical rows: BuildingEnvelope (areas, U-values, C/m², ACH,
+g-value), ThermalZone, HeatPump (hplib map, P_max, T_supply_max), ThermalStore (kWh_th, T, P_max, T_min_useful,
+loss/h), HeatExchanger (ε), ThermalLoad; a 5R1C stepper at 1 h over 8760 h emitting T_in, T_store, P_el_hp, Q_unmet —
+numpy only, inside the existing backend. Sprint 2 = `OpenModelicaEngineAdapter`: render the same rows to a Buildings
+model (reduced-order zone + table heat pump + stratified tank + radiator + TMY3 reader), export an FMU, run in the
+`-ompython` container, read `.mat`, map back to the same result rows — engine-agnostic contract, the provider-select
+pattern Polari already has. **Winter survivability** = an evaluator over the hourly rows: every hour, critical
+electrical loads supplied AND T_in ≥ T_safe AND the unheated pipe zone ≥ 0 °C; report the first failing hour and the
+margins (kWh_th, °C-hours). PyPSA coupling: P_el_hp[h] = Q_hp[h] / COP(T_out[h], T_sink[h]) as a load series, or a
+Link with COP as time-varying efficiency plus a heat Store, so electrical and thermal balances solve together.
+
+**Gaps.** No measured OM runtime yet; a single-zone 5R1C has no stratification and no pipe-freeze physics (the freeze
+check needs an explicit unheated-space node); hplib data are EU Keymark units (US units need NREL/AHRI tables);
+US weather depends on NREL reachability.
+
+**Recommended Polari App.** `thermal_house`: the thermal rows + the native RC engine + hplib COP + PVGIS/Meteostat
+readers + WinterSurvivabilityEvaluator + the PyPSA load export; the OpenModelica adapter as an optional engine tier
+(Buildings 13 in the `-ompython` container).
+
+**Open questions (his).** Q-H1 OpenModelica in AGPL mode as a separate container — confirm with the licence gate;
+Q-H2 first climate: EU (PVGIS/hplib native) or US (NSRDB/AHRI); Q-H3 T_safe and the freeze node: fixed policy or
+per-house knobs; Q-H4 measure an 8760-h Buildings run before committing the adapter.
+
+### 3.OSE Open Source Ecology — the reference house (survey 2026-09-15)
+
+**What exists.** The Seed Eco-Home lineage: SEH1 (2016 swarm build), SEH2 "Rosebud" (1000 sf, built 2022, 4×8/4×9 ft
+wall panels, flat roof, slab), SEH3 (training frame), **SEH4** (1300 sf, 3bd/2ba, Maysville MO, build from Dec 2022,
+sold 2026 for $212k; materials $60k incl. 6 kW PV; labour $44.6k; 1589 h; inspection and structural PDFs; an OSHWA
+certification graphic), SEH5 (2000 sf, foundation 2021), SEH6 (720 → 1400 sf expandable, Sep 2025), SEH7 (engineered
+trusses, Dec 2025). Incremental design is real: pre-framed hidden doors for rear additions, window modules
+convertible to doors, roofs framed for a third floor. A 16×10 ft forkliftable **utility core** (kitchen, bath, heat
+pump, electrical, plumbing, PV on its roof) is offered from summer 2026 (~$20k service, own land) — the earlier
+"utility panel" concept: stub-out plumbing, meter/breaker panel, a two-hour electrical install.
+
+**Electrical/PV as documented.** 26 × 230 W panels (~6 kW), a plug-on-neutral service entrance, a transfer switch, PV
+combiner + DC disconnect, a "power center" wall module, a 24 000 BTU heat pump (rated to −22 °F), induction cooktop,
+tankless DHW. The hybrid-inverter page is shopping research (solar-priority modes, batteryless UL 1741); no as-built
+inverter/battery model is recorded; **no measured energy data anywhere** — "zero energy" is a design claim. Thermal
+storage is a concept ("PV thermal battery": a heat pump charging IBC-tote water banks, 3–12 days claimed; pond
+"geothermal" cooling), several concept pages cite chat-assistant links as sources.
+
+**Assets and formats.** Wiki (CC-BY-SA-4.0; infoboxes add GPLv3 + DIN SPEC 3105); ~100 FreeCAD `.FCStd` module files
+(quad modules with MEP, PV mounts, heat-pump interfaces, spreadsheet-driven module generators); the SEH4 BOM as a
+public Google Sheet (717 rows: item, link, specs, qty, source, price — CSV export works) and a build-time sheet (per
+item hours); GitLab `SH4` (wiring and power-center FreeCAD, the whole-house file) and `seh-2-electrical` (135 electrical
+iterations, STEP, **IFC exports from 2022**, an engineer's PDF; CC-BY-SA-4.0 + DIN SPEC 3105); GitHub `iconic-cad`
+(browser wall layout → JSON → FreeCAD compiler, BOM estimator, experimental IFC4 export; AGPL-3.0; active 2026),
+`vcs-library` (12-ft module library: schema, compiler, meta.yaml provenance, validators; a headless `freecadcmd` mesh
+pipeline; NO SPDX file), the FreeCAD 1.x library workbench and a static catalogue site (no licence stated). Working
+docs: nine Google Slides decks (~1000 pages), 22 000 photos. The "Schema Canon" ontology (parts → modules →
+assemblies → master files → ecosystems, each emitting CAD, fab drawing, BOM, instructions, QC) is the pattern to map
+onto Polari's composition rows.
+
+**Licences.** CC-BY-SA-4.0 → GPLv3 is one-way compatible (CC's declared list): derived geometry/BOM data can live
+inside Polari under GPLv3 with attribution, each record keeping its source URL and licence; AGPL-3.0 code
+(iconic-cad) forked/pinned as `dausume/` mirrors, but linking it into a served backend pulls the network clause —
+read its JSON schema, do not link; `vcs-library` = "OSE / CC-BY-SA claimed, unverified" until a LICENSE lands;
+CERN-OHL-S hardware files are reference only. OSE's own policy: CC-BY-SA content, CERN-OHL-S hardware, AGPL
+software, NC rejected — the same stance as ours.
+
+**Integration.** (1) FreeCAD import: `freecadcmd` headless walks the whole-house document (or vcs-library compiled
+entries) → per-module BREP/mesh + placement → House, floor groups → ThermalZone, wall modules → Wall (orientation
+from the exterior face), window/door modules → Window/Door, roof files → Roof, the 26-panel array → PVSurface (tilt
+and azimuth from placement), heat-pump/power-center modules → EnergyCell endpoints; prefer iconic-cad's JSON layouts
+as the light topology schema (no FreeCAD needed). (2) BOM/cost ingestion: the sheet as CSV with row → URL provenance;
+section totals as CostClaim rows (value, source URL, retrieved, method "OSE spreadsheet"); hours as LaborClaim rows
+with a photo-evidence flag. (3) A reference-house profile `SeedEcoHome4` (1300 sf, two storeys, slab, 2×6 walls, flat
+roof, 6 kW PV, 24 kBTU heat pump, induction, tankless DHW, Maysville MO climate) with SEH2 and SEH6 variants, and the
+IBC-tote thermal battery as an UNVALIDATED storage model to test against climate data.
+
+**Gaps.** Most template sub-pages are empty (electronics design, wiring & plumbing, vBOM, cut list); documentation
+is scattered across wiki, Drive/Slides/Sheets/Photos, two GitLab namespaces and GitHub; no as-built inverter/battery
+spec; no monitored energy data; cost claims vary by outlet ($40k / 5 days in the press vs $60k + $44.6k + 1589 h in
+OSE's own sheets); SEH4 was engineered, inspected and sold (strong buildability evidence) but OSE also lists a
+"rural off-grid, zero inspection" tier; IFC exports are 2022 / 1000 sf only; founder dependence is acknowledged in
+OSE's own Sep-2026 roadmap; the GitHub repos have 0–1 stars.
+
+**Recommended Polari Apps.** `ose_reference_house` (ingests SEH4/SEH2/SEH6 CAD + BOM as provenance-tracked reference
+houses); the `energy_cells` consumer using SEH4 as the canonical test bed with the utility core as an EnergyCell
+archetype; a `thermal_storage_sim` for the IBC-tote bank claims.
+
+**What OSE gains.** A free energy/thermal simulation of the Seed Eco-Home they currently lack; provenance-tracked
+cost and hour claims (their "Replication Readiness Level" idea needs exactly this); a consumer for iconic-cad and
+vcs-library outputs beyond FreeCAD; a validator for Schema Canon BOM/cost assets.
+
+**Open questions (his).** Q-S1 which inverter/battery was actually installed in SEH4 (ask OSE; Work Doc part 6);
+Q-S2 will vcs-library and the library workbench get SPDX licence files; Q-S3 is the 2026 utility-core CAD published,
+where; Q-S4 does OSE want telemetry from occupied units (our privacy rules apply); Q-S5 which IFC schema to standardise
+on for OSE geometry (iconic-cad's IFC4 is experimental).
+
 ## 4. Chunking the work we do not have
 
 (sprints, gates, and the order — filled after §3, so the API freeze follows the survey as the plan requires)
