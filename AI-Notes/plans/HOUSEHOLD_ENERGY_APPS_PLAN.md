@@ -439,12 +439,104 @@ Q-S2 will vcs-library and the library workbench get SPDX licence files; Q-S3 is 
 where; Q-S4 does OSE want telemetry from occupied units (our privacy rules apply); Q-S5 which IFC schema to standardise
 on for OSE geometry (iconic-cad's IFC4 is experimental).
 
-## 4. Chunking the work we do not have
+## 4. Chunking the work we do not have — the proposal
 
-(sprints, gates, and the order — filled after §3, so the API freeze follows the survey as the plan requires)
+### 4.0 What the survey changed in the plan
 
-_pending_
+- **Integrate, wrap, reference, reimplement — settled per project.** ThingSet + python-thingset: WRAP (Apache-2.0,
+  adopt as the cell interface). Libre Solar firmware: WRAP over the protocol, vendor only the OCV/config tables as data,
+  run the native_sim builds as the twin. PyPSA/linopy/HiGHS, pvlib, hplib, TEASER, Buildings/IBPSA: INTEGRATE as pip
+  or Modelica dependencies (MIT/BSD). pandapower + dss_python: INTEGRATE (BSD). OpenModelica: INTEGRATE as a separate
+  container in AGPL mode. **OpenEMS: REFERENCE only** — EPL-2.0 without the GPL secondary licence forbids vendoring;
+  run Edge as its own container and speak JSON-RPC, transcribe register maps as data. OSE: REFERENCE DESIGN + BOM /
+  cost / buildability EVIDENCE + ARCHITECTURAL PRIOR (CC-BY-SA data ingested with provenance; AGPL iconic-cad read as a
+  schema, never linked). The 5R1C thermal core: REIMPLEMENT (200 lines, MIT reference). The per-circuit transfer
+  device and the GRID-xor-MICROGRID proof: **Polari-owned** — nobody upstream has it.
+- **Two adapters, not one, at the physical layer:** ThingSet for MCU-class cells (BMS, MPPT, relays), OpenEMS for
+  third-party inverters/meters/EVSE over Modbus/SunSpec/OCPP. They are complementary layers; Polari owns topology,
+  switching rules, planning and provenance above both.
+- **Safety is UNPROVEN by default and the list of unprovable questions is explicit** (ground faults, arc faults,
+  islanding, DC faults, transfer timing, comms loss) — the SafetyVerdict row carries every question separately.
+- **The upgrade search lives in Polari, not in the solver:** PyPSA evaluates a candidate sequence as an LP; Polari
+  searches sequences (≤ $300 steps, nothing obsoleted). The switch is a planning knob first (LP), an hourly MILP only
+  for short windows.
+- **The thermal engine starts native (numpy 5R1C, hplib COP, PVGIS weather)** and OpenModelica arrives as an optional
+  engine tier once an 8760-h run has been measured.
+- **The reference house is OSE's SEH4**, with the utility core as an EnergyCell archetype — and OSE's own gaps (no
+  measured energy data, no as-built inverter spec) become the first things Polari can give back.
+
+### 4.1 The modules (Polari app kinds; every one a Standard Polari App with a manifest, rows one-per-file, selftests)
+
+| module | kind · category | what it holds | upstream |
+|---|---|---|---|
+| `energy_core` | library · platform | the canonical energy vocabulary (§1 App A) + ONE provenance row type + the four-status Feasibility row + the S0–S10 ladder | pspp/scoring rows reused |
+| `energy_catalog` | polari-app · platform | TechnologyDefinition rows (App M): project, repo, commit, licence, files, capabilities, limits, interfaces, protocols, cost/performance claims, evidence — seeded from §3 | the licence gate |
+| `energy_cell` | hardware-app · Network Apps → Network Devices / Hardware | the ThingSetAdapter, ThingSetDevice registry, LibreSolar BMS/MPPT adapters, the native_sim twin service on vcan, the OpenEMSAdapter (JSON-RPC), Polari-owned TransferDevice + switching state machine | ThingSet, Libre Solar, OpenEMS |
+| `energy_cell_designer` | polari-app · Materials & Devices | App B: Solar-400/800/1200 classes, the validation rules (Voc cold, MPPT window, series/parallel, ratings) | electrodevice, composition |
+| `house_energy` | polari-app · Food & Living / platform | App D: HouseElectricalSystem, circuits, conductors, breakers, the load taxonomy; App L's house schema + the FreeCAD/iconic-cad import; the OSE reference-house profiles | OSE |
+| `energy_simulation` | polari-app · Knowledge & Media | App G: PyPSAEngineAdapter, scenarios, the 24 h / 8760 h runner, results as Table/Graph rows; App I's EV deadlines; App J/K's sequence search | PyPSA, pvlib |
+| `electrical_safety` | polari-app · Materials & Devices | App F: PandapowerSafetyAdapter, TopologyState enumeration + graph proofs, EarthFaultLoopCheck, IslandingCompliance, SafetyVerdict | pandapower, dss_python |
+| `thermal_house` | polari-app · Food & Living | App H: thermal rows, the native RC engine, hplib COP, weather readers, WinterSurvivabilityEvaluator, the PyPSA load export; the OpenModelica engine tier later | RC_BuildingSimulator (ported), hplib, Buildings |
+| `microgrid_designer` | polari-app · Materials & Devices | App E: hard rules as rows, architecture candidates, the search calling safety + simulation | — |
+
+### 4.2 Sprints and gates (each sprint ends with selftests, a conform pass, a ledger section, and his gate)
+
+1. **Sprint 1 — the vocabulary and the catalogue.** `energy_core`, `energy_catalog` (seeded with the seven projects'
+   TechnologyDefinition rows from §3, provenance on every field), the SEH4 reference-house profile in `house_energy`
+   from the BOM sheet (CSV + row URLs), one Libre Solar-derived device (BMS C1) in the catalogue from its repo/commit
+   /datasheet. Gate: the four statuses and provenance visible on the screens; nothing typed without a source.
+2. **Sprint 2 — one Energy Cell simulated.** `energy_simulation` with the PyPSAEngineAdapter; 3 × Solar-400 + MPPT +
+   battery + inverter + one circuit's loads; 24 h and 8760 h with PVGIS weather; results as Graph rows. Gate: the
+   solver in the image (HiGHS musllinux), runtime measured, curtailment/unserved energy/cycles honest.
+3. **Sprint 3 — the house and the invariant.** `house_energy` circuits with GRID / MICROGRID / DISCONNECTED states;
+   `electrical_safety`'s TopologyState enumeration and the graph proof that no state energises a circuit from both;
+   the SafetyVerdict with the UNPROVEN list; the switch as a schedule in PyPSA. Gate: an UNSAFE and an UNPROVEN
+   architecture both shown with reasons.
+4. **Sprint 4 — the physical cell.** `energy_cell`: the ThingSetAdapter against the native_sim twin on vcan in the
+   compose stack (no hardware), then against a real BMS C1 / MPPT when one exists; the Polari-owned TransferDevice
+   state machine (request → read-back; staleness = fault). Gate: the same adapter code against twin and hardware.
+5. **Sprint 5 — thermal and winter.** `thermal_house` native engine + hplib + weather; the WinterSurvivabilityEvaluator;
+   heat-pump electricity into PyPSA. Gate: the reference house in a winter week with a grid failure, honest margins.
+6. **Sprint 6 — the planners.** EV deadlines (I), the upgrade-sequence search (J), the circuit-conversion order (K)
+   — all evaluated by the sprint-2 adapter. Gate: a ≤ $300-per-month sequence for the reference house with nothing
+   obsoleted, and its reasons.
+7. **Sprint 7 — OSE and the comparison.** The FreeCAD/iconic-cad import path; SEH2/SEH4/SEH6 profiles; the OSE
+   utility core as an EnergyCell archetype; the comparison of the OSE architecture vs the Energy Cell architecture as
+   evidence rows, not a verdict. Gate: what each teaches the other, written down with sources.
+8. **Sprint 8 — engines.** pandapower power flow + short circuit per state; OpenModelica engine tier (after the 8760-h
+   measurement); OpenEMS Edge as a container with the JSON-RPC adapter; failure simulations (battery, cell, MPPT,
+   transfer). Then the architecture search (E). Gate: SAFE reachable for at least one architecture with every modelled
+   question passing, UNPROVEN still listed.
+
+Hardware-in-the-loop stages S0–S10 and the reference experiment (§21 of his plan: 8 kWh/day, Solar-400, ≤ 1200 W
+cells, two EVs, the ten scenarios) are rows from sprint 1 and run from sprint 2 on; nothing physical before S2's
+safety-review gate row is signed.
+
+### 4.3 What this gives Libre Solar and OSE
+
+- Libre Solar: system-level simulation and planning around their BMS/MPPT (they have none), provenance-tracked
+  device configs, fleet views over ThingSet, the AC-side story (transfer switching) they lack; a PR opportunity — a
+  BMS-IC mock upstream — and a second serious ThingSet consumer.
+- OSE: the first energy/thermal simulation of the Seed Eco-Home, provenance-tracked cost and hour claims (their
+  Replication Readiness Level needs exactly that), a consumer for iconic-cad/vcs-library beyond FreeCAD, a validator
+  for Schema Canon BOM/cost assets, and an EnergyCell reading of their utility core.
+- Both: a place where "designed / simulated / tested / permitted" are kept apart, so experimental architectures the
+  codes do not yet permit can still be studied honestly.
 
 ## 5. Decisions for him
 
-_pending_
+- **D-E1 Jurisdiction first:** IEC 230 V TN/TT or NEC 120/240 split-phase — decides OpenDSS vs pandapower alone,
+  ampacity tables, and the ground-fault check.
+- **D-E2 ThingSet as the preferred cell interface now (v0.6, pre-1.0)**, with OpenEMS for third-party inverters.
+- **D-E3 The switch semantics:** EXEC with state read-back, or UPDATE of a writable item; and Polari's transfer-device
+  hardware, if we design one, under CERN-OHL-W to match Libre Solar.
+- **D-E4 Is a UL 1741-SB / IEEE 1547 certificate acceptable evidence for islanding, or does it stay UNPROVEN?**
+- **D-E5 The switch in planning: a schedule (LP) by default, MILP only for short windows.**
+- **D-E6 First climate and weather source:** EU (PVGIS + hplib native) or US (NSRDB + AHRI); the reference house is in
+  Missouri.
+- **D-E7 OpenModelica in AGPL mode as a separate container — accept?** (legally clean; confirm with the licence gate.)
+- **D-E8 OpenEMS: ask the OpenEMS Association for the GPL secondary licence?** Until then, process boundary only.
+- **D-E9 Accept PyPSA's ~300 MB geo/plot dependency tail in the engine image, or a slimmer image with the solver only?**
+- **D-E10 Sprint order as above, or pull Sprint 4 (the physical cell) forward because hardware is on hand?**
+- **D-E11 Contact:** open the conversation with Libre Solar (forum) and OSE (wiki/roadmap) now, or after Sprint 2
+  shows something?
