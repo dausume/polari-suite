@@ -63,7 +63,53 @@ same shape and should share the row type.
 (filled from the seven parallel investigations; each project under: capabilities · useful repositories · reusable
 code · useful data/models · license · integration approach · gaps · recommended Polari App)
 
-_pending_
+
+### 3.F pandapower — the Electrical Safety Simulator (survey 2026-09-15)
+
+**Capabilities.** Balanced and unbalanced (3-phase) power flow; IEC 60909 short-circuit (3ph/2ph/1ph, max/min, inverter
+sources as `sgen` current sources with a `k` ratio); switches (bus-bus, with ratings); lines with ampacity and
+`loading_percent`; a protection module (overcurrent relays, fuses with IEC 60255 curves; no MCB B/C/D curves, no
+RCD/GFCI, no AFCI); DC buses/lines/converters since 3.0; timeseries + controllers; topology graph (connected
+components, unsupplied buses, respecting switches). No native single-phase or split-phase type: a house circuit is a
+balanced positive-sequence equivalent (US 120/240 split-phase → OpenDSS's centre-tapped model if needed).
+
+**What it answers vs what it cannot** (the UNPROVEN list is the point):
+
+| question | pandapower | caveat |
+|---|---|---|
+| normal current / conductor loading | `runpp` → loading vs derated ampacity | ampacity/derating tables (IEC 60364-5-52 / NEC 310.16) are Polari-owned data |
+| reverse current | sign of line/switch flow | fine |
+| fault current | `calc_sc` 3ph/2ph/1ph max/min | 1ph needs zero-sequence data + an earthed transformer |
+| breaker loading | switch rating + relay/fuse curves | MCB curves added as custom characteristics |
+| voltage / drop | `vm_pu` | the 3 % / 5 % limits are policy rows |
+| ground fault disconnection | **no** | in-house Zs loop check (IEC 60364-4-41 / NEC 250); RCD/GFCI not modelled |
+| arc fault | **no** | device-level (UL 1699); arc-flash energy only via a separate lib |
+| inverter fault contribution | `sgen` current source, `k` | manufacturer data; grid-forming (k≈2–3) ≠ grid-following (≈1.1–1.5) |
+| source / transfer / inverter / MPPT failure | state enumeration, `unsupplied_buses`, out-of-service | static only; break-before-make TIMING not simulated; MPPT is DC control, unmodelled |
+| battery isolation | DC switch in service | DC arc/fault current not in `calc_sc` |
+| islanding | **no** | regulatory (IEEE 1547: cease within 2 s; UL 1741) → UNPROVEN unless a device certificate is accepted as evidence |
+| loss of communications | **no** | Polari's own state-machine reasoning |
+
+**Integration.** `PandapowerSafetyAdapter`: a bus per panel/circuit node, conductors → lines (R/X/`max_i_ka`), breakers →
+switches + protective devices, each transfer device → TWO bus-bus switches (GRID side, MICROGRID side), the grid →
+`ext_grid` (s_sc max/min), PV/battery inverters → `sgen` current sources, the battery DC side → `bus_dc`/`vsc`.
+Enumerate every cell state {GRID, MICROGRID, OPEN}; for each, a GRAPH proof (connected components respecting
+switches) that no component holds both the grid and an islanded inverter and every energised bus reaches exactly one
+source; break-before-make proven by requiring the open-both state between every pair; then power flow, max/min short
+circuit and the protection scenario per state. Verdict rule: SAFE only when every question has a model and passes;
+UNSAFE when any modelled check fails; UNPROVEN when any question has no model.
+
+**Licences.** pandapower BSD-3 (compatible); pandapipes BSD-3; OpenDSS BSD-3 (KLU LGPL) via `dss_python` BSD-3
+(prefer over OpenDSSDirect.py's extra clauses); VeraGrid MPL-2.0; the two IEC 60364 calculators found on GitHub carry
+NO licence → reference only, never copied.
+
+**Recommended Polari App.** `electrical_safety`: rows Circuit, Conductor, ProtectiveDevice, TransferDevice, Source,
+EnergyCell, TopologyState, SafetyVerdict (per-question SAFE/UNSAFE/UNPROVEN + evidence rows); the adapter; in-house
+`EarthFaultLoopCheck` and `IslandingCompliance` (certificate-based); configured Tables only.
+
+**Open questions (his).** Q-F1 jurisdiction: IEC 230 V TN/TT or NEC 120/240 split-phase (decides the OpenDSS need)?
+Q-F2 inverter `k`: manufacturer data or defaults 1.2 / 2.5? Q-F3 is a UL 1741-SB / IEEE 1547 certificate acceptable
+as the islanding proof or does it stay UNPROVEN? Q-F4 do cells share neutral/ground across GRID and MICROGRID states?
 
 ## 4. Chunking the work we do not have
 
