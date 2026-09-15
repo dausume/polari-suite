@@ -1542,7 +1542,7 @@ or files under the framework root (internal) and maps well-known import→distri
 not installed here (paho→paho-mqtt, yaml→PyYAML, cv2, PIL, sklearn, serial, usb, dateutil, bs4, jwt, grpc, RNS, LXMF …).
 The 12 modules now scan clean (appstore: argon2/falcon/minio/…; mqttbridge: paho-mqtt; grpcbridge: grpcio/protobuf;
 composition/mealoptions/nutrition/resources: none). Page render: 25–70 s → 4.6 s cold / instant warm (§ caching).
-OWED: the offline-install re-sweep of the 12 after the redeploy.
+RE-SWEEP after the redeploy (with `pol prod apply` now forcing services onto the rebuilt local images): all 12 offline installs READY → 180/180 variants generated. The human page: 7.6 s cold after boot, 0.3 s warm. Pool after the sweep: 180 files, 448 MB of the 2 GiB cap.
 
 ## §42 — the deb pool policy (2026-09-14; his rulings + the refinements he asked me to advise)
 

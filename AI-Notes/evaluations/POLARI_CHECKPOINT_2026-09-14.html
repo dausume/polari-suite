@@ -79,6 +79,7 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
 <h2>Downloads and apps, live on the home stack</h2>
 <div class="grid">
 <div class="card"><h3>Two forms of every app <span class="pill ok">LIVE</span></h3><p>Every app card shows Install and Access only side by side, in both the Online and Offline tabs. The access form is the app's shell: a launcher that finds the app your isle hosts, or asks you to pick its .isle address, then remembers.</p><ul><li>61 cards on the offline tab, 60 access forms</li><li>Software apps 54, Hardware apps 3, expansions nested under Isle Relay and Voron</li></ul></div>
+<div class="card"><h3>Every variant generates <span class="pill ok">180 / 180</span></h3><p>A sweep asked the home stack for the install and access forms of all 59 apps, online and offline. Twelve offline installs first failed on junk requirements from a text-matching import scanner; it now parses Python properly, and the re-run came back complete. The human page renders in under a second warm.</p><ul><li>Pool policy live: holds of three slow downloads, eviction only for room, a 2 GiB cap, a day's idle purge</li></ul></div>
 <div class="card"><h3>Refusals before anything installs <span class="pill ok">IN THE DEB</span></h3><p>A hardware app's deb refuses on a lightweight docker-swarm isle with your sentence, and on a member without the hardware tier. An expansion refuses without the hardware app it expands. A developer override exists and says so.</p></div>
 <div class="card"><h3>The USB app stick <span class="pill ok">LIVE</span></h3><p>The Offline tab leads with it. A stick carries the platform and any apps, prompts on insert with Install, Not now or Wipe, verifies the install finished, then wipes or keeps by policy. Written from the live stack; a physical stick is still owed.</p></div>
 <div class="card"><h3>Proven for real on isle-core <span class="pill ok">TESTED</span></h3><p>The expansion deb refused at pre-install with nothing staged. The access deb found Gears on the isle and remembered its address. A 30-minute dev posture applied an isle-scoped ssh drop-in, armed its revert timer, printed the warning, and reverted clean.</p></div>
@@ -105,5 +106,5 @@ pol security os audit                 # this machine's rings, warn-only reading<
 <li><strong>Six Dependabot alerts</strong> on the framework repository.</li>
 </ul>
 
-<p class="foot">Everything on this page is committed and pushed on dev across the suite and its submodules. Ledger sections 32 to 40 carry the per-check evidence.</p>
+<p class="foot">Everything on this page is committed and pushed on dev across the suite and its submodules. Ledger sections 32 to 42 carry the per-check evidence.</p>
 </main>
