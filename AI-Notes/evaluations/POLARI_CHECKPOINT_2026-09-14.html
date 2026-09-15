@@ -87,13 +87,22 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-of
 <div class="card"><h3>Access-only tier and access-app kind</h3><p>Members join as Access only, Host or Hardware. Access only installs shells and hosts nothing. The store deb rebuilt today carries the revised doors: install mode, tier, USB stick, public server.</p></div>
 </div>
 
+<h2>New computers: the ISO arc (15 September)</h2>
+<div class="grid">
+<div class="card"><h3>Probe, choose, install <span class="pill ok">LIVE</span></h3><p>A new door on the site walks a person through it: a probe kit for the stick with one button per OS, a verdict in plain words derived from the kernel's own driver table, a form for what the machine should become, and an unattended image to copy onto the Ventoy stick. Apple silicon Macs get the blunt message.</p></div>
+<div class="card"><h3>A real image built <span class="pill ok">2.97 GB</span></h3><p>Ubuntu 26.04 cached with its checksum, a member image assembled in about two minutes with BIOS and UEFI boot intact, our autoinstall, the platform deb and the device's plan inside, and a serial console for headless installs. This machine's own probe reads compatible with every driver named.</p></div>
+<div class="card"><h3>Owed <span class="pill warn">IN PROGRESS</span></h3><p>The KVM boot on isle-core through to first boot, the probe kit on a real Windows and Mac, Ventoy on a physical stick, and how join tokens live on the stick, which is your decision.</p></div>
+</div>
+
 <h2>How to look for yourself</h2>
 <p>The home lean stack on pol-core serves the current dev branch. From the suite checkout:</p>
 <pre>pol prod status                       # the stack and its addresses
 pol apps status gears --form access --from &lt;api url&gt; --insecure
 pol apps access gears --flavor offline --from &lt;api url&gt; --insecure -o gears-access.deb
 pol deploy inventory isle-core        # the machine's ssh surface and permission levels
-pol security os audit                 # this machine's rings, warn-only reading</pre>
+pol security os audit                 # this machine's rings, warn-only reading
+pol iso kit /media/$USER/&lt;stick&gt;   # the probe kit onto a stick; then pol iso probe &lt;stick&gt;
+pol iso build --role member --target &lt;hash&gt; --wait   # an unattended image for that computer</pre>
 <p>In a browser: the Downloads page under both tabs, the isle topology's ssh panels, the security overview and the threat simulations, and the notice bar. None of these were seen in a browser today because the Chrome extension was not connected, so the first browser pass is yours.</p>
 
 <h2>Owed</h2>
