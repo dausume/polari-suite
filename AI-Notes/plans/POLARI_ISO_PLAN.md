@@ -184,3 +184,19 @@ typed at the console). Decide before the first token is written.
 
 **His decisions:** D-P1 Ventoy as the base · D-P2 scripts first, signed apps later · D-P3 one stick for probe +
 install (Ventoy makes it possible) or two · D-P4 token handling · D-P5 Apple silicon out of scope. Not started.
+
+### §P decisions 2026-09-15 (his)
+- **D-P1 DECIDED: Ventoy is the base.** Requirement: USER-FRIENDLY end to end — a `README.html` at the stick's root
+  that opens in any browser with one big button per OS ("I am on Windows" / "I am on a Mac" / "I am on Linux"),
+  each launching its probe with the fewest clicks that OS allows (Windows: a `.bat` that runs the `.ps1` with the
+  policy bypass; macOS: a `.command` plus the one Terminal line for a FAT stick; Linux: the shell script); plain-
+  language verdicts ("Ubuntu will run on this computer; the WiFi needs one extra driver, the installer adds it");
+  never a raw ID list without the sentence that explains it.
+- **The Apple silicon message (his ruling: say it blatantly).** The probe on an Apple silicon Mac stops and shows:
+  *"This is an Apple silicon Mac. Apple does not publish the hardware documentation or drivers an open-source
+  operating system needs, so Ubuntu does not run on this computer and Polari cannot be installed on it. The only
+  Linux that runs here is the volunteer Asahi project, with partial support. To run Polari, use a computer built on
+  open hardware documentation — any PC, or an Intel Mac."* (Blunt about Apple's choice; accurate about Asahi, so a
+  person who searches finds nothing we misstated.)
+- D-P2 (scripts first) · D-P3 (one stick) · D-P4 (tokens) · D-P5 (Apple silicon out of scope — now a message, not a
+  silence) remain his; the first build starts when he says so.
