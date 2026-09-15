@@ -1561,3 +1561,21 @@ when no installer is staged (his call).
 | `app_debs_selftest` (19/19) | a 2-hour-old deb is KEPT by the policy; an explicit ttl still purges by age |
 | API | status carries requested_at, requests, downloads, hold_until, hold_remaining_seconds, evictable, retention sentence, pool {used,max,free,slow_bps}; request answers 507 when the pool is full past every hold; the download stream is tracked (in flight, timed, counted) |
 | knobs | POLARI_APP_POOL_MAX_BYTES (2 GiB), POLARI_SLOW_DOWNLOAD_BPS (250000), POLARI_APP_DEB_TTL=0 = delete after delivery |
+
+## §43 — the app taxonomy and the apps catalogue page (2026-09-14; his rulings)
+
+His rulings: installing Polari (complete / step-by-step) and installing apps are SEPARATE pages; apps are sortable and
+searchable; three major categories — Polari Apps (normal web apps), Network Apps (VPN, Reticulum, isle guests,
+bridges), Hardware Apps — with sub-categories beneath; ONE primary category per app, N sub-categories; search all
+or inside the category (two interfaces / a switch); Business & Work = bizops, odooconnect, collab only; pspp is
+materials first.
+
+| check | result |
+|---|---|
+| vocabulary | `moduleService/app_taxonomy.py`: 3 categories, 15 sub-categories (7 Polari, 4 Network, 4 Hardware); every polari-app.json now declares category / subcategories / tags (60 written; conform checks the vocabulary; regeneration preserves them) |
+| `selftest_app_taxonomy` 9/9 | every module mapped; cross-listing (isle_relay: network, secondary hardware); the two rulings; search by property; the kind fallback |
+| `/downloads/apps` (rendered on this checkout) | Polari 8 groups (Materials 9 · Making 12 · Food 5 · Environment 9 · Business 3 · Knowledge 11 · Platform 8); Network: VPN 1 · Mesh 1 · Isle guests 3 · Bridges 3; Hardware: Fabrication 5 · Network devices 4 · Chip design 3 (Robotics empty → hidden); search "wifi" all → 2; "gears" inside Network → nothing, scope all → found; sort by requests/size/recent |
+| `/downloads` | Install Polari only: installers, USB stick, media set, and an "Add apps" signpost with the three categories' counts and a search-all box |
+| API | `/api/apps` rows carry category/subcategories/secondary/tags/runs_on; `?q=&category=&subcategory=&kind=&tier=&sort=` filter and sort the same way; `taxonomy` in the answer |
+| page suites | downloads 16/16 · app_debs 19/19 · module_requirements 14/14 · apps_api 32/32 |
+| OWED | the live pages after the redeploy; a browser pass of the controls (a form, zero JS) |
