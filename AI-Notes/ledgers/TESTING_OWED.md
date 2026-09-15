@@ -1578,4 +1578,5 @@ materials first.
 | `/downloads` | Install Polari only: installers, USB stick, media set, and an "Add apps" signpost with the three categories' counts and a search-all box |
 | API | `/api/apps` rows carry category/subcategories/secondary/tags/runs_on; `?q=&category=&subcategory=&kind=&tier=&sort=` filter and sort the same way; `taxonomy` in the answer |
 | page suites | downloads 16/16 · app_debs 19/19 · module_requirements 14/14 · apps_api 32/32 |
-| OWED | the live pages after the redeploy; a browser pass of the controls (a form, zero JS) |
+| LIVE after the redeploy | /downloads 1.2 s; /downloads/apps 7–9 s cold then instant; Network page 0.08 s; search 0.06 s; API q=wifi → isle_guestnet, isle_relay; business-work → bizops, collab, odooconnect |
+| OWED | a browser pass of the controls (a form, zero JS) |
