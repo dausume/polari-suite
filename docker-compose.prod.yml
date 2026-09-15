@@ -368,7 +368,7 @@ services:
       # — without this, all module/user data lives in the container layer and
       # is wiped on every down/recreate. Mirrors the dev prf_backend_data mount.
       - prf_backend_data:/app/data
-      - /etc/polari:/etc/polari:ro   # the machine's posture (posture.sh / the ISO install) — dev = observe mode (§17)
+      # posture (§17): POLARI_POSTURE above is the source of truth on the swarm (a /etc/polari bind is rejected when the host lacks the directory)
       # Platform debs (polari-isle, polari-complete online/offline, …) —
       # copy the release pool's debs/ here (Jenkinsfile.release stage 'debs').
       - ./.generated/debs:/app/downloads:ro
