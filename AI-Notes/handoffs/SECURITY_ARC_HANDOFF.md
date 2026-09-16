@@ -111,3 +111,5 @@ Added 2026-09-12 (sec-1a, Polari side — plan §13):
 ## 7. Boundaries
 
 No enforcement by default anywhere until §6 steps 1–2 have run clean. No new engines. No history rewrites. No publishing outward (images, releases, packages) without his go. Nothing about isle networking on pol-core beyond the notes file.
+
+**2026-09-16 pointer:** the dev-mode observe / permission observations / ROLE-PLAY → profiles work (his rulings 2026-09-15/16) has its own handoff: `AI-Notes/handoffs/ROLEPLAY_PERMISSIONS_HANDOFF.md` (plan §17/§17b, ledger §48/§49, guide `AI-Notes/guides/ROLEPLAY_PERMISSIONS_GUIDE.md`). The home staging stack runs in DEV posture for his test window.
