@@ -408,3 +408,73 @@ would-have-been-denial becomes a WARNING a person and an API can see.
 admission, join-flow TLS), `/api/security/events` + the `observe-mode` notice + the `security-events` page + the audit
 control, and the DEV VARIANT store form (`polari-dev-<m>`, preinst refusals, `security.devVariant`). Ledger §48. Still to
 thread: content/browser policy hooks, TrustChannel rows for dev-admitted peers, the production landing of the core key.
+
+### §17b — ROLE-PLAY → REVIEW → CONCRETE → VERIFY (his rulings 2026-09-16)
+
+**His rules (verbatim intent).** "Track in dev mode which permission profiles and roles perform what actions — the
+primary route of working out permission profiles for app-level security." Observations count occurrences and must
+never duplicate themselves. Enable/disable that functionality on the fly. Frontend tracking: role-play as a
+Journalist in dev mode (with it enabled) records everything, and reviewing the Journalist role/group shows all the
+apps, pages, functionality and objects used — handed to a permissions admin to concrete into a solid Journalist
+Permissions Role/Group that gets enforced, then re-checked that the job still works. Prototype roles: role-playing as
+one lets you do anything and records your actions to build the profile as a template; the role-play permission is
+its own unique permission, applicable to any non-admin role, and holders can act as any role; a role menu sits in the
+upper right of the header next to the login information.
+
+**The model.**
+- **Prototype roles** — `RolePrototype` rows, lifecycle `prototype → concreted → enforced` (`create_prototype`,
+  `mark_prototype`, `prototypes`), each eventually pointing at the `AppPermissionProfile` it was concreted into.
+- **The role-play permission is its own grant**, not tied to any one non-admin role: `can_roleplay(user_info)` —
+  admins always may; a dev instance with no `roleplay_groups` set lets everyone; with a list, only those KC groups;
+  production, nobody. Set with `POST /api/security/observe {"roleplay_groups": [...]}`.
+- **Sessions** — `ObservationSession` rows (`start_session`/`end_session`); the header `X-Polari-Roleplay: <role>`
+  (plumbed by `accessControl/roleplay_observer.py`, a middleware) attributes every act to `roleplay:<role>` beside
+  the caller's real groups, for the duration of the session.
+- **Two ledgers.** `PermissionObservation` (groups × class × verb, counted, verdict granted-by-profile / admin /
+  would-deny / unauthenticated / ungated) — recorded by the CRUDE gate in dev even with `POLARI_APP_PERMISSIONS=off`.
+  `UsageObservation` (role × kind × item; kinds app/page/component/action/endpoint/object) — endpoints recorded by
+  the middleware, the rest POSTed by the frontend.
+- **The knob** — `knob_state`/`set_recording`/`recording_on`, file `<data>/security/observe.json`
+  (`POLARI_OBSERVE_KNOB` override); default ON in dev, never in production; on/off on the fly per rule 4.
+
+**The workflow, in order** (API doors from `security_api.py`):
+1. Grant the permission (once): `POST /api/security/observe {"roleplay_groups": ["developers"]}` — or skip it on a
+   dev instance with no list, where everyone may.
+2. Create a prototype role: `POST /api/security/observe/roles {"name": "journalist", "title": "Journalist"}`.
+3. Act as it: `POST /api/security/observe/session {"role": "journalist"}` — every request from here on carries
+   `X-Polari-Roleplay: journalist`; the CRUDE gate lets the act through (dev posture, §17) and records it.
+4. Use the product as the role would — the endpoint hits land in `PermissionObservation`; the frontend (owed, below)
+   posts pages/apps/actions to `UsageObservation`.
+5. End the session: `DELETE /api/security/observe/session?role=journalist`.
+6. Review: `GET /api/security/observe/review?role=journalist` — apps, pages, components, actions, endpoints,
+   objects×verbs, acts, would-deny-today, and a `proposed_profile` in `AppPermissionProfile` shape.
+7. The permissions admin narrows the proposal and creates the real `AppPermissionProfile` row, then
+   `POST /api/security/observe/roles/journalist {"state": "concreted", "profile": "journalist"}`.
+8. Set `POLARI_APP_PERMISSIONS=advisory` (or straight to `enforce`).
+9. Verify: `GET /api/security/observe/verify?role=journalist&group=journalist` — every recorded class×verb replayed
+   through `permission_verdict` as a member of that KC group; denied = the job would break.
+10. Mark it enforced: `POST /api/security/observe/roles/journalist {"state": "enforced"}`.
+
+**Built (backend, polari-framework, pushed):** the switch, both ledgers, the knob, sessions + the roleplay header
+middleware, prototype roles, the role-play permission, review/verify, all eight `/api/security/observe*` surfaces,
+the `security-events` display page, the `observe-mode` notice, the audit control. Security selftest 88/91 (the 3
+failures are the same pre-existing environment ones named in §17 — ledger mac_enforced, mac profiles, expired
+internal certs).
+
+**Delegated / owed (the frontend half, polari-platform-angular — spec in the handoff, not built):** the header role
+menu (visible only when `can_roleplay` is true; "Acting as: <role>"; start/stop; new prototype); the roleplay
+service + interceptor (adds the header, batches usage posts); page/app/action usage tracking wired into
+`AppComponent`'s `NavigationEnd` and a `RoleplayUsageDirective`; a Review link into `/display/security-events`.
+Also owed: `TrustChannel` rows for dev-admitted peers (currently only a `SecurityEvent`); content/browser policy
+hooks (still unwired counters, carried over from §17); the `app` column on `PermissionObservation` (class → app
+mapping is still empty, so review's per-app grouping is incomplete).
+
+**Open decisions for him:**
+- D17-1 Should the role-play permission be a KC realm role (e.g. `polari-roleplay`) instead of the `roleplay_groups`
+  knob list, so it is granted the same way every other permission is?
+- D17-2 Should a prototype role auto-create its matching KC group at `create_prototype` time, or stay a plain named
+  row until concreted?
+- D17-3 What is the verify threshold before a profile may be marked `enforced` — zero denials, or an accepted list of
+  "would now deny, and that's fine"?
+- D17-4 Should recorded observations expire alongside the dev posture (§16's time-box), or persist until someone
+  clears them explicitly?

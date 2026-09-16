@@ -1664,3 +1664,31 @@ LIVE 2026-09-15 on the home staging stack in dev posture (`POL_PROD_POSTURE=dev`
 **§48 addendum (2026-09-15, his ask: "track which permission profiles and roles perform what actions — the primary route of working out permission profiles for app level security"):** `PermissionObservation` (28th security class): in dev posture the CRUDE gate records EVERY act — even with `POLARI_APP_PERMISSIONS=off` — as roles × class × verb with the profile that granted and the verdict (granted-by-profile / admin / would-deny / unauthenticated / ungated), counted. `/api/security/observations` lists them (filters groups/class_name/verb/verdict), totals by verdict, and DERIVES one proposed `AppPermissionProfile` per role set in the row's own shape (kc_groups_json / verbs_json / extra_classes_json, unpublished, with the evidence: classes × verb counts, acts, what production would deny, callers) — a suggestion; creating the row is the person's act. The security-events page gained the observations table + the derived panel. Selftest 72/75 (same 3 pre-existing). OWED: live rows from real browser traffic on the dev-posture stack (needs a Keycloak login for roles; anonymous reads land as `unauthenticated`), the `app` column (class → app mapping) is still empty.
 
 **§48 addendum 2 (2026-09-16, his: "permission observations should count how many times they occurred, and not be duplicating themselves"):** two live defects fixed. (1) Rows were created as plain objects on the live stack (an import that does not exist made the code fall through) — the class view broke (`PolyTyping for type SimpleNamespace`); rows are now constructed as tree objects like every module row, and the test-double fallback never enters the manager's tables. (2) A per-name persist rate limit dropped the trailing increments of a burst, so counts fell back after a restart (7 in memory, 4 on disk); now one trailing persist per burst. PROVEN live: five reads → count 9; forced backend restart → still 9, 3 rows, 3 unique names.
+
+## §49 — role-play → profiles (2026-09-16)
+
+Backend for ISLE_HARDENING_PLAN §17b (his rules 2–6: track permission profiles/roles by action; count without
+duplicating; enable/disable on the fly; frontend role-play tracking reviewed into a concreted, enforced profile;
+prototype roles + the role-play permission as its own grant). All below is on `dev`, pushed.
+
+| piece | what exists | proof |
+|---|---|---|
+| role-play sessions | `ObservationSession` rows; `start_session`/`end_session`; header `X-Polari-Roleplay: <role>` via `accessControl/roleplay_observer.py` middleware; the CRUDE gate attributes acts to `roleplay:<role>` beside real groups | built, tested |
+| usages | `UsageObservation` rows (role × kind × item; app/page/component/action/endpoint/object); endpoints recorded by the middleware | built, tested; frontend posting of the rest NOT built |
+| prototype roles | `RolePrototype` rows, `prototype → concreted → enforced`; `create_prototype`/`mark_prototype`/`prototypes` | built, tested |
+| the role-play permission | `can_roleplay`: admins always; dev instance with no `roleplay_groups` → everyone; a list → those KC groups; production → nobody; `POST /api/security/observe {"roleplay_groups": [...]}` | built, tested |
+| review / verify | `review(role)` (apps/pages/components/actions/endpoints/objects×verbs/acts/would-deny-today/`proposed_profile`); `verify(role, group)` replays every recorded class×verb through `permission_verdict` | built, tested |
+| surfaces | all eight `/api/security/observe*` doors (session, usage, review, verify, roles, roles/{name}) plus `/observe` GET/POST | built |
+| selftest | security 88/91 — the 3 failures are the same pre-existing environment ones named in §48: ledger mac_enforced, mac profiles, expired internal certs | `cd polari-rf-node/polari-framework && PYTHONPATH=.:modules python3 modules/security/security_selftest.py` |
+
+OWED:
+- The live proof of a role-play session end-to-end from the browser (act as a role in the UI, confirm
+  `PermissionObservation`/`UsageObservation` rows land, review fills in) — blocked on the frontend below.
+- The frontend build: `roleplay.service.ts`, `roleplay.interceptor.ts`, page/action usage posting, the header
+  role menu, the Review link (full spec in `AI-Notes/handoffs/ROLEPLAY_PERMISSIONS_HANDOFF.md`).
+- The review filling in against real usage (apps/pages/objects populated from actual traffic, not just endpoint
+  hits) — needs the frontend half and a Keycloak-authenticated role-play session (anonymous reads land as
+  `unauthenticated`).
+- A concreted profile + verify on a real KC group: create an `AppPermissionProfile` from a reviewed prototype,
+  mark it `concreted`, run `POLARI_APP_PERMISSIONS=advisory` then `enforce`, verify against the group, mark
+  `enforced` — not yet run against a live group.
