@@ -43,7 +43,20 @@ Security module class count is now 31 (`security_selftest` asserts it; bump when
 in `security_basis.py`, `objects/security/__init__.py`, `security_seed.py`, `polariApiServer/feature_imports.py:1243`,
 `polariApiServer/polariServer.py:~1210`, then `PYTHONPATH=.:modules python3 -m moduleService.manifests generate security`).
 
-## What is NOT built (the frontend half) — the spec for the next agent
+## UPDATE 2026-09-16 (later the same day): the frontend half IS BUILT and DEPLOYED
+
+A non-Fable agent built it from the spec below: `src/app/services/roleplay.service.ts`, `src/app/interceptors/roleplay.interceptor.ts`
+(registered after AuthErrorInterceptor), `src/app/components/header/roleplay-menu.component.ts` (in `header.html` left of the
+login/user button; renders only when the API says `can_roleplay`), page/app usage posted from `AppComponent`'s NavigationEnd
+handler, menu-panel styles in `src/styles.css` (theme tokens). `ng build --configuration=production` passes. Commits:
+polari-platform-angular `0f86756`, polari-rf-node `75e9ba1`, suite `c20b021`. Deployed with `pol prod apply`; the live bundle
+carries `X-Polari-Roleplay`; `/api/security/observe/roles` answers `can_roleplay: true` on the dev-posture stack; a usage POST in
+the service's exact wire shape landed in the journalist review. NOT DONE: an action directive (`{kind: 'action'}`, optional) and
+a BROWSER PASS by eye (the Chrome extension was not connected) — the menu layout, the inline "new prototype role" form inside the
+mat-menu overlay, and dark mode are unconfirmed visually. The backend `app` column now fills (class → module) and the review
+carries `objects_by_app`. Ledger §49 has the live backend proof.
+
+## The original frontend spec (built as above; kept for reference)
 
 Repo: `polari-rf-node/polari-platform-angular` (Angular, NgModule style; interceptors via `HTTP_INTERCEPTORS` in
 `src/app/app.module.ts:441`; backend base URL from `PolariService.getBackendBaseUrl()`; the header is
