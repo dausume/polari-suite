@@ -120,3 +120,40 @@ every recorded act replayed; denied = the job would break) → mark `enforced`.
 - Memory: `~/.claude/projects/-home-user-Desktop-polari-suite/memory/isle-hardening.md`, `polari-iso.md`.
 - ISO arc state: `AI-Notes/handoffs/SECURITY_ARC_HANDOFF.md` and ledger §45–§47; the installed guest runs on isle-core
   (`/tmp/polari-vm/disk.qcow2`, ssh forwarded 2222 → the guest; `pol iso ssh d0177dfddeb3ac99 --host isle-core --port 2222 -- hostname`).
+
+## 2026-09-17 — REAL LOGINS (Keycloak) on the lean demo: IN PROGRESS by a delegated agent
+
+His ask: "incorporate keycloak and actual login capabilities into demo". Decision taken (Fable): keep the LEAN profile and add
+Keycloak + its own small MariaDB to it behind the existing `POL_PROD_AUTH=keycloak` answer, with a NEW answer
+`POL_PROD_PROFILE=lean|full` (default keeps today's behaviour: keycloak → full). The full profile (MinIO + scorecard + Odoo) is
+too heavy for the demo box. The spec given to the builder (an opus agent, running when this was written):
+
+- `prod.sh`: POL_PROD_PROFILE answer (save_answers/load_answers/guide); lean env gains POLARI_AUTH=keycloak, AUTH_URL, KC_HOSTNAME,
+  KC_DB_PASSWORD + MARIADB_ROOT_PASSWORD (generated once, kept), POLARI_KEYCLOAK_ISSUER_URI/JWKS_URI/ADMIN_URL/REALM/ADMIN_CLIENT_ID,
+  CORS incl. auth.$D, COMPOSE_PROFILES=logins; the lean runtime-config JSON gains the `keycloak` stanza (authority
+  https://auth.$D/realms/Polari, clientId polari-frontend, redirectUri https://prf.$D/<callback route>); `pol-keycloak/keycloak-admin.env`
+  generated from the example with a random admin password (gitignored); lean image list adds pol-keycloak + pol-mariadb.
+- `docker-compose.lean.yml`: services `pol-keycloak` + `pol-kc-mariadb` under compose profile `logins` (KC_PROXY_HEADERS=xforwarded,
+  KC_HTTP_ENABLED=true, limits 1024M/384M, healthcheck); prf-backend gets the POLARI_KEYCLOAK_* env via `${VAR:-}`.
+- proxy lean template: `auth.$D` → pol-keycloak:8080 with forwarded headers + big proxy buffers, only when logins are on.
+- realm: `configure_clients.sh` registers https://prf.$D/* redirect + web origin + post-logout; a `groups` claim mapper on
+  polari-frontend; demo accounts seeded by `pol-keycloak/startup_shells/seed_demo_users.sh` (groups journalist / data-scientist /
+  operators; users demo-admin (polari-admin), demo-journalist, demo-scientist, demo-viewer; one shared password in
+  `.generated/demo-users.env`, gitignored; e-mails @example.invalid).
+- docs: guide section "Real logins on the lean demo"; ledger §50.
+- apply on the home stack with POL_PROD_AUTH=keycloak, POL_PROD_PROFILE=lean, POSTURE=dev; verify: OIDC discovery at
+  https://auth.192.168.0.210.nip.io/realms/Polari/.well-known/openid-configuration, the runtime-config stanza, a password-grant
+  token for demo-journalist carrying groups ["journalist"], the bearer accepted by the backend, an observation row with group journalist.
+
+If the agent's report is missing when you read this: check `git log --oneline -8` in polari-cli and the suite root for "keycloak"
+commits, `docker service ls` for pol-keycloak / pol-kc-mariadb, the apply log at
+/tmp/claude-1000/-home-user-Desktop-polari-suite/c5ebcd1c-e979-4661-82e7-f0766a8351e3/scratchpad/prod-apply-kc.log, and ledger §50.
+The BROWSER login pass (click Login on https://prf.192.168.0.210.nip.io, sign in as demo-journalist, see the name in the header, act as
+a role) is HIS to do or a Chrome-connected session's; nobody has done it. Known follow-ups once logins work: set
+`roleplay_groups` to a real KC group; concrete the journalist profile against the real `journalist` group; verify.
+
+## What to do when the Fable budget is gone
+Everything is pushed on dev. Continue with non-Fable agents (opus for builds, sonnet for docs): the owed items are listed in ledger
+§45–§50 and in this file. Rules that must hold: security stays WARN-ONLY in deployments (his ruling); never real identifiers in
+tracked files; deploy only via `pol prod apply` (detached + polled); commit innermost-first and push every repo; keep this handoff
+current.
