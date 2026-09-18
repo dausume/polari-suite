@@ -1910,6 +1910,10 @@ while the secret it holds belongs to `polari-backend`. The client id is now pinn
 `configure_clients.sh`: the `polari-backend` service account already carries realm-management
 `view-realm, manage-users, view-users, query-groups, query-users` (read back from its own token).
 
+**Not redeployed after:** a cosmetic wording fix (`"claimd"` → `"claimed"` in the event reason, framework
+`51fa77b`) landed AFTER the proving deploy, so the two live `role-claim` rows carry the typo until the next
+`pol prod apply`. The tree is correct; the stack was not churned again for a string.
+
 **State left on the live stack:** `journalist` is now flagged `self_claimable: true` (set by the admin-route test),
 so it stays claimable if the stack is ever flipped to production posture. `demo-viewer` holds no role — the claim
 was released again.
