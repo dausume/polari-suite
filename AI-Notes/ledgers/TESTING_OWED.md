@@ -2568,7 +2568,7 @@ module directory** (they are legacy/core feature names), so no manifest can decl
 
 | suite | before | after |
 |---|---|---|
-| `modules/polariapps/apps_selftest.py` | 58/58 | **81/81** (23 new: manifest + persona derivation, the 3–6 budget, idempotent convergence, admin-only POST 401/403, unknown-app refusal, ordered admin binding, derivation never overwrites admin, review suggestions ordered/filtered/never-bound, anonymous 401, no-bound-role empty, two held roles + primary default, primary-first ordering, unheld primary refused, primary switch reorders, remove → removed + suggestion, add → via=added, restore round trip, unknown-app refusal, and two D18-1 checks that no row holds a username or `@`) |
+| `modules/polariapps/apps_selftest.py` | 58/58 | **82/82** (24 new: manifest + persona derivation, the 3–6 budget, idempotent convergence, admin-only POST 401/403, unknown-app refusal, ordered admin binding, derivation never overwrites admin, review suggestions ordered/filtered/never-bound, anonymous 401, no-bound-role empty, two held roles + primary default, primary-first ordering, unheld primary refused, primary switch reorders, remove → removed + suggestion, add → via=added, restore round trip, unknown-app refusal, two D18-1 checks that no row holds a username or `@`, and one that Keycloak's own plumbing never reaches the menu) |
 | `moduleService/selftest_manifests.py` | 7/8 (pre-existing drift) | **8/8** — `modules/security/polari-app.json` was stale since `92e0ab1` and did not list `custom/kc_admin`, `custom/security_claims`, `custom/security_people`; regenerated |
 | `modules/security/security_selftest.py` | 139/142 | **139/142** (the 3 known environment failures) — unchanged |
 | `moduleService/selftest_lazy_imports.py` | 23/23 | **23/23** |
@@ -2576,3 +2576,65 @@ module directory** (they are legacy/core feature names), so no manifest can decl
 
 The falcon route gotcha from §54 was checked explicitly: all thirteen `/api/apps*` routes register with
 `falcon.App().add_route(..., suffix=...)`, so the backend cannot crash-loop at boot on a suffix with no responder.
+
+### Live proof — `polari-lean` on the home swarm, entirely over the API (2026-09-18)
+
+Framework `ee002fd`, node `7097589`, suite `0b96a6c`; two `pol prod apply` runs (the second carried the
+held-roles fix below). Posture `dev`, gate `advisory` — **neither touched**. Bearers minted by password grant
+against `https://auth.192.168.0.210.nip.io/realms/Polari` (client `polari-frontend`).
+
+| what | result |
+|---|---|
+| `GET /api/apps/roles` (anonymous) | **14 bindings**, every one `source: manifest` — 3 `derivedFrom: app.roles` (journalist, data-scientist, operators) and 11 `derivedFrom: personas`, each app resolved to `{name, title, route}` |
+| `GET /api/apps/mine` · demo-journalist | `held_roles ["journalist"]`, `primary_role "journalist"`, `additional_roles []`, and its five bound apps — app-policy, app-scorecards-data-analysis, dmv-policy-analysis, judicial-lean, nutrition-planner — each `via: primary`, each with `/app/<name>` |
+| `POST {remove: ["judicial-lean"]}` then `GET` | the app leaves `apps`, appears in `removed`, and comes back as a **suggestion** (`why: "bound to a role you hold"`) |
+| `POST {add: ["app-topology-network"]}` | an app **no role of theirs binds** joins the list as `via: added` |
+| `POST {restore: ["judicial-lean"]}` | back under `via: primary`; `removed` and `suggestions` both empty again |
+| `POST {primary_role: "operators"}` | **400** — *"'operators' is not a role you hold — your primary role must be one of your own roles (they come from your token, not from this row)"*, `held_roles ["journalist"]` |
+| `POST {primary_role: "journalist"}` | `ok`, and the stored row now reads `primary_role: 'journalist'` |
+| `GET /api/apps/mine` · demo-viewer | `ok: true`, `held_roles ["polari-viewer"]`, `primary_role ''`, `apps []`, `unboundRoles ["polari-viewer"]` — **empty, no error** |
+| `GET /api/apps/mine` · anonymous | **401** *"sign in first — /api/apps/mine answers for the signed-in person, who is identified by their Keycloak subject id"* |
+| `POST /api/apps/roles/journalist` · anonymous | **401** |
+| `POST /api/apps/roles/journalist` · demo-journalist | **403** *"administrators only (ADMIN_ROLES: admin, polari-admin) — your own view is POST /api/apps/mine"* |
+| `POST /api/apps/roles/demo-binding-check` · demo-admin | `ok`, `source: admin`, order preserved `["judicial-lean", "app-policy"]`; an unknown name refused with `knownApps`. The throwaway row was then **deleted through CRUDE** (multipart `targetInstance`) and `/api/apps/roles` is back to 14 — no residue, and `journalist` is still `source: manifest` |
+| `GET /api/apps/roles/journalist/suggested` | `ok`, `suggested: []` (no role-play review has been recorded on this stack since the redeploy), `boundNow` = the five apps, `note` carries "SUGGESTION ONLY" |
+| `UserAppPreference` over CRUDE | **one row**, fields `name` and `sub` both the Keycloak subject id and nothing else; no `demo-` string and no `@` anywhere in it (D18-1 holds on the live tree) |
+| the served bundle | `https://prf.192.168.0.210.nip.io/main.ccb0fdaaa6082993.js` contains **"My apps"** |
+
+**One defect found and fixed on the way (framework `ee002fd`).** The first deploy answered demo-journalist
+`held_roles ['default-roles-polari', 'journalist', 'offline_access', 'polari-user', 'uma_authorization']`:
+`caller_sub_and_groups` borrowed `apps_permissions._shared.caller_groups`, which deliberately UNIONS the
+`groups` claim with realm/client roles so an ungroomed realm still grants permissions. Right for deciding what
+somebody may TOUCH, wrong for a MENU — the header would have offered `uma_authorization` as a primary role. It
+now takes the `groups` claim when the token carries one, realm roles only as the no-group-mapper fallback, and
+in either case drops Keycloak's own plumbing (`offline_access`, `uma_authorization`, `account`,
+`default-roles-*`). Selftest 81/81 → 82/82; redeployed; `held_roles` is now exactly `["journalist"]`.
+
+The live stack is left with demo-journalist's preference row holding `primary_role: journalist` and
+`added: ["app-topology-network"]` — **deliberately**, so his browser pass has something pinned under "Added by
+you" to see and un-pin.
+
+### OWED — his browser pass
+
+Nothing below the API layer has been seen by eye. Sign in at `https://prf.192.168.0.210.nip.io` as
+demo-journalist and look at:
+
+1. **The side nav's first group, "My apps"** — is the heading legible, is the `tune` icon beside it obviously
+   an edit affordance, and do the five journalist apps plus the pinned app-topology-network read as a list
+   somebody would actually use? The role label between the groups is small caps in `--nav-text-faint`; check it
+   is readable rather than invisible on the dark drawer.
+2. **Dark AND light theme** on that group, and the accent edge on the primary role's items
+   (`--brand-indigo`) — it has never been rendered.
+3. **`/apps`** — the bar at the top (primary role chip, additional roles, the count), the per-card
+   **+ add / − hide / ↺ restore** button and the `via` chip beside the title (the card head now carries four
+   things; check it does not squeeze on a narrow window — `flex-wrap` is on, but it is unproven by eye).
+4. **The "Hidden by you" strip** — hide an app, confirm it appears there and one click restores it.
+5. **The header user menu → "Primary role: journalist"** and its submenu. A one-role person sees a submenu of
+   one; sign in as demo-scientist (data-scientist) or claim a second role first to see it with two, and confirm
+   picking one visibly reorders My apps.
+6. **Somebody with no roles** (demo-viewer) — the side nav must show no "My apps" group at all and `/apps` must
+   say "you hold no roles yet", not an error.
+7. **Anonymous** — nothing new anywhere.
+
+Also owed, and cheap once a review exists: act as the journalist role in the role menu for a few pages, then
+`GET /api/apps/roles/journalist/suggested` and confirm the review's apps come back as suggestions with counts.

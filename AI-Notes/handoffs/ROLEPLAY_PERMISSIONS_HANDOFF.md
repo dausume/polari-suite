@@ -308,9 +308,9 @@ review only ever SUGGESTS (`GET /api/apps/roles/{role}/suggested`) — binding i
 Frontend: `AppsNavService.mine$` (+ `refreshMine`/`saveMine`), a **My apps** group ABOVE the app map in the side
 nav, the `/apps` catalogue EXTENDED into the editor (+ add / − hide / ↺ restore per card, hidden strip at the top —
 **no new component**), and **Primary role: \<role\>** in the header's user menu. The auth services, interceptors,
-callback route and `app.module.ts` were NOT touched (a concurrent agent owned them). polariapps selftest **81/81**,
+callback route and `app.module.ts` were NOT touched (a concurrent agent owned them). polariapps selftest **82/82**,
 manifests **8/8** (it also fixed a pre-existing security-manifest drift), security **139/142** unchanged,
-`ng build --configuration=production` clean. Demo bindings: journalist ← scoring + nutrition, data-scientist ←
+`ng build --configuration=production` clean. **Deployed and proven live on `polari-lean`** (framework `ee002fd`, node `7097589`, suite `0b96a6c`; posture still `dev`, gate still `advisory`): 14 bindings all `source: manifest`, demo-journalist answering `held_roles ["journalist"]` with its five apps, the remove/add/restore round trip, an unheld primary role refused 400, demo-viewer empty with no error, anonymous 401, the admin door 401/403/200, and the `UserAppPreference` row on the live tree holding the `sub` and nothing else. One defect found on the way and fixed: held roles came back carrying Keycloak's own plumbing (`offline_access`, `uma_authorization`, `default-roles-*`) because the helper borrowed the permission model's groups-UNION-roles resolution — right for what somebody may touch, wrong for a menu. Demo bindings: journalist ← scoring + nutrition, data-scientist ←
 magnetics + mathshapes, operators ← waxprint + gears + bizops (3–6 apps each). **Hiding an app HIDES it — it grants
 and revokes nothing; permission stays with the `AppPermissionProfile` gate.** Ledger §57 has the build table, the
 decisions, the live proof and what is owed; the guide has "Roles and apps: my apps"; plan §17c records that
