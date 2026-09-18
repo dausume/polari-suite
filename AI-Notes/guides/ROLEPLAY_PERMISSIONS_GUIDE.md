@@ -463,3 +463,46 @@ app-magnetics, app-mechanical, app-business). Eleven more bindings come from the
 **PII.** `UserAppPreference` has no username, e-mail or display-name column and never will: the row id **is** the
 Keycloak `sub` (his rule D18-1). `RoleAppBinding.updated_by` holds a sub as well. Names are resolved at render
 time through `GET /api/security/people/{sub}` and nowhere else.
+
+## Your tailored home (2026-09-18)
+
+His words: *"If you have my apps selected or a role selected, and apps exist that are assigned to those roles, we
+should have a secondary landing page you can land on that lets you choose from your own apps. It should still be
+possible to go to the main Polari Home page via another route, but when logged in as your user it takes you to
+your tailored home page."*
+
+There are now **two homes**, and one rule decides which one you get.
+
+| route | page | who lands here |
+|---|---|---|
+| `/` | the main Polari home — **or** a redirect to `/home` | everybody; the redirect happens only under the rule below |
+| `/home` | **your tailored home**: your own apps as cards | anybody who asks for it; it has nothing tailored to say to an anonymous visitor |
+| `/polari` | the main Polari home, always, no redirect | the "Polari home" link, and anybody who wants the main page on purpose |
+
+**The rule.** Landing on the bare `/` takes you to `/home` when **all** of these hold: you are signed in, at least
+one app is in your My apps (§57 — a role of yours binds it, or you added it), you have not asked for the main page
+this session, and no shell clamp (`?shellApp=`) is in force. Otherwise `/` renders the main Polari home exactly as
+it always did. **A deep link is never redirected** — the guard is on the bare landing route and on nothing else —
+and an anonymous visitor never even costs a round trip, because the check reads the auth session before asking the
+backend anything.
+
+**Staying on the main page.** Clicking **Polari home** on the tailored page takes you to `/polari` *and* remembers
+the choice for the browser session (sessionStorage `polari-home-choice` = `polari`), so `/` stops bringing you back
+until you change your mind. `?home=polari` on the landing does the same thing without the click — useful in a
+bookmark. Opening `/home` yourself, or `?home=mine`, lifts the choice again. Nothing about it is stored on your
+row; a new tab starts fresh.
+
+**What the page shows.** One call — `GET /api/apps/mine` — rendered as the /apps catalogue's own cards, in three
+groups: **Your primary role: \<role\>** (with the accent edge the side nav uses for the same apps), **Additional
+roles** (each card chipped with the role that brings it), and **Added by you** (what you pinned). Each card opens
+the app's own home, `/app/<name>`. Above them: **Polari home**, **Choose your apps** (→ `/apps`, where you add and
+hide), a note of how many apps you have hidden, and — only if you hold more than one role — a **Primary role**
+switch, the same call the header menu makes. Hold no roles, or roles that bind nothing, and the page says so
+plainly and points at the catalogue; it is never an error.
+
+**The logo.** The header's Polari mark is now the way home, and it asks the same question, so the logo and the
+landing can never disagree: your tailored home when you have one, the main Polari home otherwise.
+
+**A locked shell still wins.** `?shellApp=<name>` clamps the whole browser session to one app (sep-0); the clamp
+guard runs first and sends `/`, `/home` and `/polari` alike to that app's home. Neither home exists inside a
+clamped shell.

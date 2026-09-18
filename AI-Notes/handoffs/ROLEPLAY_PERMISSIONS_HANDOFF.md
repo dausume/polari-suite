@@ -341,6 +341,27 @@ tailored page); anonymous users and people with no apps land on the main home as
 out before" — the agent was told to look for an existing persona/app-home page (AppHomeComponent `/app/:name`, the personas in
 `/api/apps/nav`, sep-0's shell clamp `lockTo`) and EXTEND rather than duplicate. Ledger §58 when done.
 
+**NEXT ITEM — DONE (2026-09-18, ledger §58).** The TAILORED HOME is built, deployed and live on `polari-lean`:
+framework **`6e19d03`**, angular **`68a8ed4`**, node **`a305ee6`**, suite **`5a60d85`**. Prior art was found and
+EXTENDED, not duplicated — §57's `GET /api/apps/mine` + `AppsNavService.mine$` is the entire read model (no new
+door, no new row), the cards are the `/apps` catalogue's own stylesheet listed first in the page's `styleUrls`,
+every card opens the app's existing `/app/<name>` home, and sep-0's clamp decides first and wins. There was **no**
+prior persona/landing/dashboard page: `components/home` is the static framework page and `app-home.component.ts`
+is one app's front door, so `/home` = `MyAppsHomeComponent` is new — a page component rather than a `mine` mode on
+the catalogue, because a catalogue (every app, a deployment plan, export/build, persona filters) is the opposite
+shape to a landing page; no new REUSABLE component was introduced. Routing: `''` keeps the main Polari home and
+gains `tailoredHomeGuard`, `/polari` is the same main home unguarded, `/home` is the tailored page. The redirect
+fires **only** on the bare landing, **only** when signed in with ≥1 app in My apps, never on a deep link, never
+for anonymous (no round trip either), and is escapable for the browser session by "Polari home" / `?home=polari`
+(sessionStorage `polari-home-choice`), liftable by `?home=mine` or by opening `/home`. The header logo is now the
+way home and asks the same one question (`AppsNavService.homeRoute()`). The only backend change is `useCase` on
+`app_index()` so a card says what the app is for. polariapps selftest 82/82 → **84/84** on the host (83/84 in the
+live container — the pre-existing sep-7 ENFORCE gate check, unrelated), apps-nav specs 9/9 → **15/15**,
+`ng build --configuration=production` clean, `/home` and `/polari` both 200 and the served chunk carries all four
+strings. **STILL HIS: the browser pass** — nothing about the REDIRECT has been seen by eye; ledger §58 lists the
+eight steps (land signed in, "Polari home" holding for the session, a deep link untouched, anonymous, the logo,
+both themes, a narrow window, demo-viewer).
+
 **How to continue after a clear:** read this file top to bottom, then ledger §48–§58, then the guide. Rules that hold: security
 WARN-ONLY in deployments (never `enforce`); Polari rows key people by Keycloak `sub` only; no real identifiers in tracked
 files; deploy only via `pol prod apply` (detached + polled); commit innermost-first and push every repo; hand work to

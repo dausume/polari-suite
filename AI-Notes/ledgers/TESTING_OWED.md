@@ -2638,3 +2638,110 @@ demo-journalist and look at:
 
 Also owed, and cheap once a review exists: act as the journalist role in the role menu for a few pages, then
 `GET /api/apps/roles/journalist/suggested` and confirm the review's apps come back as suggestions with counts.
+
+## §58 — the tailored home (2026-09-18, his ask; built, selftested, live proof below)
+
+His words: *"If you have my apps selected or a role selected, and apps exist that are assigned to those roles, we
+should have a secondary landing page you can land on that lets you choose from your own apps. It should still be
+possible to go to the main Polari Home page via another route, but when logged in as your user it takes you to
+your tailored home page. I feel like we may have built this out before."*
+
+### Prior art — what was found, and what it was made of
+
+He was right that pieces existed; none of them was this page, and all of them were reused rather than duplicated.
+
+| prior art | what it actually is | how §58 uses it |
+|---|---|---|
+| `GET /api/apps/mine` + `AppsNavService.mine$` (§57, yesterday evening) | the whole read model: held roles, primary role, the person's apps already ordered primary → additional → added, what they hid, what to restore | **the only call the page makes.** No new door, no new row, no new service |
+| the **My apps** side-nav group (§57) | the same list as a menu | the page is the same data at landing scale; both read one subject, so they cannot disagree |
+| `/apps` = `AppsHomeComponent`, the catalogue **and** the My-apps editor (§57) | every app on the instance, a deployment plan per card, export/build, persona chips, + add / − hide / ↺ restore | its **stylesheet is this page's first stylesheet**, so the cards are literally the same CSS; "Choose your apps" links to it as the editor |
+| `AppHomeComponent` at `/app/:name` | one app's own home — every app has one | every card's destination; nothing guesses a nav item |
+| `/api/apps/nav` **personas** | a discipline filter over the catalogue ("I am a…"), not a person's own page | left alone — personas are a filter, roles are held. §57 already uses persona names as the binding *fallback* |
+| sep-0's clamp `lockTo` / `shellAppGuard` | `?shellApp=` locks the session to one app | decides first, and wins: the clamp guard is a `canActivateChild` on the parent route, so it runs before this one |
+| sep-7's `autoRouteIfSingleApp` | a landing behaviour that already existed: grants covering exactly ONE app enter it clamped | untouched; it clamps, and a clamp has no tailored home |
+| `XrCapabilityService`'s headset banner on the main home | the house style for "suggest, never redirect" | the opposite decision here, taken deliberately and made escapable — see the session choice |
+
+**No persona/dashboard/landing component existed.** `components/home` is the static Polari Research Framework
+page; the only other "home" is `app-home.component.ts`, one app's front door.
+
+### What was built
+
+| piece | where | state |
+|---|---|---|
+| the page | `src/app/components/apps/my-apps-home.component.{ts,html,scss}` | `/home`: three groups of cards — **Your primary role: \<role\>**, **Additional roles**, **Added by you** — plus "Polari home", "Choose your apps", the hidden count, and the primary-role switch when more than one role is held |
+| the landing rule | `src/app/guards/tailored-home.guard.ts` | a `canActivateFn` on the **bare `''` route and nothing else** |
+| the routes | `src/app/app-routing.module.ts` | `''` → main home (guarded), `polari` → the same main home unguarded, `home` → the tailored page |
+| where "home" points | `AppsNavService.homeRoute()` / `tailoredHomeApplies` / `polariHomeChosen` / `choosePolariHome()` / `chooseTailoredHome()` / `whenMineLoaded()` | ONE question, asked by both the guard and the header |
+| the logo | `components/header/header.{ts,html,css}` | the Polari mark is now the way home, keyboard-reachable, and follows the same rule |
+| the card's missing line | `modules/polariapps/custom/apps_roles.py` — `app_index()` gains `useCase` | the only backend change: the `use_case` string `GET /api/apps` already publishes, so the card says what the app is *for* |
+
+**A page component, not a mode on the catalogue** — stated, because the brief asked for the reason. The catalogue
+is every app on the instance with a deployment plan, an export, a build link and a persona filter per card; a
+landing page is only yours, with none of that. A `mine` flag on `AppsHomeComponent` would have been a second page
+hidden inside the first. **No new reusable component was introduced** — the cards, chips and buttons are the
+catalogue's existing CSS, listed first in `styleUrls` so the two surfaces cannot drift apart.
+
+### The rule, exactly
+
+Landing on the bare `/` redirects to `/home` **only** when all of: signed in (a synchronous read of
+`AuthSessionService`, which the single chained `APP_INITIALIZER` has already settled — the auth services were NOT
+touched), **and** `mine` holds ≥ 1 app, **and** no session choice of the main page, **and** no shell clamp.
+
+- **Never on a deep link** — by construction, not by a check: the guard is on `''` alone.
+- **Never for anonymous** — and it costs them no round trip; the auth read comes first.
+- **Never when My apps is empty.**
+- **Escapable, per browser session:** "Polari home" goes to `/polari` *and* sets sessionStorage
+  `polari-home-choice` = `polari`; `?home=polari` does it without the click; `?home=mine`, or opening `/home`,
+  lifts it. Nothing is stored on the person's row.
+- **The clamp wins.** `shellAppGuard` (a `canActivateChild` on the parent route) runs first and sends `/`,
+  `/home` and `/polari` alike to the locked app; `tailoredHomeApplies` also refuses under a lock, so neither
+  direction can undo it.
+- **A backend that does not answer renders the main home** after 4 s rather than holding a blank page.
+
+### Selftests
+
+| suite | before | after |
+|---|---|---|
+| `modules/polariapps/apps_selftest.py` | 82/82 | **84/84** (2 new: every app in `/api/apps/mine` carries the `{name,title,useCase,route}` a card needs; a hidden app and its suggestion carry the same shape) |
+| `src/app/services/apps-nav.service.spec.ts` (Karma, headless Chrome) | 9/9 (sep-0) | **15/15** (6 new §58: unasked → main; anonymous 401-shaped → main; signed in with no apps → main; one app → `/home`; the session choice and its lifting; the clamp always wins) |
+| `npx ng build --configuration=production` | clean | **clean** (only the pre-existing CommonJS and 5 MB budget warnings) |
+
+### Live proof — `polari-lean` on the home swarm (2026-09-18, entirely over the API)
+
+Framework `6e19d03`, node `a305ee6`, suite `5a60d85`; one `pol prod apply`, 6/6 services, backend `online`
+6/6 modules. Posture `dev`, gate `advisory` — **neither touched**.
+
+| what | result |
+|---|---|
+| `GET /home` on the site | **200**, the SPA shell (`<app-root>`), as does `GET /polari` |
+| the served runtime | `main.7d16a63a2931d578.js` carries `path:"home",loadComponent:…MyAppsHomeComponent` and `path:"polari",…HomeComponent`, and the string `polari-home-choice` |
+| the tailored page's own chunk | `6720.a9908330210afc95.js` (the hash the served runtime names) carries **"Your primary role"**, **"Additional roles"**, **"Added by you"**, **"Polari home"** and **"Choose your apps"** |
+| `GET /api/apps/mine` · demo-journalist | `held_roles ["journalist"]`, `primary_role "journalist"`, six apps — five `via: primary` (app-policy, app-scorecards-data-analysis, dmv-policy-analysis, judicial-lean, nutrition-planner) and app-topology-network `via: added`, the row §57 left pinned on purpose. **Every one carries a non-empty `useCase`** alongside name/title/route, so the cards render from this one call |
+| `GET /api/apps/mine` · anonymous | **401**, unchanged |
+| `apps_selftest.py` in the live container | **83/84** — the one failure is `sep-7 gate: ENFORCE refuses with the verdict (403)`, which flips `POLARI_APP_PERMISSIONS=enforce` against the container's own grant state; it is unrelated to §58 (nothing here touches the permissions gate) and passes 84/84 on the host |
+
+**The redirect itself is HIS to see.** Every check above is an API or a bundle check; whether landing signed-in
+actually lands you on your own page, whether "Polari home" holds for the session, and whether the page reads
+well in either theme cannot be proven without a browser. See OWED below.
+
+### OWED — his browser pass
+
+Nothing about the REDIRECT has been seen by eye, and it is the half only a browser can show:
+
+1. **Land signed in.** Open `https://prf.192.168.0.210.nip.io/` as demo-journalist in a fresh tab — it should
+   land on the tailored home, with the five journalist apps under "Your primary role: journalist" and
+   app-topology-network under "Added by you" (§57 left it pinned on purpose).
+2. **"Polari home"** — click it: the main Polari page, and then going back to the bare URL must *stay* on the
+   main page for the rest of that tab's session. Open `/home` again and the bare URL should tailor once more.
+3. **A deep link is untouched** — `…/scoring/survival` or `…/display/security-events` in the same signed-in
+   session must go straight there, no bounce.
+4. **Anonymous** — a private window on the bare URL must show the main Polari home, unchanged, with no flicker
+   through the tailored page.
+5. **The logo** — it is now clickable; check it goes where the rule says and that the focus ring and the round
+   crop read acceptably in both themes.
+6. **Dark AND light** on the page itself: the group headings in `--text-on-bg-muted`, the primary group's
+   `--brand-indigo` left edge, the role chips. It has never been rendered.
+7. **Narrow window** — the card grid is the catalogue's `auto-fill, minmax(360px, 1fr)`; check the header's row
+   of links wraps rather than squeezing.
+8. **demo-viewer** (roles that bind nothing) — the bare URL must render the MAIN home, and `/home` typed by hand
+   must explain itself rather than error.
