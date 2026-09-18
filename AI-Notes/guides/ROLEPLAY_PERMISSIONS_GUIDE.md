@@ -345,7 +345,121 @@ is cleared anyway — a half-finished sign-out must not persist across a restart
 away. Same for "clear site data" and for a profile set to block site data (there `durableStore()` degrades to
 `sessionStorage`, then to memory, rather than failing at boot).
 
+**Resuming on landing (2026-09-18, second report).** *"hitting login seems to quickly register the login but it
+does not do so automatically when I land on the site."* Two more faults. First, the restore was never running:
+`app.module.ts` had two `APP_INITIALIZER`s and Angular starts them **all in one synchronous pass** — it only
+`Promise.all`s the results — so `AuthSessionService.start()` ran while `runtime-config.json` was still
+downloading, read "no keycloak stanza", and returned for the life of the page. Pressing Login still worked
+because the `UserManager` is built lazily, by which time the config had landed. It is one chained initializer now
+(`initialize().then(start)`), and `start()` also awaits `OidcService.whenConfigured()` so the race cannot come
+back. Second, "no local tokens but Keycloak still has a session" was unreachable: the only route to it was
+oidc-client-ts's hidden `prompt=none` iframe, and `prf.<host>.nip.io` / `auth.<host>.nip.io` are separate
+**sites** (`nip.io` is on the Public Suffix List), so the SSO cookie is third-party and withheld — the frame
+answers `login_required`, or times out after ten seconds, for a session that is alive. So the boot ladder is now:
+
+| on landing | what happens |
+|---|---|
+| live user in `localStorage` | used as-is, no network |
+| expired user **with** a refresh token | `signinSilent()` — refresh grant against the token endpoint, no frame, before any redirect |
+| no usable user, `polari-sso-checked` unset | **one** top-level `signinRedirect({prompt:'none'})` — check-sso, the way Keycloak's own adapter does it when iframes can't work |
+| no usable user, flag set | nothing. Anonymous, no redirect |
+| no `keycloak` stanza (lean) | nothing. There are no logins here |
+
+The return leg lands on `/callback`. A code means an ordinary sign-in and the flag is cleared. `login_required` /
+`interaction_required` means nobody is signed in: the flag goes into `sessionStorage`, the person is put back on
+the path they asked for, and **no error UI is shown** — they never pressed Login. `sessionStorage`, not
+`localStorage`, on purpose: a new window deserves a fresh ask, which is how someone who signed in elsewhere gets
+picked up. Sign-out pre-sets the flag before the end-session redirect, so "sign out, then land again" costs no
+round trip. A loop fuse (two launches inside 30 s) covers the paths where the return leg cannot set the flag.
+
 **Where it is set.** `polari-platform-angular/src/app/services/auth/oidc.service.ts` (the stores) and
 `pol-keycloak/startup_shells/configure_clients.sh` (the lifetimes, re-asserted on EVERY Keycloak boot as an
 idempotent read-patch-PUT of the live realm). `realm-imports/polari-realm.json` carries the same values but is
 read **only when the realm does not yet exist** — never edit only that file and expect a deployed realm to change.
+
+## Roles and apps: my apps (2026-09-18)
+
+His words: *"We want to be able to have a primary role and additional roles. We will want to be able to tie Apps to
+roles so that the user can see and navigate to the apps they need more easily. And then the user should be able to
+refine that further and add apps they want to use or remove ones they do not care about."*
+
+Three layers, in this order, and the layering is the whole design.
+
+| layer | where it lives | who decides |
+|---|---|---|
+| **institutional** — role → apps | `RoleAppBinding` rows (`polariapps`) | the modules themselves (a manifest's `app.roles`), or an administrator, or an accepted role-play review |
+| **held** — which of those roles are yours | the `groups` claim of your token | Keycloak. Nothing is stored in Polari, so a binding can never claim a role you do not hold |
+| **personal** — your primary role, your additions, your hidden apps | `UserAppPreference` rows, keyed by your Keycloak `sub` alone | you |
+
+**Hiding an app hides it.** It grants nothing and revokes nothing — permission stays with the
+`AppPermissionProfile` gate (`accessControl/app_permissions_gate.py`). "My apps" is navigation.
+
+**Where the bindings come from.** A module declares the roles its capability serves in its own
+`modules/<pkg>/polari-app.json`:
+
+```json
+"app": { "kind": "polari-app", "…": "…", "roles": ["journalist"] }
+```
+
+Every Polari-App whose `modules_json` carries that module is then bound to the named roles. The key is hand-set
+(it survives `python3 -m moduleService.manifests generate <module>`) and validated — a role name is a plain
+Keycloak **group** name, so no slashes, no spaces and nothing `@`-shaped. The older `personas` list is the
+**fallback**: where a persona name *is* a role name that no manifest declared (`researcher`,
+`materials-scientist`, …), it becomes a binding marked `derivedFrom: personas`. A declaration always beats the
+fallback, and a derivation **never** overwrites a binding an administrator set.
+
+**In the browser.** Signed in, the side menu's first group is **My apps** — your primary role's apps first, then
+your additional roles', then anything you added (pinned). The `tune` icon beside the heading, and "Edit my apps…"
+at the bottom of the group, both open `/apps`; every card there carries one button (**+ add** / **− hide** /
+**↺ restore**) and a chip saying which role brings it, with everything you hid listed at the top of the page ready
+to restore. The header's user menu carries **Primary role: \<role\>** with a submenu of the roles you hold —
+picking one reorders My apps. Someone holding no roles sees the catalogue exactly as before; an anonymous
+visitor sees nothing new at all.
+
+**Through the API.**
+```
+T=$(…password grant, see "Real logins" below…)
+# every binding, with each one's source (manifest | admin | prototype-review)
+curl -sk https://api.prf.<domain>/api/apps/roles
+
+# your own view: held roles, primary role, the apps, what you hid, what to restore
+curl -sk -H "Authorization: Bearer $T" https://api.prf.<domain>/api/apps/mine
+
+# refine it — any combination of the four keys, all optional
+curl -sk -H "Authorization: Bearer $T" -X POST https://api.prf.<domain>/api/apps/mine \
+     -H 'Content-Type: application/json' \
+     -d '{"primary_role": "journalist", "remove": ["judicial-lean"], "add": ["app-topology-network"]}'
+curl -sk -H "Authorization: Bearer $T" -X POST https://api.prf.<domain>/api/apps/mine \
+     -H 'Content-Type: application/json' -d '{"restore": ["judicial-lean"]}'
+```
+
+`GET /api/apps/mine` answers `{ok, sub, held_roles, primary_role, additional_roles, apps:[{name,title,route,via,
+role,removable}], removed:[…], suggestions:[…], unboundRoles}`. `via` is `primary` | `additional` | `added`.
+`primary_role` is the one you stored when you still hold it, otherwise the first held role that has a binding,
+otherwise `''`. `suggestions` are the apps you hid that a role of yours still binds, so you can put them back.
+**Anonymous gets `401`** — this answer is about one person, and a person is a Keycloak `sub`. Someone whose roles
+bind nothing gets an empty list and no error.
+
+**Binding a role by hand (admin).**
+```
+# what the role-play review says the role actually USED — a SUGGESTION, nothing is bound
+curl -sk https://api.prf.<domain>/api/apps/roles/journalist/suggested
+
+# bind it (ADMIN_ROLES only: admin, polari-admin — 401 anonymous, 403 otherwise)
+curl -sk -H "Authorization: Bearer $ADMIN" -X POST https://api.prf.<domain>/api/apps/roles/journalist \
+     -H 'Content-Type: application/json' \
+     -d '{"apps": ["app-scorecards-data-analysis", "app-policy", "dmv-policy-analysis"]}'
+```
+The list is **ordered** — that is the order the person sees. An unknown app name is refused with the known list
+rather than silently dropped. Once set, the binding's `source` is `admin` and the manifest derivation leaves it
+alone for good; delete the row to go back to the derived one.
+
+**The demo bindings** (`app.roles` on seven module manifests, deliberately 3–6 apps each): `journalist` ←
+`scoring` + `nutrition` (judicial-lean, dmv-policy-analysis, app-policy, app-scorecards-data-analysis,
+nutrition-planner); `data-scientist` ← `magnetics` + `mathshapes` (app-magnetics, app-materials-science,
+app-mechanical, engine-cad, wax-print-shop); `operators` ← `waxprint` + `gears` + `bizops` (wax-print-shop,
+app-magnetics, app-mechanical, app-business). Eleven more bindings come from the persona fallback.
+
+**PII.** `UserAppPreference` has no username, e-mail or display-name column and never will: the row id **is** the
+Keycloak `sub` (his rule D18-1). `RoleAppBinding.updated_by` holds a sub as well. Names are resolved at render
+time through `GET /api/security/people/{sub}` and nowhere else.

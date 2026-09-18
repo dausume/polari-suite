@@ -520,6 +520,15 @@ appointment, then election); D18-4 elections in `security` or a new `governance`
 roles); D18-6 what happens to a grant when its policy changes (recommended: existing grants keep their terms,
 renewals use the new policy).
 
+**The manifest stanza's FIRST HALF is built (2026-09-18, ledger §57).** `app.roles: ["journalist", …]` in a
+module's `polari-app.json` — hand-set, preserved across `manifests generate`, validated by
+`moduleService.manifests.role_findings` — names the roles a module's capability serves, and `polariapps` turns
+it into `RoleAppBinding` rows so a person holding the role SEES those apps first ("My apps" in the side nav).
+That is the *which apps does this role need* half of design §6. The other half — the `route` entries
+(certified-by-exam, paid-tier, derived) that say how somebody GETS INTO the role, and the
+`ROLE_ROUTE_HANDLERS` table they register through — is still design only and belongs to slice rg-4, which can
+now extend the same stanza rather than invent one.
+
 **Slices:** rg-0 the ledger + policy rows + the reconciler + self-claim rewritten as a route; rg-1 approval
 queue + appointment (+ pages: my requests / the queue / appoint); rg-2 term/expiry sweep + renewal + invitation;
 rg-3 election (new `governance` module, `VoteRecord`, the tally page); rg-4 manifest `roles:` stanza + custom

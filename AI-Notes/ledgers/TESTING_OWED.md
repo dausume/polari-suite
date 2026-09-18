@@ -2407,3 +2407,172 @@ test is what a browser does to `localStorage` when a window closes, and that is 
 Also unproven: the 7-day and 30-day caps, which nothing short of waiting can exercise. And `monitorSession:false`
 means a sign-out performed in ANOTHER browser is noticed only when the access token next renews (≤15 min), not
 instantly — acceptable, but his call if it is not.
+
+## §56 — resume on landing (check-sso) (2026-09-18, his report; fixed, Keycloak half proven, browser pass OWED)
+
+His report, right after §55 landed: *"hitting login seems to quickly register the login but it does not do so
+automatically when I land on the site."* Angular `685d18d`, node `5fbd54f`, suite `c961dc2`, deployed to
+`192.168.0.210.nip.io` by `pol prod apply` (stack polari-lean).
+
+### Two root causes
+
+**A. the boot restore never ran.** `app.module.ts` registered two `APP_INITIALIZER`s on the assumption that the
+second waits for the first. It does not. `ApplicationInitStatus.runInitializers()`
+(`node_modules/@angular/core/fesm2022/core.mjs:23303-23319`) invokes **every** factory in one synchronous `for`
+loop, collects the promises, and only then `Promise.all`s them. So `AuthSessionService.start()`
+(`auth-session.service.ts:61`, pre-fix) was called while `RuntimeConfigService.initialize()`
+(`runtime-config.service.ts:115-122`) still had its GET of `/assets/runtime-config.json` in flight.
+`getKeycloakConfig()` (`runtime-config.service.ts:420-422`) reads `this.startupConfig?.keycloak ?? null` and
+`startupConfig` is only assigned in the `tap` at `:138` — so it was `null`, `OidcService.isConfigured()`
+(`oidc.service.ts:140-142`) answered `false`, and `start()` returned at `auth-session.service.ts:64` having
+already set `started = true` at `:63`.
+
+Consequence, for the whole life of the page: no session restore, no `userLoaded$` subscription, and
+`ensureUserManager()` never called — so `automaticSilentRenew` never even started. Clicking **Login** worked
+because `oidc.login()` builds the `UserManager` lazily, by which time the config had landed. That is exactly the
+asymmetry he described.
+
+Fixed twice over: ONE initializer chaining `configService.initialize().then(() => auth.start())`
+(`app.module.ts:425-441`), and `start()` now awaits `OidcService.whenConfigured()`
+(`oidc.service.ts`, `whenConfigured()`), which waits on `runtimeConfig.isConfigLoaded$` before answering — so a
+future second registration cannot reintroduce the race.
+
+**B. "no local user, live Keycloak session" was unreachable.** With §55's localStorage store, the
+close-and-reopen case is carried by the refresh token. But a browser that has never signed in here — or one whose
+storage was cleared — has no refresh token, and the only route left was oidc-client-ts's hidden `prompt=none`
+iframe (`oidc-client-ts.js:3129-3146`, taken whenever the stored user has no `refresh_token`, per the branch at
+`:3114`). The frontend is `prf.192.168.0.210.nip.io` and Keycloak is `auth.192.168.0.210.nip.io`; **`nip.io` is on
+the Public Suffix List**, so those are two different *sites*, the KC cookie is third-party, and every current
+browser withholds it from the frame. The iframe answers `login_required` — or just burns its ten-second timeout —
+for a session that is perfectly alive.
+
+Fixed with **check-sso**, the way Keycloak's own adapter does it when iframes cannot work: ONE top-level
+`signinRedirect({ prompt: 'none', state: { returnTo, checkSso: true } })` on landing, when there is no usable
+local user and no `polari-sso-checked` flag in `sessionStorage`. A top-level navigation carries the cookie
+normally, so it gets the true answer.
+
+### What else changed
+
+- **the ladder is ordered.** Live stored user → used as-is. Expired **with** a refresh token → `signinSilent()`
+  (refresh grant, no frame) BEFORE any redirect. Only then the one check-sso.
+- `OidcService.signinSilent()` now declines the iframe fallback when there is no stored refresh token — that was
+  a ten-second stall on every anonymous boot, for a call that could not have succeeded.
+- `handleCallback()` returns `user | no-session | error` instead of `User | null`, so "nobody is signed in" stops
+  being indistinguishable from "sign-in failed". The request `state` is an object `{returnTo, checkSso}` and is
+  read off the `ErrorResponse` too — oidc-client-ts assigns `response.userState = state.data` at
+  `oidc-client-ts.js:1424` *before* it throws on `response.error` at `:1429`, which is what lets the quiet branch
+  find its way home. The legacy bare-string state shape is still accepted, so a redirect already in flight when
+  the new bundle ships still lands correctly.
+- `/callback` navigates to `returnTo` on BOTH the signed-in and the silent branch, and says *"Checking your
+  session…"* rather than *"Signing you in…"* when the URL carries an `error` — no error panel for a question the
+  person never asked.
+- `logout()` pre-sets `polari-sso-checked` **before** the end-session redirect (a `finally` would not run —
+  `signoutRedirect()` navigates away and its promise never settles), so "sign out, then land" costs no round trip.
+- a loop fuse: two check-sso launches inside 30 s stand the probe down for the browser session, covering any path
+  where the return leg cannot set the flag.
+- the check is skipped entirely when runtime-config has no `keycloak` stanza (lean without logins).
+
+### Verified without a browser
+
+- `npx ng build --configuration=production` — exit 0 (bundle-budget warning pre-existing, 5.48 MB).
+- the served bundle contains `prompt:"none"` and `polari-sso-checked`.
+- **the branch the callback must swallow, proven at the source.** The authorization endpoint with `prompt=none`
+  and no Keycloak cookie:
+  `GET https://auth.192.168.0.210.nip.io/realms/Polari/protocol/openid-connect/auth?client_id=polari-frontend&redirect_uri=…%2Fcallback&response_type=code&scope=openid+profile+email+roles&state=probe123&prompt=none&code_challenge=…&code_challenge_method=S256`
+  → `302 https://prf.192.168.0.210.nip.io/callback?error=login_required&state=probe123&iss=…` — exactly the
+  response the `no-session` branch is written for.
+- `/assets/silent-refresh.html` is served `200` at the configured `silentRedirectUri` (it is correct; it is simply
+  not the mechanism that can work across this site boundary).
+
+### OWED — his browser pass
+
+**The half that matters is the one curl cannot do: the same request WITH a live Keycloak cookie.** That answers a
+`code`, not an error, and only a browser holding `KEYCLOAK_IDENTITY` can make it.
+
+1. Sign in at `https://prf.192.168.0.210.nip.io`. Close the tab, open the site again → **signed in with no click,
+   no visible Keycloak page.** (Carried by the refresh token — no redirect at all.)
+2. Clear the site's `localStorage` only (leave the `auth.` cookie alone), then land again → a brief bounce
+   through Keycloak and back, **signed in**, on the path you asked for. Try it on a deep link
+   (`/permissions`, say) — you must land back on that page, not on `/`.
+3. **Sign out**, then land again → **stays signed out, no redirect at all**, no error panel, no loop.
+4. A private/incognito window → exactly **one** `prompt=none` round trip, then anonymous. Reload → no further
+   redirects (the `polari-sso-checked` flag holds).
+5. Watch the address bar across 3 and 4 for any sign of bouncing. One trip is correct; two is a bug.
+
+Unproven either way until he looks: whether the brief blank page during the check-sso redirect reads as a flash
+or as a normal load.
+
+---
+
+## §57 — primary role, roles → apps, my apps (2026-09-18, his ask; built, selftested, live proof below)
+
+His words: *"We want to be able to have a primary role and additional roles. We will want to be able to tie Apps to
+roles so that the user can see and navigate to the apps they need more easily. And then the user should be able to
+refine that further and add apps they want to use or remove ones they do not care about."*
+
+### What was built
+
+| piece | where | state |
+|---|---|---|
+| `RoleAppBinding` row | `modules/polariapps/objects/apps_roles/RoleAppBinding.py` | role (a KC **group** name) → ORDERED app names, `source` = manifest \| admin \| prototype-review, `derived_from` = app.roles \| personas |
+| `UserAppPreference` row | `modules/polariapps/objects/apps_roles/UserAppPreference.py` | `primary_role`, `added_apps_json`, `removed_apps_json`, `updated_at` — keyed by the Keycloak `sub` ALONE (D18-1); no username column exists |
+| the read model | `modules/polariapps/custom/apps_roles.py` | derivation, convergence, suggestions, my-apps resolution, the update |
+| manifest vocabulary | `moduleService/manifests.py` — `ROLE_NAME_MAX`, `role_findings()`, `roles` added to `_preserve_hand_set`, `validate()` calls it | `app.roles: [...]` is hand-set, survives `generate`, and a bad name is a validation problem, not a mystery |
+| routes | `modules/polariapps/apps_api.py` | `GET /api/apps/roles`, `POST /api/apps/roles/{role}` (ADMIN_ROLES), `GET /api/apps/roles/{role}/suggested`, `GET`/`POST /api/apps/mine` |
+| registration | `apps_roles_basis.py`, `objects/apps_roles/__init__.py`, `feature_imports.py` (`polariapps` block), `polariServer.py` defClassList, regenerated `modules/polariapps/polari-app.json` | the five places a polariapps row class must appear |
+| frontend service | `src/app/services/apps-nav.service.ts` — `mine$`, `ensureMineLoaded()`, `refreshMine()`, `clearMine()`, `saveMine()` | one round trip per change; the POST answers the whole new view |
+| side nav | `src/app/app.component.{ts,html,css}` — the **My apps** group ABOVE the app map | primary role's apps first, then additional, then added (pinned); a `tune` edit affordance + "Edit my apps…" both open `/apps` |
+| catalogue = the editor | `src/app/components/apps/apps-home.component.{ts,html,scss}` (**extended, no new component**) | per-card **+ add / − hide / ↺ restore**, a `via` chip, and a "Hidden by you" strip at the top |
+| header | `src/app/components/header/header.{ts,html}` | **Primary role: \<role\>** with a submenu of the roles you HOLD. The auth services were not touched (another agent owned them) |
+
+**Where the rows live, and why polariapps rather than security:** these rows are about APPS. `polariapps` already
+owns `PolariAppDefinition`, the persona index, `/api/apps/nav` and `AppPermissionProfile`; a binding is
+**navigation**, not enforcement, and hiding an app grants and revokes nothing. `security` owns roles as a security
+concept (prototypes, claims, observations) and is read here only for the review SUGGESTION, through a guarded
+import, so polariapps still works on an instance carrying no security module.
+
+### Decisions taken where the spec was silent
+
+1. **A module manifest's `app.roles` binds every APP that carries the module.** The manifest is per-module and the
+   bound thing is a `PolariAppDefinition`, so the bridge is app → `modules_json` → manifest → roles. Module names
+   are matched against the manifest's id, package and directory name (apps name modules by whichever the seed used).
+2. **A new field `derived_from` rather than a fourth `source`.** The spec's vocabulary is
+   manifest \| admin \| prototype-review; the persona fallback is still a derivation from module-declared data, so
+   it is `source: manifest, derived_from: personas` — honest without widening the enum.
+3. **Bindings converge on every read, not at seed time.** `ensure_bindings()` is idempotent and runs inside
+   `GET /api/apps/roles` and `GET /api/apps/mine`, so editing a manifest reaches a live instance without a seed
+   pass — and an `admin` row is left alone for good.
+4. **Anonymous gets 401 on `GET /api/apps/mine` too**, not just the POST: the answer is about one person.
+5. **The app's route is `/app/<name>`** (its own home), which exists for every app — never a guessed nav item.
+6. **`primary_role` falls back rather than erroring**: the stored one if still held, else the first held role that
+   has a binding, else `''`.
+7. **Removal is hiding.** Stated in the payload's own `note` field so a consumer cannot mistake it for a revoke.
+
+### The demo bindings (deliberately 3–6 apps per role)
+
+| role | manifests carrying `app.roles` | apps bound |
+|---|---|---|
+| `journalist` | `scoring`, `nutrition` | judicial-lean, dmv-policy-analysis, app-policy, app-scorecards-data-analysis, nutrition-planner (5) |
+| `data-scientist` | `magnetics`, `mathshapes` | app-magnetics, app-materials-science, app-mechanical, engine-cad, wax-print-shop (5) |
+| `operators` | `waxprint`, `gears`, `bizops` | wax-print-shop, app-magnetics, app-mechanical, app-business (4) |
+
+Eleven further bindings come from the **persona fallback** (business-operator, researcher, policy-analyst,
+network-engineer, electrical-engineer, mechanical-engineer, materials-scientist, software-engineer, cloud-engineer,
+household-cook, meal-planner) — proof the fallback works without anybody declaring anything.
+
+`materialsScience`, `simulations` and `polariNoCode` appear in app `modules_json` but have **no registry entry or
+module directory** (they are legacy/core feature names), so no manifest can declare roles for them. That is why
+`data-scientist` rides `magnetics` + `mathshapes` rather than the materials-science manifest.
+
+### Selftests
+
+| suite | before | after |
+|---|---|---|
+| `modules/polariapps/apps_selftest.py` | 58/58 | **81/81** (23 new: manifest + persona derivation, the 3–6 budget, idempotent convergence, admin-only POST 401/403, unknown-app refusal, ordered admin binding, derivation never overwrites admin, review suggestions ordered/filtered/never-bound, anonymous 401, no-bound-role empty, two held roles + primary default, primary-first ordering, unheld primary refused, primary switch reorders, remove → removed + suggestion, add → via=added, restore round trip, unknown-app refusal, and two D18-1 checks that no row holds a username or `@`) |
+| `moduleService/selftest_manifests.py` | 7/8 (pre-existing drift) | **8/8** — `modules/security/polari-app.json` was stale since `92e0ab1` and did not list `custom/kc_admin`, `custom/security_claims`, `custom/security_people`; regenerated |
+| `modules/security/security_selftest.py` | 139/142 | **139/142** (the 3 known environment failures) — unchanged |
+| `moduleService/selftest_lazy_imports.py` | 23/23 | **23/23** |
+| `npx ng build --configuration=production` | clean | **clean**; the served bundle contains "My apps" |
+
+The falcon route gotcha from §54 was checked explicitly: all thirteen `/api/apps*` routes register with
+`falcon.App().add_route(..., suffix=...)`, so the backend cannot crash-loop at boot on a suffix with no responder.

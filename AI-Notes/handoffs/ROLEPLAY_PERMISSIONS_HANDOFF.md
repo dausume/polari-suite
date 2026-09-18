@@ -289,3 +289,30 @@ converged through `seed_upsert` before `actor:person` reached an instance that a
 and what is owed; the guide has "How names appear on the security-events page". **STILL HIS: the browser pass** —
 nothing here has been seen by eye, so how the name/short-id swap actually reads on the page, and how it looks for a
 viewer who may not resolve names, is unproven.
+
+## 2026-09-18 — ROLES → APPS and "My apps" (his ask, built)
+
+His words: *"We want to be able to have a primary role and additional roles. We will want to be able to tie Apps to
+roles so that the user can see and navigate to the apps they need more easily. And then the user should be able to
+refine that further and add apps they want to use or remove ones they do not care about."* Built in **polariapps**,
+not security, because the rows are about APPS: `RoleAppBinding` (role — a Keycloak GROUP name — → an ORDERED list of
+app names, with `source` manifest | admin | prototype-review) and `UserAppPreference` (`primary_role`, added and
+hidden apps, keyed by the Keycloak `sub` ALONE per D18-1 — there is deliberately no username column). Bindings are
+DERIVED, idempotently, on every read: a module's `polari-app.json` may now carry `app.roles: ["journalist", …]` (a
+hand-set key that survives `manifests generate` and is validated by `moduleService.manifests.role_findings`), and
+every Polari-App carrying that module is bound to the named roles; the older `personas` list is the fallback where a
+persona name IS a role name. **A derivation never overwrites a binding an administrator set**, and the role-play
+review only ever SUGGESTS (`GET /api/apps/roles/{role}/suggested`) — binding is an explicit admin POST. Doors:
+`GET /api/apps/roles`, `POST /api/apps/roles/{role}` (ADMIN_ROLES), `GET /api/apps/roles/{role}/suggested`,
+`GET`/`POST /api/apps/mine` (401 anonymous; a primary role you do not hold is refused with the roles you do).
+Frontend: `AppsNavService.mine$` (+ `refreshMine`/`saveMine`), a **My apps** group ABOVE the app map in the side
+nav, the `/apps` catalogue EXTENDED into the editor (+ add / − hide / ↺ restore per card, hidden strip at the top —
+**no new component**), and **Primary role: \<role\>** in the header's user menu. The auth services, interceptors,
+callback route and `app.module.ts` were NOT touched (a concurrent agent owned them). polariapps selftest **81/81**,
+manifests **8/8** (it also fixed a pre-existing security-manifest drift), security **139/142** unchanged,
+`ng build --configuration=production` clean. Demo bindings: journalist ← scoring + nutrition, data-scientist ←
+magnetics + mathshapes, operators ← waxprint + gears + bizops (3–6 apps each). **Hiding an app HIDES it — it grants
+and revokes nothing; permission stays with the `AppPermissionProfile` gate.** Ledger §57 has the build table, the
+decisions, the live proof and what is owed; the guide has "Roles and apps: my apps"; plan §17c records that
+`app.roles` is the first half of design §6's `roles:` stanza (the grant-route half is still rg-4). **STILL HIS: the
+browser pass** — the side-nav group, the catalogue buttons and the primary-role submenu have never been seen by eye.
