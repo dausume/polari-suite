@@ -281,8 +281,11 @@ On the frontend, `src/app/services/people.service.ts` batches the subs of the ro
 table render** (memory map for the tab, never localStorage), and `class-rows-table` gained a per-column
 `columnFormats` input whose `person` kind shows a short sub with the whole id in the tooltip and swaps in the name
 when one comes back — **no new component**, and a 401/403/503 just keeps the short id with no error UI. The four
-`actor` columns on `/display/security-events` are marked `actor:person`. Security selftest **136/139** (the 3 known
-environment failures), `ng build --configuration=production` clean. Ledger §54 has the build table, the live proof
+`actor` columns on `/display/security-events` are marked `actor:person`. Security selftest **139/142** (the 3 known
+environment failures), `ng build --configuration=production` clean. Two defects the deploy found, both fixed and
+selftested: a falcon `suffix=` that did not match its responder name does NOT answer 405 — `add_route` raises and the
+backend crash-loops at boot; and the core display seed only INSERTS a missing page, so the page definition had to be
+converged through `seed_upsert` before `actor:person` reached an instance that already had it. Ledger §54 has the build table, the live proof
 and what is owed; the guide has "How names appear on the security-events page". **STILL HIS: the browser pass** —
 nothing here has been seen by eye, so how the name/short-id swap actually reads on the page, and how it looks for a
 viewer who may not resolve names, is unproven.
