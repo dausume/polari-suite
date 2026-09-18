@@ -187,6 +187,19 @@ string equality against the whole joined groups field, so it can never match a m
 bearer degrades to "would-deny everything" rather than saying "unauthenticated" — harmless under advisory,
 a 403 storm under enforce.
 
+**2026-09-18 — those three defects are FIXED, selftested and proven live** (framework `9a093bd`, node `a8ee1ef`,
+suite `85b6772`, redeployed with `pol prod apply`; posture still `dev`, gate still `advisory`): CRUDE
+create/update/delete now schedule one trailing `persistTree` per burst through the new core helper
+`polariApiServer/persist_debounce.py` (which `security_observe._schedule_persist` delegates to) and the backend
+flushes once on SIGTERM, so a profile concreted 75 s before a forced redeploy survives it in both the API and the
+sqlite file; `?groups=journalist` is a membership test and now answers 2 rows instead of 0; an expired bearer
+answers `X-Polari-Auth: invalid-or-expired` and the advisory header reads `unauthenticated <Class>:<verb>` rather
+than `would-deny`. New selftest `polariApiServer/selftest_persist_debounce.py` 13/13, security 94/97 (the 3 known
+environment failures). Ledger §51 addendum has the numbers — **and TWO NEW defects found on the way and NOT
+fixed**: `persistTree` is DELETE+REPLACE per class from `objectTables` (a redeploy landing inside the ~60 s flush
+still loses the row — that is how §51's original profile died), and a CRUDE DELETE of one row empties the whole
+class from the live view. Read the addendum before touching the DB layer.
+
 What remains is the BROWSER pass, and it is his: sign in at `https://prf.<D>`, use the role menu in the header,
 act as the role by clicking rather than by curl, and follow the Review link. Nothing below the API layer has
 been seen by eye.

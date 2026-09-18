@@ -1794,3 +1794,44 @@ a REAL Keycloak login (§50), on the home swarm `polari-lean` (`192.168.0.210.ni
 role by clicking, the Review link) — nothing below the API layer has been seen by eye. Also still owed from
 §50: the `POL_PROD_AUTH=off` re-apply, the full profile re-apply, the vault writes (need root), and a rotation.
 `enforce` has never been run on any deployed stack, by his ruling.
+
+## §51 addendum — the three defects (2026-09-18, fixed, selftested and proven live)
+
+The three defects §51 recorded are fixed on `dev` (polari-framework `9a093bd`, node `a8ee1ef`, suite `85b6772`)
+and the home swarm `polari-lean` was redeployed from this checkout to prove them. Posture stays `dev`, the gate
+stays `advisory` — **not** `enforce` (his ruling: security is warn-only in deployments).
+
+| defect | the fix | the proof |
+|---|---|---|
+| 1. a CRUDE-created row lost to a redeploy | new core helper `polariApiServer/persist_debounce.py`: `schedule_persist()` runs ONE `persistTree()` per burst (~3 s window, daemon timer, never blocking a request), `flush_now()` persists synchronously, `install_sigterm_flush()` flushes once on SIGTERM and then hands the signal back to the default handler. Called from `polariCRUDE` `on_post`/`on_put`/`on_delete` (successful writes only), from `initLocalhostPolariServer` at boot, and from `security_observe._schedule_persist`, which now delegates instead of carrying its own copy. Knobs `POLARI_PERSIST_DEBOUNCE_SECONDS`, `POLARI_PERSIST_ON_SIGTERM` | new `polariApiServer/selftest_persist_debounce.py` **13/13**: the burst semantics (6 writes → 1 flush), the failure path, a row created / updated / deleted through the REAL CRUDE handler against a fake manager (asserting the tree was persisted), a refusal persisting nothing, and SIGTERM proven in a subprocess (flushed once, process still dies with 143). LIVE: the `journalist` `AppPermissionProfile` created through CRUDE (multipart, one `initParamSets` field), left 75 s, then `docker service update --force polari-lean_prf-backend` → **present afterwards in both the API and `/app/data/managerObject_DB.db`**. The container logs `[Persist] SIGTERM flush armed` at boot |
+| 2. `?groups=<name>` could never match | `security_api.on_get_observations` treats `groups` as a MEMBERSHIP test (every named group must be in the row's comma-separated set); the other filters stay exact equality | selftest check added (a real multi-group login row: exact name matches, a second group matches, an absent group does not, a combined `groups`+`verb` filter still narrows). LIVE: no filter → 5, `?groups=journalist` → **2** (was always 0), `?groups=roleplay:journalist` → 2, `?groups=nobody` → 0, `?groups=journalist&verb=create` → 0, on rows whose groups read `default-roles-polari,journalist,offline_access,polari-user,roleplay:journalist,uma_authorization` |
+| 3. an expired bearer read as "would-deny everything" | the observation verdict was already honest (`unauthenticated`); the GATE was not. `auth_middleware` now sets `X-Polari-Auth: invalid-or-expired` (and `req.context.auth_failed`) when a Bearer was present and `validate()` refused it; the gate's advisory header says `unauthenticated <Class>:<verb>` instead of `would-deny`, and the `enforce` refusal answers `error: unauthenticated` with "sign in again" instead of a permission verdict. Both headers added to `Access-Control-Expose-Headers` (and `X-Polari-Roleplay` to Allow-Headers) so a browser can read them | selftest checks added (middleware with a stub validator; the gate in advisory for expired / anonymous / authenticated-without-grant; the enforce payload). LIVE on the advisory stack: expired bearer → `x-polari-auth: invalid-or-expired` + `x-polari-permission-advisory: unauthenticated AppPermissionProfile:read (token invalid or expired)`; **no** bearer → `unauthenticated AppPermissionProfile:read` with no auth header; a VALID bearer out of profile → `would-deny AppPermissionProfile:read`; a valid bearer in profile → no header at all. The observation rows separate `unauthenticated` (groups `''`) from `would-deny` (the real group set) |
+
+security selftest **94/97** (89/92 before, +5 new checks; the 3 failures are the known environment ones — ledger
+`mac_enforced`, mac profiles complain, expired internal certs). `selftest_quiesce` 27/27 and
+`selftest_batched_persist` 17/17 unchanged. `moduleService/selftest_lazy_boot.py` fails to import on the host
+both before and after this change (pre-existing, unrelated).
+
+**Found on the way — two NEW defects, both reproduced, NEITHER fixed (they are deeper than this slice):**
+
+- **`persistTree()` is DELETE+REPLACE per class from `objectTables`, so it can erase rows it does not hold, and
+  two processes share one sqlite file during a rolling update.** CRUDE's own `saveInstanceInDB` commits the row
+  immediately, but the whole-tree flush (9 451 instances, ~60 s on this box) empties each class table before
+  rewriting it. A redeploy that starts INSIDE that window loses the row for good: the booting container reads
+  the table mid-flush (it logged `[DB] Restoring 2 instances of AppPermissionProfile` when three existed) and
+  its own boot flush then writes that short state back. Seen live — a `journalist` row created ~40 s before a
+  forced redeploy was gone afterwards, while the same row created 75 s before one survived. OWED: make a class
+  batch atomic (DELETE + insert in ONE committed transaction), refuse to flush a class whose in-memory table is
+  empty while the DB has rows, and keep a booting process from overwriting a file another process is flushing.
+- **A CRUDE DELETE of ONE row empties the whole class from the live view.** `DELETE /AppPermissionProfile` with
+  `targetInstance={"name": "<one row>"}` answered 200 and the next `GET /AppPermissionProfile` returned `[]` —
+  every sibling gone from the tree, twice in a row, and the next flush made it permanent on disk. Likely
+  `managerObject.deleteTreeNode`'s "duplicates" sweep removing every sibling node of the branch (not isolated).
+  This is how the three demo profiles were lost during this run; `journalist` was recreated by hand (same name,
+  kc_groups `["journalist"]`, verbs `["read"]`, the four classes, published) and re-verified: `granted-by-profile`
+  for `demo-journalist`, and it survives a redeploy. OWED: a failing test for the blast radius, then the fix.
+- Minor, noted not fixed: `polariCRUDE.getUsersObjectAccessPermissions` gives an ANONYMOUS caller `C/R/U/D/E`
+  and an AUTHENTICATED one only `R/E`, so a CRUDE delete with a valid admin bearer answers 405 while the same
+  delete with no bearer at all succeeds. The legacy access matrix predates the permission gate and inverts it.
+
+**Still OWED from §51:** the browser pass is HIS. `enforce` still never run on a deployed stack, by his ruling.
