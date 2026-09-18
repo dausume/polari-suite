@@ -384,12 +384,32 @@ else
     POLARI_REDIRECT_URIS=("${BASE_REDIRECT_URIS[@]}" "${SUITE_REDIRECT_URIS[@]}" "${STANDALONE_REDIRECT_URIS[@]}" "${PRF_SUBDOMAIN_REDIRECT_URIS[@]}")
 fi
 
+# PRF_URL (set by pol prod, e.g. https://prf.<domain>) — the ONE origin the
+# deployed Angular app is served from. Its /callback route is the OIDC redirect
+# (src/app/app-routing.module.ts), and it is the post-logout landing page.
+if [ -n "$PRF_URL" ]; then
+    POLARI_REDIRECT_URIS+=("${PRF_URL%/}/*" "${PRF_URL%/}")
+fi
+
 # Allow operator override.
 if [ -n "$PRF_REDIRECT_URIS" ]; then
     IFS=',' read -ra PRF_CUSTOM_URIS <<< "$PRF_REDIRECT_URIS"
     POLARI_REDIRECT_URIS+=("${PRF_CUSTOM_URIS[@]}")
 fi
 POLARI_REDIRECT_URIS=($(printf '%s\n' "${POLARI_REDIRECT_URIS[@]}" | sort -u))
+
+# Web origins for the browser's CORS preflight to the token endpoint, and the
+# post-logout redirect allow-list (Keycloak 22+ keeps it in a client attribute).
+# Every origin is DERIVED from the redirect URIs above (scheme://host[:port]),
+# so the allow-list can never be narrower than the sign-in flow needs and never
+# wider — replacing the old blanket "*".
+POLARI_WEB_ORIGINS=($(printf '%s\n' "${POLARI_REDIRECT_URIS[@]}" \
+    | sed -E 's#^([a-z]+://[^/]+).*$#\1#' | grep -E '^[a-z]+://' | sort -u))
+[ ${#POLARI_WEB_ORIGINS[@]} -eq 0 ] && POLARI_WEB_ORIGINS=("+")
+# Keycloak's post-logout allow-list is a '##'-joined client attribute; the
+# single value "+" means "whatever the redirect URIs allow" — which already
+# covers https://prf.<domain>/ through the .../* entry above.
+POLARI_POST_LOGOUT="+"
 
 echo "Polari frontend redirect URIs to configure:"
 printf '  - %s\n' "${POLARI_REDIRECT_URIS[@]}"
@@ -422,9 +442,14 @@ else
             -H "Content-Type: application/json")
 
         PFE_URIS_JSON=$(printf '%s\n' "${POLARI_REDIRECT_URIS[@]}" | jq -R . | jq -s .)
-        PFE_PAYLOAD=$(echo "$PFE_CURRENT" | jq --argjson uris "$PFE_URIS_JSON" '
+        PFE_ORIGINS_JSON=$(printf '%s\n' "${POLARI_WEB_ORIGINS[@]}" | jq -R . | jq -s .)
+        PFE_PAYLOAD=$(echo "$PFE_CURRENT" | jq \
+            --argjson uris "$PFE_URIS_JSON" \
+            --argjson origins "$PFE_ORIGINS_JSON" \
+            --arg logout "$POLARI_POST_LOGOUT" '
             .redirectUris = $uris |
-            .webOrigins = ["*"]
+            .webOrigins = $origins |
+            .attributes = ((.attributes // {}) + {"post.logout.redirect.uris": $logout})
         ')
 
         PFE_UPDATE=$(curl -s -w "\n%{http_code}" -X PUT \
@@ -435,10 +460,47 @@ else
         PFE_HTTP=$(echo "$PFE_UPDATE" | tail -n1)
 
         if [ "$PFE_HTTP" = "204" ] || [ "$PFE_HTTP" = "200" ]; then
-            echo "SUCCESS: $POLARI_FE_CLIENT_ID redirect URIs updated."
+            echo "SUCCESS: $POLARI_FE_CLIENT_ID redirect URIs, web origins and post-logout URIs updated."
+            echo "  web origins: ${POLARI_WEB_ORIGINS[*]}"
         else
             echo "ERROR: Failed to update $POLARI_FE_CLIENT_ID. HTTP $PFE_HTTP"
             echo "$PFE_UPDATE" | sed '$d'
+        fi
+
+        # --- 2a. the `groups` claim -------------------------------------------
+        # Polari's app-level permissions read the token's `groups` claim as the
+        # caller's GRANT KEYS (polariapps/objects/apps_permissions/_shared.py ->
+        # caller_groups: "prefers the KC `groups` claim, leading '/' stripped").
+        # The realm import ships no protocol mappers, so without this mapper the
+        # claim never appears and every profile grant silently misses.
+        # full.path=false so the claim carries bare names ("journalist"), which
+        # is what AppPermissionProfile.kc_groups_json holds.
+        GM_NAME="groups"
+        GM_EXISTS=$(curl -s -X GET \
+            "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients/$PFE_UUID/protocol-mappers/models" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" | jq -r --arg n "$GM_NAME" '.[] | select(.name==$n) | .id')
+        GM_BODY=$(jq -n --arg n "$GM_NAME" '{
+            name: $n, protocol: "openid-connect",
+            protocolMapper: "oidc-group-membership-mapper",
+            config: {
+                "claim.name": "groups",
+                "full.path": "false",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true",
+                "introspection.token.claim": "true"
+            }}')
+        if [ -n "$GM_EXISTS" ]; then
+            GM_HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X PUT \
+                "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients/$PFE_UUID/protocol-mappers/models/$GM_EXISTS" \
+                -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" \
+                -d "$(echo "$GM_BODY" | jq --arg id "$GM_EXISTS" '.id = $id')")
+            echo "  groups protocol mapper updated (HTTP $GM_HTTP)"
+        else
+            GM_HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+                "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients/$PFE_UUID/protocol-mappers/models" \
+                -H "Authorization: Bearer $ACCESS_TOKEN" -H "Content-Type: application/json" -d "$GM_BODY")
+            echo "  groups protocol mapper created (HTTP $GM_HTTP) — group membership -> claim 'groups', bare names"
         fi
     fi
 

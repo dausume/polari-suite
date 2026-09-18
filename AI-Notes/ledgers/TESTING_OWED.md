@@ -1694,3 +1694,62 @@ OWED:
   `enforced` — not yet run against a live group.
 
 **§49 live proof (2026-09-16, the backend half, home staging stack in dev posture):** `POST /api/security/observe/roles {name: journalist}` → prototype; `POST /observe/session {role: journalist}` → session + the header to send; two CRUDE reads and one `/api/apps` call with `X-Polari-Roleplay: journalist` → endpoints `GET /SecurityDomain ×2`, `GET /api/apps ×1` and object `SecurityDomain: read ×2` attributed to the role; a batch of 4 usages (app, page ×2, action) → review shows apps `[journalist]`, pages `[/journalist/articles ×2]`, actions `[publish-article]`, the session counting 2 acts / 7 usages, `proposed_profile` `{kc_groups_json: ["journalist"], verbs_json: ["read"], extra_classes_json: ["SecurityDomain"]}`; `verify?role=journalist` → "1 recorded act(s) would now be DENIED" (correct: nothing concreted yet). The `app` column now fills from the feature-import table (selftest 89/92, same 3 environment failures).
+
+## §50 — Keycloak logins on the lean profile (2026-09-17, his ask: real logins on the home demo stack)
+
+Until now `POL_PROD_AUTH=keycloak` meant the WHOLE full stack (Keycloak + shared MariaDB + MinIO + the
+scorecard, ~3 GB) — too heavy for the home demo, so the demo ran with no accounts at all and every permission
+observation landed as `unauthenticated`. Stack size is now its own answer.
+
+| piece | what exists | proof |
+|---|---|---|
+| the answer | `POL_PROD_PROFILE=lean\|full` in `prod.sh` (plumbed through `load_answers` with a `case` validation, `save_answers`, `profile_save`, `do_facts`, the guide's "fresh" reset and its new "Stack size" menu, the plan line). Unanswered it defaults to `full` when logins are on and `lean` otherwise — today's behaviour, so no existing stack changes. `profile()` returns it; `logins_on_lean()` is the new lean+keycloak predicate. The old internal use of the name `POL_PROD_PROFILE` (a SAVED-ANSWERS profile name) was renamed `POL_PROD_PROFILE_NAME` | `pol prod plan` prints `profile: lean` + `logins keycloak (on the LEAN stack…)` |
+| the services | `docker-compose.lean.yml`: `pol-keycloak` (1024M) + `pol-kc-mariadb` (384M, own volume `kc_lean_db`), BOTH behind `profiles: ["logins"]`. Config `keycloak_lean_conf` ← the new `pol-keycloak/environments/keycloak-lean.conf` (its own DB, HTTP only, `proxy-headers=xforwarded`, `health-enabled`). `prf-backend` gained `POLARI_AUTH` + the five `POLARI_KEYCLOAK_*` vars + `CORS_ORIGINS`, all `${VAR:-}` so a stack without logins is unchanged | `docker compose … config --services` WITHOUT `COMPOSE_PROFILES` → the original four; WITH → six |
+| the swarm path | swarm has no profiles: `.env.lean` carries `COMPOSE_PROFILES=logins` (so `docker compose config` keeps them) AND `render_stack` passes `--with-profile logins` to `stackify.py` (so stackify keeps them) — the same two-key pattern odoo already used | `.generated/stack-lean.yml` lists all six services |
+| credentials | `ensure_kc_admin_env()` writes `pol-keycloak/keycloak-admin.env` from the example with a random `KEYCLOAK_ADMIN_PASSWORD` / `KEYCLOAK_ADMIN_CLIENT_SECRET` / `KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET` (a placeholder or the dev default `admin` is moved aside, never reused); `ensure_kc_certs()` generates `pol-keycloak/certs/pol-kc.{crt,key}` (Dockerfile.pol-kc COPYs them unconditionally); `KC_DB_PASSWORD`/`MARIADB_ROOT_PASSWORD` generated once and RE-READ from the previous `.env.lean` on every re-apply (baked into the DB volume on first boot); `vault_lean_logins()` records the lot | `git check-ignore` clean for `keycloak-admin.env` and `.generated/demo-users.env` |
+| the edge | `pol-proxy/nginx.lean.conf.template` gained `auth.${PROD_DOMAIN}` on :80 and an `${AUTH_SERVER_BLOCK}` marker; `pol proxy template lean --auth keycloak` substitutes an `auth.` server block (lazy `set $up_keycloak http://pol-keycloak:8080` + resolver, `X-Forwarded-Proto https`, 128k/4×256k buffers for Keycloak's headers), and drops the marker otherwise. DECISION: plain HTTP inside the encrypted overlay, NOT the full profile's mTLS hop to :8443 — those certs come from `setup-polari-security.sh`, which the lean path never runs | `pol proxy guard lean` → nginx -t OK |
+| the realm | `configure_clients.sh` adds `PRF_URL`-derived redirect URIs, DERIVES `webOrigins` from the redirect URIs (replacing the blanket `"*"` on polari-frontend only), sets `post.logout.redirect.uris="+"`, and creates/updates a **group-membership protocol mapper** (`claim.name=groups`, `full.path=false`) — without it the `groups` claim never appears and every `AppPermissionProfile` grant silently misses | KC log: `groups protocol mapper created (HTTP 201)` |
+| demo accounts | `pol-keycloak/startup_shells/seed_demo_users.sh` (run last by `kc_entrypoint.sh`, COPYd by the Dockerfile): idempotent; refuses unless `POLARI_DEMO_USERS=on` AND `DEMO_USER_PASSWORD` is non-empty; creates groups `journalist`/`data-scientist`/`operators` and users demo-admin (polari-admin), demo-journalist (journalist + polari-user), demo-scientist (data-scientist + polari-user), demo-viewer (polari-viewer), e-mails `@example.invalid`, one shared password from `.generated/demo-users.env` | see below |
+
+**PROVEN LIVE 2026-09-17 on the home swarm** (`polari-lean`, domain `192.168.0.210.nip.io`, posture dev,
+images built here, tag lean; `pol prod apply` from the answers):
+- `docker service ls`: pol-hub, pol-kc-mariadb, pol-keycloak, pol-proxy, prf-backend, prf-frontend — all 1/1.
+- Discovery: `https://auth.<D>/realms/Polari/.well-known/openid-configuration` → `issuer` EXACTLY
+  `https://auth.<D>/realms/Polari` (i.e. the proxy-headers path produces https, not http).
+- `https://prf.<D>/assets/runtime-config.json` carries the `keycloak` stanza (authority, clientId
+  polari-frontend, redirectUri `https://prf.<D>/callback`, postLogout `https://prf.<D>/`, code, scope
+  `openid profile email roles`, silent `…/assets/silent-refresh.html`).
+- Password grant as `demo-journalist` → access token whose payload has `groups: ["journalist"]`,
+  `realm_access.roles` incl. `polari-user`, `iss` the https issuer, `email demo-journalist@example.invalid`.
+- `GET /api/apps/permissions/my` with that bearer → `authenticated true`, `admin false`,
+  `groupSources ["jwt-groups-claim","jwt-roles"]`, groups incl. `journalist`; anonymous → `authenticated false`,
+  no groups. demo-admin → `admin true`; demo-scientist → `data-scientist`; demo-viewer → `polari-viewer`.
+- Two CRUDE reads of `/SecurityDomain` with the bearer → `/api/security/observations` shows a row
+  `default-roles-polari,journalist,offline_access,polari-user,uma_authorization | SecurityDomain read ×2`,
+  verdict `would-deny` (correct: no published profile yet, and the gate is `off` so the read proceeded),
+  posture dev — beside the pre-existing `unauthenticated` rows. **This is the first live evidence of a real
+  identity in the observation ledger** (§48/§49 owed it).
+- The authorization endpoint renders the real login form for
+  `redirect_uri=https://prf.<D>/callback` (no "Invalid parameter: redirect_uri"); `/callback` and
+  `/assets/silent-refresh.html` are both served 200 by the frontend.
+
+**OWED:**
+- **The browser sign-in itself has NOT been seen.** No browser was opened. The code exchange at `/callback`,
+  the header login button, token storage and silent renew are all UNPROVEN by eye. That is the one check a
+  person must do.
+- A `POL_PROD_AUTH=off` re-apply proving the four-service stack comes back byte-identical (only the
+  `docker compose config --services` half was proven; the stack was never redeployed without logins).
+- The FULL profile after this change (`POL_PROD_PROFILE=full`) was not re-applied — the default path is
+  unchanged by construction but untested since.
+- `security_api.default_scenario()` maps `POLARI_AUTH=keycloak` → `swarm-full`, so a lean+logins stack reads
+  as `swarm-full` on the security page while `pol prod harden` renders `swarm-lean`. Left alone deliberately;
+  it should learn about the lean+logins shape.
+- `PermissionObservation.actor` holds the KC `sub` UUID, not the username: `jwt_validator.validate()` returns
+  `username` but `observe_permission()` reads `preferred_username`. One-word fix, not made here.
+- The vault writes need root; on this box they logged `sudo: a password is required` and the credentials live
+  only in `pol-keycloak/keycloak-admin.env` and `.generated/.env.lean` (both 600, both gitignored).
+  `sudo pol security vault init` then a re-apply would land them.
+- No `AppPermissionProfile` is published, so every authenticated act is `would-deny` under `advisory`/`enforce`.
+  Concreting one from a role-play review (§49) against the real `journalist` group is the next step — now
+  possible for the first time, because the group and a real member exist.
+- Nothing was rotated: `pol security rotate` has still never been run against a live Keycloak.

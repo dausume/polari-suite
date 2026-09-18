@@ -42,5 +42,11 @@ else
     echo "configure_clients.sh not found, skipping client configuration."
 fi
 
+# Demonstration accounts (POLARI_DEMO_USERS=on only — a dev/demo stack).
+# Runs LAST: the realm must exist and its clients be configured first.
+if [ -f "/opt/startup_shells/seed_demo_users.sh" ]; then
+    /opt/startup_shells/seed_demo_users.sh || echo "seed_demo_users.sh reported problems (Keycloak keeps running)."
+fi
+
 # Wait for the Keycloak process to keep container alive
 wait $KEYCLOAK_PID

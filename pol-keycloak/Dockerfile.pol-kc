@@ -20,6 +20,7 @@ COPY ./startup_shells/kc.sh /opt/startup_shells/kc.sh
 COPY ./startup_shells/kc_entrypoint.sh /opt/startup_shells/kc_entrypoint.sh
 COPY ./startup_shells/load_realms.sh /opt/startup_shells/load_realms.sh
 COPY ./startup_shells/configure_clients.sh /opt/startup_shells/configure_clients.sh
+COPY ./startup_shells/seed_demo_users.sh /opt/startup_shells/seed_demo_users.sh
 
 # Save the current GID and UID of the keycloak user
 RUN echo "User GID: $(id -u)" && \
