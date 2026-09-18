@@ -270,3 +270,19 @@ bearer and succeed without one), the other throwaway and the real `journalist` s
 default 10 s while the SIGTERM flush needs 30–134 s to serialize, so that flush is killed on every redeploy of a
 full instance — the one-line fix is `stop_grace_period: 180s` in `docker-compose.lean.yml` / `.prod.yml`, not
 applied here because it changes his running stack.
+
+## 2026-09-17 — names at render time (§54)
+
+The gap §53 left is closed: the security-events page no longer shows bare UUIDs. A **batch door**
+`POST /api/security/people {subs: [...]}` (max 200) applies the single door's gate *per subject id*, caches names
+for 300 s in process memory only (`POLARI_PEOPLE_CACHE_SECONDS`, `security.custom.security_people` — the one place
+a name lives in the backend, and it dies with the process) and refuses past **60 calls/min/caller** with a 429.
+On the frontend, `src/app/services/people.service.ts` batches the subs of the rows on screen into **one call per
+table render** (memory map for the tab, never localStorage), and `class-rows-table` gained a per-column
+`columnFormats` input whose `person` kind shows a short sub with the whole id in the tooltip and swaps in the name
+when one comes back — **no new component**, and a 401/403/503 just keeps the short id with no error UI. The four
+`actor` columns on `/display/security-events` are marked `actor:person`. Security selftest **136/139** (the 3 known
+environment failures), `ng build --configuration=production` clean. Ledger §54 has the build table, the live proof
+and what is owed; the guide has "How names appear on the security-events page". **STILL HIS: the browser pass** —
+nothing here has been seen by eye, so how the name/short-id swap actually reads on the page, and how it looks for a
+viewer who may not resolve names, is unproven.

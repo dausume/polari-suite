@@ -2065,3 +2065,64 @@ for a `people_viewers` member, 503 with no Keycloak credential — with nothing 
   log `0` and never retry until the next restart. No test covers that path.
 - The nine cleared rows are **gone**, not reversible: their acts and counts survive, the person who performed them
   does not. That was the point, and it is stated here because no ledger row can be recovered from Keycloak.
+
+## §54 — names at render time (2026-09-17, closing §53's first two OWED items)
+
+§53 left the rule built and the page unreadable: `actor` was a raw UUID on four tables, nothing in the frontend
+called the door, and the door had "no rate limit and no batch form — a page listing fifty subs would make fifty
+calls". Both are now built. The rule itself is unchanged: **a Polari row still keys a person by the opaque Keycloak
+`sub` and nothing else**; a name exists only while a page is being rendered.
+
+**Built** (framework, angular, node pin, suite pin — see the commits below):
+
+| piece | where |
+|---|---|
+| the batch door | `POST /api/security/people {subs: [...]}` (max 200, a 400 past that) → `{ok, people: {sub: display_name\|null}, denied, why, asked, resolved, cache, keycloak_calls, how}`. `security_api.on_post_people` |
+| the gate, per sub | `security_api._people_gate()` computes the caller's standing ONCE (own sub / admin / a `people_viewers` group) and each sub is sorted into `people` or `denied`. One stranger's sub never fails the batch; a sub the realm does not know answers `null`, never an error |
+| the cache | `modules/security/custom/security_people.py` — a dict in the process, TTL `POLARI_PEOPLE_CACHE_SECONDS` (default 300 s, `0` = off). **It is the one place a name lives in the backend and it dies with the process**: never a row, never `persistTree`, never a log line, never disk. Stated in the module docstring so the next reader does not have to infer it |
+| the rate limit | 60 calls/min/caller, sliding window, in memory. Past it: **429** with a plain sentence ("this door answers 60 calls a minute per caller … one call may carry up to 200 subject ids, so batch them") and a `Retry-After` header |
+| the single door | unchanged and still uncached — `GET /api/security/people/{sub}` resolves live every time, as its docstring promises |
+| the column kind | `class-rows-table` gained `@Input() columnFormats` (csv of `column:format`). The one format is `person`: the cell shows `PeopleService.short(sub)` (first 8 chars) with the whole id in the `title` tooltip, and the name replaces it when one comes back. **No new component** — a formatter inside the existing cell rendering, native `title` so no new module import |
+| the batching | `src/app/services/people.service.ts`. After the rows load, the component collects the distinct subs of the `person` columns *on screen* and makes ONE call (chunked at 200). The names map and the `asked` set are in memory for the tab — never localStorage, sessionStorage, a cookie or a URL. `asked` covers null and denied subs too, so a re-render never re-asks |
+| the refusals | 401/403/404/503 close the door for the tab (no error UI, the short id stays); 429 does not, so the next render may succeed. The viewer must be signed in (`AuthSessionService.isAuthenticated`) before a call is made at all |
+| the page | `security_page.ACTOR_FORMAT = 'actor:person'` on all four tables of `/display/security-events`: `security-events-table` (SecurityEvent), `security-observations-table` (PermissionObservation), `security-usage-table` (UsageObservation), `security-sessions-table` (ObservationSession) |
+| the helper | `module_pages_seed._table(..., column_formats='')` → the `columnFormats` input. Every other caller is untouched (the default is `''`) |
+
+**Selftests.** `security_selftest.py` **136/139** — the same 3 known environment failures (ledger `mac_enforced`,
+mac profiles complain, expired internal certs) and nothing else; 10 new checks in `_people_batch_checks()` prove:
+401 without an identity; a 400 for an empty body and for more than 200 subs, naming the limit; a plain signed-in
+caller resolving their OWN sub while another's lands in `denied` and never in `people`; an admin resolving the whole
+batch in one call with an unknown sub answering `null` and duplicates/blanks collapsed; **the cache sparing the
+second Keycloak round trip** (`kc_admin.get_user` monkeypatched and counted — `keycloak_calls` 0 on the repeat);
+`POLARI_PEOPLE_CACHE_SECONDS=0` turning caching off entirely; a `people_viewers` member resolving the batch with the
+granting group named; **the rate limit** — 60 calls pass, the 61st is 429 with the sentence and a `Retry-After`, and
+a different caller is unaffected; 503 with no Keycloak credential, while an all-denied batch still answers 200
+without touching Keycloak; and that the batch wrote nothing to the manager. Unchanged beside it:
+`polariapps/apps_selftest.py` 57/57, `aquaponics_pages` 5/5, `computers` 30/30, `microchip` 16/16, `cooknow` 37/37
+(the `_table` helper's new keyword breaks no other page). `npx ng build --configuration=production` exits 0.
+
+**Live proof** — see the block appended below after `pol prod apply`.
+
+**OWED**
+- **No browser has seen this.** The whole point is how the page READS, and that is exactly what an API proof cannot
+  show: whether a mixed table of names and short ids is legible, whether the tooltip is discoverable, whether the
+  8-character prefix is enough to tell two actors apart. **His pass.**
+- The short form is a **prefix, not an identity**. Two subs sharing their first 8 hex characters would render
+  identically to a viewer who may not resolve names. Astronomically unlikely per realm, not impossible, and no
+  collision detection exists.
+- The frontend resolves the rows **on screen at first render only**. `class-rows-table` has no pagination and no
+  re-fetch, so this is complete for it today — but any table that later grows paging must call `resolve()` again
+  for each page, and nothing enforces that.
+- The **429 path is selftested, never seen live** (proving it live would need 61 real calls in a minute; the live
+  proof below does exactly that, so read which of the two this claim rests on).
+- The cache makes the backend hold names for up to 300 s. That is a deliberate change to §53's "no cache = no PII
+  at rest" and it should be read as such: the names are in RAM, in one process, for five minutes. A deployment that
+  wants the older guarantee sets `POLARI_PEOPLE_CACHE_SECONDS=0` and pays one Keycloak round trip per sub per call.
+- Nothing invalidates the cache when Keycloak changes. A rename or a deletion is invisible for up to one TTL on the
+  backend and for the life of the tab on the frontend (the browser map has **no** TTL at all — a tab left open all
+  day keeps the name it first resolved). No test covers a stale name.
+- The rate limit is **per process**, keyed by the caller's sub. Two `prf-backend` replicas would allow 120 calls a
+  minute between them, and an unauthenticated caller can never reach it (401 comes first).
+- `class-rows-table`'s `person` kind is the ONLY format in `columnFormats`. The parser accepts any `column:format`
+  pair and silently ignores an unknown format — a typo in a seed (`actor:persn`) renders the raw UUID with no
+  complaint anywhere. No validation exists.

@@ -187,6 +187,42 @@ Everyone else gets **403** with the rule that refused; no bearer at all is **401
 credential is **503 "no identity provider"** — there is deliberately no stored name to fall back on. Your own
 browser showing your own name in the role menu is fine: that comes from your own token, not from Polari.
 
+### How names appear on the security-events page (2026-09-17)
+
+You no longer resolve subs by hand. The four `actor` columns on `/display/security-events` — SecurityEvent,
+PermissionObservation, UsageObservation and the role-play sessions — are marked `actor:person`, so each cell shows
+the **first 8 characters** of the subject id with the **whole id in the tooltip**, and the page resolves the names
+of the rows *on screen* while it renders:
+
+```
+POST /api/security/people   {"subs": ["3f2b1c8a-…", "589384ad-…"]}     # at most 200 per call
+-> {"ok": true, "people": {"3f2b1c8a-…": "Demo Journalist", "589384ad-…": null}, "denied": ["…"], "how": "…"}
+```
+
+**One call per table render**, not one per row — that is the whole point of the batch. The gate is the same one the
+single door applies, *per subject id*: your own always, anybody else's only for an administrator or a member of a
+`people_viewers` group. A sub you may not resolve comes back in `denied`; a sub this realm does not know comes back
+`null`. Neither fails the call.
+
+**Who sees what, then:**
+- an **administrator** sees every name;
+- a **`people_viewers` member** sees every name;
+- **anyone else signed in** sees their own name and short subject ids for everybody else;
+- **signed out**, the frontend never calls the door at all — every actor stays a short id.
+
+A 401/403/429/503 is never shown as an error: the cell simply keeps the short id. (An operator who sees only short
+ids and expected names should check the knob, not the page.)
+
+**The cache.** Names are held in memory for **300 seconds** on each side and nowhere else:
+- backend — `security.custom.security_people`, a dict in the process. Never a row, never a log line, never disk; it
+  dies with `prf-backend`. `POLARI_PEOPLE_CACHE_SECONDS` changes the TTL; `0` turns caching off entirely and every
+  lookup goes back to Keycloak.
+- frontend — `PeopleService`'s map, for the life of the browser tab. Never localStorage, never sessionStorage.
+
+Because of the TTL, a rename in Keycloak shows up within five minutes, and a deleted account stops resolving within
+five minutes. Keycloak stays the system of record. The door also answers **60 calls a minute per caller**; past that
+it is **429** with a sentence saying so and a `Retry-After` — batch, rather than asking sub by sub.
+
 ## Gotchas
 - Only works in dev posture; a production-posture flip makes `can_roleplay` refuse outright — re-check
   `GET /api/security/observe/roles` after any posture change.
