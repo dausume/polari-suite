@@ -83,6 +83,86 @@ A denial means the job would break under the new profile; widen and re-review be
 curl -sk -X POST https://api.prf.192.168.0.210.nip.io/api/security/observe/roles/journalist -d '{"state": "enforced"}'
 ```
 
+## Claiming a role yourself (2026-09-18)
+
+His words: *"I see no way, upon registering, to simply assign myself a role in the Polari interface. Or a way to go
+from Polari to Keycloak to grant oneself permissions that anyone can just self-claim. It should not be the case all
+roles can be taken by anyone, but self-proclaimable roles should be a thing, especially in dev mode."*
+
+A role **is** a Keycloak group (the permission model reads the `groups` claim), so claiming one means joining that
+group. Polari does it for you, through the `polari-backend` client's service account — you never open the Keycloak
+admin console.
+
+**The rule (plan §17b D17-5).**
+
+| posture | what may be claimed |
+|---|---|
+| **dev** | EVERY `RolePrototype` row, in any state (prototype / concreted / enforced), unless an admin explicitly said no — plus whatever the `claimable_groups` knob names |
+| **production** | ONLY `RolePrototype` rows flagged `self_claimable: true`, plus the `claimable_groups` knob. Nothing by default |
+| **never, either posture** | `ADMIN_ROLES` (`admin`, `polari-admin`), the Keycloak groups `Polari Administrators` / `Polari Developers`, and any `polari-*` name that is not a prototype an admin flagged |
+
+The caller must be signed in: a claim attaches to a Keycloak `sub`, so an anonymous request gets `401` and an empty
+list, not a refusal to explain.
+
+**In the browser.** Sign in, open the user menu in the header (upper right, your name) → **Claim a role…**. The
+dialog lists what you may take, one Claim/Release button each, marks what you already hold, and carries a **Manage
+account in Keycloak** link to the realm's own account console. The same menu has **Manage account** directly.
+After a successful claim the app tries a silent re-sign-in; if that cannot be done it says so and offers
+"Sign in again" — the new group only exists in a NEWLY issued token.
+
+**Through the API.**
+```
+T=$(…password grant, see "Real logins" below…)
+curl -sk -H "Authorization: Bearer $T" https://api.prf.<domain>/api/security/roles/claimable
+curl -sk -H "Authorization: Bearer $T" -X POST https://api.prf.<domain>/api/security/roles/claim \
+     -H 'Content-Type: application/json' -d '{"role": "journalist"}'
+curl -sk -H "Authorization: Bearer $T" -X DELETE 'https://api.prf.<domain>/api/security/roles/claim?role=journalist'
+```
+`/claimable` answers `{ok, posture, authenticated, sub, roles:[{role,title,description,source,state,held,why}],
+held:[…], account_url, keycloak:{ready,why}, how}`. `source` is `prototype` or `knob`. `/claim` answers
+`{ok, role, group_id, group_created, note}`; the note is *"sign in again or refresh your session for the new group
+to appear in your token"* — **mint a new token before checking the claim worked**, the old one still has the old
+groups.
+
+**Opening and closing roles (admin).**
+```
+# flag one prototype role self-claimable in production (admin bearer required — 403 otherwise)
+curl -sk -H "Authorization: Bearer $ADMIN" -X POST \
+     https://api.prf.<domain>/api/security/observe/roles/journalist -d '{"self_claimable": true}'
+# ...or shut it off even in dev (the explicit NO lands in the observe knob, which dev posture honours)
+curl -sk -H "Authorization: Bearer $ADMIN" -X POST \
+     https://api.prf.<domain>/api/security/observe/roles/journalist -d '{"self_claimable": false}'
+# plain KC groups (no prototype row) opened for self-service, in ANY posture
+curl -sk -X POST https://api.prf.<domain>/api/security/observe -d '{"claimable_groups": ["operators"]}'
+```
+`self_claimable` is the only field on that route that requires an administrator: a self-claimed role must not be
+able to widen its own claimability. `GET /api/security/observe` reports `claimable_groups` and `claim_denied`.
+
+**PII — his rule, 2026-09-18.** Keycloak exists to keep personal data AWAY from Polari, so **every row and event
+this arc writes identifies the person only by the opaque Keycloak `sub`** — never `preferred_username`, never an
+e-mail, never a display name. The `SecurityEvent` for a claim reads
+`control=role-claim, action="claim journalist", actor=<sub>, source=self-claim, would_deny=false`, and
+`/api/security/roles/claimable` echoes your own `sub` rather than your name. The dialog shows your name only
+because your browser already has it in your own token. (The four older observe rows still store a username —
+that is a correction owed, plan §17c / design §8.)
+
+**What the backend needs.** `POLARI_KEYCLOAK_ADMIN_URL`, `POLARI_KEYCLOAK_REALM` and
+`KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET` in `prf-backend`'s environment (both compose files pass them), and the
+`polari-backend` service account holding realm-management `view-users` / `manage-users` / `view-realm` —
+`pol-keycloak/startup_shells/configure_clients.sh` grants all three and turns `serviceAccountsEnabled` on. With no
+secret the API answers **503** naming the variable rather than failing obscurely. Note the client id is pinned to
+`polari-backend`, **not** `POLARI_KEYCLOAK_ADMIN_CLIENT_ID` — that variable holds `admin-cli`, a public client with
+no service account, and using it answers `401 "Public client not allowed to retrieve service account"`.
+
+**Gotchas of this section**
+- A claim does not change the token you are holding. Everything that reads groups (the permission gate, `held`,
+  `/api/apps/permissions/my`) keeps seeing the old set until you sign in again or the silent renew succeeds.
+- Claiming a prototype role CREATES the Keycloak group if it does not exist yet — that is deliberate (D17-2 is
+  answered in practice: the group appears the first time somebody takes the role).
+- Release only works on roles you could have claimed. A role an administrator granted you is theirs to remove.
+- `claimable_groups` is a plain list of KC group names and is NOT filtered by posture — it is the operator saying
+  "these are self-service here", and it still refuses admin-shaped names.
+
 ## Gotchas
 - Only works in dev posture; a production-posture flip makes `can_roleplay` refuse outright — re-check
   `GET /api/security/observe/roles` after any posture change.

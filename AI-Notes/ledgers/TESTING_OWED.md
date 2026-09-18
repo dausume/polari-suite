@@ -1835,3 +1835,95 @@ both before and after this change (pre-existing, unrelated).
   delete with no bearer at all succeeds. The legacy access matrix predates the permission gate and inverts it.
 
 **Still OWED from §51:** the browser pass is HIS. `enforce` still never run on a deployed stack, by his ruling.
+
+## §52 — self-claimable roles (2026-09-18, his ask: assign yourself a role from inside Polari)
+
+His words: *"I see no way, upon registering, to simply assign myself a role in the Polari interface. Or a way to go
+from Polari to Keycloak to grant oneself permissions that anyone can just self-claim. It should not be the case all
+roles can be taken by anyone, but self-proclaimable roles should be a thing, especially in dev mode."*
+
+A role IS a Keycloak group (the permission model reads the `groups` claim), so claiming one = joining that group,
+done for the caller by the `polari-backend` service account. Decision recorded as **D17-5** in
+`AI-Notes/plans/ISLE_HARDENING_PLAN.md` §17b; operator instructions in
+`AI-Notes/guides/ROLEPLAY_PERMISSIONS_GUIDE.md` → "Claiming a role yourself".
+
+**The rule.** DEV: every `RolePrototype` row, in any state, unless an admin explicitly said no, plus the
+`claimable_groups` knob. PRODUCTION: only rows flagged `self_claimable: true`, plus the knob — nothing by default.
+NEVER in either posture: `ADMIN_ROLES` (`admin`, `polari-admin`), the KC groups `Polari Administrators` /
+`Polari Developers`, and any `polari-*` name that is not a prototype an admin flagged. The caller must be
+authenticated (a `sub`), or the answer is 401 and an empty list.
+
+**PII (his rule, 2026-09-18 — Keycloak exists to keep personal data away from Polari).** Every row and event this
+arc writes keys the person by the opaque Keycloak `sub` ALONE: the `SecurityEvent` actor is the sub, the observe
+knob records the sub as `by`, and `/api/security/roles/claimable` echoes the caller's own sub instead of a
+username. `kc_admin` keeps only group ids/names — it never logs or persists a KC user object. The frontend sends
+only a role name; the display name in the dialog is the browser's own token. (The four §17b observe rows that
+still store a username remain a correction owed — plan §17c.)
+
+**Built** (framework `6b120dc`, angular `98dd03b`, node `5003166`, suite pin below):
+
+| piece | where |
+|---|---|
+| the flag | `RolePrototype.self_claimable: bool = False`; explicit NOs in the observe knob's `claim_denied` list (a bool column cannot hold "never decided" vs "decided no", and dev posture needs that difference) |
+| the knob | `security_observe.claimable_groups` / `set_claimable_groups`, mirroring `roleplay_groups` / `set_roleplay_groups`, in the same `<data>/security/observe.json`; plus `claim_denied_roles` / `set_claim_denied` |
+| the rule | `modules/security/custom/security_claims.py` — `claimable_roles`, `may_claim`, `claim`, `release`, `forbidden_reason`, `how`. Every refusal names the rule that refused |
+| the mechanism | `modules/security/custom/kc_admin.py` — urllib only, timeouts, never raises into the API: `token` (client_credentials on `polari-backend`, cached, one 401 retry), `groups`, `find_group`, `create_group`, `user_groups`, `add_user_to_group`, `remove_user_from_group`, `account_url` |
+| the doors | `GET /api/security/roles/claimable`, `POST` / `DELETE /api/security/roles/claim`; `POST /api/security/observe/roles/{name} {"self_claimable": …}` (ADMIN-ONLY); `POST /api/security/observe {"claimable_groups": [...]}`; `GET /api/security/observe` now reports `roleplay_groups`, `claimable_groups`, `claim_denied` |
+| the UI | `src/app/services/role-claims.service.ts`; `src/app/components/header/claim-role-dialog.component.ts` (standalone MatDialog: Claim/Release per role, "held" marked, refusal inline, "Manage account in Keycloak", "Sign in again" when the silent renew fails); `header.html` user menu gains "Claim a role…" + "Manage account"; `AuthSessionService.renewSession()` (public `signinSilent` wrapper) |
+
+**Selftests.** `modules/security/security_selftest.py` **111/114** (was 94/97; +17 checks, the 3 failures are the
+known environment ones — ledger `mac_enforced`, mac profiles complain, expired internal certs). The new checks:
+the dev list (every prototype, never admin / never `Polari Administrators` / never an unflagged `polari-*`), `held`
+from the caller's own token groups, an unauthenticated caller getting nothing, an admin's explicit NO removing a
+role from the dev free-for-all, the knob adding plain groups while still refusing an admin one, the production list
+(flagged + knob only), the four refusal sentences, claim/release against a monkeypatched `kc_admin._http` (token →
+group search → group create → PUT membership; second claim finds instead of creates; release DELETEs), a missing
+credential answering 503 naming the env var, an admin role refused before Keycloak is touched, the SecurityEvent
+ledger keyed by `sub` with no username anywhere in it, the four routes (claimable / 401 / 403 / the account URL),
+and the admin-only `self_claimable` route both ways.
+
+**Live proof (2026-09-18, home swarm `polari-lean`, dev posture, gate `advisory`, deployed with `pol prod apply`).**
+Entirely through the APIs, as `demo-viewer` (password grant, `polari-frontend`):
+
+| step | result |
+|---|---|
+| `GET /api/security/roles/claimable` with NO bearer | `200 {ok, posture: dev, authenticated: false, sub: "", roles: [], held: [], account_url: "https://auth.<D>/realms/Polari/account", keycloak: {ready: true}}` — nothing offered to nobody |
+| token 1 for `demo-viewer` | no `groups` claim at all |
+| `GET /claimable` with token 1 | `journalist` listed, `held=false`, `source=prototype`, `state=enforced` (a CONCRETED, ENFORCED role is still claimable in dev — that is the rule) |
+| `POST /claim {"role":"journalist"}` | `200 {ok, role: journalist, group_id: a4ef779c-…, group_created: false, why: "dev posture: every prototype role is claimable unless an admin says otherwise", note: "sign in again or refresh your session…"}` |
+| a NEW token for `demo-viewer` | `groups: ["journalist"]` — the claim really landed in Keycloak |
+| `GET /claimable` with the new token | `held: ["journalist"]`, the row `held=true` |
+| `DELETE /claim?role=journalist` | `200 {ok, released: true}` |
+| a NEW token again | no `groups` claim — the membership is gone |
+| `POST /claim` with NO bearer | **401** `"sign in first: a role is claimed for a Keycloak account, and this request carries none"` |
+| `POST /claim {"role":"polari-admin"}` | **403** `"polari-admin is an administrator role — administrator roles are never self-claimable"` |
+| `GET /api/security/events?control=role-claim` | two rows, `actor` = the Keycloak `sub` UUID (`820f970b-…`) and **no username anywhere**, `source=self-claim`, `would_deny=false` |
+| `POST /api/security/observe/roles/journalist {"self_claimable": true}` as `demo-viewer` | **403** `"only an administrator may change whether a role is self-claimable (ADMIN_ROLES: admin, polari-admin)"` |
+| the same as `demo-admin` | `200`, the row comes back with `self_claimable: true` — proving the new column reached the live sqlite schema through the ALTER-TABLE path, on a row created two days earlier |
+| `https://prf.192.168.0.210.nip.io` | the served bundle `main.5a88a180c506302a.js` contains `Claim a role` |
+
+**Defect found and fixed during the live run.** The first attempt answered
+`502 … "Public client not allowed to retrieve service account"`: `kc_admin.config()` was reading
+`POLARI_KEYCLOAK_ADMIN_CLIENT_ID`, which on this stack is `admin-cli` — a PUBLIC client with no service account —
+while the secret it holds belongs to `polari-backend`. The client id is now pinned to the credential's own client
+(`POLARI_KEYCLOAK_BACKEND_CLIENT_ID` overrides), framework `c7391d4`. No change was needed to
+`configure_clients.sh`: the `polari-backend` service account already carries realm-management
+`view-realm, manage-users, view-users, query-groups, query-users` (read back from its own token).
+
+**State left on the live stack:** `journalist` is now flagged `self_claimable: true` (set by the admin-route test),
+so it stays claimable if the stack is ever flipped to production posture. `demo-viewer` holds no role — the claim
+was released again.
+
+**OWED**
+- **The browser pass is HIS**: the dialog has never been seen by eye — the layout, dark mode, the Material dialog
+  inside the header menu overlay, and the "Sign in again" fallback are all unconfirmed visually.
+- **The token-refresh behaviour in a browser is UNPROVEN.** `renewSession()` calls `signinSilent` (prompt=none);
+  whether Keycloak re-issues with the new group without a full sign-in on this realm has only been reasoned about,
+  not watched. The API proof used a fresh password grant instead.
+- Release of a role granted by an administrator is deliberately refused (only self-claimable roles can be
+  self-released) — no test that an admin-granted group survives a release attempt against the live realm.
+- `claim_denied` lives in the observe knob file, not in the row. If the knob file is lost the explicit NOs are lost
+  and dev posture reopens those roles. A `RolePrototype` column that can hold three states would be better; that is
+  superseded anyway by §17c's `RoleGrantPolicy` (slice rg-0).
+- Nothing rate-limits claims. A signed-in person can take every claimable role at once; in dev that is the point,
+  in production the list is expected to be short and deliberate.

@@ -478,6 +478,16 @@ mapping is still empty, so review's per-app grouping is incomplete).
   "would now deny, and that's fine"?
 - D17-4 Should recorded observations expire alongside the dev posture (§16's time-box), or persist until someone
   clears them explicitly?
+- **D17-5 self-claimable roles: dev = every prototype role; production = only roles flagged `self_claimable` or
+  listed in `claimable_groups`; admin roles never** (decided by his words 2026-09-18: "I see no way, upon
+  registering, to simply assign myself a role in the Polari interface … It should not be the case all roles can be
+  taken by anyone, but self-proclaimable roles should be a thing, especially in dev mode"). Built the same day —
+  `RolePrototype.self_claimable`, the `claimable_groups` knob beside `roleplay_groups`,
+  `security.custom.security_claims` (the rule) + `security.custom.kc_admin` (the `polari-backend` service account),
+  `GET /api/security/roles/claimable` and `POST`/`DELETE /api/security/roles/claim`, and "Claim a role…" in the
+  header's signed-in user menu. Never claimable in either posture: `ADMIN_ROLES`, the Keycloak groups "Polari
+  Administrators"/"Polari Developers", and any `polari-*` name that is not a prototype an admin flagged. Every claim
+  is a `SecurityEvent` keyed by the Keycloak `sub` alone (the §17c PII boundary). Ledger §52.
 
 ### §17c — ROLE GRANT ROUTES (his ask 2026-09-18) — design only, see designs/ROLE_GRANT_ROUTES_DESIGN.md
 

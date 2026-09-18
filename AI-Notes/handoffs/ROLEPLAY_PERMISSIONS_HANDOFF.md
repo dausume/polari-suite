@@ -214,3 +214,25 @@ Keycloak membership materialised from it by a reconciler, a `RoleGrantPolicy` pe
 stanza for app-defined routes, and — per his ruling on D18-1 — every such row keys the person by their Keycloak
 `sub` only (never a username/e-mail), which surfaces a correction owed against this arc's own `.actor` columns
 (design §8, slice rg-0a) before any of the new ledger work lands.
+
+## 2026-09-18 — SELF-CLAIMABLE ROLES (his ask, built and deployed)
+
+His words: *"I see no way, upon registering, to simply assign myself a role in the Polari interface. Or a way to go
+from Polari to Keycloak to grant oneself permissions that anyone can just self-claim. It should not be the case all
+roles can be taken by anyone, but self-proclaimable roles should be a thing, especially in dev mode."* Decided as
+**D17-5** (plan §17b) and built the same day: a role IS a Keycloak group, so claiming one puts the caller's `sub`
+into that group through the `polari-backend` service account — nobody opens the Keycloak admin console.
+**Dev posture: every prototype role is claimable, in any state, unless an admin explicitly said no. Production:
+only rows flagged `self_claimable` plus the `claimable_groups` knob. Admin roles — `ADMIN_ROLES`, `Polari
+Administrators`, `Polari Developers`, and unflagged `polari-*` names — never, in either posture.** The rule is
+`modules/security/custom/security_claims.py`, the Keycloak client is `modules/security/custom/kc_admin.py` (urllib
+only, timeouts, never raises; 503 naming `KEYCLOAK_POLARI_BACKEND_CLIENT_SECRET` when there is no credential), the
+doors are `GET /api/security/roles/claimable` and `POST`/`DELETE /api/security/roles/claim`, and the UI is "Claim a
+role…" + "Manage account" in the header's signed-in user menu (`claim-role-dialog.component.ts`,
+`role-claims.service.ts`, `AuthSessionService.renewSession()`). **His PII rule the same day — Keycloak exists to
+keep personal data away from Polari — is honoured throughout: every row, event and knob write keys the person by
+the opaque Keycloak `sub` alone, never a username or e-mail.** Security selftest 111/114 (the 3 known environment
+failures). Ledger §52 has the build table, the live proof and what is owed; the guide has "Claiming a role
+yourself". **STILL HIS: the browser pass** — the dialog has never been seen by eye, and whether `signinSilent`
+re-issues a token carrying a just-claimed group is unproven in a browser (the API proof re-minted with a password
+grant instead).
