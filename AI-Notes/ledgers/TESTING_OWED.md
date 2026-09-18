@@ -2126,3 +2126,145 @@ without touching Keycloak; and that the batch wrote nothing to the manager. Unch
 - `class-rows-table`'s `person` kind is the ONLY format in `columnFormats`. The parser accepts any `column:format`
   pair and silently ignores an unknown format — a typo in a seed (`actor:persn`) renders the raw UUID with no
   complaint anywhere. No validation exists.
+
+## §51 addendum 3 — tombstones + the serialisation hot spot (2026-09-18, fixed, selftested, proven live)
+
+The defect §51 addendum 2 observed at its own tail and did NOT fix — **a row deleted while a flush is in flight is
+RESURRECTED by that flush** — is fixed, together with the reason the window was wide enough to hit twice: the flush
+spent 39-103 s of pure Python finding one column. polari-framework `3d8a7b3` + `f0b9f92`, node `f4cb617`, suite pin
+below. Posture stays `dev`, the gate stays `advisory` — **not** `enforce` (his ruling stands).
+
+### A. the resurrection — tombstones
+
+`persistTree()` snapshots `objectTables` at the top (`tables = {name: dict(instances) ...}`), serialises for tens of
+seconds, then writes that snapshot as ONE DELETE+REPLACE transaction. A delete landing in between was simply undone:
+the snapshot still held the row, so the write put it back, and the next boot read it back into the tree.
+
+**The fix.** Every removal leaves a **tombstone** `(className, instanceId)` on the manager:
+`deleteTreeNode` (recorded before EITHER branch, so the in-tree and not-in-tree cases are both covered),
+`purgeObjectType` (one per row of the class), and `inheritanceOrchestrator._rollbackCreatedInstances`. At WRITE time
+— after serialisation, immediately before the transaction — `_dropTombstonedRows` drops every prepared row whose
+`(class, id)` is tombstoned. The legacy per-class path and the row-by-row fallback apply the same filter.
+
+Two rules keep it honest:
+
+- **The live table is the truth, the tombstone only says where to look.** A row is dropped only when it is
+  tombstoned AND still absent from the live `objectTables`, so an id deleted and RE-created before the write is
+  written, not dropped. Every create also cancels the tombstone for its own key (`noteTreeMutation` from
+  `treeObjectInit` and `addNewBranch`).
+- **Filter, COMMIT, then clear** — a python set and a sqlite transaction cannot commit together. Only the
+  tombstones this flush acted on are cleared, and only after the commit: a delete landing during the write is still
+  in the set and the next flush honours it; a crash in between leaves the tombstone up and the next flush drops the
+  row again.
+
+**Found in the live log of the proving deploy and fixed in `f0b9f92`:** a delete that lands BEFORE the snapshot is
+never "honoured" (there is nothing to drop), so its tombstone stood forever — the SIGTERM flush reported
+`1 tombstones still up` and kept reporting it. A flush now also **SETTLES** a tombstone whose class table it rewrote
+whole: the row is provably off disk either way. Only tombstones captured before the write are settled, and a key
+live in the table again is never settled.
+
+### B. the serialisation hot spot — ONE tree walk, not one per row
+
+Profiled with cProfile against a tree shaped like the live instance's, built from a `docker cp` copy of
+`managerObject_DB.db` (97 classes, 10 870 rows, **460** of them carrying a `_branch_path`, plus filler nodes
+standing for the ~23 700 instances the flush skips as "no table" but which are still IN the tree — ~4 000 nodes).
+That reproduction lands at **40.95 s**, inside the live band of 39-103 s, so the model is the live behaviour.
+
+```
+   ncalls      tottime   cumtime  function
+42297210/10870  47.317    75.757  objectTreeManagerDecorators.py:2173(getTuplePathInObjTree)
+      42297210  23.019    23.019  objectTreeManagerDecorators.py:2133(getBranchNode)
+      84593960   5.421     5.421  {method 'keys' of 'dict' objects}
+            97   0.142    76.125  managedDB.py:278(_buildClassRows)
+         10870   0.064     0.064  objectTreeManagerDecorators.py:1534(getObjectTyping)
+           460   0.000     0.003  json/__init__.py:183(dumps)
+```
+
+**Root cause, exactly.** `_buildClassRows` asks `polyTypedObject.serializeTreePath` for each row's `_branch_path`,
+and that is `managerObject.getTuplePathInObjTree` — a full depth-first search of the WHOLE object tree in which
+`getBranchNode` re-walks from the root at every recursion step. ~96 % of rows are not in the tree at all
+(**460 of 10 870**), so those searches never short-circuit and visit every node: **42 297 210 recursive calls for
+10 870 rows**, 47.3 s + 23.0 s = **99.7 %** of the flush. It is not a per-row JSON re-encode (0.003 s for all 460
+paths), not the typing lookup (0.064 s), not sqlite (§51 addendum 2 already measured the DB half at 0.24-0.75 s).
+
+**The fix.** The tree does not move while the flush serialises, so it is walked ONCE.
+`managerObject.buildTreePathIndex()` indexes every node by `(className, identifiers)` **in the exact order the
+recursive search checked them** (all children of a node, then each subtree in turn), keeping a **list** per key
+because one key can sit at several places in the tree; `treePathFromIndex` then replays the original's decision
+verbatim — a duplicate-pointer node returns its stored path, an exact instance match returns its traversal, anything
+else is walked past. The index is built once per flush in `persistTree` and threaded down through
+`prepareClassBatch` / `saveClassBatch` / `_buildClassRows` as a keyword with a signature check, so any db double
+that predates it keeps working.
+
+| measurement (same harness, same tree) | before | after |
+|---|---|---|
+| `_buildClassRows` over the whole tree | **41.25 s** | **0.10 s** (index build 0.005 s, 4 062 keys) — **423x** |
+| rows written | 10 870 | 10 870, **byte-identical**, all 460 `_branch_path` values included |
+
+**The on-disk format did not change.** The selftest asserts the written rows are identical with and without the
+index, for a tree containing a duplicate pointer and two different instances sharing one `(class, identifiers)`.
+
+### C. the generation counter, and the only-dirty flush that does NOT fall out
+
+`persistGeneration` bumps on every create and delete; `persistTree` records it at the snapshot and prints
+`tree moved under the flush: generation N -> M` when the tree changed underneath. It is **NOT** used to skip
+unchanged classes, and that is deliberate: `treeObject.__setattr__` short-circuits every plain scalar straight to
+`super().__setattr__` (and `restoreTreeFromDB` writes fields with `object.__setattr__` outright), so in-place field
+updates never reach any hook. Skipping a class on that basis would silently drop them. Per-class dirty tracking
+needs a real dirty flag at every mutation site including those bypasses — its own slice, not a free rider on this one.
+
+### Selftests
+
+New `polariApiServer/selftest_persist_tombstones.py` **43/43**: the bookkeeping (create bumps, delete bumps and
+tombstones, a tombstoned row still live is NOT dropped, a re-created id cancels its tombstone, `clearTombstones`
+drops only what was honoured); `_dropTombstonedRows` filters by the `id` column and leaves a class WITHOUT one
+alone; **a delete fired from inside `prepareClassBatch`** — i.e. after the snapshot, before the write — is not
+written back and stays gone on the next flush; a create fired the same way is written now or next flush, never
+lost; a re-created id survives; the tombstone settles instead of piling up, but one for an untouched class is kept;
+the legacy per-class path honours tombstones; the index agrees with the live search for the root / one level down /
+two levels down / a second instance sharing a key / a row not in the tree / a duplicate pointer; the `_branch_path`
+written is byte-identical with and without the index; and a whole flush costs **ZERO** full tree searches.
+
+Unchanged: `selftest_persist_debounce` 13/13, `selftest_persist_atomic` 21/21, `selftest_crude_delete_blast` 21/21,
+`selftest_quiesce` 27/27, `selftest_batched_persist` 17/17, `modules/security/security_selftest.py` **137/140**
+(the 3 known environment failures — ledger `mac_enforced`, mac profiles complain, expired internal certs).
+
+### LIVE PROOF (home swarm `polari-lean`, demo-admin bearer, gate `advisory`)
+
+| step | result |
+|---|---|
+| before | `GET /AppPermissionProfile` → 3 rows (`app-climate-viewer`, `journalist`, `wax-print-shop-operator`); the sqlite file inside the container agrees |
+| create `tomb-031131` through CRUDE (multipart, one `initParamSets` field) | `201`, and **on disk within 5 s** — the debounced flush now takes about a second, not a minute |
+| **DELETE it and fire `docker service update --force polari-lean_prf-backend` immediately**, without waiting for any flush | `200 {"instancesDeleted": ["FWb11Ez10s8"]}`, API back to 3 rows |
+| new container online after 70 s | **API 3 rows, DISK 3 rows — it did NOT come back.** This is the exact sequence that resurrected two profiles at the end of §51 addendum 2 |
+| the outgoing container's SIGTERM flush | `[Persist] SIGTERM — flushing the object tree before we go` then `[DB] Persisted 11 282 instances … 0 rows deleted since the snapshot were dropped, 1 tombstones still up — tree-path index 0.01s, serialize 0.50s, write+commit 0.30s`. **The SIGTERM flush COMPLETED** — the whole thing inside ~0.8 s |
+| the new container's flushes | `Persisted 11 478 instances … tree-path index 0.01s, serialize 0.51s, write+commit 0.29s` and `… index 0.36s, serialize 0.84s, write+commit 0.50s` |
+
+**Serialisation, live: 39.45 / 44.89 / 53.66 / 74.97 / 77.89 / 81.14 / 97.11 / 103.45 s before → 0.50 / 0.51 / 0.84 /
+0.89 s after.** That is what makes §51's SIGTERM flush mean anything: at ~0.5 s it fits inside Docker's 10 s default
+`stop_grace_period`, where 39-103 s never could. The `1 tombstones still up` in that log is the leak `f0b9f92` then
+closed (the deploy that proved A was built from `3d8a7b3`).
+
+### OWED
+
+- **`stop_grace_period` is still Docker's 10 s default and STILL AWAITS HIS YES.** `docker service inspect
+  polari-lean_prf-backend` → `StopGracePeriod 10s`; `docker-compose.lean.yml` sets none. The flush now fits inside
+  it on this instance, so the one-line change is no longer load-bearing for a 10 000-row tree — but it is the only
+  thing standing between a bigger instance and a SIGKILLed flush. The exact line, on the `prf-backend` service in
+  BOTH `docker-compose.lean.yml` and `docker-compose.prod.yml`:
+
+  ```yaml
+      stop_grace_period: 180s
+  ```
+
+  Not applied — it changes his running stack's shutdown behaviour and he should say yes first.
+- **Per-class dirty tracking** (skip classes nothing touched) — see §C: it needs a dirty flag at every mutation
+  site, `treeObject.__setattr__`'s scalar short-circuit and `object.__setattr__` bypasses included.
+- **`persistTree` still skips ~25 100 instances per flush as "no table"** — carried over from §51 addendum 2,
+  untouched here, still deserves its own look.
+- **The boot/flush overlap** from §51 addendum 2 is still open: if a new container's restore reads the file before
+  the old container's flush commits, its own boot flush writes the older reading back. Much smaller now that a
+  flush is ~1 s instead of ~100 s, but not closed.
+- **`treeObject.__setattr__` calls `getTuplePathInObjTree` too** (line 189, for every non-scalar assignment) — the
+  same full-tree search, outside the flush path. Not touched here; the same index would fix it if it is ever hot.
+- **Not seen by eye.** No browser pass on any of this; it is API and container-log evidence only.
