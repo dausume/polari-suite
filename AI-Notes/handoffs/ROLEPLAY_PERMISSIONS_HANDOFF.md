@@ -215,6 +215,16 @@ stanza for app-defined routes, and — per his ruling on D18-1 — every such ro
 `sub` only (never a username/e-mail), which surfaces a correction owed against this arc's own `.actor` columns
 (design §8, slice rg-0a) before any of the new ledger work lands.
 
+**rg-0a is BUILT (2026-09-18, framework `7101480`, ledger §53): the PII boundary is applied.** Every actor
+resolution in the security module, the role-play middleware and the CRUDE gate now yields the Keycloak `sub`
+alone — `security_observe.actor_of()` is the one resolution, `security_api._actor()` is gone, and the role-play
+session no longer takes an `actor` from the request body. The four ledgers keep the column name `actor`; it holds
+a sub. A name is resolved live through the ONE gated door `GET /api/security/people/{sub}` (admin, your own sub,
+or a group in the new `people_viewers` knob; 401 / 403 / 503 "no identity provider" otherwise) and is never cached
+into the tree. Rows written before the rule are cleared by a one-shot idempotent boot scrub logging
+`[security] PII scrub: N actor values cleared (D18-1)`. Security selftest 126/129 (the 3 known environment
+failures). rg-0 may now build on these tables.
+
 ## 2026-09-18 — SELF-CLAIMABLE ROLES (his ask, built and deployed)
 
 His words: *"I see no way, upon registering, to simply assign myself a role in the Polari interface. Or a way to go
@@ -236,3 +246,27 @@ failures). Ledger §52 has the build table, the live proof and what is owed; the
 yourself". **STILL HIS: the browser pass** — the dialog has never been seen by eye, and whether `signinSilent`
 re-issues a token carrying a just-claimed group is unproven in a browser (the API proof re-minted with a password
 grant instead).
+
+## 2026-09-18 — the two deep defects are FIXED (ledger §51 addendum 2)
+
+The two defects §51 addendum found and left ("read the addendum before touching the DB layer") are fixed, selftested
+and proven live on `polari-lean` — framework `4d9f864`, node `bc86fa4`, suite `57feb05`, posture still `dev`, gate
+still `advisory`. The class-wipe was **not** `deleteTreeNode`: `getListOfInstancesByAttributes` handed the query
+engine `self.objectTables[className]` itself and the engine narrows by `pop()`-ing the non-matches out of the dict
+it is given, so merely *resolving* `targetInstance={"name":"x"}` deleted every sibling from the live tree before the
+delete even started — the fix is that the engine narrows a copy. The legacy CRUDE access matrix, which gave an
+anonymous caller C/R/U/D/E and an authenticated one only R/E, now returns the same open matrix from both branches,
+with the invariant written down (the real per-profile gate is `accessControl/app_permissions_gate.py`, and this
+matrix must never grant anonymous more than authenticated). `persistTree` now serializes every row outside any
+transaction and writes the whole tree in ONE transaction with a `polari_persist_state` marker, so a reader sees the
+old tree or the new tree and a process that finds another pid mid-flush declines instead of writing its own older
+reading back; measured live, the window a reader could see anything partial fell from the whole flush (28–134 s) to
+the write alone (typically **under a second**; 0.23 s on the first live flush). New selftests
+`polariApiServer/selftest_crude_delete_blast.py` 21/21 and `polariDBmanagement/selftest_persist_atomic.py` 21/21;
+everything else unchanged (debounce 13/13, batched 17/17, quiesce 27/27, security 94/97). Live: two throwaway
+profiles created through CRUDE, **one deleted with the demo-admin bearer answering 200** (it used to 405 with a
+bearer and succeed without one), the other throwaway and the real `journalist` still there before and after a
+`docker service update --force`. **One thing needs his say-so:** `stop_grace_period` on `prf-backend` is Docker's
+default 10 s while the SIGTERM flush needs 30–134 s to serialize, so that flush is killed on every redeploy of a
+full instance — the one-line fix is `stop_grace_period: 180s` in `docker-compose.lean.yml` / `.prod.yml`, not
+applied here because it changes his running stack.

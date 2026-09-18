@@ -210,18 +210,26 @@ addresses (handoff, "Real logins on the lean demo") live only in Keycloak; a
 `RoleGrant` for `demo-journalist` is keyed by that account's `sub`, same as
 production.
 
-**Corrections owed (found while writing this design, not yet fixed).** Four
-rows built under §17b currently store a human-readable `actor` instead of a
-`sub`: `PermissionObservation.actor` (set in
+**Corrections owed — ✅ DONE 2026-09-18, framework `7101480` (slice rg-0a).**
+Four rows built under §17b stored a human-readable `actor` instead of a `sub`:
+`PermissionObservation.actor` (set in
 `modules/security/custom/security_observe.py`'s `observe_permission()`,
 falling back `preferred_username` → `username` → `sub`), `SecurityEvent.actor`
 (`record()`, same file), `ObservationSession.actor` (`start_session()`, same
 file) and `UsageObservation.actor` (`observe_usage()`, same file, and the
 `preferred_username`-first fallback in `accessControl/roleplay_observer.py`).
-All four need to switch to `sub`-only before rg-0 lands anything new on top of
-them — see slice **rg-0a** below. The `security-events` page then needs to
-show the `sub` (or a name resolved through the gated door) instead of the
-stored username.
+All four now hold the `sub` alone: `security_observe.actor_of()` is the one
+resolution, `security_api._actor()` is gone in favour of `_sub()`, the
+role-play session no longer takes an `actor` from the request body,
+`accessControl/app_permissions_gate.py` (the SecurityEvent the CRUDE gate
+writes) resolves through `actor_of()` too, and `derive_profiles()`/`review()`
+count DISTINCT subs. The gated door of this section exists:
+`GET /api/security/people/{sub}` (§8 above), with the `people_viewers` knob.
+Rows written before the rule are cleared by a one-shot idempotent scrub at
+module boot, logging `[security] PII scrub: N actor values cleared (D18-1)`.
+The `security-events` page needed no change — its `actor` column is a
+configured table column, and it now shows the sub; resolve one by hand through
+the door (see the guide's "Names and the PII boundary").
 
 ## 9. Decisions for him (D18-1…D18-6)
 
@@ -244,13 +252,16 @@ stored username.
 
 ## 10. Slices (rg-0a…rg-5)
 
-- **rg-0a** — the PII correction, BEFORE rg-0 touches any of these tables:
-  switch `PermissionObservation.actor`, `SecurityEvent.actor`,
-  `ObservationSession.actor` and `UsageObservation.actor` from
-  `preferred_username`-first to `sub`-only (§8's four call sites), and change
-  the `security-events` page to show the `sub` (or a name resolved through the
-  new gated door, once it exists) instead of the stored username. Selftest:
-  no row written after the fix contains an `@` or a KC username shape.
+- **rg-0a** — ✅ **BUILT 2026-09-18** (framework `7101480`, ledger §53). The PII
+  correction, BEFORE rg-0 touches any of these tables: `PermissionObservation
+  .actor`, `SecurityEvent.actor`, `ObservationSession.actor` and
+  `UsageObservation.actor` are `sub`-only (§8's four call sites plus the CRUDE
+  gate's own SecurityEvent), the gated door `GET /api/security/people/{sub}`
+  exists with the `people_viewers` knob, and a one-shot idempotent boot scrub
+  clears the usernames earlier builds wrote. Selftest: the four ledgers store
+  the sub while the token carries a name and an e-mail; the scrub clears a
+  non-sub actor and keeps a real one; the door answers 401 / 403 / 200 (self,
+  admin, `people_viewers` member) / 503 with no Keycloak.
 - **rg-0** — the `RoleGrant` + `RoleGrantPolicy` objects, the reconciler, and
   self-claim REWRITTEN to write a `RoleGrant` (route `self-claim`) instead of
   calling `kc_admin` directly (today's guardrails in `security_claims.py` —

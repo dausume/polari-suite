@@ -2002,3 +2002,66 @@ environment failures) — all unchanged from before this slice except the two ne
   before that class is serialized, or re-check deletions against the tree at write time.
 
 **Still OWED:** the browser pass is HIS. `enforce` still never run on a deployed stack, by his ruling.
+
+## §53 — rg-0a: the PII boundary applied (2026-09-18, his rule D18-1)
+
+His rule: *"largely the purpose of Keycloak is to keep PII secure and away from Polari itself."* So every person in
+a Polari row, event or log line is their opaque Keycloak subject id (`sub`) and nothing else — never a
+`preferred_username`, an e-mail or a display name. Names are resolved at RENDER time through ONE permission-gated
+door and are never cached into the tree. Design `AI-Notes/designs/ROLE_GRANT_ROUTES_DESIGN.md` §8 (its "Corrections
+owed" is now DONE) and slice rg-0a; operator instructions in the guide → "Names and the PII boundary".
+
+**Built** (framework `7101480`, node `fc4a002`, suite pin below; no Angular change was needed):
+
+| piece | where |
+|---|---|
+| the one resolution | `security_observe.actor_of(user_info)` → `sub` or `''`. `observe_permission()`'s `preferred_username` → `username` → `sub` fallback is gone (that fallback is exactly how this week's role-play tests wrote `demo-*` logins into four ledgers) |
+| the call sites | `observe_permission`, `record`, `observe_usage`, `start_session`; `security_api._actor()` DELETED — every knob write, prototype, session and usage is attributed with `_sub()`; `accessControl/roleplay_observer.py` (endpoint usage) and `accessControl/app_permissions_gate.py` (the SecurityEvent the CRUDE gate writes) both resolve through `actor_of()` |
+| the body no longer decides | `POST /api/security/observe/session` used to take `actor` from the request body — anyone could write any string (a name) into `ObservationSession.actor`. It is now the caller's own `sub`, always |
+| distinct subs | `derive_profiles()` evidence gains `actor_count` and says "distinct Keycloak subject(s)"; `review()` gains `actors` + `actor_count` (observations + usages + sessions, deduplicated) |
+| the gated door | `GET /api/security/people/{sub}` → `{ok, sub, display_name, username, why, how}`, resolved LIVE by `kc_admin.get_user()` (`GET /admin/realms/{realm}/users/{sub}`; the service account already holds `view-users`) and stored NOWHERE. No e-mail is returned at all |
+| the gate on the door | admin (`ADMIN_ROLES` via `caller_groups`), OR your own sub, OR a group named in the NEW `people_viewers` knob (`security_observe.people_viewers` / `set_people_viewers`, mirroring `claimable_groups`, same `<data>/security/observe.json`; `POST /api/security/observe {"people_viewers": [...]}`). 401 without an identity, 403 otherwise, 503 `no identity provider: …` with no Keycloak credential — there is deliberately no stored name to fall back on |
+| the migration | `scrub_actor_pii()` clears every `actor` in `PermissionObservation` / `SecurityEvent` / `ObservationSession` / `UsageObservation` that is not shaped like a sub (8-4-4-4-12 hex), persisted through the existing debounce; `scrub_actor_pii_once()` runs it once per process and logs `[security] PII scrub: N actor values cleared (D18-1)` |
+| when it runs | scheduled by `construct_security_endpoints`, but on a daemon thread that WAITS for the module's rows: routes are built in `polariServer.__init__`, long before lazy boot's Phase B restores them, so scrubbing inline would walk an empty tree (bounded: rows-or-120 s, hard stop 300 s) |
+
+**Selftests.** `security_selftest.py` **126/129** — the 3 known environment failures (ledger `mac_enforced`, mac
+profiles complain, expired internal certs) and nothing else; `modules/polariapps/apps_selftest.py` 57/57. The new
+block `_pii_checks()` proves: the four ledgers store the `sub` while the token carries `preferred_username`,
+`username` AND an `@example.invalid` e-mail (and none of those strings appear anywhere in the rows); `actor_of()`
+never falls back; `review()`/`derive_profiles()` count distinct subs; the scrub clears a username and an e-mail,
+keeps a real sub, and clears nothing on a second run; `looks_like_sub()` accepts only 8-4-4-4-12 hex; and the door
+answers 401 unauthenticated, 403 for a stranger (naming the rule and the knob), 200 for self, 200 for an admin, 200
+for a `people_viewers` member, 503 with no Keycloak credential — with nothing it returned reaching a row.
+
+**Live proof** (`polari-lean` on `192.168.0.210.nip.io`, redeployed with `pol prod apply`; posture `dev`, gate
+`advisory` — neither touched):
+- the backend log carries **`[security] PII scrub: 9 actor values cleared (D18-1)`** — the nine usernames this
+  week's role-play and self-claim tests had written across the four ledgers;
+- `GET /api/security/observations` (17 rows) and `/api/security/events` contain **zero** `demo-*` strings and
+  **zero** `@` — grepped on the raw JSON;
+- a `demo-journalist` password-grant bearer + `X-Polari-Roleplay: journalist` → one CRUDE read of `TermsDocument`
+  (200) → the new observation row's actor is **`589384ad-d886-49e2-adb1-77aa78b139f4`**, that token's own `sub`,
+  with `groups` carrying `journalist,…,roleplay:journalist` and verdict `granted-by-profile`;
+- `GET /api/security/people/589384ad-…` with that same bearer → **200** `{"display_name": "Demo Journalist",
+  "username": "demo-journalist", "why": "your own account"}`; with a `demo-admin` bearer → 200 (`why:
+  administrator`); with a `demo-viewer` bearer → **403** naming the rule and the knob; with no bearer → **401**.
+
+**OWED**
+- **No browser has seen any of this.** The `security-events` page shows the `actor` column as a raw UUID; nothing
+  in the frontend calls the people door yet, so a person reading the page must resolve a sub by hand (the guide
+  says how). A render-time name lookup in the display layer is the obvious next step and is NOT built.
+- The door does one Keycloak admin round trip per call, with **no rate limit and no batch form**. A page listing
+  fifty subs would make fifty calls. Deliberate (no cache = no PII at rest), but a `?subs=a,b,c` batch and a
+  per-caller rate limit are owed before any page resolves names in bulk.
+- The **503 "no identity provider"** path is proven in the selftest only — the live stack has Keycloak. Likewise
+  `kc_admin.get_user()`'s 404 (unknown sub) and 502 (Keycloak refused) branches are selftested against a fake
+  `_http`, never seen against a real realm.
+- `security_claims.caller()` still READS `preferred_username` for a UI echo. Nothing persists it (every call site
+  discards it) but the function is one careless caller away from a leak; folding it out is owed.
+- The scrub's rule is "not 8-4-4-4-12 hex → clear". An identity provider whose subject ids are not UUIDs would have
+  its legitimate actors cleared. True of Keycloak nowhere, but it is an assumption, written here so it is not a
+  surprise.
+- The scrub is per PROCESS and waits at most 300 s for the module's rows. If a restore ever ran longer, it would
+  log `0` and never retry until the next restart. No test covers that path.
+- The nine cleared rows are **gone**, not reversible: their acts and counts survive, the person who performed them
+  does not. That was the point, and it is stated here because no ledger row can be recovered from Keycloak.

@@ -163,6 +163,30 @@ no service account, and using it answers `401 "Public client not allowed to retr
 - `claimable_groups` is a plain list of KC group names and is NOT filtered by posture — it is the operator saying
   "these are self-service here", and it still refuses admin-shaped names.
 
+## Names and the PII boundary (2026-09-18, his rule D18-1)
+
+Keycloak exists to keep personal data **away** from Polari. So every person in a Polari row, event or log line is
+their Keycloak **subject id** — an opaque UUID like `3f2b1c8a-9d4e-4a71-8b2c-5e6f7a8b9c0d` — and nothing else. The
+`actor` column on the security-events page (SecurityEvent, PermissionObservation, UsageObservation and the
+role-play sessions) holds that `sub`, not `demo-journalist`. An empty `actor` means the act was anonymous, or the
+row was written before this rule and the boot scrub cleared it.
+
+To put a name to one, ask the **one gated door** — it reads Keycloak live and Polari keeps no copy:
+```
+curl -s -H "Authorization: Bearer $TOK" \
+  https://api.prf.<D>/api/security/people/3f2b1c8a-9d4e-4a71-8b2c-5e6f7a8b9c0d
+# {"ok":true,"sub":"3f2b…","display_name":"Demo Journalist","username":"demo-journalist","why":"administrator"}
+```
+Who may ask: an administrator; anybody about their **own** sub; and members of a group named in the
+`people_viewers` knob —
+```
+curl -s -X POST -H "Authorization: Bearer $ADMIN_TOK" -H 'Content-Type: application/json' \
+  -d '{"people_viewers": ["approvers"]}' https://api.prf.<D>/api/security/observe
+```
+Everyone else gets **403** with the rule that refused; no bearer at all is **401**; a stack with no Keycloak
+credential is **503 "no identity provider"** — there is deliberately no stored name to fall back on. Your own
+browser showing your own name in the role menu is fine: that comes from your own token, not from Polari.
+
 ## Gotchas
 - Only works in dev posture; a production-posture flip makes `can_roleplay` refuse outright — re-check
   `GET /api/security/observe/roles` after any posture change.
