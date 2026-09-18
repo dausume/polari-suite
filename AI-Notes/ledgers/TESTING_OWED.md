@@ -2088,7 +2088,7 @@ calls". Both are now built. The rule itself is unchanged: **a Polari row still k
 | the page | `security_page.ACTOR_FORMAT = 'actor:person'` on all four tables of `/display/security-events`: `security-events-table` (SecurityEvent), `security-observations-table` (PermissionObservation), `security-usage-table` (UsageObservation), `security-sessions-table` (ObservationSession) |
 | the helper | `module_pages_seed._table(..., column_formats='')` → the `columnFormats` input. Every other caller is untouched (the default is `''`) |
 
-**Selftests.** `security_selftest.py` **136/139** — the same 3 known environment failures (ledger `mac_enforced`,
+**Selftests.** `security_selftest.py` **139/142** — the same 3 known environment failures (ledger `mac_enforced`,
 mac profiles complain, expired internal certs) and nothing else; 10 new checks in `_people_batch_checks()` prove:
 401 without an identity; a 400 for an empty body and for more than 200 subs, naming the limit; a plain signed-in
 caller resolving their OWN sub while another's lands in `denied` and never in `people`; an admin resolving the whole
@@ -2101,7 +2101,36 @@ without touching Keycloak; and that the batch wrote nothing to the manager. Unch
 `polariapps/apps_selftest.py` 57/57, `aquaponics_pages` 5/5, `computers` 30/30, `microchip` 16/16, `cooknow` 37/37
 (the `_table` helper's new keyword breaks no other page). `npx ng build --configuration=production` exits 0.
 
-**Live proof** — see the block appended below after `pol prod apply`.
+**Live proof** (`polari-lean` on `192.168.0.210.nip.io`, redeployed with `pol prod apply`; posture `dev`, gate
+`advisory` — neither touched). `GET /api/security/observations` returned 18 rows carrying two distinct actor subs,
+`589384ad-…` and `5cacba59-…`:
+- **demo-admin** → `POST /api/security/people {"subs": [both]}` → **200** `{"589384ad-…": "Demo Journalist",
+  "5cacba59-…": "Demo Admin"}`, `denied: []`, `why: administrator`, `keycloak_calls: 2`;
+- **the same call again** → the same two names with **`keycloak_calls: 0`** and `cache: {entries: 2, ttl_seconds:
+  300}` — the second Keycloak round trip never happened;
+- **demo-viewer** asking about its own sub and the two others → **200**, `people` holds only its own
+  (`820f970b-… → "Demo Viewer"`, `why: your own account`) and **both others are in `denied`** — one call, the gate
+  applied per sub, no error;
+- **no bearer** → **401**;
+- **the 61st call in a minute** as demo-viewer → **429** *"too many name lookups: this door answers 60 calls a
+  minute per caller… one call may carry up to 200 subject ids, so batch them"* with `retry_after: 59`. (So the
+  429 IS proven live, not only in the selftest.)
+- the **served** frontend bundle (`/9768.d9875537f48cb889.js`, 233 KB over HTTPS, 200) contains `/api/security/people`
+  and `columnFormats`;
+- the **served** `GET /DisplayDefinition` shows all four security-events tables carrying `columnFormats:
+  'actor:person'` — `security-events-table` (SecurityEvent), `security-observations-table` (PermissionObservation),
+  `security-usage-table` (UsageObservation), `security-sessions-table` (ObservationSession).
+
+**Two defects this deploy found, both fixed and both now selftested:**
+1. `add_route('/api/security/people', self, suffix='people_batch')` beside `def on_post_people`. Falcon does not
+   answer 405 for a suffix with no responder — `add_route` **raises**, so `prf-backend` crash-looped at boot (0/1)
+   and every selftest still passed, because they call the method directly. The responder is now
+   `on_post_people_batch`, and a new check builds SecurityAPI against a fake falconServer and fails when ANY
+   registered (uri, suffix) has no `on_<method>_<suffix>` — verified to catch the original mistake.
+2. The page kept serving the OLD definition after the deploy: the core `DisplayDefinition` seed only INSERTS a page
+   that is missing, so `actor:person` never reached an instance that already had the page (the seed field-addition
+   gotcha). `security_page.seed_security_pages()` now upserts through `moduleService.seed_upsert`, scheduled by
+   `start_page_converge()` on the daemon thread that waits for Phase B — the same wait the PII scrub needs.
 
 **OWED**
 - **No browser has seen this.** The whole point is how the page READS, and that is exactly what an API proof cannot
@@ -2113,8 +2142,9 @@ without touching Keycloak; and that the batch wrote nothing to the manager. Unch
 - The frontend resolves the rows **on screen at first render only**. `class-rows-table` has no pagination and no
   re-fetch, so this is complete for it today — but any table that later grows paging must call `resolve()` again
   for each page, and nothing enforces that.
-- The **429 path is selftested, never seen live** (proving it live would need 61 real calls in a minute; the live
-  proof below does exactly that, so read which of the two this claim rests on).
+- The 429 path is proven both ways (selftest and 61 live calls). What is NOT proven is what a *browser* does with
+  one: `PeopleService` deliberately does not close the door on 429, so a page that re-renders inside the same
+  minute simply asks again and keeps the short ids. No test covers that loop.
 - The cache makes the backend hold names for up to 300 s. That is a deliberate change to §53's "no cache = no PII
   at rest" and it should be read as such: the names are in RAM, in one process, for five minutes. A deployment that
   wants the older guarantee sets `POLARI_PEOPLE_CACHE_SECONDS=0` and pays one Keycloak round trip per sub per call.
@@ -2242,8 +2272,18 @@ Unchanged: `selftest_persist_debounce` 13/13, `selftest_persist_atomic` 21/21, `
 
 **Serialisation, live: 39.45 / 44.89 / 53.66 / 74.97 / 77.89 / 81.14 / 97.11 / 103.45 s before → 0.50 / 0.51 / 0.84 /
 0.89 s after.** That is what makes §51's SIGTERM flush mean anything: at ~0.5 s it fits inside Docker's 10 s default
-`stop_grace_period`, where 39-103 s never could. The `1 tombstones still up` in that log is the leak `f0b9f92` then
-closed (the deploy that proved A was built from `3d8a7b3`).
+`stop_grace_period`, where 39-103 s never could.
+
+**RE-PROVED on the final code** (`f0b9f92`, a second `pol prod apply`, same script): `tomb-033514` created
+(`201`, on disk in 5 s), deleted (`200 {"instancesDeleted": ["0HDhNlaaU"]}`), redeploy fired in the same breath, new
+container online after 80 s → **API 3 rows, DISK 3 rows**. Flushes on the new container:
+`tree-path index 0.01s, serialize 0.86s / 2.43s / 0.49s, write+commit 0.37s / 0.38s / 0.77s`. The outgoing
+container's shutdown: `[Persist] SIGTERM — flushing the object tree before we go` then
+`Persisted 11 490 instances … tree-path index 0.01s, serialize 0.49s, write+commit 0.47s` — **the SIGTERM flush
+completes in about a second**. And **no `tombstones still up` line anywhere any more**: the settling fix is proven
+live, not just in the selftest. One container killed mid-BOOT logged
+`tree moved under the flush: generation 39194 -> 39927 — … serialize 4.28s`, which is the generation counter doing
+exactly its job: saying out loud that the tree was still being built underneath that flush.
 
 ### OWED
 
