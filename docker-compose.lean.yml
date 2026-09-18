@@ -107,6 +107,9 @@ services:
       - IN_DOCKER_CONTAINER=true
       - POLARI_DEPLOY_ROUTE=swarm       # hardware kinds: Polari side only here (moduleService/hardware_reach.py — a notice, never a refusal)
       - POLARI_POSTURE=${POLARI_POSTURE:-production}   # a swarm server is production unless a developer says dev (the notice bar warns)
+      # sep-7 CRUDE app-permission gate: off (no checks) | advisory (a would-deny rides X-Polari-Permission-Advisory, the act still runs) | enforce (403).
+      # Answered by POL_PROD_APP_PERMISSIONS; off by default — a stack with no concreted profiles must not start refusing reads because it was deployed.
+      - POLARI_APP_PERMISSIONS=${POLARI_APP_PERMISSIONS:-off}
       - POLARI_FETCHED_MODULES_DIR=/app/data/modules   # modules fetched at runtime (fetch-admit, the apps API) live on the data volume, not in the container
       - POLARI_INSTANCE_NAME=prf-public
       - POLARI_INSTANCE_ID=public

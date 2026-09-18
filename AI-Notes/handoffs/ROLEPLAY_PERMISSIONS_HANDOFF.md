@@ -157,3 +157,36 @@ Everything is pushed on dev. Continue with non-Fable agents (opus for builds, so
 §45–§50 and in this file. Rules that must hold: security stays WARN-ONLY in deployments (his ruling); never real identifiers in
 tracked files; deploy only via `pol prod apply` (detached + polled); commit innermost-first and push every repo; keep this handoff
 current.
+
+## Proven loop (2026-09-17) — his full ask, end to end, with a REAL login
+
+The Keycloak work above landed, and the whole cycle he described has now been run against it on the home swarm
+in dev posture, entirely through the APIs: a password-grant login as `demo-journalist` (claims carry
+`groups: ["journalist"]`) → the role-play permission granted to the REAL KC group (`roleplay_groups:
+["journalist","developers"]`, so `can_roleplay` is true *because of group membership*, false with no bearer)
+→ a role-play session with `X-Polari-Roleplay: journalist` on eight reads plus three posted usages → a review
+that fills in properly (4 object classes across 3 apps via `objects_by_app`, 6 endpoints, the pages and
+actions, and a `proposed_profile`) → the permissions admin (`demo-admin`) creating the real
+`AppPermissionProfile` through CRUDE (multipart, one `initParamSets` field) and marking the prototype
+`concreted` → `verify?role=journalist&group=journalist` returning **"the role can still do everything it was
+recorded doing"** with nothing denied and nothing needing to be widened → the prototype marked `enforced`.
+Every observation row carries both the real `journalist` group and `roleplay:journalist`, with
+`actor=demo-journalist` (a one-line fix to `observe_permission()` shipped first: it read only
+`preferred_username`, so real logins were recorded as the KC `sub` UUID).
+
+Enforcement itself now has an answer: `POL_PROD_APP_PERMISSIONS=off|advisory|enforce` (added to `prod.sh`
+exactly as `POL_PROD_POSTURE` was, and passed to `prf-backend` by both compose files; default `off`). The stack
+runs `advisory`: in-profile reads come back clean, out-of-profile reads come back 200 carrying
+`X-Polari-Permission-Advisory: would-deny <Class>:read`. It was deliberately NOT switched to `enforce` — his
+ruling that security stays warn-only in deployments stands.
+
+Three defects surfaced and are recorded in ledger §51, none fixed: a profile concreted shortly before a
+`pol prod apply` is **silently lost** (CRUDE writes reach sqlite only on a later flush; proven by losing one
+and then proving a flushed one survives a second deploy); `/api/security/observations?groups=<name>` is exact
+string equality against the whole joined groups field, so it can never match a multi-group row; and an expired
+bearer degrades to "would-deny everything" rather than saying "unauthenticated" — harmless under advisory,
+a 403 storm under enforce.
+
+What remains is the BROWSER pass, and it is his: sign in at `https://prf.<D>`, use the role menu in the header,
+act as the role by clicking rather than by curl, and follow the Review link. Nothing below the API layer has
+been seen by eye.

@@ -345,6 +345,8 @@ services:
       - DEPLOY_ENV=production
       - POLARI_DEPLOY_ROUTE=swarm       # hardware kinds: Polari side only here (moduleService/hardware_reach.py — a notice, never a refusal)
       - POLARI_POSTURE=${POLARI_POSTURE:-production}   # dev = OBSERVE MODE (§17): every control evaluates, nothing observable is denied, /api/security/events counts it
+      # sep-7 CRUDE app-permission gate: off | advisory (X-Polari-Permission-Advisory header, the act still runs) | enforce (403). Answered by POL_PROD_APP_PERMISSIONS; off by default.
+      - POLARI_APP_PERMISSIONS=${POLARI_APP_PERMISSIONS:-off}
       - POLARI_FETCHED_MODULES_DIR=/app/data/modules   # modules fetched at runtime (fetch-admit, the apps API) live on the data volume, not in the container
       # CORS_ORIGINS and PRF_API_URL come from .env.prod file
       # INTERNAL_API_URL: For API profiler self-call rewriting (avoids hairpin NAT)

@@ -1753,3 +1753,44 @@ images built here, tag lean; `pol prod apply` from the answers):
   Concreting one from a role-play review (§49) against the real `journalist` group is the next step — now
   possible for the first time, because the group and a real member exist.
 - Nothing was rotated: `pol security rotate` has still never been run against a live Keycloak.
+
+## §51 — the loop proven with a real login (2026-09-17)
+
+His ask, end to end: "role-play as a Journalist → review shows everything used → a permissions admin concretes
+it into an enforced Journalist group → verify they can still do their job." Run entirely through the APIs with
+a REAL Keycloak login (§50), on the home swarm `polari-lean` (`192.168.0.210.nip.io`, posture dev, gate
+`advisory`). No browser was opened — that pass is still his.
+
+| step | result |
+|---|---|
+| 0. the actor fix | `observe_permission()` read only `preferred_username`, so rows against a real login showed the KC `sub` UUID (§50 owed it). Now falls back through `username`. selftest 89/92 (the 3 = the pre-existing environment failures). Committed, pushed, redeployed BEFORE the run — every row below reads `actor=demo-journalist` |
+| 1. real login | password grant for `demo-journalist` → claims `iss https://auth.<D>/realms/Polari`, `azp polari-frontend`, `preferred_username demo-journalist`, `email demo-journalist@example.invalid`, **`groups: ["journalist"]`**, `realm_access.roles` incl. `polari-user`. PASS |
+| 2. knob | `GET /api/security/observe` → `posture dev`, `recording true` (`source "default (dev = on)"`). PASS |
+| 2. the role-play grant | `POST /api/security/observe {"roleplay_groups": ["journalist","developers"]}` as demo-admin → accepted. `GET /observe/roles` **with** the demo-journalist bearer → `can_roleplay true`, why `granted by group(s) journalist`; **without** a bearer → `can_roleplay false`, why `the role-play permission is granted to ['journalist','developers']; you are in no group`. PASS — this is the first time the permission has been resolved against a real KC group instead of the dev-instance everyone-may fallback |
+| 3. act as the role | stale 2026-09-16 session closed first; `POST /observe/session {"role":"journalist"}` → `journalist\|2026-09-18T00:14:15Z`. Eight reads with the bearer + `X-Polari-Roleplay: journalist` (`/api/apps?q=scorecard`, `/api/apps/nav`, `/SecurityDomain` ×2, `/PermissionObservation`, `/TermsDocument` ×2, `/PolariAppDefinition`) all 200; 3 usages POSTed (app `scorecard`, page `/app/scorecard`, action `open-policy`) → `recorded 3`; `DELETE /observe/session?role=journalist` → ended. PASS |
+| 4. review | `acts 6`, `would_deny_today 6`. apps `[journalist, scorecard]`; pages `[/journalist/articles ×2, /app/scorecard, /display/security-events]`; actions `[open-policy, publish-article]`; components `[]`; endpoints `GET /SecurityDomain ×4, /TermsDocument ×2, /api/apps ×2, /PermissionObservation, /PolariAppDefinition, /api/apps/nav`; objects `{PermissionObservation:{read:1}, PolariAppDefinition:{read:1}, SecurityDomain:{read:2}, TermsDocument:{read:2}}`; **objects_by_app** `{polariapps:[PolariAppDefinition], security:[PermissionObservation, SecurityDomain], terms:[TermsDocument]}`; `proposed_profile` `{kc_groups_json:["journalist"], verbs_json:["read"], extra_classes_json:[the 4 classes], published:false, is_prior:false}`. (The review is cumulative — the `journalist`/`/journalist/articles`/`publish-article` entries are §49's synthetic run, honestly still counted.) PASS |
+| 4. both groups on the row | the four observation rows carry `groups = default-roles-polari,journalist,offline_access,polari-user,roleplay:journalist,uma_authorization` — the real KC group AND `roleplay:journalist` — with `actor demo-journalist`, verdict `would-deny` (correct: nothing concreted yet). PASS |
+| 5. concreted | `AppPermissionProfile` created through CRUDE (multipart, one `initParamSets` form field — `polariApiServer/polariCRUDE.py:448`; a JSON body is refused 415) with the demo-admin bearer → 201. `GET /api/apps/permissions/profiles` lists `journalist` published, kcGroups `[journalist]`, verbs `[read]`, coveredClasses the four. `GET /api/apps/permissions/my` as demo-journalist → `profiles [{profile: journalist, verbs:[read], via:[journalist]}]`, `classes` the four. Prototype marked `concreted` (profile `journalist`). PASS |
+| 6. verify | `GET /observe/verify?role=journalist&group=journalist` → `recorded_acts 4`, **verdict "the role can still do everything it was recorded doing"**, `denied []`, all four allowed `via [journalist]`, why `granted by profile(s)`. **Nothing had to be widened.** Prototype marked `enforced` with that verdict. PASS |
+| 7. the gate knob | `pol prod` had NO answer for `POLARI_APP_PERMISSIONS`. Added `POL_PROD_APP_PERMISSIONS=off\|advisory\|enforce` exactly as `POL_PROD_POSTURE` was done: the declaration, `load_answers` default + `case` validation, all four `POL_PROD_*` key lists (`save_answers`, `profile_save`, `do_facts`, the guide's "fresh" reset), and the env heredocs for **both** lean and prod; `docker-compose.lean.yml` + `docker-compose.prod.yml` pass `POLARI_APP_PERMISSIONS=${POLARI_APP_PERMISSIONS:-off}` to `prf-backend`. Default `off` — a stack with no concreted profiles must not start refusing reads because it was deployed |
+| 7. advisory live | answer set to `advisory`, `pol prod apply` → `.env.lean` and the running service both carry `POLARI_APP_PERMISSIONS=advisory`. As demo-journalist: the four IN-profile classes → **200 with NO advisory header**; `AppPermissionProfile`, `SecurityEvent`, `ObservationSession` (out of profile) → **200 with `X-Polari-Permission-Advisory: would-deny <Class>:read`** — the act still proceeds. PASS. **Deliberately NOT switched to `enforce`** (his ruling: security stays warn-only in deployments); advisory is as far as the demo goes |
+
+**Found on the way (all real, none fixed here):**
+- **A concreted profile can be lost to a redeploy.** The row created at 00:15 was GONE after the `pol prod apply`
+  four minutes later; re-created, it then survived a *second* `pol prod apply` intact. CRUDE writes reach
+  `/app/data/managerObject_DB.db` only on a later flush, so a profile concreted shortly before a deploy is
+  silently lost. A permissions admin has no way to know. OWED: a write-through (or an explicit "persist now")
+  on CRUDE create, and a selftest for it.
+- **`/api/security/observations?groups=<name>` can never match.** The filter is exact string equality against
+  the whole comma-joined groups field (`security_api.py:204-207`), so `?groups=journalist` returns 0 rows while
+  the row's groups plainly contain `journalist`. It should be a membership test. Every filtered result in this
+  run had to be computed client-side.
+- **An expired bearer degrades silently to "would-deny everything".** A stale token makes
+  `/api/apps/permissions/my` answer `authenticated false` with no groups, and every read — in-profile or not —
+  grows the advisory header. Under `enforce` that is a 403 storm indistinguishable from a real permission
+  problem. The advisory/403 payload should say "unauthenticated" rather than "would-deny".
+
+**Still OWED:** the browser pass is HIS (sign in on `https://prf.<D>`, the role menu in the header, act as the
+role by clicking, the Review link) — nothing below the API layer has been seen by eye. Also still owed from
+§50: the `POL_PROD_AUTH=off` re-apply, the full profile re-apply, the vault writes (need root), and a rotation.
+`enforce` has never been run on any deployed stack, by his ruling.

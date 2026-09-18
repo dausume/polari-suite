@@ -1,6 +1,7 @@
 # Operator guide — role-play → permission profiles
 
-Backend only (2026-09-16); the frontend role menu is not built yet, so every step below is a `curl` call. See
+The frontend role menu IS built (2026-09-16) but has never been driven by eye; every step below is the `curl`
+equivalent, and the whole cycle was proven this way with a real Keycloak login on 2026-09-17 (ledger §51). See
 `AI-Notes/handoffs/ROLEPLAY_PERMISSIONS_HANDOFF.md` for full state + the frontend spec, and ISLE_HARDENING_PLAN
 §17b for the workflow. Examples use the home staging stack, `https://api.prf.192.168.0.210.nip.io`.
 
@@ -52,6 +53,26 @@ curl -sk -X POST https://api.prf.192.168.0.210.nip.io/api/security/observe/roles
 ```
 Enforce gradually: `POLARI_APP_PERMISSIONS=advisory` first (logs would-deny without denying), then `=enforce`.
 
+**The gate is its own `pol prod` answer (added 2026-09-17).** Do not set the container env by hand —
+`pol prod apply` rewrites it. In `.generated/prod-answers.env`:
+```
+POL_PROD_APP_PERMISSIONS=off        # the default: the gate does nothing
+POL_PROD_APP_PERMISSIONS=advisory   # verdicts computed; a would-deny rides a response header; the act STILL RUNS
+POL_PROD_APP_PERMISSIONS=enforce    # a disallowed verb gets 403 (a DEV-posture build observes it instead)
+```
+then `pol prod apply` (detached + polled). It renders `POLARI_APP_PERMISSIONS` into `.env.lean`/`.env.prod` and
+both compose files pass it to `prf-backend`. Check it landed:
+`docker service inspect polari-lean_prf-backend --format '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' | grep APP_PERMISSIONS`
+
+Under `advisory`, a read the profile covers returns 200 with **no** extra header; one it does not returns 200
+carrying `X-Polari-Permission-Advisory: would-deny <Class>:read`. That header is the whole signal — watch for it
+with `curl -D -`. **Deployed stacks stay at `advisory` or `off`** (his ruling: security is warn-only in
+deployments); `enforce` is for a selftest or a deliberate, watched experiment.
+
+**Concrete the profile well BEFORE the next deploy, then check it survived.** CRUDE writes reach the backend's
+sqlite only on a later flush, so a profile row created minutes before `pol prod apply` can be lost with the
+container — silently. After any deploy, re-check `GET /api/apps/permissions/profiles` before trusting the gate.
+
 ## 7. Verify, then enforce
 ```
 curl -sk 'https://api.prf.192.168.0.210.nip.io/api/security/observe/verify?role=journalist&group=journalist'
@@ -65,9 +86,15 @@ curl -sk -X POST https://api.prf.192.168.0.210.nip.io/api/security/observe/roles
 ## Gotchas
 - Only works in dev posture; a production-posture flip makes `can_roleplay` refuse outright — re-check
   `GET /api/security/observe/roles` after any posture change.
-- Anonymous calls record as verdict `unauthenticated`, not against the role — need a real Keycloak login in the
-  session for review to fill in meaningfully.
-- The `app` column on `PermissionObservation` is still empty, so review's per-app grouping is incomplete.
+- Anonymous calls record as verdict `unauthenticated`, not against the role — send a real bearer (see "Real
+  logins" below) so the row carries the caller's actual KC groups beside `roleplay:<role>`.
+- An EXPIRED bearer is worse than none: `/api/apps/permissions/my` answers `authenticated false`, and every
+  read — in-profile or not — grows the would-deny advisory header. Re-mint before concluding the profile is
+  too narrow.
+- `GET /api/security/observations?groups=<name>` is exact string equality against the whole comma-joined
+  groups field, so it never matches a multi-group row. Fetch unfiltered and filter client-side.
+- The `app` column on `PermissionObservation` fills from the feature-import table, and the review carries
+  `objects_by_app`.
 - Rows must be constructed as tree objects; a stray fallback to a plain object breaks the class view
   (`PolyTyping for type SimpleNamespace`) — hit once on the live stack, fixed.
 - Persistence is one trailing timer per burst; counts have been proven to survive a backend restart.
@@ -127,5 +154,5 @@ Realm roles ride in `realm_access.roles` by default and also count as grant keys
 - `modules/security/security_api.py:default_scenario()` maps `POLARI_AUTH=keycloak` to the os-security
   scenario `swarm-full`, so a lean+logins stack reads as `swarm-full` there while `pol prod harden` renders
   `swarm-lean`. Cosmetic today; do not read the security page's scenario as the stack's shape.
-- The observation's `actor` column holds the Keycloak `sub` UUID, not the username: `jwt_validator` returns
-  `username` but `observe_permission` looks for `preferred_username`.
+- The observation's `actor` column used to hold the Keycloak `sub` UUID; fixed 2026-09-17 —
+  `observe_permission()` now falls back `preferred_username` → `username` → `sub`.
