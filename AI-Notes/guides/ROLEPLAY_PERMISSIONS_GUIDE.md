@@ -296,3 +296,56 @@ Realm roles ride in `realm_access.roles` by default and also count as grant keys
   `swarm-lean`. Cosmetic today; do not read the security page's scenario as the stack's shape.
 - The observation's `actor` column used to hold the Keycloak `sub` UUID; fixed 2026-09-17 —
   `observe_permission()` now falls back `preferred_username` → `username` → `sub`.
+
+## Staying signed in (2026-09-18)
+
+His report: *"my login does not seem to persist well, when I close out and reopen I am not still logged in. I do
+not think a login should necessarily exist forever but accidentally closing out should not lose my login
+entirely."* Two independent causes, one on each side.
+
+**What persists, and where.** Signing in leaves three things behind:
+
+| thing | lives in | dies when |
+|---|---|---|
+| access token (~15 min) | browser `localStorage`, key `oidc.user:<authority>:polari-frontend` | replaced on every renew |
+| refresh token | the same entry | the SSO session below it ends |
+| Keycloak SSO cookie | `auth.<domain>`, `KEYCLOAK_IDENTITY` | session cookie, unless "Remember me" was ticked |
+
+The refresh token is what carries the login across a restart. `AuthSessionService.start()` reads the stored user
+at boot; if it is expired it calls `signinSilent()` once, which redeems that refresh token straight against
+Keycloak's token endpoint. No iframe and no cookie are involved, so third-party-cookie blocking cannot break it.
+It never redirects on failure — the header just shows "Login".
+
+**Cause 1 (frontend).** `oidc-client-ts` defaults its `userStore` to `sessionStorage`, which the browser destroys
+with the tab, and `oidc.service.ts` never overrode it. Both tokens went with the window. `userStore` and
+`stateStore` are now pinned to `localStorage`. `monitorSession` is off on purpose: Keycloak's check_session iframe
+needs a third-party cookie and reports "signed out" for a live session when that is blocked.
+
+**Cause 2 (Keycloak).** The realm's SSO idle timeout was 30 minutes, so even a kept refresh token was refused
+after half an hour away. And `rememberMe` was already `true` while both RememberMe lifetimes sat at `0` — which
+Keycloak reads as "fall back to the ordinary values", so ticking the box bought nothing. The lifetimes now:
+
+| setting | value | meaning |
+|---|---|---|
+| `accessTokenLifespan` | 15 min | the credential on the wire — deliberately short |
+| `ssoSessionIdleTimeout` | 12 h | how long a gap between visits is forgiven |
+| `ssoSessionMaxLifespan` | 7 d | hard cap, active or not |
+| `ssoSessionIdleTimeoutRememberMe` | 7 d | the same two, once the box is ticked |
+| `ssoSessionMaxLifespanRememberMe` | 30 d | |
+
+So: close the window and come back the same day, still signed in; tick **Remember me** and a week away is still
+fine; a month is never fine. The session does expire on its own schedule — that was his own condition.
+
+**Sign out really signs out.** The button calls `signoutRedirect()`: it drops the stored tokens *and* navigates to
+Keycloak's end-session endpoint, which kills the SSO cookie. Without that second half, forgetting the tokens would
+just mean the next silent renew quietly signed the person back in. If the redirect cannot be built, local storage
+is cleared anyway — a half-finished sign-out must not persist across a restart now that storage is durable.
+
+**A private/incognito window loses the login on close, by design** — the browser throws its whole `localStorage`
+away. Same for "clear site data" and for a profile set to block site data (there `durableStore()` degrades to
+`sessionStorage`, then to memory, rather than failing at boot).
+
+**Where it is set.** `polari-platform-angular/src/app/services/auth/oidc.service.ts` (the stores) and
+`pol-keycloak/startup_shells/configure_clients.sh` (the lifetimes, re-asserted on EVERY Keycloak boot as an
+idempotent read-patch-PUT of the live realm). `realm-imports/polari-realm.json` carries the same values but is
+read **only when the realm does not yet exist** — never edit only that file and expect a deployed realm to change.

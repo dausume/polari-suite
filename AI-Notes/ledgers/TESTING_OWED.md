@@ -2308,3 +2308,102 @@ exactly its job: saying out loud that the tree was still being built underneath 
 - **`treeObject.__setattr__` calls `getTuplePathInObjTree` too** (line 189, for every non-scalar assignment) — the
   same full-tree search, outside the flush path. Not touched here; the same index would fix it if it is ever hot.
 - **Not seen by eye.** No browser pass on any of this; it is API and container-log evidence only.
+
+## §55 — login persistence (2026-09-18, his report; fixed and verified over the API, browser pass OWED)
+
+His report: *"my login does not seem to persist well, when I close out and reopen I am not still logged in. I do
+not think a login should necessarily exist forever but accidentally closing out should not lose my login
+entirely."* Angular `31b6125`, node `7e59093`, suite `f2090fe`, deployed to `192.168.0.210.nip.io` by
+`pol prod apply` (stack polari-lean, 6/6).
+
+### Two root causes, one on each side
+
+**A. the tokens died with the tab.** `oidc-client-ts` defaults `userStore` to
+`new WebStorageStateStore({ store: window.sessionStorage })`
+(`node_modules/oidc-client-ts/dist/esm/oidc-client-ts.js:2517`), and
+`oidc.service.ts:38-49` built its `UserManagerSettings` without overriding it. sessionStorage is per-tab and the
+browser destroys it on close, so the access token AND the refresh token went with the window. The only recovery
+path left was `signinSilent()`'s iframe fallback — a `prompt=none` authorization request against Keycloak's SSO
+cookie, i.e. a third-party cookie, exactly what browsers now block. Reopening the app therefore had nothing to
+resume from.
+
+`userStore` and `stateStore` are now both on `localStorage`, behind a `durableStore()` probe that write/removes a
+key before trusting a tier and degrades `localStorage → sessionStorage → InMemoryWebStorage` rather than throwing
+at boot in a profile that blocks site data. With a refresh token in hand, `signinSilent()` takes the
+`_useRefreshToken` branch (`oidc-client-ts.js:3113`) and redeems it straight against the token endpoint — no
+iframe, no cookie.
+
+**B. Keycloak had already dropped the session.** The live realm read
+`ssoSessionIdleTimeout: 1800` — 30 minutes. Even a kept refresh token was refused after half an hour away. And
+`rememberMe` was already `true` while `ssoSessionIdleTimeoutRememberMe` and `ssoSessionMaxLifespanRememberMe` both
+sat at `0`, which Keycloak reads as "fall back to the ordinary values" — ticking the box bought nothing at all.
+
+### What changed
+
+| | before | after |
+|---|---|---|
+| `userStore` | sessionStorage (library default) | localStorage |
+| `stateStore` | localStorage (library default) | localStorage, pinned explicitly |
+| `monitorSession` | `true` | `false` |
+| `accessTokenLifespan` | 300 | 900 |
+| `ssoSessionIdleTimeout` | 1800 | 43200 (12 h) |
+| `ssoSessionMaxLifespan` | 36000 | 604800 (7 d) |
+| `ssoSessionIdleTimeoutRememberMe` | 0 | 604800 (7 d) |
+| `ssoSessionMaxLifespanRememberMe` | 0 | 2592000 (30 d) |
+
+`monitorSession` is off deliberately: Keycloak's check_session iframe needs the same third-party cookie, and when
+it is blocked it reports "signed out" for a session that is alive. Leaving it on parks a false sign-out signal in
+the app for the next person to wire a handler to. A sign-out that really happened at Keycloak still surfaces
+within one access-token lifetime, when the refresh grant is refused.
+
+Smaller fixes made in passing, all of which fed the same complaint: a `userLoaded` stream so a silent renew
+updates `currentUser$`/`accessToken$` instead of leaving them on the pre-renew copy until a 401 resynced them;
+`logout()` clearing local storage even when the end-session redirect cannot be built (durable storage makes a
+half-finished sign-out survive a restart); session restore sweeping dead tokens out of storage; a 401 no longer
+tearing down a session the store still says is live, and the error interceptor only reacting to calls it actually
+signed; `login()`/`register()` round-tripping the full in-app URL (query + fragment) and never echoing `/callback`
+back as the return target.
+
+**The convergence problem.** `realm-imports/polari-realm.json` is read ONLY when the realm does not yet exist, so
+editing it alone would have left the deployed realm on its birth settings forever. The lifetimes are therefore
+also re-asserted on EVERY Keycloak boot by `pol-keycloak/startup_shells/configure_clients.sh` — an idempotent
+read-patch-PUT of the live realm representation that touches these six fields and nothing else. No client secrets
+or redirect URIs are involved.
+
+### Verified over the API (no browser)
+
+- live realm `GET /admin/realms/Polari`: `rememberMe true`, `accessTokenLifespan 900`,
+  `ssoSessionIdleTimeout 43200`, `ssoSessionMaxLifespan 604800`, `ssoSessionIdleTimeoutRememberMe 604800`,
+  `ssoSessionMaxLifespanRememberMe 2592000` — all six, on the LIVE realm, put there by the boot script
+  (`SUCCESS: rememberMe=true, accessToken=15m, SSO idle=12h/max=7d, rememberMe idle=7d/max=30d.` in the
+  `pol-keycloak` service log), not by an import.
+- authorization endpoint (`client_id=polari-frontend`, `redirect_uri=https://prf.<domain>/callback`,
+  `response_type=code`, `scope=openid`, S256 PKCE challenge) → HTTP 200 rendering
+  `<input type="checkbox" id="rememberMe" name="rememberMe">` with label `Remember me`.
+- password grant for `demo-viewer`: `expires_in 900`, access token `exp - iat = 900`; refresh token
+  `exp - iat = 43200` — the 12 h SSO idle timeout, reflected.
+- `grant_type=refresh_token` with that refresh token → new access token, `exp - iat = 900`,
+  `preferred_username demo-viewer`, `refresh_expires_in 43200`. The renew path the restored session depends on
+  works end to end.
+- served bundle `https://prf.<domain>/main.6219f8f42981038c.js` (same hash as the local
+  `npx ng build --configuration=production`, exit 0) contains
+  `userStore:new dt({store:Qe}),stateStore:new dt({store:Qe}),automaticSilentRenew:!0,loadUserInfo:!0,monitorSession:!1`
+  with `Qe` = `for(const O of[()=>window.localStorage,()=>window.sessionStorage])…`.
+
+### OWED — his browser pass
+
+**None of the above proves the thing he actually reported.** Every check here is an API call; the behaviour under
+test is what a browser does to `localStorage` when a window closes, and that is unproven until a person tries it.
+
+1. Sign in at `https://prf.192.168.0.210.nip.io`. Close the window entirely (not just the tab). Reopen it →
+   **still signed in, no prompt.**
+2. Same, with **Remember me** ticked, then leave it overnight → still signed in the next day.
+3. **Sign out**, close, reopen → **signed out**, and signing in asks for the password again (proving the
+   end-session call killed the Keycloak SSO cookie, not just the local tokens).
+4. A private/incognito window: sign in, close it, reopen → signed out. That is by design, not a regression.
+5. Leave a signed-in tab idle past 15 minutes and use the app → it should keep working silently (the access token
+   renews off the refresh token); watch the console for `[OidcService] silent renew error`.
+
+Also unproven: the 7-day and 30-day caps, which nothing short of waiting can exercise. And `monitorSession:false`
+means a sign-out performed in ANOTHER browser is noticed only when the access token next renews (≤15 min), not
+instantly — acceptable, but his call if it is not.
