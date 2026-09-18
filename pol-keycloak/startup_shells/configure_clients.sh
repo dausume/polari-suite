@@ -424,6 +424,62 @@ if [ "$POLARI_REALM_CHECK" != "200" ]; then
 else
     echo "Found Polari realm — configuring clients."
 
+    # --- 1a. Session lifetimes + Remember me ---------------------------------
+    # realm-imports/polari-realm.json is only read when the realm does NOT yet
+    # exist, so an already-deployed realm keeps whatever it was first created
+    # with forever. These are the settings behind "closing the browser must not
+    # lose my login", so they get re-asserted on every boot instead.
+    #
+    # The shape of the policy: the ACCESS token stays short (15 min — it is the
+    # credential actually travelling on each request), while the SSO session
+    # underneath it is long. Persistence rides on the refresh token and the
+    # Keycloak SSO cookie, not on a long-lived bearer token.
+    #
+    #   ssoSessionIdleTimeout            12 h  — gap allowed between visits
+    #   ssoSessionMaxLifespan             7 d  — hard cap, idle or not
+    #   ssoSessionIdleTimeoutRememberMe   7 d  — the same two, for a person who
+    #   ssoSessionMaxLifespanRememberMe  30 d    ticked "Remember me"
+    #
+    # The RememberMe pair matters more than it looks: Keycloak treats 0 (its
+    # default) as "fall back to the non-RememberMe values", so ticking the box
+    # bought nothing at all until these were set.
+    #
+    # Read-patch-PUT of the live representation, so this only ever touches
+    # these six fields and leaves clients, keys and flows untouched. Idempotent
+    # — a boot where the realm already matches PUTs the same values back.
+    echo ""
+    echo "Asserting Polari realm session lifetimes (login persistence)..."
+    REALM_CURRENT=$(curl -s -X GET "$KEYCLOAK_URL/admin/realms/$POLARI_REALM" \
+        -H "Authorization: Bearer $ACCESS_TOKEN" \
+        -H "Content-Type: application/json")
+
+    REALM_PATCHED=$(echo "$REALM_CURRENT" | jq '
+        .rememberMe                     = true    |
+        .accessTokenLifespan            = 900     |
+        .ssoSessionIdleTimeout          = 43200   |
+        .ssoSessionMaxLifespan          = 604800  |
+        .ssoSessionIdleTimeoutRememberMe  = 604800  |
+        .ssoSessionMaxLifespanRememberMe  = 2592000
+    ')
+
+    if [ -z "$REALM_PATCHED" ] || [ "$REALM_PATCHED" = "null" ]; then
+        echo "WARNING: could not read the Polari realm representation. Skipping lifetime assertion."
+    else
+        REALM_UPDATE=$(curl -s -w "\n%{http_code}" -X PUT \
+            "$KEYCLOAK_URL/admin/realms/$POLARI_REALM" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$REALM_PATCHED")
+        REALM_HTTP=$(echo "$REALM_UPDATE" | tail -n1)
+
+        if [ "$REALM_HTTP" = "204" ] || [ "$REALM_HTTP" = "200" ]; then
+            echo "SUCCESS: rememberMe=true, accessToken=15m, SSO idle=12h/max=7d, rememberMe idle=7d/max=30d."
+        else
+            echo "WARNING: Failed to assert realm session lifetimes. HTTP $REALM_HTTP"
+            echo "$REALM_UPDATE" | sed '$d'
+        fi
+    fi
+
     # --- 2. Configure polari-frontend redirect URIs --------------------------
     PFE_RESPONSE=$(curl -s -X GET \
         "$KEYCLOAK_URL/admin/realms/$POLARI_REALM/clients?clientId=$POLARI_FE_CLIENT_ID" \
