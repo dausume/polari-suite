@@ -2745,3 +2745,305 @@ Nothing about the REDIRECT has been seen by eye, and it is the half only a brows
    of links wraps rather than squeezing.
 8. **demo-viewer** (roles that bind nothing) — the bare URL must render the MAIN home, and `/home` typed by hand
    must explain itself rather than error.
+
+## §59 — ct-0: the cause context (2026-09-18, built, selftested)
+
+`CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md` §11 row ct-0 — the CAUSE that travels with execution, and nothing else
+(no `TraceTarget`, no `CausalEdge`, no journal: those are ct-1).
+
+| piece | where | state |
+|---|---|---|
+| the contextvar + `push/pop/current/child/root_cause` | `accessControl/cause_context.py` (new, 200 lines) | built |
+| the API root cause + `X-Polari-Trace` adoption | `accessControl/cause_middleware.py` (new) | built |
+| middleware registration | `polariApiServer/polariServer.py:374, 474-481` — CORS → CORSExtraHeaders → **Auth → Cause** → Roleplay → ModuleLoading → Quiesce | built |
+| trigger cause + firing stamp | `polariNoCode/event_dispatcher.py` `_record`, `fire()`, `tick()` | built |
+| solution cause | `polariNoCode/SolutionExecutionEngine.py` `execute` → new `_execute_caused` | built |
+| simulation cause | `simulationLocks/gate.py` `push_cause_for_run`, beside `push_run` | built |
+| `trace_id` / `parent_id` columns | `polariNoCode/event_triggers.py` `TriggerFiring`; `ExecutionTrace` gains `trace_id` (+ `traceId` in `to_dict`/`from_dict`) | built |
+| the thread inventory + its guard | `accessControl/selftest_cause_context.py` `KNOWN_THREAD_SITES` | built |
+
+**Selftests.** `accessControl/selftest_cause_context.py` **41/41**. No regressions:
+`modules/security/security_selftest.py` **139/142** (the 3 known environment failures, unchanged);
+`polariNoCode/selftest_event_triggers.py` 15/15, `selftest_calendar_events.py` 12/12, `selftest_graph_builder.py`
+14/14, `selftest_composition.py` 12/12, `selftest_parity.py` 69/69, `selftest_nocode_tests.py` 14/14,
+`selftest_recurrence.py` 16/16, `selftest_display_flow.py` 13/13, `selftest_engine_model_op.py` 8/8,
+`selftest_matrixop.py` 4/4, `selftest_turing.py` 16/16, `selftest_pendulum_embed.py` 9/9;
+`simulationLocks/selftest_sim_locks.py` 40/40, `selftest_advisor.py` 11/11.
+
+**Gotchas learned.**
+1. Falcon routes AFTER `process_request`, so `req.uri_template` is None when the root cause is minted. The
+   entry_ref is refined in `process_resource` (same cause, in place, no second push) — otherwise every map node
+   would have carried an instance id instead of the template.
+2. The design's dict has no id of its own, but `parent_id = current id` needs one; the cause carries an `id`
+   beside the eight named fields.
+3. The design's §4 table names SEVEN thread sites; the tree actually has **14** (initLocalhostPolariServer ×2,
+   stompWebSocketServer, app_deb_builder, stub_odoo, iso_api, iso_builder ×2, video_api are the extras). The
+   guard is seeded with all 14 and fails BOTH ways — an unlisted new site, and a listed site that vanished.
+4. A gated SOLUTION run would otherwise get a phantom `simulation:solution:X` node on top of its own `solution`
+   cause; `push_cause_for_run` skips that one case.
+
+**OWED.**
+- No browser/live proof: nothing renders yet (ct-1 brings the doors and the tables). Not seen on `polari-lean`.
+- The tick thread's root cause is proven by calling `tick()` directly, not by the live `polari-event-tick` thread.
+- `tileGeneratorAPI`, `video_api` and `quiesce` threads are LISTED but not yet handed a cause — ct-1 owes that.
+- `ExecutionTrace.trace_id` has no TypeScript parity yet (the TS engine's trace model is untouched).
+
+## §60 — op-0: owner-defined permissions — policy, stamp, gate (2026-09-18, built, selftested)
+
+Design `AI-Notes/designs/OWNER_DEFINED_PERMISSIONS_DESIGN.md` §9 slice op-0. His ask (2026-09-18): *"other
+people do not have the permission to alter the data on their vote, they only have partial read access and only
+to the contents of the vote and groups the vote corresponds to, not who specifically made that vote."*
+Owner-defined permissions are OPT-IN per class; nothing on a stock instance changes.
+
+| built | where | what it is |
+|---|---|---|
+| `OwnedClassPolicy` | `modules/security/objects/security/OwnedClassPolicy.py` | the per-class opt-in; lists as `*_json` columns; `owner_field` names the column that holds the owner's `sub` |
+| the model | `modules/security/custom/security_owned.py` | `policy_for` / `stamp_owner` / `owner_verdict` / `project` / `frozen` / `set_policy` / `verdict_for_id` |
+| the CRUDE gate | `accessControl/owner_gate.py` | `owner_gate_read` (lists), `owner_gate_write` (update/delete), `owner_gate_stamp` (create, with rollback) |
+| 5 call sites | `polariApiServer/polariCRUDE.py` | `on_get`, `on_get_field_profile`, `on_put`, `on_delete`, `on_post` — 1–4 lines each |
+| 3 doors | `modules/security/security_api.py` | `GET /api/security/owned`, `GET|POST /api/security/owned/{class_name}`, `GET /api/security/owned/{class_name}/{object_id}` |
+| registration | `security_basis`, `objects/security/__init__`, `security_seed`, `feature_imports` (~:1246), `polariServer` (~:1226), `polari-app.json` regenerated | 31 → 32 row classes, 31 → 32 seed pairs |
+| first class in | `security_seed.SEED_OWNED_CLASS_POLICIES` | `UserAppPreference` (§57): owner read/update/delete, `others_verbs []`, `owner_visible false`, `owner_field: sub` |
+
+**Selftests.** `modules/security/security_selftest.py` 170/173 (was 139/142 — +31 new checks, all passing).
+The 3 failures are the known environment ones and are unchanged: ledger `mac_enforced`, mac profiles, expired
+internal certs. `modules/polariapps/apps_selftest.py` 84/84, no regression.
+`python3 -m moduleService.manifests conform --all` 61/61 OK. `polariApiServer.polariServer` imports clean.
+
+**Gotchas found / kept.**
+- The design calls `on_put_collection` the create path; CRUDE's real create is `on_post` — the collection
+  responders (`on_get_collection`, `on_put_collection`, `on_delete_collection`) are `pass` STUBS that no route
+  reaches. The stamp went into `on_post`; each stub now carries a comment saying what it must call when built.
+- `UserAppPreference` keys its person by `sub`, not `owner`. Adding a duplicate `owner` column to a live class
+  would violate the per-class schema freeze, so the POLICY names the column (`owner_field`, default `owner`).
+  That is op-0's one addition to the design's §2 field list.
+- An enforce-mode refusal at create happens AFTER the create loop has already built the rows, so
+  `owner_gate_stamp` rolls them back out of the tree — otherwise the refusal would leave exactly the ownerless
+  instance it exists to prevent.
+- A malformed `frozen_when` is treated as NOT frozen (a policy typo must never lock every owner out of their
+  own rows) and lands in the SecurityEvent ledger so it stays visible.
+- `security_owned._rows` goes through `security_observe._all_rows`, so test doubles live in `_FALLBACK` and
+  never in the manager's own table (the §54 "PolyTyping for type SimpleNamespace" gotcha).
+
+**OWED.**
+- op-1: `OwnerGrant` + the grants doors (grantee by group or `sub`, `valid_until`, the Sharing tab as a
+  configured table). `owner_may_grant` / `grantable_verbs` / `grantee_kinds` are STORED and honoured by nothing.
+- op-2: the anonymised side channels — broadcast id suppression, trace-journal actor/object suppression,
+  `SecurityEvent.target` = class. `anonymised` and `transfer` are stored columns with no behaviour yet.
+- op-3: `Ballot` rows + policy in governance; `VoteRecord.ballots_json` replaced by a derived tally.
+- op-4: the `app.owned` manifest stanza, its validation and convergence (never overwriting an admin's row).
+- No live proof and no browser pass: nothing here has run on `polari-lean`, and there is no page for the
+  policies or a per-instance verdict yet. `frozen_when` has only been exercised against in-memory doubles.
+- The `events` verb is in `OwnedClassPolicy.OWNER_VERBS` but `on_event` carries no owner gate yet.
+
+## §61 — ct-1: trace target, causal-edge map, effect journal (2026-09-18, built, selftested)
+
+Design `AI-Notes/designs/CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md` §2/§3/§11 row ct-1, on top of §59's cause context
+(ct-0) and §60's owner policies (op-0). His asks: *"trace different events and functions … and track the kinds
+of changes that occur due to those events"*, *"only ever tracing one kind of object at a time"*, *"limits on how
+many tracing objects we generate"*, *"tracing should not occur in production"*.
+
+| built | where |
+|---|---|
+| `TraceTarget` — the ONE armed class, its budgets, its live counters, `active` | `modules/security/objects/security/TraceTarget.py` |
+| `CausalEdge` — Ledger A, one counted row per `cause\|effect\|means` | `modules/security/objects/security/CausalEdge.py` |
+| the model: `arm` / `disarm` / `status` / `touch` / `record_edge` / `record_effect` / `record_outbound` / `coverage` / `edges` / `journal` / `prune_map` | `modules/security/custom/security_trace.py` (643 lines) |
+| Ledger B: `WriteJournalEntry` gains `trace_id`, `cause_ref`, `verb`, `origin`, `actor`, `target`; `journal_fields`, `prune_journal` (ring `POLARI_TRACE_JOURNAL_ROWS`, 20 000) | `polariRefs/write_journal.py` |
+| seam (a) the CRUDE gate: `touch()` then `endpoint:<entry_ref> → object:<Class>:<verb>` (`crude`) | `accessControl/app_permissions_gate.py:74-88` |
+| seam (b) creates/deletes + the delete CASCADE, one journal row each under one cause | `objectTreeManagerDecorators.py:672-729` (`_traceEffect`, `noteTreeMutation`, `noteTreeDeletion`, `_traceDeleteCascade`), called at `deleteTreeNode` `:1528` and `:1632` |
+| seam (c) updates: the field NAME, never the value, behind a module-level armed flag read FIRST | `objectTreeDecorators.py:36-73` (`set_trace_armed`, `_trace_setattr`) + `:153-154` in `treeObject.__setattr__` |
+| seam (d) trigger-fire + solution-run edges with `run_as` | `polariNoCode/event_dispatcher.py:151-179` (`_trace_edges`), called from `_record` `:198` |
+| doors `GET\|POST\|DELETE /api/security/observe/trace`, `GET /api/security/trace/edges`, `GET /api/security/trace/journal` | `modules/security/security_api.py:86-88`, `:551-614` |
+| the Trace tables on `security-events` (TraceTarget with `started_by:person`, CausalEdge), converged by `seed_security_pages` | `modules/security/security_page.py:125-133` |
+| registration in all five sites + manifest (32 → 34 classes) | `objects/security/__init__.py`, `security_basis.py`, `security_seed.py`, `feature_imports.py:1246`, `polariServer.py:1238`, `polari-app.json` |
+
+**Selftests.** `modules/security/security_selftest.py` **186/189** (was 167/173 with the same 3 failures — +16
+new ct-1 checks, all passing): production arms nothing; a second arm refused naming the active one; the scope
+rule (a chain on another class writes nothing); counted + deduped edges; `max_edges` → self-disarm +
+`stopped_because` + ONE SecurityEvent + `dropped` counting; the journal's columns; the anonymised rule; the
+journal cleared on the next arm; the window; the restart rule; the map ceiling; the `__setattr__` seam; the
+three doors + the §54 route guard. The 3 failures are the known environment ones (ledger `mac_enforced`, mac
+profiles, expired internal certs). `accessControl/selftest_cause_context.py` 41/41 (no new thread site).
+`modules/polariapps/apps_selftest.py` 84/84. noCode: event_triggers 15/15, graph_builder 14/14, parity 69/69,
+turing 16/16, recurrence 16/16, nocode_tests 14/14, composition 12/12, calendar 12/12, display_flow 13/13,
+engine_model_op 8/8, matrixop 4/4, pendulum 9/9. `persist_debounce` 13/13, `persist_tombstones` 43/43,
+`crude_delete_blast` 21/21, `quiesce` 27/27. `manifests conform --all` 61/61.
+
+**The `__setattr__` cost when NOT armed** (200 000 scalar assignments × 7 runs, median of runs, same box, one
+`_TRACE_ARMED` global read added): **with the hook 0.1337 s (668 ns/assignment), without it 0.1359 s
+(680 ns/assignment)** — the hooked build measured 12 ns *faster*, and the run-to-run spread within each build
+was ±60 ns. The hook is inside the noise; it is one `LOAD_GLOBAL` + truth test, and everything else (the class
+comparison, the lazy import, the recorder) is behind it.
+
+**Gotchas found / kept.**
+- Traced-ness is keyed by **trace_id**, not by the cause dict: ct-0's `child_cause()` builds a FRESH dict at
+  every seam, so a `traced` flag written into the cause would be lost one frame down. The chain is traced, not
+  the frame.
+- A constructor's own assignments all pass through `__setattr__`, so one create would have landed as a create
+  row plus N update rows. `_CREATED` (bounded, cleared on arm) suppresses the updates for an id created in the
+  same chain — those field values ARE the create.
+- `arm()` clears only `origin='local'` journal rows. The remote-write journal (xsim-4's cross-instance audit
+  trail) shares the class and is not this arc's to delete.
+- The restart rule is the SIMPLER of the two the design allows, chosen deliberately: a knob naming a target this
+  process did not arm disarms it with `stopped_because='restart'`. The counters (persisted rows) survive and
+  read honestly; the live state (the armed flag, the traced-chain set) does not, and saying so beats resuming.
+- `_STATE` is one process-global arming, which is right for one manager and is why the selftest's per-check
+  manager doubles must be disarmed in order.
+- op-2's OWED line "trace-journal actor/object suppression" is now DONE for the journal half (design §5, one
+  `if` against `OwnedClassPolicy.anonymised`); the broadcast-id and `SecurityEvent.target` halves remain op-2's.
+
+**OWED.**
+- ct-2: the remaining event edges — `emit`, nested solutions, `ws-publish`, and the simulation / boot root
+  causes. Only `crude`, `trigger-fire` and `solution-run` are recorded today.
+- ct-3: `polariApiServer/outbound.py` adoption — `record_outbound()` is built and callable and NOTHING calls it
+  yet on this branch (the wrapper is a concurrent build).
+- ct-4: the closure doors (`/observe/closure?profile=|event=|role=`), `review` + `verify` gaining the
+  transitive verdict, and the closure tables on the page.
+- No live proof: nothing here has run on `polari-lean`, and no browser has seen the Trace tables. `max_traces`,
+  `max_journal_rows` and `max_depth` are honoured in code but only `max_edges` is proven by a check.
+- The CRUDE seam records one edge per act in dev regardless of `POLARI_APP_PERMISSIONS`; "after its verdict" in
+  the design means after the observation, since with the gate `off` there is no verdict to be after.
+
+## §62 — ct-3: the outbound wrapper, adoption, the straggler guard (2026-09-18, built, selftested)
+
+`polariApiServer/outbound.py` is now the ONE seam every call to another system
+passes. `send(kind, name, means, fn, payload_classes=…)` runs `fn` and records
+the edge either way; `http_request(…, lib='requests'|'urllib')` keeps each
+site's own library, timeout and return type; `wrap(kind, name, means, classes)`
+is the context manager / decorator for SDK sends (OpenAI, minio, paho).
+`X-Polari-Trace: <trace_id>/<parent_id>` is added ONLY for `system_kind ==
+'peer'` and only when a cause exists — the actor's `sub` and the groups never
+cross the wire, and production posture mints no cause so it carries no header.
+Recording goes to `security.custom.security_trace.record_outbound` by LAZY
+import inside try/except: an absent or exploding recorder cannot change a
+result, and the outcome (`ok` / the exception's type name) rides as `detail`
+only when the recorder's signature accepts it (inspected once — a `TypeError`
+from inside the recorder must never become a duplicate row).
+
+### Migrated sites — file → kind / name / means / payload classes
+
+| site | kind | name | means | payload classes |
+|---|---|---|---|---|
+| `accessControl/keycloak_client.py:77,117,154,184` (token, roles, groups, role-mappings) | keycloak | realm | rest | — |
+| `polariApiServer/authMeAPI.py:107` (JWKS probe) | keycloak | realm | rest | — |
+| `modules/odooconnect/custom/odoo_client.py:76` (`jsonrpc`, the ONE Odoo wire seam) | odoo | config row name | json-rpc | binding `polari_class` on a push, else — |
+| `modules/odooconnect/custom/odoo_sync.py:285,292` (push write/create) | odoo | config row name | json-rpc | the binding's `polari_class` |
+| `modules/collab/livekit_remote.py:114,185` (reachability, RoomService) | livekit | livekit | probe / rest | — |
+| `modules/reticulum/rns_remote.py:72,91,144` (reachable, status, `_sidecar_json`) | reticulum | sidecar | probe / rest | — (LXMF carries free text, not rows) |
+| `materialsScience/engines/remote.py:92,120` (capability, `remote_post`, `_meter` kept) | engine | msci | probe / rest | caller-supplied |
+| `modules/mathshapes/cad_remote.py:75,100` | engine | cad | probe / rest | caller-supplied |
+| `modules/cntfet/cnt_remote.py:82,143` | engine | cnt | probe / rest | caller-supplied |
+| `topology/provider_registry.py:70` (`_probe`) | provider | capability-probe | probe | — |
+| `polariPeers/peers_api.py:88` (`_http_get_json`) | peer | PeerNode name | rest | `SimulationDefinition` on the sim pull |
+| `polariPeers/join_flow.py:91,103` (`_http_post_json`, incl. the dev-TLS retry) | peer | `''` (not a PeerNode yet) | rest | — |
+| `polariRefs/remote_api.py:45` (`_http_json`: rung-4 resolve / apply-write / core epoch) | peer | target instance, `core` | rest | `ref['className']` |
+| `polariApiServer/ai_actions.py:86,96` (HTTP-to-self executors) | self | polari-api | rest | the path's class segment |
+| `polariApiServer/ai_tools.py:86` (read tools) | self | polari-api | rest | the path's class segment |
+| `polariApiServer/reasoning_provider.py:110,167` (Anthropic + OpenAI-compatible SDK) | provider | provider name | sdk | — |
+| `polariApiServer/voiceAPI.py:155,184` (STT/TTS — audio bytes NEVER recorded) | provider | voice-stt / voice-tts | sdk | — |
+| `polariDBmanagement/managedObjectStore.py:62,127,138` (connect, put, get) | s3 | endpoint | s3 | — (blobs, not rows) |
+| `modules/appstore/custom/appstore_minio.py:83` (artifact get) | s3 | endpoint | s3 | — |
+| `modules/mqttbridge/mqtt_api.py:122` (explicit test publish) | mqtt | broker row name | mqtt | — |
+| `polariApiProfiler/endpoint_fetch.py:142` (`default_fetcher`) | profiler | api-endpoint | rest | — (URL never recorded: apikey-query) |
+
+### KNOWN_STRAGGLERS (`polariApiServer/selftest_outbound.py`) — 25 files, each with a reason
+
+| file | reason |
+|---|---|
+| `modules/security/custom/kc_admin.py` | **owned by ct-1's agent this round** — migrate in the slice that lands `security_trace` |
+| `moduleService/dyn_proofs/*.py` (9) | dyn proof harnesses — they dial a LIVE server on purpose |
+| `modules/testing/custom/{twin_http,twin_fixtures,check_runners,app_benchmark}.py` | the testing module IS the harness |
+| `topology/topology_testing_api.py` | topology self-test probes, not a product send |
+| `moduleService/json_seeds.py` | boot-time seed fetch — design §3's `boot` root cause is ct-1/ct-2 |
+| `modules/iso/custom/iso_builder.py` | Ubuntu archive downloads during ISO build (host build step) |
+| `modules/iso/custom/iso_autoinstall.py` | the `urlopen` is inside a TEMPLATE STRING run on the INSTALLED machine |
+| `polariNetworking/managedSink.py` | httpx ASYNC client — `outbound.send` is synchronous; an async seam is its own slice |
+| `polariApiProfiler/apiProfiler.py`, `api_discovery.py` | the legacy profiler engine; `endpoint_fetch.py` is the migrated seam |
+| `polariApiServer/tileGeneratorAPI.py` | tile fetch on its OWN thread (design §4) — needs the cause handed in first |
+| `modules/printing_suite/custom/adapters.py`, `modules/resources/custom/{node_resources,profile_analysis}.py`, `modules/dmvdata/custom/census_pull.py`, `modules/cntfet/custom/cnt_snapshot.py` | product sends NOT in design §5's list — named, not forgotten |
+
+The guard fails on a NEW unlisted hit (by path) **and** on a listed file that
+has disappeared, so the table can never quietly describe a tree that moved on.
+`tests/`, `*selftest*.py`, `node_modules`, vendored and build dirs are skipped.
+
+### Selftests — before (HEAD 8526439, clean worktree) → after
+
+```
+NEW polariApiServer/selftest_outbound.py           —      → 51/51
+accessControl/selftest_cause_context.py         41/41    → 41/41
+modules/odooconnect/odoo_selftest.py            27/27    → 27/27
+modules/odooconnect/odoo_sync_selftest.py       26/26    → 26/26
+modules/odooconnect/odoo_orders_selftest.py     20/20    → 20/20
+modules/odooconnect/odoo_scenarios_selftest.py  20/20    → 20/20
+modules/collab/collab_selftest.py          crash(schema) → crash(schema)  [pre-existing, identical]
+modules/reticulum/reticulum_selftest.py        183/184   → 183/184        [pre-existing 1 fail]
+modules/mqttbridge/mqttbridge_selftest.py       10/10    → 10/10
+modules/cntfet/cntfet_selftest.py              858/…     → 858/…          [pre-existing]
+modules/cntfet/snapshot_selftest.py               9/9    → 9/9
+modules/mathshapes/shapes_selftest.py           24/24    → 24/24
+materialsScience/selftest_engine_models.py      40/40    → 40/40
+topology/selftest_engines.py                    18/18    → 18/18
+topology/selftest_topology.py                   47/52    → 47/52          [pre-existing 5 fails]
+topology/selftest_testing.py                    18/19    → 18/19          [pre-existing]
+polariPeers/selftest_peers.py                   15/15    → 15/15
+polariPeers/selftest_agreements.py              23/23    → 23/23
+polariPeers/selftest_modules.py                 24/24    → 24/24
+polariPeers/selftest_mesh.py                    12/12    → 12/12
+polariRefs/selftest_refs.py                     51/51    → 51/51
+polariRefs/selftest_directory.py                13/13    → 13/13
+polariDBmanagement/selftest_shared_db.py        16/16    → 16/16
+polariDBmanagement/selftest_db_adapters.py      pass     → pass
+polariApiServer/selftest_quiesce.py             pass     → pass
+polariApiServer/selftest_persist_debounce.py    13/13    → 13/13
+modules/appstore/appstore_selftest.py           85/85    → 85/85
+polariApiProfiler/selftest_profiler_drift.py    21/21    → 21/21
+```
+`PYTHONPATH=.:modules python3 -c "import polariApiServer.polariServer"` clean.
+Nothing regressed.
+
+### Gotchas found
+
+- **Two selftest stubs had frozen transport signatures.** `polariPeers/
+  selftest_peers.py` patched `_http_get_json` with `lambda url:` and
+  `polariRefs/selftest_refs.py` with `def _fake_http(method, url, body,
+  headers)`. Both broke the moment the real seam gained `peer_name` /
+  `payload_classes`. Fixed by absorbing extra kwargs (`*_a, **_k` / `**_kw`) —
+  the assertions are untouched. Any future stub of an injectable transport
+  should absorb kwargs from the start.
+- **`polariApiServer/__init__.py` is empty**, so `from polariApiServer import
+  outbound` is safe from `accessControl`, `modules/*`, `polariDBmanagement`,
+  `polariRefs` and `topology` with no import cycle. Verified by importing all
+  21 migrated modules and `polariServer`.
+- **The manager.** There is no process-wide manager accessor in core except
+  `topology.provider_registry.MANAGER` (injected at `polariServer.py:768`).
+  `outbound.process_manager()` reads that ATTRIBUTE (never an imported copy)
+  and tolerates None.
+- **`_meter` kept.** `materialsScience/engines/remote.py` metering (sep-4) and
+  the wrapper record DIFFERENT things — bytes/latency for capacity vs. what
+  left for the map. Both fire; neither was folded into the other.
+- **`apiProfiler.py` matches the guard on two PRINT statements** containing the
+  literal `requests.request()`. It is a straggler anyway, so no special case
+  was added — a line-level exemption would have been a lie.
+- The URL is accepted by `send()` but deliberately **not recorded**: an
+  `apikey-query` endpoint carries its secret in the URL (`endpoint_fetch.redact`).
+
+### OWED
+
+1. **`modules/security/custom/kc_admin.py:86`** — migrate once ct-1's
+   `security_trace` lands; remove the row from `KNOWN_STRAGGLERS` (the guard
+   fails if the row stays after the hit goes, which is the point).
+2. **`X-Polari-Trace` proven on two live instances** — the ct-3 proof in design
+   §11 ("an Odoo push and a peer lease-write appear as edges on BOTH
+   instances") is unproven: it needs `record_outbound` writing real
+   `CausalEdge` rows and a two-node run. Only the header-emission half is
+   selftested here.
+3. **The peer module-install edge carries no classes** — `peers_api.py`'s
+   bundle fetch cannot name `manifest.requiredClasses` until the bundle has
+   landed. Naming them needs a second record after the fetch, i.e. a ct-1
+   recorder call outside the wrapper. Left `()`, noted in the code.
+4. **ct-9 traffic policies** — `OutboundPolicy` / `InboundPolicy`,
+   closed-by-default, suggested from what this seam observes. Deliberately NOT
+   built here; the wrapper only observes.
+5. The 6 "not in §5's list" product stragglers (tiles, printing, resources ×2,
+   census, cnt snapshot) and the async `managedSink` should each get a slice or
+   a standing ruling.
