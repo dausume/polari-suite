@@ -1931,3 +1931,65 @@ was released again.
   superseded anyway by §17c's `RoleGrantPolicy` (slice rg-0).
 - Nothing rate-limits claims. A signed-in person can take every claimable role at once; in dev that is the point,
   in production the list is expected to be short and deliberate.
+
+## §51 addendum 2 — delete wipe + atomic persist + the matrix (2026-09-18, fixed, selftested, proven live)
+
+The two defects §51 addendum found and did NOT fix, plus the access-matrix inversion it noted, are fixed on `dev`
+(polari-framework `4d9f864`, node `bc86fa4`, suite `57feb05`) and the home swarm `polari-lean` was redeployed from
+this checkout. Posture stays `dev`, the gate stays `advisory` — **not** `enforce` (his ruling stands).
+
+| defect | root cause (exact) | the fix | the proof |
+|---|---|---|---|
+| **A. a CRUDE DELETE of ONE row emptied the WHOLE class** | NOT `deleteTreeNode` — the guess in §51 was wrong. `objectTreeManagerDecorators.getListOfInstancesByAttributes` (line 1816) handed the query engine `self.objectTables[className]` **itself** (`remainingInstances = allClassInstancesDict`), and `dictAttributeRequirementsForQuery` narrows by `remainingInstances.pop(someInstId)` on every non-match. So *resolving the delete target* (`targetInstance={"name":"x"}`) permanently deleted every sibling from the live object tree; `deleteTreeNode` then removed the one survivor and the next `persistTree` made the empty table permanent. `on_event` resolves its target the same way and had the same blast radius. `_applyFieldFilter` already carried a local `dict(...)` workaround — the previous author saw the symptom and patched one call site | the query engine narrows a **copy**: `remainingInstances = dict(allClassInstancesDict)`, and the `"*"` branch returns `dict(...)` too (callers narrow what they get back) | new `polariApiServer/selftest_crude_delete_blast.py` **21/21** (11/21 before the fix): the name / id / unmatched / `"*"` queries all leave the class table whole; a DELETE of one row through the **REAL** `on_delete` against the **REAL** query engine and a real sqlite file leaves both survivors in the live table AND on disk; an unmatched target is a 404, not a wipe. **LIVE** — see below |
+| **the legacy access matrix was inverted** | `polariCRUDE.getUsersObjectAccessPermissions` gave an ANONYMOUS caller `C/R/U/D/E` and an AUTHENTICATED one only `R/E`, so a CRUDE DELETE with a valid admin bearer answered 405 while the same DELETE with no bearer succeeded | both branches return the same open matrix, with the invariant written into the docstring: the real per-profile gate is `accessControl/app_permissions_gate.py`, and this legacy matrix must **never** grant anonymous more than authenticated | selftest checks (anon ⊆ auth for both the access and the permission matrix; `D` present for an authenticated caller). LIVE: the delete below ran with the demo-admin bearer and answered **200** |
+| **B. `persistTree` was DELETE+REPLACE per class with a commit per class** | the file spent the whole flush partly-new/partly-old, and a class on the row-by-row fallback was visibly EMPTY between its DELETE and its last INSERT — the window a booting container read (`[DB] Restoring 2 instances of AppPermissionProfile` when three existed) before writing the short state back | three parts: (1) every row is serialized **outside** any transaction (`managedDB._buildClassRows` / `prepareClassBatch`) — that is the slow half and it holds no lock; (2) the whole tree is written in **ONE** transaction (`writePreparedBatches`: `BEGIN IMMEDIATE`, a `SAVEPOINT` per class so one bad class rolls back to its own rows only, one `COMMIT`), so a reader sees the old tree or the new tree; (3) a `polari_persist_state` marker (scope/pid/host/started_at/finished_at/classes/rows), committed BEFORE the transaction and cleared after the row-by-row fallback, lets another process see a flush is in flight — `persistTree` **DECLINES** rather than write its own older reading back. Our own pid never blocks us; an abandoned marker ages out at 600 s. sqlite connections also take `PRAGMA busy_timeout` (30 s default, knob `POLARI_SQLITE_BUSY_TIMEOUT_MS`) so a reader waits for the short write instead of erroring "database is locked". A db double without `writePreparedBatches` still takes the historical per-class path | new `polariDBmanagement/selftest_persist_atomic.py` **21/21**: 2 000 rows persisted while a second thread reads the table — the reader never sees a count between 0 and full, never sees the table empty, never hits "database is locked"; preparation writes nothing; a bad class rolls back alone; the marker's full lifecycle incl. staleness; `persistTree` declines while another pid is flushing |
+
+**Numbers (measured, not estimated).** On a `docker cp` copy of the live DB (188 tables, 9 675 rows), running the
+REAL `persistTree` code path: legacy per-class commits **3.11 s** vs one transaction **0.75 s** total, of which
+write+commit — the only window a reader can see anything partial — is **0.24 s**. So the ~60 s flush §51 measured
+is **NOT** sqlite commits; the DB half is ~3 s and the rest is Python-side row building. On the live instance the
+new log line reports both halves, e.g.
+`[DB] Persisted 10 499 instances to database in ONE transaction (96 classes, 22 707 skipped — no table, 0 errors) —
+serialize 134.15s, write+commit 0.53s`. Across the flushes observed live the write window was
+**0.23 / 0.53 / 0.87 / 2.07 / 4.48 / 9.16 s**, with one **53.38 s** outlier during a redeploy (two containers
+contending for the file). Even the outlier is atomic — a reader sees old-or-new. The exposure window went from the
+whole flush (28–134 s of serialization, every class committing as it went) to the write alone.
+
+**LIVE PROOF (A), `polari-lean`, demo-admin bearer, gate `advisory`:**
+
+| step | result |
+|---|---|
+| before | `GET /AppPermissionProfile` → 4 rows; the sqlite file inside the container agrees |
+| create two throwaways through CRUDE (multipart, one `initParamSets` field) | `201`, `201` → 6 rows in the API, and **both on disk within 10 s** |
+| **delete ONE** (`targetInstance={"name":"proof-a-…"}`) **with the demo-admin bearer** | **HTTP 200** — before the matrix fix this same request answered 405 with a bearer and only succeeded anonymously. `{"instancesDeleted": ["azJXuycaD"]}`. The API then shows **5 rows** — the other throwaway, the real `journalist`, `wax-print-shop-operator` and `app-climate-viewer` all intact. Before the fix this returned `[]` |
+| disk after the delete | 5 rows, within 10 s |
+| `docker service update --force polari-lean_prf-backend` | new container online after 75 s → API **5 rows**, disk **5 rows** — nothing lost |
+| delete the second throwaway | `200`, back to the three real profiles. `journalist` never moved |
+
+**Found on the way — NOT fixed, needs his say-so (it is deploy config, not code):**
+
+- **`stop_grace_period` is 10 s while the SIGTERM flush needs 30–134 s to serialize.** `docker service inspect
+  polari-lean_prf-backend` → `StopGracePeriod 10s`; `docker-compose.lean.yml` sets none, so Docker's default
+  applies. §51's SIGTERM flush is therefore SIGKILLed mid-serialization on every redeploy of a full instance — it
+  only ever lands when the tree is small. Measured directly: a row created ~10 s before a forced redeploy was gone
+  afterwards; the same row created early enough for the debounced flush to reach disk (10 s, verified in the file)
+  survived the redeploy intact. The one-line fix is `stop_grace_period: 180s` on `prf-backend` in
+  `docker-compose.lean.yml` and `docker-compose.prod.yml`. Not applied — it changes his running stack's shutdown
+  behaviour and he should say yes first.
+- **The marker guards concurrency, not staleness.** If a new container's boot restore reads the file BEFORE the old
+  container's flush commits, and that flush then finishes, the new container's own boot flush writes the older
+  reading back — no marker is up at that moment, so nothing declines. Closing this properly needs a persist
+  *generation* recorded at restore and a catch-up re-read (not a decline, or the process would never flush again).
+  Largely moot if `stop_grace_period` is raised, since stop-first then leaves no overlap.
+- **`persistTree` skips ~22 700 instances per flush as "no table"** — those classes never reach disk at all and
+  live only in memory. Untouched here; it deserves its own look.
+- The empty-class guard §51 asked for ("refuse to flush a class whose in-memory table is empty while the DB has
+  rows") was deliberately NOT added: with defect A fixed, an empty in-memory class now means the last row really
+  was deleted, and refusing would make that deletion un-persistable.
+
+Counts: `selftest_crude_delete_blast` **21/21** (new), `selftest_persist_atomic` **21/21** (new),
+`selftest_persist_debounce` 13/13, `selftest_batched_persist` 17/17, `selftest_quiesce` 27/27,
+`selftest_db_adapters` 34, `selftest_shared_db` 16/16, `selftest_db_log_quiet` 16, security **94/97** (the 3 known
+environment failures) — all unchanged from before this slice except the two new files.
+
+**Still OWED:** the browser pass is HIS. `enforce` still never run on a deployed stack, by his ruling.
