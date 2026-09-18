@@ -203,3 +203,14 @@ class from the live view. Read the addendum before touching the DB layer.
 What remains is the BROWSER pass, and it is his: sign in at `https://prf.<D>`, use the role menu in the header,
 act as the role by clicking rather than by curl, and follow the Review link. Nothing below the API layer has
 been seen by eye.
+
+## Next arc: role grant routes (design only)
+
+His 2026-09-18 ask — self-claim (D17-5, being built now) is fine for some roles, but others need an approval
+process, an appointment by another role, an election with a voting record and a term, or an invitation, and apps
+need to add their own custom routes — is designed, not built, in `AI-Notes/plans/ISLE_HARDENING_PLAN.md` §17c
+and `AI-Notes/designs/ROLE_GRANT_ROUTES_DESIGN.md`: one `RoleGrant` ledger row per person × role × route with
+Keycloak membership materialised from it by a reconciler, a `RoleGrantPolicy` per role, a manifest `roles:`
+stanza for app-defined routes, and — per his ruling on D18-1 — every such row keys the person by their Keycloak
+`sub` only (never a username/e-mail), which surfaces a correction owed against this arc's own `.actor` columns
+(design §8, slice rg-0a) before any of the new ledger work lands.

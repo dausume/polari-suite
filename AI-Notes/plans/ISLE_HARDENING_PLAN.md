@@ -478,3 +478,39 @@ mapping is still empty, so review's per-app grouping is incomplete).
   "would now deny, and that's fine"?
 - D17-4 Should recorded observations expire alongside the dev posture (§16's time-box), or persist until someone
   clears them explicitly?
+
+### §17c — ROLE GRANT ROUTES (his ask 2026-09-18) — design only, see designs/ROLE_GRANT_ROUTES_DESIGN.md
+
+His ask (2026-09-18, verbatim intent): "can we think of other routes people may need to get role/group access?
+Claiming a role is likely fine for some environments or roles. Other roles may need approval processes or
+elections/voting records tied to them and have date-time durations. Others may need to be appointed by other
+particular roles. Others may be put into an approval queue. We will want to account for various scenarios of
+handling permission allocations that are adaptive to various kinds of apps and custom logic." Self-claim
+(D17-5, `security.custom.security_claims`, being built now, ledger §52) is ONE route; this generalizes "how a
+person ends up in a role's KC group" into one `RoleGrant` ledger row per person × role (× optional scope) with a
+`route` (self-claim, approval-queue, appointment, election, invitation, derived) and evidence (approvers, vote
+record, appointer, or the source object for `derived`), a `RoleGrantPolicy` per role saying which routes may
+grant it, and Keycloak group membership MATERIALISED from active grants by a reconciler — never hand-edited
+again. A `roles:` stanza on the Standard Polari App manifest lets an app register its own custom routes
+(certified-by-exam, paid-tier) as handlers without touching core. Nothing here is built — see the design doc for
+the routes table, the objects, the API doors, the manifest example, and the reconciler.
+
+**The PII boundary (his ruling on D18-1, 2026-09-18):** "largely the purpose of Keycloak is to keep PII secure
+and away from Polari itself" — every Polari row (`RoleGrant`, approvals, appointments, `VoteRecord`, invitations)
+keys a person ONLY by their Keycloak `sub`, never a username/e-mail/name; a name is resolved live through one
+gated door (`GET /api/security/people/{sub}`) and never cached into the tree. Four rows built under §17b
+(`PermissionObservation`/`SecurityEvent`/`ObservationSession`/`UsageObservation` `.actor`) currently store a
+username and are a correction owed — see the design's §8 and slice rg-0a.
+
+**Decisions for him:** D18-1 — DECIDED: ledger is the truth, Keycloak derived, WITH the PII boundary above;
+D18-2 model scope from the
+start, gate on it later (recommended yes); D18-3 which two routes after self-claim (recommended approval-queue +
+appointment, then election); D18-4 elections in `security` or a new `governance` module (recommended
+`governance`); D18-5 who may define a `RoleGrantPolicy` (recommended admins + app manifests for their own
+roles); D18-6 what happens to a grant when its policy changes (recommended: existing grants keep their terms,
+renewals use the new policy).
+
+**Slices:** rg-0 the ledger + policy rows + the reconciler + self-claim rewritten as a route; rg-1 approval
+queue + appointment (+ pages: my requests / the queue / appoint); rg-2 term/expiry sweep + renewal + invitation;
+rg-3 election (new `governance` module, `VoteRecord`, the tally page); rg-4 manifest `roles:` stanza + custom
+route handlers; rg-5 scope enforced in the permission gate.
