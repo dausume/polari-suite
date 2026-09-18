@@ -316,3 +316,32 @@ and revokes nothing; permission stays with the `AppPermissionProfile` gate.** Le
 decisions, the live proof and what is owed; the guide has "Roles and apps: my apps"; plan §17c records that
 `app.roles` is the first half of design §6's `roles:` stanza (the grant-route half is still rg-4). **STILL HIS: the
 browser pass** — the side-nav group, the catalogue buttons and the primary-role submenu have never been seen by eye.
+
+## 2026-09-18 (evening) — state at the context clear, and the next item
+
+**Landed today, all pushed, all live on the home stack (dev posture, gate advisory):** Keycloak logins on the lean profile
+(§50); the loop proven with a real login (§51); the three login-loop defects (§51 add. 1); the delete wipe + atomic persist +
+the access matrix (§51 add. 2); tombstones + the serialisation hot spot 41 s → 0.1 s (§51 add. 3); self-claimable roles
+(§52); the PII boundary — actor = sub only, the gated people door (§53); names at render time (§54); login persistence
+(§55); resume on landing / check-sso (§56); primary role + roles → apps + My apps (§57). Design only: role grant routes
+(designs/ROLE_GRANT_ROUTES_DESIGN.md, plan §17c, D18-1 decided with the PII constraint; D18-2..6 his).
+
+**His browser passes owed (nothing below the API has been seen by eye):** sign in / close / reopen (§55); land signed in with
+no click, sign out then land stays out, private window one silent trip (§56); the role menu, Claim a role dialog, Manage
+account (§52); the events page resolving names (§54); My apps in the sidenav, the /apps editor, the Primary role submenu (§57).
+
+**His yes owed:** `stop_grace_period: 180s` on prf-backend in docker-compose.lean.yml AND docker-compose.prod.yml (the
+shutdown flush now fits Docker's 10 s on this instance, but a bigger tree will be SIGKILLed).
+
+**NEXT ITEM (his ask, same evening, delegated to an opus agent as this was written — check `git log` / ledger §58 for its
+result):** a TAILORED HOME. When a signed-in person has a primary role (or My apps) with bound apps, landing on the site takes
+them to a personal landing page that lets them choose among THEIR apps (My apps: primary role's first, then additional roles',
+then added); the main Polari home stays reachable by another route (e.g. `/home` or `/polari`, and a "Polari home" link on the
+tailored page); anonymous users and people with no apps land on the main home as today. He suspects "we may have built this
+out before" — the agent was told to look for an existing persona/app-home page (AppHomeComponent `/app/:name`, the personas in
+`/api/apps/nav`, sep-0's shell clamp `lockTo`) and EXTEND rather than duplicate. Ledger §58 when done.
+
+**How to continue after a clear:** read this file top to bottom, then ledger §48–§58, then the guide. Rules that hold: security
+WARN-ONLY in deployments (never `enforce`); Polari rows key people by Keycloak `sub` only; no real identifiers in tracked
+files; deploy only via `pol prod apply` (detached + polled); commit innermost-first and push every repo; hand work to
+non-Fable agents (opus builds, sonnet docs) and keep this handoff current.
