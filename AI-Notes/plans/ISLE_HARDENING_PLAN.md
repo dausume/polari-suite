@@ -533,3 +533,82 @@ now extend the same stanza rather than invent one.
 queue + appointment (+ pages: my requests / the queue / appoint); rg-2 term/expiry sweep + renewal + invitation;
 rg-3 election (new `governance` module, `VoteRecord`, the tally page); rg-4 manifest `roles:` stanza + custom
 route handlers; rg-5 scope enforced in the permission gate.
+
+### §17d — CAUSAL TRACING + OBJECT FLOW (his ask 2026-09-18) — design only, see designs/CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md
+
+His ask (2026-09-18, verbatim intent): think through what particular individuals need; trace events and functions
+"so long as they are going through Polari, else we just notate what external system we are sending it to and
+how"; track the changes those events cause; map everything affected and triggered "in terms of both events and
+object instances" so we can see "what implicit permissions we may be granting by granting event permissions";
+and build "topologies of objects that track how object instances may propagate between systems."
+
+**Is it possible:** yes. The survey behind the design found ONE choke point for events
+(`polariNoCode/event_dispatcher.py` `fire()`, already writing a `TriggerFiring` row with source + depth +
+execution id), a near-single seam for mutations (`treeObject.__init__` → `noteTreeMutation`, `noteTreeDeletion`,
+plus `__setattr__` which notes nothing today), one middleware chain to mint a per-request cause in, and an
+existing contextvar idiom to carry it (`simulationLocks/run_context.py`). What does not exist: any trace id, any
+per-request link from cause to effect (every security row is an aggregate counter by design), and any shared
+outbound client (twenty ad-hoc `requests`/`urllib` sites). The permission model is class × verb only; the
+`events` verb is declared unenforced, STOMP subscribe is unauthenticated, and triggers run as DEFINER — those are
+the implicit grants the design makes visible.
+
+**The design:** a `CauseContext` contextvar (trace_id, parent, entry kind, actor = Keycloak `sub` only, depth)
+pushed by middleware and at every seam; **two ledgers** — `CausalEdge` (the MAP: cause node → effect node ×
+means, counted, class-level, never duplicated) and the effect journal (`WriteJournalEntry` generalised to local
+writes, instance-level, dev-posture ring buffer); **one outbound wrapper** every external/peer call goes through,
+recording "what left, to which system, by which wire" and forwarding trace ids (never the actor) to peers; a
+`closure()` walk giving `implicit = reachable − explicit` for a profile, an event, or a role-play review; and an
+**`objects` fourth security topology view** (declared-by-knob vs observed-by-map, drift = compare, per-actor
+reach = simulate, one new edge column `payload`). Per-person needs = tasks → doors → closure, via a `task` label
+on role-play sessions. Slices ct-0..ct-9; every decision taken by his rulings later the same day (below). Nothing built.
+
+**His rule (2026-09-18, same day):** "we should always only be doing tracing for one kind of object at a time and
+be able to put limits on how many tracing objects we generate at a time, or we could easily overwhelm ourselves in
+terms of data." Design §2 now opens with it: recording is OFF unless ONE `TraceTarget` (a single class) is armed;
+the target carries budgets (max traces / edges / journal rows / depth / window); a chain is recorded only from the
+first seam that touches the target class, downstream to `max_depth`; the first budget hit disarms the target with a
+stated `stopped_because` and one SecurityEvent, and `dropped` counts what was declined; the journal is cleared when
+the next target is armed; the map has a ceiling; every closure and the object topology carry a `coverage` block
+so an untraced class answers "not traced", never "nothing". A role's full closure is gathered one class at a time,
+the review naming the next target. Second target refused and default budgets taken as defaults in the design, not open decisions.
+
+### §17e — OWNER-DEFINED PERMISSIONS (his ask 2026-09-18) — design only, see designs/OWNER_DEFINED_PERMISSIONS_DESIGN.md
+
+His ask (2026-09-18, verbatim intent): "We also are going to want owner defined permissions for some objects, not
+just object defined permissions. Owner defined permissions would be something we typically want specifically
+enabled per object though, not something we enable by default. Things like votes would likely be an owner defined
+permission, other people do not have the permission to alter the data on their vote, they only have partial read
+access and only to the contents of the vote and groups the vote corresponds to, not who specifically made that vote."
+
+**Two families:** object-defined (class × verb per group — `AppPermissionProfile`, the default for every class,
+built) and owner-defined (per instance, per verb, per FIELD, per grantee, controlled by the instance's owner inside
+bounds the class sets — nothing exists: no instance carries an owner, the CRUDE gate runs before resolution and
+cannot see one, CRUDE create stamps nothing about the caller). **Opt-in per class** via an `OwnedClassPolicy` row
+(or manifest `app.owned`): `owner_verbs` (the owner floor — the ONE place owner-defined adds to the class door),
+`others_verbs` + `others_fields` (the ceiling and the projection for everyone else), `owner_visible`,
+`owner_may_grant`/`grantable_verbs`/`grantee_kinds` (per-instance `OwnerGrant` rows by group or sub), `frozen_when`
+(a related row's state strips update/delete — a certified election), `transfer`, `anonymised`. Owner = Keycloak
+`sub` only, stamped at create on opted-in classes; anonymous creates refused. The gate sits inside the CRUDE
+responders after resolution (own row whole, others' rows projected, unreadable rows omitted, never a 403 for a
+whole list) and follows the same off|advisory|enforce answer with `X-Polari-Owner-Advisory` headers. Anonymised
+classes also close the side channels: no instance ids in the STOMP broadcast, no actor/object pairing in the trace
+journal, `SecurityEvent.target` = the class. **The vote:** `Ballot` rows (election_id, choice, groups, hidden owner,
+cast_at omitted from others' view) replace `ballots_json` in the role-grant design; `VoteRecord` tally derived;
+certification freezes every ballot. First opt-in = `UserAppPreference` (already de facto owner-only). Slices
+op-0..op-4; no open decisions — everything follows from his ask, the PII rule or the code, recorded as defaults in design §8. Nothing built.
+
+**His rulings (2026-09-18, later): (1) tracing does NOT occur in production — only finalized security posture rows
+derived from it (profiles, owner policies, traffic policies, bindings, each with `derived_from`); (2) STOMP follows
+the CRUDE posture — same verdict, same profile, same off|advisory|enforce; subscribe to a class = `read` on it, the
+`events` verb derived, not separate; (3) enforcement = complete accountability of what the analysis suggests
+(direct + transitive, with evidence) and a PERSON confirms applying it — nothing enforces or widens itself;
+(4) track how many objects have any security coverage and how much; (5) the outbound guard is tracked in dev too and
+is CLOSED BY DEFAULT — outbound AND inbound allow-lists are SUGGESTED from monitoring traffic in and out of Polari
+(objects outside Polari cannot be tracked, so an edge ends at the system + wire + payload classes), confirmed by a
+person, enforced in production (dev = advisory per §17); (6) security is worked PER APP and PER VERSION RELEASE —
+track security policy decisions of different types and how many are covered per app.** Design: §2 dev-only, §5a
+`OutboundPolicy`/`InboundPolicy`, §6 accountability + `SecurityDecision` ledger (kinds profile-verb / owner-policy /
+outbound / inbound / trigger-run-as / flow-declared / role-binding / trace-coverage; states open / suggested /
+confirmed / denied / inherited / stale; subjects ENUMERATED from the app so `open` = a real gap; a version bump
+inherits, a changed subject goes stale) with coverage per app × version = none / partial / full on the security
+page, the app page and the release gate; §10 all decisions taken; slices ct-0..ct-9. Nothing built.

@@ -86,6 +86,12 @@ role — D18-5).
 no-quorum`), `winner`, `closes_at`. A recount or a recall reuses the same
 `election_id` with a new `VoteRecord` row rather than mutating a certified one.
 
+> **Correction 2026-09-18 (his rule on owner-defined permissions, designs/OWNER_DEFINED_PERMISSIONS_DESIGN.md
+> §4):** ballots are NOT kept in `ballots_json`. Each vote is a `Ballot` row owned by its voter
+> (`owner` = the `sub`, hidden from everyone else), readable by others only as `election_id`, `choice`,
+> `groups`; `VoteRecord` keeps the DERIVED tally, quorum, threshold and verdict, and certifying it freezes every
+> ballot through the policy's `frozen_when`.
+
 ## 4. API doors (mirrors the `/api/security/observe*` shape §17b already set)
 
 - `POST /api/security/roles/policies {"role", "routes": [...]}` — set a role's

@@ -362,6 +362,52 @@ strings. **STILL HIS: the browser pass** — nothing about the REDIRECT has been
 eight steps (land signed in, "Polari home" holding for the session, a deep link untouched, anonymous, the logo,
 both themes, a narrow window, demo-viewer).
 
+## 2026-09-18 — Next arc: causal tracing + object flow (design only)
+
+His ask, same day: think through what particular individuals need; trace events and functions through Polari
+("so long as they are going through Polari, else we just notate what external system we are sending it to and
+how"); track the changes those events cause; map everything affected and triggered, events AND object instances,
+to see the implicit permissions an event permission grants; and build topologies of how object instances
+propagate between systems. Answer: possible, and most seams exist — the design is
+`AI-Notes/designs/CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md`, summarised in plan §17d. Nothing built. Key facts the
+survey established (file:line in the design): `EventDispatcher.fire()` is the one event choke point and
+`TriggerFiring` already carries source + depth + execution id; creates/deletes pass `noteTreeMutation` /
+`noteTreeDeletion` but `treeObject.__setattr__` notes nothing; the contextvar idiom to copy is
+`simulationLocks/run_context.py`; there is NO trace id and NO shared outbound client (twenty ad-hoc sites);
+`permission_verdict` is class × verb only, the `events` verb is unenforced, STOMP subscribe is unauthenticated,
+and triggers run as DEFINER. The design: `CauseContext` + middleware, `CausalEdge` map (counted, class-level)
++ an effect journal (`WriteJournalEntry` generalised, dev-only ring buffer), an `outbound.py` wrapper with
+`X-Polari-Trace` to peers (trace id only, never the sub), `closure()` = implicit − explicit, and an `objects`
+fourth security topology view. **His rule the same day: trace ONE kind of object at a time, with limits on how
+many tracing objects are generated** — so recording is off unless one `TraceTarget` (a single class with
+budgets: traces / edges / journal rows / depth / window) is armed, the first budget hit disarms it with a stated
+reason and one SecurityEvent, journal rows are cleared on the next arm, the map has a ceiling, and every closure
+carries `coverage` so an untraced class answers "not traced" rather than "nothing". Slices ct-0..ct-7; decisions
+ALL decisions taken by his rulings later the same day: NO tracing in production (only finalized posture rows
+derived from it); STOMP = the CRUDE posture (subscribe = `read`, same mode); enforcement = complete accountability of
+the suggestion (direct + transitive, evidence) + a PERSON confirms; coverage counted per app × version through a
+`SecurityDecision` ledger (kinds profile-verb / owner-policy / outbound / inbound / trigger-run-as / flow-declared /
+role-binding / trace-coverage; open / suggested / confirmed / denied / inherited / stale; subjects enumerated from
+the app; a version bump inherits, a changed subject goes stale); outbound + inbound CLOSED BY DEFAULT with allow-lists
+suggested from dev traffic monitoring (`OutboundPolicy` / `InboundPolicy`, design §5a). Slices ct-0..ct-9; the
+build may start at ct-0.
+
+## 2026-09-18 — Next arc: owner-defined permissions (design only)
+
+His ask, same day: "owner defined permissions for some objects, not just object defined permissions … specifically
+enabled per object, not something we enable by default"; votes are the model — others cannot alter your vote, they
+get partial read of its contents and the groups it corresponds to, never who made it. Design:
+`AI-Notes/designs/OWNER_DEFINED_PERMISSIONS_DESIGN.md`, plan §17e. Nothing built. Facts established: no instance
+carries an owner today, CRUDE create stamps nothing about the caller, `crude_permission_gate` runs BEFORE any
+instance is resolved so it cannot see an owner, and field profiles shape reference resolution rather than
+visibility. The design: `OwnedClassPolicy` per opted-in class (owner floor, others' ceiling + field projection,
+`owner_visible`, per-instance `OwnerGrant`s by group or sub, `frozen_when`, `transfer`, `anonymised`), `owner` =
+Keycloak `sub` stamped at create on opted-in classes only, the gate inside the CRUDE responders after resolution
+with `X-Polari-Owner-Advisory` headers under advisory, anonymised side channels closed (no ids in the STOMP
+broadcast, no actor/object pairing in the trace journal). The vote: `Ballot` rows replace `ballots_json` in the
+role-grant design; `VoteRecord` tally derived; certification freezes ballots. First opt-in = `UserAppPreference`.
+Slices op-0..op-4; no open decisions (defaults in design §8, his to overrule).
+
 **How to continue after a clear:** read this file top to bottom, then ledger §48–§58, then the guide. Rules that hold: security
 WARN-ONLY in deployments (never `enforce`); Polari rows key people by Keycloak `sub` only; no real identifiers in tracked
 files; deploy only via `pol prod apply` (detached + polled); commit innermost-first and push every repo; hand work to
