@@ -1992,4 +1992,13 @@ Counts: `selftest_crude_delete_blast` **21/21** (new), `selftest_persist_atomic`
 `selftest_db_adapters` 34, `selftest_shared_db` 16/16, `selftest_db_log_quiet` 16, security **94/97** (the 3 known
 environment failures) — all unchanged from before this slice except the two new files.
 
+- **A row deleted while a flush is in flight can be RESURRECTED by that flush.** Observed live at the end of this
+  slice: two throwaway profiles deleted through CRUDE (200, gone from the API, and `_deleteFromDB` removed them from
+  sqlite — no `[CRUDE-DELETE] … NOT from the database` line in the log) were back after the next redeploy. Cause:
+  `persistTree` snapshots `objectTables` at the TOP (`tables = {name: dict(instances) …}`) and writes that snapshot
+  minutes later, so a delete landing between the snapshot and the write is undone. This is NOT new — the snapshot
+  has always been taken at the top — but the fix's long serialize phase makes the window easy to hit. The delete was
+  re-issued and the three real profiles are what the stack carries now. OWED: take the snapshot per class right
+  before that class is serialized, or re-check deletions against the tree at write time.
+
 **Still OWED:** the browser pass is HIS. `enforce` still never run on a deployed stack, by his ruling.
