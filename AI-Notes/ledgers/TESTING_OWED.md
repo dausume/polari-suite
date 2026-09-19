@@ -3428,3 +3428,56 @@ known environment failures). `polariApiServer/selftest_outbound.py` **61/61**,
 rows, and `kc_admin.py` — still an unwrapped straggler, so still a hole in the outbound allow-list. New: re-run
 the live proof to confirm boot-time Keycloak/JWKS sends now appear as `keycloak|…` suggestions after the first
 request.
+
+## §66 addendum — live re-proof after the fourth deploy (2026-09-19, framework `6c15288`, posture dev, gate advisory)
+
+| step | result |
+|---|---|
+| body door `POST /api/security/traffic/inbound {name: "origin\|https://prf.<D>", decision: confirmed}` | journalist 403, anonymous 401, admin `ok` → `state confirmed`, `confirmed_by` a 36-char sub |
+| `GET /api/security/traffic/declared` | 1 flow: the confirmed origin |
+| a request from that origin | no `X-Polari-Traffic-Advisory` any more (the exposed header list still carries it) |
+| `SecurityDecision` confirmed row (app-policy) and `TraceTarget` coverage row | **survived two redeploys** |
+| `InboundPolicy` `anonymous\|anonymous`, confirmed before deploy 4 (count 50) | **DEFECT: back to `suggested` (count 9)** — the traffic rows do not persist the way the other new rows do |
+| outbound rows after boot + authenticated requests | **DEFECT: still 0** — the pending-buffer flush does not surface the Keycloak/JWKS sends |
+
+Both handed back to the ct-9 builder with live access; see "§66 addendum 2" for the root causes.
+
+### §66 addendum 2 — the restore race and the empty outbound table (2026-09-19, root-caused live, fixed, selftested)
+
+Both defects were investigated on the LIVE `polari-lean` stack (dev posture, gate advisory), not guessed.
+
+**1. A confirmed `InboundPolicy` did not survive a redeploy — the RESTORE RACE (§66b).** The backend log gave
+it away: `[DefRestore] InboundPolicy: 1 instances already in objectTables, skipping`. Lazy boot serves requests
+while the definition tables are still being restored, and `_restoreDefinitionInstances`
+(`polariServer.py:1820`) deliberately skips a class that already holds instances. The ct-9 inbound middleware
+runs on EVERY request, so the first request of a boot created `anonymous|anonymous` row 1 — and restore then
+discarded everything `InboundPolicy` had persisted, a person's `confirmed` ruling included, which is why it
+came back `suggested` (count 9, then 27). `SecurityDecision` and `TraceTarget` survived the same redeploy
+because nothing writes them during boot. **This was a hazard for every ledger the middleware touches, including
+`SecurityEvent`.** Fix: `polariServer` sets `manager.definitionsRestored = False` in its constructor and `True`
+after restore (`polariServer.py:532`, `:1753`); `security_traffic.tree_ready()` reads it, and a manager that
+never carries the attribute (a test double, a module's own) is ready by definition. When the tree is not ready
+the observation is PARKED in the §66a buffer, the traffic is allowed, and the parked counts land ON the
+restored rows at the first request afterwards — so a boot adds to a ruling instead of replacing it.
+
+**2. Outbound rows were still 0 — and ct-9 was not the bug (§66c).** Proven live: `GET /auth/jwks-health`
+(the one diagnostic that does go through the wrapper) produced `keycloak|Polari|rest suggested count 1`
+immediately. The wrapper, the flush and the door all work. The rows were empty because **no wrapped send
+happens on a running instance**: token validation uses PyJWT's `PyJWKClient` (an internal urllib call neither
+the wrapper nor the straggler regex can see), and `/api/security/people` and the role claims go through
+`modules/security/custom/kc_admin.py` — the last LISTED straggler of design §5. Fix: `kc_admin._http` now
+sends through `outbound.urlopen('keycloak', <realm>, req, …)` — one line at its single choke point, the same
+open response returned, and its catch-all turns an `enforce` refusal into the `(0, 'OutboundRefused: …')` it
+already returns for every other failure. Removed from `KNOWN_STRAGGLERS`, added to `MIGRATED`.
+
+**Selftests.** `modules/security/security_selftest.py` **225/228** (+3: the boot-time write being parked and
+landing on the restored confirmed row, `tree_ready`'s three answers, and `kc_admin` through the seam; the same
+3 known environment failures). `polariApiServer/selftest_outbound.py` **61/61** (the import test now purges the
+stub `security` package the fakes install, or it would shadow the real tree),
+`accessControl/selftest_cause_context.py` **41/41**, `modules/polariapps/apps_selftest.py` **125/125**,
+`polariRefs/selftest_refs.py` **51/51**, `manifests conform --all` **61/61**, `polariServer` imports clean.
+
+**Still owed.** `PyJWKClient`'s JWKS fetch cannot be wrapped without replacing the library's own HTTP — it is a
+real, named gap in the outbound picture, not an oversight. The `objects` topology view (ct-5) and the browser
+pass on the three page rows remain. Next live proof: redeploy, confirm a row, redeploy AGAIN and check it is
+still `confirmed`; and check `keycloak|<realm>|rest` now appears from ordinary `/api/security/people` traffic.
