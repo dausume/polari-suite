@@ -525,3 +525,23 @@ Residual live state: `OutboundPolicy keycloak|Polari|rest` is now `confirmed`; a
 `OwnedClassPolicy[TraceTarget]`; three inactive `TraceTarget` rows. After the fix lands: commit, `pol prod apply`,
 re-prove D-1 (confirm both inbound rows, wait 100 s, force-restart, both still `confirmed` in the API AND sqlite)
 and D-2 (no host on `?view=objects`), then push every repo.
+
+**Round five CLOSED (ninth deploy, framework `ec1f5f7`; ledger "§66 addendum 6 … targeted live re-proof"):** D-1 is
+fixed at the core — `persistTree` never rewrites a class whose persisted rows this process has not read yet
+(`restoredClasses` marked by both restore paths, `classesPendingRestore()`, tracking armed only on a warm boot) and
+ct-9's `tree_ready()` is per-class; proven: both confirmed inbound rows survive two forced restarts in the API AND
+sqlite, counts folded onto the same row. D-2 is fixed — an inbound origin renders as `<scheme>:this-instance|other`
+on every objects-view door (recursive scrub: 0 hits). The minors all pass (kind-level keycloak declaration = one
+node; a confirmed inbound flow reads `allowed` under enforce; `tasks_json` on observations; `DELETE
+/api/security/owned/{class}` with the 409 while a manifest declares it; claim/release through `touch` so the
+observed half of the objects view is drivable — 2 observed keycloak flows, in neither drift side). Security
+selftest 296/299. OWED from the re-proof: the `SecurityDecision` inbound mirror lags confirmed rows and embeds the
+exact origin URL in row names; observed edges carry `declared_by: ""`; the objects view's `traced` flag and its
+"NOT TRACED" chain note key on a different class set than the flow. Everything pushed.
+
+**What is next:** op-3 `Ballot` with the governance module (rg arc); a per-instance page host for the Sharing tab
+(the door already answers the configured table item); the objects view's third declared source (config knobs:
+`PeerNode`, `OdooModelBinding.direction`, `GrpcExposure`, `PeerAgreement.scope`); `app.flows` on the other sending
+modules; the converge-every-app sweep for ct-8; the three re-proof OWED items above; `stop_grace_period: 180s` (HIS
+yes); and EVERY browser pass (§68 lists six steps for the socket + advisory bar; §67/§69 the two new pages) — all
+HIS. polari-systems.org (the droplet) does not yet carry the new APP_SECURITY page — HIS to publish.

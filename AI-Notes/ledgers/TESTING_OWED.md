@@ -4629,3 +4629,195 @@ agreeing it is gone) plus the extended route guard. Whole suite **296/299** as a
 /api/security/owned/UserAppPreference` → **409** naming `polariapps` and `app.owned`, with the policy still
 present and still `source: manifest`. And a restart afterwards: the removed row must not come back from the
 database.
+
+## §66 addendum 6 + §67/§69 addenda — targeted live re-proof after the ninth deploy (2026-09-19, framework `ec1f5f7`, posture dev, gate advisory)
+
+_Report by the re-proof agent, verbatim but with the home stack's address written `<lan>`. D-1 and D-2 are CLOSED live; the three "secondary observations" at the end are OWED (the `SecurityDecision` inbound mirror lags the confirmed rows and its names embed the exact origin URL; observed edges carry `declared_by: ""`; the objects view's `traced` flag keys on a different class set than the flow)._
+
+### The report
+
+- Date: 2026-09-19, 04:06–04:19 UTC
+- Stack: swarm `polari-lean`, posture **dev**, gate **advisory**
+- Pin verified live: `polari-rf-node/polari-framework` = **ec1f5f7** (`ec1f5f7b07330d762de88aca50b7270caf60968f` — *"§66 addendum 6 core + §67/§69 addenda: a persist never rewrites a class whose persisted rows it has not read yet; the objects view coarsens origins; the live-proof minors"*)
+- Health at start: `phase online`, `onlineCount 6 / moduleCount 6`, `secondsToFull 129.064`
+- No tracked file edited, nothing committed, no image rebuilt. `git status` clean at the end.
+- Two forced backend restarts (`docker service update --force polari-lean_prf-backend`).
+- Every persistence claim read out of `/app/data/managerObject_DB.db` inside the running container with plain sqlite (read-only URI), not inferred from the API.
+- `docker service logs` hangs on this swarm (confirmed again) — all log reads via `docker logs <container>`.
+
+**Headline: every checked item passes. D-1 is CLOSED, D-2 is CLOSED, all five minors pass.** Three secondary observations recorded below (none is a regression; none blocks).
+
+---
+
+### 1. D-1 — the confirmed `InboundPolicy` ruling now survives a restart (§66 addendum 6)
+
+### The boot-log evidence
+
+The new addendum-6 line is present on **all three** boots inspected (deploy boot, restart 1, restart 2), at line 1698 each time, immediately after the CRUDE endpoint registration and before the first `SELECT * FROM …`:
+
+```
+[DB] Deferred restore of 62 module-owned tables (lazy boot — restored at admission). Until each one is restored a persist will NOT rewrite it (§66 addendum 6)
+```
+
+The `[DB] Persist HELD BACK for N classes …` line did **not** appear on any boot. Per the ledger's own reading ("its absence on a warm boot means nothing raced the restore this time, not that the guard is off") this is the expected outcome — and the log proves *why* nothing raced it: on every boot the only `[DB] Persisted …` lines come **after** the restore.
+
+| boot | restore line # | first persist line # |
+|---|---|---|
+| deploy (04:05:58) | 19490 | 20675 |
+| restart 1 (04:12:58) | 20261 | 21458 |
+| restart 2 (04:16:37) | 21039 | (after restore) |
+
+So the ct-9 half of the fix (per-class `tree_ready`, probe parked) is what is carrying the load live; the `classesPendingRestore` hold-back is the belt behind it and was not needed on a warm boot.
+
+### The restore counts
+
+| step | request | result | verdict |
+|---|---|---|---|
+| D1-a | `docker logs` boot-0, grep restore | `[DB] Restoring 1 instances of InboundPolicy` — sqlite at that moment held **1** row (the previous run's residue; the origin row had been lost to the old defect). N matches disk | **PASS** |
+| D1-b | boot-1 (after restart 1) | `[DB] Restoring 2 instances of InboundPolicy` / `[DefRestore] InboundPolicy: merged 0 persisted rows, 0 boot-time rows folded, 2 already restored` — disk held **2**. *This is the line that read `1` in round 5 and is the headline fix* | **PASS** |
+| D1-c | boot-2 (after restart 2) | `[DB] Restoring 2 instances of InboundPolicy`, `[DefRestore] … 2 already restored` | **PASS** |
+| D1-d | `grep -c "LazyBoot.*FAILED"` / `grep -c "dictionary changed size"` on boot-1 and boot-2 | **0 / 0** on both | **PASS** |
+| D1-e | nothing still held back once `phase: online` | no hold-back line on any boot, and every module reaches `online` (6/6) | **PASS** |
+
+### The rulings
+
+| step | request | result | verdict |
+|---|---|---|---|
+| D1-1 | `GET /api/security/traffic` (demo-admin) | only `anonymous\|anonymous` (suggested, count 164). The origin row was gone | (expected) |
+| D1-2 | 3 × `GET /api/health` with `Origin: https://prf.<lan>.nip.io` | `origin\|https://prf.<lan>.nip.io` appears, `suggested`, count 3 | **PASS** |
+| D1-3 | `POST /api/security/traffic/inbound {"name":"anonymous\|anonymous","decision":"confirmed"}` | 200, `state confirmed`, `confirmed_by 5cacba59-a133-4663-9181-c32cb861a9c6`, `confirmed_at 2026-09-19T04:09:21Z` | **PASS** |
+| D1-4 | same for `origin\|https://prf.<lan>.nip.io` (body door — the `/{name}` path form cannot carry `://`) | 200, `state confirmed`, same confirmer/timestamp | **PASS** |
+| D1-5 | sqlite 9 s later | `('anonymous\|anonymous','confirmed','5cacba59-…','2026-09-19T04:09:21Z',167,…)` and `('origin\|https://prf.…','confirmed','5cacba59-…','2026-09-19T04:09:21Z',3,…)` | **PASS** |
+| D1-6 | wait 102 s (04:09:21 → 04:11:03), re-read sqlite | both still `confirmed`, counts 182 / 3 | **PASS** |
+| D1-7 | **restart #1** 04:11:07 → all-online 04:13:43; sqlite + API | sqlite `('anonymous\|anonymous','confirmed','5cacba59-…','04:09:21',201)` and `('origin\|https://prf.…','confirmed','5cacba59-…','04:09:21',3)`. API agrees (`confirmed`, count 202/3). **One row per name.** Count 182 → 201 = persisted 182 + this boot's 19 probes folded onto the SAME row (`first_seen` still `03:27:54`, i.e. the persisted row, not a fresh one) | **PASS** |
+| D1-8 | **restart #2** 04:14:42 → all-online 04:17:32; sqlite + API | sqlite `('anonymous\|anonymous','confirmed','5cacba59-…','04:09:21',225)`, `('origin\|…','confirmed','5cacba59-…','04:09:21',3)`. API: `confirmed` / count 228 / 3. One row per name, confirmer and `confirmed_at` intact across both restarts | **PASS** |
+| D1-9 | `OutboundPolicy keycloak\|Polari\|rest` throughout | `('keycloak\|Polari\|rest','confirmed','5cacba59-…','2026-09-19T03:24:35Z',12,…)` byte-identical before, between and after both restarts — the guard stopped nothing persisting | **PASS** |
+| D1-10 | `GET /api/apps/security/coverage?app=app-policy` before / after restart 1 / after restart 2 | `{open 432, suggested 4, confirmed 2, denied 0, inherited 0, stale 0}` — **identical all three times** | **PASS** |
+| D1-11 | other exempt classes restored | boot-1: `Restoring 19 instances of PermissionObservation`, `3 instances of ObservationSession`, `1 instances of OwnedClassPolicy`, `1 instances of OutboundPolicy`; boot-2 the same | **PASS** |
+
+**D-1 verdict: CLOSED.** Reproduced in the positive direction twice. The one hard defect of round 5 is gone.
+
+---
+
+### 2. D-2 — the objects view no longer prints a hostname (§67 addendum)
+
+Driven with an `origin|https://prf.<lan>.nip.io` row **confirmed** (the exact condition that leaked in round 5).
+
+Scrub method: each response parsed as JSON and walked **recursively** over every dict key, dict value, list element and nested string, matching `192\.168`, `nip\.io`, `\bprf\.`, `https?://<host-char>`, and a bare dotted quad.
+
+| step | request | result | verdict |
+|---|---|---|---|
+| D2-1 | `GET /api/security/topology?view=objects` (19,330 B) | **0 hits** | **PASS** |
+| D2-2 | `GET /api/security/objects/drift` | **0 hits** | **PASS** |
+| D2-3 | `GET /api/security/objects/flows` | **0 hits** | **PASS** |
+| D2-4 | `GET /api/security/simulate?view=objects&actor=this%20instance` | **0 hits** | **PASS** |
+| D2-5 | `GET /api/security/compare?view=objects` | **0 hits** | **PASS** |
+| D2-6 | the origin flow's rendering | node / title / edge target / compare / simulate all read **`external:origin:https:this-instance`** — the expected `this-instance` (this stack's `CORS_ORIGINS` names its own frontend) | **PASS** |
+| D2-7 | the view says so in words | topology `description` now contains *"… and neither does a hostname: an inbound origin reads …"* | **PASS** |
+| D2-8 | re-scrub AFTER the observed keycloak flows existed (§e below) | all five doors **0 hits** again | **PASS** |
+| D2-9 | the exact origin is still available where a person rules | `GET /api/security/traffic` → `origin\|https://prf.<lan>.nip.io \| confirmed \| count 3` | **PASS** |
+
+**D-2 verdict: CLOSED.**
+
+---
+
+### 3. Minors
+
+### (a) N-3 — one keycloak node, the declaration matches the observed system
+
+| check | result | verdict |
+|---|---|---|
+| node list | exactly four externals: `external:anonymous:anonymous`, **`external:keycloak:Polari`**, `external:odoo`, `external:origin:https:this-instance`. **No `external:keycloak:realm`** — `grep -c "keycloak:realm\|\"realm\""` = **0** across all six objects-view responses | **PASS** |
+| the manifest declaration's `name` | `declared_not_observed` entry for keycloak carries `name: ""` (the name was dropped from `app.flows:security`), so it matches any keycloak the instance talks to | **PASS** |
+| `app-flows` chain step on the declaration edge, `mode=enforce` | `app-flows -> allowed \| "app.flows:security declares it"` | **PASS** |
+| once the observed flow exists | `declared_not_observed` no longer lists keycloak at all (it is matched); `observed_not_declared` is `[]` | **PASS** |
+
+Note: it is one NODE carrying two edges — `declared (both)` from `app.flows:security` and `rest (push)` from the confirmed `OutboundPolicy` — which is the shape the addendum describes ("one node, carrying both statements"). The declaration edge still reads `blocked` under enforce at the `traffic-policy` step (`"closed by default: only a CONFIRMED row allows, and this one is not proposed at all"`), which is the designed posture, not the N-3 symptom.
+
+### (b) N-4 — a confirmed inbound flow reads `allowed` under enforce
+
+`GET /api/security/topology?view=objects&mode=enforce` → `counts {allowed 3, logged 0, blocked 2}` (round 5 read `{allowed 1, logged 2, blocked 2}`).
+
+Chain on `this instance -> external:anonymous:anonymous`:
+
+```
+app-flows        -> allowed  | InboundPolicy (confirmed by 5cacba59-…) IS the declaration for an inbound
+                              flow: `app.flows` is an OUTBOUND vocabulary (design §9), so no module can
+                              declare who may CALL a deployment — design §7 counts the traffic policy a
+                              PERSON confirmed as the declaration instead
+traffic-policy   -> allowed  | a person confirmed this flow
+outbound-wrapper -> allowed  | the call passes the one wrapper …
+causal-map       -> n/a      | NOT TRACED: no TraceTarget has ever been armed on these classes …
+verdict: allowed
+```
+
+Same for `external:origin:https:this-instance`. **PASS** — the note names the confirmed `InboundPolicy` instead of a finding nobody could answer.
+
+### (c) N-5 — `/api/security/observations` carries `tasks_json`
+
+19 rows returned; **0 with `tasks_json: null`**. The three roleplay rows carry real maps, matching `GET /PermissionObservation`:
+
+```
+…roleplay:journalist…|RolePrototype|read   | count 2 | tasks_json '{"publish an article": 1, "score a source": 1}'
+…roleplay:journalist…|SecurityEvent|read   | count 2 | tasks_json '{"score a source": 2}'
+…roleplay:journalist…|…                    | count 1 | tasks_json '{"publish an article": 1}'
+```
+
+Non-roleplay rows carry `'{}'` (an empty map, not null) beside a parsed `tasks {}`. **PASS**
+
+### (d) N-6 — an `OwnedClassPolicy` can be removed
+
+| step | request | result | verdict |
+|---|---|---|---|
+| before | `GET /api/security/owned` | `count 2`: `TraceTarget \| enabled False \| source admin` (round 5's disabled throwaway), `UserAppPreference \| enabled True \| source manifest` | — |
+| delete the throwaway | `DELETE /api/security/owned/TraceTarget` (admin) | **200** `{"ok": true, "removed": true, "class": "TraceTarget", "how": "the class is no longer owned: no owner is stamped on a create, the owner gate does not run for it, and any OwnerGrant rows it had are inert … POST /api/security/owned/TraceTarget opts it back in."}` | **PASS** |
+| delete the manifest-declared class | `DELETE /api/security/owned/UserAppPreference` | **409** — *"UserAppPreference is DECLARED by the module **`polariapps`** in its **`app.owned`** stanza, and op-4 converges that declaration into a row on every read of GET /api/security/owned — deleting the row here would come straight back. Set `enabled: false` on the manifest entry, or remove the `app.owned` entry, and the declaration stops being made at all."* | **PASS** |
+| after | `GET /api/security/owned` | `count 1`: `UserAppPreference \| enabled True \| source manifest` — untouched | **PASS** |
+| does it come back? | after restart 1 **and** restart 2: sqlite `SELECT class_name,enabled,source FROM OwnedClassPolicy` → `[('UserAppPreference', 1, 'manifest')]`; `[DB] Restoring 1 instances of OwnedClassPolicy`; the door reads `count 1` | **PASS** |
+
+### (e) N-2 — the observed half is now reachable
+
+Trace target armed and disarmed around a single claim/release (his one-class-at-a-time rule respected; nothing else was armed during the run).
+
+| step | request | result | verdict |
+|---|---|---|---|
+| e-1 | `GET /api/security/observe/trace` before | `armed false`, `target null` | — |
+| e-2 | `POST /api/security/observe/trace {"class_name":"RolePrototype"}` (admin) | 200, `armed true`, budgets `max_traces 200 / max_edges 500 / max_depth 8 / window 3600`, `started_at 2026-09-19T04:17:55Z` | **PASS** |
+| e-3 | `GET /api/security/roles/claimable` (demo-viewer) | 200 | **PASS** |
+| e-4 | `POST /api/security/roles/claim {"role":"journalist"}` (demo-viewer) | 200, `group_id a4ef779c-…`, `why "flagged self_claimable"` | **PASS** |
+| e-5 | `DELETE /api/security/roles/claim?role=journalist` (demo-viewer) | 200, `released true` | **PASS** |
+| e-6 | target counters | `traces_opened 3`, `edges_written 10` (round 5: 0 / 0) | **PASS** |
+| e-7 | `GET /api/security/trace/edges` — a keycloak `external:` edge | **two** of them: `endpoint:POST /api/security/roles/claim\|external:keycloak:Polari\|rest` (count 3) and `endpoint:DELETE /api/security/roles/claim\|external:keycloak:Polari\|rest` (count 2); plus the `security_claims.trace_prototype_read()` CRUDE edges `endpoint:{GET claimable,POST claim,DELETE claim}\|object:RolePrototype:read\|crude` | **PASS** |
+| e-8 | `?view=objects` — an OBSERVED keycloak flow | two edges to `external:keycloak:Polari` with `flow_provenance: observed`, counts 3 and 2; `drift.counts` = `{declared 5, **observed 2**, undeclared 0, unexercised 3, classes 0, not_traced 0}` (round 5: observed 0) | **PASS** |
+| e-9 | matched by the declaration, in NEITHER drift side | `observed_not_declared: []` and `declared_not_observed` = only `odoo`, `anonymous`, `origin` — **keycloak is in neither list**. `reading: "5 declared flow(s), 2 observed; 0 observed flow(s) nothing declares … and 3 declaration(s) nothing has exercised."` | **PASS** |
+| e-10 | disarm | `DELETE /api/security/observe/trace` → `armed false`, `stopped RolePrototype` | **PASS** |
+| e-11 | demo-viewer's groups restored | before `["default-roles-polari","offline_access","polari-viewer","uma_authorization"]`, `held []`; after **identical**, `held []` | **PASS** |
+
+---
+
+### 4. Secondary observations (not defects against this checklist; recorded for the ledger)
+
+1. **The `SecurityDecision` inbound mirror lags the `InboundPolicy` state.** Both `InboundPolicy` rows read `confirmed`, but sqlite `SELECT name,kind,state FROM SecurityDecision WHERE kind='inbound'` gives:
+   ```
+   ('app-policy|set-862f3c1e|inbound|inbound:anonymous:anonymous', 'inbound', 'suggested')
+   ('app-policy|set-862f3c1e|inbound|inbound:origin:https://prf.<lan>.nip.io', 'inbound', 'suggested')
+   ```
+   and `coverage?app=app-policy` `byKind.inbound` accordingly reads `{suggested 2, confirmed 0}` while `owner-policy` carries the 2 confirmed. The 432/4/2 total is unaffected and stable (that is what the checklist pins), so this is cosmetic / a separate mirror concern — but confirming an inbound row does not move its `SecurityDecision`. Also note the `SecurityDecision` **name** carries the exact origin URL; that is a stored row, not a view, and the D-2 contract is about the objects view, so it is out of scope here — flagging it only because it is one more place the host string lives.
+2. **The observed keycloak edges carry `declared_by: ""`.** They are correctly matched (absent from both drift sides) but the edge itself does not name the declaration that matched it, so a reader of `/api/security/objects/flows` sees `flow_provenance: observed` with no pointer back to `app.flows:security`.
+3. **Every edge reads `traced: false`** on `?view=objects`, including the two whose existence came from the causal map (`flow_provenance: observed`, counts 3 and 2), and the `causal-map` chain step still says *"NOT TRACED: no TraceTarget has ever been armed on these classes"* — while a `RolePrototype` target had just written 10 edges. The drift counters do see it (`observed 2`), so this looks like the `traced` flag / chain note keying on a different class set than the flow itself.
+
+---
+
+### 5. Residual state left on the stack
+
+- `InboundPolicy` — **both** rows `confirmed` by demo-admin (`5cacba59-a133-4663-9181-c32cb861a9c6`, `2026-09-19T04:09:21Z`): `anonymous|anonymous` and `origin|https://prf.<lan>.nip.io`. The door offers `confirmed|denied` only, so there is no way back to `suggested`; the stack is `advisory`, so nothing is enforced.
+- `OutboundPolicy keycloak|Polari|rest` — still `confirmed` (from the previous run; untouched).
+- `OwnedClassPolicy` — **`TraceTarget` removed** (round 5's residue cleaned up, as the checklist asked). Only `UserAppPreference` remains, `enabled True / source manifest`, exactly as the manifest declares.
+- `TraceTarget` rows: three coverage entries (AppPermissionProfile, UserAppPreference, RolePrototype), all **inactive**; nothing armed.
+- `CausalEdge`: 8 rows, now including the two keycloak `external:` edges and three `RolePrototype:read` CRUDE edges from this run.
+- `InboundPolicy anonymous|anonymous` count is climbing normally with the swarm health probe (248 at the end).
+- demo-viewer's Keycloak groups are exactly as found (`polari-viewer` only; the `journalist` claim was released).
+- Final stack state: `phase online`, **6/6** modules, posture `dev`, gate `advisory`, trace disarmed. `git status` clean — no tracked file edited, nothing committed, no image rebuilt.
+
+### Artefacts (scratchpad)
+`boot0.log`, `boot1.log`, `boot2.log` (full container logs per boot), `d2_*.json` / `e2_*.json` (the five objects-view doors before and after the observed flow), `topo_enforce.json`, `sim_enforce.json`, `topo_obs.json`, `edges.json`, `cov1.json`, `sq.sh` (the sqlite reader).
