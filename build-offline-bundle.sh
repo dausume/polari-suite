@@ -108,8 +108,44 @@ fi
 
 if [ "$DOWNLOAD" = 1 ]; then
     step "Download the closure ($COUNT debs) — roomy-box mode"
-    ( cd "$POOL/repo" && xargs -n1 -P4 curl -fsSO < CLOSURE_URIS.txt )
-    ok "closure debs in pool/repo/"
+    # ci-9 (his ask 2026-09-19, offline-first): POLARI_APT_CACHE — when the
+    # pipeline points this at <cache>/apt, a deb already there is COPIED instead
+    # of re-downloaded, and anything new is folded back in for the next build.
+    # The distro closure barely moves between runs, so this is where the apt
+    # half of "less time when repeatedly using the same data" actually lands.
+    # Unset (a developer running this by hand) = the old behaviour, unchanged.
+    CACHE_APT="${POLARI_APT_CACHE:-}"
+    if [ -n "$CACHE_APT" ]; then
+        mkdir -p "$CACHE_APT"
+        HITS=0; MISSES=0; CB=0; FB=0
+        : > "$POOL/repo/.misses"
+        while IFS= read -r uri; do
+            [ -n "$uri" ] || continue
+            b="$(basename "${uri%%\?*}")"
+            if [ -s "$CACHE_APT/$b" ]; then
+                cp "$CACHE_APT/$b" "$POOL/repo/$b"
+                HITS=$((HITS+1)); CB=$((CB + $(stat -c %s "$CACHE_APT/$b")))
+            else
+                printf '%s\n' "$uri" >> "$POOL/repo/.misses"; MISSES=$((MISSES+1))
+            fi
+        done < "$URIS_FILE"
+        if [ "$MISSES" -gt 0 ]; then
+            ( cd "$CACHE_APT" && xargs -n1 -P4 curl -fsSO < "$POOL/repo/.misses" )
+            while IFS= read -r uri; do
+                [ -n "$uri" ] || continue
+                b="$(basename "${uri%%\?*}")"
+                [ -s "$CACHE_APT/$b" ] || continue
+                cp "$CACHE_APT/$b" "$POOL/repo/$b"; FB=$((FB + $(stat -c %s "$CACHE_APT/$b")))
+            done < "$POOL/repo/.misses"
+        fi
+        rm -f "$POOL/repo/.misses"
+        ok "closure debs: $HITS from the cache ($((CB/1000000)) MB), $MISSES fetched ($((FB/1000000)) MB) → $CACHE_APT"
+        # the arithmetic the pipeline's cache-report.json wants, on one parseable line
+        echo "[cache-report] apt cached_bytes=$CB fetched_bytes=$FB entries=$COUNT"
+    else
+        ( cd "$POOL/repo" && xargs -n1 -P4 curl -fsSO < CLOSURE_URIS.txt )
+        ok "closure debs in pool/repo/ (no POLARI_APT_CACHE — every run re-downloads them)"
+    fi
     CLOSURE_DOWNLOADED=true
 else
     warn "closure NOT downloaded (skeleton bundle) — rerun with --download on a roomy box"

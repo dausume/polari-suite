@@ -25,32 +25,100 @@ pipeline {
         sh 'echo "Polari version: $POLARI_VERSION  tag: $POLARI_TAG  sha: $POLARI_SHA"; mkdir -p "$POOL/$POLARI_VERSION"'
       }
     }
+    // -------------------------------------------------------------------
+    // ci-9, app mode (his addendum 2026-09-19): a device that maintains ONE
+    // app does NOT build the core. Its debs come from an official Polari
+    // release, fetched ONCE into the cache and verified against that release's
+    // SHA256SUMS; the app is tested against THAT core and the record says so.
+    // CI_CORE_SOURCE=build is the escape hatch for somebody who also patches
+    // core — then the stages below run as they always did.
+    // -------------------------------------------------------------------
+    stage('the core — pulled from a release (app mode)') {
+      when { expression { return (env.CI_MODE == 'app') || (env.CI_CORE_SOURCE ?: '').startsWith('release:') } }
+      steps {
+        script {
+          def out = sh(returnStdout: true, script: 'CACHE_REPORT="$POOL/$POLARI_VERSION/cache-report.json" bash /var/polari-jenkins/isle/core-artifacts.sh fetch').trim()
+          env.CORE_TAG  = (out =~ /CORE_TAG=(\S+)/) ? (out =~ /CORE_TAG=(\S+)/)[0][1] : ''
+          env.CORE_DEBS = (out =~ /CORE_DEBS=(\S+)/) ? (out =~ /CORE_DEBS=(\S+)/)[0][1] : ''
+          echo "core: ${env.CORE_TAG ?: 'built here (CI_CORE_SOURCE=build)'}  ${env.CORE_DEBS ?: ''}"
+        }
+      }
+    }
+
     stage('debs') {
-      steps { sh 'bash ./build-polari-isle-deb.sh && bash ./build-polari-complete-deb.sh --flavor online && bash ./build-polari-complete-deb.sh --flavor offline && mkdir -p "$POOL/$POLARI_VERSION/debs" && cp .generated/debs/*.deb "$POOL/$POLARI_VERSION/debs/"' }
+      steps {
+        sh '''set -eu
+          mkdir -p "$POOL/$POLARI_VERSION/debs"
+          # ci-9: the builders read the offline cache first (wheels, distro debs)
+          export POLARI_WHEEL_CACHE="$(bash /var/polari-jenkins/cache.sh dir wheels)"
+          export POLARI_APT_CACHE="$(bash /var/polari-jenkins/cache.sh dir apt)"
+          T0=$(date +%s)
+          if [ "${CI_MODE:-suite}" = app ] && [ -n "${CORE_DEBS:-}" ]; then
+            # app mode: ONLY this device's app is built. The core debs are the
+            # release's, copied in so the isle stage installs exactly what the
+            # app was tested against — they are NOT re-released (see the routes).
+            echo "[release] app mode: building ONLY ${CI_APP_NAME} — the core is ${CORE_TAG}"
+            cp "$CORE_DEBS"/*.deb "$POOL/$POLARI_VERSION/debs/"
+            bash /var/polari-jenkins/isle/app-debs.sh "$POOL/$POLARI_VERSION/debs" "$CI_APP_NAME"
+          else
+            bash ./build-polari-isle-deb.sh
+            bash ./build-polari-complete-deb.sh --flavor online
+            bash ./build-polari-complete-deb.sh --flavor offline
+            cp .generated/debs/*.deb "$POOL/$POLARI_VERSION/debs/"
+          fi
+          bash /var/polari-jenkins/cache.sh report "$POOL/$POLARI_VERSION/cache-report.json" debs 0 0 $(( $(date +%s) - T0 ))'''
+      }
     }
     stage('images') {
+      // app mode releases a deb, not images: the core images belong to the
+      // release the app was tested against and are never rebuilt or republished.
+      when { expression { return (env.CI_MODE ?: 'suite') != 'app' } }
       steps {
-        sh '''cd polari-rf-node && docker compose -f docker-compose.yml build backend frontend && docker compose -f docker-compose.reticulum.yml build
+        sh '''set -eu
+              bash /var/polari-jenkins/build-images.sh "$PWD" "$POOL/$POLARI_VERSION/cache-report.json"
               mkdir -p "$POOL/$POLARI_VERSION/images"
               for ref in prf-backend:staging prf-frontend:staging pol-reticulum:staging; do
                 docker tag "$ref" "${ref%%:*}:$POLARI_VERSION"
                 docker save -o "$POOL/$POLARI_VERSION/images/${ref%%:*}_$POLARI_VERSION.tar" "${ref%%:*}:$POLARI_VERSION"
                 docker image inspect --format "{{.Id}} ${ref%%:*}:$POLARI_VERSION" "$ref" >> "$POOL/$POLARI_VERSION/images/DIGESTS.txt"
-              done'''
+              done
+              bash /var/polari-jenkins/cache.sh report-show "$POOL/$POLARI_VERSION/cache-report.json" || true'''
+      }
+    }
+    stage('images (app mode: none)') {
+      when { expression { return (env.CI_MODE ?: 'suite') == 'app' } }
+      steps {
+        sh '''mkdir -p "$POOL/$POLARI_VERSION/images"
+              echo "app mode: no images are built or released here — the core images are ${CORE_TAG:-the core release}'\\''s" \
+                   > "$POOL/$POLARI_VERSION/images/DIGESTS.txt"'''
       }
     }
     stage('release.json (the manifest: every component sha)') {
       steps {
         sh '''python3 - "$POOL/$POLARI_VERSION" "$POLARI_VERSION" <<'PY'
-import json, os, subprocess, sys, datetime, socket
+import json, os, subprocess, sys, datetime
 pool, ver = sys.argv[1:3]
+env = os.environ.get
 sha = lambda p: subprocess.check_output(['git', '-C', p, 'rev-parse', 'HEAD'], text=True).strip()
 comps = {k: {'sha': sha(p)} for k, p in {'superproject': '.', 'polari-framework': 'polari-rf-node/polari-framework',
          'polari-platform-angular': 'polari-rf-node/polari-platform-angular', 'isle-mesh': 'Isle-Mesh',
          'app-shell': 'polari-app-shell', 'pol-cli': 'polari-cli'}.items() if os.path.isdir(p)}
-m = {'polari': ver, 'builtAt': datetime.datetime.now().isoformat(timespec='seconds'), 'builtOn': socket.gethostname(),
+mode = env('CI_MODE', 'suite')
+digests = os.path.join(pool, 'images', 'DIGESTS.txt')
+m = {'polari': ver, 'builtAt': datetime.datetime.now().isoformat(timespec='seconds'),
+     # his privacy rule: the building machine's hostname NEVER reaches a file a
+     # release publishes. The device's chosen name, or nothing.
+     'builtOn': env('CI_DEVICE_NAME', 'pipeline'),
+     'mode': mode, 'appName': env('CI_APP_NAME', ''), 'routeTarget': env('CI_ROUTE_TARGET', ''),
+     # ci-9: the CORE this build was tested against. In app mode it is the
+     # official release whose debs were pulled; in suite mode it is this build.
+     'testedAgainst': (env('CORE_TAG', '') or env('CI_CORE_SOURCE', '')) if mode == 'app' else ('release:polari-v%s' % ver),
      'components': comps, 'debs': sorted(os.listdir(os.path.join(pool, 'debs'))),
-     'images': open(os.path.join(pool, 'images', 'DIGESTS.txt')).read().split(), 'publishedTo': {}}
+     'images': open(digests).read().split() if os.path.exists(digests) else [], 'publishedTo': {}}
+try:
+    m['cacheReport'] = json.load(open(os.path.join(pool, 'cache-report.json')))
+except Exception:
+    m['cacheReport'] = {}
 json.dump(m, open(os.path.join(pool, 'release.json'), 'w'), indent=1); print(json.dumps(m, indent=1))
 PY'''
       }
@@ -133,7 +201,9 @@ PY'''
   }
   post {
     // ci-8: the run's outcome, mirrored in (never fatal, never a Jenkins credential)
-    always { script { sh "bash /var/polari-jenkins/cicd-sync.sh run release \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} '' 'release build' || true" } }
+    // ci-9: the run's summary now carries the cache arithmetic, so "did the
+    // cache help?" is answerable from the PipelineRun rows without a log dive.
+    always { script { sh "bash /var/polari-jenkins/cicd-sync.sh run release \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} \"\${POLARI_VERSION:-}\" \"release build — \$(bash /var/polari-jenkins/cache.sh report-show \"\$POOL/\${POLARI_VERSION:-none}/cache-report.json\" 2>/dev/null | head -1 || echo 'no cache report')\" || true" } }
     // ci-7: DRY_RUN=auto — each route publishes for real only when its secret is present AND it is
     // named in CI_ROUTES (device.env). Nothing is armed by being triggered.
     // ci-7b: and the routes re-read isle-test/results.json themselves (routes/_lib.sh), so triggering

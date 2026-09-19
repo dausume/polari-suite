@@ -37,6 +37,19 @@ services:
       - CI_ISLE_NESTED=${CI_ISLE_NESTED:-auto}
       - CI_MIN_FREE_GB=${CI_MIN_FREE_GB:-20}
       - CI_MIN_RAM_HEADROOM_GB=${CI_MIN_RAM_HEADROOM_GB:-1}
+      # ci-9: the offline-first cache. CI_CACHE_DIR is deliberately left empty by
+      # default so it resolves to <pool>/cache INSIDE the container (/var/polari-pool),
+      # which is the same directory as polari-jenkins/pool/cache on the host.
+      - CI_CACHE=${CI_CACHE:-on}
+      - CI_CACHE_DIR=${CI_CACHE_DIR:-}
+      - CI_CACHE_MAX_GB=${CI_CACHE_MAX_GB:-40}
+      - CI_CACHE_PROXIES=${CI_CACHE_PROXIES:-off}
+      # ci-9: app mode — what this device maintains, and where ITS releases go
+      - CI_MODE=${CI_MODE:-suite}
+      - CI_APP_NAME=${CI_APP_NAME:-}
+      - CI_APP_REPO=${CI_APP_REPO:-}
+      - CI_CORE_SOURCE=${CI_CORE_SOURCE:-release:latest}
+      - CI_ROUTE_TARGET=${CI_ROUTE_TARGET:-}
     volumes:
       - ${JENKINS_HOME:-./jenkins_home}:/var/jenkins_home
       - ./casc:/var/jenkins_casc:ro
@@ -51,6 +64,11 @@ services:
       # OWNS these settings (pull rewrites device.env; the mirror posts runs)
       - ./cicd-sync.sh:/var/polari-jenkins/cicd-sync.sh:ro
       - ./secrets.sh:/var/polari-jenkins/secrets.sh:ro
+      # ci-9: the offline-first cache — the library, its manifest reader and the
+      # (opt-in) tier-two door. The cache DATA itself is under ./pool, already mounted.
+      - ./cache.sh:/var/polari-jenkins/cache.sh:ro
+      - ./cache-manifest.py:/var/polari-jenkins/cache-manifest.py:ro
+      - ./cache-proxies.sh:/var/polari-jenkins/cache-proxies.sh:ro
       # /etc/polari-jenkins/secrets (root:polari-ci 0640) after init-device;
       # ./secrets (host user, 0600) only until it has run — see secrets/README.md
       - ${POLARI_SECRETS_DIR:-./secrets}:/run/secrets:ro

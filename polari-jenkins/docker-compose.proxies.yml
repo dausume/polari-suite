@@ -1,0 +1,126 @@
+# polari-jenkins/docker-compose.proxies.yml — TIER TWO of the offline-first
+# cache (ci-9, his ask 2026-09-19: *"the jenkins pipeline should try and use
+# offline artifacts for building where possible, that way we are taking less
+# time when repeatedly using the same data"*).
+#
+# TIER ONE is a directory (cache.sh) and needs nothing running. This is the
+# optional second tier: four caching PROXIES that sit between every build and
+# the internet, so the SECOND build of anything never leaves this machine.
+#
+#   registry        a pull-through cache for docker.io — base image layers
+#   devpi           a pypi index cache — python wheels
+#   verdaccio       an npm registry cache — node packages
+#   apt-cacher-ng   a distro-deb cache — the offline medium's closure
+#
+# OFF BY DEFAULT (device.env CI_CACHE_PROXIES=off). A PIPELINE NEVER STARTS
+# THEM. The pipeline asks `cache.sh build-args`, which probes 127.0.0.1 and
+# returns the PIP_INDEX_URL / NPM_CONFIG_REGISTRY / APT_PROXY build-args ONLY
+# when a proxy actually answers — and nothing at all when it does not. A build
+# on a box where these were never started behaves exactly as it did before.
+#
+# THE POSTURE, deliberately narrow:
+#  · every port is bound to 127.0.0.1 — nothing is reachable from the LAN, and
+#    nothing inbound is ever opened (the ci-7 rule for the controller applies
+#    here too);
+#  · they are OUTBOUND-ONLY caches: they fetch from upstream and serve what
+#    they fetched. None of them accepts an upload, a publish or a push —
+#    `registry` is `proxy.remoteurl`-only, devpi is served with no index that a
+#    person can push to, verdaccio's config forbids publish, apt-cacher-ng has
+#    no write path at all;
+#  · every volume lives under the cache directory, so `pol jenkins cache status`
+#    counts them and `pol jenkins cache prune` is still the only deleter;
+#  · no secret reaches any of them — they proxy PUBLIC indexes. A private index
+#    behind a credential is deliberately NOT in scope.
+#
+# LICENCES (the project is GPLv3; see AI-Notes/evaluations):
+#  · registry:2 (the Docker Registry / distribution)  — Apache-2.0  ✔
+#  · devpi-server                                     — MIT         ✔
+#  · verdaccio                                        — MIT         ✔
+#  · apt-cacher-ng                                    — NOT VERIFIED from
+#    here: this slice made no network lookup and did not read its COPYING. It
+#    ships in Debian and upstream describes it as a BSD-style licence, but that
+#    is hearsay until the gate reads the file. Nothing depends on the answer
+#    yet — the service is off, nothing starts it, and we redistribute no image
+#    (running a service is not linking). Read COPYING before this is ever
+#    enabled by default. Flagged in the ledger's OWED.
+#
+# Start it only knowingly:  pol jenkins cache proxies up
+# Stop it:                  pol jenkins cache proxies down
+# Is anything answering:    pol jenkins cache proxies status
+name: polari-jenkins-cache
+
+services:
+
+  # --- docker layers ------------------------------------------------------
+  # A pull-through cache only: REGISTRY_PROXY_REMOTEURL makes it refuse every
+  # push by design, so this can never become a place somebody publishes to.
+  registry:
+    image: registry:2
+    container_name: polari-cache-registry
+    restart: unless-stopped
+    environment:
+      - REGISTRY_PROXY_REMOTEURL=https://registry-1.docker.io
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
+      - REGISTRY_HTTP_ADDR=0.0.0.0:5000
+    ports:
+      - "127.0.0.1:${CACHE_PROXY_REG_PORT:-5001}:5000"
+    volumes:
+      - ${CI_CACHE_PROXY_DIR:-./pool/cache/proxies}/registry:/var/lib/registry
+    mem_limit: 512m
+
+  # --- python wheels ------------------------------------------------------
+  # devpi-server is installed into the volume on first start rather than taken
+  # from a third-party image nobody here has audited: the base is the official
+  # python image and the only thing added is the MIT package itself.
+  devpi:
+    image: python:3.12-alpine
+    container_name: polari-cache-devpi
+    restart: unless-stopped
+    environment:
+      - DEVPISERVER_SERVERDIR=/data
+    ports:
+      - "127.0.0.1:${CACHE_PROXY_PIP_PORT:-3141}:3141"
+    volumes:
+      - ${CI_CACHE_PROXY_DIR:-./pool/cache/proxies}/devpi:/data
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        pip install --no-cache-dir --quiet devpi-server
+        [ -f /data/.serverversion ] || devpi-init --serverdir /data
+        exec devpi-server --serverdir /data --host 0.0.0.0 --port 3141 --requests-only
+    mem_limit: 512m
+
+  # --- npm packages -------------------------------------------------------
+  # verdaccio's own official image (MIT). The config forbids publishing: this
+  # is a read-through cache of npmjs, not a registry anybody can push to.
+  verdaccio:
+    image: verdaccio/verdaccio:5
+    container_name: polari-cache-verdaccio
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CACHE_PROXY_NPM_PORT:-4873}:4873"
+    volumes:
+      - ${CI_CACHE_PROXY_DIR:-./pool/cache/proxies}/verdaccio:/verdaccio/storage
+      - ./cache/verdaccio-config.yaml:/verdaccio/conf/config.yaml:ro
+    mem_limit: 512m
+
+  # --- distro debs --------------------------------------------------------
+  # Installed from the distro on first start, for the same reason as devpi.
+  apt-cacher-ng:
+    image: debian:bookworm-slim
+    container_name: polari-cache-apt
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CACHE_PROXY_APT_PORT:-3142}:3142"
+    volumes:
+      - ${CI_CACHE_PROXY_DIR:-./pool/cache/proxies}/apt:/var/cache/apt-cacher-ng
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        command -v apt-cacher-ng >/dev/null 2>&1 || { apt-get update -qq && apt-get install -y --no-install-recommends apt-cacher-ng; }
+        exec /usr/sbin/apt-cacher-ng -c /etc/apt-cacher-ng ForeGround=1
+    mem_limit: 512m

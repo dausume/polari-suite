@@ -24,6 +24,8 @@ eq()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "$2" "$3"; }
 DEV="$T/dev"; mkdir -p "$DEV"
 cp -r "$J/device.sh" "$J/secrets.sh" "$J/doctor.sh" "$J/retention.sh" "$J/mint-tag.sh" "$J/setup.sh" \
       "$J/cicd-sync.sh" \
+      "$J/cache.sh" "$J/cache-manifest.py" "$J/cache-proxies.sh" "$J/build-images.sh" \
+      "$J/cache" "$J/docker-compose.proxies.yml" \
       "$J/setup" "$J/isle" "$J/routes" "$J/casc" "$J/docker-compose.yml" "$J/.env.example" "$J/device.env.example" "$DEV/"
 mkdir -p "$DEV/pool" "$DEV/secrets/github" "$DEV/secrets/registries" "$T/bin" "$T/inv"
 # the dialog helpers live in polari-cli; setup.sh looks for them beside the checkout
@@ -416,6 +418,224 @@ OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_JSON="$T/core.json")
 has "status names the credential by NAME only"    "polari/cicd_ingest_token"      "$OUT"
 hasnt "  …and never prints it"                    "the-posting-token"             "$OUT"
 rm -f "$DEV/secrets/github/github_token"
+
+# ============================ 8. ci-9: the offline-first cache + app mode
+echo "-- cache: the manifest, prune by last_used, the report arithmetic, the network fallback"
+
+dev_env CI_ISLE_TARGET=local CI_CACHE=on
+CACHE_ROOT="$DEV/pool/cache"
+cachesh() { ( cd "$DEV" && env "$@" bash cache.sh "${CACHECMD[@]}" 2>&1 ) || true; }
+cachefn() { ( cd "$DEV" && bash -c "source ./cache.sh; $1" 2>&1 ) || true; }
+
+# --- the manifest: one record per entry, with the four fields the brief names
+MAN="$T/MANIFEST.json"; mkdir -p "$T/area"; printf 'wheel-bytes' > "$T/area/pkg-1.0-py3-none-any.whl"
+python3 "$DEV/cache-manifest.py" put "$MAN" pkg-1.0-py3-none-any.whl "$T/area/pkg-1.0-py3-none-any.whl" "a python wheel" >/dev/null
+REC=$(python3 "$DEV/cache-manifest.py" get "$MAN" pkg-1.0-py3-none-any.whl)
+has "a cache entry records what it is"            '"what": "a python wheel"'  "$REC"
+has "  …its sha256"                               '"sha256"'                  "$REC"
+has "  …when it was fetched"                      '"fetched"'                 "$REC"
+has "  …and when it was last used"                '"last_used"'               "$REC"
+eq  "  …and its size in bytes"                    "11" "$(printf '%s' "$REC" | python3 -c 'import json,sys; print(json.load(sys.stdin)["bytes"])')"
+eq  "an entry nothing wrote is absent (exit 1)"   "1"  "$(python3 "$DEV/cache-manifest.py" get "$MAN" nope >/dev/null 2>&1; echo $?)"
+eq  "list prints one line per entry"              "1"  "$(python3 "$DEV/cache-manifest.py" list "$MAN" | wc -l | tr -d ' ')"
+
+# --- prune removes ONLY what is older than the knob, by last_used
+printf 'old' > "$T/area/old-1.0.whl"; printf 'new' > "$T/area/new-1.0.whl"
+python3 "$DEV/cache-manifest.py" put "$MAN" old-1.0.whl "$T/area/old-1.0.whl" "an old wheel" >/dev/null
+python3 "$DEV/cache-manifest.py" put "$MAN" new-1.0.whl "$T/area/new-1.0.whl" "a fresh wheel" >/dev/null
+python3 - "$MAN" <<'PY'
+import json, sys, datetime
+p = sys.argv[1]; d = json.load(open(p))
+d['old-1.0.whl']['last_used'] = (datetime.datetime.now() - datetime.timedelta(days=90)).isoformat(timespec='seconds')
+d['unreadable.whl'] = {'what': 'an entry with no usable stamp', 'sha256': '', 'bytes': 1, 'fetched': '', 'last_used': 'not-a-date'}
+json.dump(d, open(p, 'w'), indent=1)
+PY
+PRUNED=$(python3 "$DEV/cache-manifest.py" prune "$MAN" "$T/area" 30)
+has "cache-prune drops an entry unused for 90 days"   "dropped old-1.0.whl"   "$PRUNED"
+has "  …and says how long it had gone unused"         "unused 9"              "$PRUNED"
+eq  "  …the file is really gone"                      "gone" "$([ -f "$T/area/old-1.0.whl" ] && echo here || echo gone)"
+eq  "  …a fresh entry is UNTOUCHED"                   "here" "$([ -f "$T/area/new-1.0.whl" ] && echo here || echo gone)"
+has "  …and an entry with no readable last_used is KEPT, not guessed at" "1 kept (no readable last_used)" "$PRUNED"
+hasnt "prune never touches an entry inside the window" "dropped new-1.0.whl"  "$PRUNED"
+
+# --- retention.sh: `prune` must NEVER take the cache with an old pool version
+mkdir -p "$DEV/pool/2026.09.01" "$DEV/pool/cache/wheels"
+RET=$( cd "$DEV" && POLARI_POOL="$DEV/pool" POOL_KEEP=0 bash retention.sh prune 2>&1 || true )
+has "retention.sh prune says the cache is EXEMPT"   "is EXEMPT"   "$RET"
+eq  "  …and the cache directory survives it"        "here" "$([ -d "$DEV/pool/cache/wheels" ] && echo here || echo gone)"
+hasnt "  …the cache is not listed as a pool version" "versions (newest first): cache" "$RET"
+CP=$( cd "$DEV" && POLARI_POOL="$DEV/pool" bash retention.sh cache-prune --older-than 7 2>&1 || true )
+has "retention.sh cache-prune is the cache's ONE deleter" "unused for more than 7 day(s)" "$CP"
+
+# --- the report arithmetic
+REP="$T/cache-report.json"
+python3 "$DEV/cache-manifest.py" report "$REP" wheels 300000000 100000000 42 >/dev/null
+python3 "$DEV/cache-manifest.py" report "$REP" apt    100000000 0         8  >/dev/null
+SHOW=$(python3 "$DEV/cache-manifest.py" report-show "$REP")
+eq "the hit rate is cached/(cached+fetched)" "0.8" "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["hit_rate"])' "$REP")"
+eq "  …bytes accumulate across stages"       "400000000" "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["cached_bytes"])' "$REP")"
+eq "  …and so do the seconds"                "50.0" "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["seconds"])' "$REP")"
+has "report-show states the hit rate in words" "80% of the bytes this run needed came from the cache" "$SHOW"
+has "  …with a TOTAL row"                      "TOTAL"  "$SHOW"
+eq "a missing report is reported, not invented" "1" "$(python3 "$DEV/cache-manifest.py" report-show "$T/nope.json" >/dev/null 2>&1; echo $?)"
+
+# --- the network fallback: an EMPTY cache must still build
+eq "CI_CACHE=on offers the wheelhouse to pip" "--find-links $CACHE_ROOT/wheels" \
+   "$( cd "$DEV" && bash -c 'source ./cache.sh; cache_wheel_args' )"
+eq "  …CI_CACHE=off adds NOTHING — pip goes to the index exactly as before" "" \
+   "$( cd "$DEV" && CI_CACHE=off bash -c 'source ./cache.sh; cache_wheel_args' )"
+eq "  …and tier two's index is added only when PIP_INDEX_URL is set" \
+   "--find-links $CACHE_ROOT/wheels --index-url http://127.0.0.1:3141/root/pypi/+simple/" \
+   "$( cd "$DEV" && PIP_INDEX_URL=http://127.0.0.1:3141/root/pypi/+simple/ bash -c 'source ./cache.sh; cache_wheel_args' )"
+eq "a cache MISS is a miss, not a refusal" "1" \
+   "$( cd "$DEV" && bash -c 'source ./cache.sh; cache_hit wheels nothing-here.whl' >/dev/null 2>&1; echo $? )"
+has "CI_CACHE=off says so and hands the build back to the network" "off (CI_CACHE=off)" \
+   "$( cd "$DEV" && CI_CACHE=off bash -c 'source ./cache.sh; cache_fetch wheels x https://example.invalid/x' 2>&1 || true )"
+
+# --- status
+CACHECMD=(status)
+OUT=$(cachesh CI_CACHE=on)
+has "cache status names the directory"            "$CACHE_ROOT"        "$OUT"
+has "  …and every area"                           "scanners"           "$OUT"
+has "  …says what each area is for"               "Trivy DB"           "$OUT"
+has "  …and is honest that the savings are EXPECTED until a real run" "EXPECTED, not measured" "$OUT"
+OUT=$(cachesh CI_CACHE=off)
+has "cache status with CI_CACHE=off says the cache is OFF" "THE CACHE IS OFF" "$OUT"
+
+# --- tier two is OFF by default, and a pipeline never starts it
+eq "tier two is off unless CI_CACHE_PROXIES=on" "1" \
+   "$( cd "$DEV" && bash -c 'source ./cache.sh; cache_proxies_on' >/dev/null 2>&1; echo $? )"
+eq "  …so the pipeline passes NO proxy build-args" "" \
+   "$( cd "$DEV" && bash -c 'source ./cache.sh; cache_build_args' )"
+PUP=$( cd "$DEV" && CI_CACHE_PROXIES=off bash cache-proxies.sh up 2>&1 || true )
+has "  …and 'cache proxies up' REFUSES while the knob is off" "deliberately opt-in" "$PUP"
+has "  …saying nothing was started"                     "Nothing was started" "$PUP"
+has "the compose file states every licence it can"      "Apache-2.0"          "$(cat "$DEV/docker-compose.proxies.yml")"
+has "  …and is honest about the one it cannot verify"   "NOT VERIFIED"        "$(cat "$DEV/docker-compose.proxies.yml")"
+has "  …every proxy port is bound to loopback only"     "127.0.0.1:"          "$(cat "$DEV/docker-compose.proxies.yml")"
+hasnt "  …and none is published on all interfaces"      $'\n      - "5000:' "$(cat "$DEV/docker-compose.proxies.yml")"
+
+# --- the device knobs
+dev_env CI_ISLE_TARGET=local CI_CACHE=maybe
+has "an unknown CI_CACHE → WARN naming on or off" "unknown value"         "$(doc)"
+dev_env CI_ISLE_TARGET=local CI_CACHE=off
+has "CI_CACHE=off → WARN, not a refusal"          "re-downloads"          "$(doc)"
+dev_env CI_ISLE_TARGET=local CI_CACHE_MAX_GB=lots
+has "a non-numeric CI_CACHE_MAX_GB → WARN"        "not a positive whole number" "$(doc)"
+dev_env CI_ISLE_TARGET=local CI_CACHE_PROXIES=on
+has "CI_CACHE_PROXIES=on but nothing answers → WARN naming the fix" "none of them answers" "$( cd "$DEV" && FAKE_CORE=down bash doctor.sh 2>&1 || true )"
+dev_env CI_ISLE_TARGET=local
+has "the doctor reports the cache against its budget" "of a 40 GB budget"   "$(doc)"
+has "  …and says the hit rate is not measured yet"    "EXPECTED, not measured" "$(doc)"
+
+# ------------------------------------------- ci-9: app mode, end to end
+echo "-- app mode: the setup question, the pulled core, and a release of ONE deb to YOUR routes"
+
+# the mode question is the FIRST thing the walkthrough shows
+dev_env CI_ISLE_TARGET=local CI_MODE=suite CI_ISLE_STAGES=core
+RPT=$( cd "$DEV" && FOOTPRINT_INVENTORY="$T/inv/inventory.sh" bash setup.sh --report </dev/null 2>&1 || true )
+has "step 1 asks what the pipeline MAINTAINS, before anything else" "step 1/8 — what this pipeline maintains" "$RPT"
+has "  …and in suite mode says the whole suite is built here" "maintains: the whole Polari suite" "$RPT"
+dev_env CI_ISLE_TARGET=local CI_MODE=app CI_APP_NAME=household CI_APP_REPO=https://example.invalid/r.git \
+        CI_ROUTE_TARGET=some-developer CI_ISLE_STAGES='core; household'
+RPT=$( cd "$DEV" && FOOTPRINT_INVENTORY="$T/inv/inventory.sh" bash setup.sh --report </dev/null 2>&1 || true )
+has "in app mode step 1 names the one app"            "maintains: ONE Polari app — household" "$RPT"
+has "  …its repository"                               "repository: https://example.invalid/r.git" "$RPT"
+has "  …the core it is tested against"                "core: release:latest" "$RPT"
+has "  …and where ITS releases go"                    "releases go to: some-developer" "$RPT"
+dev_env CI_ISLE_TARGET=local CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_CORE_SOURCE=build
+has "CI_CORE_SOURCE=build in app mode is an INFO, not a refusal" "tested against that build, not an official release" "$(doc)"
+dev_env CI_ISLE_TARGET=local CI_MODE=app CI_APP_NAME=household CI_APP_REPO=
+has "app mode with no repo → the doctor WARNs" "nothing to build it from" "$(doc)"
+dev_env CI_ISLE_TARGET=local CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_ROUTE_TARGET=dausume
+has "CI_ROUTE_TARGET = the upstream owner → refused in the device settings too" "UPSTREAM owner" "$(doc)"
+
+# core-artifacts.sh resolve, against a fixture release list (the curl shim answers)
+cat > "$T/releases.json" <<'JSON'
+[{"tag_name": "polari-v2026.09.19", "draft": false, "published_at": "2026-09-19T00:00:00Z",
+  "assets": [{"name": "polari-complete_1_all.deb", "browser_download_url": "https://example.invalid/a.deb"},
+             {"name": "SHA256SUMS", "browser_download_url": "https://example.invalid/SHA256SUMS"}]},
+ {"tag_name": "polari-v2026.09.10", "draft": false, "published_at": "2026-09-10T00:00:00Z",
+  "assets": [{"name": "polari-complete_0_all.deb", "browser_download_url": "https://example.invalid/b.deb"}]},
+ {"tag_name": "polari-v2026.09.20-noassets", "draft": false, "published_at": "2026-09-20T00:00:00Z",
+  "assets": []}]
+JSON
+cat > "$T/release-one.json" <<'JSON'
+{"tag_name": "polari-v2026.09.19",
+ "assets": [{"name": "polari-complete_1_all.deb", "browser_download_url": "https://example.invalid/a.deb"},
+            {"name": "SHA256SUMS", "browser_download_url": "https://example.invalid/SHA256SUMS"}]}
+JSON
+mkdir -p "$T/polari-cli/scripts/lib"
+cp "$J/../polari-cli/scripts/lib/providers.sh" "$T/polari-cli/scripts/lib/providers.sh"
+ca() { ( cd "$DEV" && env POLARI_PROVIDERS_LIB="$T/polari-cli/scripts/lib/providers.sh" "$@" bash isle/core-artifacts.sh "$CACMD" 2>&1 ) || true; }
+dev_env CI_ISLE_TARGET=local CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_ROUTE_TARGET=some-developer \
+        CI_CORE_SOURCE=release:latest
+CACMD=resolve
+eq "release:latest resolves to the newest release that CARRIES debs" "polari-v2026.09.19" \
+   "$(ca FAKE_CORE=ok FAKE_CORE_JSON="$T/releases.json" | tail -1)"
+dev_env CI_ISLE_TARGET=local CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_ROUTE_TARGET=some-developer \
+        CI_CORE_SOURCE=release:polari-v2026.09.19
+eq "  …and an exact tag resolves to itself, verified to carry debs" "polari-v2026.09.19" \
+   "$(ca FAKE_CORE=ok FAKE_CORE_JSON="$T/release-one.json" | tail -1)"
+dev_env CI_ISLE_TARGET=local CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_ROUTE_TARGET=some-developer \
+        CI_CORE_SOURCE=release:polari-v1999.01.01
+printf '{"assets": []}' > "$T/release-none.json"
+has "  …a tag with no debs is a REFUSAL naming the tag" "polari-v1999.01.01" \
+   "$(ca FAKE_CORE=ok FAKE_CORE_JSON="$T/release-none.json")"
+has "  …and never silently falls back to building core" "does not exist, or carries no .deb" \
+   "$(ca FAKE_CORE=ok FAKE_CORE_JSON="$T/release-none.json")"
+dev_env CI_ISLE_TARGET=local CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_ROUTE_TARGET=some-developer \
+        CI_CORE_SOURCE=build
+eq "CI_CORE_SOURCE=build resolves to the literal 'build'" "build" "$(ca FAKE_CORE=ok | tail -1)"
+CACMD=fetch
+has "  …and 'fetch' then has nothing to fetch, and says why" "nothing to fetch" "$(ca FAKE_CORE=ok)"
+
+# app-mode release filtering: ONE deb, to YOUR routes
+: > "$T/pool/debs/polari-app-household_1_all.deb"
+printf '{"version":"1","core_ok":true,"passed":["household","gears"],"tested":["household","gears"],"untested":[]}' > "$RES"
+appassets() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" "$@" \
+                bash -c 'source ./_lib.sh; release_assets "$POOL_DIR/debs"' 2>/dev/null ) || true; }
+OUT=$(appassets CI_MODE=app CI_APP_NAME=household CI_ROUTE_TARGET=some-developer)
+has "app mode releases the app's own deb"          "polari-app-household_1_all.deb" "$OUT"
+hasnt "  …and NOT the core it was tested against"  "polari-complete"                "$OUT"
+hasnt "  …nor another app a stage happened to test here" "polari-app-gears"         "$OUT"
+apparm() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" GITHUB_TOKEN=x CI_ROUTES=github-release "$@" \
+             bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 ) || true; }
+has "app mode names the one deb and the target it goes to" "releasing ONLY polari-app-household to some-developer" \
+    "$(apparm CI_MODE=app CI_APP_NAME=household CI_ROUTE_TARGET=some-developer)"
+has "  …and says the core is NOT re-released"      "is NOT re-released" \
+    "$(apparm CI_MODE=app CI_APP_NAME=household CI_ROUTE_TARGET=some-developer)"
+has "an app-mode route with no CI_ROUTE_TARGET is DRY, naming why" "CI_ROUTE_TARGET is empty" \
+    "$(apparm CI_MODE=app CI_APP_NAME=household)"
+has "an app-mode route aimed at the UPSTREAM owner is DRY — a fork is never republished upstream" \
+    "never republished under an upstream name" "$(apparm CI_MODE=app CI_APP_NAME=household CI_ROUTE_TARGET=dausume)"
+has "  …and DRY_RUN=false cannot force THAT either" "DRY (CI_ROUTE_TARGET is the UPSTREAM owner" \
+    "$(apparm CI_MODE=app CI_APP_NAME=household CI_ROUTE_TARGET=dausume DRY_RUN=false)"
+hasnt "suite mode is unaffected by any of it"      "app mode:" "$(apparm CI_MODE=suite)"
+
+# tested_against: a release record that does not name its core is an unfalsifiable claim
+printf '{"polari":"1","mode":"app","appName":"household","routeTarget":"some-developer","testedAgainst":"polari-v2026.09.19","publishedTo":{},"cacheReport":{"hit_rate":0.8}}' > "$T/pool/release.json"
+dev_env CI_ISLE_TARGET=local CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_ROUTE_TARGET=some-developer CI_CORE_URL=http://127.0.0.1:9999
+SYNCCMD=release
+OUT=$( cd "$DEV" && env CICD_DEVICE_NAME=pipe-1 CI_SECRETS_SYSTEM="$T/nonexistent-etc" CI_SECRETS_REPO="$DEV/secrets" \
+       FAKE_CORE=ok FAKE_CORE_POSTED="$T/posted-release.json" bash cicd-sync.sh release 1 "$T/pool/release.json" 2>&1 || true )
+POSTED=$(cat "$T/posted-release.json" 2>/dev/null)
+has "the release mirror carries the RESOLVED core it was tested against" '"tested_against": "polari-v2026.09.19"' "$POSTED"
+has "  …the target it published to"                                     '"route_target": "some-developer"'        "$POSTED"
+has "  …and the cache arithmetic of the build that made it"             '"cache_report"'                          "$POSTED"
+
+# the two Dockerfiles: the offline path must be OPTIONAL
+BE="$J/../polari-rf-node/polari-framework/Dockerfile"
+FE="$J/../polari-rf-node/polari-platform-angular/Dockerfile.prod"
+has "the backend declares a DEFAULT for the wheels build-context" "FROM scratch AS wheels" "$(cat "$BE")"
+has "  …so a plain docker build with no --build-context still works" "EMPTY directory" "$(cat "$BE")"
+has "  …and keeps the pip cache mount"        "type=cache,target=/root/.cache/pip"  "$(cat "$BE")"
+has "  …with PIP_INDEX_URL honoured when set" "ARG PIP_INDEX_URL="                  "$(cat "$BE")"
+has "the frontend caches npm across builds"   "type=cache,target=/root/.npm"        "$(cat "$FE")"
+has "  …prefers what it already has"          "--prefer-offline"                    "$(cat "$FE")"
+has "  …and honours a registry when one is passed" "ARG NPM_CONFIG_REGISTRY="       "$(cat "$FE")"
+eq  "the syntax directive is the FIRST line of the frontend Dockerfile" "# syntax=docker/dockerfile:1" "$(head -1 "$FE")"
+eq  "  …and of the backend's"                                          "# syntax=docker/dockerfile:1" "$(head -1 "$BE")"
 
 echo
 TOTAL=$((PASS+FAIL))

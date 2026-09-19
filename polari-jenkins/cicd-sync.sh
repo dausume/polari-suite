@@ -200,6 +200,10 @@ print(json.dumps({
         'min_free_gb': g('CI_MIN_FREE_GB', '20'), 'min_ram_headroom_gb': g('CI_MIN_RAM_HEADROOM_GB', '1'),
         'executors': g('CI_EXECUTORS', '1'),
         'routes': [r for r in g('CI_ROUTES', '').split(',') if r],
+        # ci-9: the offline-first cache, and where this device's own releases go
+        'cache': g('CI_CACHE', 'on'), 'cache_dir': g('CI_CACHE_DIR', ''),
+        'cache_max_gb': g('CI_CACHE_MAX_GB', '40'), 'cache_proxies': g('CI_CACHE_PROXIES', 'off'),
+        'route_target': g('CI_ROUTE_TARGET', ''),
     },
     'stages': json.loads(stages or '[]'),
     'routes': json.loads(routes or '[]'),
@@ -273,8 +277,13 @@ except Exception:
 published = [r for r, v in (m.get('publishedTo') or {}).items() if not v.get('dryRun')]
 dry = {r: 'rendered only (dry run)' for r, v in (m.get('publishedTo') or {}).items() if v.get('dryRun')}
 print(json.dumps({'kind': 'release', 'device': dev, 'version': version, 'mode': mode, 'app_name': app,
-                  # an app release must name the CORE it passed against, or "it passed" means nothing
-                  'tested_against': core_source if mode == 'app' else ('release:polari-v%s' % version),
+                  # an app release must name the CORE it passed against, or "it passed" means nothing.
+                  # ci-9: release.json's testedAgainst is the RESOLVED tag (core-artifacts.sh turned
+                  # release:latest into a real one); CI_CORE_SOURCE is the fallback when it is absent.
+                  'tested_against': (m.get('testedAgainst')
+                                     or (core_source if mode == 'app' else ('release:polari-v%s' % version))),
+                  'route_target': m.get('routeTarget', ''),
+                  'cache_report': m.get('cacheReport', {}),
                   'tag': m.get('tag', ''), 'tag_pushed': bool(m.get('tagPushed')),
                   'results_present': bool(m.get('isleTestResults')), 'core_ok': bool(m.get('coreOk')),
                   'published_routes': published, 'dry_routes': dry,

@@ -13,7 +13,60 @@
 #
 # setup_role_fit is PURE arithmetic (the selftest drives it directly).
 
-STEP_TITLE_role="this device's role"
+STEP_TITLE_role="what this pipeline maintains, and this device's role"
+
+# ---------------------------------------------------------------------------
+# ci-9 — THE FIRST QUESTION (his addendum 2026-09-19: "some people will also be
+# using this pipeline as a way to maintain their own Polari Apps and will only
+# be testing the one app they are developing").
+#
+# ci-8 gave the keys (CI_MODE, CI_APP_NAME, CI_APP_REPO, CI_CORE_SOURCE) and
+# the validation. Nothing ASKED. It is asked here, and it is asked FIRST,
+# because every later step's answer depends on it: app mode does not build the
+# core, its stages default to `core; <app>`, its release is one deb, and it
+# publishes to the developer's own routes.
+# ---------------------------------------------------------------------------
+
+setup_mode_summary() {   # one line, used by the check and the summary
+    if [ "$CI_MODE" = app ]; then
+        printf 'ONE app: %s (core %s, published to %s)' \
+            "${CI_APP_NAME:-(unnamed)}" "$CI_CORE_SOURCE" "${CI_ROUTE_TARGET:-(no target set)}"
+    else
+        printf 'the whole Polari suite (core built here)'
+    fi
+}
+
+# Does a name look like a module somebody could maintain? A module directory
+# with a polari-app.json in THIS checkout is the strong answer; a
+# polari-module-<name> repository URL is the answer for somebody whose app is
+# not in this tree at all (the `pol project` standalone loop). Either is enough.
+setup_app_known_here() { stages_app_known "$1"; }
+setup_app_repo_guess() { printf 'https://github.com/<you>/polari-module-%s.git' "$1"; }
+
+# `pol project` conventions, reused rather than reinvented: a module project is
+# a directory with polari-app.json (+ .polari/project.json that `pol project
+# init` writes). Cloning CI_APP_REPO under <pool>/apps/<name> gives the pipeline
+# exactly what `pol project build` expects to find.
+setup_app_checkout_dir() { printf '%s/apps/%s' "$(device_pool)" "${1:-$CI_APP_NAME}"; }
+setup_app_clone() {   # setup_app_clone <name> <repo-url>  → 0 when the checkout is usable
+    local name="$1" repo="$2" dir
+    dir="$(setup_app_checkout_dir "$name")"
+    if [ -d "$dir/.git" ]; then
+        check OK "app checkout: $dir (already cloned — the pipeline pulls it per run)"
+        return 0
+    fi
+    mkdir -p "$(dirname "$dir")"
+    if git clone --depth 1 "$repo" "$dir" >/dev/null 2>&1; then
+        if [ -f "$dir/polari-app.json" ]; then
+            check OK "cloned $name → $dir (polari-app.json present — pol project conventions)"
+            return 0
+        fi
+        check BAD "$repo has no polari-app.json at its root — that is not a Polari module project (pol project init <name> makes one)"
+        return 1
+    fi
+    check BAD "could not clone $repo (a private repo needs a credential the pipeline does not have)"
+    return 1
+}
 
 setup_role_fit() {
     # setup_role_fit <ram_mb> <cpus> <free_gb> <kvm 0|1> <vm_ram_gb> <vm_disk_gb> <ctrl_gb> <build_gb> <headroom_gb> <min_free_gb>
@@ -71,6 +124,24 @@ _role_readings() {   # RAM_MB CPUS FREE_GB KVM NESTED
 step_role_check() {
     _role_readings
     local head fit
+    # --- ci-9: the mode, first ------------------------------------------------
+    if [ "$CI_MODE" = app ]; then
+        check OK "maintains: ONE Polari app — $([ -n "$CI_APP_NAME" ] && echo "$CI_APP_NAME" || echo '(no name set)')"
+        if [ -n "$CI_APP_NAME" ]; then
+            setup_app_known_here "$CI_APP_NAME" \
+                && check OK "  the module is in this checkout (modules/$CI_APP_NAME/polari-app.json)" \
+                || check MISS "  not a module in this checkout — it comes from CI_APP_REPO"
+        else
+            check BAD "  CI_APP_NAME is empty — app mode maintains one app and must name it"
+        fi
+        [ -n "$CI_APP_REPO" ] && check OK "  repository: $CI_APP_REPO" \
+            || check BAD "  CI_APP_REPO is empty — the app's own repository is where the pipeline builds it from"
+        check OK "  core: $CI_CORE_SOURCE $([ "$CI_CORE_SOURCE" = build ] && echo '(REBUILT here — your app is tested against YOUR build, not an official release)' || echo '(pulled, never rebuilt)')"
+        [ -n "$CI_ROUTE_TARGET" ] && check OK "  releases go to: $CI_ROUTE_TARGET" \
+            || check MISS "  CI_ROUTE_TARGET is empty — app-mode releases must name YOUR owner/namespace"
+    else
+        check OK "maintains: the whole Polari suite — core, apps and images are all built here"
+    fi
     head="$(setup_role_headline "$ROLE_RAM_MB" "$ROLE_CPUS" "$ROLE_FREE_GB" "$ROLE_KVM" \
              "$CI_ISLE_VM_RAM_GB" "$CI_ISLE_VM_DISK_GB" "$CI_CONTROLLER_RAM_GB" "$CI_BUILD_RAM_GB" \
              "$CI_MIN_RAM_HEADROOM_GB" "$CI_MIN_FREE_GB")"
@@ -85,8 +156,22 @@ step_role_check() {
     check "$([ "$ROLE_NESTED" = Y ] || [ "$ROLE_NESTED" = 1 ] && echo OK || echo MISS)" \
           "nested KVM: $ROLE_NESTED (the isle's router guest runs INSIDE the throwaway VM)"
 
+    local mode_ok=1
+    if [ "$CI_MODE" = app ]; then
+        [ -n "$CI_APP_NAME" ] || { mode_ok=0; todo "app mode maintains ONE app but names none" "pol jenkins setup --step role"; }
+        [ -n "$CI_APP_REPO" ] || { mode_ok=0; todo "app mode needs the app's own repository (CI_APP_REPO)" "pol jenkins setup --step role"; }
+        [ -n "$CI_ROUTE_TARGET" ] || { mode_ok=0; todo "app-mode releases must name YOUR owner/namespace (CI_ROUTE_TARGET)" "pol jenkins setup --step role   — a fork is never republished under an upstream name"; }
+        case "$CI_CORE_SOURCE" in
+            release:*)
+                if [ "$CI_CORE_SOURCE" != "release:latest" ] || true; then
+                    check OK "  the core release is resolved and fetched once per tag: bash polari-jenkins/isle/core-artifacts.sh status"
+                fi ;;
+            build) check MISS "  CI_CORE_SOURCE=build — you are rebuilding core; releases of your app are tested against that build, not an official release" ;;
+        esac
+    fi
+
     if printf '%s' "$fit" | grep -q '^builds	yes'; then
-        state done "$head"
+        [ "$mode_ok" = 1 ] && state done "$(setup_mode_summary) — $head" || state todo "$head"
     else
         state todo "$head"
         todo "this machine cannot serialise the controller and a build (${CI_CONTROLLER_RAM_GB}+${CI_BUILD_RAM_GB} GB)" \
@@ -96,7 +181,119 @@ step_role_check() {
     # choice — this step only measures and says which roles fit.
 }
 
+# ---------------------------------------------------------------- the ask
+# THE FIRST QUESTION OF THE WHOLE WALKTHROUGH.
+setup_ask_mode() {
+    [ "$MODE" = report ] && return 0
+    explain "FIRST: what does this pipeline maintain?
+
+  1. THE WHOLE POLARI SUITE — core, the app modules, the images, the debs. It builds everything from a suite checkout, tests it in a throwaway isle and releases it. This is upstream Polari's own shape.
+
+  2. ONE POLARI APP YOU ARE DEVELOPING — your module, from your own repository. The CORE IS NOT REBUILT: its debs come from an official Polari release, your app is tested against THAT core, and the release carries your app's deb alone, published to YOUR routes. Cheaper in every direction: no core build, one app's stage, one deb.
+
+You can change this later: pol jenkins setup --step role."
+    echo
+    local pick
+    pick="$(tui_menu 'What does this pipeline maintain?' \
+        'The rest of the walkthrough follows from this answer.' \
+        "$CI_MODE" \
+        suite 'the whole Polari suite (core is built here)' \
+        app   'ONE Polari app you are developing (core is pulled from a release)')"
+    [ -n "$pick" ] || pick="$CI_MODE"
+    device_env_set CI_MODE "$pick"
+    check OK "device.env: CI_MODE=$pick"
+    [ "$pick" = app ] || {
+        # leaving app mode: the app keys become noise, and the doctor says so.
+        [ -z "$CI_APP_NAME$CI_APP_REPO$CI_ROUTE_TARGET" ] || \
+            check MISS "CI_APP_NAME / CI_APP_REPO / CI_ROUTE_TARGET are set but the mode is suite — they are ignored"
+        device_reload
+        return 0
+    }
+
+    # --- which app ---------------------------------------------------------
+    local name repo known
+    known="$(stages_known_apps | tr '\n' ' ')"
+    name="$(ask_value 'Which app?' "The module package you maintain.
+
+Modules in THIS checkout: ${known:-(none — polari-rf-node is not populated)}
+
+If your app is not in this tree, name it anyway and give its repository next —
+the pipeline clones it under $(setup_app_checkout_dir '<name>') the way
+\`pol project\` expects (a polari-app.json at the root)." "$CI_APP_NAME")"
+    [ -n "$name" ] || { check MISS "no app named — app mode cannot release anything until CI_APP_NAME is set"; device_reload; return 0; }
+    device_env_set CI_APP_NAME "$name"
+    if setup_app_known_here "$name"; then
+        check OK "$name is a module in this checkout (modules/$name/polari-app.json)"
+    else
+        check MISS "$name is not a module in this checkout — it must come from its own repository"
+    fi
+
+    repo="$(ask_value "$name's repository" "The git URL \`pol project\` builds from. Convention: polari-module-<name>.
+
+  $(setup_app_repo_guess "$name")
+
+It is cloned (shallow) under $(setup_app_checkout_dir "$name") and must carry a polari-app.json at its root." "${CI_APP_REPO:-}")"
+    if [ -n "$repo" ]; then
+        device_env_set CI_APP_REPO "$repo"
+        ask 'clone it now?' "Clone $repo into $(setup_app_checkout_dir "$name") so the pipeline has it? (It is re-pulled on every run either way.)" yes \
+            && setup_app_clone "$name" "$repo" || true
+    else
+        check MISS "no repository — CI_APP_REPO is what the pipeline builds your app from"
+    fi
+
+    # --- which core --------------------------------------------------------
+    local core
+    core="$(tui_menu 'Which core is your app tested against?' \
+        "An app that 'passed' against an unnamed core is a claim nobody can check, so the release record always names this.
+
+release:latest resolves to the newest official Polari release that actually carries debs, and its artifacts are fetched ONCE into the cache." \
+        "$CI_CORE_SOURCE" \
+        release:latest 'the newest official Polari release (recommended)' \
+        pin            'a specific release tag — you will be asked for it' \
+        build          'rebuild core from this checkout (you also patch core)')"
+    case "${core:-}" in
+        pin)
+            local tag
+            tag="$(ask_value 'Which release tag?' 'e.g. polari-v2026.09.19 — it must be a published release carrying .deb assets.' "${CI_CORE_SOURCE#release:}")"
+            [ -n "$tag" ] && device_env_set CI_CORE_SOURCE "release:$tag" || check MISS "no tag given — CI_CORE_SOURCE left as $CI_CORE_SOURCE" ;;
+        '') : ;;
+        *) device_env_set CI_CORE_SOURCE "$core" ;;
+    esac
+    if [ "$CI_CORE_SOURCE" = build ]; then
+        check MISS "you are rebuilding core; releases of your app are tested against that build, not an official release"
+    else
+        local resolved
+        resolved="$(bash "$J/isle/core-artifacts.sh" resolve 2>/dev/null || true)"
+        [ -n "$resolved" ] && check OK "$CI_CORE_SOURCE resolves to $resolved" \
+            || check MISS "$CI_CORE_SOURCE does not resolve right now (no network, or no such published release) — the doctor names it before a run"
+    fi
+
+    # --- where the releases go --------------------------------------------
+    local target
+    target="$(ask_value 'Where do YOUR releases go?' "Your own owner/namespace — the GitHub user or org your app's release, deb and images are published under.
+
+The upstream owner ($CI_UPSTREAM_OWNER) is REFUSED: a fork is never republished under an upstream name." "$CI_ROUTE_TARGET")"
+    if [ -n "$target" ]; then
+        case "$target" in
+            "$CI_UPSTREAM_OWNER"|"$CI_UPSTREAM_OWNER"/*) check BAD "$target is the upstream owner — refused. Use your own." ;;
+            *) device_env_set CI_ROUTE_TARGET "$target"; check OK "device.env: CI_ROUTE_TARGET=$target" ;;
+        esac
+    else
+        check MISS "no target — app-mode routes stay DRY until CI_ROUTE_TARGET names your own owner/namespace"
+    fi
+
+    # app mode's stage default, written once so step 6 shows the real thing
+    if [ "$CI_ISLE_STAGES" = core ] && [ -n "$CI_APP_NAME" ]; then
+        device_env_set CI_ISLE_STAGES "core; $CI_APP_NAME"
+        check OK "stages default to: core; $CI_APP_NAME (step $(step_index stages) can change them)"
+    fi
+    device_reload
+    doctor_refresh
+}
+
 step_role_do() {
+    setup_ask_mode
+    echo
     explain "Two roles, and one device can hold both if it has the room.
 
 PIPELINE DEVICE — the Jenkins controller, the builds, the scans and the publish routes. Measured: the controller is capped at ${CI_CONTROLLER_RAM_GB} GB (compose mem_limit), an Angular frontend build wants ~${CI_BUILD_RAM_GB} GB, and only one build runs at a time (CI_EXECUTORS=1). Nothing inbound is ever opened: the UI binds 127.0.0.1 and every publish is an outbound push.

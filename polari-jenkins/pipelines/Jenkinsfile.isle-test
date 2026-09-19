@@ -57,6 +57,24 @@ pipeline {
       post { always { archiveArtifacts artifacts: 'preflight.json', allowEmptyArchive: true } }
     }
 
+    // ci-9: in app mode (or whenever CI_CORE_SOURCE names a release) the core
+    // the stages install is PULLED, not built — fetched once into the cache and
+    // verified against the release's own SHA256SUMS. results.json then records
+    // `tested_against`, so "the app passed" always names the core it passed
+    // against. CI_CORE_SOURCE=build leaves this stage out entirely.
+    stage('the core under test — from a release (app mode)') {
+      when { expression { return (env.CI_MODE == 'app') || (env.CI_CORE_SOURCE ?: '').startsWith('release:') } }
+      steps {
+        script {
+          def rep = params.VERSION ? "${env.POOL}/${params.VERSION}/cache-report.json" : "${env.WORKSPACE}/cache-report.json"
+          def out = sh(returnStdout: true, script: "CACHE_REPORT='${rep}' bash \"\$ISLE/core-artifacts.sh\" fetch").trim()
+          env.CORE_TAG  = (out =~ /CORE_TAG=(\S+)/) ? (out =~ /CORE_TAG=(\S+)/)[0][1] : ''
+          env.CORE_DEBS = (out =~ /CORE_DEBS=(\S+)/) ? (out =~ /CORE_DEBS=(\S+)/)[0][1] : ''
+          echo "the stages below install the core of ${env.CORE_TAG ?: '(built here — CI_CORE_SOURCE=build)'}"
+        }
+      }
+    }
+
     stage('the testing stages') {
       steps {
         script {
@@ -65,7 +83,14 @@ pipeline {
           def stages = raw.split('\n').collect { it.trim() }
           echo "isle testing stages: ${stages.size()} — ${stages.collect { it ?: 'core only' }}"
 
-          def results = [version: params.VERSION ?: 'none', stages: [], tested: [], passed: [], untested: []]
+          // ci-9: the core these stages install, named once, recorded everywhere.
+          def testedAgainst = env.CORE_TAG ?: ((env.CI_MODE == 'app')
+                                               ? (env.CI_CORE_SOURCE ?: 'build')
+                                               : (params.VERSION ? "release:polari-v${params.VERSION}" : 'this build'))
+          def results = [version: params.VERSION ?: 'none', mode: (env.CI_MODE ?: 'suite'),
+                         app_name: (env.CI_APP_NAME ?: ''), tested_against: testedAgainst,
+                         core_debs: (env.CORE_DEBS ?: ''),
+                         stages: [], tested: [], passed: [], untested: []]
           def runDir  = params.VERSION ? "${env.POOL}/${params.VERSION}/isle-test" : "${env.WORKSPACE}/isle-test"
           sh "mkdir -p '${runDir}'"
 
@@ -108,7 +133,9 @@ pipeline {
                 //    it is convenient.
                 //    CICD_PIPELINE_PLAN.md §1 and §3 own that cycle.
                 // ---------------------------------------------------------
-                echo "ci-3 TODO: install the core debs, then ${apps ? apps.join(', ') + ' deb(s)' : 'no app debs'}, " +
+                echo "ci-3 TODO: install the core debs from " +
+                     "${env.CORE_DEBS ?: (params.VERSION ? env.POOL + '/' + params.VERSION + '/debs' : 'the build')}" +
+                     " (core: ${testedAgainst}), then ${apps ? apps.join(', ') + ' deb(s)' : 'no app debs'}, " +
                      "then run pol modules selftest for each app inside the isle. Not built — every result is 'skipped'."
                 apps.each { rec.results[it] = 'skipped' }
 
@@ -125,6 +152,7 @@ pipeline {
                 // is still running and a stage that dies later does not take its result with it.
                 writeFile file: "${runDir}/stage-${idx}.json",
                           text: groovy.json.JsonOutput.toJson([version: params.VERSION ?: '', tested: apps,
+                                                               tested_against: testedAgainst,
                                                                results: rec.results])
                 sh """bash /var/polari-jenkins/cicd-sync.sh isle-test '${env.JOB_NAME}#${env.BUILD_NUMBER}' ${idx} ${rec.core_ok} '${runDir}/stage-${idx}.json' || true"""
               }

@@ -5582,3 +5582,382 @@ manifest + the admission knob **by file** (`pipeline-device.env`'s
 9. Nothing is committed, nothing is pushed.
 
 **§71 review note (Fable):** the latent `security_api._upsert` defect the build found is FIXED in the same commit — it imported a `polariApiServer.seed_upsert` that never existed, so every posted audit / inventory / ssh row was CONSTRUCTED anew instead of converged (a duplicate per POST); it now calls `moduleService.seed_upsert.upsert_seed_rows` and returns the live row by name. Security selftest unchanged at 296/299.
+
+## §72 — ci-9: offline-first builds, the suite|app question, core artifacts from a release
+
+His asks, 2026-09-19 (two, verbatim):
+
+1. *"the jenkins pipeline should try and use offline artifacts for building
+   where possible, that way we are taking less time when repeatedly using the
+   same data"*
+2. *"some people will also be using this pipeline as a way to maintain their
+   own Polari Apps and will only be testing the one app they are developing"*
+
+Built on `dev`, **uncommitted**. Nothing was deployed, no container was
+brought up, `pol jenkins up` was never run, no VM was started, no proxy was
+started, nothing was pushed. `pol jenkins setup --report`, `doctor`, `cache
+status`, `cache prune`, `isle status`, `core-artifacts resolve|status` and
+both selftests were run for real on pol-core. `docker build --check` was run
+against all three Dockerfiles; **no image was built.**
+
+---
+
+### The two halves, in one paragraph each
+
+**The cache.** One directory under the pool — `<pool>/cache` — that every
+builder reads FIRST and folds what it fetched back into: wheels, npm
+tarballs, distro debs, saved base images, the throwaway isle's cloud image,
+fetched Polari releases, and the BuildKit layer cache. One record per entry
+(`what`, `sha256`, `fetched`, `last_used`, `bytes`). **The rule, everywhere:
+the cache is an OPTIMISATION, never a precondition** — an empty cache still
+builds, over the network, and says so. `retention.sh prune` is now forbidden
+to touch it (it walked `pool/*/` and would have deleted it as an old
+version); `pol jenkins cache prune --older-than N` is its only deleter and
+removes only entries whose `last_used` is older than the knob. Tier two —
+four caching proxies on 127.0.0.1 — exists, is off by default, and a pipeline
+never starts it.
+
+**App mode.** ci-8 gave `CI_MODE=app` its keys and its validation; nothing
+asked, and `release:<tag>` resolved to nothing. Now `pol jenkins setup`'s
+FIRST question is *"what does this pipeline maintain?"*, answering *ONE
+Polari app* asks for the module, its repo (cloned under `<pool>/apps/<name>`
+with `pol project` conventions), the core release, and `CI_ROUTE_TARGET`;
+`isle/core-artifacts.sh` resolves `release:latest` through the same reader
+`pol prod` uses and fetches + SHA256-verifies that release's core debs once
+into `<cache>/releases/<tag>/`; the isle test installs THAT core and records
+`tested_against`; and the release carries **only** that app's deb, to the
+developer's own target — with an upstream target a hard refusal.
+
+---
+
+### What, and where
+
+| what | where | notes |
+|---|---|---|
+| **the cache library** | NEW `polari-jenkins/cache.sh` (~290 lines) | sourced by the builders, executed by `pol jenkins cache`. `cache_area/hit/put/touch/fetch/wheels/images_warm/images_save/layers_args/build_args/status/prune`. 9 areas: `wheels npm apt images cloud scanners releases layers proxies` |
+| the bookkeeping | NEW `polari-jenkins/cache-manifest.py` (~230 lines) | `put touch get list prune sweep report report-show`. **A real file, not a heredoc** — the §70/§71 gotcha (`python3 - <<'PY'` feeds the SCRIPT on stdin) twice bit this codebase; everything takes argv |
+| the manifest shape | `<cache>/<area>/MANIFEST.json` | ONE index per area, one RECORD per entry. A per-entry sidecar file would double the inode count of a wheelhouse — the cache is supposed to shrink work, not create it. Documented at the top of the file |
+| **the knobs** | `device.sh` (`DEVICE_KEYS` 21 → **26**), `device.env.example`, `device_validate_cache`, `device_validate_route_target` | `CI_CACHE=on\|off` (default on) · `CI_CACHE_DIR` (default `<pool>/cache`) · `CI_CACHE_MAX_GB=40` · `CI_CACHE_PROXIES=off\|on` · `CI_ROUTE_TARGET` |
+| the one deleter | `retention.sh` — `prune` gained a `grep -vx cache` exemption + a line saying so; NEW `cache-prune [--older-than DAYS]` | `prune` walked `ls -1dt */` of the pool. `cache` matched. It would have deleted the whole cache with the third-oldest version — found by writing the test, not by reading |
+| **pip** | `app_deb_builder._fetch_wheels` (+`POLARI_WHEEL_CACHE`, `POLARI_PIP_INDEX_URL`); `polari-framework/Dockerfile` | the builder now passes `--find-links <cache>/wheels` and copies what it fetched back. The Dockerfile gained `ARG PIP_INDEX_URL=` / `ARG PIP_FIND_LINKS=` and a **bind mount from the named build context `wheels`** |
+| the wheelhouse, optional | `polari-framework/Dockerfile`: `FROM scratch AS wheels` | the trick that makes it optional: a named build context OVERRIDES a stage of the same name, so `--build-context wheels=<dir>` supplies it and a plain `docker build` / `docker compose build` binds the empty `scratch` stage and pip falls straight through. No flag anyone must remember |
+| npm | `polari-platform-angular/Dockerfile.prod` **and** `Dockerfile` | `.prod`: `# syntax` moved to line 1, `ARG NPM_CONFIG_REGISTRY=`, `--mount=type=cache,target=/root/.npm`, **`npm ci --prefer-offline`** (lockfileVersion 3, verified in sync with package.json). The DEV `Dockerfile` — which is what `docker compose build frontend` and therefore the release job actually build — got the same ARG and `--prefer-offline`, keeping `npm install` |
+| apt | `build-offline-bundle.sh` (+`POLARI_APT_CACHE`) | the closure's `xargs curl` loop now copies a cached deb and downloads only the misses, into the cache, and prints `[cache-report] apt cached_bytes=… fetched_bytes=…`. Unset = the old behaviour, byte for byte |
+| base images | `cache.sh images warm\|save`, used by `build-images.sh` | `docker save`/`load`, digest-checked and idempotent: an image already on the daemon is neither saved nor loaded again |
+| **docker layers** | NEW `polari-jenkins/build-images.sh` | `DOCKER_BUILDKIT=1`; with buildx → `docker buildx build --cache-from/--cache-to type=local,dest=<cache>/layers/<image>` + `--build-context wheels=…`; **without buildx → plain `docker compose build`, one line saying so, and the build still works** |
+| the cloud image | `isle/throwaway.sh` | moved from `pool/images` to `<cache>/cloud`, so `retention.sh prune` can no longer take it. An image an earlier run left in `pool/images` is **adopted (moved), not re-downloaded**. `cache.sh` + `cache-manifest.py` now travel over the ssh hop so an ssh target caches on its own disk |
+| scanners | `<cache>/scanners` | the directory and its one-line description, reserved for the scanning plan's Trivy DB. Nothing else — by the brief |
+| **the report** | every build stage → `pool/<version>/cache-report.json`; `cache.sh report\|report-show` | bytes from cache vs bytes fetched, and seconds, per area, plus a `hit_rate`. It rides in `PipelineRun.summary` (the `cicd-sync.sh run` call in both Jenkinsfiles) and in `ReleaseRecord.cache_report_json` |
+| the doctor | `doctor.sh` §"the offline cache" + §"app mode" | cache size vs `CI_CACHE_MAX_GB`, the last hit rate, tier-two reachability; and in app mode: `CI_APP_NAME`/`CI_APP_REPO` WARNs, `release:<tag>` **resolved live** or a WARN naming the tag, `build` as an INFO |
+| **tier two** | NEW `docker-compose.proxies.yml` + `cache-proxies.sh` + `cache/verdaccio-config.yaml` | `registry:2` pull-through · devpi · verdaccio · apt-cacher-ng. 127.0.0.1 only, outbound-only, no publish path, volumes under the cache dir. `up` REFUSES while `CI_CACHE_PROXIES=off`. The pipeline only calls `cache.sh build-args`, which probes and returns nothing when they do not answer |
+| **the setup question** | `setup/steps/01-role.sh` (title now "what this pipeline maintains, and this device's role") | `setup_ask_mode` runs BEFORE the role arithmetic: suite\|app → app name (validated against `modules/<name>/polari-app.json`) → repo (offered a shallow clone into `<pool>/apps/<name>`, refused unless it carries a `polari-app.json` at its root — `pol project` conventions) → core (`release:latest` \| a pinned tag \| `build`, resolved live) → `CI_ROUTE_TARGET` (the upstream owner refused at the prompt) → the `core; <app>` stage default |
+| **the pulled core** | NEW `polari-jenkins/isle/core-artifacts.sh` (~180 lines) | `resolve \| fetch \| status`. `release:latest` = the newest release that actually CARRIES debs. Fetch verifies every deb against the release's `SHA256SUMS` and **empties the directory on any mismatch**; a release with no SHA256SUMS is cached with an `UNVERIFIED` marker and said so. Images: `IMAGES_FROM` when ghcr has the tag, else the literal line *"images not published for <tag> — the isle test installs from the debs only"* |
+| the ONE providers reader | `polari-cli/scripts/lib/providers.sh` — NEW `release_asset_urls <repo> <tag> [suffix]`; `release_deb_urls` now delegates to it | one generalisation, no second GitHub reader. `pol prod`'s path is unchanged |
+| the pipelines | `Jenkinsfile.dev-build` · `.release` · `.isle-test` | a core-artifacts stage in app mode; the deb stage exports `POLARI_WHEEL_CACHE`/`POLARI_APT_CACHE`; images go through `build-images.sh`; in app mode the release builds ONLY the app deb and skips images entirely; `release.json` gained `mode`, `appName`, `routeTarget`, `testedAgainst`, `cacheReport` |
+| **the release rules** | `routes/_lib.sh` | `release_assets` in app mode returns the ONE app's deb — not the core it was tested against, not another app a stage tested here. `route_target_state()` is a second HARD gate beside the release rule: no target, or the upstream owner, → every route DRY. `DRY_RUN=false` overrides neither |
+| the rows | `modules/cicd/objects/cicd/PipelineDevice.py` (+5 columns), `ReleaseRecord.py` (+2), `custom/cicd_validate.py` (`validate_cache`, `validate_route_target`, 5 more `device_env` pairs, `settings_from_device`), `custom/cicd_ingest.py`, `cicd-sync.sh` | the five settings keys are RENDERED, so a `pull` ADDS them to an older `device.env` instead of erasing them — and `CI_CACHE` renders `on` by default, so a pull from a core that never heard of ci-9 cannot silently turn a device's cache off |
+| the CLI | `polari-cli/scripts/jenkins.sh` (`cache`, `core-artifacts` + help), `lib/jenkins-device.sh` (`jd_cache`) | `pol jenkins cache status\|prune\|proxies\|dir\|report` · `pol jenkins core-artifacts resolve\|fetch\|status` |
+| compose | `polari-jenkins/docker-compose.yml` | `cache.sh`, `cache-manifest.py`, `cache-proxies.sh` mounted; `CI_CACHE*`, `CI_MODE`, `CI_APP_*`, `CI_CORE_SOURCE`, `CI_ROUTE_TARGET` passed through |
+| docs | `polari-jenkins/README.md` (two new sections + the retention and tests paragraphs), `modules/cicd/README.md`, `pol jenkins help` | |
+| tests | `polari-jenkins/selftest.sh` **235/235** (was 152/152, +83); `modules/cicd/cicd_selftest.py` **140/140** (was 128/128, +12) | still no docker, libvirt, sudo or network |
+
+---
+
+### The real outputs (pol-core, 2026-09-19)
+
+`pol jenkins cache status` — a device that has never built:
+
+```
+polari-jenkins cache — offline-first builds (ci-9). CI_CACHE=on
+directory: /home/user/Desktop/polari-suite/polari-jenkins/pool/cache
+
+nothing cached yet — the first build fills it.
+```
+
+`pol jenkins cache prune --older-than 30` (after `cache status` and
+`core-artifacts status` had created two area directories):
+
+```
+[cache] prune — dropping only entries unused for more than 30 day(s)
+[cache] (retention.sh prune never touches this directory; this verb is the only deleter)
+-- cloud
+   0 removed, 0.0 MB freed, 0 kept (no readable last_used)
+-- releases
+   0 removed, 0.0 MB freed, 0 kept (no readable last_used)
+[cache] now 0.0 GB
+```
+
+`pol jenkins doctor` — the two new sections (suite mode, 9 WARN, exit 0):
+
+```
+-- the offline cache — build once, reuse (ci-9)
+OK    cache                      — nothing cached yet (…/polari-jenkins/pool/cache) — the first build fills it
+OK    cache hit rate             — no cache-report.json yet — every build stage writes one; until a real run
+                                   the savings are EXPECTED, not measured
+OK    cache proxies              — tier two off (the default) — tier one is a directory and needs nothing running
+```
+
+…and with an app-mode `device.env` (a scratch file; pol-core's own is
+untouched):
+
+```
+-- app mode — ONE app, a pulled core, YOUR routes
+OK    CI_APP_NAME                — household
+OK    CI_APP_REPO                — https://example.invalid/polari-module-household.git
+OK    core source                — release:latest → polari-v2026.09.12 (fetched once into the cache:
+                                   bash polari-jenkins/isle/core-artifacts.sh fetch)
+```
+
+**That last row is a LIVE resolution against the real GitHub API**:
+`pol jenkins core-artifacts resolve` printed `polari-v2026.09.12` — the
+newest published Polari release that actually carries `.deb` assets. It is
+the first time `CI_CORE_SOURCE=release:latest` has ever meant a real tag.
+
+`pol jenkins setup --report` — step 1, suite mode:
+
+```
+══ step 1/8 — what this pipeline maintains, and this device's role
+   [ok]   maintains: the whole Polari suite — core, apps and images are all built here
+   [ok]   measured here: 15.5 GB RAM, 4 vCPU, 14 GB free: controller + builds serialised — not a
+          concurrent isle VM; put the isle on another device (pol jenkins target ssh <alias>) or add RAM
+   …
+```
+
+…and step 1 with the app-mode scratch `device.env`:
+
+```
+══ step 1/8 — what this pipeline maintains, and this device's role
+   [ok]   maintains: ONE Polari app — household
+   [ok]     the module is in this checkout (modules/household/polari-app.json)
+   [ok]     repository: https://example.invalid/polari-module-household.git
+   [ok]     core: release:latest (pulled, never rebuilt)
+   [ok]     releases go to: some-developer
+   …
+   [ok]     the core release is resolved and fetched once per tag: bash polari-jenkins/isle/core-artifacts.sh status
+```
+
+`pol jenkins isle status` — the cloud image has moved into the cache:
+
+```
+base img: …/polari-jenkins/pool/cache/cloud/ubuntu-24.04-server-cloudimg-amd64.img (not cached)
+```
+
+(The wireless interface name that appears in the doctor's `wired IPv4` row is
+written `<lan>` here; no address, hostname or e-mail is in any tracked file.
+The app-mode `device.env` above is a scratch file under the session
+scratchpad — pol-core's real one is unchanged and gitignored.)
+
+### The `docker build --check` runs
+
+```
+cd polari-rf-node
+DOCKER_BUILDKIT=1 docker build --check -f polari-framework/Dockerfile polari-framework
+DOCKER_BUILDKIT=1 docker build --check -f polari-platform-angular/Dockerfile.prod polari-platform-angular
+DOCKER_BUILDKIT=1 docker build --check -f polari-platform-angular/Dockerfile      polari-platform-angular
+```
+
+Both frontend files: *"Check complete, no warnings found."* The backend: the
+two **pre-existing** `UndefinedVar` warnings on `$LD_LIBRARY_PATH` (lines 72
+and 143, untouched by this slice) and nothing else — the `FROM scratch AS
+wheels` stage, the `--mount=type=bind,from=wheels` and the two new `ARG`s all
+parse. **No image was built** (the brief's dry-checks-only rule), so the
+named-context override is proven to PARSE, not to RUN — see OWED 1.
+
+### selftests
+
+```
+polari-jenkins selftest — no docker, no libvirt, no sudo, no network
+-- mint-tag · routes · preflight · doctor · setup · stages · modes
+-- cache: the manifest, prune by last_used, the report arithmetic, the network fallback
+-- app mode: the setup question, the pulled core, and a release of ONE deb to YOUR routes
+
+235/235
+```
+
+```
+cd polari-rf-node/polari-framework && PYTHONPATH=.:modules python3 modules/cicd/cicd_selftest.py
+140/140 checks passed
+```
+
+83 new shell cases:
+
+* **7** the manifest (the four fields the brief names, plus `bytes`; an absent
+  entry exits 1; `list` is one line per entry);
+* **6** `cache-prune` (a 90-day-old entry dropped and NAMED with its age, the
+  file really gone, a fresh entry untouched, an entry whose `last_used` is
+  unreadable **KEPT** rather than guessed at, nothing inside the window
+  touched);
+* **4** `retention.sh` (prune says the cache is EXEMPT, the cache directory
+  survives `POOL_KEEP=0`, `cache` is not listed as a pool version,
+  `cache-prune` is the cache's one deleter);
+* **6** the report arithmetic (hit rate = cached/(cached+fetched) = 0.8,
+  bytes and seconds accumulate across stages, the sentence, the TOTAL row, a
+  missing report reported rather than invented);
+* **5** the network fallback (`CI_CACHE=on` offers `--find-links`, `off` adds
+  **nothing**, `PIP_INDEX_URL` appends only when set, a miss is a miss not a
+  refusal, `off` says so and hands the build back to the network);
+* **5** `cache status` (the directory, every area, what each is for including
+  the reserved Trivy home, the EXPECTED-not-measured honesty, and the OFF
+  wording);
+* **7** tier two (off unless the knob, no build-args, `up` refuses and says
+  nothing was started, the licences stated, the one that is NOT verified said
+  so, loopback-only ports, nothing published on all interfaces);
+* **6** the device knobs through the doctor;
+* **10** the setup's mode question in `--report` (step 1 asks what the
+  pipeline MAINTAINS before anything else; app mode names the app, the repo,
+  the core and the target; `build` is an INFO; a missing repo WARNs; an
+  upstream target is refused in the settings too);
+* **6** `core-artifacts.sh resolve` against a fixture release list
+  (`release:latest` → the newest release that CARRIES debs, skipping a newer
+  one with no assets; an exact tag verified; a tag with no debs REFUSED and
+  named; no silent fall back to building core; `build` resolves to `build`
+  and `fetch` then says it has nothing to fetch);
+* **11** app-mode release filtering (only the app's deb, never the core,
+  never another app; the line naming the one deb and its target; no target →
+  DRY naming why; the upstream owner → DRY; `DRY_RUN=false` cannot force
+  either; suite mode unaffected; the mirror carries the RESOLVED
+  `tested_against`, the `route_target` and the cache report);
+* **10** the Dockerfiles (the `scratch` default for the wheels context, the
+  pip cache mount kept, `PIP_INDEX_URL` honoured, the npm cache mount,
+  `--prefer-offline`, `NPM_CONFIG_REGISTRY`, and `# syntax` as line 1 of
+  both).
+
+12 new python checks: the three `CI_ROUTE_TARGET` verdicts (absent in app
+mode = FAIL, the upstream owner = FAIL, set in suite mode = WARN), the six
+cache verdicts (on/off/unknown, a non-numeric max, proxies on/off, the empty
+dir explained), and three on `device_env` (24 keys, all five ci-9 keys
+rendered, `CI_CACHE=on` by default so a pull cannot silently disable a cache).
+
+---
+
+### The numbers, honestly
+
+**Nothing is measured yet.** No pipeline run has happened on this box — there
+is no `/dev/kvm`, no controller is up, and the brief forbade building
+anything. So every figure below is an EXPECTATION with its reasoning, and the
+doctor and `cache status` both say so in those words until a real
+`cache-report.json` exists.
+
+| area | what is reused | why it should help |
+|---|---|---|
+| pip wheels | the offline deb's whole wheel payload | `_fetch_wheels` already had a per-module TTL directory; the cache makes it **shared across modules and across runs**, and pins nothing new |
+| npm | `node_modules` for the Angular build | the single biggest download in the suite; `--prefer-offline` + a BuildKit cache mount means the second build asks the registry only for changed packages |
+| apt | the distro closure of the offline medium (~dozens of debs) | it barely moves between runs; today every `--flavor offline` build re-downloads all of it |
+| base images | `python:3.12-alpine`, `node:20`, `nginx:alpine` | only helps a cold daemon, which is exactly what a pruned CI box is |
+| docker layers | both Polari images | the largest single win when buildx is present, and nothing when it is not |
+| cloud image | the ~600 MB Ubuntu qcow2 | it was already cached — but under `pool/images`, where `retention.sh prune` deleted it with the third-oldest version. That was a **re-download per prune**, silently |
+| releases | app mode's core debs | fetched once per tag rather than once per run |
+
+The one number that IS real: `release:latest` resolves, live, to
+`polari-v2026.09.12`.
+
+---
+
+### Gotchas found and fixed while building
+
+* **`retention.sh prune` would have eaten the cache.** It lists `pool/*/` by
+  mtime and drops everything past `POOL_KEEP`. `pool/cache` is a directory in
+  `pool/`. The cache would have survived exactly two more releases and then
+  vanished — and, being a cache, nothing would have failed; builds would just
+  have got slow again for no visible reason. Found by writing the test.
+* **`|` cannot appear in a `device.sh` validation message.** `_row` uses `|`
+  as its field separator and strips it (`${1//|/ }`), so `"unknown value →
+  on|off"` reached the doctor as `on off`. Both new FAIL messages say "on or
+  off". The python port is unaffected (different transport) and deliberately
+  still reads `on|off`.
+* **A log line on stdout ends up inside a captured variable.** The first
+  `core-artifacts.sh` printed its progress with `printf` to stdout and
+  returned the directory the same way, so `DIR="$(fetch_release …)"` captured
+  six lines of prose. Every log line now goes to **stderr**, and `fetch_release`
+  sets `CORE_DIR` rather than printing it. The kind of bug that only shows up
+  on the first real run.
+* **A backtick in a test NAME is a command substitution.** Two selftest
+  descriptions containing `` `proxies up` `` and `` `fetch` `` tried to run
+  those as commands. Single quotes now.
+* **The syntax directive must be line 1.** `# syntax=docker/dockerfile:1`
+  placed after the banner comment in `Dockerfile.prod` is an inert comment,
+  not a parser directive. Moved.
+* **`docker-compose.yml`'s backend/frontend services carry no `image:` key**,
+  so a compose build names them after the compose project — which is why
+  `Jenkinsfile.release`'s `docker tag prf-backend:staging …` has never been
+  able to find them. `build-images.sh`'s buildx path tags them directly.
+  Pre-existing, found in passing, fixed on that path only (the compose
+  fallback still has the old shape).
+* **The brief's premise about the backend Dockerfile was stale**: it already
+  had `# syntax=docker/dockerfile:1` and `RUN --mount=type=cache,target=
+  /root/.cache/pip`, and the DEV frontend `Dockerfile` already had the npm
+  cache mount. What was missing was the wheelhouse, the ARGs, and
+  `--prefer-offline` — that is what was added.
+* **`--build-context` needs a DEFAULT or it is a flag every caller must
+  remember.** `FROM scratch AS wheels` gives the named context a stage to
+  fall back to, so `docker compose build` binds an empty directory instead of
+  failing to resolve an image called `wheels`.
+* **`npm ci` was only safe because the lock is in sync** — checked
+  (`lockfileVersion: 3`, zero `package.json` deps missing from the lock root)
+  before changing `Dockerfile.prod`. The DEV `Dockerfile` keeps `npm install`
+  deliberately: a dev image that dies on a drifted lock is worse than a slow
+  one, and `.prod` is where it should fail loudly.
+* **`CI_CACHE_DIR` defaults to EMPTY, not to an absolute path.** An absolute
+  default would have been wrong over the ssh hop: `throwaway.sh` re-runs
+  itself on the isle target, and the cloud image must land on **that** box's
+  pool. Empty → `<pool>/cache` → correct on both sides. The same reasoning
+  keeps it empty in compose.
+* **`release:latest` must mean "the newest release that carries debs"**, not
+  "the newest release". The fixture list in the selftest has a newer tag with
+  no assets precisely to pin that.
+
+---
+
+### OWED
+
+1. **The named build context has never RUN.** `docker build --check` proves
+   the Dockerfile parses; it does not prove that `--build-context
+   wheels=<dir>` overrides `FROM scratch AS wheels` on this docker
+   (27.3.1 / buildx 0.17.1), nor that a bind mount from an empty `scratch`
+   stage behaves. Both are documented BuildKit behaviour and neither could be
+   exercised under "docker build of nothing". **First real build must check
+   the `pip: N wheel(s) offered from the pipeline cache` line appears.**
+2. **A measured before/after has not happened.** It needs a KVM/pipeline box:
+   `pol jenkins up`, one `polari-dev-build` with a cold cache, then a second
+   with a warm one, and the two `cache-report.json` files side by side. Until
+   then every saving in this section is EXPECTED and is labelled so in the
+   doctor, in `cache status` and in the README.
+3. **`apt-cacher-ng`'s licence is not verified.** No network lookup was made
+   and its `COPYING` was not read. It ships in Debian and upstream calls it
+   BSD-style; that is hearsay. Nothing depends on the answer yet (the service
+   is off, nothing starts it, no image is redistributed, and running a
+   service is not linking), but the licence gate must read the file before
+   tier two is ever on by default.
+4. **Tier two has never been started.** Four compose services, `--check`ed as
+   YAML and as a compose config, never run. `devpi` and `apt-cacher-ng`
+   install their package on first start (deliberately, rather than trusting a
+   third-party image nobody audited) — that first start needs network and has
+   not been proven.
+5. **`core-artifacts.sh fetch` has never fetched.** `resolve` is live-proven
+   against the real API; `fetch` is proven only against the selftest's curl
+   shim. The SHA256 verification path, the `UNVERIFIED` marker and the
+   `images not published for <tag>` line are all untested against a real
+   release.
+6. **App mode's isle-test body is still ci-3.** The stage now knows WHICH
+   core to install and records `tested_against`, but the install + selftest
+   cycle inside the guest is still the marked TODO — so every result is
+   `skipped`, `core_ok` stays false, and an app developer's deb cannot ship
+   either. ci-3 remains the blocker for everything downstream.
+7. **The app checkout is cloned by `setup`, not by the pipeline.** `pol
+   jenkins setup` clones `CI_APP_REPO` into `<pool>/apps/<name>`; the release
+   job's app-mode branch builds the app deb from the modules in the CHECKOUT
+   (`app-debs.sh`), not from that clone. For an app that lives only in its own
+   repo the pipeline still needs a "pull the app project and point
+   `POLARI_FRAMEWORK_DIR`/the module path at it" step. Named here rather than
+   half-built.
+8. **`PipelineDevice` gained five columns and `ReleaseRecord` two** — a
+   deployed core with existing rows will read the defaults for them until
+   something writes. No migration exists (none has ever existed for these
+   rows); the first `push` from a device fills them.
+9. **The `npm` and `scanners` cache areas are empty shells.** `npm` is only a
+   home for tier two's verdaccio volume (tier one's npm reuse is the BuildKit
+   cache mount, which BuildKit owns), and `scanners` is a reserved directory
+   by the brief. Neither is a bug; both would read as one without this line.
+10. Nothing is committed, nothing is pushed. `polari-jenkins/device.env` and
+    `SETUP_STATUS.md` on pol-core are gitignored; `device.env` was not
+    modified (the app-mode run used a scratch file).

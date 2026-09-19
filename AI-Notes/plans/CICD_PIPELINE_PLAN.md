@@ -586,3 +586,19 @@ proof on the home stack, the first real sync from a device, in-container precede
 compose export, `release:<tag>` resolution (ci-9), ci-3's install body. NEXT ci-9: offline-first builds (BuildKit
 cache mounts + a pool cache fed by the offline-medium builder, optional local proxies) + the setup's suite|app
 question + core artifacts pulled from a release in app mode.
+
+### 9c. ci-9 — offline-first builds, the suite|app question, core artifacts from a release (his asks 2026-09-19; BUILT, ledger §72)
+
+Tier one, no services: a pool cache (`wheels npm apt images cloud scanners releases layers proxies`, one MANIFEST per
+area with `last_used`), fed by the offline-medium builder and read first by every build — pip via a wheelhouse build
+context + `PIP_FIND_LINKS`, npm `--prefer-offline` (+ `npm ci` on the prod image), apt through `POLARI_APT_CACHE`,
+buildx layer cache when available, the cloud image adopted from the old location; `retention.sh prune` never touches
+the cache, `cache-prune --older-than` (by `last_used`) is the only deleter; every build writes `cache-report.json`
+(rides into PipelineRun.summary). Tier two (`CI_CACHE_PROXIES=on`, off by default, never started): registry:2 +
+devpi + verdaccio + apt-cacher-ng, loopback only. App mode: the setup asks FIRST "the whole suite or ONE app",
+clones the app under the pool with `pol project` conventions, `CI_CORE_SOURCE=release:latest` resolves through
+`providers.sh` (proven: `polari-v2026.09.12`), `isle/core-artifacts.sh fetch` pulls the core debs (+ images when
+published) into the cache instead of building core, and a second hard gate in `routes/_lib.sh`: app mode releases
+ONLY that app's deb, to `CI_ROUTE_TARGET`, never the upstream owner. jenkins selftest 235/235, cicd 140/140.
+HONEST: no measured savings yet (no pipeline run anywhere); the named build context is parsed not run;
+apt-cacher-ng's licence unverified (service off). OWED: a before/after build on the pipeline device.

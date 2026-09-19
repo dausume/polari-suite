@@ -63,11 +63,47 @@ tested_apps(){ # the app modules a stage recorded as pass — the only ones that
     [ -f "$RESULTS_JSON" ] || return 0
     python3 -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1])).get("passed", [])))' "$RESULTS_JSON" 2>/dev/null || true
 }
+# ---------------------------------------------------------------------------
+# ci-9 — APP MODE (his addendum 2026-09-19: "some people will also be using this
+# pipeline as a way to maintain their own Polari Apps and will only be testing
+# the one app they are developing").
+#
+# A device in app mode releases ONE deb — the app it maintains — to the
+# DEVELOPER'S own routes. Two hard rules, both enforced here rather than trusted
+# to a Jenkinsfile:
+#   · the core debs it pulled from an official release are NOT re-released.
+#     Republishing somebody else's core under your name is not a release.
+#   · CI_ROUTE_TARGET must be the developer's own owner/namespace. Aimed at the
+#     upstream owner it is a REFUSAL: a fork is never republished under an
+#     upstream name. This is the ci-8 rule, now with a key behind it.
+CI_MODE="${CI_MODE:-suite}"
+CI_APP_NAME="${CI_APP_NAME:-}"
+CI_ROUTE_TARGET="${CI_ROUTE_TARGET:-}"
+CI_UPSTREAM_OWNER="${CI_UPSTREAM_OWNER:-dausume}"
+route_target_state(){ # → 'OK', or the reason this device may not publish
+    [ "$CI_MODE" = app ] || { echo OK; return 0; }
+    [ -n "$CI_APP_NAME" ] || { echo "app mode names no app (CI_APP_NAME) — there is nothing to release"; return 1; }
+    [ -n "$CI_ROUTE_TARGET" ] || { echo "app mode publishes to YOUR routes but CI_ROUTE_TARGET is empty — set it to your own owner/namespace"; return 1; }
+    case "$CI_ROUTE_TARGET" in
+        "$CI_UPSTREAM_OWNER"|"$CI_UPSTREAM_OWNER"/*)
+            echo "CI_ROUTE_TARGET is the UPSTREAM owner ($CI_UPSTREAM_OWNER) — a fork is never republished under an upstream name"; return 1 ;;
+    esac
+    echo OK
+}
 release_assets(){ # release_assets <dir> — the files this route MAY publish
     local d="$1" f base app passed; passed=" $(tested_apps) "
     for f in "$d"/*; do
         [ -f "$f" ] || continue
         base="$(basename "$f")"
+        # app mode: the ONE app's deb, and nothing else — not the core it was
+        # tested against, not another app a stage happened to test here.
+        if [ "$CI_MODE" = app ]; then
+            case "$base" in
+                "polari-app-${CI_APP_NAME}_"*.deb)
+                    case "$passed" in *" $CI_APP_NAME "*) echo "$f" ;; esac ;;
+            esac
+            continue
+        fi
         case "$base" in
             polari-app-*_*.deb) app="${base#polari-app-}"; app="${app%%_*}"
                                 case "$passed" in *" $app "*) echo "$f" ;; esac ;;
@@ -102,7 +138,15 @@ arm(){ # arm VAR:area/name … — the FIRST line of every route: resolve DRY_RU
     if ! why="$(tested_state)" || [ "$why" != OK ]; then
         DRY_RUN=1; state="DRY ($why)"
     fi
+    # ci-9 — THE TARGET RULE, equally hard: an app-mode device that has not
+    # named its OWN owner/namespace, or has named the upstream one, publishes
+    # nothing. DRY_RUN=false does not override this either.
+    local twhy
+    if ! twhy="$(route_target_state)" || [ "$twhy" != OK ]; then
+        DRY_RUN=1; state="DRY ($twhy)"
+    fi
     echo "== route $ROUTE  version $VERSION  $state  pool $POOL_DIR"
+    [ "$CI_MODE" = app ] && echo "[$ROUTE] app mode: releasing ONLY polari-app-$CI_APP_NAME to ${CI_ROUTE_TARGET:-(no target)} — the core it was tested against is NOT re-released" || true
     excluded="$(release_excluded "$POOL_DIR/debs" 2>/dev/null || true)"
     [ -n "$excluded" ] && { echo "[$ROUTE] not released: untested/failed —"; printf '%s\n' "$excluded" | sed 's/^/    /'; } || true
     for spec in "$@"; do need "${spec%%:*}" "${spec#*:}"; done

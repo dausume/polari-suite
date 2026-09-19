@@ -299,6 +299,69 @@ else
     warn "git origin" "git ls-remote of the superproject failed" "check the network, or put a read token in place — the jobs poll GitHub over https"
 fi
 
+# ------------------------------------------- ci-9: the offline-first cache
+# His ask 2026-09-19: "the jenkins pipeline should try and use offline
+# artifacts for building where possible". The cache is an OPTIMISATION — every
+# row here is a WARN at worst, because a cache problem must slow a build down,
+# never stop one.
+sec "the offline cache — build once, reuse (ci-9)"
+# shellcheck source=cache.sh
+source "$J/cache.sh"
+if ! cache_on; then
+    warn "cache" "CI_CACHE=off — every build re-downloads its wheels, npm packages, debs and base images" \
+         "set CI_CACHE=on in polari-jenkins/device.env (it is the default)"
+else
+    CROOT="$(cache_root)"
+    if [ -d "$CROOT" ]; then
+        CUSED="$(cache_size_gb)"
+        if awk -v u="${CUSED:-0}" -v m="${CI_CACHE_MAX_GB:-40}" 'BEGIN{exit !(u+0 > m+0)}'; then
+            warn "cache size" "$CUSED GB, over the ${CI_CACHE_MAX_GB} GB budget (CI_CACHE_MAX_GB)" \
+                 "pol jenkins cache prune --older-than 30, or raise CI_CACHE_MAX_GB knowingly"
+        else
+            ok "cache size" "$CUSED GB of a ${CI_CACHE_MAX_GB} GB budget — $CROOT"
+        fi
+    else
+        ok "cache" "nothing cached yet ($CROOT) — the first build fills it"
+    fi
+    CPOOL="${POLARI_POOL:-$J/pool}"
+    CLATEST=$(ls -1 "$CPOOL" 2>/dev/null | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]{2}' | sort -V | tail -1 || true)
+    if [ -n "$CLATEST" ] && [ -f "$CPOOL/$CLATEST/cache-report.json" ]; then
+        ok "cache hit rate" "$(python3 "$J/cache-manifest.py" report-show "$CPOOL/$CLATEST/cache-report.json" 2>/dev/null | head -1)"
+    else
+        ok "cache hit rate" "no cache-report.json yet — every build stage writes one; until a real run the savings are EXPECTED, not measured"
+    fi
+    if cache_proxies_on; then
+        PANS=""; for P in "$CACHE_PROXY_REG_PORT" "$CACHE_PROXY_PIP_PORT" "$CACHE_PROXY_NPM_PORT" "$CACHE_PROXY_APT_PORT"; do
+            curl -fsS --max-time 2 -o /dev/null "http://127.0.0.1:$P/" 2>/dev/null && PANS="$PANS $P"
+        done
+        [ -n "$PANS" ] && ok "cache proxies" "tier two answering on 127.0.0.1:$PANS" \
+            || warn "cache proxies" "CI_CACHE_PROXIES=on but none of them answers" \
+                    "pol jenkins cache proxies up (or set CI_CACHE_PROXIES=off — tier one alone is the default and works)"
+    else
+        ok "cache proxies" "tier two off (the default) — tier one is a directory and needs nothing running"
+    fi
+fi
+
+# ------------------------------- ci-9: app mode, and the core it is tested against
+if [ "$CI_MODE" = app ]; then
+    sec "app mode — ONE app, a pulled core, YOUR routes"
+    [ -n "$CI_APP_NAME" ] && ok "CI_APP_NAME" "$CI_APP_NAME" \
+        || warn "CI_APP_NAME" "app mode maintains ONE app but names none" "pol jenkins setup --step role"
+    [ -n "$CI_APP_REPO" ] && ok "CI_APP_REPO" "$CI_APP_REPO" \
+        || warn "CI_APP_REPO" "no repository for ${CI_APP_NAME:-the app} — the pipeline has nothing to build it from" "pol jenkins setup --step role"
+    case "$CI_CORE_SOURCE" in
+        build)
+            ok "core source" "INFO: you are rebuilding core; releases of your app are tested against that build, not an official release" ;;
+        release:*)
+            if RESOLVED=$(bash "$J/isle/core-artifacts.sh" resolve 2>/dev/null) && [ -n "$RESOLVED" ]; then
+                ok "core source" "$CI_CORE_SOURCE → $RESOLVED (fetched once into the cache: bash polari-jenkins/isle/core-artifacts.sh fetch)"
+            else
+                warn "core source" "$CI_CORE_SOURCE does not resolve — no network, or no published release by that name (${CI_CORE_SOURCE#release:})" \
+                     "check the tag against github.com/dausume/polari-suite/releases, or set CI_CORE_SOURCE=build knowingly"
+            fi ;;
+    esac
+fi
+
 # ------------------------------------------------------------ the pool
 sec "the pool"
 if FREE=$(POLARI_POOL="$J/pool" DISK_MIN_FREE_GB="$CI_MIN_FREE_GB" bash "$J/retention.sh" guard 2>&1); then

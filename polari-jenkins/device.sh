@@ -15,6 +15,7 @@ DEVICE_KEYS="CI_MODE CI_APP_NAME CI_APP_REPO CI_CORE_SOURCE \
 CI_ISLE_TARGET CI_ISLE_SSH_HOST CI_ISLE_SSH_USER CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB \
 CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_POOL CI_ISLE_IMAGE_URL \
 CI_MIN_FREE_GB CI_MIN_RAM_HEADROOM_GB CI_EXECUTORS CI_ROUTES CI_ISLE_STAGES \
+CI_CACHE CI_CACHE_DIR CI_CACHE_MAX_GB CI_CACHE_PROXIES CI_ROUTE_TARGET \
 CI_CORE_URL CI_DEVICE_NAME"
 
 # Where the module manifests live (modules/<name>/polari-app.json) — the
@@ -67,6 +68,16 @@ device_load() {
     : "${CI_EXECUTORS:=1}"
     : "${CI_ROUTES:=github-release,ghcr,homebrew,apt-repo}"
     : "${CI_ISLE_STAGES:=core}"
+    # ci-9 (his ask 2026-09-19): "the jenkins pipeline should try and use offline artifacts for building
+    # where possible". The cache is an OPTIMISATION, never a precondition — an empty cache still builds.
+    : "${CI_CACHE:=on}"
+    : "${CI_CACHE_DIR:=}"          # empty = <pool>/cache (so the ssh hop carries it to the TARGET's pool)
+    : "${CI_CACHE_MAX_GB:=40}"     # the doctor WARNs past it; nothing ever deletes on its own
+    : "${CI_CACHE_PROXIES:=off}"   # tier two (registry/devpi/verdaccio/apt-cacher-ng) — off by default
+    # ci-9, app mode: WHERE this device's own releases go. Empty in suite mode (the upstream routes
+    # decide); in app mode it is the developer's OWN owner/namespace, and a route pointed at the upstream
+    # owner is a validation FAIL — a fork is never republished under an upstream name.
+    : "${CI_ROUTE_TARGET:=}"
     # ci-8: the Polari core that holds the SETTINGS for this device. Empty = no sync; the file below is
     # then the only truth there is, which is exactly the fallback posture cicd-sync.sh degrades to.
     : "${CI_CORE_URL:=}"
@@ -233,7 +244,56 @@ device_validate() {
     [ "${CI_EXECUTORS:-1}" = 1 ] || _row CI_EXECUTORS "$CI_EXECUTORS" WARN \
         "more than one executor on a home box overlaps builds → set CI_EXECUTORS=1"
 
+    device_validate_cache
+    device_validate_route_target
     device_validate_stages
+}
+
+# ---------------------------------------------------------- ci-9: the cache
+# The offline-first cache. Every row is advisory by design: a cache that is
+# misconfigured must slow a build down, never stop one.
+device_validate_cache() {
+    case "$CI_CACHE" in
+        on)  _row CI_CACHE on OK "builds read the cache first and fetch only what is missing" ;;
+        off) _row CI_CACHE off WARN "every build re-downloads its wheels, npm packages, debs and base images → set CI_CACHE=on (the default)" ;;
+        *)   _row CI_CACHE "$CI_CACHE" FAIL "unknown value → on or off" ;;
+    esac
+    if _is_num "$CI_CACHE_MAX_GB" && [ "$CI_CACHE_MAX_GB" -gt 0 ]; then
+        _row CI_CACHE_MAX_GB "$CI_CACHE_MAX_GB" OK "the budget the doctor warns past (it never deletes: pol jenkins cache prune does)"
+    else
+        _row CI_CACHE_MAX_GB "$CI_CACHE_MAX_GB" FAIL "not a positive whole number → fix it in $DEVICE_ENV_FILE"
+    fi
+    case "$CI_CACHE_PROXIES" in
+        off) _row CI_CACHE_PROXIES off OK "tier one only — one directory, no services to keep alive" ;;
+        on)  _row CI_CACHE_PROXIES on OK "tier two: registry/devpi/verdaccio/apt-cacher-ng on 127.0.0.1 (pol jenkins cache proxies status)" ;;
+        *)   _row CI_CACHE_PROXIES "$CI_CACHE_PROXIES" FAIL "unknown value → off or on" ;;
+    esac
+    [ -z "$CI_CACHE_DIR" ] && _row CI_CACHE_DIR "" OK "the default: <pool>/cache (relative to the pool, so an ssh target caches on its own disk)" \
+        || _row CI_CACHE_DIR "$CI_CACHE_DIR" OK "an explicit cache root"
+}
+
+# --------------------------------------------- ci-9: where a release is sent
+# The UPSTREAM owner. A device in `app` mode maintains SOMEBODY'S OWN app; its
+# releases go to their namespace. A route aimed at upstream Polari is refused —
+# a fork is never republished under an upstream name (the ci-8 rule, now a key).
+CI_UPSTREAM_OWNER="${CI_UPSTREAM_OWNER:-dausume}"
+device_validate_route_target() {
+    if [ "$CI_MODE" != app ]; then
+        [ -z "$CI_ROUTE_TARGET" ] && _row CI_ROUTE_TARGET "" OK "not used (suite mode publishes to the suite's own routes)" \
+            || _row CI_ROUTE_TARGET "$CI_ROUTE_TARGET" WARN "set but the mode is suite → it is ignored; set CI_MODE=app to publish to your own routes"
+        return
+    fi
+    if [ -z "$CI_ROUTE_TARGET" ]; then
+        _row CI_ROUTE_TARGET "" FAIL \
+            "app mode releases to YOUR routes but names none → set CI_ROUTE_TARGET to your own owner/namespace (e.g. your GitHub user)"
+        return
+    fi
+    case "$CI_ROUTE_TARGET" in
+        "$CI_UPSTREAM_OWNER"|"$CI_UPSTREAM_OWNER"/*)
+            _row CI_ROUTE_TARGET "$CI_ROUTE_TARGET" FAIL \
+                "that is the UPSTREAM owner — a fork is never republished under an upstream name → set CI_ROUTE_TARGET to your own owner/namespace" ;;
+        *)  _row CI_ROUTE_TARGET "$CI_ROUTE_TARGET" OK "this device's releases go to $CI_ROUTE_TARGET, never upstream" ;;
+    esac
 }
 
 # The testing stages: every app named must be a real module (a directory

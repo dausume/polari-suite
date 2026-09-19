@@ -88,6 +88,94 @@ developer's **own** routes. A fork is never republished under an upstream
 name, and the release record names the core release the app passed against.
 `CI_CORE_SOURCE=build` is the escape hatch for somebody who also patches core.
 
+**ci-9 made app mode real.** `pol jenkins setup`'s **first question** is now
+"what does this pipeline maintain?", and answering *ONE Polari app* asks for
+the module, its repository (cloned under `<pool>/apps/<name>` with `pol
+project` conventions), the core release it is tested against, and
+`CI_ROUTE_TARGET` — **your** owner/namespace. `isle/core-artifacts.sh
+resolve|fetch` turns `release:latest` into a real tag through the same reader
+`pol prod` uses, fetches that release's core debs **once** into
+`<cache>/releases/<tag>/` and verifies them against the release's own
+`SHA256SUMS`. An unresolvable tag is a refusal that names it — never a silent
+fall back to building core, because *"tested against polari-v…"* would then be
+a claim nobody could check.
+
+```
+pol jenkins core-artifacts resolve   # which release release:latest means, right now
+pol jenkins core-artifacts fetch     # pull + verify its core debs into the cache, once
+pol jenkins core-artifacts status    # which tags are cached
+```
+
+Two rules the routes enforce themselves, not the Jenkinsfile: an app-mode
+release carries **only** that app's deb (never the core it was tested
+against, never another app a stage happened to test here), and
+`CI_ROUTE_TARGET` pointed at the upstream owner is a **refusal** —
+`DRY_RUN=false` does not override it.
+
+## The offline-first cache (ci-9)
+
+> *"the jenkins pipeline should try and use offline artifacts for building
+> where possible, that way we are taking less time when repeatedly using the
+> same data"* — 2026-09-19
+
+**Tier one is a directory**, `<pool>/cache`, that every builder reads first:
+
+| area | what |
+|---|---|
+| `wheels` | python wheels — `pip download --find-links` first, the index only for what is new |
+| `npm` | npm tarballs (tier two's verdaccio volume) |
+| `apt` | the offline medium's distro closure, downloaded once |
+| `images` | `docker save` tarballs of the base images a build pulls |
+| `cloud` | the Ubuntu cloud image the throwaway isle boots from (moved out of `pool/images`) |
+| `scanners` | **reserved** for the scanning arc's Trivy DB — the directory exists, nothing else |
+| `releases` | official Polari releases fetched by tag (app mode's core) |
+| `layers` | the BuildKit local layer cache, one directory per image |
+| `proxies` | tier two's volumes |
+
+Each area keeps one record per entry (`what`, `sha256`, `fetched`,
+`last_used`, `bytes`) in its own `MANIFEST.json`.
+
+**THE RULE, everywhere: the cache is an optimisation, never a precondition.**
+An empty cache still builds, over the network, and says so. `CI_CACHE=off`
+turns the whole thing off. Both Dockerfiles keep their network path: the
+backend declares `FROM scratch AS wheels` as the default for the wheelhouse
+build-context, so a plain `docker build` binds an empty directory and pip
+falls straight through.
+
+```
+pol jenkins cache status                  # per area, against CI_CACHE_MAX_GB, + the last run's hit rate
+pol jenkins cache prune --older-than 30   # the ONE deleter — entries nothing has used for 30 days
+pol jenkins cache report [version]        # pool/<version>/cache-report.json, in a table
+```
+
+`retention.sh prune` **never** touches the cache (a cache that vanished with
+yesterday's build is not a cache); `retention.sh cache-prune` is the same
+deleter under the retention door.
+
+Every build stage writes `pool/<version>/cache-report.json` — bytes served
+from the cache vs bytes fetched, and seconds, per area. That report rides in
+the run's `PipelineRun.summary` and in `ReleaseRecord.cache_report_json`, so
+*"did the cache actually save us anything?"* is answerable from the rows.
+**Until a real pipeline run has happened, every saving is EXPECTED, not
+measured, and the doctor says exactly that.**
+
+### Tier two — optional caching proxies (`CI_CACHE_PROXIES=on`)
+
+`docker-compose.proxies.yml`: a `registry:2` pull-through (Apache-2.0),
+`devpi-server` for pip (MIT), `verdaccio` for npm (MIT), `apt-cacher-ng` for
+apt (**licence not verified from here — read its `COPYING` before this is
+ever on by default**). All bound to `127.0.0.1`, outbound-only, no publish
+path, volumes under the cache dir.
+
+**OFF by default, and a pipeline never starts them.** The pipeline only asks
+`cache.sh build-args`, which probes the ports and passes
+`PIP_INDEX_URL`/`NPM_CONFIG_REGISTRY`/`APT_PROXY` when they answer and
+nothing at all when they do not.
+
+```
+pol jenkins cache proxies status | up | down
+```
+
 ## The release rule — only what is tested is released
 
 The throwaway isle is what the pipeline *analyses*. `polari-isle-test` runs
@@ -242,12 +330,12 @@ deb-install → core-install → verify → uninstall cycle inside the guest is
 
 ## Data retention (an automated process must never overwhelm the host)
 - `retention.sh guard` runs FIRST in every build: refuses when free disk < `DISK_MIN_FREE_GB` (20).
-- `retention.sh prune` runs LAST: keeps the newest `POOL_KEEP` (3) pool versions, removes older ones and the images tagged with them, prunes dangling layers. It never touches developer images (`prf-*:staging`), anything outside `pool/`, or any Polari instance data — the pipelines deploy nothing.
+- `retention.sh prune` runs LAST: keeps the newest `POOL_KEEP` (3) pool versions, removes older ones and the images tagged with them, prunes dangling layers. It never touches developer images (`prf-*:staging`), anything outside `pool/`, or any Polari instance data — the pipelines deploy nothing. **Nor the offline cache** (ci-9): `pool/cache` is exempt, and `retention.sh cache-prune [--older-than DAYS]` (= `pol jenkins cache prune`) is its only deleter, removing only entries whose `last_used` is older than the knob.
 - Job history: dev-build keeps 5 runs / 2 artifact sets; release 10 / 3. Workspaces are cleaned after every run.
 - ONE build at a time: a global `polari-build` lock across dev-build, release and publish; a newer dev trigger aborts the running dev build (latest commit wins).
 
 ## Tests
-`bash polari-jenkins/selftest.sh` — the ci-7/ci-7b/ci-8 tests, **152/152**. They
+`bash polari-jenkins/selftest.sh` — the ci-7/ci-7b/ci-8/ci-9 tests, **235/235**. They
 need **no docker, libvirt, sudo or network**: the scripts run against a temp
 tree and PATH shims, covering the doctor's WARN wording per
 misconfiguration, the preflight's PASS/FAIL arithmetic and the
@@ -260,7 +348,15 @@ and its unknown/twice/empty warnings, and the tested-only release rule
 from the assets · `DRY_RUN=false` cannot override it), and ci-8's two modes
 plus the sync with Polari (a pull rewrites `device.env` from a fixture, a
 core that is down or answers invalid settings leaves the file alone, and a
-push carries presence and never a value). It prints `N/N`.
+push carries presence and never a value), and ci-9's offline cache and app
+mode (the manifest's four fields per entry, `cache-prune` dropping only what
+`last_used` says is stale and KEEPING an entry whose stamp it cannot read,
+the report arithmetic, the network fallback when the cache is empty or off,
+`retention.sh prune` leaving the cache alone, tier two refusing to start
+while its knob is off, the setup's mode question in `--report`,
+`core-artifacts.sh resolve` against a fixture release list, and app-mode
+release filtering — one deb, `tested_against` recorded, an upstream target
+refused). It prints `N/N`.
 
 ## Not yet
 The `ReleasePublication` rows in Polari (ci-6a), agent nodes beyond the

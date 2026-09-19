@@ -38,9 +38,12 @@ if [ "$CI_ISLE_TARGET" = ssh ] && [ "${CI_ISLE_REMOTE:-0}" != 1 ]; then
     [ -n "$CI_ISLE_SSH_HOST" ] || { echo "throwaway.sh: CI_ISLE_TARGET=ssh with no CI_ISLE_SSH_HOST" >&2; exit 2; }
     DEST="$(device_ssh_dest)"; REMOTE_DIR="/tmp/polari-ci-isle.$$"
     ssh -o BatchMode=yes -o ConnectTimeout="$CI_SSH_TIMEOUT" "$DEST" "mkdir -p $REMOTE_DIR"
-    scp -q -o BatchMode=yes "$HERE/throwaway.sh" "$J/device.sh" "$DEST:$REMOTE_DIR/"
+    # ci-9: cache.sh + cache-manifest.py travel too, so the cloud image is cached
+    # on the TARGET's own disk (CI_CACHE_DIR defaults to <pool>/cache, and the
+    # pool on an ssh target is the target's) rather than copied over the wire.
+    scp -q -o BatchMode=yes "$HERE/throwaway.sh" "$J/device.sh" "$J/cache.sh" "$J/cache-manifest.py" "$DEST:$REMOTE_DIR/"
     ENVS="CI_ISLE_REMOTE=1 CI_ISLE_TARGET=local"
-    for k in CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_IMAGE_URL CI_MIN_FREE_GB; do
+    for k in CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_IMAGE_URL CI_MIN_FREE_GB CI_CACHE CI_CACHE_DIR CI_CACHE_MAX_GB; do
         ENVS="$ENVS $k=$(printf '%q' "${!k}")"
     done
     ENVS="$ENVS CI_ISLE_POOL=$(printf '%q' "$(device_pool)")"
@@ -56,8 +59,16 @@ fi
 # ------------------------------------------------------------- local work
 POOL="$(device_pool)"
 RUN="$POOL/ci-isle/$CI_ISLE_VM_NAME"
-IMAGES="$POOL/images"
-BASE="$IMAGES/$(basename "${CI_ISLE_IMAGE_URL%%\?*}")"
+# ci-9: the cloud image lives in the shared offline cache (<cache>/cloud), not
+# in pool/images — so `retention.sh prune` no longer takes it with a dropped
+# version, and `pol jenkins cache status` can see and account for it. A copy
+# left in the old pool/images by an earlier run is adopted rather than re-fetched.
+# shellcheck source=../cache.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../cache.sh" 2>/dev/null || source "$(dirname "${BASH_SOURCE[0]}")/cache.sh"
+IMAGES="$(cache_area cloud 2>/dev/null || echo "$POOL/images")"
+IMG_NAME="$(basename "${CI_ISLE_IMAGE_URL%%\?*}")"
+BASE="$IMAGES/$IMG_NAME"
+LEGACY_BASE="$POOL/images/$IMG_NAME"
 KEY="$RUN/id_ed25519"
 GUEST_USER=polari-ci
 
@@ -93,10 +104,22 @@ guest_ssh() {  # guest_ssh <command…>
 
 fetch_base() {
     mkdir -p "$IMAGES"
-    if [ -s "$BASE" ]; then say "base image cached: $BASE ($(du -h "$BASE" | cut -f1))"; return 0; fi
-    say "fetching the cloud image (once; it is cached under the pool and pruned with it)"
+    if [ -s "$BASE" ]; then
+        say "base image cached: $BASE ($(du -h "$BASE" | cut -f1))"
+        cache_touch cloud "$IMG_NAME" 2>/dev/null || true
+        return 0
+    fi
+    # an image a pre-ci-9 run left in pool/images is MOVED, not re-downloaded
+    if [ -s "$LEGACY_BASE" ] && [ "$LEGACY_BASE" != "$BASE" ]; then
+        say "adopting the cloud image from the old pool/images into the cache"
+        mv "$LEGACY_BASE" "$BASE"
+        cache_put cloud "$IMG_NAME" "the Ubuntu cloud image the throwaway isle boots from" 2>/dev/null || true
+        return 0
+    fi
+    say "fetching the cloud image (ONCE — it lives in the offline cache and survives retention.sh prune)"
     curl -fL --retry 3 -o "$BASE.part" "$CI_ISLE_IMAGE_URL"
     mv "$BASE.part" "$BASE"
+    cache_put cloud "$IMG_NAME" "the Ubuntu cloud image the throwaway isle boots from" 2>/dev/null || true
 }
 
 make_seed() {
@@ -180,7 +203,7 @@ down)
         $SUDO rm -rf "$RUN"
         say "run directory removed (disk, seed, key): $RUN"
     fi
-    say "down — the base image stays cached under $IMAGES (retention.sh prunes the pool)"
+    say "down — the base image stays in the offline cache ($IMAGES); retention.sh prune never touches it, pol jenkins cache prune does"
     ;;
 status)
     echo "target:   $(device_target_name)"
