@@ -1,0 +1,27 @@
+# polari-jenkins/cache/verdaccio-config.yaml — tier two's npm cache (ci-9).
+#
+# A READ-THROUGH CACHE OF npmjs, and nothing else. There is no user database,
+# nobody can register, and every publish is denied: this exists so the SECOND
+# build of the Angular frontend does not re-download node_modules, not so that
+# anything can be published here.
+storage: /verdaccio/storage
+# no htpasswd file, and max_users -1 → registration is impossible
+auth:
+  htpasswd:
+    file: /verdaccio/storage/.htpasswd
+    max_users: -1
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+    cache: true
+    maxage: 30m
+packages:
+  '**':
+    access: $all
+    publish: $authenticated   # and nobody can ever authenticate — see auth above
+    proxy: npmjs
+# outbound only; nothing is advertised, no web UI writes
+web:
+  enable: true
+  title: Polari pipeline npm cache (read-through)
+log: { type: stdout, format: pretty, level: warn }
