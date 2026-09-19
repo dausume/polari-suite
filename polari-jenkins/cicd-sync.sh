@@ -259,9 +259,18 @@ try:
     data = json.load(open(path))
 except Exception:
     data = {}
+# ci-10: an isle that cannot hand the machine back never counts as a passing core, wherever
+# the reading is mirrored. The Jenkinsfile applies the same coupling; this is the second door.
+clean_uninstall = data.get('uninstall_verdict') == 'clean'
 print(json.dumps({'kind': 'isle-test', 'device': dev, 'run': run, 'stage_index': int(stage or 1),
                   'version': data.get('version', ''), 'apps': data.get('tested', []),
-                  'core_ok': core_ok in ('1', 'true', 'yes'), 'results': data.get('results', {}),
+                  'core_ok': (core_ok in ('1', 'true', 'yes')) and clean_uninstall,
+                  'results': data.get('results', {}),
+                  # ci-10, the two teardown readings: the PRODUCT's hand-back, and OUR leak diff
+                  'uninstall_verdict': data.get('uninstall_verdict', 'skipped'),
+                  'uninstall_findings': data.get('uninstall_findings', []),
+                  'leak_verdict': data.get('leak_verdict', 'clean'), 'leaks': data.get('leaks', []),
+                  'ram_delta_mb': data.get('ram_delta_mb', 0), 'disk_delta_mb': data.get('disk_delta_mb', 0),
                   'finished': datetime.datetime.now().isoformat(timespec='seconds')}))
 PY
 }

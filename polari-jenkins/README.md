@@ -219,7 +219,10 @@ polari-jenkins/
 ├── selftest.sh               the ci-7/ci-7b tests (no docker, libvirt, sudo or network needed)
 ├── isle/preflight.sh         (A) is the device CLEAR and does it have room? exit 4 = refused
 ├── isle/app-debs.sh          a stage's app debs — a THIN VERB over polari-framework's appstore/custom/app_deb_builder.py
-├── isle/throwaway.sh         the throwaway isle VM: up | verify | down | status (local or over ssh)
+├── isle/throwaway.sh         the throwaway isle VM: up | verify | uninstall | down | wipe | status (local or over ssh)
+├── isle/guest-uninstall.sh   ci-10: the PRODUCT'S OWN `isle uninstall --everything` run inside the guest, as a TEST
+├── isle/wipe.sh              ci-10: remove everything the pipeline made on the target and NOTHING else (the polari-ci- tag)
+├── isle/leakcheck.sh         ci-10: baseline | check | report | snapshot — did anything survive the wipe?
 ├── isle/footprint.{sh,py}    "is this device clear of Polari?", read from os-security/inventory.sh
 ├── controller/Dockerfile     jenkins lts + plugins + the build toolchain (docker cli, jdk21/jpackage, node, dpkg-dev)
 ├── casc/jenkins.yaml         Configuration as Code: local admin, no anonymous, credentials FROM secrets/, seed job
@@ -317,8 +320,54 @@ Details: `secrets/README.md`.
 it copies itself to the device and runs there), an Ubuntu 24.04 cloud image
 cached under the pool, a qcow2 overlay, a cloud-init seed, and an ssh key
 **generated per run**, kept `0600` under the pool and deleted by `down`. The
-deb-install → core-install → verify → uninstall cycle inside the guest is
-**ci-3**, marked TODO in `pipelines/Jenkinsfile.isle-test`.
+deb-install → core-install → verify cycle inside the guest is **ci-3**, marked
+TODO in `pipelines/Jenkinsfile.isle-test`.
+
+### Wiping between stages, and checking for leaks (ci-10)
+
+*His ask 2026-09-19: "ensure we are capable of wiping the registered ssh
+location and removing the isle there so we can deploy new ones each time
+without causing memory issues, and we should be checking in between to make
+sure we are not missing things and having leaks between things as well" — with
+the addendum "we should be using the normal isle wiping functionality so that
+it acts as a de jure test of that as well."*
+
+The teardown is **three things**, in order, and they answer three different
+questions:
+
+| layer | verb | the question | whose failure | what it gates |
+|---|---|---|---|---|
+| 1 | `pol jenkins isle uninstall` | can the PRODUCT hand this machine back? | the product's | **the release** — `core_ok` requires a `clean` verdict |
+| 2 | `pol jenkins isle wipe` (and the end of `down`) | remove what WE made, and nothing else | — | nothing; it is the cleanup |
+| 3 | `pol jenkins isle leakcheck check` | did anything of ours survive the wipe? | the pipeline's | **the next stage** — a persistent leak stops the run |
+
+**Layer 1** runs the product's real path inside the guest —
+`sudo ISLE_CONFIRM_DELETE=yes isle uninstall --everything --force` (backup →
+`destroy --purge` → `network-handback` → volumes → apt purge of the family →
+its own zero-footprint verify) — and then the **hand-back proof**: a default
+route, public DNS, `apt-get update`, and a network manager that owns the
+interfaces. Verdict `clean | dirty | failed | skipped`, written to
+`pool/<version>/isle-test/uninstall-<stage>.json`. **`skipped` is not a pass**:
+until ci-3 installs anything, every stage is `skipped` and therefore nothing is
+releasable — which is the honest reading.
+
+**Layer 2** is scoped by the `polari-ci-` tag (`CI_WIPE_TAG`): the domain, its
+disks/seeds/overlays, per-run libvirt volumes and networks, a stray
+`qemu-system` still holding the guest, `/tmp/polari-ci-*`, the per-run ssh key
+(shredded) and the run dir. It prints **both** lists — what it removed, and
+what it found and deliberately left alone. `--dry-run` lists. The offline
+cache, the pool and the directory the wipe is itself running from are never
+touched.
+
+**Layer 3** diffs the target against a baseline taken before stage 1: VMs,
+networks, volumes, files (name + bytes), the Polari footprint, mounts,
+listening ports, processes with RSS, `MemAvailable`, swap and free disk.
+Anything NEW is a leak; so is RAM more than `CI_LEAK_RAM_TOLERANCE_MB` (512) or
+disk more than `CI_LEAK_DISK_TOLERANCE_MB` (1024) below the baseline — **memory
+that did not come back is exactly the "memory issues" the ask names**. A leak
+re-wipes once, re-checks, and if it persists the run STOPS before the next
+stage (`CI_LEAK_POLICY=continue` opts out). `pol jenkins preflight --isle`
+gains a `residue from an earlier run` row that FAILs and names the wipe.
 
 ## What the jobs do
 | job | trigger | does | pushes anywhere? |
@@ -326,7 +375,7 @@ deb-install → core-install → verify → uninstall cycle inside the guest is
 | polari-dev-build | poll `dev` every 10 min | recursive checkout, build the debs (both flavors) + images | no |
 | polari-release | poll `main` every 10 min | mints `polari-vYYYY.MM.DD[.N]`, builds, writes `release.json` + `SHA256SUMS` + the offline medium → `pool/<version>/`, pushes the tag **only when a github credential is present** | it triggers polari-publish with DRY_RUN=auto |
 | polari-publish | manual / from release | routes/*.sh per selected route | only when the route's secret is present AND the route is in `CI_ROUTES` (DRY_RUN=auto) |
-| polari-isle-test | from polari-release (and manual) | preflight → for EACH stage of `CI_ISLE_STAGES`: build that stage's app debs → a fresh throwaway isle up → install + selftest (ci-3 TODO) → record → down. Writes `pool/<version>/isle-test/results.json` | no — it decides what everything else MAY publish |
+| polari-isle-test | from polari-release (and manual) | preflight → for EACH stage of `CI_ISLE_STAGES`: build that stage's app debs → a fresh throwaway isle up → install + selftest (ci-3 TODO) → the product's own uninstall (a test) → down (which wipes) → a leak check → record. Writes `pool/<version>/isle-test/results.json`, `uninstall-<n>.json`, `leak-baseline.json` and `leak-check-<n>.json` | no — it decides what everything else MAY publish |
 
 ## Data retention (an automated process must never overwhelm the host)
 - `retention.sh guard` runs FIRST in every build: refuses when free disk < `DISK_MIN_FREE_GB` (20).

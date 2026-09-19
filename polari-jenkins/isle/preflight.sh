@@ -130,6 +130,39 @@ if [ "$ISLE" = 1 ] && [ "$REACHABLE" = 1 ]; then
     if [ -z "$EXISTING" ]; then row "no VM named $CI_ISLE_VM_NAME" "none" "none" PASS ""
     else row "no VM named $CI_ISLE_VM_NAME" "EXISTS" "none" FAIL "a previous run did not clean up → isle/throwaway.sh down"; fi
 
+    # (i-b) ci-10: RESIDUE from an earlier run — anything carrying our own tag,
+    #       not just a domain by our name. A disk, a network, a qemu process or
+    #       a /tmp tree left behind is the start of the "memory issues" his ask
+    #       names: every stage would then start on a dirtier device than the last.
+    WIPE_TAG="${CI_WIPE_TAG:-polari-ci-}"
+    RESIDUE=$(on_target "
+        : ci-10 residue probe
+        S=''; sudo -n true >/dev/null 2>&1 && S='sudo -n'
+        { \$S virsh list --all --name 2>/dev/null; \$S virsh net-list --all --name 2>/dev/null; } \
+            | grep -E '^${WIPE_TAG}' | sed 's/^/vm-or-net:/'
+        for d in /var/lib/libvirt/images /tmp /var/tmp; do
+            [ -d \"\$d\" ] || continue
+            for f in \"\$d/${WIPE_TAG}\"*; do
+                [ -e \"\$f\" ] || continue
+                # the POOL and the offline cache carry the tag by design and are
+                # NOT residue (found live on isle-core 2026-09-19, where
+                # /var/tmp/polari-ci-pool read as leftovers from a past run)
+                case \"\$f\" in '$POOL_TARGET'|'$POOL_TARGET'/*) continue ;; esac
+                echo \"file:\$f\"
+            done
+        done
+        # ⚠ this probe's OWN command line carries both 'qemu-system' and the tag,
+        # so it matches itself unless it is filtered out by its marker.
+        ps -eo args= 2>/dev/null | grep -F 'qemu-system' | grep -v 'ci-10 residue probe' \
+            | grep -E 'guest=${WIPE_TAG}|${WIPE_TAG}' | sed 's/^/process:qemu /' | cut -c1-60
+    " 2>/dev/null | sed '/^$/d' || true)
+    if [ -z "$RESIDUE" ]; then
+        row "residue from an earlier run" "none" "none" PASS "nothing on the target carries the ${WIPE_TAG} tag"
+    else
+        row "residue from an earlier run" "$(printf '%s' "$RESIDUE" | wc -l | tr -d ' ') item(s)" "none" FAIL \
+            "an earlier run left ${WIPE_TAG} things behind → run \`pol jenkins isle wipe\` (\`--dry-run\` lists first). Found: $(printf '%s' "$RESIDUE" | tr '\n' ' ')"
+    fi
+
     # (ii) no Polari/isle footprint at all — a device that is somebody's
     #      live isle is not a throwaway. os-security/inventory.sh is the
     #      one reading of "what Polari put on this machine".

@@ -4,10 +4,23 @@
 # and runs it there with the configuration exported, so there is exactly
 # one implementation of "make a VM, prove it, destroy it".
 #
-#   throwaway.sh up        create it (idempotent — an existing one is reported, not rebuilt)
-#   throwaway.sh verify    ssh into the guest: hostname, nproc, memory, disk
-#   throwaway.sh down      destroy + undefine + delete the disk AND the per-run key
-#   throwaway.sh status    what exists right now
+#   throwaway.sh up         create it (idempotent — an existing one is reported, not rebuilt)
+#   throwaway.sh verify     ssh into the guest: hostname, nproc, memory, disk
+#   throwaway.sh uninstall  ci-10: run the PRODUCT'S OWN uninstall inside the guest
+#                           (isle uninstall --everything → its verify → the
+#                           hand-back proof) as a TEST — see isle/guest-uninstall.sh
+#   throwaway.sh down       destroy + undefine + delete the disk AND the per-run
+#                           key, then `wipe` (ci-10) so nothing of ours is left
+#   throwaway.sh wipe [--dry-run]
+#                           ci-10: remove everything THIS pipeline made on the
+#                           target and nothing else, printing both lists —
+#                           see isle/wipe.sh for the scope rule
+#   throwaway.sh status     what exists right now
+#
+# THE TEARDOWN IS TWO LAYERS, and they are different questions:
+#   `uninstall` asks: can the PRODUCT hand this machine back?  (a test result)
+#   `wipe` asks:      did OUR pipeline leave anything behind?  (a resource guard)
+# isle/leakcheck.sh then proves the second one from outside, by diff.
 #
 # Everything it makes lives under ONE directory (<pool>/ci-isle/<vm>/) and
 # `down` removes that directory: the VM, its disk, its cloud-init seed and
@@ -22,14 +35,21 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 J="$(cd "$HERE/.." && pwd)"
+# In the checkout device.sh is the parent's; on an ssh TARGET this script and
+# its libraries all sit in one scp'd directory, so $J is whatever /tmp happens
+# to be. Prefer the sibling — cache.sh has always resolved itself this way, and
+# the parent-only form was a latent break in the remote hop (found live 2026-09-19:
+# `throwaway.sh: /tmp/device.sh: No such file or directory` on the first real
+# ssh-target run; ci-7 only ever exercised the LOCAL path).
 # shellcheck source=../device.sh
-source "$J/device.sh"
+if [ -f "$HERE/device.sh" ]; then source "$HERE/device.sh"; else source "$J/device.sh"; fi
 
-CMD="${1:-status}"
+CMD="${1:-status}"; shift || true
+ARGS=("$@")
 case "$CMD" in
-    up|verify|down|status) ;;
-    --help|-h) sed -n '2,20p' "$0"; exit 0 ;;
-    *) echo "throwaway.sh: unknown command '$CMD' (up|verify|down|status|--help)" >&2; exit 2 ;;
+    up|verify|down|status|wipe|uninstall) ;;
+    --help|-h) sed -n '2,34p' "$0"; exit 0 ;;
+    *) echo "throwaway.sh: unknown command '$CMD' (up|verify|uninstall|down|wipe|status|--help)" >&2; exit 2 ;;
 esac
 
 # ------------------------------------------------- run it ON the target
@@ -41,19 +61,39 @@ if [ "$CI_ISLE_TARGET" = ssh ] && [ "${CI_ISLE_REMOTE:-0}" != 1 ]; then
     # ci-9: cache.sh + cache-manifest.py travel too, so the cloud image is cached
     # on the TARGET's own disk (CI_CACHE_DIR defaults to <pool>/cache, and the
     # pool on an ssh target is the target's) rather than copied over the wire.
-    scp -q -o BatchMode=yes "$HERE/throwaway.sh" "$J/device.sh" "$J/cache.sh" "$J/cache-manifest.py" "$DEST:$REMOTE_DIR/"
+    # ci-10: wipe.sh and guest-uninstall.sh travel too — the scope rule and the
+    # product-uninstall test have exactly one implementation, on both targets.
+    scp -q -o BatchMode=yes "$HERE/throwaway.sh" "$HERE/wipe.sh" "$HERE/guest-uninstall.sh" \
+        "$J/device.sh" "$J/cache.sh" "$J/cache-manifest.py" "$DEST:$REMOTE_DIR/"
     ENVS="CI_ISLE_REMOTE=1 CI_ISLE_TARGET=local"
-    for k in CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_IMAGE_URL CI_MIN_FREE_GB CI_CACHE CI_CACHE_DIR CI_CACHE_MAX_GB; do
-        ENVS="$ENVS $k=$(printf '%q' "${!k}")"
+    for k in CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_IMAGE_URL CI_MIN_FREE_GB CI_CACHE CI_CACHE_DIR CI_CACHE_MAX_GB CI_WIPE_TAG; do
+        ENVS="$ENVS $k=$(printf '%q' "${!k:-}")"
     done
     ENVS="$ENVS CI_ISLE_POOL=$(printf '%q' "$(device_pool)")"
+    # ci-10: an `uninstall --json <path>` names a path on THIS machine (the
+    # controller writes results.json), but the command runs over there. So the
+    # guest's reading is written on the target and copied back afterwards —
+    # never silently dropped, which is how a test result goes missing.
+    REMOTE_ARGS=(); WANT_JSON=""
+    i=0; while [ "$i" -lt "${#ARGS[@]}" ]; do
+        case "${ARGS[$i]}" in
+            --json) WANT_JSON="${ARGS[$((i+1))]:-}"; REMOTE_ARGS+=(--json "$REMOTE_DIR/uninstall.json"); i=$((i+2)) ;;
+            *) REMOTE_ARGS+=("${ARGS[$i]}"); i=$((i+1)) ;;
+        esac
+    done
     # device.sh sits beside throwaway.sh on the target, so the remote copy
     # is self-contained; DEVICE_ENV_FILE is pointed at nothing on purpose —
     # the configuration travels in the environment, never in a file there.
     trap 'ssh -o BatchMode=yes "$DEST" "rm -rf $REMOTE_DIR" >/dev/null 2>&1 || true' EXIT
+    RC=0
     ssh -o BatchMode=yes -o ConnectTimeout="$CI_SSH_TIMEOUT" "$DEST" \
-        "cd $REMOTE_DIR && env $ENVS DEVICE_ENV_FILE=$REMOTE_DIR/none.env bash throwaway.sh $CMD"
-    exit $?
+        "cd $REMOTE_DIR && env $ENVS DEVICE_ENV_FILE=$REMOTE_DIR/none.env bash throwaway.sh $CMD ${REMOTE_ARGS[*]:-}" || RC=$?
+    if [ -n "$WANT_JSON" ]; then
+        mkdir -p "$(dirname "$WANT_JSON")"
+        scp -q -o BatchMode=yes "$DEST:$REMOTE_DIR/uninstall.json" "$WANT_JSON" 2>/dev/null \
+            || echo "[throwaway] ⚠ the guest reading could not be copied back to $WANT_JSON" >&2
+    fi
+    exit "$RC"
 fi
 
 # ------------------------------------------------------------- local work
@@ -76,6 +116,13 @@ SUDO=""; sudo -n true >/dev/null 2>&1 && SUDO="sudo -n"
 VIRSH="$SUDO virsh --connect ${LIBVIRT_URI:-qemu:///system}"
 
 say() { echo "[throwaway:$CI_ISLE_VM_NAME] $*"; }
+
+# ci-10: the two teardown layers. Sourced AFTER the variables above, because
+# both read POOL/RUN/IMAGES/VIRSH/SUDO and call say().
+# shellcheck source=wipe.sh
+source "$HERE/wipe.sh"
+# shellcheck source=guest-uninstall.sh
+source "$HERE/guest-uninstall.sh"
 exists() { $VIRSH dominfo "$CI_ISLE_VM_NAME" >/dev/null 2>&1; }
 state()  { $VIRSH domstate "$CI_ISLE_VM_NAME" 2>/dev/null | head -1 | tr -d '\n'; }
 
@@ -203,7 +250,29 @@ down)
         $SUDO rm -rf "$RUN"
         say "run directory removed (disk, seed, key): $RUN"
     fi
+    # ci-10: the ordinary teardown above handles the happy path. `wipe` then
+    # sweeps everything it can have missed — a domain that refused to undefine,
+    # an orphaned overlay in the images dir, a qemu process outliving its
+    # domain, a per-run network, /tmp leftovers. It is scoped and idempotent,
+    # so calling it here costs nothing when there is nothing to find.
+    echo
+    wipe_do
     say "down — the base image stays in the offline cache ($IMAGES); retention.sh prune never touches it, pol jenkins cache prune does"
+    ;;
+wipe)
+    wipe_do "${ARGS[0]:-}"
+    ;;
+uninstall)
+    # ci-10, his addendum: the PRODUCT'S OWN uninstall, run as a de jure test.
+    UN_JSON=""; UN_STAGE=1
+    i=0; while [ "$i" -lt "${#ARGS[@]}" ]; do
+        case "${ARGS[$i]}" in
+            --json)  UN_JSON="${ARGS[$((i+1))]:-}"; i=$((i+2)) ;;
+            --stage) UN_STAGE="${ARGS[$((i+1))]:-1}"; i=$((i+2)) ;;
+            *) echo "throwaway.sh uninstall: unknown argument '${ARGS[$i]}' (--json <path> --stage <n>)" >&2; exit 2 ;;
+        esac
+    done
+    uninstall_do "$UN_JSON" "$UN_STAGE"
     ;;
 status)
     echo "target:   $(device_target_name)"
@@ -218,5 +287,8 @@ status)
         echo "domain:   virsh absent on this machine — isle/preflight.sh --isle says so as a FAIL"
     fi
     echo "key:      $([ -f "$KEY" ] && echo "$KEY ($(stat -c %a "$KEY"))" || echo 'none (generated by up, deleted by down)')"
+    echo "teardown: uninstall (the PRODUCT's own, a TEST) → down → wipe (ours, scoped to '${CI_WIPE_TAG:-polari-ci-}')"
+    echo "          \`throwaway.sh wipe --dry-run\` lists what a wipe would take and what it would leave;"
+    echo "          \`isle/leakcheck.sh check\` then proves from outside that nothing of ours survived."
     ;;
 esac

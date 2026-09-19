@@ -602,3 +602,21 @@ published) into the cache instead of building core, and a second hard gate in `r
 ONLY that app's deb, to `CI_ROUTE_TARGET`, never the upstream owner. jenkins selftest 235/235, cicd 140/140.
 HONEST: no measured savings yet (no pipeline run anywhere); the named build context is parsed not run;
 apt-cacher-ng's licence unverified (service off). OWED: a before/after build on the pipeline device.
+
+### 9d. ci-10 — the product's own uninstall as the teardown test, the host wipe, the leak check (his asks 2026-09-19; BUILT, ledger §73)
+
+Three layers, three owners: (1) `throwaway.sh uninstall` runs the REAL `isle uninstall --everything` inside the
+guest plus the five-row hand-back proof (route, public DNS, apt, desktop connections, footprint) — a `dirty`/
+`failed` verdict is a PRODUCT test failure and `core_ok` requires `clean` (an isle that cannot hand the machine back
+is not releasable; `routes/_lib.sh`); (2) `isle/wipe.sh` removes only what carries the `polari-ci-` tag or IS the
+configured VM, names everything it found and left alone, and protects the pool, the cache, its own directory and
+the cwd (the first real ssh run showed the tag glob would have removed the pool AND the script's own cwd); (3)
+`isle/leakcheck.sh baseline|check|report` diffs the TARGET host (VMs, libvirt networks/volumes, image files, the
+Polari footprint, mounts, ports, processes with RSS, MemAvailable, disk free; cache excluded; RAM/disk tolerances)
+after every `down` — a leak re-wipes once, then STOPS before the next stage (`CI_LEAK_POLICY=stop|continue`).
+`results.json` per stage gains `uninstall_verdict`, `leaks`, `leak_verdict`; mirrored into `IsleTestResult`; the
+preflight gains `residue from an earlier run`. jenkins selftest 316/316, cicd 154/154. Live read-only on isle-core:
+baseline + check CLEAN (RAM delta +28 MB), `wipe --dry-run` left the router VM and three foreign qemu processes
+alone. FOUND: `throwaway.sh` had never worked over ssh (device.sh scp'd as a sibling). OWED: the first real
+up → uninstall → down → wipe → check cycle on a KVM box; the hand-back JOURNAL and `isle rescue network` do not
+exist yet, so the proof is our five checks, not a reading of the product's own journal.

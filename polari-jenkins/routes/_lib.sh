@@ -56,6 +56,19 @@ except Exception as e:
     print('isle-test results unreadable (%s)' % e); sys.exit(1)
 if not r.get('core_ok'):
     print('the isle test did not record core_ok for %s — the core itself is untested' % ver); sys.exit(1)
+# ci-10, his addendum 2026-09-19: the teardown IS a test. An isle that cannot
+# hand the machine back is not releasable, whatever its selftests said — so
+# stage 1's `isle uninstall --everything` must have verified a zero footprint
+# AND proved the box is a default Ubuntu again. `skipped` (nothing was
+# installed) is not a pass: it means the hand-back was never exercised.
+stage1 = (r.get('stages') or [{}])[0]
+uv = stage1.get('uninstall_verdict')
+if uv is None:
+    print('the isle test recorded core_ok for %s but no uninstall verdict — these results predate the '
+          'hand-back test, so "it passed" is an unfalsifiable claim (re-run polari-isle-test)' % ver); sys.exit(1)
+if uv != 'clean':
+    print("stage 1's uninstall verdict is '%s', not clean — an isle that cannot hand the machine back is not "
+          'releasable (%s)' % (uv, '; '.join(stage1.get('uninstall_findings') or []) or 'no findings recorded')); sys.exit(1)
 print('OK')
 PY
 }

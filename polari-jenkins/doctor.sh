@@ -395,6 +395,37 @@ else
          "run the polari-isle-test job for $LATEST (the pipeline only releases what it tested)"
 fi
 
+# ---------------------------------- ci-10: the teardown, in its two layers
+# 1. did the PRODUCT hand the machine back?  (uninstall_verdict — a test result)
+# 2. did OUR pipeline leave anything behind?  (leak_verdict — a resource guard)
+# Both are read from the NEWEST results the pool carries; neither is re-derived.
+ITDIR=""; [ -n "$LATEST" ] && ITDIR="$J/pool/$LATEST/isle-test"
+NEWEST_LEAK=$(ls -1t "$ITDIR"/leak-check-*.json 2>/dev/null | head -1 || true)
+if [ -z "$NEWEST_LEAK" ]; then
+    ok "leak check" "no leak check recorded yet — the first isle-test run takes a baseline and diffs every stage against it"
+else
+    LV=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print("%s|%d|%+d|%+d" % (d.get("verdict","?"), len(d.get("leaks",[])), d.get("ram_delta_mb",0), d.get("disk_delta_mb",0)))' "$NEWEST_LEAK" 2>/dev/null || echo "unreadable|0|0|0")
+    IFS='|' read -r LVERD LN LRAM LDISK <<<"$LV"
+    if [ "$LVERD" = clean ]; then
+        ok "leak check" "$(basename "$NEWEST_LEAK"): CLEAN — RAM $LRAM MB, images-dir disk $LDISK MB back to the baseline"
+    else
+        warn "leak check" "$(basename "$NEWEST_LEAK"): $LVERD — $LN thing(s) survived the wipe (RAM $LRAM MB, disk $LDISK MB)" \
+             "pol jenkins isle leakcheck report, then pol jenkins isle wipe — the next stage would otherwise start on a dirty host"
+    fi
+fi
+if [ -n "$ITDIR" ] && [ -f "$ITDIR/results.json" ]; then
+    UV=$(python3 -c 'import json,sys
+d=json.load(open(sys.argv[1])); s=(d.get("stages") or [{}])[0]
+print("%s|%s" % (s.get("uninstall_verdict","(not recorded)"), "; ".join(s.get("uninstall_findings") or [])[:120]))' "$ITDIR/results.json" 2>/dev/null || echo "(unreadable)|")
+    IFS='|' read -r UVERD UWHY <<<"$UV"
+    case "$UVERD" in
+        clean) ok "isle uninstall (the product's own)" "stage 1: CLEAN — isle uninstall --everything handed the machine back, so this core MAY be released" ;;
+        skipped) ok "isle uninstall (the product's own)" "stage 1: skipped — nothing was installed in the guest (the ci-3 install cycle is not built), so core_ok stays false" ;;
+        *) warn "isle uninstall (the product's own)" "stage 1: $UVERD${UWHY:+ — $UWHY}" \
+                "this is a FAILURE OF THE PRODUCT, not of the pipeline: an isle that cannot hand the machine back is not releasable (routes/_lib.sh)" ;;
+    esac
+fi
+
 echo
 if [ "$WARNS" = 0 ]; then echo "doctor: everything checked is set up properly."
 else echo "doctor: $WARNS warning(s) above — each says what is wrong and what to do. (Nothing was changed.)"; fi

@@ -5961,3 +5961,255 @@ The one number that IS real: `release:latest` resolves, live, to
 10. Nothing is committed, nothing is pushed. `polari-jenkins/device.env` and
     `SETUP_STATUS.md` on pol-core are gitignored; `device.env` was not
     modified (the app-mode run used a scratch file).
+
+## §73 — ci-10: the product's own uninstall as the teardown test, the host wipe, and the leak check
+
+His ask, 2026-09-19: *"we need to ensure we are capable of wiping the registered
+ssh location and removing the isle there so we can deploy new ones each time
+without causing memory issues, and we should be checking in between to make sure
+we are not missing things and having leaks between things as well"*
+
+His addendum, same day: *"we should be using the normal isle wiping functionality
+so that it acts as a de jure test of that as well."*
+
+Built on `dev`, **uncommitted**. Nothing was deployed, no VM was started or
+destroyed, no container was brought up, `pol jenkins up` was never run, nothing
+was pushed. Against `isle-core` only READ-ONLY commands ran: two
+`leakcheck` snapshots, one `preflight --isle`, one `wipe --dry-run` (which
+removes nothing by construction) and one `isle status`.
+
+---
+
+### The shape: the teardown is THREE things, and they answer three questions
+
+His addendum splits what was going to be one layer into two, and they must stay
+two, because they are different kinds of failure:
+
+| layer | verb | the question | whose failure | what it gates |
+|---|---|---|---|---|
+| 1 | `pol jenkins isle uninstall` | can the **PRODUCT** hand this machine back? | the product's | **the release** — `core_ok` requires a `clean` verdict |
+| 2 | `pol jenkins isle wipe` (and the tail of `down`) | remove what **WE** made, and nothing else | — | nothing; it *is* the cleanup |
+| 3 | `pol jenkins isle leakcheck check` | did anything of ours survive the wipe? | the **pipeline's** | **the next stage** — a persistent leak stops the run |
+
+A dirty hand-back blocks a release and does not stop the run. A leak stops the
+run and does not block a release. Conflating them would let our own mess look
+like a product defect, and a product defect look like housekeeping.
+
+---
+
+### What, and where
+
+| what | where | notes |
+|---|---|---|
+| **layer 1** — the product's own uninstall, run as a TEST | `polari-jenkins/isle/guest-uninstall.sh` (new, sourced by `throwaway.sh`), verb `throwaway.sh uninstall [--stage N] [--json <path>]` | ONE fenced snippet over the per-run key: `sudo ISLE_CONFIRM_DELETE=yes isle uninstall --everything --force` (the real path — backup → `destroy --purge` → `network-handback` → volumes → apt purge of the family → its own zero-footprint verify, `Isle-Mesh/isle-cli/scripts/uninstall.sh`), then `isle uninstall --verify` when the CLI survived, then the **hand-back proof**. Nothing here re-implements the product's checks; it reads its words. |
+| the hand-back proof (his rule) | same file | five rows: a default route · public DNS resolves · `apt-get update` succeeds · a network manager is active and owns the interfaces · NetworkManager has an active connection (`n/a` on a server cloud image, said so) · plus `/etc/isle-mesh`, `/usr/share/isle-mesh`, `/etc/polari` gone |
+| the verdicts | `uninstall_verdict` in `results.json`, `uninstall-<stage>.json` | `clean` \| `dirty` \| `failed` \| `skipped`. **`skipped` is not a pass** — nothing was installed, so the hand-back was never exercised. Until ci-3 lands that is every stage's verdict, and therefore nothing is releasable. Honest before convenient. |
+| **layer 2** — the scoped wipe | `polari-jenkins/isle/wipe.sh` (new), verb `throwaway.sh wipe [--dry-run]`; `down` now ends in it | domain (`destroy` → `undefine --nvram --remove-all-storage`, with the older forms as fallbacks) · tagged qcow2/img/raw/iso under the images dir and the pool's `ci-isle` tree (bytes reported) · tagged libvirt storage volumes in every pool · a per-run libvirt network · a stray `qemu-system` still holding the guest · `/tmp` + `/var/tmp` leftovers · the per-run ssh key (shredded) · the run dir |
+| the scope rule | `wipe.sh` `wipe_ours()` | ours = the configured `CI_ISLE_VM_NAME`, or anything carrying `CI_WIPE_TAG` (`polari-ci-`). Everything else it SEES is printed under **"found but NOT removed"**, named, and left. A VM name that does not carry the tag gets a loud line saying the scoping then rests on that exact name alone. |
+| **layer 3** — the leak diff | `polari-jenkins/isle/leakcheck.sh` (new): `baseline \| check \| report \| snapshot` | ONE read-only snippet through `device.sh`'s `on_target`, so `local` and `ssh` are the same code path. Reads: VMs · libvirt networks · storage volumes · files (name + bytes) · the Polari footprint via `isle/footprint.sh` → `os-security/inventory.sh` · mounts (loop/iso9660/nbd) · listening TCP+UDP · processes matching `qemu\|libvirt\|isle\|polari` with RSS · `MemAvailable` · swap used · free disk on the images dir and `/` |
+| what counts as a leak | `leakcheck.sh` `_diff` | anything NEW since the baseline (VM, file, volume, network, mount, port, process identity, footprint item), a process count that GREW, `MemAvailable` more than `CI_LEAK_RAM_TOLERANCE_MB` (512) below the baseline, or free disk more than `CI_LEAK_DISK_TOLERANCE_MB` (1024) below it. **exit 5.** |
+| what is explicitly NOT a leak | same, and it is printed every run | the offline cache (`<pool>/cache` — it holds the base image on purpose, ci-9) · `<pool>/isle-test` (the RESULTS live there; a diff that counted its own bookkeeping would leak by running) · a thing that ENDED · anything the baseline already had |
+| the pipeline loop | `pipelines/Jenkinsfile.isle-test` | `leakcheck baseline` ONCE → per stage: `up` → `verify` → (ci-3 TODO) → **`uninstall`** → `down` (which wipes) → `leakcheck check`. A LEAK does not abort: it re-wipes once, re-checks, and if it persists records `leak_verdict: leaked-after-rewipe` and STOPS before the next stage (which would start on a dirty host — the log says so), unless `CI_LEAK_POLICY=continue`. |
+| the coupling | `routes/_lib.sh` `tested_state()`, the Jenkinsfile, and `cicd_ingest.isle_test_row` | three doors, same rule: `core_ok` AND a `clean` uninstall. A `results.json` that claims `core_ok` with **no** uninstall verdict is refused as "an unfalsifiable claim (re-run polari-isle-test)". |
+| the preflight | `isle/preflight.sh` | new row **`residue from an earlier run`**: any `polari-ci-*` VM, network, file or `qemu-system` process on the target = FAIL naming `pol jenkins isle wipe`. The pool and the cache carry the tag by design and are not residue. |
+| the doctor | `doctor.sh` | two new rows from the newest pool version: the last **leak verdict** (with the signed RAM/disk deltas) and the last **uninstall verdict** — the latter saying in words that a dirty hand-back is *a FAILURE OF THE PRODUCT, not of the pipeline*. |
+| the row class | `modules/cicd/objects/cicd/IsleTestResult.py` | `+ uninstall_verdict, uninstall_json, leak_verdict, leaks_json, ram_delta_mb, disk_delta_mb`, plus `UNINSTALL_VERDICTS` / `LEAK_VERDICTS` as declared tuples |
+| the mirror | `cicd-sync.sh isle-test`, `custom/cicd_ingest.py`, `cicd_api.py` `/api/cicd/results` | the fields travel; the door ANDs `core_ok` with a clean uninstall on the way IN too, so no re-post can claim a core for an isle that could not leave |
+| the page | `cicd_page.py` (`cicd-runs`, `cicd-devices`) | configured columns only — `uninstall_verdict, uninstall_json, leak_verdict, leaks_json, ram_delta_mb, disk_delta_mb`. No new component, no raw-JSON panel (his rule). |
+| the CLI | `polari-cli/scripts/jenkins.sh` | `pol jenkins isle uninstall [--stage N] [--json f]` · `isle wipe [--dry-run]` · `isle leakcheck baseline\|check\|report\|snapshot` ; `pol jenkins help` carries them |
+| the knobs | `device.env.example` (documented as ENVIRONMENT knobs, deliberately NOT device.env keys) | `CI_WIPE_TAG=polari-ci-` · `CI_LEAK_RAM_TOLERANCE_MB=512` · `CI_LEAK_DISK_TOLERANCE_MB=1024` · `CI_LEAK_POLICY=stop` |
+| docs | `polari-jenkins/README.md` | a "Wiping between stages, and checking for leaks (ci-10)" section with the three-layer table |
+| tests | `polari-jenkins/selftest.sh`, `modules/cicd/cicd_selftest.py` | **235/235 → 316/316** and **140/140 → 154/154** |
+
+---
+
+### The real reading — `isle-core`, read-only, 2026-09-19
+
+`pol jenkins isle leakcheck baseline` then `check --stage 1`, with
+`CI_ISLE_TARGET=ssh CI_ISLE_SSH_HOST=isle-core` and `CI_LEAK_DIR` pointed at a
+scratch directory (never the pool). isle-core carries a **live** isle, so this is
+the reader working against a real target, not a fixture:
+
+```
+leak baseline taken BEFORE the first stage: <scratch>/leak-baseline.json
+target: ssh:isle-core   vm: polari-ci-isle
+EXCLUDED: /var/tmp/polari-ci-pool/cache — the offline cache holds the base image on purpose (ci-9); it is never a leak
+read: footprint 11, net 1, port 2, proc 8, vm 1
+     MemAvailable 5195 MB, images-dir free 844978 MB, / free 844978 MB
+```
+
+```
+leak check — stage 1, target ssh:isle-core, against the baseline of 2026-09-19T10:22:26
+EXCLUDED: /var/tmp/polari-ci-pool/cache — the offline cache holds the base image on purpose (ci-9) — never a leak
+tolerances: RAM 512 MB, disk 1024 MB (a reading below them is a LEAK: memory that did not come back)
+
+kind               item                                           baseline         now              verdict
+------------------ ---------------------------------------------- ---------------- ---------------- -------
+footprint item     /etc/isle-mesh                                 present          present          ok
+footprint item     /etc/polari                                    present          present          ok
+footprint item     /usr/share/isle-mesh                           present          present          ok
+footprint item     checkouts:1                                    present          present          ok
+footprint item     containers:4                                   present          present          ok
+footprint item     debs:1                                         present          present          ok
+footprint item     guests:1                                       present          present          ok
+footprint item     images:5                                       present          present          ok
+footprint item     isle-cli                                       present          present          ok
+footprint item     units:4                                        present          present          ok
+footprint item     volumes:1                                      present          present          ok
+libvirt network    default                                        present          present          ok
+listening port     tcp                                            <lan>:22         <lan>:22         ok
+listening port     udp                                            <lan>:546        <lan>:546        ok
+process            bash                                           x1, 2 MB RSS     x1, 2 MB RSS     ok
+process            dnsmasq                                        x2, 2 MB RSS     x2, 2 MB RSS     ok
+process            isle-host-agent                                x3, 5 MB RSS     x3, 5 MB RSS     ok
+process            libvirtd                                       x1, 21 MB RSS    x1, 21 MB RSS    ok
+process            mesh-mdns-broad                                x2, 3 MB RSS     x2, 3 MB RSS     ok
+process            python3                                        x1, 31 MB RSS    x1, 31 MB RSS    ok
+process            qemu-system-x86                                x1, 1042 MB RSS  x1, 1042 MB RSS  ok
+process            qemu-system-x86(openwrt-isle-router)           x1, 94 MB RSS    x1, 94 MB RSS    ok
+VM                 openwrt-isle-router                            present          present          ok
+memory             MemAvailable (did the RAM come back?)          5195 MB          5223 MB          ok
+disk               free on the images dir                         844978 MB        844978 MB        ok
+disk               free on /                                      844978 MB        844978 MB        ok
+memory             swap used                                      1043 MB          1043 MB          ok
+
+CLEAN: nothing new survived the wipe. RAM delta +28 MB, images-dir disk delta +0 MB — the memory came back.
+```
+(exit 0. Two readings with nothing in between must diff clean, and they do —
+including the 1 GB qemu of isle-core's own router guest, which is *present in the
+baseline* and therefore not a leak. That is the whole design: the diff measures
+what WE left, never what the device carries.)
+
+`pol jenkins isle wipe --dry-run` against the same live isle — the "would NOT
+remove" list is the point of the exercise:
+
+```
+[throwaway:polari-ci-isle] wipe — scope: the VM 'polari-ci-isle' and anything tagged 'polari-ci-'  (DRY RUN — nothing is removed)
+
+removed: nothing — the target carries no residue of this pipeline (idempotent: a second wipe says exactly this)
+
+found but NOT removed (no 'polari-ci-' tag — this wipe never touches what it did not make):
+  VM openwrt-isle-router (not ours — no 'polari-ci-' tag)
+  pid 852395 (a qemu process that is not ours — left running)
+  pid 852396 (a qemu process that is not ours — left running)
+  pid 3353907 (a qemu process that is not ours — left running)
+  leftover /tmp/polari-ci-isle.862278 (it holds the pool, the offline cache or this very run — left alone)
+  leftover /var/tmp/polari-ci-pool (it holds the pool, the offline cache or this very run — left alone)
+the offline cache (/var/tmp/polari-ci-pool/cache) is EXCLUDED by design — it holds the base image on purpose (ci-9)
+```
+
+`pol jenkins preflight --isle` against isle-core, the new row:
+
+```
+no VM named polari-ci-isle         none                   none         PASS
+residue from an earlier run        none                   none         PASS
+                                     ↳ nothing on the target carries the polari-ci- tag
+device is clear of Polari          NOT clear              nothing      FAIL
+```
+
+(No LAN address, hostname or e-mail is written anywhere: the config carries an
+ssh **alias**, and the two link-local port rows above are rendered `<lan>` here.)
+
+---
+
+### Gotchas — three of them found LIVE, and two were real bugs
+
+1. **`throwaway.sh` had never actually worked over ssh.** The first real
+   `pol jenkins isle wipe --dry-run` against isle-core died with
+   `throwaway.sh: /tmp/device.sh: No such file or directory`. On an ssh target
+   the script and its libraries are scp'd into ONE directory, so `J="$HERE/.."`
+   is whatever `/tmp` happens to be — but `device.sh` is the *sibling*.
+   `cache.sh` had always resolved itself sibling-first; `device.sh` had not.
+   ci-7 only ever exercised the LOCAL path, so the break was latent.
+   **Fixed:** prefer `$HERE/device.sh`, fall back to `$J/device.sh`.
+
+2. **The wipe would have removed its own working directory, and the pool.** The
+   `/tmp` + `/var/tmp` tag globs matched `/tmp/polari-ci-isle.<pid>` (the
+   directory the hop had just scp'd the script into — an `rm -rf` of its own
+   cwd mid-run) and `/var/tmp/polari-ci-pool` (the POOL, **which contains the
+   offline cache**). The cache exclusion did not save either: neither path is
+   *inside* the cache. **Fixed:** a `_protected()` predicate — a path that IS or
+   CONTAINS the pool, the cache root, `$HERE` or `$PWD` is named and left alone.
+   Selftested in four directions so it cannot come back.
+
+3. **The preflight's residue probe matched itself.** Its own `ps | grep` command
+   line carries both `qemu-system` and `polari-ci-`, so a clean isle-core read as
+   having residue. **Fixed:** the snippet carries a marker (`: ci-10 residue
+   probe`) and filters it out — the same marker the selftest's ssh shim keys on.
+
+4. **The §70 heredoc trap, again.** `python3 - <<'PY'` feeds the SCRIPT on
+   stdin, so the uninstall analyser could not also read the guest log from a
+   pipe: every verdict came back `skipped`. The log now goes through a FILE and
+   an argv path. Third time this has bitten in this sub-project (cicd-sync.sh
+   §70, and it is called out in both files now).
+
+5. **The leak diff leaked by running.** On a device with no `/var/lib/libvirt`
+   the images dir falls back to the pool itself, and `find` then swept in
+   `<pool>/isle-test/leak-baseline.json` and every `leak-check-N.json` — each a
+   "new file that survived the wipe". Excluded by PATH, not by name, and said so
+   in the header.
+
+6. **`net-list --all --name` contains `list --all --name`.** The selftest's
+   virsh shim matched domains for a network query until the patterns were
+   reordered. Worth remembering for any future virsh shim.
+
+---
+
+### The numbers
+
+| suite | before | after |
+|---|---|---|
+| `polari-jenkins/selftest.sh` (no docker, libvirt, sudo or network) | 235/235 | **316/316** |
+| `modules/cicd/cicd_selftest.py` | 140/140 | **154/154** |
+
+The 81 new shell checks cover: wipe scoping in both directions (a `polari-ci-*`
+disk removed and a `customer-vm` disk named under "not removed", the same for
+VMs, networks and storage volumes) · the four protected paths · an idempotent
+second wipe · `--dry-run` removing nothing · the leak diff on a REAL local target
+(a new file is a LEAK with exit 5, a file that is gone is not, a file appearing
+in the cache is not counted at all) · the RAM/disk arithmetic against the
+tolerances, signed · all five uninstall verdict paths including "skipped is not a
+pass" · the release-rule coupling in four states (clean → ARMED, dirty → DRY
+naming the product's own finding, skipped → DRY, absent → "predate") · the
+preflight residue row in both directions · the doctor's two new rows. The 14 new
+python checks cover the row's two vocabularies, the ingest's `core_ok ∧ clean`
+coupling, that a leak is recorded but never blocks a release, that an unreadable
+delta becomes 0 rather than crashing the mirror, and that the page shows it all
+as **configured columns**.
+
+---
+
+### OWED
+
+- **The first real `up → uninstall → down → wipe → leakcheck check` cycle on a
+  KVM box.** Everything above is proven in four places — the selftests, the
+  scripts' own logic, a read-only reading of a live isle, and a dry-run wipe
+  against it — but **no throwaway VM has ever been created**. pol-core has no
+  `/dev/kvm`; isle-core has KVM but is somebody's real isle (the preflight FAILs
+  it on purpose) and lacks `virt-install`. The cycle needs a third box, or
+  isle-core knowingly borrowed with `virt-install` installed.
+- **What "the memory came back" measures, measured.** The `+28 MB` above is two
+  readings of an idle machine. The number that matters is
+  `MemAvailable(after wipe) − MemAvailable(before stage 1)` across a real 4 GB
+  guest's life, and whether 512 MB is the right tolerance once qemu, page cache
+  and libvirt have all had their turn. Expect to tune `CI_LEAK_RAM_TOLERANCE_MB`
+  after the first real run, and record the observed value here.
+- **A real `dirty` verdict.** Every uninstall path is unit-tested, but the
+  product's own `isle uninstall --everything` has never run inside a throwaway
+  guest. Until ci-3 installs something, every stage is `skipped` — which is why
+  the release rule currently publishes nothing.
+- **A deliberate leak, on purpose.** Nobody has yet left a VM behind and watched
+  the pipeline catch it, re-wipe, fail again, and stop the next stage. That is a
+  half-hour test once a KVM box exists: `up`, kill the wipe, `leakcheck check`.
+- **`isle rescue network` and the hand-back JOURNAL do not exist yet.** His
+  2026-09-13 rule wants an install-time journal replayed in reverse and an
+  offline `isle rescue network`; the product today has
+  `network-handback.sh` + `uninstall --verify` and no journal. The hand-back
+  proof here is therefore *our* five checks against the product's behaviour, not
+  a reading of the product's own journal. When the journal lands,
+  `guest-uninstall.sh` should read IT and stop deriving the proof itself.
+- **The uninstall verdict is stage 1's only** in `results.json.core_ok`, matching
+  how `core_ok` already worked. If a later stage's hand-back goes dirty while
+  stage 1's was clean, the release rule will not see it. Decide whether that
+  should be ALL stages (probably yes) once more than one stage runs for real.
+- Nothing is committed and nothing is pushed.

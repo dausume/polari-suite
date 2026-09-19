@@ -46,6 +46,10 @@ cat > "$T/bin/ssh" <<'SH'
 CMD="${!#}"
 [ "${FAKE_SSH_UP:-1}" = 1 ] || { echo "ssh: connect: Network is unreachable" >&2; exit 255; }
 case "$CMD" in
+  # ci-10 probes, matched FIRST: both snippets mention paths the older patterns
+  # below would otherwise claim (libvirt/images, virsh list).
+  *"ci-10 residue probe"*)     printf '%s\n' "${FAKE_RESIDUE:-}" ;;
+  *"ci-10 leak snapshot"*)     cat "${FAKE_SNAPSHOT:-/dev/null}" ;;
   "echo reachable")            echo reachable ;;
   "echo ok")                   echo ok ;;
   "sudo -n true")              exit "${FAKE_SUDO_RC:-0}" ;;
@@ -112,7 +116,7 @@ echo "-- routes: ARMED vs DRY (secret absent) vs DRY (not in CI_ROUTES)"
 mkdir -p "$T/pool/isle-test"; printf '{"components":{"superproject":{"sha":"deadbee"}},"publishedTo":{}}' > "$T/pool/release.json"
 # the release rule gates every route, so the arming cases need a version the
 # isle test passed; the rule itself is section 6.
-printf '{"version":"1","core_ok":true,"passed":["gears"],"untested":[],"tested":["gears"]}' > "$T/pool/isle-test/results.json"
+printf '{"version":"1","core_ok":true,"passed":["gears"],"untested":[],"tested":["gears"],"stages":[{"index":1,"uninstall_verdict":"clean","uninstall_findings":[],"leak_verdict":"clean"}]}' > "$T/pool/isle-test/results.json"
 armrun() { ( cd "$DEV/routes" && env -u GITHUB_TOKEN VERSION=1 POOL_DIR="$T/pool" ROUTE=github-release "$@" \
              bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token; echo "resolved=$DRY_RUN"' 2>&1 ) || true; }
 has "auto + secret + in CI_ROUTES → ARMED"        "ARMED"                    "$(armrun CI_ROUTES=github-release GITHUB_TOKEN=x)"
@@ -317,7 +321,7 @@ gate() { ( cd "$DEV/routes" && env -u GITHUB_TOKEN VERSION=1 POOL_DIR="$T/pool" 
            bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 ) || true; }
 mkdir -p "$T/pool/debs"; : > "$T/pool/debs/polari-complete_1_all.deb"
 : > "$T/pool/debs/polari-app-household_1_all.deb"; : > "$T/pool/debs/polari-app-gears_1_all.deb"
-printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears","household"],"untested":["household"]}' > "$RES"
+printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears","household"],"untested":["household"],"stages":[{"index":1,"uninstall_verdict":"clean","uninstall_findings":[],"leak_verdict":"clean"}]}' > "$RES"
 has "core_ok + secret + CI_ROUTES → ARMED"        "ARMED"                              "$(gate)"
 has "  …an app that did not pass is held back"    "not released: untested/failed"      "$(gate)"
 has "  …naming that app's deb"                    "polari-app-household_1_all.deb"     "$(gate)"
@@ -330,7 +334,7 @@ has "  …and the wording is his rule, verbatim"    "only releases what it teste
 FORCED=$( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" GITHUB_TOKEN=x DRY_RUN=false CI_ROUTES=github-release \
           bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 || true )
 has "the rule is HARD: DRY_RUN=false cannot force it" "DRY (no isle-test results"      "$FORCED"
-printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears","household"],"untested":["household"]}' > "$RES"
+printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears","household"],"untested":["household"],"stages":[{"index":1,"uninstall_verdict":"clean","uninstall_findings":[],"leak_verdict":"clean"}]}' > "$RES"
 assets() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" bash -c 'source ./_lib.sh; release_assets "$POOL_DIR/debs"' 2>/dev/null ) || true; }
 has "the core deb is always an asset"             "polari-complete_1_all.deb"          "$(assets)"
 has "  …a passed app deb is an asset"             "polari-app-gears_1_all.deb"         "$(assets)"
@@ -592,7 +596,7 @@ has "  …and 'fetch' then has nothing to fetch, and says why" "nothing to fetch
 
 # app-mode release filtering: ONE deb, to YOUR routes
 : > "$T/pool/debs/polari-app-household_1_all.deb"
-printf '{"version":"1","core_ok":true,"passed":["household","gears"],"tested":["household","gears"],"untested":[]}' > "$RES"
+printf '{"version":"1","core_ok":true,"passed":["household","gears"],"tested":["household","gears"],"untested":[],"stages":[{"index":1,"uninstall_verdict":"clean","uninstall_findings":[],"leak_verdict":"clean"}]}' > "$RES"
 appassets() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" "$@" \
                 bash -c 'source ./_lib.sh; release_assets "$POOL_DIR/debs"' 2>/dev/null ) || true; }
 OUT=$(appassets CI_MODE=app CI_APP_NAME=household CI_ROUTE_TARGET=some-developer)
@@ -636,6 +640,248 @@ has "  …prefers what it already has"          "--prefer-offline"              
 has "  …and honours a registry when one is passed" "ARG NPM_CONFIG_REGISTRY="       "$(cat "$FE")"
 eq  "the syntax directive is the FIRST line of the frontend Dockerfile" "# syntax=docker/dockerfile:1" "$(head -1 "$FE")"
 eq  "  …and of the backend's"                                          "# syntax=docker/dockerfile:1" "$(head -1 "$BE")"
+
+
+# ==================== 9. ci-10: the teardown — the product's uninstall, our wipe, the leak diff
+echo "-- ci-10: wipe scoping, the leak diff, the uninstall verdicts, and what each one gates"
+
+# a scripted libvirt, kept OUT of the default PATH so the doctor still reads
+# this machine as it really is (no virsh). Prepended only for the wipe cases.
+mkdir -p "$T/vbin"
+cat > "$T/vbin/virsh" <<'SH'
+#!/bin/bash
+A="$*"
+case "$A" in
+  *"net-list"*)           printf '%s\n' ${FAKE_NETS:-} ;;   # BEFORE `list --all --name` — it contains it
+  *"list --all --name"*)  printf '%s\n' ${FAKE_DOMAINS:-} ;;
+  *"pool-list"*)          echo default ;;
+  *"vol-list"*)           printf '%s\n' ${FAKE_VOLS:-} ;;
+  *domstate*)             echo "${FAKE_DOMSTATE:-shut off}" ;;
+  *dominfo*)              exit "${FAKE_DOMINFO_RC:-1}" ;;   # 1 = the domain is gone (undefine took)
+  *)                      echo "$A" >> "${VIRSH_LOG:-/dev/null}" ;;
+esac
+exit 0
+SH
+chmod +x "$T/vbin/virsh"
+
+W="$T/wipe"
+wipeset() {   # a fresh target: one of ours, one that is NOT ours, and a cached base image
+    rm -rf "$W"; mkdir -p "$W/images" "$W/pool/ci-isle/polari-ci-isle" "$W/pool/cache/cloud"
+    printf 'ours'   > "$W/images/polari-ci-isle-overlay.qcow2"
+    printf 'theirs' > "$W/images/customer-vm.qcow2"
+    printf 'seed'   > "$W/pool/ci-isle/polari-ci-isle/seed.iso"
+    printf 'base-image-bytes' > "$W/pool/cache/cloud/ubuntu-24.04.img"
+}
+wipe() {   # wipe [--dry-run]  — the real throwaway.sh verb, against the tree above
+    ( cd "$DEV" && PATH="$T/vbin:$PATH" env CI_ISLE_TARGET=local CI_ISLE_POOL="$W/pool" \
+        CI_CACHE_DIR="$W/pool/cache" CI_WIPE_IMAGE_DIRS="$W/images" \
+        bash isle/throwaway.sh wipe "$@" 2>&1 ) || true
+}
+
+wipeset
+OUT=$(wipe)
+has "wipe removes OUR overlay disk"                  "removed  disk $W/images/polari-ci-isle-overlay.qcow2" "$OUT"
+has "  …and the per-run tree under the pool"         "polari-ci-isle"                                       "$OUT"
+hasnt "wipe does NOT remove a disk that is not ours" "removed  disk $W/images/customer-vm.qcow2"            "$OUT"
+has "  …it NAMES it under 'found but NOT removed'"   "customer-vm.qcow2"                                    "$OUT"
+has "  …and says why it left it"                     "no 'polari-ci-' tag"                                  "$OUT"
+eq  "  …the untouched disk is still on disk"         "here" "$([ -f "$W/images/customer-vm.qcow2" ] && echo here || echo gone)"
+eq  "  …ours is really gone"                         "gone" "$([ -f "$W/images/polari-ci-isle-overlay.qcow2" ] && echo here || echo gone)"
+eq  "the offline cache survives the wipe"            "here" "$([ -f "$W/pool/cache/cloud/ubuntu-24.04.img" ] && echo here || echo gone)"
+has "  …and the wipe says the cache is EXCLUDED"     "is EXCLUDED by design"                                "$OUT"
+
+OUT=$(wipe)
+has "a second wipe finds nothing (idempotent)"       "removed: nothing"                                     "$OUT"
+has "  …and says so in his words"                    "no residue of this pipeline"                          "$OUT"
+
+wipeset
+OUT=$(wipe --dry-run)
+has "--dry-run lists instead of removing"            "would remove"                                         "$OUT"
+has "  …and says nothing was removed"                "DRY RUN — nothing is removed"                         "$OUT"
+eq  "  …our disk is STILL there after a dry run"     "here" "$([ -f "$W/images/polari-ci-isle-overlay.qcow2" ] && echo here || echo gone)"
+
+wipeset
+OUT=$(FAKE_DOMAINS="polari-ci-isle customer-vm" FAKE_NETS="default polari-ci-net" FAKE_VOLS="polari-ci-disk customer-disk" wipe)
+has "a VM carrying the tag is destroyed"             "removed  VM polari-ci-isle"                           "$OUT"
+hasnt "  …a VM that is not ours is NOT"              "removed  VM customer-vm"                              "$OUT"
+has "  …and it is named as left alone"               "VM customer-vm (not ours"                             "$OUT"
+has "a per-run libvirt network is removed"           "removed  network polari-ci-net"                       "$OUT"
+hasnt "  …libvirt's own 'default' network is not"    "removed  network default"                             "$OUT"
+has "a storage volume carrying the tag is removed"   "removed  volume polari-ci-disk"                       "$OUT"
+hasnt "  …one that is not ours is not"               "removed  volume customer-disk"                        "$OUT"
+
+# the PROTECTED paths — found live on isle-core 2026-09-19, where the /tmp and
+# /var/tmp tag globs matched the POOL (which holds the cache) and the very
+# directory the wipe had been scp'd into. Neither is inside the cache, so the
+# cache exclusion alone did not save them.
+prot() { ( set +u; cd /; POOL="$1"; CI_CACHE_DIR=""; HERE="$2"; CI_ISLE_VM_NAME=polari-ci-isle
+           source "$DEV/isle/wipe.sh"; _protected "$3" && echo protected || echo removable ) }
+eq "the POOL itself is protected — it holds the offline cache" "protected" \
+   "$(prot /var/tmp/polari-ci-pool /x /var/tmp/polari-ci-pool)"
+eq "  …so is the directory the wipe is running from (it would rm -rf its own cwd)" "protected" \
+   "$(prot /p /tmp/polari-ci-isle.42 /tmp/polari-ci-isle.42)"
+eq "  …and the cache root itself"                             "protected" \
+   "$(prot /p /x /p/cache)"
+eq "a per-run overlay under the pool is still removable"      "removable" \
+   "$(prot /var/tmp/polari-ci-pool /x /var/tmp/polari-ci-pool/ci-isle/polari-ci-isle)"
+
+# ------------------------------------------------- the leak diff, on a REAL local target
+LP="$T/leak"; mkdir -p "$LP/pool/isle-test" "$LP/pool/ci-isle" "$LP/pool/cache/cloud"
+printf 'base-image' > "$LP/pool/cache/cloud/ubuntu.img"
+printf 'a result'   > "$LP/pool/ci-isle/keepme.txt"
+lc() { ( cd "$DEV" && env CI_ISLE_TARGET=local CI_ISLE_POOL="$LP/pool" CI_CACHE_DIR="$LP/pool/cache" \
+         CI_LEAK_DIR="$LP/pool/isle-test" FOOTPRINT_INVENTORY="$T/inv/inventory.sh" \
+         bash isle/leakcheck.sh "${LCCMD[@]}" 2>&1 ); }
+LCCMD=(baseline); OUT=$(lc || true)
+has "leakcheck baseline is taken before the first stage" "leak baseline taken BEFORE the first stage"        "$OUT"
+has "  …and says the cache is EXCLUDED"                  "EXCLUDED: $LP/pool/cache"                          "$OUT"
+BASEJ="$LP/pool/isle-test/leak-baseline.json"
+hasnt "the baseline does NOT count the cached base image" "ubuntu.img"                                       "$(cat "$BASEJ")"
+has "  …but does count a file under the pool run dir"     "keepme.txt"                                       "$(cat "$BASEJ")"
+has "  …and records the memory it must come back to"      "mem_available_mb"                                 "$(cat "$BASEJ")"
+
+LCCMD=(check --stage 1); OUT=$(lc || true)
+has "an unchanged target is CLEAN"                       "CLEAN: nothing new survived the wipe"              "$OUT"
+eq  "  …exit 0"                                          "0" "$( LCCMD=(check --stage 1); lc >/dev/null 2>&1; echo $? )"
+
+printf 'an overlay that should not be here' > "$LP/pool/ci-isle/polari-ci-isle.qcow2"
+LCCMD=(check --stage 2); OUT=$(lc || true)
+has "a NEW file that survived the wipe is a LEAK"        "polari-ci-isle.qcow2"                               "$OUT"
+has "  …and the run is reported as LEAKED"               "LEAKED:"                                            "$OUT"
+has "  …pointing at the wipe, and at the next stage"     "would start on a dirty host"                        "$OUT"
+eq  "  …exit 5"                                          "5" "$( LCCMD=(check --stage 2); lc >/dev/null 2>&1; echo $? )"
+rm -f "$LP/pool/ci-isle/polari-ci-isle.qcow2"
+
+rm -f "$LP/pool/ci-isle/keepme.txt"
+LCCMD=(check --stage 3); OUT=$(lc || true)
+has "a thing that is GONE is never a leak"               "CLEAN"                                              "$OUT"
+printf 'a result' > "$LP/pool/ci-isle/keepme.txt"
+
+printf 'x' > "$LP/pool/cache/cloud/another-base.img"
+LCCMD=(check --stage 4); OUT=$(lc || true)
+has "a file APPEARING in the cache is not a leak"        "CLEAN"                                              "$OUT"
+hasnt "  …it is not even counted"                        "another-base.img"                                   "$OUT"
+
+LCCMD=(report --stage 4); OUT=$(lc || true)
+has "leakcheck report prints the table his ask names"    "kind"                                               "$OUT"
+has "  …with the tolerances stated"                      "tolerances: RAM 512 MB, disk 1024 MB"               "$OUT"
+has "  …and the exclusion, every time"                   "EXCLUDED:"                                          "$OUT"
+has "  …naming the memory question in words"             "did the RAM come back"                              "$OUT"
+
+# the RAM/disk arithmetic, driven through the real diff with fabricated readings
+mkjson() { python3 -c 'import json,sys; json.dump({"kind":"leak-snapshot","at":"t","target":"x","vm":"polari-ci-isle","items":{},"numbers":{"mem_available_mb":int(sys.argv[2]),"disk_free_images_mb":int(sys.argv[3]),"disk_free_root_mb":9000,"swap_used_mb":0},"strings":{}}, open(sys.argv[1],"w"))' "$@"; }
+mkdir -p "$T/diff"
+mkjson "$T/diff/base.json"  16000 500000
+mkjson "$T/diff/ram.json"   15000 500000
+mkjson "$T/diff/near.json"  15900 500000
+mkjson "$T/diff/disk.json"  16000 400000
+dfv() {  # dfv <now.json>  → the verdict the real _diff gives
+    ( cd "$DEV" && bash -c 'source ./isle/leakcheck.sh 2>/dev/null; true' >/dev/null 2>&1
+      sed -n '/^_diff()/,/^}/p' "$DEV/isle/leakcheck.sh" > "$T/diff/fn.sh"
+      source "$T/diff/fn.sh"
+      _diff "$T/diff/base.json" "$1" "$T/diff/out.json" 1 512 1024 "$T/diff/cache" ) 2>&1
+}
+has "RAM 1000 MB below the baseline is a LEAK (memory that did not come back)" "leaked" "$(dfv "$T/diff/ram.json")"
+has "  …100 MB below it is within the tolerance"         "clean"                                              "$(dfv "$T/diff/near.json")"
+has "disk 100 GB below the baseline is a LEAK"           "leaked"                                             "$(dfv "$T/diff/disk.json")"
+eq  "  …and the deltas are recorded, signed"             "-1000" "$(dfv "$T/diff/ram.json" >/dev/null; python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["ram_delta_mb"])' "$T/diff/out.json")"
+
+# ------------------------------------------ the PRODUCT's uninstall, as a test
+un() { printf '%s' "$1" > "$T/guest.log"
+       ( set +u; cd "$DEV"; say() { :; }; exists() { return 0; }; source isle/guest-uninstall.sh
+         _parse_uninstall "$T/guest.log" - 1 "${2:-ok}" ) 2>&1; }
+CLEAN_LOG='###POLARI-UNINSTALL-BEGIN
+###FIELD installed=1
+###STEP everything
+[/] packages purged
+[/] VERIFIED: nothing of isle-mesh/polari remains on this device
+###FIELD rc_everything=0
+###STEP verify
+###FIELD rc_verify=purged
+###STEP handback
+###PROOF default route|pass|a default route is present
+###PROOF public DNS|pass|archive.ubuntu.com resolves
+###PROOF apt|pass|apt-get update succeeds
+###PROOF network owner|pass|systemd-networkd is active
+###PROOF desktop connections|n/a|no NetworkManager in this cloud image
+###POLARI-UNINSTALL-END'
+has "a full uninstall that verified zero footprint is CLEAN"  "clean|"  "$(un "$CLEAN_LOG")"
+has "  …and says the box is a default Ubuntu again"           "default Ubuntu again" "$(un "$CLEAN_LOG")"
+DIRTY_LOG="${CLEAN_LOG/VERIFIED: nothing of isle-mesh\/polari remains on this device/volumes remaining: 2 (data)}"
+has "the product's own 'volumes remaining' makes it DIRTY"    "dirty|"  "$(un "$DIRTY_LOG")"
+HANDBACK_LOG="${CLEAN_LOG/public DNS|pass|archive.ubuntu.com resolves/public DNS|fail|archive.ubuntu.com does not resolve}"
+has "a hand-back proof that fails makes it DIRTY too"         "dirty|"  "$(un "$HANDBACK_LOG")"
+FAILED_LOG="${CLEAN_LOG/rc_everything=0/rc_everything=1}"
+has "an uninstall command that exits non-zero is FAILED"      "failed|" "$(un "$FAILED_LOG")"
+has "a guest that could not be reached is FAILED"             "failed|" "$(un "$CLEAN_LOG" no)"
+SKIP_LOG='###POLARI-UNINSTALL-BEGIN
+###FIELD installed=0
+###STEP everything
+nothing of isle-mesh/polari is installed in this guest
+###FIELD rc_everything=skipped
+###FIELD rc_verify=skipped
+###STEP handback
+###PROOF default route|pass|a default route is present
+###POLARI-UNINSTALL-END'
+has "nothing installed → SKIPPED, not a pass"                 "skipped|" "$(un "$SKIP_LOG")"
+has "  …and it says why that proves nothing"                  "proves nothing" "$(un "$SKIP_LOG")"
+
+# ---------------------------- the coupling: a dirty hand-back blocks the release
+UN_RES="$T/pool/isle-test/results.json"
+unstate() { printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears"],"untested":[],"stages":[{"index":1,"uninstall_verdict":"%s","uninstall_findings":["volumes remaining: 2"]}]}' "$1" > "$UN_RES"; }
+ungate() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" GITHUB_TOKEN=x CI_ROUTES=github-release \
+             bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 ) || true; }
+unstate clean
+has "a CLEAN hand-back lets the route arm"            "ARMED"                                  "$(ungate)"
+unstate dirty
+has "a DIRTY hand-back holds the whole release"       "not clean"                              "$(ungate)"
+has "  …naming the product's own finding"             "volumes remaining: 2"                   "$(ungate)"
+has "  …and saying whose failure it is"               "cannot hand the machine back is not releasable" "$(ungate)"
+unstate skipped
+has "a SKIPPED hand-back is not a pass either"        "DRY"                                    "$(ungate)"
+printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears"],"untested":[]}' > "$UN_RES"
+has "results with no uninstall verdict at all are refused" "predate"                           "$(ungate)"
+printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears","household"],"untested":["household"],"stages":[{"index":1,"uninstall_verdict":"clean","uninstall_findings":[],"leak_verdict":"clean"}]}' > "$RES"
+
+# ------------------------------------------ the pipeline loop, as written
+JF="$(cat "$J/pipelines/Jenkinsfile.isle-test")"
+has "the pipeline takes ONE leak baseline, before the stages"  'leakcheck.sh\" baseline'       "$JF"
+has "  …runs the PRODUCT's uninstall before the VM dies"       'throwaway.sh\" uninstall'      "$JF"
+has "  …then down (which wipes)"                               'throwaway.sh" down'            "$JF"
+has "  …then checks for leaks"                                 'leakcheck.sh\" check'          "$JF"
+has "a leak is re-wiped once and re-checked before it is believed" "re-wiping once"            "$JF"
+has "  …and then STOPS the run as a resource guard"            "STOPPING as a resource guard"  "$JF"
+has "  …unless CI_LEAK_POLICY=continue"                        "CI_LEAK_POLICY"                "$JF"
+has "results.json carries leak_summary"                        "leak_summary"                  "$JF"
+has "  …and per stage the leaks and the deltas"                "ram_delta_mb"                  "$JF"
+has "core_ok requires a CLEAN uninstall, in the pipeline too"  "uninstall_verdict == 'clean'"  "$JF"
+
+# ------------------------------------------ the preflight refuses residue
+has "the preflight names the wipe as the fix"                  "pol jenkins isle wipe"         "$(cat "$J/isle/preflight.sh")"
+dev_env CI_ISLE_TARGET=ssh CI_ISLE_SSH_HOST=fakebox CI_MIN_FREE_GB=1 CI_ISLE_NESTED=required \
+        CI_ISLE_VM_RAM_GB=4 CI_ISLE_VM_DISK_GB=30 CI_MIN_RAM_HEADROOM_GB=1
+OUT=$(pf FAKE_INVENTORY="$T/inv/clear.json" FAKE_RESIDUE="polari-ci-isle")
+has "residue on the target FAILs the preflight"                "residue from an earlier run"   "$OUT"
+has "  …and points at the wipe"                                "pol jenkins isle wipe"         "$OUT"
+has "  …and refuses the run"                                   "REFUSED"                       "$OUT"
+OUT=$(pf FAKE_INVENTORY="$T/inv/clear.json")
+has "  …a target with no residue PASSes that row"              "carries the polari-ci- tag"    "$OUT"
+
+# ---------------------------------------- the doctor reports the last verdicts
+mkdir -p "$DEV/pool/2026.09.19/isle-test"
+printf '{"kind":"leak-check","stage":"1","verdict":"leaked","leaks":[{"kind":"file","item":"x"}],"ram_delta_mb":-900,"disk_delta_mb":-40}' \
+    > "$DEV/pool/2026.09.19/isle-test/leak-check-1.json"
+printf '{"version":"2026.09.19","core_ok":false,"stages":[{"index":1,"uninstall_verdict":"dirty","uninstall_findings":["volumes remaining: 2"]}]}' \
+    > "$DEV/pool/2026.09.19/isle-test/results.json"
+dev_env CI_ISLE_TARGET=local
+has "the doctor reports the last leak verdict"        "survived the wipe"                      "$(doc)"
+has "  …with the RAM that did not come back"          "RAM -900 MB"                            "$(doc)"
+has "  …and the last uninstall verdict"               "stage 1: dirty"                         "$(doc)"
+has "  …saying it is the PRODUCT that failed"         "FAILURE OF THE PRODUCT"                 "$(doc)"
+printf '{"kind":"leak-check","stage":"1","verdict":"clean","leaks":[],"ram_delta_mb":12,"disk_delta_mb":0}' \
+    > "$DEV/pool/2026.09.19/isle-test/leak-check-1.json"
+has "a clean leak check reads as clean"               "CLEAN"                                  "$(doc)"
+rm -rf "$DEV/pool/2026.09.19"
 
 echo
 TOTAL=$((PASS+FAIL))

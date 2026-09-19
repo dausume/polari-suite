@@ -19,6 +19,27 @@
 // the isle is destroyed, and the next stage still runs — a later stage may
 // pass, and what passed is exactly what may be released.
 //
+// ci-10 — THE TEARDOWN IS THREE THINGS, in this order, and they answer three
+// different questions (his ask + addendum 2026-09-19):
+//
+//   1. `throwaway.sh uninstall`  — the PRODUCT'S OWN `isle uninstall
+//      --everything`, run inside the guest as a de jure TEST of that path,
+//      then its own zero-footprint verify and the hand-back proof (default
+//      route, public DNS, apt, a network owner). A `dirty`/`failed` verdict is
+//      a FAILURE OF THE PRODUCT and blocks the release: core_ok requires a
+//      `clean` uninstall (routes/_lib.sh enforces it, not this file).
+//   2. `throwaway.sh down`       — destroy + undefine + the per-run key, and
+//      then `wipe`: everything tagged polari-ci-, and nothing else.
+//   3. `leakcheck.sh check`      — a DIFF of the target against the baseline
+//      taken before stage 1. Anything NEW that survived the wipe is a LEAK,
+//      and so is RAM or disk that did not come back. That is a failure of THIS
+//      PIPELINE, not of the product, and it is a resource guard, not a gate.
+//
+// A leak does NOT abort the run: it re-wipes, re-checks, and if the leak
+// persists it is recorded and the run STOPS before the next stage — the next
+// stage would otherwise start on a dirtier host than the last, which is
+// exactly the "memory issues" the ask names. CI_LEAK_POLICY=continue opts out.
+//
 // The output is pool/<version>/isle-test/results.json, and THAT file is
 // what Jenkinsfile.release and routes/_lib.sh read: nothing untested is
 // ever published.
@@ -94,11 +115,27 @@ pipeline {
           def runDir  = params.VERSION ? "${env.POOL}/${params.VERSION}/isle-test" : "${env.WORKSPACE}/isle-test"
           sh "mkdir -p '${runDir}'"
 
+          // ci-10 — the reading everything below is diffed against. Taken ONCE,
+          // before the first isle exists, so "new since the baseline" means
+          // "this pipeline left it", not "the device carries it".
+          def leakPolicy = (env.CI_LEAK_POLICY ?: 'stop')
+          sh "CI_LEAK_DIR='${runDir}' bash \"\$ISLE/leakcheck.sh\" baseline"
+          def stopped = ''
+
           stages.eachWithIndex { appsLine, i ->
             def idx  = i + 1
             def apps = appsLine ? appsLine.split(' ').findAll { it } : []
             def rec  = [index: idx, apps: apps, core_ok: false, results: [:],
+                        uninstall_verdict: 'skipped', uninstall_findings: [],
+                        leaks: [], leak_verdict: 'clean', ram_delta_mb: 0, disk_delta_mb: 0,
                         started: new Date().format("yyyy-MM-dd'T'HH:mm:ss"), finished: null]
+            if (stopped) {
+              rec.error = "not run — ${stopped}"
+              apps.each { rec.results[it] = 'skipped' }
+              rec.finished = new Date().format("yyyy-MM-dd'T'HH:mm:ss")
+              results.stages << rec
+              return
+            }
 
             stage("stage ${idx}: core${apps ? ' + ' + apps.join(', ') : ' only'}") {
               try {
@@ -144,8 +181,61 @@ pipeline {
                 apps.each { rec.results[it] = rec.results[it] ?: 'fail' }
                 rec.error = err.toString()
               } finally {
-                // a throwaway that survives its stage is not a throwaway
+                // ---- ci-10 layer 1: the PRODUCT's own uninstall, as a TEST.
+                // It runs BEFORE the VM is destroyed and its verdict is
+                // independent of everything below: a dirty hand-back is the
+                // product's failure, a leak below is the pipeline's.
+                def unPath = "${runDir}/uninstall-${idx}.json"
+                sh "bash \"\$ISLE/throwaway.sh\" uninstall --stage ${idx} --json '${unPath}' || true"
+                if (fileExists(unPath)) {
+                  def un = readJSON file: unPath
+                  rec.uninstall_verdict  = un.verdict ?: 'failed'
+                  rec.uninstall_findings = un.findings ?: []
+                } else {
+                  rec.uninstall_verdict  = 'failed'
+                  rec.uninstall_findings = ['no uninstall reading came back from the guest']
+                }
+                // THE COUPLING (his addendum): an isle that cannot hand the
+                // machine back is not releasable, whatever else passed.
+                if (rec.uninstall_verdict != 'clean') { rec.core_ok = false }
+                echo "stage ${idx} uninstall verdict: ${rec.uninstall_verdict}" +
+                     (rec.uninstall_findings ? " — ${rec.uninstall_findings.join('; ')}" : '')
+
+                // ---- ci-10 layer 2: a throwaway that survives its stage is
+                // not a throwaway. `down` now ends in a scoped `wipe`.
                 sh 'bash "$ISLE/throwaway.sh" down || true'
+
+                // ---- ci-10 layer 3: prove it, by diff. A leak is re-wiped
+                // once and re-checked before it is believed.
+                def leakRc = sh(returnStatus: true,
+                                script: "CI_LEAK_DIR='${runDir}' bash \"\$ISLE/leakcheck.sh\" check --stage ${idx}")
+                if (leakRc == 5) {
+                  echo "stage ${idx} LEAKED — re-wiping once and checking again before recording it"
+                  sh 'bash "$ISLE/throwaway.sh" wipe || true'
+                  leakRc = sh(returnStatus: true,
+                              script: "CI_LEAK_DIR='${runDir}' bash \"\$ISLE/leakcheck.sh\" check --stage ${idx}")
+                  rec.leak_verdict = (leakRc == 5) ? 'leaked-after-rewipe' : 'clean'
+                } else {
+                  rec.leak_verdict = (leakRc == 0) ? 'clean' : 'leak-check-unreadable'
+                }
+                def leakPath = "${runDir}/leak-check-${idx}.json"
+                if (fileExists(leakPath)) {
+                  def lk = readJSON file: leakPath
+                  rec.leaks         = (lk.leaks ?: []).collect { "${it.kind}: ${it.item} (${it.baseline} → ${it.now})" }
+                  rec.ram_delta_mb  = lk.ram_delta_mb ?: 0
+                  rec.disk_delta_mb = lk.disk_delta_mb ?: 0
+                }
+                if (rec.leak_verdict == 'leaked-after-rewipe') {
+                  if (leakPolicy == 'continue') {
+                    echo "stage ${idx} leaked and a second wipe did not clear it — CI_LEAK_POLICY=continue, carrying on " +
+                         "onto a host that is already dirtier than the baseline"
+                  } else {
+                    stopped = "stage ${idx} leaked and a second wipe did not clear it (${rec.leaks.join('; ')}) — " +
+                              "STOPPING as a resource guard: the next stage would start on a dirty host. " +
+                              "Set CI_LEAK_POLICY=continue to run anyway."
+                    echo stopped
+                  }
+                }
                 rec.finished = new Date().format("yyyy-MM-dd'T'HH:mm:ss")
                 results.stages << rec
                 // ci-8: mirror THIS stage into Polari as it finishes, so a long run is legible while it
@@ -153,7 +243,13 @@ pipeline {
                 writeFile file: "${runDir}/stage-${idx}.json",
                           text: groovy.json.JsonOutput.toJson([version: params.VERSION ?: '', tested: apps,
                                                                tested_against: testedAgainst,
-                                                               results: rec.results])
+                                                               results: rec.results,
+                                                               // ci-10: both teardown readings travel with the stage
+                                                               uninstall_verdict: rec.uninstall_verdict,
+                                                               uninstall_findings: rec.uninstall_findings,
+                                                               leak_verdict: rec.leak_verdict, leaks: rec.leaks,
+                                                               ram_delta_mb: rec.ram_delta_mb,
+                                                               disk_delta_mb: rec.disk_delta_mb])
                 sh """bash /var/polari-jenkins/cicd-sync.sh isle-test '${env.JOB_NAME}#${env.BUILD_NUMBER}' ${idx} ${rec.core_ok} '${runDir}/stage-${idx}.json' || true"""
               }
             }
@@ -163,17 +259,39 @@ pipeline {
           results.tested   = results.stages.collectMany { it.results.keySet() as List }.unique()
           results.passed   = results.stages.collectMany { it.results.findAll { k, v -> v == 'pass' }.keySet() as List }.unique()
           results.untested = results.tested - results.passed
-          results.core_ok  = results.stages ? results.stages[0].core_ok : false
+          // core_ok is stage 1's — AND ci-10's coupling: an isle that could not
+          // hand the machine back never counts as a passing core.
+          results.core_ok  = results.stages ? (results.stages[0].core_ok
+                                               && results.stages[0].uninstall_verdict == 'clean') : false
+          results.leak_summary = [
+            policy: leakPolicy,
+            stopped: stopped ?: '',
+            stages_clean:  results.stages.count { it.leak_verdict == 'clean' },
+            stages_leaked: results.stages.count { it.leak_verdict != 'clean' },
+            leaks: results.stages.collectMany { it.leaks ?: [] },
+            ram_delta_mb:  results.stages.collect { it.ram_delta_mb  ?: 0 }.sum() ?: 0,
+            disk_delta_mb: results.stages.collect { it.disk_delta_mb ?: 0 }.sum() ?: 0,
+            uninstall: results.stages.collectEntries { ["stage${it.index}": it.uninstall_verdict] },
+          ]
           writeFile file: "${runDir}/results.json", text: groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(results))
           sh "cat '${runDir}/results.json'"
-          archiveArtifacts artifacts: 'isle-test/results.json', allowEmptyArchive: true
+          archiveArtifacts artifacts: 'isle-test/results.json,isle-test/leak-*.json,isle-test/uninstall-*.json',
+                           allowEmptyArchive: true
+          if (stopped) {
+            currentBuild.result = 'UNSTABLE'
+            echo "the run stopped early: ${stopped}"
+          }
         }
       }
     }
   }
   post {
     always  {
-      sh 'bash "$ISLE/throwaway.sh" down || true'   // belt and braces: nothing survives this job
+      // belt and braces: nothing of OURS survives this job. `down` ends in the
+      // scoped wipe; the extra `wipe` covers a job that died before any stage
+      // ran (so `down` never happened) and is idempotent when it did.
+      sh 'bash "$ISLE/throwaway.sh" down || true'
+      sh 'bash "$ISLE/throwaway.sh" wipe || true'
       script { sh "bash /var/polari-jenkins/cicd-sync.sh run isle-test \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} \"\$VERSION\" 'stages recorded in results.json' || true" }
     }
     cleanup { cleanWs() }
