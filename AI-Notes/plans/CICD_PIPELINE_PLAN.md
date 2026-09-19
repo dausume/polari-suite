@@ -528,3 +528,10 @@ pipelines deliberately lack today becomes: `pol modules testplan plan`
 limits and run the selftests of its closure; distributed verdicts run on
 the named swarm/isle node over ssh; refusals are rows. Plan:
 AI-Notes/plans/TEST_COVERAGE_PLAN.md (tcov-4/5).
+
+## 8. Scanning + release automation → SCANNING_AND_RELEASE_AUTOMATION_PLAN.md
+His asks 2026-09-19: (1) an **advisory-only** scanning layer — OS- and
+app-level, over the pipeline AND the artifacts (debs, images, source) —
+where no scan ever blocks a build or a publish; (2) **real artifact
+releases on merges to main** (today `polari-release` always triggers
+`polari-publish` with `DRY_RUN=true`, §6). Phases scn-0..6 / rel-0..3.
