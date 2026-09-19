@@ -4,6 +4,10 @@ pipeline {
   options { timestamps(); timeout(time: 180, unit: 'MINUTES'); disableConcurrentBuilds(); lock(resource: 'polari-build') }  // never overlaps a dev build (same daemon, same staging tags)
   environment { POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}" }
   stages {
+    // ci-8: the settings come from the `cicd` Polari app (non-fatal pull), and the run is mirrored back.
+    stage('sync settings from Polari (non-fatal)') {
+      steps { sh 'bash /var/polari-jenkins/cicd-sync.sh pull || true; bash /var/polari-jenkins/cicd-sync.sh run release "$BUILD_NUMBER" running "" "release build" || true' }
+    }
     stage('disk guard') { steps { sh 'bash /var/polari-jenkins/retention.sh guard' } }
     stage('checkout main (top-level submodules only)') {
       steps {
@@ -117,12 +121,19 @@ PY'''
         }
       }
     }
+    // ci-8: the release RECORD — what shipped, what did not and why, and (app mode) the CORE release it
+    // was tested against. Mirrored in with the posting-only credential; never fatal.
+    stage('mirror the release record into Polari') {
+      steps { sh 'bash /var/polari-jenkins/cicd-sync.sh release "$POLARI_VERSION" "$POOL/$POLARI_VERSION/release.json" || true' }
+    }
     stage('not released (untested)') {
       when { not { environment name: 'RELEASE_TESTED', value: 'yes' } }
       steps { echo 'not released: untested/failed. The build stays in the pool, the tag is not pushed, and polari-publish is still triggered — every route will print its own DRY line naming the missing results. Run polari-isle-test for this version, then re-run polari-publish.' }
     }
   }
   post {
+    // ci-8: the run's outcome, mirrored in (never fatal, never a Jenkins credential)
+    always { script { sh "bash /var/polari-jenkins/cicd-sync.sh run release \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} '' 'release build' || true" } }
     // ci-7: DRY_RUN=auto — each route publishes for real only when its secret is present AND it is
     // named in CI_ROUTES (device.env). Nothing is armed by being triggered.
     // ci-7b: and the routes re-read isle-test/results.json themselves (routes/_lib.sh), so triggering

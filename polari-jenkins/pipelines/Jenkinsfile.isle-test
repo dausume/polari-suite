@@ -44,6 +44,11 @@ pipeline {
   }
   stages {
 
+    // ci-8: pull the settings the `cicd` app holds BEFORE the preflight reads them (non-fatal).
+    stage('sync settings from Polari (non-fatal)') {
+      steps { sh 'bash /var/polari-jenkins/cicd-sync.sh pull || true; bash /var/polari-jenkins/cicd-sync.sh run isle-test "$BUILD_NUMBER" running "$VERSION" "the throwaway isle stages" || true' }
+    }
+
     stage('preflight — is the device clear, and does it have room?') {
       steps {
         sh 'bash "$ISLE/preflight.sh" --isle'          // exit 4 = REFUSED, with the table
@@ -116,6 +121,12 @@ pipeline {
                 sh 'bash "$ISLE/throwaway.sh" down || true'
                 rec.finished = new Date().format("yyyy-MM-dd'T'HH:mm:ss")
                 results.stages << rec
+                // ci-8: mirror THIS stage into Polari as it finishes, so a long run is legible while it
+                // is still running and a stage that dies later does not take its result with it.
+                writeFile file: "${runDir}/stage-${idx}.json",
+                          text: groovy.json.JsonOutput.toJson([version: params.VERSION ?: '', tested: apps,
+                                                               results: rec.results])
+                sh """bash /var/polari-jenkins/cicd-sync.sh isle-test '${env.JOB_NAME}#${env.BUILD_NUMBER}' ${idx} ${rec.core_ok} '${runDir}/stage-${idx}.json' || true"""
               }
             }
           }
@@ -133,7 +144,10 @@ pipeline {
     }
   }
   post {
-    always  { sh 'bash "$ISLE/throwaway.sh" down || true' }   // belt and braces: nothing survives this job
+    always  {
+      sh 'bash "$ISLE/throwaway.sh" down || true'   // belt and braces: nothing survives this job
+      script { sh "bash /var/polari-jenkins/cicd-sync.sh run isle-test \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} \"\$VERSION\" 'stages recorded in results.json' || true" }
+    }
     cleanup { cleanWs() }
   }
 }

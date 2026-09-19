@@ -11,9 +11,11 @@
 
 DEVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-DEVICE_KEYS="CI_ISLE_TARGET CI_ISLE_SSH_HOST CI_ISLE_SSH_USER CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB \
+DEVICE_KEYS="CI_MODE CI_APP_NAME CI_APP_REPO CI_CORE_SOURCE \
+CI_ISLE_TARGET CI_ISLE_SSH_HOST CI_ISLE_SSH_USER CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB \
 CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_POOL CI_ISLE_IMAGE_URL \
-CI_MIN_FREE_GB CI_MIN_RAM_HEADROOM_GB CI_EXECUTORS CI_ROUTES CI_ISLE_STAGES"
+CI_MIN_FREE_GB CI_MIN_RAM_HEADROOM_GB CI_EXECUTORS CI_ROUTES CI_ISLE_STAGES \
+CI_CORE_URL CI_DEVICE_NAME"
 
 # Where the module manifests live (modules/<name>/polari-app.json) — the
 # catalogue CI_ISLE_STAGES is validated against. Overridable for tests.
@@ -42,6 +44,14 @@ device_load() {
         local pre="_PRE_$k"; [ -z "${!pre}" ] || printf -v "$k" '%s' "${!pre}"
     done
     # ------------------------------------------------------------ defaults
+    # ci-8, his addendum 2026-09-19: what this pipeline is FOR.
+    #   suite  the whole Polari suite is built, tested and released (today's shape)
+    #   app    ONE Polari app somebody maintains — CI_APP_NAME + CI_APP_REPO, and the CORE is PULLED
+    #          from CI_CORE_SOURCE (release:<tag>|release:latest), never rebuilt
+    : "${CI_MODE:=suite}"
+    : "${CI_APP_NAME:=}"
+    : "${CI_APP_REPO:=}"
+    : "${CI_CORE_SOURCE:=release:latest}"
     : "${CI_ISLE_TARGET:=local}"
     : "${CI_ISLE_SSH_HOST:=}"
     : "${CI_ISLE_SSH_USER:=}"
@@ -57,6 +67,16 @@ device_load() {
     : "${CI_EXECUTORS:=1}"
     : "${CI_ROUTES:=github-release,ghcr,homebrew,apt-repo}"
     : "${CI_ISLE_STAGES:=core}"
+    # ci-8: the Polari core that holds the SETTINGS for this device. Empty = no sync; the file below is
+    # then the only truth there is, which is exactly the fallback posture cicd-sync.sh degrades to.
+    : "${CI_CORE_URL:=}"
+    # ci-8: the NAME this device has in Polari. A name somebody chooses — never the machine's
+    # hostname (his privacy rule: no real host ever reaches a row, a page or an API answer).
+    : "${CI_DEVICE_NAME:=pipeline}"
+    # app mode's default stage list is core + the one app (the cicd module says the same thing in python)
+    if [ "$CI_MODE" = app ] && [ -n "$CI_APP_NAME" ] && [ "$CI_ISLE_STAGES" = core ]; then
+        CI_ISLE_STAGES="core; $CI_APP_NAME"
+    fi
 }
 
 # --------------------------------------------------------- testing stages
@@ -145,6 +165,29 @@ device_validate() {
     if [ "$DEVICE_ENV_PRESENT" = 1 ]; then _row device.env "$DEVICE_ENV_FILE" OK "present"
     else _row device.env "$DEVICE_ENV_FILE" WARN "absent — defaults in force → write it with: pol jenkins target local (or: pol jenkins target ssh <alias>)"; fi
 
+    # ---------------------------------------------------- ci-8: the two modes
+    # A mode outside suite|app is a WARN and reads as `suite` — an unknown mode from a newer core must not
+    # stop this device from running the pipeline it already has.
+    case "$CI_MODE" in
+        suite) _row CI_MODE suite OK "the whole Polari suite is built, tested and released" ;;
+        app)   _row CI_MODE app OK "this device maintains ONE Polari app: ${CI_APP_NAME:-(unnamed)}" ;;
+        *)     _row CI_MODE "$CI_MODE" WARN "unknown mode → suite|app; reading it as suite" ;;
+    esac
+    if [ "$CI_MODE" = app ]; then
+        [ -n "$CI_APP_NAME" ] || _row CI_APP_NAME "" FAIL \
+            "app mode maintains ONE app but names none → set CI_APP_NAME to the module package"
+        [ -n "$CI_APP_REPO" ] || _row CI_APP_REPO "" FAIL \
+            "app mode needs the app's own repository → set CI_APP_REPO to the polari-module-${CI_APP_NAME:-<name>} git URL"
+    elif [ -n "$CI_APP_NAME$CI_APP_REPO" ]; then
+        _row CI_APP_NAME "$CI_APP_NAME" WARN "set but the mode is suite → it is ignored; set CI_MODE=app to maintain one app"
+    fi
+    case "$CI_CORE_SOURCE" in
+        build)      _row CI_CORE_SOURCE build OK "the core is REBUILT from this suite checkout" ;;
+        release:)   _row CI_CORE_SOURCE "$CI_CORE_SOURCE" FAIL "release: with no tag → release:latest, or release:<a Polari release tag>" ;;
+        release:*)  _row CI_CORE_SOURCE "$CI_CORE_SOURCE" OK "the core debs and images are PULLED from that Polari release, never rebuilt" ;;
+        *)          _row CI_CORE_SOURCE "$CI_CORE_SOURCE" FAIL "unknown core source → release:<tag> | release:latest (pull) or build (rebuild)" ;;
+    esac
+
     case "$CI_ISLE_TARGET" in
         local) _row CI_ISLE_TARGET local OK "the throwaway isle is created on this machine" ;;
         ssh)   _row CI_ISLE_TARGET ssh OK "the throwaway isle is created on another device" ;;
@@ -225,6 +268,18 @@ device_validate_stages() {
         "tested twice (each stage installs core + its own apps):$dupes → name each app in ONE stage"
     [ -z "$empties" ] || _row "isle stages (empty)" "stage$empties" WARN \
         "empty stage(s)$empties — they would re-test core only → remove them, or name their apps"
+    # ci-8 (his addendum): in app mode another app may be TESTED here but is never RELEASED here.
+    if [ "$CI_MODE" = app ] && [ -n "$CI_APP_NAME" ]; then
+        local others=""
+        for a in $(stages_all_apps); do [ "$a" = "$CI_APP_NAME" ] || others="$others $a"; done
+        [ -z "$others" ] || _row "isle stages (other apps)" "${others# }" WARN \
+            "this device maintains $CI_APP_NAME; other apps are tested but never released here:$others"
+        case " $(stages_all_apps | tr '\n' ' ') " in
+            *" $CI_APP_NAME "*) ;;
+            *) _row "isle stages (the app)" "$CI_APP_NAME" WARN \
+                   "app mode maintains $CI_APP_NAME but no stage tests it → nothing can be released (the default is: core; $CI_APP_NAME)" ;;
+        esac
+    fi
 }
 
 device_ssh_alias_known() {

@@ -7,6 +7,10 @@ pipeline {
   options { timestamps(); timeout(time: 90, unit: 'MINUTES'); lock(resource: 'polari-build') }  // publish loads/tags images — waits for any build to finish
   environment { POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}"; ROUTES_DIR = "${env.POLARI_ROUTES ?: '/var/polari-jenkins/routes'}" }
   stages {
+    // ci-8: the routes' enabled/armed state comes from the `cicd` app's rows (non-fatal pull).
+    stage('sync settings from Polari (non-fatal)') {
+      steps { sh 'bash /var/polari-jenkins/cicd-sync.sh pull || true; bash /var/polari-jenkins/cicd-sync.sh run publish "$BUILD_NUMBER" running "$VERSION" "publish routes" || true' }
+    }
     stage('verify pool') {
       steps { sh 'test -n "$VERSION" || { echo "VERSION required"; exit 1; }; test -f "$POOL/$VERSION/release.json" || { echo "no pool/$VERSION/release.json — run polari-release first"; exit 1; }; cd "$POOL/$VERSION" && sha256sum --quiet -c SHA256SUMS && echo "pool $VERSION verified"' }
     }
@@ -36,5 +40,11 @@ pipeline {
       }
     }
   }
-  post { always { sh 'echo "publish run: VERSION=$VERSION DRY_RUN=$DRY_RUN ROUTES=$ROUTES CI_ROUTES=${CI_ROUTES:-unset}"' } }
+  post {
+    always {
+      sh 'echo "publish run: VERSION=$VERSION DRY_RUN=$DRY_RUN ROUTES=$ROUTES CI_ROUTES=${CI_ROUTES:-unset}"'
+      script { sh "bash /var/polari-jenkins/cicd-sync.sh run publish \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} \"\$VERSION\" 'routes rendered or published' || true" }
+      sh 'bash /var/polari-jenkins/cicd-sync.sh release "$VERSION" "$POOL/$VERSION/release.json" || true'
+    }
+  }
 }

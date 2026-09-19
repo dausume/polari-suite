@@ -53,6 +53,41 @@ come from outside authority: the step prints the URL and the exact scopes,
 takes the value pasted in (hidden, never echoed or logged) and stores it
 through `pol jenkins secrets put`. Skipping one keeps its route DRY.
 
+## Where the settings live (ci-8) — the `cicd` Polari app
+
+**Polari is the source of truth for everything in `device.env`.** The `cicd`
+module holds it as rows (`PipelineDevice`, `PipelineStage`, `PipelineRoute`),
+edited on those rows' own pages by an administrator, and `cicd-sync.sh pull`
+rewrites `device.env` from them at the top of every Jenkinsfile.
+
+    pol jenkins sync pull      GET $CI_CORE_URL/api/cicd → rewrite device.env
+    pol jenkins sync push      report readiness, routes armed and secret PRESENCE back
+    pol jenkins sync status    what it would do, and whether the core answers
+
+The pull is **never fatal**: a core that does not answer leaves the
+`device.env` this device already has and says so on one line. A pipeline
+that stalled because a web service was down would be worse than one that
+used yesterday's knobs and told you.
+
+The device also mirrors **runs**, **isle-test stage results** and **release
+records** back, through a per-device **posting-only** credential
+(`polari/cicd_ingest_token`, minted once by an administrator at
+`POST /api/cicd/device/token`). That credential may post those five kinds and
+nothing else: it is not a Jenkins account, it cannot read or change a
+setting, and no secret VALUE ever leaves this device — only names and a
+boolean, and the core's door refuses a body carrying a value.
+
+### Two modes (his addendum, 2026-09-19)
+
+`CI_MODE=suite` (the default) builds, tests and releases the whole Polari
+suite. `CI_MODE=app` maintains **one** Polari app: `CI_APP_NAME` from
+`CI_APP_REPO`, with the core **pulled** from `CI_CORE_SOURCE`
+(`release:<tag>` or `release:latest`) rather than rebuilt, the stages
+defaulting to `core; <app>`, and only that app's deb released — to that
+developer's **own** routes. A fork is never republished under an upstream
+name, and the release record names the core release the app passed against.
+`CI_CORE_SOURCE=build` is the escape hatch for somebody who also patches core.
+
 ## The release rule — only what is tested is released
 
 The throwaway isle is what the pipeline *analyses*. `polari-isle-test` runs
@@ -212,7 +247,7 @@ deb-install → core-install → verify → uninstall cycle inside the guest is
 - ONE build at a time: a global `polari-build` lock across dev-build, release and publish; a newer dev trigger aborts the running dev build (latest commit wins).
 
 ## Tests
-`bash polari-jenkins/selftest.sh` — the ci-7/ci-7b tests, **120/120**. They
+`bash polari-jenkins/selftest.sh` — the ci-7/ci-7b/ci-8 tests, **152/152**. They
 need **no docker, libvirt, sudo or network**: the scripts run against a temp
 tree and PATH shims, covering the doctor's WARN wording per
 misconfiguration, the preflight's PASS/FAIL arithmetic and the
@@ -222,7 +257,10 @@ route's secret must carry a URL or a generate command), `--report` with no
 terminal, setup idempotence and the skip path, the `CI_ISLE_STAGES` parsing
 and its unknown/twice/empty warnings, and the tested-only release rule
 (no results → all DRY · `core_ok` false → all DRY · a failed app excluded
-from the assets · `DRY_RUN=false` cannot override it). It prints `N/N`.
+from the assets · `DRY_RUN=false` cannot override it), and ci-8's two modes
+plus the sync with Polari (a pull rewrites `device.env` from a fixture, a
+core that is down or answers invalid settings leaves the file alone, and a
+push carries presence and never a value). It prints `N/N`.
 
 ## Not yet
 The `ReleasePublication` rows in Polari (ci-6a), agent nodes beyond the

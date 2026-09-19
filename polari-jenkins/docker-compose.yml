@@ -47,6 +47,10 @@ services:
       - ./isle:/var/polari-jenkins/isle:ro
       - ./mint-tag.sh:/var/polari-jenkins/mint-tag.sh:ro
       - ./device.sh:/var/polari-jenkins/device.sh:ro
+      # ci-8: the two directions between this device and the Polari core that
+      # OWNS these settings (pull rewrites device.env; the mirror posts runs)
+      - ./cicd-sync.sh:/var/polari-jenkins/cicd-sync.sh:ro
+      - ./secrets.sh:/var/polari-jenkins/secrets.sh:ro
       # /etc/polari-jenkins/secrets (root:polari-ci 0640) after init-device;
       # ./secrets (host user, 0600) only until it has run — see secrets/README.md
       - ${POLARI_SECRETS_DIR:-./secrets}:/run/secrets:ro

@@ -5342,3 +5342,243 @@ polari-jenkins selftest — no docker, no libvirt, no sudo, no network
 7. Nothing is committed. `polari-jenkins/device.env` on pol-core is unchanged
    (`CI_ISLE_TARGET=local`, no `CI_ISLE_STAGES` key, so the default `core`
    applies) and is gitignored.
+
+## §71 — ci-8: the `cicd` app — pipeline settings as rows, runs mirrored in
+
+His ask, 2026-09-19: *"We may want a CICD app as well that is always enabled
+with the pipeline that can allow us to read and modify the settings of the
+pipeline."*
+
+His addendum, same day: *"some people will also be using this pipeline as a
+way to maintain their own Polari Apps and will only be testing the one app
+they are developing."*
+
+Built on `dev`, **uncommitted**. Nothing was deployed, no container was
+brought up, `pol jenkins up` was never run, no VM was started, nothing was
+pushed. `polari-jenkins/device.env` and `SETUP_STATUS.md` on pol-core are
+untouched (both gitignored). The two selftests were run for real.
+
+---
+
+### The design, in one paragraph
+
+**Polari is the SOURCE OF TRUTH for the pipeline's configuration.**
+`polari-jenkins/device.env` is the fallback, and it is rewritten from the
+rows by `cicd-sync.sh pull` at the top of every Jenkinsfile — never fatally:
+a core that does not answer leaves the file the device already has and says
+so on one line. **Edits happen on the rows' own pages** (his per-object
+display rule), which are configured `class-rows-table` / `api-structured-panel`
+items — **no new frontend component, no Angular at all**. **Runs, isle-test
+stage results, releases and secret PRESENCE are mirrored IN** through a
+per-device **posting-only** credential that can reach one door and nothing
+else; it is not a build credential and is not a Jenkins account of any kind.
+
+### Two modes (his addendum)
+
+| | `suite` (default) | `app` |
+|---|---|---|
+| what is built | the whole Polari suite | ONE Polari app (`CI_APP_NAME`, from `CI_APP_REPO` — the `pol project` standalone loop) |
+| the core | built here | **pulled**, never rebuilt: `CI_CORE_SOURCE=release:<tag>` / `release:latest` (`build` is the escape hatch for somebody who also patches core) |
+| stages default to | `core` | `core; <app>` |
+| the release is | the suite's artifacts | that app's deb alone |
+| published to | upstream Polari's routes | the developer's OWN (`PipelineRoute.target`); an app-mode route targeting `dausume` is a validation **FAIL** — a fork is never republished under an upstream name |
+| the record says | the version it built | **`tested_against`**: the CORE release the app passed against. An app-mode `release` ingest with no `tested_against` is **refused** — a deb that passed against an unnamed core is an unfalsifiable claim. |
+
+The release rule is unchanged in both: only what a stage TESTED, and passed,
+may ship.
+
+---
+
+### What, and where
+
+| what | where | notes |
+|---|---|---|
+| **the module** | `polari-rf-node/polari-framework/modules/cicd/` (new, 17 files, ~1 900 lines incl. the selftest) | `polari-app.json`, `__init__.py`, `cicd_basis.py`, `cicd_api.py`, `cicd_endpoints.py`, `cicd_seed.py`, `cicd_page.py`, `cicd_selftest.py`, `README.md`, `objects/cicd/*.py` (7), `custom/*.py` (5) |
+| the 7 rows | `modules/cicd/objects/cicd/` one class per file | `PipelineDevice` `PipelineStage` `PipelineRoute` (the SETTINGS a person owns) · `PipelineSecretPresence` `PipelineRun` `IsleTestResult` `ReleaseRecord` (MIRRORED in). `cicd_basis.CICD_CLASSES` splits them, and the selftest asserts the count is 7 |
+| **the ONE rule set** | `modules/cicd/custom/cicd_validate.py` (~330 lines) | `device.sh device_validate` + `device_validate_stages` ported to python, same row shape `(key, value, status, message)`. It is a PORT, not a call: the core is not on the pipeline device and cannot source a shell file beside a `device.env` it has never seen. Kept honest by feeding both copies the same cases |
+| the stage parser | `modules/cicd/custom/cicd_stages.py` | `parse`/`render`/`rows_to_stages` — the exact counterpart of `stages_list` (`;` between stages, `,` inside one, the literal `core` dropping out, an empty stage kept as a line) |
+| the two credentials | `modules/cicd/custom/cicd_auth.py` | `ADMIN_ROLES` (from `polariapps…_shared`, literal fallback) for a person; `hash_token`/`mint_token`/`device_for_token` (sha256 + `hmac.compare_digest`) for the pipeline |
+| the mirror's refusals | `modules/cicd/custom/cicd_ingest.py` | the five kinds; `VALUE_LIKE` deep scan; the loopback-URL rule; the alias-is-not-an-address rule; the app-mode `tested_against` rule; job/status vocabularies |
+| the reads | `modules/cicd/custom/cicd_rows.py` | `everything()` = the ONE read `pull` makes; `MODE_SUITE`/`MODE_APP`/`RELEASE_RULE` in words |
+| **the pages** | `modules/cicd/cicd_page.py` | `/display/cicd`, `cicd-stages`, `cicd-runs`, `cicd-releases`. Only `class-rows-table` + `api-structured-panel`; the settings tables ARE the editing surface |
+| the write gate | `modules/cicd/cicd_seed.py` | `cicd-settings` (published, `["polari-admin"]`, all verbs, the three settings classes) and `cicd-observer` (the shipped TEMPLATE convention: unpublished, no group bound, read-only). Guarded import — a core without polariapps admits the module fine |
+| **the sync** | `polari-jenkins/cicd-sync.sh` (NEW, ~250 lines) | `pull` · `push` · `push-secrets` · `run` · `isle-test` · `release` · `status` |
+| the CLI | `polari-cli/scripts/jenkins.sh` (`sync` case + the help block), `polari-cli/scripts/lib/jenkins-device.sh` (`jd_sync`) | `pol jenkins sync pull\|push\|status` |
+| the device's new keys | `polari-jenkins/device.sh` (`DEVICE_KEYS`, defaults, `device_validate`, `device_validate_stages`), `device.env.example` | `CI_MODE` `CI_APP_NAME` `CI_APP_REPO` `CI_CORE_SOURCE` `CI_CORE_URL` `CI_DEVICE_NAME` (21 keys, was 15) |
+| the doctor learns 3 rows | `polari-jenkins/doctor.sh` §"the settings' source" | `cicd core` (matches / DIFFERS / no row / down) · `cicd module` (a core that answers but has no `/api/cicd`) · `cicd credential` |
+| the pipelines | all four `polari-jenkins/pipelines/Jenkinsfile.*` | a `sync settings from Polari (non-fatal)` first stage; `run` at start and in `post always` (`currentBuild.currentResult.toLowerCase()`); `isle-test` per stage as it finishes; `release` from `release.json` |
+| compose | `polari-jenkins/docker-compose.yml` | `cicd-sync.sh` + `secrets.sh` mounted into the controller |
+| **admission** | `polari-cli/prod-profiles/pipeline-device.env:12` — `POL_PROD_MODULES=polariapps,appstore,islemesh,terms,security,iso,cicd` | `pol prod profile use pipeline-device --apply`. The doctor checks it live and names that command when a core answers without `/api/cicd` (`doctor.sh:95-97`) |
+| core registration | `polariApiServer/feature_imports.py:1262-1269` · `polariApiServer/module_endpoints.py:526-529,533` · `moduleService/module_loading.py:38` · `polariApiServer/polariServer.py:1282-1285` (defClassList), `:2362-2363` (pages), `:3261` (seed pairs) | the same six points `iso` uses |
+| docs | `modules/cicd/README.md` (new), `polari-jenkins/README.md` §"Where the settings live (ci-8)", `polari-cli/prod-profiles/README.md` (the profile table) | |
+
+### The doors
+
+    GET  /api/cicd                  settings + stages + routes + readiness + the rendered device.env, in ONE read
+    GET  /api/cicd/device           the settings and their validation (+ token_set, never the hash)
+    POST /api/cicd/device           ADMIN — change them; a FAIL refuses the WHOLE post, nothing partial
+    POST /api/cicd/device/token     ADMIN — mint the posting-only token, SHOWN ONCE; only sha256 stored
+    POST /api/cicd/stages           ADMIN — replace the ordered stages (a shorter list loses its tail rows)
+    POST /api/cicd/routes/{route}   ADMIN — {"enabled": …} (+ optional {"target": …})
+    POST /api/cicd/ingest           the MIRROR — the posting-only token; five kinds
+    GET  /api/cicd/runs  /results  /releases
+
+`GET /api/cicd` is deliberately unauthenticated: it holds knobs and verdicts,
+no secret value exists anywhere in the answer, and a pipeline that also had
+to hold a READ credential would be one more secret on the device for nothing.
+
+### Why a token and not a Keycloak service account
+
+A pipeline device commonly points at a **lean** core where `POL_PROD_AUTH=off`
+and there is no Keycloak at all (`docker-compose.lean.yml:136`). A credential
+that only existed when Keycloak did would work on one deployment and silently
+not on another. The token is per device (`hmac.compare_digest` against that
+device's hash alone), so a leak is revoked by re-minting **one** device's and
+every other is untouched; and it can post the five kinds and nothing else.
+
+---
+
+### Exact numbers
+
+* `modules/cicd/cicd_selftest.py` — **128/128**
+  (`cd polari-rf-node/polari-framework && PYTHONPATH=.:modules python3 modules/cicd/cicd_selftest.py`)
+* `polari-jenkins/selftest.sh` — **152/152** (was 120/120; +32 for ci-8)
+* `modules/security/security_selftest.py` — **296/299**, unchanged
+* `python3 -m moduleService.manifests generate cicd` then `conform cicd` — **1/1 conform, OK**
+* `PYTHONPATH=.:modules python3 -c "import polariApiServer.polariServer"` — clean
+  (the two pre-existing `RelayNodeDefinition` / `GuestNetworkDefinition`
+  "no assigned manager" lines are unchanged from before this slice)
+* 7 row classes, 9 doors, 4 pages, 5 ingest kinds, 21 `DEVICE_KEYS` (was 15),
+  19 keys rendered into `device.env` (`CI_CORE_URL` and `CI_DEVICE_NAME` are
+  device-local and preserved by a pull, never written by the core)
+
+The 32 new shell cases: 11 mode cases (suite/app, the two FAILs when an app
+mode names neither app nor repo, the app-mode stage default, "another app is
+tested but never released here", no stage tests the app it maintains, an
+unknown mode read as suite, the three `CI_CORE_SOURCE` shapes), 8 pull cases
+(rewrites the file, the mode keys land, `CI_CORE_URL` survives, the trailing-
+newline trap, a core that is down keeps the file, a core answering FAIL-ing
+settings keeps the file, no `CI_CORE_URL` says so plainly), 13 push cases
+(the device kind with its mode and armed routes; the secrets kind with the
+name and the boolean; and four separate assertions that **no secret value and
+no posting token** appear in any posted body or in `status`).
+
+The 128 python checks cover: the rows and the class-count assertion, the
+value-shaped-field audit of **every** class by `inspect.signature`, the
+device.sh parity cases, ci-8's own alias-is-not-an-address rule, the stage
+parser both ways, all of the two modes, the mirror's refusals (401 with no
+credential, 401 with a wrong one, 400 naming the five kinds, 400 naming the
+value-shaped field **with nothing stored**, 400 for a non-loopback URL / an
+unknown job / an unknown status, 403 for one device's token posting for
+another), REPORT-not-override and ADOPTION, the token shown once and revoked
+by re-minting, the admin refusals (401/403), the stage tail removal, the
+parked/unknown route refusals, the §54 route guard, the pages' component
+audit, the seed (nothing about a machine or a build is seeded), and the
+manifest + the admission knob **by file** (`pipeline-device.env`'s
+`POL_PROD_MODULES` must end in `,cicd`).
+
+---
+
+### Gotchas found and fixed while building
+
+* **`python3 - <<'PY'` feeds the SCRIPT on stdin** — the §70 gotcha, hit
+  again in `cicd-sync.sh do_pull`: the heredoc'd analyser could not also read
+  the piped response body, so every pull silently reported "the core answered
+  but not with a usable settings set". The body now goes through a file and
+  an argv path. Caught by the new selftest, not by inspection.
+* **`$(…)` strips the trailing newline**, so the LAST pulled key ran into the
+  appended one: `CI_ISLE_STAGES=core; householdCI_CORE_URL=…`. `printf '%s\n'`,
+  always — and there is now a selftest case for exactly that line.
+* **A settings change was refusable by an empty stage list.** `validate_settings`
+  FAILs on "no testing stage at all" (correctly — `device.sh` does too), which
+  made `POST /api/cicd/device` refuse a RAM change on a device nobody had
+  written stages for yet. The stage FAILs are now excluded from that door's
+  refusals (they belong to `POST /api/cicd/stages`) and still appear in the
+  rows. Wrong coupling, found by the selftest.
+* **Rows are keyed by their generated tree id, not by `name`.** The selftest's
+  first pass looked rows up as `objectTables['PipelineDevice']['pipe-1']` and
+  found nothing; a `_named()` helper does what a door does.
+* **A fake manager needs `idList`** (and a `noteTreeMutation` no-op) or
+  `treeObject.makeUniqueIdentifier` raises — `security_selftest` sidesteps it
+  by using `SimpleNamespace` rows; this one instantiates the real classes, so
+  it provides them.
+* **`CICD_DEVICE_NAME` must not default to `hostname`.** The first draft did,
+  which would have written the machine's real hostname into a row that is
+  persisted, rendered on a page and served by an API — his privacy rule. It is
+  now `CI_DEVICE_NAME`, default `pipeline`, with the reason in
+  `device.env.example`.
+* **A device push must REPORT, not override.** The obvious implementation
+  (write what the device sent) would have quietly made `device.env` the source
+  of truth again — the exact thing this slice exists to stop. A push writes
+  only the reported columns; the one exception is ADOPTION, a device the core
+  has never seen, whose own file is the only configuration that exists.
+* `del <expr> if … else None` is not valid Python (`cannot delete conditional
+  expression`) — a leftover from sketching the adoption case.
+* **A latent defect in the security module, found in passing:**
+  `modules/security/security_api.py:210` imports
+  `polariApiServer.seed_upsert`, which **does not exist** (the module is
+  `moduleService.seed_upsert`). Every `SecurityAPI._upsert` therefore falls
+  into its `except` branch and constructs a raw object instead of upserting —
+  so a re-posted audit run or ssh inventory INSERTS a duplicate rather than
+  converging. `cicd_api._upsert` uses the correct path. Not fixed here (out of
+  this slice's scope), flagged as OWED 4.
+
+### Deliberate deviations from the brief
+
+1. **`pol jenkins doctor` does not pull before reading.** The doctor's own
+   contract, printed in its header, is "read-only; it changes nothing", and a
+   pull rewrites `device.env`. It COMPARES instead — `cicd core — device.env
+   matches the rows` / `…DIFFERS → pol jenkins sync pull` — and `pol jenkins
+   setup` remains the interactive path that may change things. Say the word
+   and it becomes a pull.
+2. **The mirror inside the controller container is one-way-effective today.**
+   `device.sh`'s precedence is "an exported `CI_*` beats the file", and
+   `pol jenkins up` exports the whole set into compose — so a pull *inside*
+   the controller writes the file but the stale export still wins for that
+   process. `do_pull` now prints one `⚠ <KEY>: the core says X but an exported
+   value Y is in force` line per divergent key rather than pretending
+   otherwise. OWED 1.
+
+---
+
+### OWED
+
+1. **The pulled file does not yet outrank the compose export inside the
+   controller.** Either `pol jenkins up` stops exporting `CI_*` (and the
+   container reads the mounted `device.env`), or `device.sh` grows a
+   "`the file was written by a pull`" precedence. Today the divergence is
+   printed, loudly, per key — which is honest but not yet right.
+2. **The live proof on the home stack has not happened.** Nothing was
+   deployed: the pages have never been rendered in a browser, `GET /api/cicd`
+   has never been served by a real backend, and no admin has minted a token
+   through the real door. Needs `pol prod profile use pipeline-device --apply`
+   (or `cicd` added to the running stack's `POLARI_MODULES`) and a browser
+   pass over the four pages.
+3. **The first real sync from a pipeline device has not happened.** Every
+   `cicd-sync.sh` path is proven against a scripted `curl`; none has talked to
+   a Polari instance. The first real run should be: `pol jenkins sync status`
+   → `push` (adoption) → change a knob on `/display/cicd` → `pull` → confirm
+   `device.env` followed.
+4. **`security_api.py:210` imports a module that does not exist**
+   (`polariApiServer.seed_upsert` vs `moduleService.seed_upsert`), so every
+   security upsert silently degrades to a raw insert. One-line fix; not taken
+   in this slice.
+5. **ci-3 still blocks everything downstream.** The install cycle inside the
+   guest is still a marked TODO, so every stage records `skipped`, `core_ok`
+   stays false, and the release rule publishes nothing — which means the
+   `IsleTestResult` and `ReleaseRecord` tables will be honest and empty until
+   ci-3 lands. `app` mode inherits that exactly: a developer's app deb cannot
+   ship until a stage can actually pass.
+6. **`CI_CORE_SOURCE=release:<tag>` is a SHAPE, not a fetch.** Nothing
+   resolves the tag yet; pulling an official release's core debs and images
+   into a pool for an app-mode run is not built. `pol prod`'s
+   `POL_PROD_DEBS=release:<tag>` reader is the obvious place to reuse.
+7. **`app` mode's isle-test body is not narrowed yet.** `Jenkinsfile.isle-test`
+   still walks `CI_ISLE_STAGES` generically; "install the core from
+   `CI_CORE_SOURCE`, then run only this app's selftests" is part of the same
+   ci-3 body.
+8. **Scan/SBOM assets for an app release** (mentioned in his addendum) are not
+   built — `ReleaseRecord.released_json` carries whatever `release.json` names.
+9. Nothing is committed, nothing is pushed.
+
+**§71 review note (Fable):** the latent `security_api._upsert` defect the build found is FIXED in the same commit — it imported a `polariApiServer.seed_upsert` that never existed, so every posted audit / inventory / ssh row was CONSTRUCTED anew instead of converged (a duplicate per POST); it now calls `moduleService.seed_upsert.upsert_seed_rows` and returns the live row by name. Security selftest unchanged at 296/299.

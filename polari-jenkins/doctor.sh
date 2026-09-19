@@ -67,6 +67,46 @@ while IFS='|' read -r key val status msg; do
     esac
 done < <(device_validate)
 
+# ------------------------------------------- ci-8: where the settings live
+# The `cicd` Polari app is the SOURCE OF TRUTH for everything above; this
+# file is the fallback. The doctor only COMPARES — it promises to change
+# nothing, so it never pulls (that is `pol jenkins sync pull`).
+sec "the settings' source — the cicd app (Polari), with device.env as the fallback"
+if [ -z "${CI_CORE_URL:-}" ]; then
+    warn "cicd core" "CI_CORE_URL is empty — this device.env is the only truth there is" \
+         "set CI_CORE_URL in device.env to the Polari instance that holds the pipeline settings, then pol jenkins sync push"
+else
+    if CORE_BODY=$(curl -fsS --max-time 8 "$CI_CORE_URL/api/cicd?device=$CI_DEVICE_NAME" 2>/dev/null); then
+        if printf '%s' "$CORE_BODY" | grep -q '"ok": *true'; then
+            CORE_ENV=$(printf '%s' "$CORE_BODY" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("device_env",""))' 2>/dev/null || true)
+            HERE=$(grep -vE '^(#|$|CI_CORE_URL=)' "$DEVICE_ENV_FILE" 2>/dev/null | sort || true)
+            THERE=$(printf '%s' "$CORE_ENV" | grep -vE '^(#|$|CI_CORE_URL=)' | sort || true)
+            if [ "$HERE" = "$THERE" ]; then ok "cicd core" "$CI_CORE_URL — device.env matches the rows"
+            else warn "cicd core" "$CI_CORE_URL answers, and its settings DIFFER from this device.env" \
+                      "pol jenkins sync pull — Polari is the source of truth; this file follows"; fi
+        else
+            warn "cicd core" "$CI_CORE_URL has no PipelineDevice row for this device" \
+                 "pol jenkins sync push — the first push ADOPTS this device's configuration as the first version of the truth"
+        fi
+    else
+        # 404 from a core that IS up means the `cicd` module is not admitted there — a different problem
+        # from a core that is down, and it has a different fix, so the two are never reported as one.
+        CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "$CI_CORE_URL/api/cicd" 2>/dev/null || echo 000)
+        if [ "$CODE" = 404 ]; then
+            warn "cicd module" "$CI_CORE_URL answers but has no /api/cicd — the cicd module is NOT admitted on that instance" \
+                 "admit it: pol prod profile use pipeline-device --apply (its POL_PROD_MODULES ends in ,cicd), or add cicd to POL_PROD_MODULES / POLARI_LEAN_MODULES and redeploy"
+        else
+            ok "cicd core" "$CI_CORE_URL does not answer (HTTP $CODE) — the pipeline runs on this device.env and says so (never fatal)"
+        fi
+    fi
+    if secrets_have "${CICD_TOKEN_SECRET:-polari/cicd_ingest_token}"; then
+        ok "cicd credential" "polari/cicd_ingest_token present — the mirror can post runs and results"
+    else
+        warn "cicd credential" "polari/cicd_ingest_token absent — runs and isle results are not mirrored into Polari" \
+             "an administrator mints it (POST $CI_CORE_URL/api/cicd/device/token, shown once), then: pol jenkins secrets put polari/cicd_ingest_token"
+    fi
+fi
+
 # --------------------------------------------------------------- .env
 sec "the controller (.env, compose)"
 if [ -f "$J/.env" ]; then

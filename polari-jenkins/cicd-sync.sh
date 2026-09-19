@@ -1,0 +1,312 @@
+#!/bin/bash
+# polari-jenkins/cicd-sync.sh — the two directions between THIS device and
+# the Polari core that owns its settings (ci-8, his ask 2026-09-19: "We may
+# want a CICD app as well that is always enabled with the pipeline that can
+# allow us to read and modify the settings of the pipeline.").
+#
+#   cicd-sync.sh pull            GET  $CI_CORE_URL/api/cicd  → rewrite device.env
+#   cicd-sync.sh push            POST the device kind: readiness, routes armed, stages
+#   cicd-sync.sh push-secrets    POST the secrets kind: PRESENCE only, never a value
+#   cicd-sync.sh run <job> <number> <status> [version] [summary]
+#   cicd-sync.sh isle-test <run> <stage> <core_ok> <results.json>
+#   cicd-sync.sh release <version> <release.json>
+#   cicd-sync.sh status          what it would do, and whether the core answers
+#
+# THE DIRECTION OF TRUTH. Polari holds the settings; this file is the
+# FALLBACK. `pull` runs at the top of every Jenkinsfile and is deliberately
+# NON-FATAL: when the core does not answer, the device keeps the device.env
+# it has and says so on one line. A pipeline that stalled because a web
+# service was down would be a worse pipeline than one that used yesterday's
+# knobs and told you.
+#
+# NOTHING HERE SENDS A SECRET VALUE. `push-secrets` sends names and a
+# boolean; the core's ingest door REFUSES a body carrying a value-shaped
+# field, so a mistake here is a 400, not a leak. The posting credential is
+# itself a secret of the ci-7 posture (polari/cicd_ingest_token) and is only
+# ever read into a header.
+set -euo pipefail
+
+J="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=device.sh
+source "$J/device.sh"
+# shellcheck source=secrets.sh
+source "$J/secrets.sh"
+
+CICD_TOKEN_SECRET="${CICD_TOKEN_SECRET:-polari/cicd_ingest_token}"
+# The device's NAME in Polari. device.env's CI_DEVICE_NAME, defaulting to `pipeline` — deliberately
+# NOT the machine's hostname: it would end up in a row, on a page and in an API answer.
+CICD_DEVICE_NAME="${CICD_DEVICE_NAME:-${CI_DEVICE_NAME:-pipeline}}"
+CURL_TIMEOUT="${CICD_TIMEOUT:-8}"
+
+say()  { printf '[cicd-sync] %s\n' "$*"; }
+warn() { printf '[cicd-sync] %s\n' "$*" >&2; }
+
+core_url() { printf '%s' "${CI_CORE_URL:-}"; }
+
+# The posting-only token, read into a variable and never printed. An absent
+# token is not an error for `pull` (that door is a read) — only for a post.
+read_token() {
+    local d; d="$(secrets_dir)"
+    if [ -r "$d/$CICD_TOKEN_SECRET" ]; then cat "$d/$CICD_TOKEN_SECRET"
+    else sudo -n cat "$d/$CICD_TOKEN_SECRET" 2>/dev/null || true; fi
+}
+
+# ------------------------------------------------------------------- pull
+# GET /api/cicd → device.env. The answer carries `device_env` already
+# rendered by the module (ONE renderer, in python, beside the validation),
+# so this script never re-derives a key: it writes what the core computed,
+# or it keeps the file.
+do_pull() {
+    local url; url="$(core_url)"
+    if [ -z "$url" ]; then
+        say "no CI_CORE_URL — this device.env is the only truth there is (set CI_CORE_URL to sync)"
+        return 0
+    fi
+    local body rc=0
+    body="$(curl -fsS --max-time "$CURL_TIMEOUT" "$url/api/cicd?device=$CICD_DEVICE_NAME" 2>/dev/null)" || rc=$?
+    if [ "$rc" != 0 ] || [ -z "$body" ]; then
+        warn "the core at $url did not answer (curl rc=$rc) — KEEPING the device.env this device already has"
+        return 0
+    fi
+    # ⚠ `python3 - <<'PY'` feeds the SCRIPT on stdin, so a heredoc'd analyser can NOT also read a pipe
+    # (the §70 gotcha, in this file too). The body goes through a file and an argv path.
+    local raw; raw="$(mktemp)"; printf '%s' "$body" > "$raw"
+    local rendered
+    rendered="$(python3 - "$raw" <<'PY' 2>/dev/null || true
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(1)
+if not d.get('ok') or not d.get('device_env'):
+    sys.exit(1)
+bad = [r for r in (d.get('validation') or []) if r.get('status') == 'FAIL']
+if bad:
+    sys.stderr.write('REFUSED by validation: %s\n' % '; '.join('%s %s' % (r['key'], r['message']) for r in bad))
+    sys.exit(2)
+sys.stdout.write(d['device_env'])
+PY
+)"
+    rm -f "$raw"
+    if [ -z "$rendered" ]; then
+        warn "the core answered but not with a usable settings set — KEEPING the device.env this device has"
+        return 0
+    fi
+    local tmp; tmp="$(mktemp)"; chmod 0600 "$tmp"
+    # ⚠ $(…) strips the trailing newline, so the LAST key would otherwise run into whatever is appended
+    # next (seen live: CI_ISLE_STAGES=core; householdCI_CORE_URL=…). printf '%s\n', always.
+    printf '%s\n' "$rendered" > "$tmp"
+    if [ -f "$DEVICE_ENV_FILE" ] && cmp -s "$tmp" "$DEVICE_ENV_FILE"; then
+        rm -f "$tmp"; say "device.env already matches the core — nothing to write"
+    else
+        # keep CI_CORE_URL: the core does not know its own address, and a pull
+        # that erased it would make the NEXT pull impossible.
+        printf 'CI_CORE_URL=%s\n' "$url" >> "$tmp"
+        mv "$tmp" "$DEVICE_ENV_FILE"; chmod 0600 "$DEVICE_ENV_FILE"
+        say "device.env rewritten from $url (Polari is the source of truth for these settings)"
+    fi
+    device_reload
+    # ⚠ device.sh's precedence is: an explicitly EXPORTED CI_* beats the file. That exists so a run can
+    # inject its own config — but it also means a CI_* exported into this process before the pull (the
+    # compose environment `pol jenkins up` wrote) would silently outrank what we just pulled. Say so per
+    # key rather than pretending the pull took effect.
+    local k pre
+    for k in $DEVICE_KEYS; do
+        pre="_PULL_$k"; printf -v "$pre" '%s' "${!k:-}"
+    done
+    ( set -a; . "$DEVICE_ENV_FILE"; set +a
+      for k in $DEVICE_KEYS; do
+          pre="_PULL_$k"
+          [ "${!k:-}" = "${!pre:-}" ] || printf '[cicd-sync] ⚠ %s: the core says %q but an exported value %q is in force in this shell (pol jenkins restart re-exports from the new file)\n' \
+              "$k" "${!k:-}" "${!pre:-}" >&2
+      done ) || true
+}
+
+# ------------------------------------------------------------------- post
+post_kind() {   # post_kind <json on stdin>
+    local url tok rc=0 out
+    url="$(core_url)"
+    [ -n "$url" ] || { say "no CI_CORE_URL — nothing posted"; return 0; }
+    tok="$(read_token)"
+    if [ -z "$tok" ]; then
+        warn "no posting credential ($(secrets_dir)/$CICD_TOKEN_SECRET) — an administrator mints one with"
+        warn "  POST $url/api/cicd/device/token   then: pol jenkins secrets put $CICD_TOKEN_SECRET"
+        return 0
+    fi
+    out="$(curl -fsS --max-time "$CURL_TIMEOUT" -X POST "$url/api/cicd/ingest" \
+            -H 'Content-Type: application/json' -H "X-Polari-CICD-Token: $tok" \
+            --data-binary @- 2>&1)" || rc=$?
+    if [ "$rc" != 0 ]; then warn "post failed (curl rc=$rc): ${out:0:200}"; return 0; fi
+    printf '%s\n' "$out" | head -c 400; echo
+}
+
+json_list() {   # json_list a b c  → ["a","b","c"]
+    python3 -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "$@"
+}
+
+# ------------------------------------------------------------------- push
+# The device REPORTS: readiness, which routes have their secret, and — on a
+# device the core has never seen — its own settings, which the core adopts
+# as the first version of the truth.
+do_push() {
+    local ready=false steps=0 total=8 verdict="" warns=0 pre=""
+    if [ -f "$J/SETUP_STATUS.md" ]; then
+        steps=$(sed -n 's/^steps: \([0-9]*\) of.*/\1/p' "$J/SETUP_STATUS.md" | head -1 || true)
+        total=$(sed -n 's/^steps: [0-9]* of \([0-9]*\).*/\1/p' "$J/SETUP_STATUS.md" | head -1 || true)
+        verdict=$(sed -n 's/^\*\*verdict: \([^*]*\)\*\*.*/\1/p' "$J/SETUP_STATUS.md" | head -1 || true)
+        warns=$(sed -n 's/.*doctor warnings: \([0-9]*\).*/\1/p' "$J/SETUP_STATUS.md" | head -1 || true)
+        pre=$(sed -n 's/.*preflight --isle: \([A-Z]*\).*/\1/p' "$J/SETUP_STATUS.md" | head -1 || true)
+        [ "$verdict" = "READY" ] && ready=true
+    fi
+    local routes="[]" r need s miss armed
+    routes="$(
+      for r in $SECRETS_ACTIVE_ROUTES; do
+          need=$(secrets_route_requires "$r"); miss=""; armed=true
+          for s in $need; do secrets_have "$s" || { miss="$miss $s"; armed=false; }; done
+          printf '%s\t%s\t%s\t%s\n' "$r" "$armed" "${miss# }" "$need"
+      done | python3 -c '
+import json, sys
+out = []
+for line in sys.stdin:
+    if not line.strip():
+        continue
+    name, armed, miss, need = (line.rstrip("\n").split("\t") + ["", "", ""])[:4]
+    out.append({"name": name, "armed": armed == "true", "parked": False,
+                "why": ("" if armed == "true" else "secret absent: " + miss),
+                "needs": need.split()})
+for p in "dockerhub npm pypi launchpad snap".split():
+    out.append({"name": p, "armed": False, "parked": True,
+                "why": "parked — it needs an outside account (his rule)", "needs": []})
+print(json.dumps(out))')"
+    local stages; stages="$(stages_list | python3 -c '
+import json, sys
+print(json.dumps([[a for a in line.split() if a] for line in sys.stdin.read().splitlines()]))')"
+    python3 - "$CICD_DEVICE_NAME" "$routes" "$stages" \
+             "${steps:-0}" "${total:-8}" "$ready" "$verdict" "${warns:-0}" "$pre" <<'PY' | post_kind
+import json, os, sys, datetime
+dev, routes, stages, steps, total, ready, verdict, warns, pre = sys.argv[1:10]
+g = os.environ.get
+print(json.dumps({
+    'kind': 'device', 'device': dev, 'at': datetime.datetime.now().isoformat(timespec='seconds'),
+    'role': 'both' if g('CI_ISLE_TARGET') == 'local' else 'pipeline',
+    'settings': {
+        'mode': g('CI_MODE', 'suite'), 'app_name': g('CI_APP_NAME', ''), 'app_repo': g('CI_APP_REPO', ''),
+        'core_source': g('CI_CORE_SOURCE', 'release:latest'),
+        'isle_target': g('CI_ISLE_TARGET', 'local'), 'isle_ssh_alias': g('CI_ISLE_SSH_HOST', ''),
+        'isle_ssh_user': g('CI_ISLE_SSH_USER', ''), 'vm_name': g('CI_ISLE_VM_NAME', 'polari-ci-isle'),
+        'vm_ram_gb': g('CI_ISLE_VM_RAM_GB', '4'), 'vm_vcpus': g('CI_ISLE_VM_VCPUS', '2'),
+        'vm_disk_gb': g('CI_ISLE_VM_DISK_GB', '30'), 'nested': g('CI_ISLE_NESTED', 'auto'),
+        'isle_pool': g('CI_ISLE_POOL', ''), 'image_url': g('CI_ISLE_IMAGE_URL', ''),
+        'min_free_gb': g('CI_MIN_FREE_GB', '20'), 'min_ram_headroom_gb': g('CI_MIN_RAM_HEADROOM_GB', '1'),
+        'executors': g('CI_EXECUTORS', '1'),
+        'routes': [r for r in g('CI_ROUTES', '').split(',') if r],
+    },
+    'stages': json.loads(stages or '[]'),
+    'routes': json.loads(routes or '[]'),
+    'setup': {'steps_done': int(steps or 0), 'steps_total': int(total or 8), 'ready': ready == 'true',
+              'verdict': verdict, 'doctor_warnings': int(warns or 0), 'preflight_verdict': pre},
+}))
+PY
+}
+
+# PRESENCE, never a value — the whole point of the row class on the other end.
+do_push_secrets() {
+    local d; d="$(secrets_dir)"
+    { for area_name in $(for r in $SECRETS_ACTIVE_ROUTES; do secrets_route_requires "$r"; done | tr ' ' '\n' | sort -u); do
+          secrets_have "$area_name" && printf '%s\t1\n' "$area_name" || printf '%s\t0\n' "$area_name"
+      done; } | python3 -c '
+import json, sys, datetime
+dev = sys.argv[1]
+needs = {"github/github_token": ["github-release", "homebrew"], "registries/ghcr_token": ["ghcr"],
+         "signing/apt_signing_gpg": ["apt-repo"], "signing/apt_signing_keyid": ["apt-repo"],
+         "ssh/distribution_host_key": ["apt-repo"]}
+items = []
+for line in sys.stdin:
+    if not line.strip():
+        continue
+    rel, present = line.rstrip("\n").split("\t")
+    area, _, name = rel.partition("/")
+    items.append({"area": area, "secret_name": name, "present": present == "1",
+                  "kind": "paste", "needed_by": needs.get(rel, [])})
+print(json.dumps({"kind": "secrets", "device": dev,
+                  "at": datetime.datetime.now().isoformat(timespec="seconds"), "items": items}))' \
+      "$CICD_DEVICE_NAME" | post_kind
+}
+
+do_run() {  # run <job> <number> <status> [version] [summary]
+    python3 - "$CICD_DEVICE_NAME" "$@" <<'PY' | post_kind
+import json, sys, datetime
+dev, job, number, status = sys.argv[1:5]
+version = sys.argv[5] if len(sys.argv) > 5 else ''
+summary = sys.argv[6] if len(sys.argv) > 6 else ''
+now = datetime.datetime.now().isoformat(timespec='seconds')
+body = {'kind': 'run', 'device': dev, 'job': job, 'number': int(number or 0), 'version': version,
+        'status': status, 'summary': summary, 'url': ''}
+body['started' if status == 'running' else 'finished'] = now
+print(json.dumps(body))
+PY
+}
+
+do_isle_test() {  # isle-test <run> <stage> <core_ok> <results.json>
+    python3 - "$CICD_DEVICE_NAME" "$@" <<'PY' | post_kind
+import json, sys, datetime
+dev, run, stage, core_ok, path = sys.argv[1:6]
+try:
+    data = json.load(open(path))
+except Exception:
+    data = {}
+print(json.dumps({'kind': 'isle-test', 'device': dev, 'run': run, 'stage_index': int(stage or 1),
+                  'version': data.get('version', ''), 'apps': data.get('tested', []),
+                  'core_ok': core_ok in ('1', 'true', 'yes'), 'results': data.get('results', {}),
+                  'finished': datetime.datetime.now().isoformat(timespec='seconds')}))
+PY
+}
+
+do_release() {  # release <version> <release.json>
+    python3 - "$CICD_DEVICE_NAME" "$CI_MODE" "$CI_APP_NAME" "$CI_CORE_SOURCE" "$@" <<'PY' | post_kind
+import json, os, sys, datetime
+dev, mode, app, core_source, version, path = sys.argv[1:7]
+try:
+    m = json.load(open(path))
+except Exception:
+    m = {}
+published = [r for r, v in (m.get('publishedTo') or {}).items() if not v.get('dryRun')]
+dry = {r: 'rendered only (dry run)' for r, v in (m.get('publishedTo') or {}).items() if v.get('dryRun')}
+print(json.dumps({'kind': 'release', 'device': dev, 'version': version, 'mode': mode, 'app_name': app,
+                  # an app release must name the CORE it passed against, or "it passed" means nothing
+                  'tested_against': core_source if mode == 'app' else ('release:polari-v%s' % version),
+                  'tag': m.get('tag', ''), 'tag_pushed': bool(m.get('tagPushed')),
+                  'results_present': bool(m.get('isleTestResults')), 'core_ok': bool(m.get('coreOk')),
+                  'published_routes': published, 'dry_routes': dry,
+                  'released': m.get('released', []), 'not_released': m.get('notReleased', {}),
+                  'why_not': m.get('whyNot', ''),
+                  'released_at': datetime.datetime.now().isoformat(timespec='seconds')}))
+PY
+}
+
+do_status() {
+    local url; url="$(core_url)"
+    echo "device:      $CICD_DEVICE_NAME"
+    echo "mode:        $CI_MODE${CI_APP_NAME:+ ($CI_APP_NAME, core from $CI_CORE_SOURCE)}"
+    echo "core:        ${url:-(none — device.env is the only truth)}"
+    echo "credential:  $([ -n "$(read_token)" ] && echo "present ($CICD_TOKEN_SECRET)" || echo "absent ($CICD_TOKEN_SECRET) — pol jenkins secrets put $CICD_TOKEN_SECRET")"
+    if [ -n "$url" ]; then
+        if curl -fsS --max-time "$CURL_TIMEOUT" -o /dev/null "$url/api/cicd" 2>/dev/null; then
+            echo "reachable:   yes — pol jenkins sync pull rewrites device.env from it"
+        else
+            echo "reachable:   NO — a pull keeps the device.env this device has and says so (never fatal)"
+        fi
+    fi
+}
+
+case "${1:-status}" in
+    pull)         do_pull ;;
+    push)         do_push ;;
+    push-secrets) do_push_secrets ;;
+    run)          shift; do_run "$@" ;;
+    isle-test)    shift; do_isle_test "$@" ;;
+    release)      shift; do_release "$@" ;;
+    status)       do_status ;;
+    --help|-h)    sed -n '2,30p' "$0" ;;
+    *)            warn "unknown: cicd-sync.sh $1 (pull|push|push-secrets|run|isle-test|release|status)"; exit 2 ;;
+esac

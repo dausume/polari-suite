@@ -571,3 +571,18 @@ release` runs `polari-isle-test` first (`build job:`, `propagate: false`). App d
 `modules/appstore/custom/app_deb_builder.py`. selftest 120/120. ⚠️ Until ci-3's in-guest install + selftest body
 exists every stage records `skipped`, so the release job publishes NOTHING — honest, by his rule. NEXT: ci-8 =
 the `cicd` Polari app (settings as rows, runs mirrored in, always admitted on the pipeline device).
+
+### 9b. ci-8 — the `cicd` Polari app (his ask 2026-09-19; BUILT, ledger §71)
+
+`modules/cicd/`: the pipeline's settings as ROWS (PipelineDevice incl. `mode` suite|app, PipelineStage, PipelineRoute,
+PipelineSecretPresence — names only), the runs mirrored in (PipelineRun, IsleTestResult, ReleaseRecord with
+`tested_against`) through `POST /api/cicd/ingest` behind a per-device posting-only token; `GET /api/cicd` hands the
+pipeline everything and `polari-jenkins/cicd-sync.sh pull|push` keeps `device.env` as the fallback; four configured
+pages, editing = the rows' own pages behind the `cicd-settings` profile; admitted by `polari-cli/prod-profiles/
+pipeline-device.env` (`pol prod profile use pipeline-device --apply`). Two modes: `suite` (today) and `app` (one
+developer's polari-module-<name>: core pulled from an official `release:<tag>`, stages `core; <app>`, only that app
+released, to THEIR routes, upstream owner refused). cicd_selftest 128/128, jenkins selftest 152/152. OWED: live
+proof on the home stack, the first real sync from a device, in-container precedence of the pulled file over the
+compose export, `release:<tag>` resolution (ci-9), ci-3's install body. NEXT ci-9: offline-first builds (BuildKit
+cache mounts + a pool cache fed by the offline-medium builder, optional local proxies) + the setup's suite|app
+question + core artifacts pulled from a release in app mode.

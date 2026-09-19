@@ -23,6 +23,7 @@ eq()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "$2" "$3"; }
 # ---------------------------------------------------------------- the tree
 DEV="$T/dev"; mkdir -p "$DEV"
 cp -r "$J/device.sh" "$J/secrets.sh" "$J/doctor.sh" "$J/retention.sh" "$J/mint-tag.sh" "$J/setup.sh" \
+      "$J/cicd-sync.sh" \
       "$J/setup" "$J/isle" "$J/routes" "$J/casc" "$J/docker-compose.yml" "$J/.env.example" "$J/device.env.example" "$DEV/"
 mkdir -p "$DEV/pool" "$DEV/secrets/github" "$DEV/secrets/registries" "$T/bin" "$T/inv"
 # the dialog helpers live in polari-cli; setup.sh looks for them beside the checkout
@@ -59,6 +60,20 @@ case "$CMD" in
 esac
 SH
 printf '#!/bin/bash\nexit 0\n' > "$T/bin/scp"
+# ci-8: a scripted Polari core. FAKE_CORE=down refuses; FAKE_CORE=ok serves
+# FAKE_CORE_JSON on a GET and captures the body of a POST into FAKE_CORE_POSTED.
+cat > "$T/bin/curl" <<'SH'
+#!/bin/bash
+[ "${FAKE_CORE:-ok}" = down ] && exit 7
+POST=0; QUIET=0
+for a in "$@"; do
+  [ "$a" = POST ] && POST=1
+  [ "$a" = /dev/null ] && QUIET=1
+done
+if [ "$POST" = 1 ]; then cat > "${FAKE_CORE_POSTED:-/dev/null}"; echo '{"ok": true, "stored": {}}'; exit 0; fi
+[ "$QUIET" = 1 ] && exit 0
+cat "${FAKE_CORE_JSON:-/dev/null}"
+SH
 printf '#!/bin/bash\n[ "$1" = ls-remote ] && { printf "%%s" "$FAKE_TAGS"; exit 0; }\nexit 1\n' > "$T/bin/git"
 chmod +x "$T/bin"/*
 export PATH="$T/bin:$PATH"
@@ -318,6 +333,89 @@ assets() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" bash -c 'sourc
 has "the core deb is always an asset"             "polari-complete_1_all.deb"          "$(assets)"
 has "  …a passed app deb is an asset"             "polari-app-gears_1_all.deb"         "$(assets)"
 hasnt "  …an untested app deb is not"             "polari-app-household"               "$(assets)"
+
+# ============================= 7. ci-8: the two modes, and the sync with Polari
+echo "-- modes: suite vs one app; and the sync — Polari holds the settings, device.env follows"
+
+mv() { command mv "$@"; }
+dv() { ( cd "$DEV" && bash -c 'source ./device.sh; device_validate' 2>&1 ) || true; }
+
+dev_env CI_MODE=suite
+has "CI_MODE=suite → the whole suite"             "the whole Polari suite"        "$(dv)"
+dev_env CI_MODE=app CI_APP_NAME= CI_APP_REPO=
+has "app mode with no app name → FAIL"            "names none"                    "$(dv)"
+has "  …and with no repo → FAIL naming the module repo" "polari-module-"          "$(dv)"
+dev_env CI_MODE=app CI_APP_NAME=household CI_APP_REPO=https://example.invalid/r.git
+has "a complete app-mode device says which app"   "maintains ONE Polari app: household" "$(dv)"
+has "  …and app mode defaults the stages to core + that app" "core; household"    "$( cd "$DEV" && bash -c 'source ./device.sh; echo "$CI_ISLE_STAGES"' )"
+dev_env CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_ISLE_STAGES='core; household; gears'
+has "app mode: another app is tested but never released here" "never released here" "$(dv)"
+dev_env CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_ISLE_STAGES='core; gears'
+has "app mode: no stage tests the app it maintains → WARN with the default" "core; household" "$(dv)"
+dev_env CI_MODE=sideways
+has "an unknown mode → WARN, read as suite"       "reading it as suite"           "$(dv)"
+dev_env CI_MODE=suite CI_CORE_SOURCE=release:
+has "core source release: with no tag → FAIL"     "release: with no tag"          "$(dv)"
+dev_env CI_MODE=suite CI_CORE_SOURCE=somewhere
+has "an unknown core source → FAIL naming both shapes" "release:<tag>"            "$(dv)"
+dev_env CI_MODE=suite CI_CORE_SOURCE=build
+has "core source build → the core is rebuilt here" "REBUILT"                      "$(dv)"
+
+# --- the pull: Polari is the source of truth, device.env follows
+mkdir -p "$DEV/secrets/polari"
+printf 'the-posting-token' > "$DEV/secrets/polari/cicd_ingest_token"; chmod 0600 "$DEV/secrets/polari/cicd_ingest_token"
+cat > "$T/core.json" <<'JSON'
+{"ok": true, "device": "pipe-1", "mode": "app",
+ "device_env": "CI_MODE=app\nCI_APP_NAME=household\nCI_APP_REPO=https://example.invalid/r.git\nCI_CORE_SOURCE=release:polari-v2026.09.19\nCI_ISLE_TARGET=ssh\nCI_ISLE_SSH_HOST=isle-core\nCI_ISLE_SSH_USER=\nCI_ISLE_VM_NAME=polari-ci-isle\nCI_ISLE_VM_RAM_GB=8\nCI_ISLE_VM_VCPUS=2\nCI_ISLE_VM_DISK_GB=40\nCI_ISLE_NESTED=auto\nCI_ISLE_POOL=\nCI_ISLE_IMAGE_URL=\nCI_MIN_FREE_GB=20\nCI_MIN_RAM_HEADROOM_GB=1\nCI_EXECUTORS=1\nCI_ROUTES=ghcr\nCI_ISLE_STAGES=core; household\n",
+ "validation": [{"key": "CI_MODE", "value": "app", "status": "OK", "message": ""}]}
+JSON
+cat > "$T/core-bad.json" <<'JSON'
+{"ok": true, "device": "pipe-1", "device_env": "CI_ISLE_TARGET=sideways\n",
+ "validation": [{"key": "CI_ISLE_TARGET", "value": "sideways", "status": "FAIL", "message": "unknown target"}]}
+JSON
+sync_() { ( cd "$DEV" && env CICD_DEVICE_NAME=pipe-1 CI_SECRETS_SYSTEM="$T/nonexistent-etc" CI_SECRETS_REPO="$DEV/secrets" "$@" bash cicd-sync.sh "$SYNCCMD" 2>&1 ) || true; }
+
+dev_env CI_MODE=suite CI_ISLE_TARGET=local CI_CORE_URL=http://127.0.0.1:9999
+SYNCCMD=pull
+OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_JSON="$T/core.json")
+has "pull rewrites device.env from the core"      "device.env rewritten"          "$OUT"
+has "  …and the pulled settings are in force"     "CI_ISLE_VM_RAM_GB=8"           "$(cat "$DEV/device.env")"
+has "  …including the mode keys"                  "CI_APP_NAME=household"         "$(cat "$DEV/device.env")"
+has "  …and CI_CORE_URL survives (the core does not know its own address)" "CI_CORE_URL=http" "$(cat "$DEV/device.env")"
+eq "  …the last pulled key is not run into by the appended one (the \$() newline trap)" \
+   "core; household" "$( cd "$DEV" && bash -c 'source ./device.sh; echo "$CI_ISLE_STAGES"' )"
+BEFORE=$(cat "$DEV/device.env")
+OUT=$(sync_ FAKE_CORE=down)
+has "a core that does not answer is NOT fatal"    "KEEPING the device.env"        "$OUT"
+eq "  …and the file is left exactly as it was"    "same" "$([ "$BEFORE" = "$(cat "$DEV/device.env")" ] && echo same || echo changed)"
+OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_JSON="$T/core-bad.json")
+has "a core answering settings that FAIL validation is refused, and the file kept" "KEEPING the device.env" "$OUT"
+eq "  …the file is still the good one"            "same" "$([ "$BEFORE" = "$(cat "$DEV/device.env")" ] && echo same || echo changed)"
+dev_env CI_MODE=suite CI_ISLE_TARGET=local
+OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_JSON="$T/core.json")
+has "no CI_CORE_URL → this device.env is the only truth, said plainly" "only truth there is" "$OUT"
+
+# --- the push: PRESENCE and readiness, never a value
+dev_env CI_MODE=suite CI_ISLE_TARGET=local CI_CORE_URL=http://127.0.0.1:9999 CI_ROUTES=ghcr
+printf 'supersecretvalue' > "$DEV/secrets/github/github_token"; chmod 0600 "$DEV/secrets/github/github_token"
+SYNCCMD=push
+OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_POSTED="$T/posted.json")
+has "push posts the device kind"                  '"kind": "device"'              "$(cat "$T/posted.json" 2>/dev/null)"
+has "  …with the mode and the core source"        '"mode": "suite"'               "$(cat "$T/posted.json" 2>/dev/null)"
+has "  …and the routes it can see a secret for"   '"armed"'                       "$(cat "$T/posted.json" 2>/dev/null)"
+SYNCCMD=push-secrets
+OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_POSTED="$T/posted-secrets.json")
+has "push-secrets posts the secrets kind"         '"kind": "secrets"'             "$(cat "$T/posted-secrets.json" 2>/dev/null)"
+has "  …naming the secret and whether it is PRESENT" '"secret_name": "github_token"' "$(cat "$T/posted-secrets.json" 2>/dev/null)"
+has "  …as a boolean"                             '"present": true'               "$(cat "$T/posted-secrets.json" 2>/dev/null)"
+hasnt "  …and NEVER the value"                    "supersecretvalue"              "$(cat "$T/posted-secrets.json" 2>/dev/null)"
+hasnt "  …not in the pushed device body either"   "supersecretvalue"              "$(cat "$T/posted.json" 2>/dev/null)"
+hasnt "  …nor the posting token itself"           "the-posting-token"             "$(cat "$T/posted.json" 2>/dev/null)$(cat "$T/posted-secrets.json" 2>/dev/null)"
+SYNCCMD=status
+OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_JSON="$T/core.json")
+has "status names the credential by NAME only"    "polari/cicd_ingest_token"      "$OUT"
+hasnt "  …and never prints it"                    "the-posting-token"             "$OUT"
+rm -f "$DEV/secrets/github/github_token"
 
 echo
 TOTAL=$((PASS+FAIL))

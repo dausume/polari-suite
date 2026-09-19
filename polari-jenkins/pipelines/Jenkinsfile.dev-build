@@ -5,6 +5,12 @@ pipeline {
   // queued duplicates collapse), and the global 'polari-build' lock keeps dev-build/release/publish from overlapping.
   options { timestamps(); timeout(time: 120, unit: 'MINUTES'); disableConcurrentBuilds(abortPrevious: true); lock(resource: 'polari-build') }
   stages {
+    // ci-8: the `cicd` Polari app owns this device's settings; device.env is the fallback. The pull is
+    // NON-FATAL by design — a core that does not answer leaves the device.env this device already has,
+    // and says so on one line, rather than stalling a build on a web service.
+    stage('sync settings from Polari (non-fatal)') {
+      steps { sh 'bash /var/polari-jenkins/cicd-sync.sh pull || true; bash /var/polari-jenkins/cicd-sync.sh run dev-build "$BUILD_NUMBER" running "" "build only, no publish" || true' }
+    }
     stage('disk guard') { steps { sh 'bash /var/polari-jenkins/retention.sh guard' } }
     stage('checkout dev (top-level submodules — Isle-Mesh nests an ssh-URL submodule the poller cannot clone; the builders do not need it)') {
       steps {
@@ -22,5 +28,13 @@ pipeline {
     }
     // stage('tests') — deliberately absent (his ruling 2026-09-07); ci-3 adds the isle tests here.
   }
-  post { always { archiveArtifacts artifacts: '.generated/debs/*.deb', fingerprint: true, allowEmptyArchive: true; sh 'bash /var/polari-jenkins/retention.sh prune || true'; cleanWs() } }
+  post {
+    always {
+      archiveArtifacts artifacts: '.generated/debs/*.deb', fingerprint: true, allowEmptyArchive: true
+      // ci-8: mirror the outcome into Polari (posting-only credential; nothing here drives Jenkins)
+      script { sh "bash /var/polari-jenkins/cicd-sync.sh run dev-build \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} '' 'dev build' || true" }
+      sh 'bash /var/polari-jenkins/retention.sh prune || true'
+      cleanWs()
+    }
+  }
 }
