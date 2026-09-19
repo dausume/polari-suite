@@ -3522,3 +3522,68 @@ imports clean.
 **Owed.** Next live proof: restart and confirm ONE `anonymous|anonymous` at count 21-ish; re-confirm
 `origin|https://prf.<D>` (lost under the pre-fix image, expected) and restart again to prove it holds. The
 `PyJWKClient` JWKS gap, the ct-5 `objects` view and the browser pass are unchanged.
+
+## §66 addendum 3 — live re-proof after the sixth deploy, and the CORE root cause (2026-09-19, framework `a34da5e`)
+
+| step | result |
+|---|---|
+| listing after boot | ONE `anonymous\|anonymous` row (`confirmed`, 47) — the duplicates healed on the read (§66d) |
+| confirm the origin row, wait 90 s | both rows `confirmed` |
+| `docker service update --force prf-backend` | **both confirmed rows GONE**; a fresh `suggested` anonymous row (8) |
+
+**Evidence (container logs + the sqlite file):** the old container's SIGTERM flush ran and persisted 93 classes — the
+traffic, trace and decision classes all have tables. The new container's boot then printed
+`[DefRestore] InboundPolicy: 1 instances already in objectTables, skipping` — and the same for `OutboundPolicy`,
+`TraceTarget` and `SecurityDecision` (438). `_restoreDefinitionInstances` (`polariServer.py:~1820`) DISCARDS every
+persisted row of any class that already holds one instance when its restore comes round, and lazy boot serves requests
+(and converge-on-read, and the boot/tick roots) before every class is restored. The new process's first persist then
+overwrote the tables with the boot-time rows — the sqlite file now holds `anonymous\|anonymous suggested 14` and no
+confirmed row. §66b's `definitionsRestored` flag narrowed the window but did not close it: the restore is several
+passes, not one. **This is a CORE hazard for every class written during boot, not a ct-9 one**; the fix handed back is
+a MERGE in the restore (persisted row = truth, count-like fields summed, the boot-time duplicate removed) with a core
+selftest — see "§66 addendum 4". Until it lands, a ruling confirmed shortly before a restart can be lost on any
+class that is touched during boot.
+
+### §66 addendum 4 — the restore merge (core) (2026-09-19, fixed, selftested)
+
+After a confirm + 90 s + `docker service update --force`, BOTH confirmed traffic rows were gone again although
+the old container's SIGTERM flush had persisted 93 classes and the tables were all present. The new
+container's boot said why:
+
+    [DefRestore] SecurityDecision: 438 instances already in objectTables, skipping
+    [DefRestore] TraceTarget/OutboundPolicy/InboundPolicy: 1 instances already in objectTables, skipping
+
+**What wrote the boot-time rows.** Requests served during lazy boot. The swarm's own health probe hits
+`/api/health` every few seconds and it is anonymous, so the ct-9 traffic middleware counts it — which is
+exactly the `anonymous|anonymous` row — and ct-8's converge-on-read accounts for `SecurityDecision`'s 438. The
+log shows them accumulating across the boot (`InboundPolicy: 1 instances` → `2 instances` → `3 instances` on
+successive passes), so the §66b `definitionsRestored` guard narrowed the window but never closed it: the flag
+is one boolean for a restore that runs many times, and a writer that beats `polariServer.__init__` sees no
+flag at all.
+
+**The core defect, which is not ct-9's.** `_restoreDefinitionInstances` SKIPPED any class that already had one
+instance. One boot-time write therefore made every persisted row of that class unreachable — not corrupted,
+never loaded — and the next persist wrote the half-booted tree over them. Any class an observer can touch
+during boot was exposed.
+
+**The fix (§66e, `polariServer.py:1826-1930`).** Restore MERGES. Every persisted row is inserted. A row already
+in memory with the SAME `id` IS that persisted row (an earlier pass put it there) and is left alone — that is
+what keeps the repeated passes idempotent instead of doubling every counter. A row with the same `name` and a
+different id is a BOOT-TIME row: the persisted row wins every field, absorbs its count-like fields
+(`count`, `traces_opened`, `edges_written`, `journal_written`, `dropped` — `RESTORE_COUNT_FIELDS`), and the
+boot-time row is deleted through `noteTreeDeletion` so a persist in flight cannot write it back. A boot-time
+row whose name matches nothing in the DB survives — it is a real observation nobody had persisted yet. Rows
+with no id fall back to "leave what is there" rather than guess. The log line now reads
+`merged N persisted rows, M boot-time rows folded[, K already restored]`.
+
+**Selftests.** NEW `polariApiServer/selftest_restore_merge.py` **17/17** (the live case folded, a new boot-time
+name surviving, a plain restore unchanged, three repeat passes idempotent, empty/missing tables, two racing
+boot rows folding together, and a nonsense counter not taking a boot down — no server, no DB: the real methods
+are bound to a double). Regression: security **227/230** (same 3 env failures), outbound **61/61**,
+cause_context **41/41**, apps **125/125**, refs **51/51**, persist_debounce **13/13**, persist_tombstones
+**43/43**, crude_delete_blast **21/21**, quiesce **27/27**, conform **61/61**, import clean.
+
+**Owed.** The main restore path (`objectTreeManagerDecorators.restoreFromDatabase`) has its own present-rows
+logic and was NOT touched — it skips by matching ids, so it looks sound, but it deserves the same read before
+the next arc trusts it. And the deeper question stands: an instance that answers requests before its tree is
+loaded will keep producing races like this one; the merge makes them harmless rather than making them stop.
