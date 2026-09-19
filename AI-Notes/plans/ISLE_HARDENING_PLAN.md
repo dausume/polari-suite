@@ -534,7 +534,7 @@ queue + appointment (+ pages: my requests / the queue / appoint); rg-2 term/expi
 rg-3 election (new `governance` module, `VoteRecord`, the tally page); rg-4 manifest `roles:` stanza + custom
 route handlers; rg-5 scope enforced in the permission gate.
 
-### §17d — CAUSAL TRACING + OBJECT FLOW (his ask 2026-09-18) — BUILT ct-0,1,2,3,4,6,8,9 (2026-09-18/19), selftested, pushed, live-proven on `polari-lean` (dev posture, gate advisory); remaining ct-5 (`objects` topology view), ct-7 (session tasks), and every browser pass. See designs/CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md and ledger §59–§66 (+ addenda).
+### §17d — CAUSAL TRACING + OBJECT FLOW (his ask 2026-09-18) — BUILT ct-0 through ct-9 (2026-09-18/19), selftested, pushed; ct-0..4,6,8,9 live-proven on `polari-lean` (dev posture, gate advisory), ct-5/ct-7 (the `objects` topology view, session tasks) and the ct-6 frontend half selftested/unit-tested but not yet live-proven. Remaining, of ct-0..9: nothing except the objects view's third declared source (configuration knobs) and the `app.flows` module sweep; also every browser pass. See designs/CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md and ledger §59–§68 (+ addenda).
 
 His ask (2026-09-18, verbatim intent): think through what particular individuals need; trace events and functions
 "so long as they are going through Polari, else we just notate what external system we are sending it to and
@@ -561,7 +561,7 @@ recording "what left, to which system, by which wire" and forwarding trace ids (
 **`objects` fourth security topology view** (declared-by-knob vs observed-by-map, drift = compare, per-actor
 reach = simulate, one new edge column `payload`). Per-person needs = tasks → doors → closure, via a `task` label
 on role-play sessions. Slices ct-0..ct-9; every decision taken by his rulings later the same day (below). BUILT
-2026-09-18/19: ct-0,1,2,3,4,6,8,9 (remaining ct-5, ct-7 — see the heading above and ledger §59–§66).
+2026-09-18/19: ct-0 through ct-9 (see the heading above and ledger §59–§68).
 
 **His rule (2026-09-18, same day):** "we should always only be doing tracing for one kind of object at a time and
 be able to put limits on how many tracing objects we generate at a time, or we could easily overwhelm ourselves in
@@ -573,7 +573,7 @@ the next target is armed; the map has a ceiling; every closure and the object to
 so an untraced class answers "not traced", never "nothing". A role's full closure is gathered one class at a time,
 the review naming the next target. Second target refused and default budgets taken as defaults in the design, not open decisions.
 
-### §17e — OWNER-DEFINED PERMISSIONS (his ask 2026-09-18) — BUILT op-0 (2026-09-18), selftested, pushed, live-proven on `polari-lean` (dev posture, gate advisory); remaining op-1 (`OwnerGrant` + Sharing tab), op-2 (remaining anonymised side channels, transfer), op-3 (`Ballot`), op-4 (`app.owned` manifest), and no screen yet for the policies or a per-instance verdict. See designs/OWNER_DEFINED_PERMISSIONS_DESIGN.md and ledger §60, §59–§62 addendum.
+### §17e — OWNER-DEFINED PERMISSIONS (his ask 2026-09-18) — BUILT op-0 (2026-09-18), op-1/op-2/op-4 (2026-09-19), selftested, pushed; op-0 live-proven on `polari-lean` (dev posture, gate advisory), op-1/op-2/op-4 selftested but not yet live-proven. A screen now exists (`/display/security-owned`). Remaining: op-3 (`Ballot`) waits for the governance module to exist; the per-instance Sharing tab still needs a frontend page host (the door — `sharing.table` — already answers it); every browser pass. See designs/OWNER_DEFINED_PERMISSIONS_DESIGN.md and ledger §60, §69, §59–§62 addendum.
 
 His ask (2026-09-18, verbatim intent): "We also are going to want owner defined permissions for some objects, not
 just object defined permissions. Owner defined permissions would be something we typically want specifically
@@ -597,7 +597,8 @@ journal, `SecurityEvent.target` = the class. **The vote:** `Ballot` rows (electi
 cast_at omitted from others' view) replace `ballots_json` in the role-grant design; `VoteRecord` tally derived;
 certification freezes every ballot. First opt-in = `UserAppPreference` (already de facto owner-only). Slices
 op-0..op-4; no open decisions — everything follows from his ask, the PII rule or the code, recorded as defaults
-in design §8. BUILT 2026-09-18: op-0 (remaining op-1..op-4 — see the heading above and ledger §60).
+in design §8. BUILT: op-0 (2026-09-18), op-1/op-2/op-4 (2026-09-19; remaining op-3 — see the heading above and
+ledger §60, §69).
 
 **His rulings (2026-09-18, later): (1) tracing does NOT occur in production — only finalized security posture rows
 derived from it (profiles, owner policies, traffic policies, bindings, each with `derived_from`); (2) STOMP follows

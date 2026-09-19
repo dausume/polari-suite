@@ -201,10 +201,24 @@ All DERIVED, never typed, each derivation in its own file under `modules/securit
 
 ## 15. Built 2026-09-18/19 — the application ring's screens
 
-The causal-tracing and owner-defined-permissions arcs (§17d/§17e of `ISLE_HARDENING_PLAN.md`; ledger §59–§66,
-including the addenda) added one wholly new Display page and a run of new panels on the existing
-`security-events` page — every one a configured table or the generic structured panel over a door, no raw JSON,
-no new reusable component. None of it has had a browser pass yet.
+The causal-tracing and owner-defined-permissions arcs (§17d/§17e of `ISLE_HARDENING_PLAN.md`; ledger §59–§69,
+including the addenda) added THREE wholly new Display pages (`/display/apps-security`, `/display/security-objects`,
+`/display/security-owned`) and a run of new panels on the existing `security-events` page — every one a
+configured table or the generic structured panel over a door, no raw JSON, no new reusable component. None of it
+has had a browser pass yet.
+
+**New page — `/display/security-objects`** (`modules/security/security_page.py`, ct-5, ledger §67): 8 rows of
+configured structured panels plus 2 configured class tables (`CausalEdge`, `TraceTarget`) over the `objects`
+topology view's doors — `build`/`observed`/`declared`/`policy_flows`/`manifest_flows`/`drift`. The view's own
+rows are derived on every read and are not persisted, so this page reads the door directly rather than a stored
+`SecurityTopologyEdge` table.
+
+**New page — `/display/security-owned`** (`modules/security/security_page.py`, op-4, ledger §69): 6 rows —
+the gate mode and opted-in classes, the `OwnedClassPolicy` table (with `source`/`derived_from`), the modules'
+`app.owned` declarations beside the last convergence and its conflicts, the `OwnerGrant` table, the parsed
+policies, and the owner gate's own `SecurityEvent` rows (where an anonymised class's `target` = class name is
+visible). A `SecurityArea` row (`owner-permissions`, domain `app`) names the arc in the taxonomy on
+`/display/security`.
 
 **New page — `/display/apps-security`** (`modules/polariapps/apps_page.py`, ct-8, ledger §64):
 - `apps-security-coverage` — coverage per app × version: counts by kind and state, live instance counts per
@@ -241,12 +255,23 @@ no new reusable component. None of it has had a browser pass yet.
 - `security-traffic-declared` — the confirmed traffic policies drawn as the object topology's declared flows
   (ct-9).
 
-**Interface gaps.** There is **no screen at all yet** for `OwnedClassPolicy` or `OwnerGrant` — owner-defined
-permissions (op-0, ledger §60) exist only as doors (`/api/security/owned*`); nobody can see or set a class's
-owner policy, or a per-instance verdict, without calling the API directly. There is **no page for the
-`objects` topology view** (ct-5) that `declared_flows()` and the closure's `flows` panel were shaped to feed —
-until it exists, drift between what an app declares and what the causal map actually observes has no picture,
-only the two data sources separately. And every panel listed above — new page and new rows alike — is proven
-only over the API; **the browser pass is owed on all of it** (ledger §61/§63/§64/§66 OWED sections).
+**The STOMP advisory bar** (ct-6 frontend, ledger §68) is not a Display page but is worth naming here: the
+EXISTING system-notice bar (`demo-notice/system-notice.component.ts`, already mounted app-wide) now reads the
+four `X-Polari-*` advisory headers and diverted STOMP advisory frames into one counted, summarised line — no new
+component, and it is the one piece of this arc's frontend that reaches every page rather than a security page
+specifically.
+
+**Interface gaps, updated.** The `objects` topology view (ct-5) and `OwnedClassPolicy`/`OwnerGrant` (op-1/op-4)
+now have screens — `/display/security-objects` and `/display/security-owned` above. What is still missing:
+**the Sharing tab has no frontend host** — `GET /api/security/owned/{class}/{id}` already returns a complete
+`sharing.table` (a `class-rows-table` item filtered to the instance) plus `show_tab`/`you_may_share`/`bounds`,
+but there is no per-instance page anywhere in the frontend (`class-main-page`'s tabs are hardcoded at the CLASS
+level; nothing reads a `DisplayDefinition`-style item scoped to one row) to put a "Sharing" tab on — this needs a
+host, not a new component (op-1, ledger §69 gotcha 2). The `objects` view is also still missing its **third
+declared source** (configuration knobs like `PeerNode`, `OdooModelBinding.direction`, `GrpcExposure` that imply
+a flow without a manifest stanza or a confirmed policy — ct-5 OWED), and `app.flows`/`app.owned` are declared by
+only two and one module respectively, so most modules will show as undeclared the first time they flow. And
+every panel listed above — new pages and new rows alike — is proven only over the API or unit-tested; **the
+browser pass is owed on all of it** (ledger §61/§63/§64/§66/§67/§68/§69 OWED sections).
 
 - **Device inventory + ssh as a vector (2026-09-13, his asks: "check where everything is installed and in what formats across our three devices" and "track ssh capabilities across polari devices … the ssh accounted for on the isle topology").** `os-security/inventory.sh` (read-only JSON: OS, docker/swarm, Polari containers/stacks/images/volumes, debs, apt sources, CLIs, checkouts, units, timers, guests, the rings' files, and ssh: listen addresses, auth methods via `sshd -T`, root login, authorized keys by TYPE and hashed comment — never key material, private keys present, outbound relationships, fail2ban, failed logins). `pol deploy inventory <node> [--post <core>]` ships and runs it; POST `/api/security/inventory` → `DeviceInventory` + `SshCapability` rows (`custom/security_ssh.py`: role inferred, formats named, verdict exposed / keys-only / closed with the vectors named); `/api/security/ssh` = the isle's ssh surface (who accepts what, who reaches whom); two panels on `/display/topology-isle`. The audit gained an `ssh` ring (key-only-login, no-root-login, authorized-key-types, brute-force-guard, failed-logins-24h) and the network view / threats a `ssh-password-guess` threat with the keys-only counterexample. Selftest 45/45.

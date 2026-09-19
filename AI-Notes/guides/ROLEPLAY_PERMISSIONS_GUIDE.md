@@ -702,7 +702,166 @@ curl -sk -H "Authorization: Bearer $ADMIN" -X POST "$API/api/security/owned/Some
 broadcast (class and operation only), drop the actor/object pairing from the trace journal, and name the class
 rather than the instance in a `SecurityEvent`.
 
-**Not built yet:** `OwnerGrant` rows and the per-instance Sharing tab that would let an owner name grantees by
-group or `sub` (op-1); the remaining anonymised-class side channels and `transfer` behaviour (op-2); `Ballot`
-rows with the governance module (op-3); the `app.owned` manifest stanza (op-4); and there is **no screen at
-all** yet for the policies themselves or a per-instance verdict — only the doors above.
+**Now built** (ledger §69): per-instance owner grants and a Sharing tab's worth of data, the remaining anonymised
+side channels and `transfer`, and the `app.owned` manifest stanza — see "Sharing a row you own" and "Where the
+rows go" below, and a policy screen at `/display/security-owned`. **Not built yet:** `Ballot` rows with the
+governance module (op-3); a frontend page host for the per-instance Sharing tab (the door already answers it).
+
+## Where the rows go: the objects view (2026-09-19)
+
+Ledger §67 (ct-5). A fourth security topology view, alongside `os`/`network`/`app`, answering a different
+question: not "who may call this," but "which classes actually cross to which system, and does what a module
+declared match what really happened." Dev posture, same doors as the other three views.
+
+**The view itself** (`?view=objects` works on all three existing topology doors):
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/topology?view=objects"
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/simulate?view=objects&actor=this%20instance"
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/compare?view=objects"
+```
+**declared** = the modules' manifest `app.flows` stanzas (a system KIND, never a host — the level an app author
+can honestly state) **plus** the confirmed `OutboundPolicy`/`InboundPolicy` rows a person ruled on. **observed**
+= the causal map's `external:`/`peer:` edges and the two `ws-*` means, carrying the payload classes that actually
+rode them. `simulate` also takes `actor=class:<C>` or `actor=profile:<name>` — "if this class (or this group's
+profile) is exercised, what leaves the instance."
+
+**The drift report** — the finding, one door:
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/objects/drift"
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/objects/flows"
+```
+`drift` answers `observed_not_declared` (something is really crossing that no manifest and no confirmed policy
+said would — a finding, dev only warns), `declared_not_observed` (a stated flow nothing has exercised yet — noise
+to prune, *unless* its classes have never been armed as a `TraceTarget`), `by_app` with a `coverage` of
+none/partial/full, and `not_traced` / `not_traced_detail`. **An untraced class reads `not_traced` — that is an
+answer, never an empty list**, the identical discipline the closure (above) already keeps. `flows` is the same
+two lists without the comparison, for when you want the raw material rather than the verdict.
+
+**Page:** `/display/security-objects` — 8 rows of configured structured panels plus 2 configured class tables
+(`CausalEdge`, `TraceTarget`); no new component, nothing raw. The view's own rows are **not persisted** — they
+are computed fresh on every read from the manifests, the confirmed traffic policies and the causal map, so there
+is no `SecurityTopologyEdge` row to browse for the `objects` view specifically; the page reads the door directly.
+
+**Not built yet:** a third declared source (configuration knobs like `PeerNode`, `OdooModelBinding.direction`,
+`GrpcExposure` that imply a flow without a manifest stanza); `app.flows` on the 57 modules that have not declared
+one yet (only `security` and `odooconnect` have); the browser pass.
+
+## Tasks: what a person needs (2026-09-19)
+
+Ledger §67 (ct-7). His ask: "what sort of things are needed for particular individuals." A role-play session now
+states what job it is doing, so the review can answer per-job rather than only per-role.
+
+**Start a session with a task, or state one for the first time on an open session:**
+```
+curl -sk -H "Authorization: Bearer $TOKEN" -X POST "$API/api/security/observe/session" \
+     -H 'Content-Type: application/json' \
+     -d '{"role": "journalist", "task": "publish an article"}'
+```
+**Change the task mid-session** — post the same door again with a different `task`; the session's history keeps
+both:
+```
+curl -sk -H "Authorization: Bearer $TOKEN" -X POST "$API/api/security/observe/session" \
+     -H 'Content-Type: application/json' \
+     -d '{"role": "journalist", "task": "score a source"}'
+```
+Nothing about the counted observation rows changes shape — the SAME `class × verb` row now also carries a
+`{task: count}` map, so one act attributed to two tasks in its lifetime is still ONE row naming both, not two
+rows.
+
+**The review reads by task:**
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/observe/review?role=journalist"
+```
+`review.tasks` groups the whole recording into `{task: {doors, objects × verbs, closure}}` plus an unattributed
+bucket for acts recorded before any task was stated, each task carrying its own closure (the same `explicit /
+reachable / implicit` shape as the plain closure above). `MAX_TASK_CLOSURES` (12) bounds how many tasks get a
+full closure in one review; the rest still get their counts, just not the walk.
+
+**Verify names the tasks a profile would break**, not just a verb count:
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/observe/verify?role=journalist&group=journalist"
+```
+`tasks_broken` names each task a narrower profile would stop, e.g. *"score a source" needs `PeerRead:read`, which
+this profile does not grant* — the sentence a person actually needs before narrowing a profile, rather than a
+bare list of missing verbs.
+
+**Not built yet:** review/verify are not on a page (both need `?role=`) — the only ct-7 surface a browser sees
+today is the `task` column on the `security-events` sessions table.
+
+## Sharing a row you own (2026-09-19)
+
+Ledger §69 (op-1, op-2). Once a class is opted into owner-defined permissions (see "Owner-defined rules" above),
+its owner can share ONE of their own rows with a specific group or person — narrower than the class-wide
+`others_verbs` ceiling, and never wider than the class door already allows.
+
+**See an instance's grants and the bounds you may grant within** (the same door the Sharing tab reads):
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/owned/MealPlan/<object_id>"
+```
+The response carries `grants` (the live `OwnerGrant` rows), `sharing.bounds` (`grantable_verbs`,
+`grantee_kinds`), and `sharing.you_may_share` with a reason when it is false.
+
+**Grant** — read to one person, by their Keycloak `sub` (never a username, D18-1):
+```
+curl -sk -H "Authorization: Bearer $TOKEN" -X POST "$API/api/security/owned/MealPlan/<object_id>/grants" \
+     -H 'Content-Type: application/json' \
+     -d '{"grantee_kind": "person", "grantee": "<B-sub>", "verbs": ["read"], "fields": ["title","servings"]}'
+```
+A group grant works the same way with `"grantee_kind": "group", "grantee": "household-members"` — the fields
+UNION across every grant that applies. Add `"valid_until": "<ISO timestamp>"` to make it expire; a timestamp
+already in the past is refused at the door ("that is a revoke, not a grant"), never silently accepted.
+
+**The bounds, all checked at the door, not the row:** `owner_may_grant` must be on for the class; the caller
+must be the owner (or an admin); `verbs` must be a subset of `grantable_verbs`; `fields` may never include the
+owner column of an anonymised class; and a grant naming yourself as grantee is refused.
+
+**List, and revoke:**
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/owned/MealPlan/<object_id>/grants"
+curl -sk -H "Authorization: Bearer $TOKEN" -X DELETE \
+     "$API/api/security/owned/MealPlan/<object_id>/grants?grantee_kind=person&grantee=<B-sub>"
+```
+**Expiry is enforced at read time, not by a background sweep** — a grant past its `valid_until` is dead the
+instant somebody's verdict is asked, and is pruned (with a `SecurityEvent` recording why) the next time the
+grants list is read.
+
+**Transfer ownership** — only when the class's policy sets `transfer: owner` (or `admin`); refused in **every**
+gate mode including `advisory`, because the transfer's only effect is exactly the thing a warning would warn
+about:
+```
+curl -sk -H "Authorization: Bearer $TOKEN" -X POST "$API/api/security/owned/MealPlan/<object_id>/transfer" \
+     -H 'Content-Type: application/json' \
+     -d '{"to": "<B-sub>"}'
+```
+A username instead of a `sub` here is a `400` naming D18-1, same as everywhere else identity is passed.
+
+**Not built yet:** the Sharing tab itself has no frontend host — `sharing.table` in the instance door's response
+is already a complete `class-rows-table` item (filtered to the one instance) ready to render, but there is no
+per-instance page in the frontend to put a tab on yet.
+
+## The advisory bar in the browser (2026-09-19)
+
+Ledger §68 (ct-6 frontend). Everything above runs under `advisory`: nothing is blocked, but from here on a
+signed-in browser actually shows what enforcement would have done, on the existing notice bar at the top of the
+page (no new component).
+
+**The socket carries an identity now.** Signed in, the STOMP CONNECT frame carries your bearer, so a live-update
+subscription the class profile would refuse still updates (advisory), but is now attributable — signed out, the
+socket is anonymous exactly as before.
+
+**What you see.** A single summarised line appears only when there is something to say — *"Security advisory
+(dev): 3 would-deny, 1 would-project (seen 42 times) — click for details"* — folding in both the four HTTP
+response headers (`X-Polari-Permission-Advisory`, `X-Polari-Owner-Advisory`, `X-Polari-Traffic-Advisory`,
+`X-Polari-Auth`) and STOMP subscribe refusals into one counted, deduped list. Expanding it lists each distinct
+`outcome · subject · header · path`, with a count and a "Clear" button, and a standing sentence that **nothing
+was blocked**. The bar is amber when anything but `would-project` is present, and info-blue when only
+`would-project` entries are showing.
+
+**A refused live subscription never breaks the page.** If a class you are watching would be refused under
+`enforce`, the panel under `advisory` keeps updating live as always; the one case that changes anything is a
+future `enforce` deployment, where that one panel would fall back to refreshing about once a minute instead of
+losing its subscription outright, while every other panel on the page stays live.
+
+**Not built yet:** the browser pass proving all of this on the home stack by eye — the signed-in CONNECT frame,
+the bar's amber/info-blue split in both themes, the counts climbing under real polling, and the four headers
+surviving the nginx hop on the staging domain (ledger §68 OWED).
