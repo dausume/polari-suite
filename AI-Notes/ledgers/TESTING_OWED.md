@@ -4138,3 +4138,294 @@ image is rebuilt (`pol swarm deploy` — the stack respawns from the IMAGE, so a
 8. **Also still open:** op-3 (`Ballot` + the derived `VoteRecord` tally) waits for the governance module; the
    `events` verb is in `OWNER_VERBS` and `on_event` still carries no owner gate (§60's last OWED item, not
    closed here); and `frozen_when` has still only been exercised against in-memory doubles in both spellings.
+
+## §67–§69 + §66 addendum 5 — live proof on `polari-lean` after the eighth deploy (2026-09-19, framework `dcf221b`, angular `621d299`, posture dev, gate advisory)
+
+_Report by the live-proof agent, verbatim but with the home stack's address written `<lan>`; the sqlite inside the container was read for every persistence claim._
+
+### The report
+
+- Date: 2026-09-19, 03:00–03:35 UTC
+- Stack: swarm `polari-lean`, posture **dev**, gate **advisory**, `POL_PROD_POSTURE=dev`
+- Pins verified live: `polari-rf-node/polari-framework` = **dcf221b**, `polari-platform-angular` = **621d299**
+- Health before starting: `phase: online`, `onlineCount 6 / moduleCount 6` (appstore, islemesh, iso, polariapps, security, terms), `secondsToFull 103.692`
+- No tracked file edited, nothing committed, no image rebuilt. Three forced backend restarts via `docker service update --force polari-lean_prf-backend`.
+- `/app/data` confirmed to be a **named volume** (`polari-suite_prf_lean_data`), so the sqlite DB survives a container replacement — every "persisted" claim below was checked against `/app/data/managerObject_DB.db` inside the running container, not inferred from the API.
+
+**Headline:** 5 of 6 sections pass. **One hard defect** (§66 addendum 5 D2 is NOT closed for `InboundPolicy`), **one privacy defect** (a hostname on the objects view), and **two OWED steps that cannot be run as written**.
+
+---
+
+### A. Restore (§66 addendum 5)
+
+| step | request | result | verdict |
+|---|---|---|---|
+| A1 boot log — exemption | `docker logs <prf-backend>` after each boot | 6 occurrences per boot, e.g. `[DB] 70 classes exempt from the seed fingerprint — the definition merge governs them and restores them by id (§66 addendum 5)` (also at 33/36/41/46/49 classes as modules are admitted) | **PASS** |
+| A2 boot log — `[DefRestore]` | same | present for every def class, e.g. `[DefRestore] SecurityDecision: merged 0 persisted rows, 0 boot-time rows folded, 438 already restored`, `[DefRestore] InboundPolicy: merged 0 persisted rows, 0 boot-time rows folded, 1 already restored` | **PASS** |
+| A3 no `dictionary changed size` (D1) | `grep -c "dictionary changed size"` on all 4 boot logs | **0** on every boot | **PASS** |
+| A4 no `[LazyBoot] … FAILED` | `grep -c "LazyBoot.*FAILED"` on all 4 boot logs | **0**; all 6 modules reach `online` every boot | **PASS** |
+| A5 D2 fix visible | `grep "seed IDs for InboundPolicy"` | **no hits** — `InboundPolicy`/`OutboundPolicy` are now in the exempt set and restore by id (`[DB] Restoring 1 instances of InboundPolicy`), vs. the addendum-5 report's `[DB] Found 1 seed IDs for InboundPolicy` | **PASS** |
+| A6 ct-9: both inbound rows exist | `GET $API/api/security/traffic` (demo-admin) | `anonymous\|anonymous` (suggested, count 30) present at once; the `origin\|https://prf.<D>` row appeared after 3 requests carrying `Origin:` | **PASS** |
+| A7 body-addressed door confirms both | `POST $API/api/security/traffic/inbound {"name": …, "decision":"confirmed"}` ×2 | both 200, `"state": "confirmed"`, `"confirmed_by": "5cacba59-…"`, `confirmed_at` stamped. The door accepts the `origin` name containing `://`, which the `/{name}` path form cannot carry (§66a) | **PASS** |
+| A8 the ruling reaches the DB | sqlite `SELECT name,state FROM InboundPolicy` | **7 seconds** after the POST: `[('anonymous\|anonymous','confirmed'), ('origin\|https://prf.…','confirmed')]` | **PASS** |
+| A9 the ruling is stable while running | DB + API polled every 15 s for **200 s**, no restart | both rows stay `confirmed` in DB *and* API the whole time, counts tracking (24→43) | **PASS** |
+| A10 **survives a forced restart** | `docker service update --force` at 03:14:49, all-online 03:17:08, re-read | **`anonymous\|anonymous` is back to `suggested` (confirmed_by empty, count reset to 17/18) and the `origin\|…` row is GONE ENTIRELY.** sqlite agrees: `[('anonymous\|anonymous','suggested',17)]`. Reproduced a second time at 03:26:16→03:28:40 | **DEFECT — see D-1** |
+| A11 coverage before/after | `GET /api/apps/security/coverage?app=app-policy` | before `{open 432, suggested 4, confirmed 2, denied 0, inherited 0, stale 0}`; after **identical**; unchanged again after the 2nd and 3rd restarts | **PASS** |
+
+### D-1 — the confirmed `InboundPolicy` rulings do not survive a restart (§66 addendum 5 is not closed)
+
+Reproduced **twice**, each time with the DB verified `confirmed` *before* the restart.
+
+Timeline of the clean run:
+
+```
+03:14:28  POST …/traffic/inbound {"name":"anonymous|anonymous","decision":"confirmed"}   -> 200 confirmed
+03:14:28  POST …/traffic/inbound {"name":"origin|https://prf.<D>","decision":"confirmed"} -> 200 confirmed
+03:14:35  sqlite: [('anonymous|anonymous','confirmed'), ('origin|https://prf.<D>','confirmed')]
+03:14:49  docker service update --force polari-lean_prf-backend
+03:17:08  all 6 modules online
+03:17:1x  GET /api/security/traffic  -> inbound: [('anonymous|anonymous','suggested',18)]   (origin row absent)
+03:17:1x  sqlite:                    -> [('anonymous|anonymous','suggested',17)]
+```
+
+The decisive discriminator, from the third restart (03:26:16 → 03:28:40):
+
+```
+outbound: [('keycloak|Polari|rest', 'confirmed', 12)]      <- SURVIVED
+inbound:  [('anonymous|anonymous',  'suggested', 24)]      <- LOST, and origin|… deleted
+```
+
+`OutboundPolicy` — same class family, same exemption, same merge — **keeps** its confirmation across the very same restart. `PermissionObservation` (15 rows) and `ObservationSession` (3 rows) also survive intact (section C). So the exemption and the merge work; **`InboundPolicy` alone is lost.**
+
+The boot log points at the cause. On every boot the first read of the table already sees only one row:
+
+```
+17923:[DB] Restoring 1 instances of OutboundPolicy
+17930:[DB] Restoring 1 instances of InboundPolicy         <- 2 rows were in the DB at shutdown
+17934:[DB] Restoring 15 instances of PermissionObservation
+17948:[DB] Restoring 3 instances of ObservationSession
+18088:[DefRestore] OutboundPolicy: merged 0 persisted rows, 0 boot-time rows folded, 1 already restored
+18090:[DefRestore] InboundPolicy:  merged 0 persisted rows, 0 boot-time rows folded, 1 already restored
+```
+
+`SELECT * FROM InboundPolicy` at restore time returns **one** row when the DB held **two** at shutdown, and the surviving one carries `count 17` — i.e. the count of requests observed *during this boot*, not the 43 it had before. That is a fresh boot-time row, not the persisted one. The `derived_from` of the row that comes back says it in words:
+
+> `observed before the tree was restored (boot-time; flushed at the first request — §66a/§66b)`
+
+**Reading:** the §66a/§66b boot-time inbound flush writes its `suggested` row *and persists it* before `restoreTables()` reads the table, so the restore has nothing left to restore and the merge (`merged 0 persisted rows, 0 boot-time rows folded`) never sees the twin it is supposed to fold. This is the §66 addendum 2 restore-race shape, still live on the one class that observes traffic at boot. The addendum-5 D2 exemption fixes *which* rows are eligible to restore; it does not stop the table being rewritten before the restore runs.
+
+**Consequence:** the ct-9 inbound half is not durable. A person's `confirmed` inbound ruling is silently discarded at the next restart, and a second inbound row is deleted outright — under `enforce` that would close a door a person had opened.
+
+---
+
+### B. ct-5 — the `objects` topology view (§67 OWED steps 1–5)
+
+| step | request | result | verdict |
+|---|---|---|---|
+| B1 declared manifest flows | `GET $API/api/security/topology?view=objects` (demo-admin) | both present with `provenance: declared` and empty payload: `this instance -> external:odoo` (`app.flows:odooconnect declares it`) and `this instance -> external:keycloak:realm` (`app.flows:security declares it`). `drift.counts.observed` = **0** before anything armed | **PASS** |
+| B2 drift door anonymous | `GET $API/api/security/objects/drift` no bearer | **401** | **PASS** |
+| B3 drift door signed in | same with bearer | `['ok','observed_not_declared','declared_not_observed','by_app','coverage','not_traced','not_traced_detail','counts','reading','how']`; `by_app` has one entry per app with `coverage`/`reading`; `not_traced` present (empty — see N-1) | **PASS (shape)** |
+| B4 arm a TraceTarget | `POST /api/security/observe/trace {"class_name":"UserAppPreference"}` | 200, `armed: true`, budgets `max_traces 200 / max_edges 500 / max_depth 8 / window 3600` | **PASS** |
+| B5 one target at a time (his rule) | `POST …/observe/trace {"class_name":"RolePrototype"}` while armed | refused: `a trace target is already armed: UserAppPreference … Only one class is traced at a time — DELETE /api/security/observe/trace first.` | **PASS** |
+| B6 the tracer records | `GET /UserAppPreference` while armed | new edge `endpoint:GET /UserAppPreference\|object:UserAppPreference:read\|crude`, target row `traces_opened 1, edges_written 1` | **PASS** |
+| B7 **an observed keycloak edge** | `GET /api/security/people/<sub>` with `UserAppPreference` armed; then `DELETE /api/security/roles/claim?role=journalist` with `RolePrototype` armed | the keycloak send demonstrably happened (`x-polari-traffic-advisory: would-deny outbound keycloak:Polari` on both responses) but **no observed edge was recorded** — `traces_opened 0, edges_written 0`, `drift.counts.observed` stays 0 | **NOT RUNNABLE — see N-2** |
+| B8 `mode=enforce` reads `blocked` | `GET …/topology?view=objects&mode=enforce` | with everything unconfirmed: `counts {allowed 0, logged 2, blocked 2}` — `external:odoo` and `external:keycloak:realm` read **blocked** | **PASS** |
+| B9 `mode=enforce` reads `allowed` for a confirmed flow | confirmed `OutboundPolicy keycloak\|Polari\|rest`, re-read | `counts {allowed 1, logged 2, blocked 2}`; `external:keycloak:Polari` → **allowed**, `decided_by: outbound-wrapper`, why `OutboundPolicy (confirmed by 5cacba59-…) declares this call` | **PASS** |
+| B10 the mode is a reading, not an apply | during/after the enforce reads | `GET /api/health` 200, `GET /api/security/people/<sub>` 200 (a real keycloak call still succeeds); `mode=stock` reads `{allowed 4, logged 0, blocked 0}` | **PASS** |
+| B11 disarm | `DELETE /api/security/observe/trace` | `armed: false`; left disarmed at the end of the run | **PASS** |
+
+### D-2 (privacy) — the objects view prints a hostname, contrary to its own contract
+
+The view's own `description` says:
+
+> *"Classes and counts only — an instance id never appears here."*
+
+and its `this instance` node says *"no hostname and no address appears on this view"*. §67 lists among the selftested checks: *"**no instance ids, no addresses, no hostnames anywhere on the view**"*.
+
+But once an `origin` `InboundPolicy` row is confirmed — the normal outcome of a browser using the stack — the view carries the origin URL verbatim, as a node, an edge target, a drift entry and a summary row:
+
+```
+node    : {"node": "external:origin:https://prf.<lan>.nip.io", "kind": "external",
+           "layer": 3, "title": "external:origin:https://prf.<lan>.nip.io",
+           "description": "an external system: origin"}
+edge    : this instance -> external:origin:https://prf.<lan>.nip.io
+drift   : {"kind": "origin", "name": "https://prf.<lan>.nip.io", …,
+           "declared_by": "InboundPolicy (confirmed by 5cacba59-…)"}
+```
+
+On this stack that string is a hostname **and** a LAN IP (nip.io encodes the address in the name). The selftest cannot have caught it because the declared sources it exercises carry no origin row. This also brushes the standing *privacy: no real identifiers* rule for anything copied off the page.
+
+### N-1 — §67 OWED step 5 (`coverage: none` + a populated `not_traced`) cannot be exercised here
+
+Both real `app.flows` declarations (`security` → keycloak, `odooconnect` → odoo) declare `classes: []` by design, and the two confirmed `InboundPolicy` rows carry no classes either. So every app reads `coverage: full` with `classes: []` and `not_traced: []`:
+
+```
+(deployment) | coverage full | undeclared 0 | unexercised 3 | not_traced []
+odooconnect  | coverage full | undeclared 0 | unexercised 1 | not_traced []
+security     | coverage full | undeclared 0 | unexercised 1 | not_traced []
+reading: 5 declared flow(s), 0 observed; 0 observed flow(s) nothing declares … 5 declaration(s) nothing has exercised.
+          no class has crossed a boundary yet, and none is declared
+```
+
+The OWED wanted *"an app whose classes have never been armed reads coverage `none` and names them in `not_traced`, NOT an empty list"*. Until a declaration on this instance names a class, that branch is unreachable live. (It is also arguably wrong that an app that declared nothing and traced nothing reads `full`.)
+
+### N-2 — §67 OWED step 2's recipe cannot produce an observed flow (code reason)
+
+The step says: arm `UserAppPreference`, then drive `/api/security/people/{sub}` ("the cheapest" keycloak send), then expect an observed keycloak edge. It cannot work, and the reason is in the framework:
+
+- `polariApiServer/outbound.py:132` imports **only** `record_outbound` — not `touch`. An outbound send therefore never *opens* a trace.
+- `security_trace.record_outbound` → `record_edge`, and `record_edge` (`modules/security/custom/security_trace.py:464-475`) is a **no-op unless the current chain is already traced**:
+
+```python
+cause = current_cause()
+if not cause or not is_traced(cause.get('trace_id', '')):
+    return None
+```
+
+- A trace opens only where `touch` is called — `accessControl/app_permissions_gate.py:80` (the CRUDE gate), `stomp_gate.py:273`, `event_dispatcher.py:157`, `transport_mux.py:75`, `remote_hydration.py:168`.
+
+So an observed external edge requires **one request that passes the CRUDE gate for the armed class and then sends outbound**. `/api/security/people/{sub}` touches no Polari class. I also tried `DELETE /api/security/roles/claim?role=journalist` with `RolePrototype` armed — `security_claims.may_claim` reads `RolePrototype` directly, not through the CRUDE gate, so `traces_opened` stayed 0. No door on this instance does both. `drift.counts.observed` therefore stayed 0 for the whole run, and steps 2–3 (the observed half, and `observed_not_declared`) are **unproven**.
+
+### N-3 — the manifest's keycloak and the real keycloak are two different nodes
+
+`app.flows:security` declares system name **`realm`**; the actual send is recorded and policed as **`Polari`**. They appear as two separate nodes (`external:keycloak:realm` and `external:keycloak:Polari`), and under `enforce` the manifest-declared one reads **blocked** while the confirmed one reads **allowed**. The manifest declaration will therefore never match the real traffic, and `declared_not_observed` permanently lists `keycloak:realm` as *"DECLARED, NEVER OBSERVED"*.
+
+### N-4 — a confirmed inbound flow can never read `allowed`
+
+Under `enforce` the two person-confirmed inbound rows read `logged`, not `allowed`, because the `app-flows` chain step logs first:
+
+```
+== external:anonymous:anonymous
+   app-flows        -> logged   | NO manifest declares this flow (design §9): a finding, never a block — dev warns
+   traffic-policy   -> allowed  | a person confirmed this flow
+   outbound-wrapper -> allowed  | the call passes the one wrapper …
+   causal-map       -> n/a      | NOT TRACED: no TraceTarget has ever been armed on these classes …
+```
+
+Since `app.flows` is an *outbound* vocabulary, no module can ever declare an inbound origin, so every inbound edge carries a permanent finding. Behaviour may be intended; the §67 OWED's wording ("the confirmed one `allowed`") does not match what the view says for inbound.
+
+---
+
+### C. ct-7 — tasks + needs (§67 OWED steps 6–8)
+
+| step | request | result | verdict |
+|---|---|---|---|
+| C1 roleplay permission | `GET /api/security/observe/roles` as demo-journalist | `can_roleplay: true`, `why: "granted by group(s) journalist"`, `roleplay_groups: ["journalist","developers"]` — no admin knob needed | **PASS** |
+| C2 open session with a task | `POST /api/security/observe/session {"role":"journalist","task":"publish an article"}` + `X-Polari-Roleplay: journalist` | `session journalist\|2026-09-19T03:25:23Z`, `already_open false`, `task "publish an article"`, `task_changed true`, `tasks [{task, at}]` | **PASS** |
+| C3 3 reads under task 1 | `GET /RolePrototype`, `/UserAppPreference`, `/PolariAppDefinition` | all 200 | **PASS** |
+| C4 change the task mid-session | `POST` the same door with `"task":"score a source"` | `already_open **true**`, `task "score a source"`, `task_changed true`, and `tasks` keeps **both** with timestamps | **PASS** |
+| C5 2 reads under task 2 | `GET /RolePrototype`, `/SecurityEvent` | both 200 | **PASS** |
+| C6 review → two task buckets + closure each | `GET /api/security/observe/review?role=journalist` | `tasks` = 3 buckets: `publish an article` (acts 3, usages 3, would_deny_today 2, objects PolariAppDefinition/RolePrototype/UserAppPreference ×1), `score a source` (acts 2, objects RolePrototype/SecurityEvent ×1), and the unattributed `''` bucket (acts 0). **Each carries its own full `closure`** with `reading`, `coverage`, `not_traced` | **PASS** |
+| C7 verify names the TASKS | `GET /api/security/observe/verify?role=journalist&group=journalist` | `tasks_broken: ["publish an article","score a source"]`; `tasks_verdict: "2 task(s) would BREAK under this profile: 'publish an article', 'score a source'"`; per-task `allowed`/`denied`/`breaks`/`reading` (e.g. *"the task 'publish an article' would BREAK: 2 of 3 recorded class × verb act(s) would now be denied (RolePrototype:read, UserAppPreference:read)"*) | **PASS** |
+| C8 rows did **not** multiply | `GET /PermissionObservation` before/after | 9 rows → 13 rows. The 5 acts across 2 tasks produced **4** new rows (one per distinct `groups\|class\|verb`), and the row touched by both tasks is ONE row naming both: `…roleplay:journalist…\|RolePrototype\|read` → `tasks_json {"publish an article": 1, "score a source": 1}`, `count 2` | **PASS** |
+| C9 **restart check** | DB verified, restart 03:26:16 → all-online 03:28:40 | `ObservationSession journalist\|2026-09-19T03:25:23Z` keeps `task "score a source"` and the full `tasks_json` history; all 4 observation rows keep their `tasks_json` and counts | **PASS** |
+| C10 a session open across the restart still attributes | read `/SecurityEvent` as journalist after the restart | the row's `tasks_json` went `{"score a source": 1}` → `{"score a source": 2}` | **PASS** |
+| C11 end the session | `DELETE /api/security/observe/session?role=journalist` | `{"ok": true, "ended": ["journalist\|2026-09-19T03:25:23Z"]}` | **PASS** |
+
+### N-5 — `/api/security/observations` does not project `tasks_json`
+
+The ct-7 column is on the row and correct (proved above through `GET /PermissionObservation`), but the security door reports it as `null` for every row:
+
+```
+/api/security/observations : …|RolePrototype|read  | count 2 | tasks_json None
+/PermissionObservation      : …|RolePrototype|read  -> '{"publish an article": 1, "score a source": 1}' | count 2
+```
+
+Cosmetic, but it means the ct-7 answer is invisible on the one door named for observations.
+
+---
+
+### D. §68 frontend half
+
+| step | request | result | verdict |
+|---|---|---|---|
+| D1 served bundle | `curl $FE/` → `main.a2f1460ff4a92e46.js` (5,194,984 B) | contains `X-Polari-Permission-Advisory` ×2, `Security advisory (dev)` ×1, `X-Polari-Owner-Advisory` ×1, `X-Polari-Traffic-Advisory` ×1, `X-Polari-Auth` ×1, `polariNotice` ×1, `permission-advisory` ×1, `connectHeaders` ×23 | **PASS** |
+| D2a ws path | `.generated/nginx.lean.conf` `map $http_upgrade $prf_api_target { default http://prf-backend:3000; websocket http://prf-backend:3001; }` + `stompWebSocketServer.py` `port=3001` | the socket is `wss://api.prf.<D>/` on **any** path — the Upgrade header alone routes it | **PASS** |
+| D2b STOMP CONNECT with a bearer | python3 `websockets` 13.1, raw STOMP frames, demo-viewer token on the CONNECT frame | `CONNECTED\nversion:1.2\nserver:polari-stomp/1.0\nheart-beat:0,0` | **PASS** |
+| D2c SUBSCRIBE to a class outside the profile | `SUBSCRIBE /topic/AppPermissionProfile` | `MESSAGE` with `X-Polari-Permission-Advisory: would-deny AppPermissionProfile:read`, `message-id: permission-advisory`, body `{"polariNotice": "permission-advisory", "className": "AppPermissionProfile", "verb": "events", "derivedFrom": "read", "mode": "advisory", "authenticated": true, "verdict": {"allowed": false, "why": "no granted profile covers AppPermissionProfile:read …"}}` | **PASS** |
+| D2d backend says `identity <sub>` | `docker logs … \| grep "STOMP protocol"` | `[STOMP] Client afb7e363 connected (STOMP protocol, identity 820f970b-5578-442a-bdf4-fac357509c9b)` — demo-viewer's sub, **not** anonymous | **PASS** |
+| D2e anonymous control | same probe, no Authorization header | `[STOMP] Client ff9767c8 connected (STOMP protocol, identity anonymous)` and the frame changes to `X-Polari-Permission-Advisory: unauthenticated AppPermissionProfile:read`, body `"authenticated": false`, `"auth": "no-token"` | **PASS** |
+| D3 headers exposed through nginx | `curl -D - -H "Origin: https://prf.<D>" $API/api/health` | `access-control-expose-headers: X-Polari-Auth, X-Polari-Permission-Advisory, X-Polari-Owner-Advisory, X-Polari-Traffic-Advisory`; also `access-control-allow-origin: https://prf.<D>`, `access-control-allow-credentials: true`. All four survive the nginx hop — this closes §68 OWED item 5 | **PASS** |
+
+Also observed live: `X-Polari-Traffic-Advisory: would-deny outbound keycloak:Polari` on `GET /api/security/people/<sub>` — a real ct-9 advisory header on a real response.
+
+**Not run:** §68 OWED items 1 (sign-out reload), 2 (the 60-second no-refetch negative), 3 (light/dark amber-vs-blue), 4 (`enforce` flip + ERROR frame + 60 s fallback tick), 6 (expired-token reconnect). All six need a browser with devtools and a person; I have no browser on this box and the negative ("does not refetch in 60 s") cannot be shown from curl.
+
+---
+
+### E. op-1 / op-2 / op-4 (§69 OWED)
+
+| step | request | result | verdict |
+|---|---|---|---|
+| E1 the manifest declaration, no admin door touched | `GET /api/security/owned` | `manifest.declared: [{module: polariapps, class: UserAppPreference, duplicate_of: ""}]`; `manifest.converge: {created: [], updated: [], kept: ["UserAppPreference"], conflicts: [], duplicates: []}`; the policy reads `source: **manifest**`, `derived_from: polariapps`, `owner_field: sub`, `owner_verbs [read,update,delete]`, `others_verbs []` | **PASS** |
+| E2 exactly ONE row after restarts | same, after 3 forced restarts | still one `UserAppPreference` policy, `kept` (converged in place, never doubled) — the seeded-row case §69 flagged as the risky one | **PASS** |
+| E3 a `UserAppPreference` row exists | `GET /api/apps/mine` as demo-journalist, then `GET /UserAppPreference` | one row, `id Qp11Da7u5z`, `sub 589384ad-…` (the journalist's sub, D18-1: sub only) | **PASS** |
+| E4 `sharing.table` on the per-instance door | `GET /api/security/owned/UserAppPreference/Qp11Da7u5z` as the owner | `sharing` carries `ok/class/id/owned/show_tab/you_may_share/why/grants/yours/bounds/table/how`; `table` is a complete `class-rows-table` item: `className OwnerGrant`, `filterField object_id`, `filterValue Qp11Da7u5z`, `columnFormats granted_by:person,grantee_sub:person` | **PASS** |
+| E5 the grants door refuses, naming the bound | `POST …/UserAppPreference/<id>/grants` as the owner | **403** — `"UserAppPreference does not allow per-instance sharing: OwnedClassPolicy[UserAppPreference].owner_may_grant is false (a ballot is the design's example of a class that never has a grant)"`; `show_tab false`, `you_may_share false` | **PASS** |
+| E6 transfer refused (`transfer: nobody`) | `POST …/UserAppPreference/<id>/transfer` | `"OwnedClassPolicy[UserAppPreference].transfer is \`nobody\` — this class's instances never change hands. An administrator may set it to \`admin\` or \`owner\`."` | **PASS** |
+| E7 throwaway policy that allows grants | `POST /api/security/owned/TraceTarget {enabled, owner_field: started_by, owner_may_grant: true, grantable_verbs: ["read"], grantee_kinds: ["person"]}` as admin | 200, `source: **admin**`; a later `GET /api/security/owned` shows `manifest.converge.conflicts: []` (nothing declares TraceTarget) and the admin row untouched | **PASS** |
+| E8 before the grant | `GET /api/security/owned/TraceTarget/MUste2hgr` as demo-viewer | `you_are_the_owner false`, `may []`, `fields_you_see null` | **PASS** |
+| E9 the owner grants read | `POST …/TraceTarget/MUste2hgr/grants {grantee_kind: person, grantee: <viewer sub>, verbs: [read], fields: [name, class_name]}` | 200 `created: true`, grant `gOkABdJAt`, `name TraceTarget\|MUste2hgr\|person\|820f970b-…`, `grantee_sub` holds the sub and `grantee_group` is empty (gotcha 1 honoured) | **PASS** |
+| E10 the grantee's read carries no advisory | `GET …/TraceTarget/MUste2hgr` as demo-viewer | **no `X-Polari-Owner-Advisory` header**; `may ["read"]`, `fields_you_see ["name","class_name"]`, verdict `rule: "grant:gOkABdJAt"`, why *"…an OwnerGrant the owner made … allows read, and a read is projected to ['name','class_name'] (the owner column is dropped)"* | **PASS** |
+| E11 nobody else gains anything | same read as demo-journalist | `may []`, `fields_you_see null` | **PASS** |
+| E12 a past `valid_until` is rejected | grant with `valid_until: 2020-01-01T00:00:00Z` | **400** — `"valid_until '2020-01-01T00:00:00Z' is already in the past — that is a revoke, not a grant"`, and the live grant is untouched | **PASS** |
+| E13 the other bounds | grant to self; grant `delete` | `"a grant to YOURSELF is the owner floor written down twice — you already hold owner_verbs ['read','update','delete'] on your own rows"`; `"verbs delete are not in OwnedClassPolicy[TraceTarget].grantable_verbs ['read'] — an owner may only share what the class made shareable"` | **PASS** |
+| E14 DELETE revokes | `DELETE …/grants?grantee_kind=person&grantee=<sub>` | 200; viewer's read is back to `may []`, `fields_you_see null`; a second DELETE is **404** `"no such grant on TraceTarget MUste2hgr"` | **PASS** |
+| E15 anonymised normalises at the read | `POST /api/security/owned/TraceTarget {anonymised: true, transfer: "owner", owner_visible: true}` | comes back `anonymised true`, **`owner_visible false`**, **`transfer "nobody"`**, `transfer_declared "owner"` — the contradiction is kept visible, not erased | **PASS** |
+| E16 transfer on an anonymised class refused | `POST …/TraceTarget/MUste2hgr/transfer {"to": <sub>}` | **403** — `"TraceTarget is an ANONYMISED class: its owner is never transferred. A transfer names the old owner and the new one in one act, which is exactly what anonymised exists to prevent (design §8)."` | **PASS** |
+| E17 `sharing.table` on a shareable class | `GET …/TraceTarget/MUste2hgr` as the owner while granted | `show_tab true`, `you_may_share true`, `grants 1`, `table.filterValue MUste2hgr`, `columnFormats granted_by:person,grantee_sub:person` | **PASS** |
+| E18 the two pages answer 200 | `GET https://prf.<D>/display/security-owned`, `…/security-objects` | both **200** | **PASS** |
+| E19 the display door lists them | `GET $API/DisplayDefinition` | both present as `name`+`pageRoute`; `security-objects` = **8 rows** (`api-structured-panel` ×11, `class-rows-table` ×2), `security-owned` = **6 rows** (`api-structured-panel` ×4, `class-rows-table` ×3). **No `api-json-panel`, no raw-JSON panel on either** | **PASS** |
+
+### Cleanup performed
+
+- `OwnedClassPolicy[TraceTarget]` — **there is no delete door** (`DELETE /api/security/owned/TraceTarget` → **405 Method Not Allowed**), so I set it `enabled: false` with every field cleared and the note *"THROWAWAY from live proof round 5 — DISABLED after the proof"*. It reads `TraceTarget | enabled False | source admin` in the listing; `UserAppPreference` is untouched and still `enabled True / source manifest`.
+- The `OwnerGrant` row `gOkABdJAt` was revoked; `GET /OwnerGrant` carries no `TraceTarget|` row.
+- The trace target is disarmed (`armed: false`).
+- The role-play session was ended.
+
+**N-6 — an `OwnedClassPolicy` cannot be removed.** The door offers `POST` only; `DELETE` is 405. A throwaway or mistaken opt-in is permanent (disable-only), and the disabled row stays in `GET /api/security/owned`'s `count`. §69's own OWED step 2 ("opt a real class in…") has no stated way back out.
+
+**Not run from §69's OWED:** steps 2–4 as written (they need a `MealPlan` class, which this lean stack does not carry — I substituted `TraceTarget`, which covers the same doors but is not a domain row); step 3's *wall-clock* expiry (a live grant dying on the clock — only the past-`valid_until` door refusal and the `match()` bound were exercised); step 5's anonymised STOMP broadcast (`instanceIds: []` on a create) and the anonymised trace-journal row; step 6 the browser pass; step 7 the Sharing-tab host (still absent by design).
+
+---
+
+### F. The site
+
+| step | request | result | verdict |
+|---|---|---|---|
+| F1 the page answers | `GET https://<lan>.nip.io/docs/app-security.html` | **200**, 35,398 bytes, contains `Application security` (3 occurrences) | **PASS** |
+| F2 the sidebar links it | `GET …/docs/security.html` | **200**; line 66: `<a href="docs/app-security.html">Application security</a>`; the layer table and the status blockquote both link `app-security.html` | **PASS** |
+
+---
+
+### Defects, in priority order
+
+1. **D-1 (hard, ct-9 durability).** A person-confirmed `InboundPolicy` ruling does not survive a backend restart, and a second inbound row is deleted outright. Reproduced twice with the DB verified `confirmed` beforehand and stable for 200 s under observation. `OutboundPolicy`, `SecurityDecision`, `PermissionObservation` and `ObservationSession` all survive the same restart, so the exemption and the merge work — `InboundPolicy` alone is lost. Evidence points to the §66a/§66b boot-time inbound flush persisting its `suggested` row before `restoreTables()` reads the table (`[DB] Restoring 1 instances of InboundPolicy` when the DB held 2; the restored row's `count` equals this boot's request count). **§66 addendum 5 is not closed.**
+2. **D-2 (privacy).** The `objects` topology view prints the confirmed origin's URL — `external:origin:https://prf.<lan>.nip.io` — as a node title, an edge target, a drift entry and a summary row, contradicting the view's own description, the §67 selftest claim, and the standing no-real-identifiers rule.
+3. **N-6.** `OwnedClassPolicy` has no delete door (405); an opt-in is disable-only and permanent.
+4. **N-5.** `/api/security/observations` reports `tasks_json: null` although the row carries it.
+5. **N-3.** `app.flows:security` names keycloak `realm` while the real traffic is `Polari` — two nodes for one system; the declaration can never match, and under `enforce` the declared one reads `blocked`.
+6. **N-4.** A person-confirmed *inbound* flow can never read `allowed` on the objects view, because `app.flows` has no inbound vocabulary so the `app-flows` step always logs a finding first.
+
+### Could not run, and why
+
+| item | why |
+|---|---|
+| §67 OWED step 2–3 (an **observed** flow edge, `observed_not_declared`) | `record_edge` no-ops unless the request's chain is already traced, and `outbound.py` never calls `touch`. No door on this instance both passes the CRUDE gate for an armable class and then sends outbound. See N-2. |
+| §67 OWED step 5 (`coverage: none` + populated `not_traced`) | every declaration on this instance carries `classes: []`, so the branch is unreachable. See N-1. |
+| §68 OWED 1, 2, 3, 4, 6 (browser pass) | need a browser with devtools and a person: the signed-out reload, the 60-second **no-refetch** negative, amber-vs-blue in light and dark, the `enforce` flip with its ERROR frame and fallback tick, and the expired-token reconnect. No browser on this box; the key checks are negatives that curl cannot show. |
+| §69 OWED 2–4 exactly as written | `MealPlan` is not on this lean stack; substituted `TraceTarget` (same doors, not a domain row). |
+| §69 OWED 3 wall-clock expiry | only the door-level past-`valid_until` refusal was exercised, not a live grant dying on the clock. |
+| §69 OWED 5 (anonymised broadcast / journal) | needs a create on an anonymised class with a STOMP client attached and a TraceTarget armed on it; not attempted to avoid writing domain rows on the shared stack. |
+| §69 OWED 6–7 (browser pass, Sharing-tab host) | needs a browser; the per-instance host does not exist yet by design. |
+
+### Residual state left on the stack (nothing tracked was written)
+
+- `OutboundPolicy keycloak|Polari|rest` is now **confirmed** by demo-admin (needed for B9). The door offers `confirmed|denied` only, so there is no way back to `suggested`; the stack is in `advisory`, so nothing is enforced.
+- `InboundPolicy anonymous|anonymous` is `suggested` (my three confirmations were each lost to D-1).
+- `OwnedClassPolicy[TraceTarget]` exists with `enabled: false` (no delete door).
+- Three `TraceTarget` rows (AppPermissionProfile, UserAppPreference, RolePrototype), all inactive.
+- `PermissionObservation` gained four `roleplay:journalist` rows; the role-play `ObservationSession` is ended.
+- demo-admin was passed through `DELETE /api/security/roles/claim?role=journalist` twice (to drive a keycloak send). It was never in that group — `held: []` before and after — so group membership is unchanged.
+- Stack final state: `phase online`, 6/6 modules, `mode advisory`, `posture dev`, trace disarmed, `git status` clean.
