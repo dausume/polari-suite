@@ -596,7 +596,7 @@ gains a `residue from an earlier run` row that FAILs and names the wipe.
 - The poll queues are one item deep and latest-wins (`pool/queue/<branch>.json`), so no automated process can build a backlog of runs to work through.
 
 ## Tests
-`bash polari-jenkins/selftest.sh` — the ci-7 … ci-12 tests, **474/474**. They
+`bash polari-jenkins/selftest.sh` — the ci-7 … ci-12 tests, **479/479**. They
 need **no docker, libvirt, sudo or network**: the scripts run against a temp
 tree and PATH shims, covering the doctor's WARN wording per
 misconfiguration, the preflight's PASS/FAIL arithmetic and the

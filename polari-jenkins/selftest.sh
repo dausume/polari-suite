@@ -1347,6 +1347,14 @@ has "the job ticks on a TIMER, not on an SCM change — a deferral must be retry
     "cron('H/5 * * * *')" "$(cat "$J/jobs/seed.groovy")"
 has "  …and the reason is written down where the trigger is" "would never" "$(cat "$J/jobs/seed.groovy")"
 has "the test pipeline gates BEFORE it checks out" "is there anything to test" "$(cat "$J/pipelines/Jenkinsfile.test")"
+# CPS: a java.util.regex.Matcher is NOT serializable and Jenkins persists every
+# local across a step boundary. Storing one killed polari-test #4 on the pipeline
+# device AFTER every check had passed. The rule, asserted so it cannot come back:
+# no `def <var> = (… =~ …)` anywhere in a Jenkinsfile.
+for JF in "$J"/pipelines/Jenkinsfile.*; do
+    BADM="$(grep -nE '^[[:space:]]*def [A-Za-z_]+ *= *\(?[A-Za-z_.]+ *=~' "$JF" || true)"
+    eq "no Matcher is stored in a local in $(basename "$JF") (NotSerializableException — polari-test #4)" "" "$BADM"
+done
 # the shared window: the gate starts the clock, the full check does not reset it
 rm -rf "$QP/queue"
 export FAKE_HEADS="test=333ccc"

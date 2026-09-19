@@ -38,12 +38,10 @@ pipeline {
             echo env.DEFER_WHY
             return
           }
-          def out = sh(returnStdout: true, script: '''set +e
-            bash /var/polari-jenkins/quiet.sh gate main
-            echo "QUIET_RC=$?" ''')
-          echo out
-          def m = (out =~ /QUIET_RC=(\d+)/)
-          def rc = m ? (m[0][1] as int) : 1
+          // no Matcher in a local: it is not serializable and CPS persists locals
+          // across every step boundary (it killed polari-test #4).
+          def rc = sh(returnStatus: true,
+                      script: 'bash /var/polari-jenkins/quiet.sh gate main > .quiet-gate.log 2>&1; rc=$?; cat .quiet-gate.log; exit $rc')
           if (rc == 6) {
             env.DEFER_WHY = 'nothing to release yet (already covered, or main is still moving) — the next tick looks again'
             echo env.DEFER_WHY
@@ -84,12 +82,8 @@ pipeline {
       steps {
         script {
           env.PROCEED = 'no'
-          def out = sh(returnStdout: true, script: """set +e
-            POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh check main
-            echo "QUIET_RC=\$?" """)
-          echo out
-          def m = (out =~ /QUIET_RC=(\d+)/)
-          def rc = m ? (m[0][1] as int) : 1
+          def rc = sh(returnStatus: true,
+                      script: "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh check main > .quiet-check.log 2>&1; rc=\$?; cat .quiet-check.log; exit \$rc")
           if (rc == 6) {
             env.DEFER_WHY = 'changes still landing in a submodule of main — a promotion that is still pushing must not be released half-way.'
             echo env.DEFER_WHY
