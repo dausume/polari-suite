@@ -4429,3 +4429,203 @@ Also observed live: `X-Polari-Traffic-Advisory: would-deny outbound keycloak:Pol
 - `PermissionObservation` gained four `roleplay:journalist` rows; the role-play `ObservationSession` is ended.
 - demo-admin was passed through `DELETE /api/security/roles/claim?role=journalist` twice (to drive a keycloak send). It was never in that group — `held: []` before and after — so group membership is unchanged.
 - Stack final state: `phase online`, 6/6 modules, `mode advisory`, `posture dev`, trace disarmed, `git status` clean.
+
+### §66 addendum 6 — D-1: the persist that beat the restore (2026-09-19, root-caused, fixed, selftested)
+
+The round-5 live proof (§A above) found the one hard defect: a person-confirmed `InboundPolicy` ruling does not
+survive a restart, reproduced twice with the DB verified `confirmed` beforehand and stable for 200 s under
+observation. `OutboundPolicy`, `SecurityDecision`, `PermissionObservation` and `ObservationSession` all survive
+the same restart — so the §66 addendum 5 exemption and the §66e merge both work, and `InboundPolicy` alone is
+lost. **This is not ct-9's bug and it is not the restore's; it is the PERSIST's.**
+
+**The mechanism, with the code.** `persistTree` is DELETE + REPLACE per class: it snapshots `objectTables` and
+rewrites each table from that snapshot (`objectTreeManagerDecorators.persistTree:1042` and its snapshot at `:1088`,
+`_persistTreeAtomic` the prepare/write, `managedDB.writePreparedBatches` the DELETE+REPLACE). That is right
+once the tree IS the tree, and catastrophic before it. The chain live:
+
+1. `lazy_boot.run` Phase A (`lazy_boot.py:527`) calls `jumpstartDatabase(skip_restore_tables=feature_names)` —
+   every **module-owned** table is DEFERRED, `InboundPolicy` among them, and restored later at admission
+   (`lazy_boot._admit:636` → `restoreTables()` → `ensureDefinitionTables()`).
+2. `polariServer.ensureDefinitionTables(only_classes=core_names)` finishes and sets
+   `manager.definitionsRestored = True` (`polariServer.py:1772`). §66b's readiness flag now reads READY — for
+   the CORE restore. `InboundPolicy` belongs to the **security module** and has not been read at all.
+3. The swarm's anonymous health probe hits `/api/health` seconds into the boot. `TrafficPolicyMiddleware`
+   → `security_traffic.inbound_verdict` → `tree_ready()` said True → `_observe_inbound` creates ONE `suggested`
+   row and calls `_schedule_persist(manager)`.
+4. Three seconds later (`persist_debounce.DEFAULT_DELAY`) `persistTree()` runs and rewrites the whole
+   `InboundPolicy` table from the one boot-time row in memory. **The two rows on disk, a person's `confirmed`
+   ruling among them, are gone before anything has read them.**
+5. Security is admitted; `restoreTables()` reads the table and finds the ONE row the flush left
+   (`[DB] Restoring 1 instances of InboundPolicy` for a table that held two at shutdown), and the merge
+   reports `merged 0 persisted rows, 0 boot-time rows folded, 1 already restored` — there was nothing left to
+   merge. The restored row's `count` is this boot's probe count and its `derived_from` still says
+   *"observed before the tree was restored (boot-time; flushed at the first request — §66a/§66b)"*.
+
+**Why `OutboundPolicy` differs, and it is only timing.** Nothing goes through `polariApiServer.outbound`'s
+wrapper until an authenticated request reaches Keycloak, which is after admission; `security_traffic._PENDING`
+parks the earlier boot-time sends (§66a) rather than writing them. So its table was never rewritten before its
+restore. Same class family, same exemption, same merge — **the hazard is the write ordering, not the class**,
+and it is live for any class an observer can touch during a lazy boot.
+
+**The fix, at the core, in the smallest honest shape.** A persist never writes a class whose persisted rows this
+process has not read back.
+
+| built | where |
+|---|---|
+| `restoredClasses()` / `noteClassRestored()` — the classes this process HAS read back, `__dict__`-resident (the `_persistState` idiom, so it never becomes a typed attribute) | `objectTreeManagerDecorators.py:757-768` |
+| `armRestoreTracking()` / `restoreTrackingArmed()` — armed by `restoreFromDatabase` and nowhere else, so a FRESH database and every manager double behave byte-for-byte as before | `objectTreeManagerDecorators.py:771-778`, armed at `:465` |
+| `classesPendingRestore(names)` — of those names, the ones whose DB table still holds rows nobody has read. A table known to be EMPTY is cleared immediately (nothing to overwrite); a table that cannot be READ stays pending, because not knowing what is on disk is not a licence to replace it | `objectTreeManagerDecorators.py:780-818` |
+| `persistTree` HOLDS BACK those classes, with one log line naming them and how many rows stayed in memory | `objectTreeManagerDecorators.py:1095-1119` (both the atomic and the legacy per-class paths inherit it, and a held-back class's tombstones are NOT cleared, because it was not rewritten) |
+| both restore paths mark their decisions — read, deliberately declined (`constructor requires …, re-created at runtime`), or provably absent. The two branches that do NOT mark are a table whose class is not registered yet (that is what a definition class looks like to the main pass) and a read error | `objectTreeManagerDecorators._restoreTableRows:517-672`, `polariServer._restoreDefinitionInstances:1893-1918` |
+| the ct-9 half: `tree_ready(manager, table)` is now PER CLASS — `definitionsRestored` is one flag for the core restore, and the policy tables are the security module's. The probe is PARKED for those few seconds and the parked count then lands ON the restored ruling through `_find` (§66d) instead of beside it | `security_traffic.tree_ready`, `_verdict`, `flush_pending`, `note_inbound_path` |
+
+The bookkeeping degrades exactly like the §51 addendum 3 tombstones: `_managerPendingRestore` /
+`_managerNoteRestored` swallow anything a double has not been taught, so the selftests that bind `persistTree`
+and `_restoreTableRows` onto a `SimpleNamespace` keep their old behaviour.
+
+**Selftests.** NEW `polariApiServer/selftest_persist_before_restore.py` **26/26** (**13/26** against the shipped
+behaviour, with `classesPendingRestore` patched to answer "nothing" — the two confirmed rows are overwritten by
+the boot-time row and the restore then loads only that row, which is the live defect exactly). A REAL
+`managerObject` with a REAL `managedDatabase` over a temp sqlite file: the rows on disk are read back with plain
+sqlite, so no double can flatter the result. It pins the live sequence end to end (confirm → restart → four
+probes with a flush each → restore → flush: both rulings intact, the second inbound row not deleted) and the
+four bounds — a fresh database is never held back, an empty table is not held back, an unreadable table IS, a
+class with no table at all is not, one held-back class never stalls the others, and a held-back class keeps its
+tombstones. Regression: `selftest_restore_merge` **17/17**, `selftest_restore_from_database` **25/25** (its
+`FakeManager` now binds the five new real methods, so the marking under test is real),
+`selftest_persist_debounce` **13/13**, `selftest_persist_tombstones` **43/43**, `selftest_quiesce` **27/27**,
+`selftest_crude_delete_blast` **21/21**, `selftest_persist_atomic` **21/21**, `selftest_batched_persist`
+**17/17**, `selftest_lazy_boot` 33/34 (the pre-existing manifest-drift pin). Security selftest +2 ct-9 checks
+(the per-class hold, and that it is per class rather than a boot-wide stop).
+
+**What a live re-proof must check.** Redeploy, then:
+1. The boot log carries `[DB] Persist HELD BACK for N classes whose persisted rows this process has not
+   restored yet (…)` naming `InboundPolicy` — that line IS the fix working, and its absence on a warm boot
+   means nothing raced the restore this time, not that the guard is off.
+2. `[DB] Restoring N instances of InboundPolicy` where N is what sqlite held at shutdown (two, not one).
+3. Confirm BOTH inbound rows (`anonymous|anonymous` and the origin row) through the body door, verify them in
+   `/app/data/managerObject_DB.db` with sqlite, wait past the debounce, `docker service update --force`, and
+   re-read: both still `confirmed`, one row per name, the confirmer and timestamp intact, and the count equal
+   to persisted + this boot's probes rather than this boot's alone.
+4. The *second* restart (the live proof lost the origin row outright on every one) — it must still be there.
+5. `OutboundPolicy`, `SecurityDecision`, `PermissionObservation`, `ObservationSession` unchanged: the guard
+   must not have stopped anything persisting. Check `GET /api/apps/security/coverage?app=app-policy` reads the
+   same before and after, and that new rows written after boot DO reach sqlite.
+6. Nothing in the log says a class stayed held back after its module came online — a class that is still
+   pending once `phase: online` is reported would be a class that never persists again, and that is the one
+   way this fix could hurt.
+
+---
+
+### §67 addendum — D-2 and the objects-view findings (2026-09-19, fixed, selftested)
+
+**D-2 (privacy) — the view printed a hostname, contrary to its own contract.** Once an `origin` `InboundPolicy`
+row is confirmed — the normal outcome of a browser using the stack — `external:origin:https://prf.<lan>.nip.io`
+appeared as a node, a node TITLE, an edge target, a drift entry and a summary row, while the view's own
+`description` promises *"no hostname and no address appears on this view"* and §67 lists that among its
+selftested checks. On a nip.io host that string is a hostname **and** the LAN address it encodes. The selftest
+could not have caught it: its declared sources carried no origin row at all.
+
+The row itself is right to hold `scheme://host` — a person confirming a source has to tell one browser origin
+from another, and that door is behind an admin bearer. This VIEW is not that door. So the origin is rendered at
+the only resolution a topology needs:
+
+| built | where |
+|---|---|
+| `own_origins()` — the hosts this deployment calls its own, from `api.cors_origins` (the CORS allow-list IS the statement "these front ends are mine"), plus `frontend.url` / `backend.url`. Cached per process; an instance that configures none calls every origin `other`, which is the safe answer | `security_objects_view.py` |
+| `coarsen_source(kind, name)` — an `origin` becomes `<scheme>:this-instance` or `<scheme>:other`; a shape it cannot read becomes `other`; every other source kind is already a NAME or a CLASS (a `PeerNode` name, `anonymous`, `ip-literal`) and passes through untouched | same |
+| applied where the flow is BUILT (`policy_flows`), so the node, the title, the edge target, the drift entry and the summary row are all coarse by construction rather than by five separate scrubs | same |
+| the state lookup no longer needs the exact name: `declared_flows()` emits CONFIRMED inbound rows and nothing else, so the state is known without it (the raw source is therefore not carried through the view at all, and `/api/security/objects/flows` cannot leak it either) | `build()` |
+
+The exact origin stays where a person rules on it: `GET /api/security/traffic` and `/traffic/declared`, signed
+in. The view's `description`, its `this instance` node and `HOW_OBJECTS` all say so now instead of promising
+something they did not deliver.
+
+**N-3 — the manifest's keycloak and the real keycloak were two nodes.** `app.flows:security` declared
+`name: "realm"` while the traffic is named `Polari`, so `external:keycloak:realm` stood beside
+`external:keycloak:Polari`, the declared one read **blocked** under enforce, and `declared_not_observed`
+listed it as *DECLARED, NEVER OBSERVED* for ever. A manifest speaks at system-KIND level by design — an app
+author cannot know which realm a deployment runs — so the `name` is dropped from the declaration
+(`modules/security/polari-app.json`; `odooconnect` already had none) and `build()` matches a declaration with
+NO name against every system of that kind the instance really talks to. One node, carrying both statements.
+
+**N-4 — a confirmed inbound flow could never read `allowed`.** `app.flows` is an OUTBOUND vocabulary (design
+§9), so no module can ever declare who may CALL a deployment; the `app-flows` chain step therefore logged a
+finding first and every person-confirmed inbound edge read `logged` under enforce. Design §7 counts *"a traffic
+policy a person confirmed"* as a declaration in its own right, and for an inbound flow it is the only one there
+can be — so a confirmed `InboundPolicy` IS the declared side for its own edge, and the chain step says exactly
+that instead of reporting a finding nobody could ever answer.
+
+**N-5 — `/api/security/observations` reported `tasks_json: null`.** The column was on the row and the CRUDE
+listing showed it; `OBS_KEYS` (and `USAGE_KEYS`) simply left it out of the projection the door sends. Both now
+carry `tasks_json` beside the parsed `tasks` map.
+
+**N-2 — the observed half of the objects view was unreachable.** `record_edge` no-ops unless the chain is
+already traced (`security_trace.py:464-475`), a chain becomes traced only where `touch` is called, and `touch`
+lived at the CRUDE gate, the STOMP gate, the dispatcher, the transport mux and remote hydration — none of which
+an outbound send passes (`outbound.py:132` imports `record_outbound` and not `touch`). So an observed external
+edge needed one request that BOTH passed the gate for an armed class AND sent outbound, and no door did both:
+`/api/security/people/{sub}` reads no Polari class, and the claim doors read `RolePrototype` **directly**, not
+through CRUDE. `security_claims.trace_prototype_read()` is that seam, in the same shape as the CRUDE gate's —
+touch first (the scope rule decides), then record the endpoint → object edge — called from `claimable_roles`
+and `may_claim`, so a claim or release with `RolePrototype` armed records the keycloak edge and the observed
+half becomes provable with a single request.
+
+**Selftests.** `modules/security/security_selftest.py` **296/299** (from 283/286; +13 checks, the same 3 known
+environment failures — ledger `mac_enforced`, the two live MAC-profile reads, the expired-cert probe). The new
+checks: `coarsen_source`'s six cases; a fixture carrying TWO confirmed origin rows (one of this instance's own
+hosts, one a nip.io host with an address in it) and the whole of `build` / `drift` / `simulate` / `compare`
+walked RECURSIVELY for anything host-like or IP-like — the live defect was in five places at once and a spot
+check on two of them would have passed; that the traffic door still carries the exact origin; N-3's one
+keycloak node with the manifest's `app-flows` step reading `allowed` on it; N-4's confirmed inbound edge
+reading `allowed` under enforce with the reason named; N-5's `tasks_json` on both projections; N-2's armed
+`RolePrototype` claim recording both the endpoint edge and the keycloak flow, with `drift.counts.observed` ≥ 1.
+Regression: `selftest_manifests` **8/8**, `manifests conform --all` **61/61**, `apps_selftest` **125/125**,
+`selftest_outbound` **61/61**, `selftest_cause_context` **41/41**, `selftest_stomp_gate` **41/41**,
+`selftest_refs` **51/51**, `import polariApiServer.polariServer` clean.
+
+**What a live re-proof must check.**
+1. Confirm an `origin|https://prf.<lan>.nip.io` row, then `GET /api/security/topology?view=objects`,
+   `/api/security/objects/drift`, `/api/security/objects/flows`, `?view=objects&mode=enforce` and the compare
+   door — grep every response for the host, for `nip.io`, for `://` and for a dotted quad. Nothing.
+   The node must read `external:origin:https:other` (or `:this-instance` if the origin is the stack's own
+   frontend, which on `polari-lean` it is — `CORS_ORIGINS` names it, so expect `this-instance` there).
+2. `GET /api/security/traffic` still shows the exact origin for the same row.
+3. `?view=objects` shows ONE `external:keycloak:Polari` node and no `external:keycloak:realm`; under
+   `mode=enforce` its `app-flows` step reads `allowed` and `declared_not_observed` no longer names `realm`.
+4. Confirm an inbound row, re-read `?view=objects&mode=enforce`: that edge reads **allowed**, and the
+   `app-flows` step's note names the confirmed `InboundPolicy` rather than a finding.
+5. `GET /api/security/observations` carries `tasks_json` for every row, matching `GET /PermissionObservation`.
+6. §67 OWED step 2, now runnable: `POST /api/security/observe/trace {"class_name": "RolePrototype"}`, then
+   `DELETE /api/security/roles/claim?role=journalist`, then re-read the trace target and the objects view —
+   `traces_opened ≥ 1`, `edges_written ≥ 2`, an OBSERVED `keycloak` edge, and `drift.counts.observed` ≥ 1.
+   Disarm afterwards.
+
+---
+
+### §69 addendum — N-6: an `OwnedClassPolicy` can be removed (2026-09-19, fixed, selftested)
+
+The live proof's cleanup could not clean up: `DELETE /api/security/owned/{class}` was **405**, the door offered
+`POST` only, and the best a person could do with a throwaway opt-in was set `enabled: false` — leaving the row
+in `GET /api/security/owned`'s `count` for ever. §69's own OWED step 2 ("opt a real class in…") had no stated
+way back out.
+
+| built | where |
+|---|---|
+| `delete_policy(manager, class_name, by=)` — removes the row, tombstoned through `noteTreeDeletion` so a persist in flight cannot write it back, and ledgered as a `SecurityEvent` like every other owner-policy act | `modules/security/custom/security_owned.py` |
+| `DELETE /api/security/owned/{class_name}` (ADMIN_ROLES, like the POST: removing a policy changes what every caller may do to every instance, exactly as setting one does) | `security_api.on_delete_owned_class` |
+| the refusal that matters: **409** for a class a manifest still declares, naming the module and the act that really removes it — op-4 converges `app.owned` into a row on every read of `GET /api/security/owned`, so a delete here would look like it worked and come straight back | same |
+
+404 for a class nobody opted in; 403 for a non-admin. The falcon `suffix=` gotcha is covered by the §54 route
+guard, extended to assert the class door answers all three verbs — a suffix whose responder is missing raises
+out of `add_route()` and takes the backend down at boot.
+
+**Selftests.** +4 checks in `_owned_checks` (the 403, the 404, the 409 with the manifest-declared class still
+present afterwards, and a real removal of an admin-set throwaway that leaves `policies()` and `policy_for()`
+agreeing it is gone) plus the extended route guard. Whole suite **296/299** as above.
+
+**What a live re-proof must check.** `POST /api/security/owned/TraceTarget {…}` → `DELETE
+/api/security/owned/TraceTarget` → 200 and `GET /api/security/owned` no longer counts it; then `DELETE
+/api/security/owned/UserAppPreference` → **409** naming `polariapps` and `app.owned`, with the policy still
+present and still `source: manifest`. And a restart afterwards: the removed row must not come back from the
+database.
