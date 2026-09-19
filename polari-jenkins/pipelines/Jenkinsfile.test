@@ -89,7 +89,7 @@ pipeline {
           // is what we actually want, so take it directly and read the sha back
           // out of the log with sed.
           def rc = sh(returnStatus: true,
-                      script: 'bash /var/polari-jenkins/quiet.sh gate test > .quiet-gate.log 2>&1; rc=$?; cat .quiet-gate.log; exit $rc')
+                      script: 'set +e; bash /var/polari-jenkins/quiet.sh gate test > .quiet-gate.log 2>&1; rc=$?; cat .quiet-gate.log; exit $rc')
           if (rc == 6) {
             env.DEFER_WHY = 'nothing to test yet (already covered, or the branch is still moving) — the next tick looks again'
             echo env.DEFER_WHY
@@ -133,7 +133,7 @@ pipeline {
         script {
           env.PROCEED = 'no'
           def rc = sh(returnStatus: true,
-                      script: "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh check test > .quiet-check.log 2>&1; rc=\$?; cat .quiet-check.log; exit \$rc")
+                      script: "set +e; POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh check test > .quiet-check.log 2>&1; rc=\$?; cat .quiet-check.log; exit \$rc")
           if (rc == 6) {
             env.DEFER_WHY = 'changes still landing in a submodule — a promotion that is still pushing must ' +
                             'not be built half-way; the single pending item stays and the next tick picks ' +

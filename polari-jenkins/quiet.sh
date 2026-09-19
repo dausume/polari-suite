@@ -306,9 +306,18 @@ do_claim() {
     say "$1: run started on ${2:0:12} — pending cleared (a change from here on sets ONE new pending item)"
 }
 do_done() {
+    # Only a run that actually CLAIMED a state may declare it covered. A run that
+    # died before the claim (or deferred) must not write an empty "covered"
+    # marker — that would either mean nothing, or, worse, match an empty reading
+    # later and make the gate skip real work.
+    local cd cs; cd="$(_queue_read "$1" claim_digest)"; cs="$(_queue_read "$1" claim_super)"
+    if [ -z "$cd$cs" ]; then
+        _queue_write "$1" running='' last_run_sha="$2" "last_run_at=$(now)" "last_run_iso=$(date -Is)"
+        say "$1: run finished on ${2:0:12} — it never claimed a state, so nothing is marked covered"
+        return 0
+    fi
     _queue_write "$1" running='' last_run_sha="$2" "last_run_at=$(now)" "last_run_iso=$(date -Is)" \
-                 "last_run_digest=$(_queue_read "$1" claim_digest)" \
-                 "last_run_super=$(_queue_read "$1" claim_super)"
+                 "last_run_digest=$cd" "last_run_super=$cs"
     say "$1: run finished on ${2:0:12} — that state is now 'already covered'; a periodic tick will not rebuild it"
 }
 
