@@ -3047,3 +3047,189 @@ Nothing regressed.
 5. The 6 "not in §5's list" product stragglers (tiles, printing, resources ×2,
    census, cnt snapshot) and the async `managedSink` should each get a slice or
    a standing ruling.
+
+## §59–§62 addendum — live proof on `polari-lean` (2026-09-19 00:00Z, framework `3314792`, posture dev, gate advisory)
+
+Deployed with `pol prod apply` (detached; the sudo prompts it cannot answer without a terminal are the known vault/cert
+steps and did not stop the image builds); backend answered 200 after ~110 s of lazy boot. Entirely over the API with
+password-grant tokens for `demo-admin`, `demo-journalist`, `demo-viewer`:
+
+| step | result |
+|---|---|
+| anonymous `GET /api/security/observe/trace` | 401 |
+| admin arms `AppPermissionProfile` (max_edges 50) | `ok`, `started_by` = the admin's Keycloak `sub` (no username anywhere), posture `dev`, `tracing: true` |
+| second arm (`RolePrototype`) while armed | refused, naming the active target, its class, when and by whom |
+| journalist `GET /AppPermissionProfile` ×2 (CRUDE) | ONE `CausalEdge` `endpoint:GET /AppPermissionProfile → object:AppPermissionProfile:read` (means `crude`) with `count: 2` — counted, not duplicated |
+| journalist `GET /RolePrototype` (untraced class) | nothing written — the scope rule holds |
+| journal after reads | 0 rows (reads write nothing) |
+| status | `traces_opened 2, edges_written 2, journal_written 0, dropped 0`; `coverage` lists the class with `started_at` |
+| manual `DELETE` | disarmed; `stopped_because: manual`, `stopped_at` set; coverage row kept, `active: false` |
+| `GET /api/security/owned` | mode `advisory`; `UserAppPreference` enabled, `owner_field: sub`, owner read/update/delete, others `[]` |
+| journalist `GET /UserAppPreference` | 200, their own row whole, **no** owner advisory (the owner floor) |
+| viewer `GET /UserAppPreference` | 200 (advisory), `X-Polari-Owner-Advisory: would-deny UserAppPreference:<id>:read` (the others' ceiling) |
+| both, class gate | `X-Polari-Permission-Advisory: would-deny UserAppPreference:read` — the class gate decides FIRST; the owner rules only narrow |
+
+**Found on the way:** (1) `X-Polari-Owner-Advisory` is not in `Access-Control-Expose-Headers` (only `X-Polari-Auth` and
+`X-Polari-Permission-Advisory` are), so a browser cannot read it — one line in `CORSExtraHeadersMiddleware`, owed.
+(2) The design's "owner floor may exceed the class profile" was a contradiction with its own step 1; as built the class
+gate always runs first and the owner rules only narrow — design §3/§8 corrected to say so. NOT proven live: counters
+surviving a restart (selftested only), budget-disarm (selftested), the Trace tables on the `security-events` page by eye.
+
+---
+
+## §63 — ct-2 + ct-4: the remaining edges and the closure (2026-09-18, built, selftested)
+
+Design `AI-Notes/designs/CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md` §3 (seams), §6 (the closure), §11 rows ct-2 / ct-4.
+ct-1 gave the target, the map (`CausalEdge`) and the journal; ct-3 gave the outbound wrapper. **ct-2** fills in the
+seams ct-1 left, **ct-4** reads the map back. NO new row classes — the security class count stays **34**.
+
+### ct-2 — the remaining event edges (every hook: lazy import, never raises, no-op unless armed AND traced)
+
+| edge | means | hook |
+|---|---|---|
+| `solution:S → event:E` | `emit` | `polariNoCode/event_dispatcher.py:_trace_emits`, called from `dispatch_trace_events` **before** the EventTrigger guard — an event nothing listens to is still on the map |
+| `solution:caller → solution:callee` | `solution-run` | `polariNoCode/SolutionExecutionEngine.py:_trace_nested_solution`, at the `SolutionInvocation` handler, `run_as` = the callee's declared `executionRights` |
+| `object:C:verb → event:topic:C` | `ws-publish` | `modules/grpcbridge/custom/transport_mux.py:_trace_publish` in `publish_change` — COUNT only, no ids; `touch` first (a broadcast can be the first seam) |
+| `<cause> → peer:N:shared-db` | `shared-db` | `polariRefs/remote_hydration.py:_trace_shared_db`, on the successful rung-3 read, class in `detail` |
+| `<cause> → peer:X:bundle-export/-install` | `bundle-*` | `polariPeers/module_exporter.py:trace_bundle`, called from `export_module` and from `peers_api.on_post_modules_install` (never on a dry run) |
+| `ai` ROOT cause | — | `polariApiServer/ai_actions.py` `execute()`; `_record` writes `trace_id`/`parent_id` into `data/ai_provenance.jsonl` |
+| `boot` ROOT causes | — | `moduleService/seed_upsert.py:upsert_seed_rows` (a root SEVERS the chain on purpose: seeded rows are never a person's) and `polariApiServer/lazy_boot.py:AdmissionWorker.run` (module boot) |
+
+Also built here (design §5, one `if`): the change BROADCAST of a class whose `OwnedClassPolicy.anonymised` is set
+drops `instanceIds` — subscription to `/topic/<Class>` is unauthenticated until ct-6, so a deliberately unlinkable
+class must not announce which rows a person just wrote. Class + operation stay (a subscriber still knows to re-read).
+
+### ct-4 — the closure
+
+`modules/security/custom/security_closure.py` (new, in the manifest) holds the walk; **`security_trace.closure(manager,
+start_nodes, *, max_depth=None)` is the STABLE public name** — ct-8 reads it by lazy import. Cycle-safe BFS over
+`CausalEdge`, hop-bounded (`MAX_HOPS` 32), returning `objects / events / solutions / peers / external / other /
+edges / coverage / not_traced / counts / start`, every item with `origin` (`observed | closure | declared`),
+`definer_only` and `evidence` `{count, first_seen, last_seen, min_depth, sample_trace_id, target, seen}`.
+`definer_only` = EVERY path reaching the node crossed a `solution-run` edge whose `run_as` is `definer`.
+
+- `GET /api/security/observe/closure` — `?profile=` (`explicit` / `reachable` / `implicit = reachable − explicit`),
+  `?event=` (the solution and AS WHOM), `?role=` (the role-play recording's observed acts), `?class=`, or no
+  parameter = the ONE armed target's class. 401 anonymous; 404 names the profiles that do exist.
+- `review(role)` gains `closure`; `verify(role, group)` gains `transitive: {covered, total, definer_only,
+  not_traced, uncovered, reading}` — *"the profile covers N of M transitively-touched class × verb pairs; K are
+  reached only through triggers running as definer"*. Both defended: the direct answer stands if the closure cannot
+  be computed. **Nothing enforces or widens itself** — disclosure only; the person's confirmation is ct-8's.
+- `security-events` page: five configured structured panels over the closure door (objects, solutions, events,
+  flows, and the NOT-TRACED list). No raw JSON, no new component.
+
+### Selftests (all run, nothing regressed)
+
+`modules/security/security_selftest.py` **200/203** (was 186/189 — +14 checks; the same 3 known environment
+failures: ledger mac_enforced, mac profiles, expired internal certs) · `accessControl/selftest_cause_context.py`
+**41/41 for this slice** (see gotcha 1) · `polariApiServer/selftest_outbound.py` 51/51 ·
+`polariRefs/selftest_refs.py` 51/51 · `modules/polariapps/apps_selftest.py` 84/84 · `modules/composition/
+composition_selftest.py` 75/75 · the 12 noCode selftests (incl. parity 69/69) · grpcbridge contracts 31/31,
+serving 23/23, c_twin 7/7 · `modules/testing/stomp_selftest.py` 6/6 · the 6 polariPeers selftests ·
+`python3 -m moduleService.manifests conform --all` **61/61**. The nocode/peers suites were re-run with
+`PYTHONPATH=.` alone to prove every new hook is silent when the security module is not on the instance.
+
+### Gotchas
+
+1. **`selftest_cause_context` reads 40/41 in the working tree** — the unlisted thread site is
+   `modules/polariapps/apps_page.py`, an UNTRACKED file from the concurrent ct-8 build, not this slice. It was
+   deliberately NOT added to `KNOWN_THREAD_SITES`: the table's own staleness check fails when a listed site does
+   not exist, so listing another agent's uncommitted file would break this commit on its own. ct-8 adds it.
+2. Manifest drift is real and silent until `conform` runs: a new `custom/*.py` must be added to
+   `modules/security/polari-app.json` (`security_closure` was, 60/61 → 61/61).
+3. `HOW_CLOSURE` is a MODULE constant, not a `SecurityAPI` class attribute — the tree's identifier scan walks a
+   treeObject's attributes and logs anything it cannot type as an invalid instance value on every pass.
+4. A start node the map has never recorded still appears in the answer with `evidence.seen = false`. That is
+   deliberate: "this verb of the armed class has produced no edges yet" is an answer, not a gap.
+
+### OWED
+
+- **ct-6** the STOMP subscribe gate (`ws-subscribe` edges; subscription follows the CRUDE `read` verdict under the
+  same mode). Until it lands, WHO subscribes is unknown and is not guessed — only the publish edge is recorded.
+- **ct-7** `ObservationSession.task`, review grouped by task, `app.flows` validation.
+- **Live proof, none of it done:** arm a class on the home staging stack, drive a real chain (request → trigger →
+  solution → broadcast → peer read) and read `/api/security/observe/closure?profile=` and `?event=` against it;
+  confirm the `ai` root cause and the `trace_id` in `data/ai_provenance.jsonl` from a real `/act` confirm;
+  confirm the anonymised broadcast drops `instanceIds` on the wire (selftested against a captured publish only).
+- **Browser pass:** the five closure panels on `/display/security-events` — that they read as tables and not as a
+  JSON wall, and that NOT TRACED is legible as an answer rather than as an empty list.
+
+## §64 — ct-8: security decisions per app × version, coverage, the human confirmation (2026-09-18, built, selftested)
+
+Design `AI-Notes/designs/CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md` §6 ("Accountability" + "Coverage accounting", his
+rulings: *"track how many objects have any kind of security coverage and how much if any"*, *"track security
+policy decisions of different types and how many have been covered per app, since security must be worked on at
+a per-app basis and per each version release"*). Built in **`modules/polariapps/`**, not `security/`: the rows
+are about APPS and RELEASES, exactly as §57 put `RoleAppBinding`/`UserAppPreference` there. Everything read out
+of the security module goes through a guarded import or a bare table name, so polariapps still enumerates and
+still counts on an instance carrying no security module.
+
+### Build
+
+| file | what |
+|---|---|
+| `objects/apps_security/SecurityDecision.py` | the row: `app`, `app_version`, `release`, `kind`, `subject`, `state`, `evidence_json`, `derived_from`, `confirmed_by` (a Keycloak `sub` ONLY), `confirmed_at`; `name` = `app\|app_version\|kind\|subject` |
+| `objects/apps_security/_shared.py` | the 8 kinds, the 6 states, `decision_name()` |
+| `apps_security_basis.py` | the sap-2c index (re-export) |
+| `custom/security_subjects.py` | `enumerate_subjects()` + per-kind collectors, `app_version()`, `current_release()` |
+| `custom/security_decisions.py` | `converge()`, `changed_subjects()`, `bump_version()`, `confirm()`, `decisions()` |
+| `custom/security_coverage.py` | `coverage()` — by kind × state, instance counts, none/partial/full |
+| `custom/security_confirm.py` | `confirm_profile()` — THE one human confirmation on the concrete step |
+| `apps_page.py` | `/display/apps-security` (configured tables + structured panels) + `seed_apps_pages` converge |
+| edits | `apps_api.py` (5 doors), `feature_imports.py`, `polariServer.py` (class + page seed), `module_endpoints.py` (page converge), `polari-app.json` (regenerated: 7 classes, 25 files), `accessControl/selftest_cause_context.py` (`apps_page.py` thread site) |
+
+**Enumeration sources, per kind** — subjects come FROM THE APP, so `open` is a real gap: `profile-verb` =
+classes × 5 verbs × groups (`AppPermissionProfile` for the app + `PermissionObservation` groups; `*` only where
+nothing names a group) · `owner-policy` = every class (absent `OwnedClassPolicy` row = open) · `trigger-run-as`
+= `EventTrigger` rows whose source/inputs/solution name a class, carrying `run_as` · `flow-declared` = manifest
+`app.flows` (§9 — no manifest writes it yet) + one `flow:undeclared:<system>` finding per observed system ·
+`role-binding` = `app.roles` + personas + `RoleAppBinding` · `outbound` = `CausalEdge` `external:`/`peer:` edges
+caused by the app's classes (`outbound.py` publishes `SYSTEM_KINDS`/`MEANS` but no site registry — stated) ·
+`inbound` = `InboundPolicy` rows (ct-9 builds them; empty and says so) · `trace-coverage` = `TraceTarget` rows
+plus ct-4's `security_trace.closure` when present.
+
+**Doors** (401 anonymous on reads and writes, ADMIN_ROLES on the writes): `GET /api/apps/security/decisions?
+app=&kind=&state=` · `POST /api/apps/security/decisions/confirm` · `POST /api/apps/security/confirm-profile`
+(verify → hash the proposal → one `confirmed` row per class × verb × group → THEN
+`security_observe.mark_prototype(role, 'concreted', profile, by=sub)` by lazy import) · `POST /api/apps/security/
+bump?app=&from=&to=` · `GET /api/apps/security/coverage?app=`.
+
+### Selftests
+
+`modules/polariapps/apps_selftest.py` **125/125** (was 84/84; +41 ct-8 checks) · `modules/security/
+security_selftest.py` **200/203, untouched by this slice** (the same 3 known environment failures: ledger
+mac_enforced, mac profiles, expired internal certs) · `accessControl/selftest_cause_context.py` **41/41** ·
+`moduleService.selftest_lazy_imports` 23/23 · `python3 -m moduleService.manifests conform --all` **61/61** ·
+`python3 -c "import polariApiServer.polariServer"` clean.
+
+### Gotchas
+
+1. **The app page has no seedable slot.** `/app/<name>` is `AppHomeComponent`, an Angular component over
+   `GET /api/apps/nav/{app}` — not a Display row — so the coverage tables went to the polariapps MODULE page
+   `/display/apps-security` (design asked for "each app's own page"; giving `AppHomeComponent` a seedable slot
+   is frontend work, and faking it with a new component is against his rule). Stated in `apps_page.py`.
+2. **Subject shape deviates for `profile-verb`**: `Class:verb@group`, not the design's bare `Class:verb` — two
+   groups' rulings on the same class × verb would otherwise collide in the dedup key.
+3. **A Polari-App has no manifest version of its own** (it is a configuration of modules), so `app_version()`
+   digests the module SET as `set-<8 hex>` with the source string spelling out `pkg@version` — a module bump
+   therefore changes the app version, which is exactly when last release's rulings must be re-examined.
+   `release` is `''` until `ReleaseManifest` (planned, not built) or `POLARI_RELEASE` says otherwise.
+4. **Converge must preserve the bump's own evidence.** The first build lost `inherited_from` /
+   `stale_because` / `confirmed_by_previously` because the converge that follows a bump refreshed the evidence
+   blob; `CARRIED_EVIDENCE_KEYS` now survives a refresh.
+5. `from security.custom import security_trace` binds the package attribute and ignores a `sys.modules` stand-in
+   — `importlib.import_module` is what makes the guarded closure read testable with a fake.
+6. Adding a thread (the page converge) breaks `selftest_cause_context` until the site is listed in
+   `KNOWN_THREAD_SITES` — done here, which also clears ct-4's gotcha 1.
+
+### OWED
+
+- **ct-9** the policy ROWS (`OutboundPolicy` / `InboundPolicy`): the `outbound`/`inbound` kinds enumerate today
+  from observed edges and from nothing respectively. Once the rows exist, the inbound subjects stop being empty.
+- **The release gate does not cite these counts yet** — `coverage()` returns `stale`/`open` per app × version,
+  but nothing in the build/release path reads it. Wire it into the manifest findings.
+- **Live proof, none of it done:** converge on the home staging stack against a real app, confirm a real profile
+  through `/api/apps/security/confirm-profile` and check the `RolePrototype` flips to `concreted`, then bump a
+  module version and see `stale` appear.
+- **Browser pass:** `/display/apps-security` — that the coverage panel reads as a table (per app × version, kind
+  × state, instance counts) and not as a JSON wall, and that `confirmed_by` resolves through the `person` format.

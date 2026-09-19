@@ -88,9 +88,14 @@ Order of evaluation for a request on class C, verb V, resolved to instance I
    is refused before any instance is touched — owner-defined never widens
    beyond the class door for *others*.
 2. **Owner floor.** If the caller's `sub` == `I.owner`, the verbs in
-   `owner_verbs` are allowed even when the class profile would not grant V
-   to their group — this is the one place owner-defined *adds* — unless
-   `frozen_when` holds, which strips `update`/`delete`.
+   `owner_verbs` are allowed on this row — unless `frozen_when` holds, which
+   strips `update`/`delete`. **Corrected 2026-09-18 (as built, op-0):** the
+   class gate in step 1 has already run, so the owner floor never exceeds
+   the group's class-level grant either; what it does is keep the verb on
+   the owner's OWN rows while step 3 narrows everyone else. A voter's group
+   therefore needs `update` on `Ballot` at class level, and the owner rules
+   confine that update to the voter's own ballot. Owner-defined narrows;
+   it never widens for anyone.
 3. **Others' ceiling.** Otherwise V must be in `others_verbs` or in an
    `OwnerGrant` naming the caller (by `sub`) or one of their groups. Reads
    are **projected**: the response carries `others_fields` (∪ the grant's
@@ -186,9 +191,10 @@ code, and is taken as the default; say so if any should change:
 
 - `owner` exists only on opted-in classes (his "not by default", and the
   per-class schema freeze).
-- The owner floor may exceed the class profile, bounded by `owner_verbs` —
-  his example needs it (a voter edits their own ballot without a class-wide
-  `update`); others never exceed the class door.
+- The owner floor does NOT exceed the class profile (corrected as built:
+  the class gate runs first, always). A voter's group holds `update` on
+  `Ballot` at class level; the owner rules confine it to the voter's own
+  row. Nobody, owner included, exceeds the class door.
 - Correlatable fields such as `cast_at` are omitted from others' view; a
   policy may list a coarsened field explicitly.
 - Transfer defaults to `nobody`; never for anonymised classes; a class may
