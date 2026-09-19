@@ -502,3 +502,26 @@ In flight at the time of writing: op-1 + op-2 + op-4 (+ the `security-owned` pag
 agent; the D2 fix. Then: `pol prod apply` (one deploy for the round), a live-proof agent running §67 steps 1–8,
 §68 step 1/3/5 (the CONNECT frame via a python websocket client; the exposed headers through nginx), the ct-9
 restart re-proof, the hub's `/docs/app-security.html`; a second docs pass for what this round built.
+
+**Round five, later the same day — landed and LIVE-PROVEN (eighth deploy, framework `dcf221b`, angular `621d299`):**
+op-1/op-2/op-4 (§69: `OwnerGrant` + grants/transfer doors, anonymised side channels incl. `SecurityEvent.target`,
+`app.owned` with manifest-over-seed and admin-never-overwritten, page `security-owned`; the Sharing tab has NO
+per-instance frontend host — the door answers the configured table item), the D2 restore fix (§66 addendum 5:
+merge-governed classes are exempt from the seed fingerprint), the docs second pass (APP_SECURITY, overview,
+operator guide, plans; the hub image rebuilt and rolled so the home site serves it). The live proof (ledger
+"§67–§69 + §66 addendum 5 — live proof", line ~4142) PASSED ct-7 tasks incl. a restart, the STOMP bearer on
+CONNECT with the advisory MESSAGE frame and the CORS-exposed headers through nginx, every op-1/2/4 step, the
+restore log lines (70 classes exempt, no admission crash, 6/6 online), the site page — and found:
+- **D-1 (core, OPEN → fix delegated):** confirmed `InboundPolicy` rows are STILL lost across a restart — this
+  boot's `suggested` row is persisted before `restoreTables()` reads the table (the traffic middleware counts the
+  health probes from the first request); `OutboundPolicy`, `SecurityDecision`, the observation rows all survive.
+- **D-2 (privacy, OPEN → fix delegated):** the objects view prints `external:origin:https://prf.<lan>…` (a hostname
+  carrying the LAN IP) — must be coarsened to `origin:<scheme>:this-instance|other`.
+- minors delegated with them: `app.flows:security` names keycloak `realm` (real traffic: the realm name) — drop
+  `name`; no inbound vocabulary in `app.flows` so a confirmed inbound flow never reads `allowed`; `/api/security/
+  observations` shows `tasks_json: null`; no DELETE for `OwnedClassPolicy`; the observed half of the objects view
+  cannot be driven by any single door (traces open only at `touch` sites) — claim/release go through `touch`.
+Residual live state: `OutboundPolicy keycloak|Polari|rest` is now `confirmed`; a disabled throwaway
+`OwnedClassPolicy[TraceTarget]`; three inactive `TraceTarget` rows. After the fix lands: commit, `pol prod apply`,
+re-prove D-1 (confirm both inbound rows, wait 100 s, force-restart, both still `confirmed` in the API AND sqlite)
+and D-2 (no host on `?view=objects`), then push every repo.
