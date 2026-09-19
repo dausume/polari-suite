@@ -30,6 +30,24 @@ step_network_check() {
     [ "$okall" = 1 ]
 }
 
+# ci-11a. The one offer this step makes needs root (nmcli changes system state),
+# so it is DESCRIBED with its verb and its connection NAME — never an address.
+step_network_json() {
+    json_explain "This device needs exactly one thing from the network: a good OUTBOUND path. It polls github.com every 10 minutes, pulls gigabytes for a release build, and pushes releases out. Nothing is ever opened inbound — the Jenkins UI binds 127.0.0.1 only, there is no webhook and no tunnel.
+
+A wire matters more than it sounds: a release build downloads base images, apt packages and npm trees, and a Wi-Fi link that drops halfway through fails the whole run."
+    json_where 'the suite the jobs poll (public, so polling needs no token)' 'https://github.com/dausume/polari-suite' ''
+    local w n s
+    w="$(_wired_conns)"
+    while IFS=$'\t' read -r n _ s; do
+        [ -n "$n" ] || continue
+        json_action "wired-up-$(printf '%s' "$n" | tr -c 'A-Za-z0-9' '-')" \
+            "Bring the wired connection '$n' up" 1 wired-up "$([ "$s" = up ] && echo 1 || echo 0)" \
+            'nmcli changes system network state and needs root. Only the connection NAME travels — never an address.' \
+            "con=$n"
+    done <<<"$w"
+}
+
 step_network_do() {
     explain "This device needs exactly one thing from the network: a good OUTBOUND path. It polls github.com every 10 minutes, pulls gigabytes for a release build, and pushes releases out. Nothing is ever opened inbound — the Jenkins UI binds 127.0.0.1 only, there is no webhook and no tunnel.
 

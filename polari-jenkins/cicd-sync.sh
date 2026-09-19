@@ -7,6 +7,9 @@
 #   cicd-sync.sh pull            GET  $CI_CORE_URL/api/cicd  → rewrite device.env
 #   cicd-sync.sh push            POST the device kind: readiness, routes armed, stages
 #   cicd-sync.sh push-secrets    POST the secrets kind: PRESENCE only, never a value
+#   cicd-sync.sh push-setup      POST the setup walkthrough (`pol jenkins setup --json`) so a
+#                                browser with no desktop shell still sees this device's state
+#                                (`push` does it too — the core cannot run `pol` itself)
 #   cicd-sync.sh run <job> <number> <status> [version] [summary]
 #   cicd-sync.sh isle-test <run> <stage> <core_ok> <results.json>
 #   cicd-sync.sh release <version> <release.json>
@@ -213,6 +216,60 @@ print(json.dumps({
 PY
 }
 
+# ------------------------------------------------------------ push-setup
+# ci-11a. THE WALKTHROUGH ITSELF, mirrored in, so a plain browser with no
+# desktop shell can still see where this device got to. The core cannot run
+# `pol`; only the device can. This is the only way that state reaches a page.
+#
+# LAYER BOUNDARY: setup.sh EMITS the protocol and knows nothing about Polari
+# or about any front end; this file TRANSPORTS it and knows nothing about how
+# it was produced. Neither knows a desktop application exists.
+#
+# The document's own nesting is posted as JSON STRINGS (`checks_json`,
+# `questions_json`, …), for two reasons: the ingest door refuses any key
+# named like a value — and a question's key is literally `key` — and a step's
+# sub-structures are opaque to the rows anyway. A `secret` question carries
+# `present` or nothing; no value exists anywhere in this payload.
+do_push_setup() {
+    local doc rc=0
+    doc="$(bash "$J/setup.sh" --json 2>/dev/null)" || rc=$?
+    if [ -z "$doc" ]; then
+        warn "the setup protocol could not be produced (rc=$rc) — nothing posted"
+        return 0
+    fi
+    printf '%s' "$doc" | python3 -c '
+import json, sys, datetime
+dev = sys.argv[1]
+try:
+    d = json.load(sys.stdin)
+except Exception as exc:
+    sys.stderr.write("the setup document did not parse: %s\n" % exc)
+    raise SystemExit(1)
+steps = []
+for s in d.get("steps") or []:
+    steps.append({
+        "name": s.get("name", ""), "index": int(s.get("index") or 0),
+        "total": int(s.get("total") or 0), "title": s.get("title", ""),
+        "state": s.get("state", "todo"), "explain": s.get("explain", ""),
+        "checks_json": json.dumps(s.get("checks") or []),
+        "questions_json": json.dumps(s.get("questions") or []),
+        "actions_json": json.dumps(s.get("actions") or []),
+        "where_json": json.dumps(s.get("where") or []),
+    })
+summary = d.get("summary") or {}
+print(json.dumps({
+    "kind": "setup", "device": dev,
+    "at": datetime.datetime.now().isoformat(timespec="seconds"),
+    "setup_protocol": d.get("protocol", ""),
+    "steps": steps,
+    "todo_json": json.dumps(d.get("todo") or []),
+    "complete": int(summary.get("complete") or 0),
+    "steps_total": int(summary.get("total") or len(steps)),
+    "ready": bool(summary.get("ready")),
+    "blocking": summary.get("blocking", ""),
+}))' "$CICD_DEVICE_NAME" | post_kind
+}
+
 # PRESENCE, never a value — the whole point of the row class on the other end.
 do_push_secrets() {
     local d; d="$(secrets_dir)"
@@ -319,12 +376,15 @@ do_status() {
 
 case "${1:-status}" in
     pull)         do_pull ;;
-    push)         do_push ;;
+    # ci-11a: a push reports the device AND the walkthrough it is in the middle
+    # of, so the page a person opens is never more stale than the last push.
+    push)         do_push; do_push_setup ;;
     push-secrets) do_push_secrets ;;
+    push-setup)   do_push_setup ;;
     run)          shift; do_run "$@" ;;
     isle-test)    shift; do_isle_test "$@" ;;
     release)      shift; do_release "$@" ;;
     status)       do_status ;;
     --help|-h)    sed -n '2,30p' "$0" ;;
-    *)            warn "unknown: cicd-sync.sh $1 (pull|push|push-secrets|run|isle-test|release|status)"; exit 2 ;;
+    *)            warn "unknown: cicd-sync.sh $1 (pull|push|push-secrets|push-setup|run|isle-test|release|status)"; exit 2 ;;
 esac

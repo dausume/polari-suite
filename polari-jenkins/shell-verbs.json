@@ -1,0 +1,104 @@
+{
+ "protocol": "polari-pipeline-shell/1",
+ "_readme": [
+  "THE ALLOWLIST. ci-11a. Every command any front end may ever run on this device's behalf is here, by",
+  "id, with its argv FIXED. A caller names a verb id and (where the argv has a {placeholder}) a value for",
+  "each parameter; nothing else crosses. There is no free-form command, no shell string, no way to append",
+  "an argument, and no verb that takes a path.",
+  "",
+  "LAYER BOUNDARY (his rule 2026-09-19 — 'keep different pieces logically separate, like CLI vs JavaFX').",
+  "This file is the whole contract between the CLI half and any front end. The CLI half (setup.sh, the",
+  "steps, doctor.sh) knows only that an action is `privileged: true` and names a verb id; it contains no",
+  "reference to how an elevation is obtained. A front end knows only this file; it never composes a",
+  "command of its own. `pol jenkins verbs` prints it, and the selftest proves every action every step",
+  "emits names a verb that is here and passes every parameter regex.",
+  "",
+  "PARAMETERS are validated on BOTH sides against the regexes below: by polari-jenkins/setup/protocol.py",
+  "before an action is ever offered, and again by whoever executes the verb. An unanchored or absent",
+  "regex is a selftest failure, not a permissive default.",
+  "",
+  "A SECRET VALUE NEVER TRAVELS IN ARGV. `stdin: \"secret\"` means exactly one thing: the executor collects",
+  "the value itself and writes it to the command's standard input. It is never a parameter, never part of",
+  "a URL, never echoed back, and never appears in the setup protocol document."
+ ],
+ "verbs": {
+  "init-device": {
+   "argv": ["pol", "jenkins", "init-device"],
+   "privileged": true,
+   "stdin": null,
+   "label": "Create the system secrets posture (the polari-ci user and /etc/polari-jenkins/secrets), and move anything already in the checkout there",
+   "why_privileged": "it creates a system user and a root-owned directory under /etc"
+  },
+  "secrets-put": {
+   "argv": ["pol", "jenkins", "secrets", "put", "{area}/{name}"],
+   "privileged": true,
+   "stdin": "secret",
+   "params": {"area": "^[a-z]+$", "name": "^[a-z_]+$"},
+   "label": "Store one secret. The VALUE is read from standard input — it is never an argument.",
+   "why_privileged": "under the system posture the store is root:polari-ci 0640"
+  },
+  "apt-install-tools": {
+   "argv": ["apt-get", "install", "-y", "libvirt-clients", "virtinst", "qemu-utils", "cloud-image-utils", "whiptail"],
+   "privileged": true,
+   "stdin": null,
+   "label": "Install the host tools the pipeline device needs",
+   "why_privileged": "apt writes to /usr and /var/lib/dpkg"
+  },
+  "docker-group": {
+   "argv": ["usermod", "-aG", "docker", "{user}"],
+   "privileged": true,
+   "stdin": null,
+   "params": {"user": "^[a-z_][a-z0-9_-]{0,31}$"},
+   "label": "Add a user to the docker group. ⚠ ROOT-EQUIVALENT: a member can start a container that mounts / as root.",
+   "why_privileged": "it edits /etc/group"
+  },
+  "wired-up": {
+   "argv": ["nmcli", "con", "up", "{con}"],
+   "privileged": true,
+   "stdin": null,
+   "params": {"con": "^[A-Za-z0-9 _-]{1,64}$"},
+   "label": "Bring a wired network connection up, by its NetworkManager connection NAME (never an address)",
+   "why_privileged": "it changes system network state"
+  },
+  "doctor": {
+   "argv": ["pol", "jenkins", "doctor", "--json"],
+   "privileged": false,
+   "stdin": null,
+   "label": "What is configured on this device and what is not — read-only"
+  },
+  "preflight": {
+   "argv": ["pol", "jenkins", "preflight", "--isle", "--json"],
+   "privileged": false,
+   "stdin": null,
+   "label": "The resource guard: is the device clear of a Polari/isle installation of its own, and has it the room?"
+  },
+  "setup-step": {
+   "argv": ["pol", "jenkins", "setup", "--json", "--step", "{step}"],
+   "privileged": false,
+   "stdin": null,
+   "params": {"step": "^[a-z-]+$"},
+   "label": "Recompute one step of the walkthrough"
+  },
+  "setup-answer": {
+   "argv": ["pol", "jenkins", "setup", "--json", "--step", "{step}", "--answer", "{key}={value}"],
+   "privileged": false,
+   "stdin": null,
+   "params": {"step": "^[a-z-]+$", "key": "^[A-Z_]+$", "value": "^[A-Za-z0-9 ,;:./_@-]{0,200}$"},
+   "label": "Answer ONE question of one step and recompute it. The key is a device.env knob and the value is what the person typed or chose.",
+   "note": "the sibling of setup-step: same recomputation, one answer written first. A question binds to this verb with \"value\": \"{answer}\" — the executor substitutes what the person entered. A SECRET question never binds here: its value goes to secrets-put on stdin, collected by the executor's own prompt, because a secret in an argument is a secret in the process list."
+  },
+  "setup-run": {
+   "argv": ["pol", "jenkins", "setup", "--json", "--run", "{action}"],
+   "privileged": false,
+   "stdin": null,
+   "params": {"action": "^[a-z-]+$"},
+   "label": "Run ONE unprivileged action of the walkthrough and return the step it belongs to"
+  },
+  "up": {
+   "argv": ["pol", "jenkins", "up"],
+   "privileged": false,
+   "stdin": null,
+   "label": "Bring the controller up (through the docker socket — not root)"
+  }
+ }
+}

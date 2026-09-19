@@ -49,6 +49,29 @@ step_isle_check() {
     [ "$okall" = 1 ] && [ "$pv" = PASS ]
 }
 
+# ci-11a. The ssh work of this step (ssh-copy-id, the sudoers drop-in, apt on
+# the OTHER device) is deliberately NOT offered as an action: each needs a
+# password on a machine that is not this one, which no unattended caller can
+# answer. They stay on the to-do list with their exact command.
+step_isle_json() {
+    json_explain "The throwaway isle is a VM the pipeline creates, installs Polari into, tests and then destroys. It needs /dev/kvm, libvirt, ${CI_ISLE_VM_RAM_GB} GB of RAM and ${CI_ISLE_VM_DISK_GB} GB of disk — and nested KVM, because an isle boots its own router guest inside that VM.
+
+LOCAL means the machine running Jenkins also hosts that VM. Honest caveat: this controller is a CONTAINER and libvirt lives on the host, so the local path needs the libvirt socket mounted into the controller (a posture change nobody has authorised) or a host-tier agent.
+
+SSH means the VM is made on another device. This machine then needs only docker; the target needs KVM, libvirt and passwordless sudo. That path has no caveat.
+
+⚠ The isle device is named by an ssh ALIAS from ~/.ssh/config, never by an address."
+    json_question CI_ISLE_TARGET 'Where does the throwaway isle go?' choice local "$CI_ISLE_TARGET" \
+        'local=this machine — needs KVM + libvirt + RAM for controller, build AND the VM|ssh=another device over ssh — this machine then only needs docker'
+    [ "$CI_ISLE_TARGET" = ssh ] && json_question CI_ISLE_SSH_HOST \
+        'The Host alias from ~/.ssh/config for the isle device (an ALIAS, never an address)' text '' "$CI_ISLE_SSH_HOST" ''
+    json_question CI_ISLE_VM_RAM_GB  'VM memory (GB)' text 4  "$CI_ISLE_VM_RAM_GB" ''
+    json_question CI_ISLE_VM_VCPUS   'VM vCPUs'       text 2  "$CI_ISLE_VM_VCPUS" ''
+    json_question CI_ISLE_VM_DISK_GB 'VM disk (GB) — an isle install wants 30 or more' text 30 "$CI_ISLE_VM_DISK_GB" ''
+    json_action preflight 'Run the preflight resource guard' 0 preflight 0 \
+        'reads only: is the device CLEAR of a Polari/isle installation of its own, and has it the room? Any FAIL refuses a run.' ''
+}
+
 step_isle_do() {
     explain "The throwaway isle is a VM the pipeline creates, installs Polari into, tests and then destroys. It needs /dev/kvm, libvirt, ${CI_ISLE_VM_RAM_GB} GB of RAM and ${CI_ISLE_VM_DISK_GB} GB of disk — and nested KVM, because an isle boots its own router guest inside that VM.
 

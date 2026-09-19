@@ -6213,3 +6213,397 @@ as **configured columns**.
   stage 1's was clean, the release rule will not see it. Decide whether that
   should be ALL stages (probably yes) once more than one stage runs for real.
 - Nothing is committed and nothing is pushed.
+
+## §74 — ci-11: the pipeline as a desktop app — (a) the setup protocol, the verb allowlist, the page
+
+**His ask (2026-09-19):** turn the Polari pipeline (Jenkins) into a desktop
+application "similar to how the isle mesh is working", guiding people through
+use like a normal app, using pkexec the way the store shell does, eliminating
+the terminal. *"Yes let us go ahead."*
+
+**His rule, the same day:** *"Make sure to keep different pieces logically
+separate, like CLI vs JavaFX."*
+
+ci-11a is the half that lives in this repo: the machine protocol, the verb
+allowlist, and the Polari page. The Java half (the bridge, pkexec, the deb)
+was built concurrently in `polari-app-shell/` against the same contract.
+
+---
+
+### THE THREE LAYERS, AND WHERE EACH BOUNDARY IS
+
+His rule is enforced by *what each file is allowed to know*, not by a comment:
+
+| layer | files | knows | does NOT know |
+|---|---|---|---|
+| **protocol emission** | `polari-jenkins/setup.sh`, `setup/steps/0N-*.sh`, `setup/json.sh`, `setup/protocol.py`, `doctor.sh --json`, `isle/preflight.sh --json` | the device | that any desktop application exists. No branch on who is calling, no mention of how an elevation is obtained, no Java-shaped output. An action is marked `privileged: true` and names a verb id — that is the whole of it |
+| **the allowlist** | `polari-jenkins/shell-verbs.json` (tracked, shipped in the deb), `pol jenkins verbs` | which commands exist, their fixed argv, an anchored regex per `{parameter}` | what a step is, what a page looks like |
+| **the page** | `modules/cicd/` (the `setup` ingest kind, `GET /api/cicd/setup`, the `cicd-setup` page) + ONE Angular panel | the protocol and the bridge message names | the CLI. It never composes a command; it names a verb and the shell resolves it |
+
+The grep that proves it: the only occurrences of `pkexec` / `JavaFX` /
+`cefQuery` / `PolariShell` anywhere under `polari-jenkins/` are three
+quotations of his rule inside comments — not one line of behaviour. And the
+Angular panel contains no `exec`/`spawn` and no `pol` invocation except the
+*display* strings shown to a person in a browser who has no shell
+(`commandFor()`), which are text, not execution.
+
+---
+
+### (a) THE PROTOCOL — `polari-pipeline-setup/1`
+
+```
+pol jenkins setup --json                       the whole walkthrough (8 steps)
+pol jenkins setup --json --step secrets        recompute one step
+pol jenkins setup --json --step role --answer CI_MODE=app
+pol jenkins setup --json --run preflight       ONE unprivileged action + its recomputed step
+pol jenkins verbs
+pol jenkins doctor --json                      polari-pipeline-doctor/1   (NEW — it had none)
+pol jenkins preflight --isle --json            polari-pipeline-preflight/1 (protocol field added)
+```
+
+**ONE SOURCE OF TRUTH, and it is the interactive path.** Every step's `checks`
+come from running that step's own `step_<name>_check` — the very function the
+terminal prints — with the four rendering verbs (`check`, `explain`, `howto`,
+`where`) *rebound* to record instead of print (`setup/json.sh`). There is no
+second implementation of a check anywhere, so terminal and screen cannot
+drift. What the interactive path *asks* (the `tui_menu` / `ask_value` calls,
+which cannot run unattended) is declared beside it, in the same step file, by
+a new `step_<name>_json` per step.
+
+`doctor_check()` was the one place that needed a hand: the doctor's WARN
+message is already `"<what is wrong> → <what to do>"`, so it now hands that
+second half through as the check's `fix`. One edit, every step benefits.
+
+**Stdout purity is a property of the file, not a promise every future step
+has to keep.** Steps print — `stages_print` writes to stdout, a step has a raw
+`echo`, a tool chatters. So in `--json` mode stdout is moved out of their
+reach for the entire computation (`exec 3>&1 1>&2`), the document is written
+to a temp file, and `setup.sh` prints *that file* and nothing else.
+(Gotcha found the hard way: a command substitution `DOC="$(json_main …)"`
+re-captures stdout inside the subshell and defeats the redirection entirely —
+the file handoff is why it works.)
+
+**`--json` never prompts and never runs anything privileged.** `ask` returns
+NO unless `--run <id>` named that exact action, which *is* the consent.
+
+**The state rule is stated once**, in `protocol.py`: `done` = every check OK
+and every question answered; `blocked` = a FAIL with an undone privileged
+action; `skipped` = the step does not apply; `todo` otherwise. The page and
+the shell read the field; neither re-derives it.
+
+**First run with nothing:** proven to answer all 8 steps with no `device.env`
+and no Polari core running.
+
+### (b) THE ALLOWLIST — `polari-pipeline-shell/1`, 11 verbs
+
+`polari-jenkins/shell-verbs.json`. Fixed argv, anchored regex per parameter,
+documented per verb, printed by `pol jenkins verbs`:
+
+`init-device`, `secrets-put`, `apt-install-tools`, `docker-group`, `wired-up`
+(privileged) · `doctor`, `preflight`, `setup-step`, `setup-answer`,
+`setup-run`, `up` (unprivileged).
+
+No free-form command, no verb taking a path, exactly one verb reading stdin
+(`secrets-put`, `stdin: "secret"`). **Validated on BOTH sides:**
+`setup/protocol.py` refuses to *offer* an action whose verb is unknown, whose
+parameters are undeclared or missing, whose regex is unanchored, or whose
+value fails that regex — it lands on the to-do list naming why, and the page
+never sees it. The executor validates again where it substitutes.
+
+**Question bindings.** A non-secret question carries
+`"action": {"verb": "setup-answer", "params": {"step": …, "key": …, "value": "{answer}"}}`
+— `{answer}` is the one placeholder the executor fills with what the person
+typed or chose, and the regex is checked there. The binding is *derived* in
+`protocol.py` from the question itself, not re-declared per step. **A `secret`
+question binds to nothing**: its value goes to `secrets-put` on stdin, through
+the executor's own native prompt.
+
+### (c) THE PAGE — `/display/cicd-setup`
+
+* New row class **`PipelineSetupStep`** (mirrored, not settings) + three
+  document-level columns on `PipelineDevice` (`setup_blocking`,
+  `setup_todo_json`, `setup_at`).
+* New ingest kind **`setup`** (six now) and **`GET /api/cicd/setup`**, which
+  reassembles the protocol document from the rows and answers `live: false` —
+  it is a mirror of the last push, never a live reading, and says so.
+* `cicd-sync.sh push-setup` (and `push`, which now does both) posts it. The
+  core cannot run `pol`, and should not be able to; only the device can.
+* Page `cicd-setup` = the one panel + a structured readiness panel + two
+  configured tables (the steps, and secret presence with where-to-get).
+
+**ONE new Angular component, and why it had to be one.** The task said to try
+extending the store's bridge component first. It cannot be extended:
+`app-isle-store` is a *routed page* with **zero `@Input()`s**, ~460 lines of TS
+that fetch the catalogue, hold master/detail state, and carry unrelated
+AI-tool binding — retrofitting a `mode` onto it would be a rewrite, and the
+result would still be a page, not a panel a Display can place. So
+`pipeline-setup-panel` follows the `security-threat-sim` shape instead (a
+registered panel with typed inputs), exactly as `security-threat-sim` was
+justified in sec-i. The **shared** `ShellBridgeService` *was* extended rather
+than duplicated: three new methods, `pipeline.available` / `pipeline.run` /
+`pipeline.privileged`.
+
+The panel's contract with itself: with a shell it re-runs each step live and
+replaces it; without one it reads the mirror, marks itself read-only, disables
+every button, and prints the exact command under each step and each question.
+It never composes a command and has no field a secret could be typed into.
+
+---
+
+### NUMBERS
+
+| suite | before | after |
+|---|---|---|
+| `polari-jenkins/selftest.sh` | 316/316 | **364/364** (+48: 43 in the ci-11a block, 5 on the push) |
+| `modules/cicd/cicd_selftest.py` | 154/154 | **183/183** (+29) |
+| `pipeline-setup-panel.component.spec.ts` | — | **10/10** (new) |
+| `ng build --configuration=production` | — | passes (pre-existing 5.5 MB budget warning only) |
+| `check-theme-tokens.mjs` / `check-responsive.mjs` | — | both pass |
+
+Live readings on this box: `setup --json` → 8 steps, 42 checks, 8 questions,
+16 actions, 10 `where` entries, 8 to-dos, `1 of 8 complete`, blocking
+`install the pol CLI`; `doctor --json` → 50 rows.
+
+That `blocking` line is the new system-wide-`pol` check firing on this very
+box: `pol` here is `~/.local/bin/pol`, which the doctor now WARNs about — see
+OWED. It is the protocol reporting a real finding, not a bug.
+
+### FILES
+
+*suite* — `polari-jenkins/`: **new** `shell-verbs.json`, `setup/json.sh`,
+`setup/protocol.py`; **changed** `setup.sh`, `setup/steps/01..07`, `doctor.sh`,
+`isle/preflight.sh`, `cicd-sync.sh`, `selftest.sh`, `README.md`.
+*polari-cli* — `scripts/jenkins.sh` (`verbs`, the `--json` usage lines).
+*polari-rf-node/polari-framework* — `modules/cicd/`: **new**
+`objects/cicd/PipelineSetupStep.py`; **changed** `cicd_api.py`, `cicd_page.py`,
+`cicd_basis.py`, `__init__.py`, `custom/cicd_ingest.py`, `custom/cicd_rows.py`,
+`objects/cicd/PipelineDevice.py`, `polari-app.json`, `cicd_selftest.py`,
+`README.md`.
+*polari-rf-node/polari-platform-angular* — **new**
+`components/dashboard/generic/pipeline-setup-panel.component.ts` + `.spec.ts`;
+**changed** `services/shell-bridge.service.ts`,
+`components/dashboard/generic/generic-display-components.ts`.
+`polari-app-shell/` was not touched (the Java agent's half).
+
+### GOTCHAS
+
+1. **`$( )` defeats `exec 1>&2`.** A command substitution re-captures the
+   subshell's stdout, so redirecting stdout to stderr before calling a
+   function does nothing if you then capture that function. The document goes
+   through a temp file.
+2. **The ingest door's value-shaped-key guard refuses the word `key`** — and a
+   protocol question's field is literally `key`. That is *why* a step's
+   sub-structures are posted as JSON strings (`checks_json`, `questions_json`,
+   `actions_json`, `where_json`) rather than nested objects. The door refuses a
+   nested post explicitly, naming the four columns it should have used.
+3. **`python3 - <<'PY'` cannot also read a pipe** (the §70 gotcha again): the
+   record file reaches `protocol.py` by argv, never on stdin.
+4. **A todo emitted before the first step record was dropped** by the
+   record reader's "inside a step" guard — a refused `--answer` produces
+   exactly that, so `todo` is now handled ahead of the guard.
+5. **Key generation refuses under the SYSTEM secrets posture.** Writing to
+   `/etc/polari-jenkins/secrets` needs an elevation an unattended call cannot
+   answer, so `--run generate-*` says so and exits 3 instead of hanging on a
+   prompt. It writes into the REPO posture only, and says that too.
+
+### OWED
+
+* **`pol` must be system-wide on a pipeline device.** The Java half refuses to
+  run a `pol` that is not (`~/.local/bin/pol` under root is an escalation: the
+  owner of that file would choose what root does). `polari-cli/shells/
+  install-cli.sh` *does* have a system mode — `cli-paths.sh` prefers
+  `/usr/local/bin/pol` and falls back to `~/.local/bin/pol` only when
+  `/usr/local/bin` is unwritable and passwordless sudo is absent — so
+  `sudo bash polari-cli/shells/install-cli.sh` is the fix. **On this box it is
+  currently the fallback** (`~/.local/bin/pol`). ci-11a adds a doctor WARN
+  naming that exact command; the pipeline deb must place the system-wide link
+  itself. NOT yet done.
+* Nothing was deployed, committed or run: no `pol jenkins up`, no images
+  rebuilt. **The page has not been seen in a browser** — it needs an image
+  rebuild, and the bridge half needs the Java shell running.
+* The live end-to-end (`pipeline.available` answering true, a privileged verb
+  actually prompting) is untested across the two halves: each side is tested
+  against the contract, not against the other.
+* `--run` of `sync-push` posts to a core; untested against a live core.
+* The `skipped` step state is implemented and asserted but no step emits it
+  yet — it exists for a mode that does not apply to a step.
+* `ng test` was run for the new spec only, not the whole suite.
+
+### §74 (b) — the shell: the bridge family, pkexec + polkit, the first-run panel, the deb
+
+His ask, 2026-09-19: turn the Polari pipeline (Jenkins) into a desktop app
+*"similar to how the isle mesh is working"*, guiding people through use like
+a normal app, using pkexec the way the store shell does, eliminating the
+terminal. *"Yes let us go ahead."*
+
+Built on `dev` in `polari-app-shell/`, **uncommitted**. Nothing was
+installed, no deb was installed, no pkexec/polkit/sudo ran, no container or
+VM was started, nothing was pushed. `./gradlew build` (offline) and the
+wrapper selftest were run for real on pol-core.
+
+---
+
+#### What, and where
+
+| what | where | notes |
+|---|---|---|
+| **the allowlist** (loader + model) | `core/src/main/java/org/polari/shell/core/pipeline/VerbCatalog.java`, `VerbSpec.java` | parses `polari-pipeline-shell/1`; refuses a wrong protocol, a bad verb id, a bad parameter name, an uncompilable regex, an empty argv, a `{param}` with no declared parameter, a `stdin` that is not `secret`. Declaration ORDER is kept (a UI lists verbs in the file's order). Path: `/usr/share/polari-pipeline/shell-verbs.json`, overridable only by the `polari.pipeline.verbs` JVM property |
+| **the boundary** | `core/…/pipeline/VerbCommand.java` | `resolve` (validated argv), `unprivileged` (refuses a privileged verb), `privileged` (refuses a non-privileged one; returns `pkexec <wrapper> <id> name=value…`). `ARGV0_ALLOWED = pol, apt-get, usermod, nmcli` — the hard-coded second allowlist. Timeouts: 600 s when argv[0] is `apt-get`, 120 s otherwise |
+| the secret handling | `core/…/pipeline/SecretScrub.java` | char[]-based search (never a String of the secret), `MASK`, `wipe` |
+| **the bridge family** | `desktop/src/main/java/org/polari/shell/desktop/pipeline/PipelineBridge.java` | `pipeline.available` / `pipeline.run` / `pipeline.privileged`; four lines of plumbing each, every rule delegated to `core.pipeline`. Non-string params are replaced with a value that cannot match any regex |
+| the executor | `desktop/…/pipeline/PipelineRunner.java` | catalog → core builds argv → `HostProcess` runs it → `{ok, exitCode, output, json}`. `discover()` degrades to an EMPTY catalog when no file is installed (`available:false`), never to an invented verb set |
+| the native password box | `desktop/…/pipeline/SwingSecretPrompt.java` (+ `SecretPrompt` interface) | `JPasswordField` — the one control whose value lives in a `char[]` the caller can zero |
+| **the first-run panel** | `desktop/…/pipeline/PipelineSetupPanel.java`, `PipelineSetupWindow.java`, `SetupDoc.java` | Swing, not the browser. Renders `explain` / `checks` / `questions` (choice·text·confirm·checklist·secret) / `actions` / `todo` / summary; runs each declared verb through the SAME two paths the page uses; "Open the pipeline (anyway)" leaves the bootstrap |
+| the process runner | `desktop/…/HostProcess.java` (widened) | now `public`, with a `run(argv, timeout, char[] stdin)` overload that writes the secret as bytes, zeroes the buffer and closes the pipe. The store path is byte-for-byte unchanged (`stdin == null`) |
+| the wiring | `ShellFrame.buildBridge()` (+5 lines), `DesktopMain` (`--pipeline-setup <step>`) | ShellFrame only REGISTERS the handlers; DesktopMain only routes the flag |
+| **the privileged wrapper** | `pipeline/privileged-run` + `pipeline/verb-argv.py` | installed 0755 root at `/usr/lib/polari-pipeline/`; re-validates as root against the same JSON, resolves argv[0] to a root-owned, non-group/other-writable absolute path, then `exec`s. Selftest escapes (`POLARI_PIPELINE_SELFTEST` / `_DRY`) apply only when euid ≠ 0 |
+| **the polkit action** | `pipeline/org.polari.pipeline.policy` | ONE action `org.polari.pipeline.run`, `exec.path` pinned at the wrapper, `auth_admin_keep` active / `auth_admin` otherwise |
+| the launcher | `pipeline/pipeline-launch.sh` | the `.desktop` `Exec`. Asks the pipeline itself (`pol jenkins setup --json`) whether it is ready and what the first step is called, then `exec`s the shell with or without `--pipeline-setup` |
+| **the deb** | `shells/build-pipeline-deb.sh` | `polari-pipeline`, `Depends: polari-shell-core, policykit-1, python3`, `Recommends: polari-cli`; ships the allowlist, the wrapper pair, the policy, the launcher, the registration (`scope=app`, `appName=cicd`, `startRoute=/display/cicd-setup`), the polari mark icon, a `.desktop` named **Polari Pipeline**. It REFUSES to build a `shell-verbs.json` the shell would refuse |
+| docs | `pipeline/README.md`, `docs/BRIDGE_CONTRACT.md`, `README.md` | the boundary table, why the wrapper exists, the two allowlists, the secret rule |
+| tests | `core/src/test/.../PipelineVerbsTest.java` (+ two fixtures), `desktop/src/test/.../PipelineBridgeTest.java`, `SetupDocTest.java`, `pipeline/selftest.sh` | see numbers |
+
+#### The security argument, in five lines
+
+1. A page passes a verb **id** and string **parameters** — never an argv, a
+   flag, a path or a secret; the id must exist in the shipped allowlist and
+   carry the matching `privileged` flag, and every `{param}` must match that
+   verb's own regex (control characters refused outright).
+2. The resolved `argv[0]` must be one of **four** programs hard-coded in the
+   shell, in `verb-argv.py` and again in `privileged-run` — so replacing
+   `shell-verbs.json` buys only a rearrangement of `pol`/`apt-get`/
+   `usermod`/`nmcli`, each still behind its regexes.
+3. pkexec never sees the real command: the polkit action pins `exec.path` at
+   `/usr/lib/polari-pipeline/privileged-run`, so the password authorises
+   *"one allowlisted setup step"*, not *"this command line as root"*.
+4. The wrapper re-validates **as root, from the file on disk**, and refuses
+   an argv[0] that is not a root-owned, non-group/other-writable absolute
+   path in a system bin dir — a `pol` in `~/.local/bin` is exactly the
+   escalation this stops.
+5. A secret is typed into a native `JPasswordField`, written to the child's
+   stdin and zeroed: never an argv, an env var, a log, or anything the page
+   sees — and the command's output is scrubbed of it before the reply.
+
+#### The boundary, and what crosses it (his rule: CLI vs JavaFX)
+
+| side | owns |
+|---|---|
+| **bash / CLI** (`polari-jenkins/`, `pol jenkins …`, `pipeline-launch.sh`) | what a step means, what a check checks, where `device.env` lives, **what the steps are called**, whether the device is ready |
+| **Java** (`core.pipeline`, `desktop.pipeline`) | validate a verb · run it · draw a setup document. No step name, no check, no config path appears in any `.java` file |
+
+Exactly three things cross, and nothing else: **`shell-verbs.json`** (the
+allowlist), **the setup document** (`polari-pipeline-setup/1`, one JSON
+document per run — the shell parses nothing else from stdout), and **the
+bridge envelope** (`pipeline.*`).
+
+Two consequences worth naming: the panel learns the first step id from the
+LAUNCHER (`--pipeline-setup <step>`), which learns it from
+`pol jenkins setup --json` — so no step name is hard-coded on either side;
+and the panel finds the "run an action" verb by SHAPE in the allowlist (one
+unprivileged verb, one placeholder, `--run` in its argv), not by name.
+
+#### Numbers
+
+```
+./gradlew --offline build          BUILD SUCCESSFUL   (JDK 22 on PATH, release 17)
+:core:test        49 tests, 0 failures   (33 before + 16 new)
+:desktop:test     14 tests, 0 failures   (new source set: 9 bridge + 5 document)
+pipeline/selftest.sh                23/23   (no sudo, no pkexec, no network)
+shells/build-pipeline-deb.sh        built: polari-pipeline_0.1.0_all.deb (148K)
+```
+
+The 16 core cases: the loader (the shipped list, its privileged flags, its
+placeholders) · a wrong protocol · non-JSON · no verbs object · an empty
+argv · an undeclared placeholder · an uncompilable regex · a bad verb id ·
+a bad `stdin` · an unknown id on both paths · 7 parameter values failing
+their regex · a missing parameter · an undeclared parameter · substitution
+(own element, two in one element, a value with a space) · a privileged verb
+refused on `pipeline.run` (all five) · an unprivileged verb refused on
+`pipeline.privileged` · the pkexec argv shape · **the tampered fixture**
+(`bash` refused, an absolute `/usr/bin/pol` refused, a `^.*$` regex still
+cannot reach argv[0], and the honest verb in the same file still works) ·
+the four-program list · scrubbing (two occurrences, edges, wipe) · the
+secret never in an argv · an absent allowlist.
+
+The 23 wrapper cases mirror them at the root side and add: a parameter given
+twice, a parameter that is not `name=value`, a control character, a file
+that is not the protocol / not JSON / absent, and the root-owned-program
+rule (on this box `pol` is `~/.local/bin/pol`, so the wrapper refuses it
+with the reason — which is the correct answer and is asserted as such).
+
+The deb was built against the FIXTURE allowlist
+(`core/src/test/resources/pipeline/shell-verbs.json`) because
+`polari-jenkins/shell-verbs.json` is the other half's file and did not exist
+yet; the output went to a scratch dir and was **not installed**. Building
+the tampered fixture is refused by the builder, as designed.
+
+#### Gotchas found and fixed while building
+
+- **`Map.copyOf` randomises order.** The catalog listed its verbs in a
+  different order every run, which would have made `pipeline.available` and
+  the panel's verb lookup non-deterministic. Both the catalog and each
+  verb's params are now unmodifiable `LinkedHashMap`s.
+- **`Optional.orElseThrow()` before the validating call** produced
+  `NoSuchElementException: No value present` instead of
+  `refused: unknown verb 'x'` — the page would have seen a Java exception
+  string as the refusal reason. Core now refuses first; it owns every "why
+  not" message.
+- **A NUL-separated argv cannot be read back in POSIX `sh`.** The validator
+  therefore prints one element per line, and proves first that no element
+  carries a control character — so splitting on `IFS=$'\n'` is exact and a
+  value with spaces stays ONE element (asserted for `nmcli con up
+  "Wired conn 1"`).
+- **`$` in Java/Python regexes matches before a trailing newline.** Java's
+  `matches()` and Python's `fullmatch()` both require the whole input, but
+  the control-character check runs first anyway — belt and braces, because
+  the regexes come from a file.
+- **pkexec sanitises the environment, so `pol` on `~/.local/bin` is
+  invisible to root** — and running a user-writable binary as root would be
+  an escalation. The wrapper resolves only root-owned, non-group/other-
+  writable files in system bin dirs and says so when it refuses.
+- **`polari-shell-core` is the runtime.** There is no per-app jpackage step:
+  `build-pipeline-deb.sh` follows `build-launcher-deb.sh`, so the pipeline
+  app costs ~148 KB, not another bundled JRE. (`build-shared-shell.sh`
+  remains the one jpackage invocation, unchanged.)
+- **`DesktopMain.launcherPackageName`** would have turned `polari-pipeline`
+  into `isle-app-polari-pipeline` (wrong icon, wrong WM_CLASS); a name that
+  already starts `polari-` now passes through.
+- The deb builder VALIDATES the allowlist it is about to ship (protocol,
+  verb ids, argv[0] against the same four programs, compilable regexes,
+  declared placeholders) — a mismatch between the two halves fails the
+  BUILD rather than the first click.
+
+#### OWED
+
+1. **The first real run of the deb on a desktop is untested.** Nothing was
+   installed here: no `dpkg -i`, no polkit action registered, no pkexec
+   prompt, no JCEF window, no `auth_admin_keep` behaviour observed. The deb
+   was built and its contents listed, nothing more.
+2. **The two halves have never met.** This side was built against a FIXTURE
+   `shell-verbs.json` and a fixture setup document; `polari-jenkins/
+   shell-verbs.json` and `pol jenkins setup --json` are the other agent's.
+   First joint step: build the deb with `--verbs polari-jenkins/
+   shell-verbs.json` (the builder refuses a mismatch) and run
+   `pipeline/selftest.sh` pointed at the real file.
+3. **`pol` must be installed system-wide** for any privileged verb to run —
+   the wrapper refuses `~/.local/bin/pol` by design, and **no `polari-cli`
+   deb exists yet**. Until one does, `Recommends: polari-cli` is a promise
+   nothing fulfils; the postinst says so out loud.
+4. **The panel's `{answer}` convention** (a question's `params` value of
+   `{answer}` is replaced with what the person typed/chose) is this side's
+   invention and needs the bash half to emit it — otherwise text/choice
+   answers are shown but cannot be applied, and the panel says "(terminal)".
+   Worth a line in the setup protocol doc.
+5. `PipelineRunner.discover()` re-reads the allowlist per `buildBridge()`
+   (i.e. per instance switch), not once per process. Harmless, but it is not
+   what "reads it at start" literally says.
+6. **The panel has never been seen on a screen.** It is unit-tested through
+   `SetupDoc` and constructed headless; no Xvfb on this box and no window
+   was opened on his desktop. Layout, wrapping and the password dialog are
+   unproven visually.
+7. `srcDistTar` does not include `pipeline/` or `shells/` — the store's
+   source archive still builds only the shell, which is correct today but
+   means a source download cannot build the pipeline deb.
+8. Nothing is committed.
+
+**§74 meet-in-the-middle (Fable review):** the two halves were built against the same contract and checked against each other after both landed — `shells/build-pipeline-deb.sh` built `polari-pipeline_0.1.0_all.deb` against the REAL `polari-jenkins/shell-verbs.json` ("11 verbs, all argv[0] allowlisted"), and the root-side validator `pipeline/verb-argv.py` accepts `apt-install-tools` and `docker-group` with their declared parameters, refuses an extra parameter, a parameter failing its regex (`area=../etc`), any unprivileged verb offered to pkexec, and — on this box — every `pol` verb, because `pol` here is user-local (`~/.local/bin`), which is the designed refusal. Neither half has run on a screen or under a real pkexec prompt.

@@ -42,6 +42,28 @@ step_stages_check() {
     [ "$okall" = 1 ]
 }
 
+# ci-11a. The interactive path builds the stage list stage by stage; a machine
+# answers ONE checklist. A comma list becomes one stage per app (core first);
+# a value carrying ';' is taken verbatim, so the grouped form stays reachable.
+step_stages_json() {
+    json_explain "The throwaway isle is what the pipeline ANALYSES, and the pipeline only generates artifacts for things it tested. So this list is also the list of what can ever ship.
+
+A stage is one throwaway isle: it comes up, the core debs go in, that stage's app debs go in, each app's selftest runs, the result is recorded, and the isle is destroyed. Stages run SEQUENTIALLY, so a space-limited device never needs room for more than one at a time.
+
+COST per app: one more module deb build, one more install, one more selftest run inside the isle. 'core' alone is the honest default.
+
+  core                            only the core (default)
+  core; household                 two stages
+  core; household; gears,motors   three, the last testing two apps together"
+    local opts="" a
+    for a in $(stages_known_apps); do opts="$opts${opts:+|}$a=module $a"; done
+    json_question CI_ISLE_STAGES \
+        'Which apps get their own testing stage? (stage 1 is always core. A comma list becomes one stage per app; type the knob with ";" to group apps into one stage.)' \
+        checklist core "$(stages_all_apps | tr '\n' ',' | sed 's/,$//')" "$opts"
+    json_action write-env 'Save the stage list' 0 setup-run 0 \
+        'writes CI_ISLE_STAGES to device.env and revalidates it against the module catalogue' 'action=write-env'
+}
+
 step_stages_do() {
     explain "The throwaway isle is what the pipeline ANALYSES, and the pipeline only generates artifacts for things it tested. So this list is also the list of what can ever ship.
 

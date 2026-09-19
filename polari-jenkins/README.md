@@ -53,6 +53,60 @@ come from outside authority: the step prints the URL and the exact scopes,
 takes the value pasted in (hidden, never echoed or logged) and stores it
 through `pol jenkins secrets put`. Skipping one keeps its route DRY.
 
+## The same walkthrough, for a machine (ci-11a)
+
+His ask, 2026-09-19: run the pipeline as a desktop application, "guiding
+people through use like a normal app", with no terminal. That needs the
+walkthrough above to be readable by something other than a person, so it
+gained a machine mode. **One JSON document on stdout, logs on stderr:**
+
+```
+pol jenkins setup --json                       the whole walkthrough
+pol jenkins setup --json --step secrets        recompute one step
+pol jenkins setup --json --step role --answer CI_MODE=app    write one answer, then recompute
+pol jenkins setup --json --run preflight       run ONE unprivileged action, get its step back
+pol jenkins verbs                              the ALLOWLIST any front end runs through
+pol jenkins doctor --json                      the doctor's rows, machine-readable
+pol jenkins preflight --isle --json            the resource guard, machine-readable
+```
+
+It works with **no Polari core running and no `device.env` at all** — a
+first-run screen has something to render before anything is configured.
+
+**ONE SOURCE OF TRUTH.** The `checks` of every step come from running that
+step's own `step_<name>_check` — the very function the terminal prints — with
+`check` / `explain` / `where` rebound to record instead of print
+(`setup/json.sh`). A check cannot drift between the terminal and a screen:
+there is only one of it. What the interactive path *asks* is declared beside
+it, in the same step file, by `step_<name>_json`.
+
+**--json never prompts, and never runs anything privileged.** A privileged
+action is *described*: it is marked `privileged: true` and names a **verb id**
+from `polari-jenkins/shell-verbs.json` (tracked, shipped in the deb). That
+file is the whole contract — every command any front end may run on this
+device's behalf, by id, with its argv **fixed** and an anchored regex for
+every `{parameter}`. There is no free-form command and no verb that takes a
+path. Parameters are validated on both sides: `setup/protocol.py` refuses to
+offer an action whose parameters do not match, before a screen ever sees it.
+
+**A secret value never travels in an argument.** A `secret` question carries
+`present` or nothing; storing one is the `secrets-put` verb, whose value is
+read from **standard input** by whoever executes it. `--answer` refuses a key
+carrying a `/` (a secret name) and says why.
+
+Three layers, three places, and nothing crosses:
+
+| layer | where | knows |
+|---|---|---|
+| protocol emission | `setup.sh`, `setup/steps/*.sh`, `setup/json.sh`, `setup/protocol.py` | the device. Nothing about any front end: no branch on who is calling, no mention of how an elevation is obtained |
+| the allowlist | `shell-verbs.json`, `pol jenkins verbs` | which commands exist, their argv, their regexes |
+| the page | the `cicd` module's `cicd-setup` page + one Angular panel | the protocol and the bridge. It never composes a command |
+
+A device pushes its walkthrough to Polari with `pol jenkins sync push` (or
+`sync push-setup`), because a core cannot run `pol` — that mirror is what a
+browser **without** the desktop application reads, read-only, with the exact
+command beside each step.
+
 ## Where the settings live (ci-8) — the `cicd` Polari app
 
 **Polari is the source of truth for everything in `device.env`.** The `cicd`

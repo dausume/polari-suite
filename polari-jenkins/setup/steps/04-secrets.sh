@@ -211,6 +211,66 @@ Nothing on GitHub or on any host is touched by this — only the key is made." n
     doctor_refresh; return "$rc"
 }
 
+# ci-11a — the secrets, declared. THE ONE RULE OF THIS FUNCTION: no value.
+# A secret question carries `present` or nothing as its `answered`; its VALUE
+# reaches the store only through the `secrets-put` verb, whose value travels
+# on stdin and never in an argument, a URL or a page.
+step_secrets_json() {
+    json_explain "Two postures, and the doctor is loud about which one is in force.
+
+SYSTEM  $CI_SECRETS_SYSTEM, root:$CI_USER 0750 and every file 0640. Readable by root (a person who elevated) and by the pipeline process — not by your shell, not by anything your shell runs. This is what the posture asks for.
+
+REPO    polari-jenkins/secrets, 0600 and owned by you. Git never sees it, but every process you run can read it: a browser extension, an npm postinstall, any script. It is a fallback, not a posture.
+
+init-device makes the system posture: it creates the polari-ci system user the controller runs as, creates the directory, and MOVES anything already sitting in the checkout there.
+
+A route publishes for real only when BOTH its secret is present AND it is named in CI_ROUTES — a secret alone never arms anything."
+    json_action init-device 'Create the system secrets posture' 1 init-device \
+        "$([ "$(secrets_mode)" = system ] && echo 1 || echo 0)" \
+        "it creates the $CI_USER system user and $CI_SECRETS_SYSTEM, and moves any secret already in the checkout there. It installs nothing, opens no port and touches no deployment; re-running it is safe." ''
+
+    local s kind area name
+    for s in $(setup_all_secrets); do
+        area="${s%%/*}"; name="${s#*/}"
+        kind="$(_si "$s" 1)"
+        json_where "$s — $(_si "$s" 3)" "$(_si "$s" 4)" "$(_si "$s" 5)"
+        case "$kind" in
+            paste)
+                json_question "$s" "$(_si "$s" 3)" secret '' \
+                    "$(secrets_have "$s" && echo present || echo '')" ''
+                json_action "secret-$area-$name" "Store $s" 1 secrets-put \
+                    "$(secrets_have "$s" && echo 1 || echo 0)" \
+                    'the value is read on stdin by the elevated command and never appears in an argument, a log or this document' \
+                    "area=$area|name=$name" ;;
+            cosign)
+                [ "$s" = signing/cosign_key ] || continue
+                json_action generate-cosign 'Generate the cosign key pair' 0 setup-run \
+                    "$(secrets_have "$s" && echo 1 || echo 0)" \
+                    'made locally; the PUBLIC half is written to polari-jenkins/cosign.pub. Refused while the SYSTEM posture is in force — writing there needs an elevation an unattended call cannot answer.' \
+                    'action=generate-cosign' ;;
+            gpg)
+                [ "$s" = signing/apt_signing_gpg ] || continue
+                json_action generate-gpg 'Generate the apt signing key' 0 setup-run \
+                    "$(secrets_have "$s" && echo 1 || echo 0)" \
+                    "$SETUP_BLOCKED_NOTE Refused while the SYSTEM posture is in force." \
+                    'action=generate-gpg' ;;
+            ssh)
+                case "$s" in
+                    github/github_ssh_key)
+                        json_action generate-ssh-github 'Generate the github deploy key' 0 setup-run \
+                            "$(secrets_have "$s" && echo 1 || echo 0)" \
+                            'the PRIVATE half is stored; the public half is printed for you to paste. Refused while the SYSTEM posture is in force.' \
+                            'action=generate-ssh-github' ;;
+                    ssh/distribution_host_key)
+                        json_action generate-ssh-apt 'Generate the apt distribution key' 0 setup-run \
+                            "$(secrets_have "$s" && echo 1 || echo 0)" \
+                            "$SETUP_BLOCKED_NOTE Refused while the SYSTEM posture is in force." \
+                            'action=generate-ssh-apt' ;;
+                esac ;;
+        esac
+    done
+}
+
 step_secrets_do() {
     explain "Two postures, and the doctor is loud about which one is in force.
 

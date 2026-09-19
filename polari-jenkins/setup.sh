@@ -25,6 +25,15 @@
 #     --report           read-only: print the state and the to-do list, change nothing
 #     --step <name>      re-run one step (role checkout network secrets isle stages controller)
 #
+#   THE MACHINE PROTOCOL (ci-11a) — one JSON document on stdout, logs on stderr:
+#     --json                     the whole walkthrough as `polari-pipeline-setup/1`
+#     --json --step <name>       recompute one step
+#     --json --answer KEY=VALUE  write an answer to device.env (repeatable; NEVER a secret)
+#     --json --run <action-id>   run ONE unprivileged action and return its step
+#   --json never prompts and never runs anything privileged: a privileged
+#   action is DESCRIBED, naming a verb from polari-jenkins/shell-verbs.json.
+#   It works with no Polari core running and with no device.env at all.
+#
 # Never prints or logs a secret VALUE. Never writes a LAN address, a
 # hostname or an e-mail anywhere — the isle device is an ssh ALIAS.
 set -euo pipefail
@@ -43,16 +52,22 @@ TUI_LIB="${POL_TUI_LIB:-$SUITE/polari-cli/scripts/lib/tui.sh}"
 # shellcheck source=/dev/null
 source "$TUI_LIB"
 
-MODE=interactive; ASSUME_YES=0; ONE_STEP=""
+MODE=interactive; ASSUME_YES=0; ONE_STEP=""; JSON=0; RUN_ACTION=""; ANSWERS=()
 while [ $# -gt 0 ]; do
     case "$1" in
         --yes|-y) ASSUME_YES=1 ;;
         --report|--non-interactive) MODE=report ;;
         --step) shift; ONE_STEP="${1:-}" ;;
-        --help|-h) sed -n '2,30p' "$0"; exit 0 ;;
-        *) echo "setup.sh: unknown argument '$1' (--yes --report --step <name> --help)" >&2; exit 2 ;;
+        --json) JSON=1; MODE=json ;;
+        --answer) shift; ANSWERS+=("${1:-}") ;;
+        --run) shift; RUN_ACTION="${1:-}" ;;
+        --help|-h) sed -n '2,38p' "$0"; exit 0 ;;
+        *) echo "setup.sh: unknown argument '$1' (--yes --report --step <name> --json --answer K=V --run <id> --help)" >&2; exit 2 ;;
     esac; shift
 done
+if [ "$JSON" = 0 ] && { [ -n "$RUN_ACTION" ] || [ ${#ANSWERS[@]} -gt 0 ]; }; then
+    echo "setup.sh: --run and --answer belong to the machine protocol — use them with --json" >&2; exit 2
+fi
 
 SETUP_STEPS="role checkout network secrets isle stages controller summary"
 SETUP_TOTAL=$(printf '%s\n' $SETUP_STEPS | wc -l | tr -d ' ')
@@ -114,8 +129,16 @@ doctor_what() { local m; m="$(doctor_msg "$1")" || return 1; printf '%s' "${m%% 
 doctor_fix()  { local m; m="$(doctor_msg "$1")" || return 1; printf '%s' "${m##* → }"; }
 # report a doctor row as one check line, and return its verdict
 doctor_check() { # doctor_check <label> [prefix]
+    # ci-11a: the doctor's WARN carries its own fix ("<what is wrong> → <what to
+    # do>"), so the machine protocol's `fix` field is filled from the SAME row the
+    # terminal prints. JSON_NEXT_FIX is consumed by the rebound `check` and is
+    # inert in the interactive path.
+    JSON_NEXT_FIX=""
     if doctor_ok "$1"; then check OK "${2:-$1}: $(doctor_msg "$1")"; return 0; fi
-    if doctor_row "$1" >/dev/null 2>&1; then check MISS "${2:-$1}: $(doctor_what "$1")"; return 1; fi
+    if doctor_row "$1" >/dev/null 2>&1; then
+        JSON_NEXT_FIX="$(doctor_fix "$1" 2>/dev/null || true)"
+        check MISS "${2:-$1}: $(doctor_what "$1")"; JSON_NEXT_FIX=""; return 1
+    fi
     check MISS "${2:-$1}: the doctor has no such row"; return 1
 }
 
@@ -292,6 +315,31 @@ banner() {
 
 if [ -n "$ONE_STEP" ]; then
     case " $SETUP_STEPS " in *" $ONE_STEP "*) ;; *) echo "setup: no such step '$ONE_STEP' (try: $SETUP_STEPS)" >&2; exit 2 ;; esac
+fi
+
+# ---------------------------------------------------------- the machine path
+# ONE JSON document on stdout and NOTHING else. The step functions print as
+# they always did — a raw `echo` in a step, `stages_print`, a tool's own
+# chatter — so stdout is moved out of their reach for the whole computation
+# (fd 3 holds the real one) and given back only to print the document. That
+# is why "no stdout noise" is a property of this file rather than a promise
+# every future step has to keep.
+if [ "$JSON" = 1 ]; then
+    # shellcheck source=setup/json.sh
+    source "$J/setup/json.sh"
+    exec 3>&1 1>&2
+    printf 'setup --json: %s · device %s · secrets %s%s%s\n' \
+        "${ONE_STEP:-the whole walkthrough}" "$(device_target_name)" "$(secrets_mode)" \
+        "${RUN_ACTION:+ · run $RUN_ACTION}" "$([ ${#ANSWERS[@]} -gt 0 ] && echo " · ${#ANSWERS[@]} answer(s)")" >&2
+    json_main "$ONE_STEP" "$RUN_ACTION" "${ANSWERS[@]:-}" || true
+    exec 1>&3 3>&-
+    if [ -s "${JSON_DOC_FILE:-}" ]; then
+        cat "$JSON_DOC_FILE"; rm -f "$JSON_DOC_FILE"
+        exit 0
+    fi
+    rm -f "${JSON_DOC_FILE:-/dev/null}" 2>/dev/null || true
+    printf '{"protocol":"polari-pipeline-setup/1","error":"the setup protocol could not be produced — run `pol jenkins setup --report` at a terminal to see why"}\n'
+    exit 1
 fi
 
 banner

@@ -40,6 +40,31 @@ step_checkout_check() {
     [ "$okall" = 1 ]
 }
 
+# ci-11a — the same three offers the interactive path makes, declared. Two of
+# them need root and are therefore only DESCRIBED here: they name a verb from
+# shell-verbs.json and are never run by this script in JSON mode.
+step_checkout_json() {
+    json_explain "The pipeline is the suite checkout plus four things on the host: the pol CLI (it is how every verb here is spelled), docker (the controller AND every build run in containers), python3/git/curl (the scripts), and whiptail (the terminal dialogs — optional).
+
+Docker-group membership is ROOT-EQUIVALENT on this machine: anyone in it can mount the host filesystem into a container as root. Grant it to you and to the pipeline user, nobody else."
+    json_where 'docker engine (everything else is plain apt)' 'https://docs.docker.com/engine/install/ubuntu/' ''
+    local miss me; miss="$(_missing_tools)"; me="$(id -un)"
+    json_action apt-install-tools "Install the host tools this device is missing${miss:+:$miss}" 1 apt-install-tools \
+        "$([ -z "$miss" ] && echo 1 || echo 0)" \
+        "apt needs root. The argv is fixed in shell-verbs.json — libvirt-clients virtinst qemu-utils cloud-image-utils whiptail — and takes nothing from this device." ''
+    json_action docker-group "Put $me in the docker group" 1 docker-group \
+        "$(id -nG "$me" 2>/dev/null | tr ' ' '\n' | grep -qx docker && echo 1 || echo 0)" \
+        "usermod needs root. ⚠ the group is ROOT-EQUIVALENT: a member can start a container that mounts / as root. A new login is needed afterwards." \
+        "user=$me"
+    json_action install-cli 'Install the pol CLI from this checkout' 0 setup-run \
+        "$(command -v pol >/dev/null 2>&1 && echo 1 || echo 0)" \
+        'runs polari-cli/shells/install-cli.sh. Without root it links ~/.local/bin/pol, which is NOT a safe target for an elevated run — the doctor says so, and `sudo bash polari-cli/shells/install-cli.sh` links /usr/local/bin/pol instead.' \
+        'action=install-cli'
+    json_action submodules 'Populate the submodules' 0 setup-run \
+        "$(doctor_ok 'submodules' 2>/dev/null && echo 1 || echo 0)" \
+        'git submodule update --init --recursive — it pulls several GB' 'action=submodules'
+}
+
 step_checkout_do() {
     explain "The pipeline is the suite checkout plus four things on the host: the pol CLI (it is how every verb here is spelled), docker (the controller AND every build run in containers), python3/git/curl (the scripts), and whiptail (these dialogs — optional, without it you get plain prompts).
 

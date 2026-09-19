@@ -191,7 +191,8 @@ for l in L[6:]:
     if not l.strip(): continue
     f = (l.split("|") + [""] * 5)[:5]
     rows.append(dict(zip(("check", "value", "floor", "verdict", "note"), f)))
-print(json.dumps({"kind": "resource-guard", "target": tgt, "mode": mode, "vm": vm,
+print(json.dumps({"protocol": "polari-pipeline-preflight/1",
+                  "kind": "resource-guard", "target": tgt, "mode": mode, "vm": vm,
                   "isle_checks": isle, "fails": fails, "warns": warns,
                   "verdict": "FAIL" if fails else ("WARN" if warns else "PASS"),
                   "rows": rows}, indent=1))'

@@ -26,7 +26,8 @@ cp -r "$J/device.sh" "$J/secrets.sh" "$J/doctor.sh" "$J/retention.sh" "$J/mint-t
       "$J/cicd-sync.sh" \
       "$J/cache.sh" "$J/cache-manifest.py" "$J/cache-proxies.sh" "$J/build-images.sh" \
       "$J/cache" "$J/docker-compose.proxies.yml" \
-      "$J/setup" "$J/isle" "$J/routes" "$J/casc" "$J/docker-compose.yml" "$J/.env.example" "$J/device.env.example" "$DEV/"
+      "$J/setup" "$J/isle" "$J/routes" "$J/casc" "$J/docker-compose.yml" "$J/.env.example" "$J/device.env.example" \
+      "$J/shell-verbs.json" "$DEV/"
 mkdir -p "$DEV/pool" "$DEV/secrets/github" "$DEV/secrets/registries" "$T/bin" "$T/inv"
 # the dialog helpers live in polari-cli; setup.sh looks for them beside the checkout
 mkdir -p "$T/polari-cli/scripts/lib"
@@ -76,7 +77,7 @@ for a in "$@"; do
   [ "$a" = POST ] && POST=1
   [ "$a" = /dev/null ] && QUIET=1
 done
-if [ "$POST" = 1 ]; then cat > "${FAKE_CORE_POSTED:-/dev/null}"; echo '{"ok": true, "stored": {}}'; exit 0; fi
+if [ "$POST" = 1 ]; then cat >> "${FAKE_CORE_POSTED:-/dev/null}"; printf '\n'; echo '{"ok": true, "stored": {}}'; exit 0; fi
 [ "$QUIET" = 1 ] && exit 0
 cat "${FAKE_CORE_JSON:-/dev/null}"
 SH
@@ -405,11 +406,24 @@ has "no CI_CORE_URL → this device.env is the only truth, said plainly" "only t
 dev_env CI_MODE=suite CI_ISLE_TARGET=local CI_CORE_URL=http://127.0.0.1:9999 CI_ROUTES=ghcr
 printf 'supersecretvalue' > "$DEV/secrets/github/github_token"; chmod 0600 "$DEV/secrets/github/github_token"
 SYNCCMD=push
+: > "$T/posted.json"
 OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_POSTED="$T/posted.json")
 has "push posts the device kind"                  '"kind": "device"'              "$(cat "$T/posted.json" 2>/dev/null)"
 has "  …with the mode and the core source"        '"mode": "suite"'               "$(cat "$T/posted.json" 2>/dev/null)"
 has "  …and the routes it can see a secret for"   '"armed"'                       "$(cat "$T/posted.json" 2>/dev/null)"
+# ci-11a: a push also posts the WALKTHROUGH, so a browser with no desktop shell
+# sees where this device got to (the core cannot run `pol`; only the device can).
+has "  …and, since ci-11a, the setup walkthrough beside it"  '"kind": "setup"'     "$(cat "$T/posted.json" 2>/dev/null)"
+has "    …declaring the protocol a front end must understand" '"setup_protocol": "polari-pipeline-setup/1"' "$(cat "$T/posted.json" 2>/dev/null)"
+has "    …with the steps' sub-structures as JSON STRINGS (the mirror refuses a nested question, whose key is literally \`key\`)" \
+    '"questions_json"' "$(cat "$T/posted.json" 2>/dev/null)"
+hasnt "    …and NO secret value anywhere in what was posted" "supersecretvalue"    "$(cat "$T/posted.json" 2>/dev/null)"
+SYNCCMD=push-setup
+: > "$T/posted-setup.json"
+OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_POSTED="$T/posted-setup.json")
+has "push-setup posts the walkthrough on its own"  '"kind": "setup"'               "$(cat "$T/posted-setup.json" 2>/dev/null)"
 SYNCCMD=push-secrets
+: > "$T/posted-secrets.json"
 OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_POSTED="$T/posted-secrets.json")
 has "push-secrets posts the secrets kind"         '"kind": "secrets"'             "$(cat "$T/posted-secrets.json" 2>/dev/null)"
 has "  …naming the secret and whether it is PRESENT" '"secret_name": "github_token"' "$(cat "$T/posted-secrets.json" 2>/dev/null)"
@@ -882,6 +896,199 @@ printf '{"kind":"leak-check","stage":"1","verdict":"clean","leaks":[],"ram_delta
     > "$DEV/pool/2026.09.19/isle-test/leak-check-1.json"
 has "a clean leak check reads as clean"               "CLEAN"                                  "$(doc)"
 rm -rf "$DEV/pool/2026.09.19"
+
+# =========================================== ci-11a: the machine protocol
+# `pol jenkins setup --json` is what a front end drives the device through.
+# What is asserted here is the CONTRACT: one document on stdout and nothing
+# else, every step parseable, `--step` / `--answer` / `--run` behaving, no
+# secret value anywhere in it, and every action naming a verb that exists in
+# the allowlist with a regex for every parameter.
+echo
+echo "-- ci-11a: the setup protocol (polari-pipeline-setup/1)"
+dev_env CI_ISLE_TARGET=local CI_ISLE_STAGES=core CI_MODE=suite
+
+jset() { ( cd "$DEV" && FOOTPRINT_INVENTORY="$T/inv/inventory.sh" bash setup.sh --json "$@" </dev/null 2>/dev/null ) || true; }
+jerr() { ( cd "$DEV" && FOOTPRINT_INVENTORY="$T/inv/inventory.sh" bash setup.sh --json "$@" </dev/null 2>&1 >/dev/null ) || true; }
+jq_() { printf '%s' "$1" | python3 -c "
+import json, sys
+try: d = json.load(sys.stdin)
+except Exception as e: print('UNPARSEABLE: %s' % e); raise SystemExit(0)
+$2" 2>&1; }
+
+DOC="$(jset)"
+eq "the whole document parses as ONE json object"  "ok"  "$(jq_ "$DOC" 'print("ok" if isinstance(d, dict) else "not an object")')"
+eq "  …and declares the protocol"  "polari-pipeline-setup/1"  "$(jq_ "$DOC" 'print(d.get("protocol"))')"
+eq "  …with all EIGHT steps, in order"  "role checkout network secrets isle stages controller summary" \
+   "$(jq_ "$DOC" 'print(" ".join(s["name"] for s in d["steps"]))')"
+eq "  …each numbered 1..8 out of 8"  "ok" \
+   "$(jq_ "$DOC" 'print("ok" if [s["index"] for s in d["steps"]] == list(range(1,9)) and all(s["total"]==8 for s in d["steps"]) else [s["index"] for s in d["steps"]])')"
+eq "  …every step carries a state from the vocabulary"  "ok" \
+   "$(jq_ "$DOC" 'bad=[s["name"] for s in d["steps"] if s["state"] not in ("done","todo","blocked","skipped")]; print("ok" if not bad else bad)')"
+eq "  …every check carries a verdict from the vocabulary"  "ok" \
+   "$(jq_ "$DOC" 'bad=[c for s in d["steps"] for c in s["checks"] if c["verdict"] not in ("OK","WARN","FAIL")]; print("ok" if not bad else bad)')"
+eq "  …every step EXPLAINS itself in plain words (his ask: tell us what we should be setting up)"  "ok" \
+   "$(jq_ "$DOC" 'bad=[s["name"] for s in d["steps"] if len(s.get("explain") or "") < 80]; print("ok" if not bad else bad)')"
+eq "  …the summary counts the steps and names what blocks"  "ok" \
+   "$(jq_ "$DOC" 'x=d["summary"]; print("ok" if set(x)=={"complete","total","ready","blocking"} and x["total"]==8 else x)')"
+eq "  …the to-do list is the ordered one the terminal prints, with a command each"  "ok" \
+   "$(jq_ "$DOC" 'print("ok" if all(set(t)=={"step","text","command"} for t in d["todo"]) else d["todo"])')"
+
+# --- NOTHING but the document on stdout ------------------------------------
+eq "stdout carries the document and NOTHING else (a step that prints cannot break it)" "ok" \
+   "$(printf '%s' "$DOC" | python3 -c '
+import json,sys
+raw = sys.stdin.read()
+try:
+    json.loads(raw)
+    print("ok")
+except Exception as e:
+    print("stdout is not one json document: %s" % e)')"
+ERRS="$(jerr)"
+has "the logs go to STDERR, where they belong"     "setup --json"  "$ERRS"
+hasnt "  …and no json leaks into them"             '"protocol"' "$ERRS"
+
+# --- one step --------------------------------------------------------------
+ONE="$(jset --step secrets)"
+eq "--step returns exactly that step"  "secrets"  "$(jq_ "$ONE" 'print(d["steps"][0]["name"] if len(d["steps"])==1 else "%d steps" % len(d["steps"]))')"
+eq "  …and drops the summary rather than lying about the other seven"  "ok" \
+   "$(jq_ "$ONE" 'print("ok" if "summary" not in d else d["summary"])')"
+BAD="$( cd "$DEV" && bash setup.sh --json --step nosuchstep </dev/null 2>&1 >/dev/null || true )"
+has "an unknown step is refused by NAME, listing the real ones"  "no such step"  "$BAD"
+
+# --- the answers -----------------------------------------------------------
+A1="$(jset --step role --answer CI_MODE=app)"
+eq "--answer writes device.env and the recomputed step shows it"  "app"  "$(jq_ "$A1" 'print(d["device"]["mode"])')"
+has "  …device.env really changed"  "CI_MODE=app"  "$(cat "$DEV/device.env")"
+A2="$(jset --step role --answer CI_MODE=suite)"
+eq "  …and it round-trips back"  "suite"  "$(jq_ "$A2" 'print(d["device"]["mode"])')"
+A3="$(jset --step role --answer NOT_A_KEY=1)"
+eq "an answer that is not a device.env key is REFUSED, and the refusal says so"  "ok" \
+   "$(jq_ "$A3" 'print("ok" if any("refused NOT_A_KEY" in t["text"] for t in d["todo"]) else d["todo"])')"
+A4="$(jset --step secrets --answer github/github_token=hunter2)"
+eq "A SECRET may NOT be answered here — a value in an argument is a value in the process list"  "ok" \
+   "$(jq_ "$A4" 'print("ok" if any("SECRET name" in t["text"] for t in d["todo"]) else d["todo"])')"
+hasnt "  …and the refused value appears NOWHERE in the document"  "hunter2"  "$A4"
+
+# --- one action ------------------------------------------------------------
+R1="$(jset --run cache-status)"
+eq "--run returns the action, its verdict and its exit code"  "cache-status"  "$(jq_ "$R1" 'print(d["action"])')"
+eq "  …with ok, exitCode and the tail of its output"  "ok" \
+   "$(jq_ "$R1" 'print("ok" if {"ok","exitCode","output"} <= set(d) else sorted(d))')"
+eq "  …and the recomputed STEP it belongs to, not the whole walkthrough"  "ok" \
+   "$(jq_ "$R1" 'print("ok" if "step" in d and "steps" not in d else sorted(d))')"
+R2="$(jset --run no-such-action)"
+eq "an unknown action fails with a non-zero exit and names the ids"  "ok" \
+   "$(jq_ "$R2" 'print("ok" if d["ok"] is False and d["exitCode"] != 0 and "no such action" in d["output"] else (d["ok"], d["exitCode"]))')"
+NOJSON="$( cd "$DEV" && bash setup.sh --run cache-status </dev/null 2>&1 >/dev/null || true )"
+has "--run without --json is refused: it belongs to the machine protocol"  "machine protocol"  "$NOJSON"
+
+# --- NO SECRET VALUE, anywhere --------------------------------------------
+mkdir -p "$DEV/secrets/github"
+printf 'ghp_thisisaverysecretvalue' > "$DEV/secrets/github/github_token"
+SDOC="$(jset)"
+hasnt "a stored secret's VALUE never appears in the document"  "ghp_thisisaverysecretvalue"  "$SDOC"
+eq "  …a secret question says PRESENT and nothing more"  "present" \
+   "$(jq_ "$SDOC" 'print([q["answered"] for s in d["steps"] for q in s["questions"] if q["key"]=="github/github_token"][0])')"
+eq "  …and a secret question binds to NO answer verb: its value goes to stdin, never to argv"  "ok" \
+   "$(jq_ "$SDOC" 'print("ok" if not [q for s in d["steps"] for q in s["questions"] if q["kind"]=="secret" and q.get("action")] else "a secret question carries an action")')"
+eq "  …while every other question DOES bind, with {answer} left for the executor to fill"  "ok" \
+   "$(jq_ "$SDOC" 'qs=[q for s in d["steps"] for q in s["questions"] if q["kind"]!="secret"]; print("ok" if qs and all(q.get("action",{}).get("params",{}).get("value")=="{answer}" for q in qs) else [q["key"] for q in qs if not q.get("action")])')"
+rm -f "$DEV/secrets/github/github_token"
+
+# --- nothing privileged is ever RUN by the protocol ------------------------
+eq "a privileged action is DESCRIBED, never run — every one of them names a verb and says why"  "ok" \
+   "$(jq_ "$SDOC" 'p=[a for s in d["steps"] for a in s["actions"] if a["privileged"]]; print("ok" if p and all(a.get("verb") and a.get("why") for a in p) else p)')"
+
+# --- the ALLOWLIST ---------------------------------------------------------
+echo "-- ci-11a: the verb allowlist (polari-pipeline-shell/1)"
+VERBS="$(cat "$J/shell-verbs.json")"
+eq "shell-verbs.json parses and declares its protocol"  "polari-pipeline-shell/1" \
+   "$(jq_ "$VERBS" 'print(d["protocol"])')"
+eq "  …every verb declares argv, privileged and a label"  "ok" \
+   "$(jq_ "$VERBS" 'bad=[n for n,v in d["verbs"].items() if not v.get("argv") or "privileged" not in v or not v.get("label")]; print("ok" if not bad else bad)')"
+eq "  …every {placeholder} in an argv has a regex, and every regex is ANCHORED"  "ok" \
+   "$(jq_ "$VERBS" '
+import re
+bad = []
+for n, v in d["verbs"].items():
+    holes = {m for a in v["argv"] for m in re.findall(r"\{([a-z]+)\}", a)}
+    params = v.get("params") or {}
+    if holes != set(params):
+        bad.append("%s: argv wants %s, params declare %s" % (n, sorted(holes), sorted(params)))
+    for k, p in params.items():
+        if not (p.startswith("^") and p.endswith("$")):
+            bad.append("%s.%s: unanchored %s" % (n, k, p))
+print("ok" if not bad else bad)')"
+eq "  …only secrets-put reads stdin, and it reads a SECRET (that is the whole point of it)"  "ok" \
+   "$(jq_ "$VERBS" 'st={n:v.get("stdin") for n,v in d["verbs"].items() if v.get("stdin")}; print("ok" if st == {"secrets-put":"secret"} else st)')"
+eq "  …the list stays SMALL: no free-form command, no verb taking a path"  "ok" \
+   "$(jq_ "$VERBS" 'print("ok" if len(d["verbs"]) <= 12 and not [n for n,v in d["verbs"].items() if any(w in ("{cmd}","{command}","{path}","{file}") for w in v["argv"])] else sorted(d["verbs"]))')"
+
+# the join: EVERY action every step emits must name a verb that is in the file
+printf '%s' "$SDOC" > "$T/doc.json"; printf '%s' "$VERBS" > "$T/verbs.json"
+eq "EVERY action of EVERY step names a verb that exists in the allowlist"  "ok" \
+   "$(python3 -c '
+import json, re, sys
+doc = json.load(open(sys.argv[1])); verbs = json.load(open(sys.argv[2]))["verbs"]
+bad = []
+for s in doc["steps"]:
+    for a in s["actions"]:
+        spec = verbs.get(a["verb"])
+        if spec is None:
+            bad.append("%s/%s: no verb %r" % (s["name"], a["id"], a["verb"])); continue
+        declared = spec.get("params") or {}
+        given = a.get("params") or {}
+        if set(given) != set(declared):
+            bad.append("%s/%s: params %s vs declared %s" % (s["name"], a["id"], sorted(given), sorted(declared)))
+        for k, p in declared.items():
+            v = given.get(k, "")
+            if not re.match(p + r"\Z", v):
+                bad.append("%s/%s: %s=%r fails %s" % (s["name"], a["id"], k, v, p))
+        if a["privileged"] != bool(spec.get("privileged")):
+            bad.append("%s/%s: privileged disagrees with the allowlist" % (s["name"], a["id"]))
+print("ok" if not bad else bad)' "$T/doc.json" "$T/verbs.json" 2>&1)"
+eq "  …and every question binding does too"  "ok" \
+   "$(python3 -c '
+import json, re, sys
+doc = json.load(open(sys.argv[1])); verbs = json.load(open(sys.argv[2]))["verbs"]
+bad = []
+for s in doc["steps"]:
+    for q in s["questions"]:
+        b = q.get("action")
+        if not b:
+            continue
+        spec = verbs.get(b["verb"])
+        if spec is None:
+            bad.append("%s/%s: no verb %r" % (s["name"], q["key"], b["verb"])); continue
+        declared = spec.get("params") or {}
+        if set(b.get("params") or {}) != set(declared):
+            bad.append("%s/%s: params mismatch" % (s["name"], q["key"]))
+        for k, p in declared.items():
+            v = (b.get("params") or {}).get(k, "")
+            if re.match(r"^\{[a-z]+\}$", v):
+                continue        # the executor substitutes it, and validates it there
+            if not re.match(p + r"\Z", v):
+                bad.append("%s/%s: %s=%r fails %s" % (s["name"], q["key"], k, v, p))
+print("ok" if not bad else bad)' "$T/doc.json" "$T/verbs.json" 2>&1)"
+
+# --- doctor --json, preflight --json: stable, and declared -----------------
+DJ="$( cd "$DEV" && bash doctor.sh --json 2>/dev/null || true )"
+eq "doctor --json is ONE document and declares its protocol"  "polari-pipeline-doctor/1" \
+   "$(jq_ "$DJ" 'print(d["protocol"])')"
+eq "  …every row carries a verdict, and a WARN carries its fix"  "ok" \
+   "$(jq_ "$DJ" 'bad=[r["check"] for r in d["rows"] if r["verdict"] not in ("OK","WARN") or (r["verdict"]=="WARN" and not r["fix"])]; print("ok" if not bad else bad)')"
+PJ="$( cd "$DEV" && env FOOTPRINT_INVENTORY="$T/inv/inventory.sh" FAKE_INVENTORY="$T/inv/clear.json" bash isle/preflight.sh --isle --json 2>/dev/null || true )"
+eq "preflight --json declares its protocol too"  "polari-pipeline-preflight/1" \
+   "$(jq_ "$PJ" 'print(d["protocol"])')"
+
+# --- THE FIRST RUN: no core, no device.env --------------------------------
+rm -f "$DEV/device.env"
+FIRST="$(jset)"
+eq "with NO device.env and no Polari core at all, the protocol still answers"  "polari-pipeline-setup/1" \
+   "$(jq_ "$FIRST" 'print(d.get("protocol"))')"
+eq "  …with all eight steps, so a first-run screen has something to render"  "8" \
+   "$(jq_ "$FIRST" 'print(len(d["steps"]))')"
+dev_env CI_ISLE_TARGET=local
 
 echo
 TOTAL=$((PASS+FAIL))

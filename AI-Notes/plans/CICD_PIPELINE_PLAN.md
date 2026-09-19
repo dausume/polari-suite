@@ -620,3 +620,22 @@ baseline + check CLEAN (RAM delta +28 MB), `wipe --dry-run` left the router VM a
 alone. FOUND: `throwaway.sh` had never worked over ssh (device.sh scp'd as a sibling). OWED: the first real
 up → uninstall → down → wipe → check cycle on a KVM box; the hand-back JOURNAL and `isle rescue network` do not
 exist yet, so the proof is our five checks, not a reading of the product's own journal.
+
+### 9e. ci-11 — the pipeline as a desktop app (his go 2026-09-19; BUILT, ledger §74)
+
+Two halves, one contract, kept logically separate (his rule): (a) the CLI half — `pol jenkins setup --json
+[--step|--answer|--run]` (`polari-pipeline-setup/1`, ONE JSON document, the same check functions the terminal
+prints — no drift), `doctor --json`, `polari-jenkins/shell-verbs.json` (`polari-pipeline-shell/1`, 11 verbs with
+FIXED argv + a regex per parameter; `secrets-put` reads the value on stdin; `pol jenkins verbs`), the cicd rows
+`PipelineSetupStep` + `GET /api/cicd/setup` + page `cicd-setup`, and the ONE new Angular panel
+`pipeline-setup-panel` (the store's page could not be a panel) over the extended `ShellBridgeService`, degrading to
+commands in a plain browser; (b) the shell half in polari-app-shell — `core/pipeline` (VerbCatalog / VerbCommand:
+argv only from the allowlist, params by regex, a hard-coded argv[0] allowlist pol|apt-get|usermod|nmcli),
+`desktop/pipeline` (bridge `pipeline.available|run|privileged`, `JPasswordField` → child stdin, output scrubbed,
+a native first-run panel that RENDERS the JSON and knows no step), `pipeline/privileged-run` (the ONE pkexec target,
+re-validates as root) + `org.polari.pipeline.policy` (auth_admin_keep) + `shells/build-pipeline-deb.sh` →
+`polari-pipeline_0.1.0_all.deb` (shares polari-shell-core). Meet check done against the real verbs file. Numbers:
+jenkins selftest 364/364, cicd 183/183, panel spec 10/10, ng build clean, :core:test 49/49, :desktop:test 14/14,
+pipeline/selftest 23/23. OWED: the first run on a desktop (install the deb, the pkexec prompt, the panel by eye);
+`pol` must be SYSTEM-WIDE for privileged verbs (`sudo bash polari-cli/shells/install-cli.sh`; a user-writable pol
+under root is refused by design) — the deb should place it; the page has never rendered in a browser.

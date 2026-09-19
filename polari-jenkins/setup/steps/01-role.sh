@@ -291,6 +291,35 @@ The upstream owner ($CI_UPSTREAM_OWNER) is REFUSED: a fork is never republished 
     doctor_refresh
 }
 
+# ci-11a — the SAME questions setup_ask_mode asks, declared so a machine can
+# answer them one at a time. The checks are not repeated here: json_step runs
+# step_role_check, the same function the terminal prints.
+step_role_json() {
+    json_explain "FIRST: what does this pipeline maintain?
+
+1. THE WHOLE POLARI SUITE — core, the app modules, the images, the debs. It builds everything from a suite checkout, tests it in a throwaway isle and releases it. This is upstream Polari's own shape.
+
+2. ONE POLARI APP YOU ARE DEVELOPING — your module, from your own repository. The CORE IS NOT REBUILT: its debs come from an official Polari release, your app is tested against THAT core, and the release carries your app's deb alone, published to YOUR routes. Cheaper in every direction: no core build, one app's stage, one deb."
+    json_explain "Two roles, and one device can hold both if it has the room. PIPELINE DEVICE — the controller (capped at ${CI_CONTROLLER_RAM_GB} GB), the builds (~${CI_BUILD_RAM_GB} GB, serialised) and the publish routes; nothing inbound is ever opened. THROWAWAY-ISLE TARGET — a VM created, tested and destroyed: ${CI_ISLE_VM_RAM_GB} GB / ${CI_ISLE_VM_VCPUS} vCPU / ${CI_ISLE_VM_DISK_GB} GB, needing /dev/kvm AND nested KVM. This step only measures; step $(step_index isle) chooses where the isle goes."
+    json_question CI_MODE 'What does this pipeline maintain?' choice suite "$CI_MODE" \
+        'suite=the whole Polari suite (core is built here)|app=ONE Polari app you are developing (core is pulled from a release)'
+    if [ "$CI_MODE" = app ]; then
+        json_question CI_APP_NAME 'Which app?' text '' "$CI_APP_NAME" ''
+        json_question CI_APP_REPO "The app's own repository (polari-module-<name>, a polari-app.json at its root)" \
+            text '' "$CI_APP_REPO" ''
+        json_question CI_CORE_SOURCE 'Which core is your app tested against?' choice release:latest "$CI_CORE_SOURCE" \
+            'release:latest=the newest official Polari release (recommended)|build=rebuild core from this checkout'
+        json_question CI_ROUTE_TARGET "Where do YOUR releases go? (your own owner/namespace — $CI_UPSTREAM_OWNER is refused)" \
+            text '' "$CI_ROUTE_TARGET" ''
+        if [ -n "$CI_APP_REPO" ] && [ -n "$CI_APP_NAME" ]; then
+            json_action clone-app "Clone $CI_APP_NAME into the pool" 0 setup-run \
+                "$([ -d "$(setup_app_checkout_dir "$CI_APP_NAME")/.git" ] && echo 1 || echo 0)" \
+                "a shallow clone under $(setup_app_checkout_dir "$CI_APP_NAME"); the pipeline re-pulls it every run" \
+                'action=clone-app'
+        fi
+    fi
+}
+
 step_role_do() {
     setup_ask_mode
     echo

@@ -11,7 +11,14 @@
 # --strict exits non-zero on any WARN (for a pipeline stage or a gate).
 # It reads; it changes nothing and prints no secret value.
 #
-#   doctor.sh [--strict] [--help]
+#   doctor.sh [--strict] [--json] [--help]
+#
+# --json (ci-11a) prints ONE document, `polari-pipeline-doctor/1`, and
+# nothing else on stdout: the same rows, machine-readable, each with its
+# own fix. Every other line this script prints — its banner, its section
+# headings, a tool's own chatter — is moved to stderr for the whole run,
+# so "no stdout noise" is a property of the flag and not a promise each
+# future check has to keep.
 set -euo pipefail
 
 J="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -20,19 +27,26 @@ source "$J/device.sh"
 # shellcheck source=secrets.sh
 source "$J/secrets.sh"
 
-STRICT=0
+STRICT=0; JSON=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --strict) STRICT=1 ;;
-        --help|-h) sed -n '2,16p' "$0"; exit 0 ;;
-        *) echo "doctor.sh: unknown argument '$1' (--strict --help)" >&2; exit 2 ;;
+        --json) JSON=1 ;;
+        --help|-h) sed -n '2,24p' "$0"; exit 0 ;;
+        *) echo "doctor.sh: unknown argument '$1' (--strict --json --help)" >&2; exit 2 ;;
     esac; shift
 done
 
+DOC_ROWS=()
+if [ "$JSON" = 1 ]; then exec 3>&1 1>&2; fi
+
 WARNS=0
-ok()   { printf 'OK    %-26s — %s\n' "$1" "$2"; }
-warn() { printf 'WARN  %-26s — %s → %s\n' "$1" "$2" "$3"; WARNS=$((WARNS+1)); }
-sec()  { printf '\n-- %s\n' "$1"; }
+DOC_SECTION=""
+DOC_US=$'\037'
+doc_row() { DOC_ROWS+=("$1$DOC_US$DOC_SECTION$DOC_US$2$DOC_US$3$DOC_US${4:-}"); }
+ok()   { printf 'OK    %-26s — %s\n' "$1" "$2"; doc_row OK "$1" "$2" ""; }
+warn() { printf 'WARN  %-26s — %s → %s\n' "$1" "$2" "$3"; WARNS=$((WARNS+1)); doc_row WARN "$1" "$2" "$3"; }
+sec()  { printf '\n-- %s\n' "$1"; DOC_SECTION="$1"; }
 
 ME="$(id -un)"
 echo "polari-jenkins doctor — what is configured, and what is not (read-only; it changes nothing)"
@@ -49,7 +63,19 @@ for s in polari-cli polari-rf-node political-scorecard-node polari-app-shell Isl
 done
 [ -z "$MISSING_SUB" ] && ok "submodules" "all five populated (polari-cli, polari-rf-node, political-scorecard-node, polari-app-shell, Isle-Mesh)" \
     || warn "submodules" "not populated:$MISSING_SUB" "git -C $SUITE submodule update --init --recursive (or ./bootstrap-dev.sh)"
-if command -v pol >/dev/null 2>&1; then ok "pol CLI" "$(command -v pol)"
+if command -v pol >/dev/null 2>&1; then
+    POL_PATH="$(command -v pol)"
+    # ci-11a: WHERE pol lives matters as soon as anything runs it elevated. A
+    # `pol` under a user's own home is writable by that user, so running it as
+    # root would let whoever owns that file choose what root does — an
+    # escalation, not a convenience. install-cli.sh prefers /usr/local/bin and
+    # only falls back to ~/.local/bin when it cannot write there; a device that
+    # any front end will drive should be on the system-wide one.
+    case "$POL_PATH" in
+        "$HOME"/*) warn "pol CLI" "$POL_PATH — pol is installed under your home, so it is not a safe target for an elevated run (whoever can write that file would choose what root does)" \
+                        "sudo bash $SUITE/polari-cli/shells/install-cli.sh   — it then links /usr/local/bin/pol" ;;
+        *) ok "pol CLI" "$POL_PATH (system-wide — safe to run elevated)" ;;
+    esac
 else warn "pol CLI" "pol is not on PATH" "bash $SUITE/polari-cli/shells/install-cli.sh, then open a new shell"; fi
 MISSING_TOOL=""
 for t in docker python3 git curl whiptail; do command -v "$t" >/dev/null 2>&1 || MISSING_TOOL="$MISSING_TOOL $t"; done
@@ -429,5 +455,24 @@ fi
 echo
 if [ "$WARNS" = 0 ]; then echo "doctor: everything checked is set up properly."
 else echo "doctor: $WARNS warning(s) above — each says what is wrong and what to do. (Nothing was changed.)"; fi
+
+if [ "$JSON" = 1 ]; then
+    exec 1>&3 3>&-
+    { printf '%s\n' "$WARNS" "$(device_target_name)" "$ME" "$(secrets_mode)" "$CI_MODE"
+      printf '%s\n' "${DOC_ROWS[@]:-}"; } | python3 -c '
+import json, sys
+L = sys.stdin.read().split("\n")
+warns, target, user, posture, mode = L[0], L[1], L[2], L[3], L[4]
+US = "\x1f"
+rows = []
+for line in L[5:]:
+    if not line.strip():
+        continue
+    f = (line.split(US) + [""] * 5)[:5]
+    rows.append(dict(zip(("verdict", "section", "check", "message", "fix"), f)))
+print(json.dumps({"protocol": "polari-pipeline-doctor/1", "kind": "doctor",
+                  "device": {"target": target, "user": user, "secrets_posture": posture, "mode": mode},
+                  "warns": int(warns or 0), "rows": rows}, indent=1))'
+fi
 [ "$STRICT" = 1 ] && [ "$WARNS" -gt 0 ] && exit 1
 exit 0
