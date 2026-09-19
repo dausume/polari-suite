@@ -55,7 +55,13 @@
 // the reason ci-7 makes the device configurable at all. The doctor says so.
 pipeline {
   agent any
-  options { timestamps(); timeout(time: 180, unit: 'MINUTES'); disableConcurrentBuilds(); lock(resource: 'polari-build') }
+  // ci-12: this job locks the ISLE TARGET, not `polari-build`. It used to take
+  // `polari-build` — but it is triggered with `wait: true` from a parent that is
+  // ALREADY holding that lock (polari-release did; polari-test does now), so the
+  // parent would wait for the child and the child for the parent. A real
+  // deadlock, latent only because §75's release run died earlier. What this job
+  // actually needs exclusive is the throwaway device, and that is what it takes.
+  options { timestamps(); timeout(time: 180, unit: 'MINUTES'); disableConcurrentBuilds(); lock(resource: 'polari-isle-target') }
   parameters {
     string(name: 'VERSION', defaultValue: '', description: 'the pool version under test (empty = a bare device proof; no results are recorded against a release)')
   }

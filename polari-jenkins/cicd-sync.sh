@@ -13,6 +13,7 @@
 #   cicd-sync.sh run <job> <number> <status> [version] [summary]
 #   cicd-sync.sh isle-test <run> <stage> <core_ok> <results.json>
 #   cicd-sync.sh release <version> <release.json>
+#   cicd-sync.sh verdict <verdict.json> [<run>]     ci-12: ONE answer per tested sha
 #   cicd-sync.sh status          what it would do, and whether the core answers
 #
 # THE DIRECTION OF TRUTH. Polari holds the settings; this file is the
@@ -364,6 +365,35 @@ print(json.dumps({'kind': 'release', 'device': dev, 'version': version, 'mode': 
 PY
 }
 
+# ci-12 — THE TEST VERDICT, mirrored in. The arithmetic happened in
+# polari-jenkins/verdict.py on the device that ran the tests; this transports it.
+# NOTHING here recomputes a verdict: the enforcement path (`pol jenkins promote
+# main`, `routes/_lib.sh`) reads the FILE on the device, so a core that is down
+# can never block or unblock a release. This row is the legible copy.
+do_verdict() {  # verdict <verdict.json> [<run>]
+    local path="${1:?verdict.json}" run="${2:-}"
+    [ -f "$path" ] || { warn "no verdict at $path — nothing posted"; return 0; }
+    python3 - "$CICD_DEVICE_NAME" "$path" "$run" <<'PY' | post_kind
+import json, sys
+dev, path, run = sys.argv[1:4]
+try:
+    v = json.load(open(path))
+except Exception as exc:
+    sys.stderr.write('the verdict did not parse: %s\n' % exc)
+    raise SystemExit(1)
+print(json.dumps({'kind': 'test-verdict', 'device': dev,
+                  'sha': v.get('sha', ''), 'branch': v.get('branch', 'test'),
+                  'verdict': v.get('verdict', 'partial'), 'why': v.get('why', ''),
+                  'built': bool(v.get('built')),
+                  # the three summaries travel whole; the row stores them as JSON strings and the
+                  # page renders them as configured columns (no raw JSON on a screen).
+                  'scans': v.get('scans') or {}, 'selftests': v.get('selftests') or {},
+                  'isle': v.get('isle') or {},
+                  'run': run or v.get('run', ''), 'decided_by': v.get('decided_by', 'pipeline'),
+                  'at': v.get('at', '')}))
+PY
+}
+
 do_status() {
     local url; url="$(core_url)"
     echo "device:      $CICD_DEVICE_NAME"
@@ -389,7 +419,8 @@ case "${1:-status}" in
     run)          shift; do_run "$@" ;;
     isle-test)    shift; do_isle_test "$@" ;;
     release)      shift; do_release "$@" ;;
+    verdict)      shift; do_verdict "$@" ;;
     status)       do_status ;;
     --help|-h)    sed -n '2,30p' "$0" ;;
-    *)            warn "unknown: cicd-sync.sh $1 (pull|push|push-secrets|push-setup|run|isle-test|release|status)"; exit 2 ;;
+    *)            warn "unknown: cicd-sync.sh $1 (pull|push|push-secrets|push-setup|run|isle-test|release|verdict|status)"; exit 2 ;;
 esac

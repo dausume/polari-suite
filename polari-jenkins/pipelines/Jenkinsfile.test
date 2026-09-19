@@ -1,0 +1,236 @@
+// polari-test — THE TEST PIPELINE (ci-12, his ruling 2026-09-19, verbatim):
+//
+//   "We need to create a new test branch. After pushing to the test branch we
+//    kick off the testing pipeline for polari and it does the builds and scans
+//    and runs in test mode which automates running tests for all of the modules
+//    and apps configured to run in that particular pipeline run. dev is a place
+//    for staging development work that we are rapidly iterating through. Pushing
+//    our dev work to test will kick off the process of wiping what we have
+//    locally and then running all of our tests and scans. Based on the outcome
+//    on the test stage, we make a decision to push changes to main."
+//
+// So: WIPE → BUILD → SCAN → TEST → ONE VERDICT. Nothing is published here, ever.
+// The verdict is the product of this job, and `polari-release` (and
+// `pol jenkins promote main`) read it — they never re-run the tests.
+//
+// THE JOB'S COLOUR MEANS "DID IT RUN", NOT "DID IT PASS". SUCCESS when the run
+// reached the end and recorded a verdict; FAILURE only when a stage could not
+// run at all. A failed test is a RECORDED VERDICT — turning it into a red build
+// would make the verdict redundant and tempt somebody to read the colour instead
+// of the reasons.
+//
+// SCANS ARE ADVISORY (his standing rule). Every scan stage exits 0, the counts
+// ride in the verdict, and no finding changes the verdict by one letter.
+//
+// THE QUEUE (his addendum, same day): one item deep, latest wins, five quiet
+// minutes across the whole forest before anything starts. quiet.sh owns all of
+// that; this file asks it and obeys. A deferral is NOT_BUILT — the pending item
+// stays pending and the next poll takes it, so no backlog can form.
+pipeline {
+  agent any
+  // abortPrevious:false — aborting the running build on every new poll would
+  // mean a busy branch never finishes a test at all. The single pending item in
+  // quiet.sh is what stops a backlog; this option only stops overlap.
+  // The `polari-build` lock is shared with polari-release: the two never run at
+  // the same time, which is his "we should not run both at the same time".
+  options {
+    timestamps()
+    timeout(time: 240, unit: 'MINUTES')
+    disableConcurrentBuilds(abortPrevious: false)
+    lock(resource: 'polari-build')
+  }
+  environment {
+    POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}"
+    ISLE = "${env.POLARI_ISLE ?: '/var/polari-jenkins/isle'}"
+    BRANCH_UNDER_TEST = 'test'
+  }
+  stages {
+
+    // ---------------------------------------------------------------- 0. may I?
+    // Two questions, both answered by quiet.sh and neither by this file:
+    //   · is it my turn (alternation with polari-release)?
+    //   · has the forest been quiet for CI_QUIET_MINUTES?
+    // A "no" to either ends the build as NOT_BUILT with its reason. That is the
+    // cheapest possible yield: no lock is held for long, no executor is slept in,
+    // and the pending item is untouched so the next poll simply tries again.
+    stage('whose turn is it, and has the forest stopped moving?') {
+      steps {
+        script {
+          def turn = sh(returnStatus: true, script: 'bash /var/polari-jenkins/quiet.sh turn test --once')
+          if (turn == 7) {
+            currentBuild.result = 'NOT_BUILT'
+            error('yielding to polari-release — it has something pending and test ran last. The pending test item is untouched; the next poll takes it.')
+          }
+          def out = sh(returnStdout: true, returnStatus: false, script: '''set +e
+            bash /var/polari-jenkins/quiet.sh check test; echo "QUIET_RC=$?"''')
+          echo out
+          def rc = (out =~ /QUIET_RC=(\d+)/) ? (out =~ /QUIET_RC=(\d+)/)[0][1] as int : 1
+          if (rc == 6) {
+            currentBuild.result = 'NOT_BUILT'
+            error('changes still landing — re-polled. A promotion that is still pushing must not be built half-way; the single pending item stays and the next poll picks up the newest state.')
+          }
+          if (rc != 0) {
+            error("quiet.sh could not read the forest (rc=${rc}) — a run that cannot tell whether the branch is settled must not build")
+          }
+          env.QUIET_SHA = ((out =~ /QUIET_SHA=(\S+)/) ? (out =~ /QUIET_SHA=(\S+)/)[0][1] : '')
+          echo "the forest is settled at ${env.QUIET_SHA}"
+        }
+      }
+    }
+
+    // ci-8: Polari owns this device's settings; device.env is the fallback. Non-fatal.
+    stage('sync settings from Polari (non-fatal)') {
+      steps { sh 'bash /var/polari-jenkins/cicd-sync.sh pull || true' }
+    }
+
+    stage('disk guard') { steps { sh 'bash /var/polari-jenkins/retention.sh guard' } }
+
+    // ---------------------------------------------------- 1. the TIP, not the trigger
+    // The single pending item never named a sha — it meant "the newest state of
+    // test". So the checkout is of the branch TIP. Anything else would build a
+    // superseded commit and call its verdict current.
+    stage('checkout the TIP of test') {
+      steps {
+        checkout([$class: 'GitSCM', branches: [[name: '*/test']],
+                  userRemoteConfigs: [[url: 'https://github.com/dausume/polari-suite.git']],
+                  extensions: [[$class: 'SubmoduleOption', recursiveSubmodules: false,
+                                parentCredentials: false, trackingSubmodules: false, shallow: true]]])
+        sh '''set -eu
+          git -C polari-rf-node submodule update --init --depth 1 polari-framework polari-platform-angular
+          ls polari-rf-node/polari-framework/Dockerfile polari-rf-node/polari-platform-angular/Dockerfile'''
+        script {
+          env.TEST_SHA = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+          env.RUN_DIR  = "${env.POOL}/test/${env.TEST_SHA}"
+          echo "testing ${env.TEST_SHA}"
+          if (env.QUIET_SHA && env.QUIET_SHA != env.TEST_SHA) {
+            echo "note: the tip moved between the quiet check and the checkout (${env.QUIET_SHA} → ${env.TEST_SHA}). " +
+                 "Testing what was checked out and recording ITS sha; the next poll will see the newer one."
+          }
+          sh "bash /var/polari-jenkins/quiet.sh claim test '${env.TEST_SHA}'"
+          sh "bash /var/polari-jenkins/cicd-sync.sh run test \"\$BUILD_NUMBER\" running '${env.TEST_SHA}' 'wipe, build, scan, test' || true"
+        }
+      }
+    }
+
+    // ----------------------------------------------------------------- 2. the WIPE
+    stage('wipe what we have locally') {
+      steps { sh "bash /var/polari-jenkins/test-wipe.sh '${env.RUN_DIR}' '${env.TEST_SHA}'" }
+    }
+
+    // ----------------------------------------------------------------- 3. the BUILD
+    // Exactly what polari-dev-build does — the same builders, the same jmods JDK,
+    // the same ci-9 cache. A test run that built differently from a dev build
+    // would be testing a different artifact from the one anybody ships.
+    stage('build — debs (isle bundle + both flavors)') {
+      environment {
+        JAVA_HOME = "${env.POLARI_BUILD_JAVA_HOME ?: '/usr/lib/jvm/java-21-openjdk-amd64'}"
+        PATH = "${env.POLARI_BUILD_JAVA_HOME ?: '/usr/lib/jvm/java-21-openjdk-amd64'}/bin:${env.PATH}"
+      }
+      steps {
+        sh '''set -eu
+          echo "[debs] build JDK $(jpackage --version) at $JAVA_HOME — $(ls "$JAVA_HOME/jmods" | wc -l) jmods"
+          export POLARI_WHEEL_CACHE="$(bash /var/polari-jenkins/cache.sh dir wheels)"
+          export POLARI_APT_CACHE="$(bash /var/polari-jenkins/cache.sh dir apt)"
+          T0=$(date +%s)
+          bash ./build-polari-isle-deb.sh
+          bash ./build-polari-complete-deb.sh --flavor online
+          bash ./build-polari-complete-deb.sh --flavor offline
+          ls -la .generated/debs
+          mkdir -p "$RUN_DIR/debs" && cp .generated/debs/*.deb "$RUN_DIR/debs/"
+          bash /var/polari-jenkins/cache.sh report "$RUN_DIR/cache-report.json" debs 0 0 $(( $(date +%s) - T0 ))'''
+      }
+    }
+    stage('build — images') {
+      steps {
+        sh '''set -eu
+          bash /var/polari-jenkins/build-images.sh "$PWD" "$RUN_DIR/cache-report.json"
+          docker images --format "{{.Repository}}:{{.Tag}} {{.Size}}" | grep -E "^(prf-|pol-reticulum)"
+          bash /var/polari-jenkins/cache.sh report-show "$RUN_DIR/cache-report.json" || true'''
+      }
+    }
+
+    // ------------------------------------------------------------------ 4. the SCANS
+    // scn-0. ADVISORY, and the stage says so in its own name so nobody reads a
+    // red mark into it. catchError keeps even a catastrophic scanner failure from
+    // touching the build's result; scan.sh already exits 0 on its own.
+    stage('scan (ADVISORY — no finding gates anything)') {
+      steps {
+        catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+          sh '''set +e
+            bash /var/polari-jenkins/scan/scan.sh source --out "$RUN_DIR/scan"
+            bash /var/polari-jenkins/scan/scan.sh deps   --out "$RUN_DIR/scan"
+            bash /var/polari-jenkins/scan/scan.sh images --out "$RUN_DIR/scan"
+            bash /var/polari-jenkins/scan/scan.sh debs   --out "$RUN_DIR/scan" "$RUN_DIR/debs"
+            bash /var/polari-jenkins/scan/scan.sh summary --out "$RUN_DIR/scan"
+            cat "$RUN_DIR/scan/SCAN_SUMMARY.md" 2>/dev/null | head -40
+            exit 0'''
+        }
+      }
+    }
+
+    // ------------------------------------------- 5a. the tests that need no isle
+    // Every module named in CI_ISLE_STAGES, plus `core` = the framework's own
+    // packages. They run in the image the build stage just made, so they test
+    // THIS sha's code. A failing suite is recorded, not thrown.
+    stage('test — module selftests (no isle needed)') {
+      steps {
+        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+          sh '''set -eu
+            MODS="core $(bash -c 'source /var/polari-jenkins/device.sh; stages_all_apps' | tr '\\n' ' ')"
+            echo "[test] modules configured for this run: $MODS"
+            bash /var/polari-jenkins/selftests.sh "$RUN_DIR/selftests" $MODS'''
+        }
+      }
+    }
+
+    // ------------------------------------------- 5b. the tests that DO need an isle
+    // The stage loop is polari-isle-test's, unchanged and not copied: it is the
+    // one implementation of preflight → up → install+test (ci-3) → uninstall →
+    // down → leakcheck, and it writes results.json where the verdict reads it.
+    // propagate:false — a failed stage must still leave its results behind; the
+    // verdict decides, not the inner job's colour.
+    stage('test — the throwaway isle stages') {
+      steps {
+        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+          build job: 'polari-isle-test', wait: true, propagate: false,
+                parameters: [string(name: 'VERSION', value: "test/${env.TEST_SHA}")]
+        }
+        sh 'ls -la "$RUN_DIR/isle-test" 2>/dev/null || echo "[test] no isle-test results for this sha"'
+      }
+    }
+
+    // ---------------------------------------------------------------- 6. THE VERDICT
+    stage('the verdict') {
+      steps {
+        sh '''set -eu
+          python3 /var/polari-jenkins/verdict.py build "$RUN_DIR" \
+            --sha "$TEST_SHA" --branch test --built true \
+            --run "$JOB_NAME#$BUILD_NUMBER" --device "${CI_DEVICE_NAME:-pipeline}"
+          cp "$RUN_DIR/verdict.json" verdict.json'''
+        // ci-8/ci-12: the verdict is mirrored into the cicd app as its own kind.
+        sh 'bash /var/polari-jenkins/cicd-sync.sh verdict "$RUN_DIR/verdict.json" "$JOB_NAME#$BUILD_NUMBER" || true'
+      }
+      post {
+        always {
+          archiveArtifacts artifacts: 'verdict.json', allowEmptyArchive: true
+        }
+      }
+    }
+  }
+  post {
+    always {
+      script {
+        sh 'bash /var/polari-jenkins/quiet.sh turn-done test || true'
+        sh "bash /var/polari-jenkins/quiet.sh done test '${env.TEST_SHA ?: ''}' || true"
+        def v = 'not reached'
+        if (env.RUN_DIR && fileExists("${env.RUN_DIR}/verdict.json")) {
+          v = readJSON(file: "${env.RUN_DIR}/verdict.json").verdict
+        }
+        sh "bash /var/polari-jenkins/cicd-sync.sh run test \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} '${env.TEST_SHA ?: ''}' 'test verdict: ${v}' || true"
+        echo "TEST VERDICT for ${env.TEST_SHA ?: '(no sha)'}: ${v}  —  pol jenkins test-status ${env.TEST_SHA ?: ''}"
+      }
+      sh 'bash /var/polari-jenkins/retention.sh prune || true'
+      cleanWs()
+    }
+  }
+}

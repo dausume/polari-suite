@@ -6689,3 +6689,154 @@ carries no .deb assets`. The helper scripts are the device's **dev** checkout (b
 **main**, whose `polari-cli` pin (`684ee42`) predates `release_asset_urls` in `scripts/lib/providers.sh` — a
 dev↔main skew, not a defect in either. main is still at `0ee38c6` "ledger §44". OWED (HIS): fast-forward main to
 dev (the MAIN==DEV gate) and re-run polari-release; the DRY publish routes have still never been exercised.
+
+## §76 — ci-12: the branch model and the test pipeline
+
+His rulings, 2026-09-19 (three, in the order they came):
+
+1. *"We need to create a new test branch. After pushing to the test branch we
+   kick off the testing pipeline for polari and it does the builds and scans and
+   runs in test mode which automates running tests for all of the modules and
+   apps configured to run in that particular pipeline run. dev is a place for
+   staging development work that we are rapidly iterating through. Pushing our
+   dev work to test will kick off the process of wiping what we have locally and
+   then running all of our tests and scans. Based on the outcome on the test
+   stage, we make a decision to push changes to main. When a push to main
+   occurs, we kick off the generation of artifacts and publish the artifacts.
+   The test and main pipelines should likely be different pipelines."*
+2. *"this is a super project spread across many repos, so we will likely be
+   detecting many changes, but we should only be running if we detect a change
+   and then do not detect any more changes elsewhere within 5 minutes. We should
+   not be endlessly queuing jobs. main and test queues are different queues. We
+   should not run both at the same time but alternate them if they are getting
+   things in series."*
+3. *"this is likely running on only one of two devices and we cannot be
+   accidentally making a huge queue — if multiple changes come in we just keep
+   putting off testing and do the LAST one that came in for that queue."*
+
+Built on `dev`. The `test` branch was CREATED on every repo (the one outward
+action besides pushing dev). **Nothing was promoted to main — that is his call.**
+
+---
+
+### The shape, in one paragraph
+
+**dev iterate · test decide · main release.** `dev` promises nothing and gets an
+optional quick build. Pushing `dev` to `test` wipes the pipeline device, builds,
+scans (advisory), runs every configured test, and records **ONE verdict for that
+superproject sha** at `pool/test/<sha>/verdict.json`. Only a sha whose verdict
+says `passed` may be promoted to `main`, and `main` is the only branch that
+generates and publishes artifacts — reading the verdict the test run already
+recorded, and re-running nothing. Promotion is the existing forest sweep given a
+branch parameter, not a copy of it; the poll queues are one item deep and
+latest-wins, so no backlog can ever form.
+
+---
+
+### What, and where
+
+| what | where | notes |
+|---|---|---|
+| **the promotion** | `polari-jenkins/promote.sh` (new, ~145 lines) + `pol jenkins promote test\|main\|status` | it adds exactly two things to the sweep: the RELEASE RULE at branch level (`promote main` refuses without a `passed` verdict; `--force-untested` is the loud override) and the PROMOTION MARKER |
+| **the ONE sweep, parameterised** | `polari-cli/shells/push-all-dev.sh` — `--branch`, `--promote-from`, `--summary-json` | NOT a copy. The clean-tree checks, artifact guard, pointer coherence and innermost-first order that publish `dev` are what promote `test` and `main`. FF-only via `git fetch . <src>:<dst>`, so the working tree is never switched; a repo that will not fast-forward STOPS the promotion and is NAMED |
+| **the test pipeline** | `polari-jenkins/pipelines/Jenkinsfile.test` (new) + a `polari-test` job polling `test` every 5 min | turn/quiet → sync → guard → checkout the TIP → **wipe** → debs → images → **scans** → module selftests → isle stages → **the verdict** |
+| the wipe | `polari-jenkins/test-wipe.sh` (new) | this sha's previous run · `retention.sh prune` · the `:staging` images THIS device built · on the target `isle wipe` + `leakcheck baseline`. The ci-9 **cache is not touched**, with the reason in the file |
+| **the scans (scn-0)** | `polari-jenkins/scan/scan.sh` + `scan/summarize.py` + `scan-tools.lock` (all new) + `pol scan` (`polari-cli/scripts/scan.sh`, registered in `index.js`) | Trivy (fs · image · unpacked deb) and gitleaks from PINNED containers; `pip-audit` / `npm audit` from the workspace image when present, else skipped with a line. **Every stage exits 0**; reports to `pool/test/<sha>/scan/<tool>.json` + `SCAN_SUMMARY.md` (counts by severity per tool). `scan.sh lock-resolve` fills the digest column, to be committed deliberately (the `casc/plugins.txt` discipline) |
+| the tests that need no isle | `polari-jenkins/selftests.sh` (new) | `docker run --rm prf-backend:staging python3 -m <suite>` for every module in `CI_ISLE_STAGES` plus `core` (the framework's own packages). The discovery `ls` is **`pol modules selftest`'s own, verbatim**, so the two cannot disagree about what a module's tests ARE |
+| **the verdict** | `polari-jenkins/verdict.py` (new) — the ONE place the arithmetic lives | `passed` / `failed` / `partial`; `partial` is today's honest state and `why` says so naming ci-3. Scans are CARRIED and never counted |
+| **the queue** | `polari-jenkins/quiet.sh` (new, ~330 lines) + `pol jenkins queue` | the 5-minute forest-wide quiet window, the promotion marker short-circuit, the ONE-deep latest-wins queue (`pool/queue/<branch>.json`), and the turn marker (`pool/turn.json`) |
+| the release rule, re-keyed | `polari-jenkins/routes/_lib.sh` (`release_sha`, `verdict_path`, `tested_state`, `tested_apps`) | reads `pool/test/<sha>/verdict.json` for the sha named in `release.json`; `DRY_RUN=false` still cannot force it |
+| the release pipeline | `polari-jenkins/pipelines/Jenkinsfile.release` | + the turn/quiet stage; − the `polari-isle-test` trigger; the gate now reads the verdict; `BUILD_OFFLINE_MEDIUM` became a device knob so the POLLED job takes no parameters |
+| the jobs | `polari-jenkins/jobs/seed.groovy` | `polari-test` (new, polls `test`, `quietPeriod(300)`, unparameterised) · `polari-release-manual` (new, manual only, keeps the knobs) · every poll job gains `quietPeriod(300)` · descriptions rewritten to say what each branch promises |
+| the deadlock, fixed | `pipelines/Jenkinsfile.isle-test` | it locked `polari-build` **and is triggered `wait: true` from a parent holding that lock** — parent waits for child, child waits for parent. Latent since ci-7b (§75's release run died earlier). It now locks `polari-isle-target`, which is what it actually needs exclusive |
+| retention | `polari-jenkins/retention.sh` | `test`, `promotions` and `queue` are EXEMPT (none is a version, and deleting a verdict would silently un-test a released sha); the test runs are bounded by their own `TEST_KEEP` (5) |
+| the doctor | `polari-jenkins/doctor.sh` | a new §"the branch model" — where dev/test/main are, the tip-of-test verdict with its reason, and the queue line; the ci-10 teardown rows now read the TEST run's results |
+| **the rows** | `modules/cicd/objects/cicd/TestVerdict.py` (new) + `cicd_basis` · `PipelineRun.JOBS` += `test`, `release-manual` · `ReleaseRecord` += `tested_verdict`, `tested_sha` | see "the smaller change" below |
+| the mirror | `custom/cicd_ingest.py` (`test-verdict` kind + `test_verdict_row`), `cicd_api.py` (`_ingest_test_verdict`, `GET /api/cicd/verdicts`), `custom/cicd_rows.py` (`verdicts()`), `cicd-sync.sh verdict` | the door NEVER recomputes a verdict; the enforcement path reads the file on the device, so a core that is down can neither block nor unblock a release |
+| the page | `modules/cicd/cicd_page.py` | `cicd-runs` gains the VERDICT column FIRST — an `api-structured-panel` over `/api/cicd/verdicts` and a `class-rows-table` over `TestVerdict`. Still only the two generic components; no raw JSON |
+| core registration | `polariApiServer/feature_imports.py`, `polariApiServer/polariServer.py` | `TestVerdict` **and `PipelineSetupStep`** — the latter was never registered by ci-11a, so its rows could not type, persist or restore. Fixed here |
+| the CLI | `polari-cli/scripts/jenkins.sh` (+`promote`, `test-status`, `queue`, `scan`), `lib/jenkins-device.sh` (`jd_test_status`), `polari-cli/scripts/scan.sh`, `index.js` | |
+| compose | `polari-jenkins/docker-compose.yml` | the five new scripts mounted; `CI_QUIET_MINUTES`, `CI_MAX_DEFER_MINUTES`, `CI_SELFTEST_*`, `CI_BUILD_OFFLINE_MEDIUM`, `CI_DEVICE_NAME` passed through |
+| docs | `polari-jenkins/README.md` (a new "branch model" section + the release rule and jobs tables rewritten), `device.env.example` (the ci-12 knobs), `pol jenkins help`, `pol scan help` | |
+| tests | `polari-jenkins/selftest.sh` **364/364 → 463/463**; `modules/cicd/cicd_selftest.py` **183/183 → 205/205** | still no docker, libvirt, sudo or network |
+
+### The smaller change: a `TestVerdict` row, not fields on `ReleaseRecord`
+
+The brief allowed either. A row of its own is the smaller change even though it
+is the extra file: a `ReleaseRecord` is per VERSION and is created by a release,
+while a verdict is per SHA and exists **before** any version is minted, for shas
+that will never be released at all (most of them — you test far more than you
+ship). Putting verdicts on `ReleaseRecord` would mean inventing a release row
+per test run, so the table whose whole purpose is *"what this version shipped"*
+would fill with rows that shipped nothing.
+
+`ReleaseRecord.tested_against` was deliberately NOT reused for the linkage: it
+already means the CORE RELEASE an app-mode build passed against, and the ingest
+door refuses an app-mode release that leaves it empty. Two new columns instead —
+`tested_verdict` (the TestVerdict row name) and `tested_sha`.
+
+---
+
+### Gotchas found and fixed while building
+
+* **`branch` is a treeObject INTERNAL variable.** `TestVerdict` was first
+  written with a `branch` column; every construction then failed with
+  *"no branch was defined on the object"* followed by
+  *"'TestVerdict' object has no attribute 'manager'"*, and the ingest door
+  reported `ok: true` while storing nothing. `objectTreeDecorators`
+  `TREE_OBJECT_INTERNAL_VARS = {'manager', 'branch', 'inTree'}`. The column is
+  `git_branch`, and the selftest now asserts `branch` is not a parameter of it
+  so it cannot come back.
+* **A real deadlock in the existing pipelines.** `Jenkinsfile.isle-test` took
+  the `polari-build` lock while being triggered `wait: true` from
+  `Jenkinsfile.release`, which holds it. Parent waits for child; child waits for
+  parent. It has never fired only because §75's release run failed earlier, at
+  `core-artifacts`. ci-12 would have hit it on the first `polari-test` run.
+* **`PipelineSetupStep` was never registered.** ci-11a added the class, its
+  ingest kind, its page and its selftest — and no entry in
+  `feature_imports.py` or `polariServer.defClassList`, so no row of it could
+  ever be typed or persisted. Found by adding `TestVerdict` beside it.
+* **A per-target report name is not a tool name.** `summarize.py` first split on
+  `:` and so counted `trivy-source` / `trivy-image-prf-backend` as *"no counter
+  for trivy-source"* — every trivy finding silently zero. It now matches the
+  longest known tool name the report name starts with.
+* **`retention.sh prune` would have eaten the verdicts.** It walks `pool/*/`;
+  `pool/test` is a directory in `pool/`. Deleting it would not have failed
+  anything visibly — it would have silently un-tested released shas. Exempt now,
+  with `TEST_KEEP` bounding the test runs instead. (The same trap ci-9 found for
+  the cache, in the same line of code.)
+* **Sleeping is the wrong way to take turns.** The first draft had the yielding
+  job `waitUntil` the other had run — while holding the `polari-build` lock and
+  an executor, i.e. starving the very job it was letting through. It now yields
+  by ENDING the build as `NOT_BUILT`; the single pending item is untouched and
+  the next poll takes it. Cheaper, and it preserves "latest wins" exactly.
+* **A parameterised job cannot coalesce.** Jenkins merges queued items of a
+  non-parameterised job, which is the actual mechanism behind "no endless
+  queue". `polari-release` therefore had to lose `BUILD_OFFLINE_MEDIUM` from the
+  poll path (it became `CI_BUILD_OFFLINE_MEDIUM`), with
+  `polari-release-manual` keeping the knobs for hand runs.
+* **`set -e` and `$( )` in the selftest.** Several new cases assigned the output
+  of a deliberately-failing command; under `set -euo pipefail` the assignment
+  ends the script, which printed no tally at all and exited 4. Every such
+  wrapper ends `|| true` now.
+
+---
+
+### OWED
+
+1. **`promote main` is HIS call.** The gate is built and proven to refuse;
+   nothing has been promoted to main, and `main` is still at `0ee38c6`.
+2. **ci-3 is now the ONLY thing between this pipeline and an artifact.** Until
+   the install + selftest cycle inside the throwaway guest exists, every isle
+   stage records `skipped`, `core_ok` stays false, every verdict is `partial`,
+   and no release can happen. That is the rule working — and it is also the
+   whole remaining backlog.
+3. **The Lockable Resources FIFO claim is stated, not verified** against the
+   installed plugin version. The turn marker exists so the answer does not have
+   to be trusted, but the claim in the README should be checked.
+4. **`scan-tools.lock` digests are `unresolved`** until a device runs
+   `scan.sh lock-resolve`. The tools still run, by tag, and the report says the
+   pin is unresolved.
+5. **The `cicd` app's verdict page has never been rendered in a browser.** Same
+   OWED as ci-8's: the rows, the door and the page are selftested, and no real
+   backend has served them.

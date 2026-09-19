@@ -12,8 +12,14 @@ not set up and what to do about it, and (C) a secrets posture only root and
 the pipeline process can read.
 
 ci-7b adds the way in, **`pol jenkins setup`**, and the rule that gives the
-whole pipeline its point: **only what was TESTED in a throwaway isle is ever
-released.**
+whole pipeline its point: **only what was TESTED is ever released.**
+
+**ci-12 gives that rule a shape you can see: three branches and two
+pipelines.** `dev` is where you iterate; pushing `dev` to `test` wipes this
+device, builds, scans and runs every test, and records ONE verdict; only a sha
+whose verdict says `passed` may be promoted to `main`, and `main` is the only
+branch that generates and publishes artifacts. Read **the branch model** below
+before anything else — it is the map the rest of this file hangs on.
 
 ## Start here: `pol jenkins setup`
 
@@ -230,20 +236,161 @@ nothing at all when they do not.
 pol jenkins cache proxies status | up | down
 ```
 
+## The branch model — dev iterate · test decide · main release (ci-12)
+
+His ruling, 2026-09-19, and the whole of this section is it:
+
+> "We need to create a new test branch. After pushing to the test branch we
+> kick off the testing pipeline for polari and it does the builds and scans and
+> runs in test mode which automates running tests for all of the modules and
+> apps configured to run in that particular pipeline run. dev is a place for
+> staging development work that we are rapidly iterating through. Pushing our
+> dev work to test will kick off the process of wiping what we have locally and
+> then running all of our tests and scans. Based on the outcome on the test
+> stage, we make a decision to push changes to main. When a push to main
+> occurs, we kick off the generation of artifacts and publish the artifacts.
+> The test and main pipelines should likely be different pipelines."
+
+| branch | what it means | what it starts | what it promises |
+|---|---|---|---|
+| `dev` | work in progress, iterated on fast | `polari-dev-build` — an **optional quick build**: debs + images, no tests, no scans, no publish | nothing. A green dev-build means "it built" |
+| `test` | what we are testing | **`polari-test`** — wipe this device → build → scan (advisory) → run every configured test → record ONE verdict for the sha | that a verdict exists for this exact forest state |
+| `main` | what we release | **`polari-release`** → `polari-publish` — mint the version, build the artifacts, publish them | that everything on it passed a test run, by sha |
+
+```
+pol jenkins promote test        dev → test, every repo, innermost-first, ff-only
+                                (this is the push that kicks the testing pipeline off)
+pol jenkins test-status [<sha>] the verdict: what built, what the tests said, what the
+                                advisory scans found and did not change
+pol jenkins promote main        test → main — REFUSED unless that sha's verdict is `passed`
+pol jenkins queue               both queues: pending / newest sha / since / running
+```
+
+**The promote sweep is the ONE sweep.** `polari-cli/shells/push-all-dev.sh`
+gained `--branch` and `--promote-from` rather than being copied: the same
+clean-tree checks, artifact guard, submodule-pointer coherence and
+innermost-first order that publish `dev` are what promote `test` and `main`.
+A repo whose target branch is not a fast-forward of the source **stops the
+promotion and is named**, and because the walk is innermost-first, nothing
+outside that repo has moved when it stops. The working tree is never switched:
+`git fetch . <src>:<dst>` moves a ref that is not checked out, and refuses
+anything but a fast-forward on its own.
+
+### What `polari-test` actually does
+
+1. **May I?** — whose turn it is, and whether the forest has stopped moving
+   (below). A "no" ends the build as `NOT_BUILT` and costs nothing.
+2. **Checkout the TIP of `test`** — never the sha that triggered the poll.
+3. **Wipe what we have locally** (`test-wipe.sh`): this sha's previous test
+   directory, the ordinary pool prune, the `:staging` images this device built
+   (so a cached image cannot answer for new code), then on the throwaway
+   target `isle wipe` + `leakcheck baseline`. The **offline cache is not
+   touched** — ci-9's cache is an optimisation, and re-downloading it every
+   test run costs time and buys no honesty.
+4. **Build** — the same builders, jmods JDK and cache as `polari-dev-build`.
+   A test run that built differently would be testing a different artifact
+   from the one anybody ships.
+5. **Scan — ADVISORY** (`scan/scan.sh`, scn-0): Trivy (fs, images, unpacked
+   debs) and gitleaks from pinned containers, plus `pip-audit` and `npm audit`
+   when the workspace image carries them (else skipped with a line). Every
+   stage exits 0, reports land in `pool/test/<sha>/scan/<tool>.json` with a
+   `SCAN_SUMMARY.md` of counts by severity per tool. **No finding gates
+   anything, ever** — his standing rule.
+6. **Test** — two halves, because they need different machines:
+   * the **module selftests** (`selftests.sh`), which need no isle: every
+     module named in `CI_ISLE_STAGES` plus `core` (the framework's own
+     packages), each suite run as `docker run --rm prf-backend:staging python3
+     -m <suite>` in the image the build just made. The discovery expression is
+     `pol modules selftest`'s own, verbatim, so the two cannot disagree about
+     what a module's tests ARE.
+   * the **isle stages** — `polari-isle-test`'s existing loop, with
+     `VERSION=test/<sha>`, so the results land beside the verdict.
+7. **The verdict** (`verdict.py` — the ONE place the arithmetic lives):
+
+   | verdict | when |
+   |---|---|
+   | `passed` | every configured module selftest passed **and** the isle stages recorded `core_ok` (which already requires a CLEAN hand-back from the product's own uninstall — ci-10) |
+   | `failed` | something that RAN said no |
+   | `partial` | nothing said no, but something that should have answered did not |
+
+   **Today every run is `partial`, and the verdict says why in words:** the
+   install + selftest cycle inside the throwaway guest is still the marked ci-3
+   TODO, so every isle stage records `skipped`, `core_ok` stays false, and
+   `promote main` therefore refuses. That is the rule holding, not a defect.
+
+   `pool/test/<sha>/verdict.json` is the product of the job. Its Jenkins colour
+   is **SUCCESS when it ran to the end** — a failed test is a recorded verdict,
+   not a red build — and FAILURE only when a stage could not run.
+
+### The queue: one item deep, latest wins
+
+His addendum, same day: *"we should only be running if we detect a change and
+then do not detect any more changes elsewhere within 5 minutes… We should not
+be endlessly queuing jobs… if multiple changes come in we just keep putting it
+off and do the LAST one that came in for that queue."*
+
+- **Quiet period, across the forest.** The jobs carry `quietPeriod(300)`, and
+  `quiet.sh check` re-reads the superproject **and every top-level submodule
+  remote** with `git ls-remote`. If anything moved inside the window the run
+  ends as `NOT_BUILT` with *"changes still landing — re-polled"*, rather than
+  building half a promotion. A finished `pol jenkins promote` writes
+  `pool/promotions/<branch>/<sha>.json` naming the whole sha set; a live forest
+  that still matches that marker is treated as quiet **immediately** — the
+  marker is a promise that no more commits are coming, so the timer would only
+  delay the run for nothing. Without a marker (a hand push, a push from another
+  machine) the timer is the only evidence there is, and it is used.
+- **One item, and it means "the newest state".** `pool/queue/<branch>.json`
+  holds at most one pending item. A newer change while one is pending REPLACES
+  it and restarts the clock; a newer change *during* a run sets that same
+  single item rather than queuing a second. No backlog can form. Because the
+  item never named a sha, the run checks out the branch **tip**.
+- **Deferral is unbounded by default** (`CI_QUIET_MINUTES=5`,
+  `CI_MAX_DEFER_MINUTES=0`): a branch that keeps changing keeps getting put
+  off, which is what he asked for. Setting `CI_MAX_DEFER_MINUTES` lets a run
+  proceed anyway after that long, and the log calls it an override.
+- **Two queues, never concurrent, alternating.** `test` and `main` are separate
+  jobs, so separate queues; both take the `polari-build` lockable resource, so
+  they never run at once. The Lockable Resources plugin grants waiting builds
+  FIFO, which already alternates them under a steady stream; `quiet.sh turn` is
+  the guard for the case FIFO cannot cover. A job that ran last and finds the
+  other side pending **yields by ending** (`NOT_BUILT`) rather than sleeping —
+  sleeping would hold the build lock and an executor while starving the very
+  job it is trying to let through, and the pending item survives untouched.
+- **Nothing is parameterised on a poll path.** Jenkins coalesces queued items
+  of a non-parameterised job; two parameterised items with different values
+  would both sit and both run. So `polari-release` mints its version inside the
+  run and takes the offline-medium knob from the device
+  (`CI_BUILD_OFFLINE_MEDIUM`); `polari-release-manual` keeps the parameters and
+  nothing polls it.
+
 ## The release rule — only what is tested is released
 
-The throwaway isle is what the pipeline *analyses*. `polari-isle-test` runs
-every stage of `CI_ISLE_STAGES` in its **own** isle, one at a time, and
-writes `pool/<version>/isle-test/results.json`. That file decides what may
-leave this machine:
+**ci-12 changed WHERE the testing happens, not whether.** It used to be a
+`polari-isle-test` run fired from inside the release job. It is now the test
+branch: `pool/test/<sha>/verdict.json` is written before the decision to
+promote is ever made, and `polari-release` reads it and **re-runs nothing**.
+Results are carried over, because the whole point of the branch model is that
+the thing released is the thing tested — re-testing at release time would test
+a different moment from the one the decision was made on.
 
-- **no `results.json` for a version** → every route prints
-  `DRY (no isle-test results for <version> — the pipeline only releases what
-  it tested)` and **the tag is not pushed**;
-- **`core_ok` false** → same: the core itself is untested, so nothing ships;
-- **an app whose stage result is not `pass`** → its deb is left out of the
-  release assets and named under *"not released: untested/failed"* in the job
-  log and in the release notes.
+The sha is read from the release manifest the build wrote
+(`release.json` → `components.superproject.sha`), and **every publish route
+re-reads the verdict itself** (`routes/_lib.sh`), so triggering
+`polari-publish` by hand on an untested build is safe.
+
+- **no verdict for this sha** → every route prints
+  `DRY (no passed test run for <sha> — push to test first)` and **the tag is
+  not pushed**;
+- **`failed` or `partial`** → same, and the route repeats the verdict's *own*
+  reason rather than a generic one;
+- **an app the isle stages did not record as `pass`** → its deb is left out of
+  the release assets and named under *"not released: untested/failed"* in the
+  job log and in the release notes.
+
+ci-10's coupling is not lost, it moved: the verdict already required the isle
+stages' `core_ok`, which already required a CLEAN hand-back from the product's
+own `isle uninstall --everything`. The rule is now enforced **once, where it is
+computed**, instead of twice in two places that could drift.
 
 It is a **testing** rule, not a security gate — and it is hard: `DRY_RUN=false`
 does not override it. `polari-release` triggers `polari-isle-test` with
@@ -426,19 +573,23 @@ gains a `residue from an earlier run` row that FAILs and names the wipe.
 ## What the jobs do
 | job | trigger | does | pushes anywhere? |
 |---|---|---|---|
-| polari-dev-build | poll `dev` every 10 min | recursive checkout, build the debs (both flavors) + images | no |
-| polari-release | poll `main` every 10 min | mints `polari-vYYYY.MM.DD[.N]`, builds, writes `release.json` + `SHA256SUMS` + the offline medium → `pool/<version>/`, pushes the tag **only when a github credential is present** | it triggers polari-publish with DRY_RUN=auto |
+| polari-dev-build | poll `dev` every 10 min | the **optional quick build**: debs (both flavors) + images. No tests, no scans, no publish | no |
+| **polari-test** | poll `test` every 5 min | **the testing pipeline**: wipe this device → build → advisory scans → module selftests + the isle stages → ONE verdict at `pool/test/<sha>/verdict.json` | **never** |
+| polari-release | poll `main` every 10 min | mints `polari-vYYYY.MM.DD[.N]`, builds, writes `release.json` + `SHA256SUMS` + the offline medium → `pool/<version>/`; reads the TEST VERDICT for the sha and pushes the tag **only when it says `passed` and a github credential is present**. Runs no tests | it triggers polari-publish with DRY_RUN=auto |
+| polari-release-manual | manual only | polari-release with the two knobs exposed. Nothing polls it, so its parameters can never build a queue | as above |
 | polari-publish | manual / from release | routes/*.sh per selected route | only when the route's secret is present AND the route is in `CI_ROUTES` (DRY_RUN=auto) |
-| polari-isle-test | from polari-release (and manual) | preflight → for EACH stage of `CI_ISLE_STAGES`: build that stage's app debs → a fresh throwaway isle up → install + selftest (ci-3 TODO) → the product's own uninstall (a test) → down (which wipes) → a leak check → record. Writes `pool/<version>/isle-test/results.json`, `uninstall-<n>.json`, `leak-baseline.json` and `leak-check-<n>.json` | no — it decides what everything else MAY publish |
+| polari-isle-test | from **polari-test** (and manual) | preflight → for EACH stage of `CI_ISLE_STAGES`: build that stage's app debs → a fresh throwaway isle up → install + selftest (ci-3 TODO) → the product's own uninstall (a test) → down (which wipes) → a leak check → record. Writes `pool/<version>/isle-test/results.json`, `uninstall-<n>.json`, `leak-baseline.json` and `leak-check-<n>.json` | no — it decides what everything else MAY publish |
 
 ## Data retention (an automated process must never overwhelm the host)
 - `retention.sh guard` runs FIRST in every build: refuses when free disk < `DISK_MIN_FREE_GB` (20).
 - `retention.sh prune` runs LAST: keeps the newest `POOL_KEEP` (3) pool versions, removes older ones and the images tagged with them, prunes dangling layers. It never touches developer images (`prf-*:staging`), anything outside `pool/`, or any Polari instance data — the pipelines deploy nothing. **Nor the offline cache** (ci-9): `pool/cache` is exempt, and `retention.sh cache-prune [--older-than DAYS]` (= `pol jenkins cache prune`) is its only deleter, removing only entries whose `last_used` is older than the knob.
 - Job history: dev-build keeps 5 runs / 2 artifact sets; release 10 / 3. Workspaces are cleaned after every run.
-- ONE build at a time: a global `polari-build` lock across dev-build, release and publish; a newer dev trigger aborts the running dev build (latest commit wins).
+- ci-12: `pool/test/<sha>/` (the test runs **and their verdicts**), `pool/promotions/` (the markers the quiet-period check reads) and `pool/queue/` are **exempt** from the version prune — none of them is a version, and deleting a verdict would silently un-test a released sha. The test runs are bounded by their own count instead (`TEST_KEEP`, 5).
+- ONE build at a time: a global `polari-build` lock across dev-build, **test**, release and publish. `polari-isle-test` locks `polari-isle-target` instead, because its caller already holds the build lock — it used to take `polari-build` and would have deadlocked the moment a parent waited on it.
+- The poll queues are one item deep and latest-wins (`pool/queue/<branch>.json`), so no automated process can build a backlog of runs to work through.
 
 ## Tests
-`bash polari-jenkins/selftest.sh` — the ci-7/ci-7b/ci-8/ci-9 tests, **235/235**. They
+`bash polari-jenkins/selftest.sh` — the ci-7 … ci-12 tests, **463/463**. They
 need **no docker, libvirt, sudo or network**: the scripts run against a temp
 tree and PATH shims, covering the doctor's WARN wording per
 misconfiguration, the preflight's PASS/FAIL arithmetic and the

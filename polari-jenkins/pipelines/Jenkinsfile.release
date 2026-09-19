@@ -1,9 +1,48 @@
 // polari-release — main → pool/<version>/ (debs, images as tarballs + digests, release.json, offline medium). No publish here.
+//
+// ci-12 — THE SECOND OF TWO PIPELINES (his ruling 2026-09-19: "When a push to
+// main occurs, we kick off the generation of artifacts and publish the
+// artifacts. The test and main pipelines should likely be different pipelines.").
+//
+// WHAT CHANGED. This job no longer RUNS the tests. It reads the verdict the
+// TEST pipeline already recorded for the sha being released —
+// pool/test/<sha>/verdict.json must say `passed` — and every publish route
+// refuses independently (routes/_lib.sh) if it does not. Results are CARRIED
+// OVER, never re-derived: re-running the isle stages here would test a
+// different moment from the one the decision to promote was made on, and the
+// whole point of the branch model is that the thing released is the thing
+// tested.
+//
+// It is also NOT PARAMETERISED on the poll path, so Jenkins coalesces its queued
+// items and no backlog can form; polari-release-manual carries the two knobs.
 pipeline {
   agent any
-  options { timestamps(); timeout(time: 180, unit: 'MINUTES'); disableConcurrentBuilds(); lock(resource: 'polari-build') }  // never overlaps a dev build (same daemon, same staging tags)
+  options { timestamps(); timeout(time: 180, unit: 'MINUTES'); disableConcurrentBuilds(); lock(resource: 'polari-build') }  // never overlaps a dev build or a test run (same daemon, same staging tags)
   environment { POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}" }
   stages {
+    // ci-12 — the same two questions polari-test asks, and the same cheap yield:
+    // a "no" ends the build as NOT_BUILT with its reason, the single pending
+    // item for main is untouched, and the next poll tries again.
+    stage('whose turn is it, and has the forest stopped moving?') {
+      steps {
+        script {
+          def turn = sh(returnStatus: true, script: 'bash /var/polari-jenkins/quiet.sh turn release --once')
+          if (turn == 7) {
+            currentBuild.result = 'NOT_BUILT'
+            error('yielding to polari-test — it has something pending and main ran last. The pending main item is untouched; the next poll takes it.')
+          }
+          def out = sh(returnStdout: true, script: '''set +e
+            bash /var/polari-jenkins/quiet.sh check main; echo "QUIET_RC=$?"''')
+          echo out
+          def rc = (out =~ /QUIET_RC=(\d+)/) ? (out =~ /QUIET_RC=(\d+)/)[0][1] as int : 1
+          if (rc == 6) {
+            currentBuild.result = 'NOT_BUILT'
+            error('changes still landing on main — re-polled. A promotion that is still pushing must not be released half-way.')
+          }
+          if (rc != 0) { error("quiet.sh could not read the forest (rc=${rc})") }
+        }
+      }
+    }
     // ci-8: the settings come from the `cicd` Polari app (non-fatal pull), and the run is mirrored back.
     stage('sync settings from Polari (non-fatal)') {
       steps { sh 'bash /var/polari-jenkins/cicd-sync.sh pull || true; bash /var/polari-jenkins/cicd-sync.sh run release "$BUILD_NUMBER" running "" "release build" || true' }
@@ -21,6 +60,8 @@ pipeline {
           env.POLARI_VERSION = sh(returnStdout: true, script: 'bash /var/polari-jenkins/mint-tag.sh').trim()
           env.POLARI_TAG     = "polari-v${env.POLARI_VERSION}"
           env.POLARI_SHA     = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          env.POLARI_FULL_SHA = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
+          sh "bash /var/polari-jenkins/quiet.sh claim main '${env.POLARI_FULL_SHA}'"
         }
         // the images stage builds polari-rf-node's two nested submodules, which the
         // non-recursive checkout above leaves empty — init exactly those two (both https;
@@ -135,42 +176,51 @@ PY'''
       }
     }
     stage('offline medium') {
-      when { expression { return params.BUILD_OFFLINE_MEDIUM } }
+      // ci-12: a DEVICE knob on the poll path (the job takes no parameters so its
+      // queued items coalesce); polari-release-manual still exposes it as one.
+      when { expression { return (params.BUILD_OFFLINE_MEDIUM != null) ? params.BUILD_OFFLINE_MEDIUM : ((env.CI_BUILD_OFFLINE_MEDIUM ?: 'true') != 'false') } }
       steps { sh 'bash ./build-offline-medium.sh --version "$POLARI_VERSION" --target ubuntu-22.04 && cp -r "offline-build/$POLARI_VERSION" "$POOL/$POLARI_VERSION/offline"' }
     }
     stage('checksums') { steps { sh 'cd "$POOL/$POLARI_VERSION" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && wc -l SHA256SUMS' } }
 
     // ---------------------------------------------------------------------
-    // THE RELEASE RULE (his ask 2026-09-19): "The pipeline should only
-    // generate artifact for things that are tested." So the isle test runs
-    // HERE, on the version just built, before anything leaves this machine.
+    // THE RELEASE RULE, ci-12 SHAPE. It used to run polari-isle-test here. It
+    // now reads what the TEST pipeline recorded for THIS SHA and nothing else:
     //
-    // Jenkins shape, chosen for being the simplest that works: a plain
-    // `build job: … wait: true` step. No upstream/downstream plumbing, no
-    // fingerprint matching — polari-isle-test is a normal job, it takes the
-    // VERSION, and it writes pool/<version>/isle-test/results.json where the
-    // gate below and every publish route read it. propagate:false because a
-    // failed stage must still leave its results behind: the gate decides
-    // what may ship, not the job's colour.
+    //     pool/test/<sha>/verdict.json   verdict == 'passed'
+    //
+    // "Only what was tested is released" is the same rule it always was; what
+    // changed is WHERE the testing happened — on the test branch, before the
+    // decision to promote was made, which is the point of having the branch.
+    // A sha with no verdict, or a verdict of `failed` / `partial`, builds into
+    // the pool and publishes NOTHING: the tag is not pushed and every route
+    // prints its own DRY line naming the missing verdict (routes/_lib.sh
+    // enforces it independently, so triggering polari-publish by hand is safe).
     // ---------------------------------------------------------------------
-    stage('isle test — only what is tested may be released') {
+    stage('the test verdict — only what was TESTED is released') {
       steps {
-        build job: 'polari-isle-test', wait: true, propagate: false,
-              parameters: [string(name: 'VERSION', value: env.POLARI_VERSION)]
         script {
-          def rf = "${env.POOL}/${env.POLARI_VERSION}/isle-test/results.json"
-          if (!fileExists(rf)) {
+          def vf = "${env.POOL}/test/${env.POLARI_FULL_SHA}/verdict.json"
+          if (!fileExists(vf)) {
             env.RELEASE_TESTED = 'no'
-            echo "NOT RELEASED: no isle-test results for ${env.POLARI_VERSION} — the pipeline only releases what it tested. The tag is NOT pushed and every route will stay DRY."
+            echo "NOT RELEASED: there is no test verdict for ${env.POLARI_FULL_SHA}. This sha was never run through " +
+                 "polari-test — push it to `test` first (pol jenkins promote test), let polari-test record a verdict, " +
+                 "then promote main. The build stays in the pool, the tag is NOT pushed and every route will stay DRY."
           } else {
-            def r = readJSON file: rf
-            env.RELEASE_TESTED = r.core_ok ? 'yes' : 'no'
-            echo "isle test: core_ok=${r.core_ok} · passed=${r.passed} · untested/failed=${r.untested}"
-            if (!r.core_ok) echo "NOT RELEASED: the isle test did not record core_ok — nothing is published and the tag is not pushed."
+            def v = readJSON file: vf
+            env.RELEASE_TESTED  = (v.verdict == 'passed') ? 'yes' : 'no'
+            env.RELEASE_VERDICT = v.verdict
+            sh "cp '${vf}' verdict.json"
+            echo "test verdict for ${env.POLARI_FULL_SHA}: ${v.verdict} — ${v.why}"
+            echo "  selftests: ${v.selftests?.passed ?: 0} pass / ${v.selftests?.failed ?: 0} fail" +
+                 "   isle core_ok=${v.isle?.core_ok}   scans (advisory): ${v.scans?.totals}"
+            if (v.verdict != 'passed') {
+              echo "NOT RELEASED: the verdict is '${v.verdict}', not 'passed'. Nothing is published and the tag is not pushed."
+            }
           }
         }
       }
-      post { always { archiveArtifacts artifacts: "isle-test/results.json", allowEmptyArchive: true } }
+      post { always { archiveArtifacts artifacts: 'verdict.json', allowEmptyArchive: true } }
     }
 
     // ci-7 (C): the tag is pushed ONLY when the credential that may push is present. Without it the job
@@ -207,7 +257,7 @@ PY'''
     }
     stage('not released (untested)') {
       when { not { environment name: 'RELEASE_TESTED', value: 'yes' } }
-      steps { echo 'not released: untested/failed. The build stays in the pool, the tag is not pushed, and polari-publish is still triggered — every route will print its own DRY line naming the missing results. Run polari-isle-test for this version, then re-run polari-publish.' }
+      steps { echo 'not released: this sha has no PASSED test verdict. The build stays in the pool, the tag is not pushed, and polari-publish is still triggered — every route prints its own DRY line naming the missing verdict. The fix is not to re-run anything here: promote the sha to `test`, let polari-test record a passing verdict, then promote main.' }
     }
   }
   post {
@@ -217,13 +267,15 @@ PY'''
     // ONE `always` block: declarative pipeline refuses a duplicate condition name — the first real run on the
     // pipeline device (2026-09-19, §75) failed to COMPILE with "Duplicate build condition name: always".
     always {
+      sh 'bash /var/polari-jenkins/quiet.sh turn-done release || true'
+      sh 'bash /var/polari-jenkins/quiet.sh done main "${POLARI_FULL_SHA:-}" || true'
       script { sh "bash /var/polari-jenkins/cicd-sync.sh run release \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} \"\${POLARI_VERSION:-}\" \"release build — \$(bash /var/polari-jenkins/cache.sh report-show \"\$POOL/\${POLARI_VERSION:-none}/cache-report.json\" 2>/dev/null | head -1 || echo 'no cache report')\" || true" }
       sh 'bash /var/polari-jenkins/retention.sh prune || true'
       cleanWs()
     }
     // ci-7: DRY_RUN=auto — each route publishes for real only when its secret is present AND it is
     // named in CI_ROUTES (device.env). Nothing is armed by being triggered.
-    // ci-7b: and the routes re-read isle-test/results.json themselves (routes/_lib.sh), so triggering
+    // ci-12: and the routes re-read pool/test/<sha>/verdict.json themselves (routes/_lib.sh), so triggering
     // publish on an untested build is safe — every route renders and says why.
     success { build job: 'polari-publish', wait: false, parameters: [string(name: 'VERSION', value: env.POLARI_VERSION), string(name: 'DRY_RUN', value: 'auto'), string(name: 'ROUTES', value: env.CI_ROUTES ?: 'github-release,ghcr,homebrew,apt-repo')] }
   }

@@ -32,49 +32,72 @@ PY
 route_in_ci_routes(){ case ",$(echo "$CI_ROUTES" | tr -d ' ')," in *",$ROUTE,"*) return 0 ;; esac; return 1; }
 
 # ---------------------------------------------------------------------------
-# THE RELEASE RULE (his ask 2026-09-19): "The pipeline should only generate
-# artifact for things that are tested." The throwaway isle is what the
-# pipeline analyses; polari-isle-test writes pool/<version>/isle-test/
-# results.json; NOTHING is published that that file does not say passed.
+# THE RELEASE RULE — ci-12 SHAPE (his rulings 2026-09-19).
 #
-#   no results.json at all   → every route is DRY and the tag is not pushed
-#   core_ok false            → every route is DRY (the core itself is untested)
-#   an app whose result is not 'pass' → its deb is left OUT of the assets and
-#                                       named under "not released"
+# "The pipeline should only generate artifact for things that are tested."
+# The rule has not changed; WHERE the testing happens has. It used to be a
+# polari-isle-test run fired from inside the release job. It is now the TEST
+# BRANCH: a push to `test` wipes the device, builds, scans and tests, and
+# records ONE verdict for that superproject sha. A push to `main` releases —
+# and only a sha whose verdict says `passed` may be released.
 #
-# It is a TESTING rule, not a security gate — and it is HARD: DRY_RUN=false
-# does not override it. Forcing a publish of something untested is exactly
-# the thing the rule exists to prevent.
-RESULTS_JSON="${RESULTS_JSON:-$POOL_DIR/isle-test/results.json}"
-tested_state(){ # → 'OK' or the reason this version may not be published
-    [ -f "$RESULTS_JSON" ] || { echo "no isle-test results for $VERSION — the pipeline only releases what it tested"; return 1; }
-    python3 - "$RESULTS_JSON" "$VERSION" <<'PY' || return 1
+#   pool/test/<sha>/verdict.json   verdict == 'passed'    -> routes may arm
+#   verdict 'failed' | 'partial'                          -> every route DRY
+#   no verdict.json for this sha                          -> every route DRY
+#
+# The sha is read from the release manifest this build wrote
+# (release.json -> components.superproject.sha), so a route can enforce the rule
+# on its own without being told: triggering polari-publish by hand on an
+# untested build is safe, because every route re-reads this.
+#
+# It is a TESTING rule, not a security gate - and it is HARD: DRY_RUN=false does
+# not override it. Forcing a publish of something untested is exactly the thing
+# the rule exists to prevent. The ONE override is a person running
+# `pol jenkins promote main --force-untested`, which is loud, is in that log,
+# and still leaves this check to refuse the publish.
+#
+# ci-10's coupling is NOT lost: the verdict itself already required the isle
+# stages' core_ok, which in turn requires a CLEAN hand-back from the product's
+# own uninstall. The rule is enforced once, where it is computed, instead of
+# twice in two places that could drift.
+POLARI_POOL="${POLARI_POOL:-/var/polari-pool}"
+release_sha(){ # the superproject sha this build is of
+    [ -n "${RELEASE_SHA:-}" ] && { printf '%s' "$RELEASE_SHA"; return 0; }
+    python3 -c 'import json,sys
+try: print((json.load(open(sys.argv[1])).get("components") or {}).get("superproject", {}).get("sha", ""))
+except Exception: print("")' "$POOL_DIR/release.json" 2>/dev/null || true
+}
+VERDICT_JSON="${VERDICT_JSON:-}"
+verdict_path(){
+    [ -n "$VERDICT_JSON" ] && { printf '%s' "$VERDICT_JSON"; return 0; }
+    local sha; sha="$(release_sha)"
+    [ -n "$sha" ] || return 1
+    printf '%s/test/%s/verdict.json' "$POLARI_POOL" "$sha"
+}
+tested_state(){ # -> 'OK' or the reason this version may not be published
+    local vp; vp="$(verdict_path)" || {
+        echo "this build names no superproject sha (no release.json) - the test verdict cannot be found, so nothing is released"; return 1; }
+    [ -f "$vp" ] || { echo "no passed test run for $(release_sha) - push to test first (pol jenkins promote test), let polari-test record a verdict, then promote main"; return 1; }
+    python3 -c '
 import json, sys
 p, ver = sys.argv[1:3]
-try: r = json.load(open(p))
+try:
+    v = json.load(open(p))
 except Exception as e:
-    print('isle-test results unreadable (%s)' % e); sys.exit(1)
-if not r.get('core_ok'):
-    print('the isle test did not record core_ok for %s — the core itself is untested' % ver); sys.exit(1)
-# ci-10, his addendum 2026-09-19: the teardown IS a test. An isle that cannot
-# hand the machine back is not releasable, whatever its selftests said — so
-# stage 1's `isle uninstall --everything` must have verified a zero footprint
-# AND proved the box is a default Ubuntu again. `skipped` (nothing was
-# installed) is not a pass: it means the hand-back was never exercised.
-stage1 = (r.get('stages') or [{}])[0]
-uv = stage1.get('uninstall_verdict')
-if uv is None:
-    print('the isle test recorded core_ok for %s but no uninstall verdict — these results predate the '
-          'hand-back test, so "it passed" is an unfalsifiable claim (re-run polari-isle-test)' % ver); sys.exit(1)
-if uv != 'clean':
-    print("stage 1's uninstall verdict is '%s', not clean — an isle that cannot hand the machine back is not "
-          'releasable (%s)' % (uv, '; '.join(stage1.get('uninstall_findings') or []) or 'no findings recorded')); sys.exit(1)
-print('OK')
-PY
+    print("the test verdict is unreadable (%s)" % e); sys.exit(1)
+verdict = v.get("verdict")
+if verdict != "passed":
+    print("the test verdict for %s is %r, not passed - %s"
+          % (str(v.get("sha", "?"))[:12], verdict, v.get("why") or "no reason recorded")); sys.exit(1)
+print("OK")
+' "$vp" "$VERSION" || return 1
 }
-tested_apps(){ # the app modules a stage recorded as pass — the only ones that may ship
-    [ -f "$RESULTS_JSON" ] || return 0
-    python3 -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1])).get("passed", [])))' "$RESULTS_JSON" 2>/dev/null || true
+tested_apps(){ # the app modules the test run recorded as passing - the only ones that may ship
+    local vp; vp="$(verdict_path)" || return 0
+    [ -f "$vp" ] || return 0
+    python3 -c 'import json,sys
+try: print(" ".join((json.load(open(sys.argv[1])).get("isle") or {}).get("passed") or []))
+except Exception: pass' "$vp" 2>/dev/null || true
 }
 # ---------------------------------------------------------------------------
 # ci-9 — APP MODE (his addendum 2026-09-19: "some people will also be using this

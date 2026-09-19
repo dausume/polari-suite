@@ -1,0 +1,33 @@
+# polari-jenkins/scan-tools.lock — the PINNED scanners (scn-0,
+# SCANNING_AND_RELEASE_AUTOMATION_PLAN.md §2.1/§2.2).
+#
+# THE RULE, FIRST: every scan is ADVISORY. No finding in any of these tools
+# gates a build, a test verdict or a release. A scan stage exits 0 always; the
+# only thing a scan can cost is time and disk, and retention.sh guard bounds
+# both. Anything here that cannot run is SKIPPED with a line, never a failure.
+#
+# THE SECOND RULE: nothing here is linked into, vendored into or shipped inside
+# a Polari artifact. Each tool is driven as a container the pipeline runs, so
+# the licence question is aggregation and use, not derivation — the stance
+# CICD_PIPELINE_PLAN.md takes for Jenkins itself. Polari is GPLv3.
+#
+# FORMAT (one record per line):
+#   tool | image:tag | digest | licence | what it scans
+#
+# `digest` is `unresolved` until a device has actually pulled the image. It is
+# filled by `bash polari-jenkins/scan/scan.sh lock-resolve` — which pulls each
+# image and writes back what the daemon reports — and the change is then a
+# DELIBERATE COMMIT, the same discipline as casc/plugins.txt. A tool whose
+# digest is unresolved still runs, by tag, and the scan report says so: a
+# pipeline that refused to scan because a pin had not been resolved yet would
+# be a pipeline that scans less, which is the wrong direction for an advisory
+# layer.
+#
+# The two host-side tools (pip-audit, npm audit) are NOT containers: they run
+# in the workspace image when it carries them, and are skipped with a line when
+# it does not. They are listed so the completeness check can see them.
+
+trivy    | aquasec/trivy:0.58.1        | unresolved | Apache-2.0   | filesystem (vulns, misconfig, secrets, licences), images, unpacked debs
+gitleaks | zricethezav/gitleaks:v8.21.2 | unresolved | MIT          | secrets in the working tree
+pip-audit | host:pip-audit             | n/a        | Apache-2.0   | the Python dependencies of polari-framework (workspace image only)
+npm-audit | host:npm                   | n/a        | Artistic-2.0 | the npm dependencies of polari-platform-angular (workspace image only)

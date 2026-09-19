@@ -24,6 +24,8 @@ eq()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "$2" "$3"; }
 DEV="$T/dev"; mkdir -p "$DEV"
 cp -r "$J/device.sh" "$J/secrets.sh" "$J/doctor.sh" "$J/retention.sh" "$J/mint-tag.sh" "$J/setup.sh" \
       "$J/cicd-sync.sh" \
+      "$J/quiet.sh" "$J/promote.sh" "$J/verdict.py" "$J/test-wipe.sh" "$J/selftests.sh" \
+      "$J/scan" "$J/scan-tools.lock" \
       "$J/cache.sh" "$J/cache-manifest.py" "$J/cache-proxies.sh" "$J/build-images.sh" \
       "$J/cache" "$J/docker-compose.proxies.yml" \
       "$J/setup" "$J/isle" "$J/routes" "$J/casc" "$J/docker-compose.yml" "$J/.env.example" "$J/device.env.example" \
@@ -81,7 +83,27 @@ if [ "$POST" = 1 ]; then cat >> "${FAKE_CORE_POSTED:-/dev/null}"; printf '\n'; e
 [ "$QUIET" = 1 ] && exit 0
 cat "${FAKE_CORE_JSON:-/dev/null}"
 SH
-printf '#!/bin/bash\n[ "$1" = ls-remote ] && { printf "%%s" "$FAKE_TAGS"; exit 0; }\nexit 1\n' > "$T/bin/git"
+# the git shim. ci-12 needs two more readings than ci-7's tag minting did:
+# `ls-remote origin refs/heads/<branch>` (the forest sha set) and the plumbing
+# quiet.sh uses to enumerate submodule URLs — the latter is REAL git against a
+# real .gitmodules, so it is passed through.
+cat > "$T/bin/git" <<'SH'
+#!/bin/bash
+REAL=/usr/bin/git
+case "$*" in
+  *ls-remote*refs/heads/*)
+      # FAKE_HEADS="branch=sha branch=sha" — one line per match, git's own shape
+      for ref in ${@}; do case "$ref" in refs/heads/*) WANT="${ref#refs/heads/}" ;; esac; done
+      for kv in ${FAKE_HEADS:-}; do
+          [ "${kv%%=*}" = "$WANT" ] && printf '%s\trefs/heads/%s\n' "${kv#*=}" "$WANT"
+      done
+      exit 0 ;;
+  *ls-remote*)  printf "%s" "$FAKE_TAGS"; exit 0 ;;
+  *"remote get-url"*) printf 'https://example.invalid/polari-suite.git\n'; exit 0 ;;
+  *config*--get-regexp*) [ -x "$REAL" ] && exec "$REAL" "$@"; exit 1 ;;
+  *) exit 1 ;;
+esac
+SH
 chmod +x "$T/bin"/*
 export PATH="$T/bin:$PATH"
 
@@ -115,10 +137,22 @@ eq "no +sha in the minted version"                ""             "$(mint '' | gr
 # ======================================================== 2. route arming
 echo "-- routes: ARMED vs DRY (secret absent) vs DRY (not in CI_ROUTES)"
 mkdir -p "$T/pool/isle-test"; printf '{"components":{"superproject":{"sha":"deadbee"}},"publishedTo":{}}' > "$T/pool/release.json"
-# the release rule gates every route, so the arming cases need a version the
-# isle test passed; the rule itself is section 6.
-printf '{"version":"1","core_ok":true,"passed":["gears"],"untested":[],"tested":["gears"],"stages":[{"index":1,"uninstall_verdict":"clean","uninstall_findings":[],"leak_verdict":"clean"}]}' > "$T/pool/isle-test/results.json"
-armrun() { ( cd "$DEV/routes" && env -u GITHUB_TOKEN VERSION=1 POOL_DIR="$T/pool" ROUTE=github-release "$@" \
+# ci-12: the release rule gates every route on the TEST VERDICT recorded for the
+# superproject sha this build is of (deadbee, above), so the arming cases need a
+# passing verdict in a pool; the rule itself is section 6.
+VPOOL="$T/vpool"; mkdir -p "$VPOOL/test/deadbee"
+seedverdict() {  # seedverdict <verdict> [why] [passed-apps-json]
+    python3 -c 'import json,sys
+json.dump({"sha": "deadbee", "branch": "test", "verdict": sys.argv[2], "why": sys.argv[3],
+           "built": True, "scans": {"totals": {}},
+           "selftests": {"ran": True, "modules": {"core": "pass"}, "suites": 1, "passed": 1, "failed": 0},
+           "isle": {"present": True, "core_ok": sys.argv[2] == "passed", "stages": 1,
+                    "passed": json.loads(sys.argv[4]), "untested": [],
+                    "uninstall": {"stage1": "clean" if sys.argv[2] == "passed" else "skipped"}}},
+          open(sys.argv[1], "w"))' "$VPOOL/test/deadbee/verdict.json" "$1" "${2:-}" "${3:-[\"gears\"]}"
+}
+seedverdict passed ''
+armrun() { ( cd "$DEV/routes" && env -u GITHUB_TOKEN VERSION=1 POOL_DIR="$T/pool" POLARI_POOL="$VPOOL" ROUTE=github-release "$@" \
              bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token; echo "resolved=$DRY_RUN"' 2>&1 ) || true; }
 has "auto + secret + in CI_ROUTES → ARMED"        "ARMED"                    "$(armrun CI_ROUTES=github-release GITHUB_TOKEN=x)"
 has "  …and DRY_RUN resolves to 0"                "resolved=0"               "$(armrun CI_ROUTES=github-release GITHUB_TOKEN=x)"
@@ -316,27 +350,32 @@ household
 gears cntfet')"
 eq "  …and an empty build is just core"           "core" "$(rend '')"
 
-# the release rule, read by routes/_lib.sh
-RES="$T/pool/isle-test/results.json"
-gate() { ( cd "$DEV/routes" && env -u GITHUB_TOKEN VERSION=1 POOL_DIR="$T/pool" GITHUB_TOKEN=x CI_ROUTES=github-release \
+# THE RELEASE RULE, ci-12 shape: read by routes/_lib.sh from the TEST VERDICT
+# recorded for this build's superproject sha. (The uninstall/core_ok coupling it
+# used to do itself now happens once, inside verdict.py, where the verdict is
+# computed — see the ci-12 section for those cases.)
+gate() { ( cd "$DEV/routes" && env -u GITHUB_TOKEN VERSION=1 POOL_DIR="$T/pool" POLARI_POOL="$VPOOL" GITHUB_TOKEN=x CI_ROUTES=github-release \
            bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 ) || true; }
 mkdir -p "$T/pool/debs"; : > "$T/pool/debs/polari-complete_1_all.deb"
 : > "$T/pool/debs/polari-app-household_1_all.deb"; : > "$T/pool/debs/polari-app-gears_1_all.deb"
-printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears","household"],"untested":["household"],"stages":[{"index":1,"uninstall_verdict":"clean","uninstall_findings":[],"leak_verdict":"clean"}]}' > "$RES"
-has "core_ok + secret + CI_ROUTES → ARMED"        "ARMED"                              "$(gate)"
+seedverdict passed ''
+has "a PASSED verdict + secret + CI_ROUTES → ARMED" "ARMED"                            "$(gate)"
 has "  …an app that did not pass is held back"    "not released: untested/failed"      "$(gate)"
 has "  …naming that app's deb"                    "polari-app-household_1_all.deb"     "$(gate)"
 hasnt "  …and NOT the app that passed"            "polari-app-gears_1_all.deb (untested" "$(gate)"
-printf '{"version":"1","core_ok":false,"passed":[],"tested":[],"untested":[]}' > "$RES"
-has "core_ok false → DRY, whatever the secrets"   "did not record core_ok"             "$(gate)"
-rm -f "$RES"
-has "no results file at all → DRY, naming why"    "no isle-test results for 1"         "$(gate)"
-has "  …and the wording is his rule, verbatim"    "only releases what it tested"       "$(gate)"
-FORCED=$( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" GITHUB_TOKEN=x DRY_RUN=false CI_ROUTES=github-release \
+seedverdict failed 'the isle stages did not record core_ok'
+has "a FAILED verdict → DRY, whatever the secrets" "not passed"                        "$(gate)"
+has "  …repeating the verdict's OWN reason, not a generic one" "did not record core_ok" "$(gate)"
+seedverdict partial 'the install cycle inside the guest is still the marked ci-3 TODO'
+has "a PARTIAL verdict → DRY too: it is not a pass" "'partial', not passed"            "$(gate)"
+rm -f "$VPOOL/test/deadbee/verdict.json"
+has "no verdict at all → DRY, naming why"         "no passed test run for deadbee"     "$(gate)"
+has "  …and it says what to do: push to test first" "promote test"                     "$(gate)"
+FORCED=$( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" POLARI_POOL="$VPOOL" GITHUB_TOKEN=x DRY_RUN=false CI_ROUTES=github-release \
           bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 || true )
-has "the rule is HARD: DRY_RUN=false cannot force it" "DRY (no isle-test results"      "$FORCED"
-printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears","household"],"untested":["household"],"stages":[{"index":1,"uninstall_verdict":"clean","uninstall_findings":[],"leak_verdict":"clean"}]}' > "$RES"
-assets() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" bash -c 'source ./_lib.sh; release_assets "$POOL_DIR/debs"' 2>/dev/null ) || true; }
+has "the rule is HARD: DRY_RUN=false cannot force it" "DRY (no passed test run"        "$FORCED"
+seedverdict passed ''
+assets() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" POLARI_POOL="$VPOOL" bash -c 'source ./_lib.sh; release_assets "$POOL_DIR/debs"' 2>/dev/null ) || true; }
 has "the core deb is always an asset"             "polari-complete_1_all.deb"          "$(assets)"
 has "  …a passed app deb is an asset"             "polari-app-gears_1_all.deb"         "$(assets)"
 hasnt "  …an untested app deb is not"             "polari-app-household"               "$(assets)"
@@ -479,7 +518,7 @@ hasnt "prune never touches an entry inside the window" "dropped new-1.0.whl"  "$
 # --- retention.sh: `prune` must NEVER take the cache with an old pool version
 mkdir -p "$DEV/pool/2026.09.01" "$DEV/pool/cache/wheels"
 RET=$( cd "$DEV" && POLARI_POOL="$DEV/pool" POOL_KEEP=0 bash retention.sh prune 2>&1 || true )
-has "retention.sh prune says the cache is EXEMPT"   "is EXEMPT"   "$RET"
+has "retention.sh prune says the cache is EXEMPT"   "EXEMPT (never a version): cache"   "$RET"
 eq  "  …and the cache directory survives it"        "here" "$([ -d "$DEV/pool/cache/wheels" ] && echo here || echo gone)"
 hasnt "  …the cache is not listed as a pool version" "versions (newest first): cache" "$RET"
 CP=$( cd "$DEV" && POLARI_POOL="$DEV/pool" bash retention.sh cache-prune --older-than 7 2>&1 || true )
@@ -610,8 +649,8 @@ has "  …and 'fetch' then has nothing to fetch, and says why" "nothing to fetch
 
 # app-mode release filtering: ONE deb, to YOUR routes
 : > "$T/pool/debs/polari-app-household_1_all.deb"
-printf '{"version":"1","core_ok":true,"passed":["household","gears"],"tested":["household","gears"],"untested":[],"stages":[{"index":1,"uninstall_verdict":"clean","uninstall_findings":[],"leak_verdict":"clean"}]}' > "$RES"
-appassets() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" "$@" \
+seedverdict passed '' '["household","gears"]'
+appassets() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" POLARI_POOL="$VPOOL" "$@" \
                 bash -c 'source ./_lib.sh; release_assets "$POOL_DIR/debs"' 2>/dev/null ) || true; }
 OUT=$(appassets CI_MODE=app CI_APP_NAME=household CI_ROUTE_TARGET=some-developer)
 has "app mode releases the app's own deb"          "polari-app-household_1_all.deb" "$OUT"
@@ -841,21 +880,40 @@ has "nothing installed → SKIPPED, not a pass"                 "skipped|" "$(un
 has "  …and it says why that proves nothing"                  "proves nothing" "$(un "$SKIP_LOG")"
 
 # ---------------------------- the coupling: a dirty hand-back blocks the release
-UN_RES="$T/pool/isle-test/results.json"
-unstate() { printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears"],"untested":[],"stages":[{"index":1,"uninstall_verdict":"%s","uninstall_findings":["volumes remaining: 2"]}]}' "$1" > "$UN_RES"; }
-ungate() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" GITHUB_TOKEN=x CI_ROUTES=github-release \
-             bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 ) || true; }
-unstate clean
+# ci-12 moved WHERE this is decided, not WHETHER. The uninstall verdict now
+# reaches the routes through the TEST VERDICT — verdict.py ANDs it in once, and
+# routes/_lib.sh refuses anything that is not `passed`. The coupling is enforced
+# in one place instead of two that could drift; these cases prove it end to end,
+# from the isle results a stage wrote to the route that would have published.
+UNDIR="$T/uncouple"
+uncouple() {  # uncouple <uninstall_verdict> → build the verdict from real isle results
+    # (an earlier section moves $T/pool around; the rule reads the sha from here)
+    mkdir -p "$T/pool"; printf '{"components":{"superproject":{"sha":"deadbee"}},"publishedTo":{}}' > "$T/pool/release.json"
+    mkdir -p "$VPOOL/test/deadbee"
+    rm -rf "$UNDIR"; mkdir -p "$UNDIR/selftests" "$UNDIR/isle-test"
+    printf '{"ran": true, "modules": {"core": "pass"}, "counts": {"suites": 1, "pass": 1, "fail": 0}}' \
+        > "$UNDIR/selftests/results.json"
+    python3 -c 'import json,sys
+uv = sys.argv[2]
+json.dump({"version": "1", "core_ok": uv == "clean", "passed": ["gears"], "tested": ["gears"],
+           "untested": [], "stages": [{"index": 1, "uninstall_verdict": uv,
+                                       "uninstall_findings": ["volumes remaining: 2"]}],
+           "leak_summary": {"uninstall": {"stage1": uv}}}, open(sys.argv[1], "w"))' \
+        "$UNDIR/isle-test/results.json" "$1"
+    python3 "$DEV/verdict.py" build "$UNDIR" --sha deadbee --at 2026-01-01T00:00:00 >/dev/null 2>&1
+    cp "$UNDIR/verdict.json" "$VPOOL/test/deadbee/verdict.json"
+}
+ungate() { gate; }
+uncouple clean
 has "a CLEAN hand-back lets the route arm"            "ARMED"                                  "$(ungate)"
-unstate dirty
-has "a DIRTY hand-back holds the whole release"       "not clean"                              "$(ungate)"
-has "  …naming the product's own finding"             "volumes remaining: 2"                   "$(ungate)"
-has "  …and saying whose failure it is"               "cannot hand the machine back is not releasable" "$(ungate)"
-unstate skipped
+uncouple dirty
+has "a DIRTY hand-back holds the whole release"       "not passed"                             "$(ungate)"
+has "  …and the verdict it carries is FAILED, not partial" "failed"                            "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["verdict"])' "$UNDIR/verdict.json")"
+has "  …naming the product's own finding"             "dirty"                                  "$(ungate)"
+uncouple skipped
 has "a SKIPPED hand-back is not a pass either"        "DRY"                                    "$(ungate)"
-printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears"],"untested":[]}' > "$UN_RES"
-has "results with no uninstall verdict at all are refused" "predate"                           "$(ungate)"
-printf '{"version":"1","core_ok":true,"passed":["gears"],"tested":["gears","household"],"untested":["household"],"stages":[{"index":1,"uninstall_verdict":"clean","uninstall_findings":[],"leak_verdict":"clean"}]}' > "$RES"
+has "  …it is PARTIAL, and the reason names ci-3"     "ci-3"                                   "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["why"])' "$UNDIR/verdict.json")"
+seedverdict passed ''
 
 # ------------------------------------------ the pipeline loop, as written
 JF="$(cat "$J/pipelines/Jenkinsfile.isle-test")"
@@ -1089,6 +1147,301 @@ eq "with NO device.env and no Polari core at all, the protocol still answers"  "
 eq "  …with all eight steps, so a first-run screen has something to render"  "8" \
    "$(jq_ "$FIRST" 'print(len(d["steps"]))')"
 dev_env CI_ISLE_TARGET=local
+
+# ===========================================================================
+# ci-12 — THE BRANCH MODEL: dev iterate · test decide · main release
+# ===========================================================================
+echo "-- ci-12: promote refusals, the verdict arithmetic, the release rule keyed on it,"
+echo "   the scan summary + the pinned tools, and the one-deep latest-wins queue"
+
+# ---- the verdict arithmetic. verdict.py is the ONE place it lives, so these
+# cases pin the WHOLE rule — the Jenkinsfile, the CLI and the routes all read
+# the file it writes and re-derive nothing.
+VD="$T/verdicts"; mkdir -p "$VD"
+mkverdict() {  # mkverdict <dir> <selftests.json> <isle.json> [scan.json]
+    rm -rf "$1"; mkdir -p "$1/selftests" "$1/isle-test" "$1/scan"
+    printf '%s' "$2" > "$1/selftests/results.json"
+    [ -n "$3" ] && printf '%s' "$3" > "$1/isle-test/results.json" || rm -rf "$1/isle-test"
+    [ -n "${4:-}" ] && printf '%s' "$4" > "$1/scan/SUMMARY.json" || true
+}
+SELF_OK='{"ran": true, "modules": {"core": "pass"}, "counts": {"suites": 88, "pass": 88, "fail": 0}}'
+SELF_BAD='{"ran": true, "modules": {"core": "fail"}, "counts": {"suites": 88, "pass": 80, "fail": 8}}'
+ISLE_OK='{"core_ok": true, "stages": [{"index": 1}], "passed": ["household"], "untested": [], "leak_summary": {"uninstall": {"stage1": "clean"}}}'
+ISLE_SKIP='{"core_ok": false, "stages": [{"index": 1}], "passed": [], "untested": [], "leak_summary": {"uninstall": {"stage1": "skipped"}}}'
+ISLE_DIRTY='{"core_ok": false, "stages": [{"index": 1}], "passed": [], "untested": [], "leak_summary": {"uninstall": {"stage1": "dirty"}}}'
+
+mkverdict "$VD/pass" "$SELF_OK" "$ISLE_OK"
+V="$(python3 "$DEV/verdict.py" build "$VD/pass" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
+has "verdict: every selftest passes and the isle recorded core_ok → PASSED" "PASSED" "$V"
+
+mkverdict "$VD/partial" "$SELF_OK" "$ISLE_SKIP"
+V="$(python3 "$DEV/verdict.py" build "$VD/partial" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
+has "verdict: selftests pass but every isle stage is SKIPPED → PARTIAL (today's honest state)" "PARTIAL" "$V"
+has "  …and it says exactly why, naming ci-3 rather than shrugging" "ci-3" "$V"
+hasnt "  …a partial is NOT a pass" "PASSED" "$V"
+
+mkverdict "$VD/fail" "$SELF_BAD" "$ISLE_OK"
+V="$(python3 "$DEV/verdict.py" build "$VD/fail" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
+has "verdict: a failing module selftest → FAILED, naming the module" "FAILED" "$V"
+has "  …and names the module that failed" "core" "$V"
+
+mkverdict "$VD/dirty" "$SELF_OK" "$ISLE_DIRTY"
+V="$(python3 "$DEV/verdict.py" build "$VD/dirty" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
+has "verdict: a DIRTY hand-back is a failure, not a partial (ci-10's coupling survives)" "FAILED" "$V"
+
+mkverdict "$VD/noisle" "$SELF_OK" ""
+V="$(python3 "$DEV/verdict.py" build "$VD/noisle" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
+has "verdict: no isle results at all → PARTIAL, saying nothing was tested in an isle" "PARTIAL" "$V"
+
+mkverdict "$VD/scan" "$SELF_OK" "$ISLE_OK" '{"totals": {"critical": 9, "high": 40}, "tools": {"trivy": {"critical": 9}}}'
+V="$(python3 "$DEV/verdict.py" build "$VD/scan" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
+has "verdict: 9 CRITICAL scan findings do not change a thing — still PASSED" "PASSED" "$V"
+has "  …the counts are carried, and the line says they are advisory" "ADVISORY" "$V"
+eq "  …the verdict file records scans WITHOUT them entering the arithmetic" "passed" \
+   "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["verdict"] if d["scans"]["totals"]["critical"]==9 else "MISSED")' "$VD/scan/verdict.json")"
+
+mkverdict "$VD/nobuild" "$SELF_OK" "$ISLE_OK"
+V="$(python3 "$DEV/verdict.py" build "$VD/nobuild" --sha deadbeef --built false --at 2026-01-01T00:00:00 2>&1)"
+has "verdict: nothing was BUILT → FAILED (there was nothing to test)" "FAILED" "$V"
+
+# ---- the release rule, keyed on the verdict
+RL="$T/rule"; mkdir -p "$RL/debs"
+printf '{"components": {"superproject": {"sha": "cafebabe0000"}}}' > "$RL/release.json"
+: > "$RL/debs/polari-complete_1_amd64.deb"
+: > "$RL/debs/polari-app-household_1_all.deb"
+rule() {
+    ( cd "$DEV/routes" && env VERSION=2026.01.01 POOL_DIR="$RL" POLARI_POOL="$T/rulepool" \
+        DRY_RUN="${DRY_RUN:-auto}" CI_ROUTES=github-release GITHUB_TOKEN=x \
+        bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 ) || true
+}
+rm -rf "$T/rulepool"; mkdir -p "$T/rulepool/test/cafebabe0000"
+OUT="$(rule)"
+has "release rule: NO verdict for the sha → DRY, naming the fix in his words" "no passed test run" "$OUT"
+has "  …and the reason tells you to push to test first" "promote test" "$OUT"
+cp "$VD/partial/verdict.json" "$T/rulepool/test/cafebabe0000/verdict.json"
+OUT="$(rule)"
+has "release rule: a PARTIAL verdict → still DRY" "not passed" "$OUT"
+DRY_RUN=false OUT="$(DRY_RUN=false rule)"
+has "  …and DRY_RUN=false does NOT override it (the rule is hard)" "not passed" "$OUT"
+cp "$VD/pass/verdict.json" "$T/rulepool/test/cafebabe0000/verdict.json"
+OUT="$(rule)"
+has "release rule: a PASSED verdict → ARMED" "ARMED" "$OUT"
+has "  …and the route names itself and the version" "route github-release  version 2026.01.01" "$OUT"
+rm -f "$RL/release.json"
+OUT="$(rule)"
+has "release rule: a build with no release.json names no sha → DRY, and says so" "names no superproject sha" "$OUT"
+printf '{"components": {"superproject": {"sha": "cafebabe0000"}}}' > "$RL/release.json"
+
+# ---- the scan layer: counting from fixture reports, and the pinned tools
+SC="$T/scanout"; mkdir -p "$SC"
+cat > "$SC/trivy-source.json" <<'JSON'
+{"Results": [{"Vulnerabilities": [{"Severity": "CRITICAL"}, {"Severity": "HIGH"}, {"Severity": "LOW"}],
+              "Misconfigurations": [{"Severity": "MEDIUM"}], "Secrets": [{"Severity": "HIGH"}]}]}
+JSON
+printf '[{"Description": "a key"}, {"Description": "another"}]\n' > "$SC/gitleaks.json"
+printf '{"metadata": {"vulnerabilities": {"info": 0, "low": 2, "moderate": 1, "high": 0, "critical": 0, "total": 3}}}\n' > "$SC/npm-audit.json"
+printf '{"dependencies": [{"name": "x", "vulns": [{"id": "PYSEC-1"}]}]}\n' > "$SC/pip-audit.json"
+printf 'trivy: the image could not be pulled\n' > "$SC/SKIPPED.txt"
+OUT="$(python3 "$DEV/scan/summarize.py" summary "$SC" "$DEV/scan-tools.lock" 2>&1)"
+SUM="$(cat "$SC/SCAN_SUMMARY.md")"
+has "scan summary: trivy's four kinds of finding are counted by severity" "| trivy-source | 1 | 2 | 1 | 1 |" "$SUM"
+has "  …gitleaks has no severity of its own, and a leaked credential is counted HIGH" "| gitleaks | 0 | 2 |" "$SUM"
+has "  …npm audit's moderate is normalised to medium rather than dropped" "| npm-audit | 0 | 0 | 1 | 2 |" "$SUM"
+has "  …pip-audit states no severity, so it is counted UNKNOWN, not invented" "| pip-audit | 0 | 0 | 0 | 0 | 0 | 1 |" "$SUM"
+has "  …there is a TOTAL row" "**total**" "$SUM"
+has "  …a tool that could not run is SKIPPED with its reason, not silently absent" "could not be pulled" "$SUM"
+has "  …and the summary states, first, that nothing below gates anything" "Nothing below gates anything" "$SUM"
+eq "  …SUMMARY.json carries the totals the verdict will embed" "4" \
+   "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["totals"]["high"])' "$SC/SUMMARY.json")"
+
+LOCKOUT="$( cd "$DEV" && bash scan/scan.sh lock 2>&1 )"
+has "scan-tools.lock: trivy is pinned, with its licence" "trivy" "$LOCKOUT"
+has "  …gitleaks too" "gitleaks" "$LOCKOUT"
+has "  …and the lock says, in its own output, that every tool is advisory" "ADVISORY" "$LOCKOUT"
+BAD="$(awk -F'|' '$1 ~ /^[a-z]/ { n=split($0,a,"|"); if (n < 5 || a[2] ~ /^[ ]*$/ || a[4] ~ /^[ ]*$/) print a[1] }' "$DEV/scan-tools.lock")"
+eq "  …COMPLETENESS: every tool row carries an image, a digest field, a licence and what it scans" "" "$BAD"
+NOTAG="$(awk -F'|' '$1 ~ /^[a-z]/ { gsub(/^ +| +$/,"",$2); if ($2 !~ /^host:/ && $2 !~ /:/) print $2 }' "$DEV/scan-tools.lock")"
+eq "  …and every container tool names an EXPLICIT tag, never a floating one" "" "$NOTAG"
+OUT="$( cd "$DEV" && SCAN_OUT="$T/scanempty" SCAN_DOCKER="$T/bin/nodocker" bash scan/scan.sh source 2>&1; echo "rc=$?" )"
+has "scan: with no usable docker daemon every tool SKIPS with a line…" "SKIPPED" "$OUT"
+has "  …and the stage still exits 0 — a scan can never fail a build" "rc=0" "$OUT"
+
+# ---- the queue: ONE item deep, latest wins, and the quiet window
+QP="$T/qpool"; rm -rf "$QP"; mkdir -p "$QP"
+q() { ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T" CI_QUIET_MINUTES=5 \
+        FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" 2>&1 ) || true; }
+qrc(){ ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T" CI_QUIET_MINUTES="${QM:-5}" \
+        FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" >/dev/null 2>&1 ); echo "$?"; }
+qfield(){ python3 -c 'import json,sys
+try: print(json.load(open(sys.argv[1])).get(sys.argv[2], ""))
+except Exception: print("")' "$QP/queue/$1.json" "$2"; }
+
+export FAKE_HEADS="test=aaa111"
+q saw test >/dev/null
+eq "queue: the first poll records ONE pending item at the newest sha" "aaa111" "$(qfield test newest_sha)"
+eq "  …and it is pending" "True" "$(qfield test pending)"
+# backdate the window so "it restarted" is observable without waiting
+python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["since"]="1"; json.dump(d,open(p,"w"))' "$QP/queue/test.json"
+for sha in bbb222 ccc333 ddd444 eee555; do export FAKE_HEADS="test=$sha"; q saw test >/dev/null; done
+eq "queue: FIVE changes in three minutes leave exactly ONE pending item…" "1" \
+   "$(ls -1 "$QP/queue" | wc -l | tr -d ' ')"
+eq "  …and it is the LAST one that came in, not the first (latest wins)" "eee555" "$(qfield test newest_sha)"
+[ "$(qfield test since)" != "1" ] && ok "  …each change RESTARTED the quiet window" \
+    || bad "  …each change RESTARTED the quiet window" "a since newer than the backdated 1" "$(qfield test since)"
+eq "  …nothing was appended: there is no backlog to work through" "1" \
+   "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(1 if isinstance(d.get("pending"), bool) else 0)' "$QP/queue/test.json")"
+
+eq "quiet: a forest that moved inside the window DEFERS (exit 6), it does not build half a promotion" "6" \
+   "$(qrc check test)"
+OUT="$(q check test)"
+has "  …and the deferral says the pending item stays and the next poll takes it" "Nothing is queued behind it" "$OUT"
+eq "quiet: once the window has elapsed the run proceeds" "0" "$(QM=0 qrc check test)"
+has "  …naming the sha it settled on" "QUIET_SHA=eee555" "$( (cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T" CI_QUIET_MINUTES=0 FAKE_HEADS="$FAKE_HEADS" bash quiet.sh check test 2>&1) || true)"
+
+# the PROMOTION MARKER short-circuits the window: a finished promotion does not
+# have to sit out five minutes proving it has stopped moving.
+mkdir -p "$QP/promotions/test"
+printf '{"branch": "test", "repos": {".": "eee555"}, "superproject": "eee555"}\n' > "$QP/promotions/test/eee555.json"
+rm -f "$QP/queue/test.json"; q saw test >/dev/null      # a fresh, still-warm window
+OUT="$(q check test)"
+has "quiet: a matching promotion MARKER is quiet immediately — the promotion is finished" "QUIET_SHA=eee555" "$OUT"
+has "  …and it says why it did not wait" "does not have to prove it stopped" "$OUT"
+printf '{"branch": "test", "repos": {".": "somethingelse"}, "superproject": "eee555"}\n' > "$QP/promotions/test/eee555.json"
+eq "  …a marker that does NOT match the live forest is ignored, and the timer rules" "6" "$(qrc check test)"
+rm -rf "$QP/promotions"
+
+# a change DURING a run leaves exactly one pending item afterwards
+q claim test eee555 >/dev/null
+eq "queue: while a run is claimed, pending is cleared" "False" "$(qfield test pending)"
+export FAKE_HEADS="test=fff666"
+q saw test >/dev/null
+eq "  …a change during the run sets ONE pending item, not a second queued run" "True" "$(qfield test pending)"
+eq "  …naming the newest state, which is what the next run will check out" "fff666" "$(qfield test newest_sha)"
+q done test eee555 >/dev/null
+eq "  …and after the run there is still exactly one queue file" "1" "$(ls -1 "$QP/queue" | wc -l | tr -d ' ')"
+
+# the TIP-not-trigger rule, stated where it is enforced
+has "the test pipeline checks out the TIP of test, never the sha that triggered it" \
+    "checkout the TIP of test" "$(cat "$J/pipelines/Jenkinsfile.test")"
+has "  …and the poll jobs carry the five-minute quiet period" "quietPeriod(300)" "$(cat "$J/jobs/seed.groovy")"
+has "  …the polled release job is NOT parameterised, so Jenkins coalesces its queue" \
+    "polari-release-manual" "$(cat "$J/jobs/seed.groovy")"
+
+# ---- the turn: test and main alternate, and a yield costs nothing
+export FAKE_HEADS="main=999aaa"
+q saw main >/dev/null
+q turn-done test >/dev/null
+eq "turn: test ran last and main is pending → test YIELDS (exit 7), it does not sleep on the lock" "7" \
+   "$(qrc turn test --once)"
+OUT="$(q turn test --once)"
+has "  …and the yield says the pending item is untouched" "the pending item stays" "$OUT"
+eq "turn: main's turn is granted at once" "0" "$(qrc turn release --once)"
+q turn-done release >/dev/null
+eq "turn: with the marker flipped, test goes" "0" "$(qrc turn test --once)"
+rm -f "$QP/queue/main.json"
+q turn-done test >/dev/null
+eq "turn: test ran last but main has NOTHING pending → test goes again (no pointless alternation)" "0" \
+   "$(qrc turn test --once)"
+OUT="$(q queue)"
+has "pol jenkins queue prints both queues" "test" "$OUT"
+has "  …and states the rule in words" "latest wins" "$OUT"
+
+# ---- promote: the refusals
+PSUITE="$T/psuite"; mkdir -p "$PSUITE/polari-cli/shells" "$PSUITE/polari-jenkins"
+cp "$DEV/promote.sh" "$PSUITE/polari-jenkins/promote.sh"
+cat > "$PSUITE/polari-cli/shells/push-all-dev.sh" <<'SH'
+#!/bin/bash
+# the sweep, stubbed: it records the arguments it was given and writes the marker
+echo "SWEEP $*" >> "${SWEEP_LOG:-/dev/null}"
+while [ $# -gt 0 ]; do case "$1" in --summary-json) OUT="$2"; shift ;; esac; shift; done
+[ -n "${OUT:-}" ] && printf '{"branch":"test","repos":{".":"%s"},"superproject":"%s"}\n' \
+    "${FAKE_SUPER:-aaa111}" "${FAKE_SUPER:-aaa111}" > "$OUT"
+exit "${SWEEP_RC:-0}"
+SH
+chmod +x "$PSUITE/polari-cli/shells/push-all-dev.sh"
+PPOOL="$T/ppool"; rm -rf "$PPOOL"; mkdir -p "$PPOOL"
+pro() { ( cd "$PSUITE/polari-jenkins" && env POLARI_POOL="$PPOOL" PATH="$T/bin:$PATH" \
+          FAKE_HEADS="$FAKE_HEADS" SWEEP_LOG="$T/sweep.log" bash promote.sh "$@" 2>&1 ) || true; }
+prorc(){ ( cd "$PSUITE/polari-jenkins" && env POLARI_POOL="$PPOOL" PATH="$T/bin:$PATH" \
+          FAKE_HEADS="$FAKE_HEADS" SWEEP_LOG="$T/sweep.log" bash promote.sh "$@" >/dev/null 2>&1 ); echo "$?"; }
+
+: > "$T/sweep.log"
+export FAKE_HEADS="dev=aaa111 test=aaa111 main=000000"
+OUT="$(pro test --dry-run)"
+has "promote test: the sweep is asked for dev → test, ff-only" "dev → test" "$OUT"
+has "  …by the ONE sweep, given a --promote-from parameter (not a copy of it)" "--promote-from dev" "$(cat "$T/sweep.log")"
+hasnt "  …and a dry run does not push" "--push" "$(cat "$T/sweep.log")"
+
+: > "$T/sweep.log"
+pro test >/dev/null || true
+has "promote test (for real): the sweep is told to push" "--push" "$(cat "$T/sweep.log")"
+[ -f "$PPOOL/promotions/test/aaa111.json" ] && ok "  …and the PROMOTION MARKER is written for the superproject sha" \
+    || bad "  …and the PROMOTION MARKER is written for the superproject sha" "$PPOOL/promotions/test/aaa111.json" "absent"
+
+eq "promote main: NO verdict for the tip of test → REFUSED (exit 4)" "4" "$(prorc main --dry-run)"
+OUT="$(pro main --dry-run)"
+has "  …and the refusal names the sha" "aaa111" "$OUT"
+has "  …and says what to do instead" "push to test" "$OUT"
+mkdir -p "$PPOOL/test/aaa111"
+cp "$VD/partial/verdict.json" "$PPOOL/test/aaa111/verdict.json"
+eq "promote main: a PARTIAL verdict → still REFUSED" "4" "$(prorc main --dry-run)"
+has "  …and it repeats the verdict's own reason, not a generic one" "ci-3" "$(pro main --dry-run)"
+OUT="$(pro main --dry-run --force-untested)"
+has "promote main --force-untested: it proceeds, LOUDLY" "FORCING AN UNTESTED PROMOTION" "$OUT"
+has "  …naming the sha and the verdict it is overriding" "verdict: partial" "$OUT"
+cp "$VD/pass/verdict.json" "$PPOOL/test/aaa111/verdict.json"
+eq "promote main: a PASSED verdict → it proceeds" "0" "$(prorc main --dry-run)"
+: > "$T/sweep.log"; pro main --dry-run >/dev/null
+has "  …and the sweep is asked for test → main" "--promote-from test" "$(cat "$T/sweep.log")"
+export FAKE_HEADS="dev=aaa111 main=000000"
+eq "promote main: with no origin/test at all → refused, and not with the verdict message" "3" "$(prorc main --dry-run)"
+export FAKE_HEADS="dev=aaa111 test=aaa111 main=000000"
+OUT="$( cd "$PSUITE/polari-jenkins" && env POLARI_POOL="$PPOOL" PATH="$T/bin:$PATH" \
+    FAKE_HEADS="$FAKE_HEADS" SWEEP_RC=1 bash promote.sh test --dry-run 2>&1 || true )"
+has "promote: a sweep that refuses (a repo is not ff-able) stops the promotion and says so" "did NOT complete" "$OUT"
+
+# the sweep's own ff-only rule and its stop-at-the-first-bad-repo behaviour
+SWEEPSRC="$(cat "$J/../polari-cli/shells/push-all-dev.sh")"
+has "the sweep refuses a non-fast-forward and NAMES the repo" "NOT fast-forwardable" "$SWEEPSRC"
+has "  …and stops there, innermost-first, so nothing outside it has moved" "nothing after it was touched" "$SWEEPSRC"
+has "  …it moves the ref without switching the working tree" "git fetch . " "$SWEEPSRC"
+has "  …and it is ONE sweep with a --branch parameter, not a copy" "--promote-from" "$SWEEPSRC"
+
+# ---- retention must not eat the branch model's state
+RP="$T/rpool"; rm -rf "$RP"; mkdir -p "$RP/test/abc" "$RP/promotions/test" "$RP/queue" "$RP/cache" \
+    "$RP/2026.01.01" "$RP/2026.01.02" "$RP/2026.01.03" "$RP/2026.01.04"
+printf '{"verdict": "passed"}' > "$RP/test/abc/verdict.json"
+OUT="$( cd "$DEV" && env POLARI_POOL="$RP" POOL_KEEP=2 bash retention.sh prune 2>&1 )" || true
+has "retention: test/, promotions/ and queue/ are EXEMPT — none of them is a version" "EXEMPT" "$OUT"
+[ -f "$RP/test/abc/verdict.json" ] && ok "  …and a verdict survives a prune (deleting one would un-test a released sha)" \
+    || bad "  …and a verdict survives a prune" "the verdict file" "gone"
+[ -d "$RP/cache" ] && ok "  …the ci-9 cache still survives too" || bad "  …the ci-9 cache still survives too" "cache/" "gone"
+eq "  …while real old versions ARE still dropped (4 versions, POOL_KEEP=2)" "2" \
+   "$(ls -1d "$RP"/2026.* 2>/dev/null | wc -l | tr -d ' ')"
+
+# ---- the wipe: what it removes, and what it must never remove
+WIPESRC="$(cat "$J/test-wipe.sh")"
+has "the wipe removes the :staging images this device built" "docker image rm" "$WIPESRC"
+has "  …and explicitly does NOT remove the offline cache, with the reason" "NOT touched" "$WIPESRC"
+has "  …it takes the leak baseline the isle stages diff against" "leakcheck.sh\" baseline" "$WIPESRC"
+has "  …and every step is non-fatal: a wipe that failed a run would make the verdict about the wipe" "exit 0" "$WIPESRC"
+
+# ---- the module selftests: one invocation, not a second one
+STSRC="$(cat "$J/selftests.sh")"
+has "the module selftests reuse pol modules selftest's OWN discovery expression" "_selftest.py" "$STSRC"
+has "  …run in the image the build just made, not against a running stack" "docker run --rm" "$STSRC"
+has "  …a module with no suite records 'skipped', and skipped is NOT a pass" "which is NOT a pass" "$STSRC"
+
+# ---- the two pipelines are two pipelines, and the release one runs no tests
+RELSRC="$(cat "$J/pipelines/Jenkinsfile.release")"
+hasnt "polari-release no longer triggers polari-isle-test — results are carried over, not re-run" \
+    "build job: 'polari-isle-test'" "$RELSRC"
+has "  …it reads pool/test/<sha>/verdict.json instead" "test/\${env.POLARI_FULL_SHA}/verdict.json" "$RELSRC"
+has "  …and a sha with no verdict is told to go through test first" "promote test" "$RELSRC"
+has "polari-isle-test locks the ISLE TARGET, not polari-build (its caller holds that lock)" \
+    "polari-isle-target" "$(cat "$J/pipelines/Jenkinsfile.isle-test")"
+has "polari-dev-build's description says it is the OPTIONAL quick build: no tests, no scans, no publish" \
+    "NO isle tests, NO scans, NO publish" "$(cat "$J/jobs/seed.groovy")"
 
 echo
 TOTAL=$((PASS+FAIL))

@@ -412,20 +412,64 @@ if [ "$CAN_TEST" = 1 ]; then ok "isle target for tests" "$(device_target_name) c
 else warn "isle target for tests" "$WHYNOT — NOTHING can be released until an isle target exists" \
           "pol jenkins target ssh <alias> (a device with /dev/kvm + libvirt), then pol jenkins preflight --isle"; fi
 LATEST=$(ls -1 "$J/pool" 2>/dev/null | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]{2}' | sort -V | tail -1 || true)
-if [ -z "$LATEST" ]; then
-    ok "isle-test results" "no release built yet — the first polari-release run mints a version"
-elif [ -f "$J/pool/$LATEST/isle-test/results.json" ]; then
-    ok "isle-test results" "$LATEST has results — the release rule can decide what to publish"
+
+# ------------------------------------------ ci-12: the branch model
+# dev iterate · test decide · main release. Three rows: where each branch is,
+# what the newest test verdict said, and what the two poll queues are holding.
+sec "the branch model — dev iterate · test decide · main release (ci-12)"
+_remote_sha(){ git -C "$J/.." ls-remote origin "refs/heads/$1" 2>/dev/null | awk '{print $1}' | head -1; }
+BR_DEV=$(_remote_sha dev); BR_TEST=$(_remote_sha test); BR_MAIN=$(_remote_sha main)
+if [ -z "$BR_TEST" ]; then
+    warn "branch test" "origin/test does not exist yet — nothing can be tested, and so nothing can ever be released" \
+         "pol jenkins promote test   (it fast-forwards every repo in the forest from dev, innermost-first)"
 else
-    warn "isle-test results" "$LATEST has no isle-test/results.json — every route stays DRY and the tag is not pushed" \
-         "run the polari-isle-test job for $LATEST (the pipeline only releases what it tested)"
+    ok "branch test" "origin/test ${BR_TEST:0:12}$([ "$BR_TEST" = "$BR_DEV" ] && echo ' (== dev)' || echo ' (dev has moved on)')"
+fi
+if [ -z "$BR_MAIN" ]; then
+    warn "branch main" "origin/main does not exist" "pol jenkins promote main (it refuses without a passed test verdict)"
+elif [ "$BR_MAIN" = "$BR_TEST" ]; then
+    ok "branch main" "origin/main ${BR_MAIN:0:12} == test — everything tested has been released"
+else
+    ok "branch main" "origin/main ${BR_MAIN:0:12} — test is ahead; pol jenkins promote main when its verdict passes"
+fi
+VJ=""; [ -n "$BR_TEST" ] && VJ="$J/pool/test/$BR_TEST/verdict.json"
+if [ -z "$VJ" ] || [ ! -f "$VJ" ]; then
+    warn "test verdict" "no verdict recorded for the tip of test${BR_TEST:+ (${BR_TEST:0:12})} — main may not be promoted" \
+         "let polari-test run (it polls test every 5 min), then: pol jenkins test-status"
+else
+    VERD=$(python3 -c 'import json,sys
+d=json.load(open(sys.argv[1])); print("%s|%s" % (d.get("verdict","?"), (d.get("why") or "")[:110]))' "$VJ" 2>/dev/null || echo "unreadable|")
+    IFS='|' read -r VV VWHY <<<"$VERD"
+    case "$VV" in
+        passed) ok "test verdict" "${BR_TEST:0:12} PASSED — pol jenkins promote main may proceed" ;;
+        partial) warn "test verdict" "${BR_TEST:0:12} PARTIAL — $VWHY" \
+                 "a partial verdict does not release. pol jenkins test-status shows every reading it is made of" ;;
+        *) warn "test verdict" "${BR_TEST:0:12} $VV — $VWHY" "pol jenkins test-status ${BR_TEST:0:12}" ;;
+    esac
+fi
+QLINE=$(bash "$J/quiet.sh" queue 2>/dev/null | head -4 | tr '\n' ' ' | tr -s ' ' || true)
+ok "queue" "${QLINE:-both queues idle} (one item deep, latest wins — no backlog can form)"
+
+# ------------------------------------------ the isle results the verdict reads
+if [ -z "$BR_TEST" ]; then
+    ok "isle-test results" "no test branch yet — the first pol jenkins promote test creates it"
+elif [ -f "$J/pool/test/$BR_TEST/isle-test/results.json" ]; then
+    ok "isle-test results" "the tip of test has isle results — the verdict can be computed from them"
+else
+    warn "isle-test results" "the tip of test has no isle-test/results.json — the verdict will be `partial` at best" \
+         "let polari-test run (it triggers polari-isle-test with VERSION=test/<sha>)"
 fi
 
 # ---------------------------------- ci-10: the teardown, in its two layers
 # 1. did the PRODUCT hand the machine back?  (uninstall_verdict — a test result)
 # 2. did OUR pipeline leave anything behind?  (leak_verdict — a resource guard)
 # Both are read from the NEWEST results the pool carries; neither is re-derived.
-ITDIR=""; [ -n "$LATEST" ] && ITDIR="$J/pool/$LATEST/isle-test"
+# ci-12: the newest readings now live under the TEST branch's run, not under a
+# release version — that is where the tests happen. The release pool is used as
+# a fallback for a device that still carries pre-ci-12 runs.
+ITDIR=""
+if [ -n "$BR_TEST" ] && [ -d "$J/pool/test/$BR_TEST/isle-test" ]; then ITDIR="$J/pool/test/$BR_TEST/isle-test"
+elif [ -n "$LATEST" ]; then ITDIR="$J/pool/$LATEST/isle-test"; fi
 NEWEST_LEAK=$(ls -1t "$ITDIR"/leak-check-*.json 2>/dev/null | head -1 || true)
 if [ -z "$NEWEST_LEAK" ]; then
     ok "leak check" "no leak check recorded yet — the first isle-test run takes a baseline and diffs every stage against it"

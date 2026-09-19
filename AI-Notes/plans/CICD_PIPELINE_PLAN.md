@@ -639,3 +639,150 @@ jenkins selftest 364/364, cicd 183/183, panel spec 10/10, ng build clean, :core:
 pipeline/selftest 23/23. OWED: the first run on a desktop (install the deb, the pkexec prompt, the panel by eye);
 `pol` must be SYSTEM-WIDE for privileged verbs (`sudo bash polari-cli/shells/install-cli.sh`; a user-writable pol
 under root is refused by design) — the deb should place it; the page has never rendered in a browser.
+
+## 10. The branch model (his rulings 2026-09-19)
+
+**BUILT as ci-12** (ledger §76). Three branches, two pipelines, one verdict per sha.
+
+His ruling, verbatim:
+
+> "We need to create a new test branch. After pushing to the test branch we kick
+> off the testing pipeline for polari and it does the builds and scans and runs
+> in test mode which automates running tests for all of the modules and apps
+> configured to run in that particular pipeline run. dev is a place for staging
+> development work that we are rapidly iterating through. Pushing our dev work
+> to test will kick off the process of wiping what we have locally and then
+> running all of our tests and scans. Based on the outcome on the test stage, we
+> make a decision to push changes to main. When a push to main occurs, we kick
+> off the generation of artifacts and publish the artifacts. The test and main
+> pipelines should likely be different pipelines."
+
+His addendum on queueing, same day:
+
+> "this is a super project spread across many repos, so we will likely be
+> detecting many changes, but we should only be running if we detect a change
+> and then do not detect any more changes elsewhere within 5 minutes. We should
+> not be endlessly queuing jobs. main and test queues are different queues. We
+> should not run both at the same time but alternate them if they are getting
+> things in series."
+
+and his clarification:
+
+> "this is likely running on only one of two devices and we cannot be
+> accidentally making a huge queue — if multiple changes come in we just keep
+> putting off testing and do the LAST one that came in for that queue."
+
+### 10.1 The three branches
+
+| branch | means | starts | promises |
+|---|---|---|---|
+| `dev` | work in progress | `polari-dev-build` — the OPTIONAL quick build (debs + images; no tests, no scans, no publish) | nothing; "it built" |
+| `test` | what we are testing | **`polari-test`** — wipe → build → scan (advisory) → test → ONE verdict per sha | a verdict exists for this exact forest state |
+| `main` | what we release | `polari-release` → `polari-publish` | everything on it passed a test run, by sha |
+
+### 10.2 Promotion is the ONE sweep, parameterised
+
+`polari-cli/shells/push-all-dev.sh` gained `--branch` / `--promote-from` /
+`--summary-json`; it was not copied. So the clean-tree checks, the artifact
+guard, the submodule-pointer coherence and the innermost-first order that
+publish `dev` are exactly what promote `test` and `main`.
+
+- `pol jenkins promote test` = ff every repo from `origin/dev` to `test` and push.
+- `pol jenkins promote main` = the same from `origin/test`, **refused** unless
+  `pool/test/<superproject sha>/verdict.json` says `passed`.
+  `--force-untested` overrides it with a loud block naming the sha, the verdict
+  and the reason — there is no quiet override.
+- **FF-only.** A repo whose target is not a fast-forward of the source stops the
+  promotion and is NAMED; innermost-first means nothing outside it has moved.
+- The working tree is never switched: `git fetch . <src>:<dst>` moves a ref that
+  is not checked out and refuses a non-fast-forward by itself.
+- A promotion reads `origin/<src>`, not the local branch: what a poller on
+  another machine can see is what is published.
+
+### 10.3 The verdict is the decision, and it is computed in ONE place
+
+`polari-jenkins/verdict.py` → `pool/test/<sha>/verdict.json`:
+
+| verdict | when |
+|---|---|
+| `passed` | every configured module selftest passed AND the isle stages recorded `core_ok` (which already requires ci-10's CLEAN hand-back) |
+| `failed` | something that RAN said no |
+| `partial` | nothing said no, but something that should have answered did not |
+
+**`partial` is today's honest state**: the install + selftest cycle inside the
+throwaway guest is still the marked ci-3 TODO, so every isle stage records
+`skipped`, `core_ok` stays false, and `promote main` refuses. The rule holding,
+not a defect.
+
+`polari-test`'s Jenkins colour means DID IT RUN, not DID IT PASS: SUCCESS when
+it reached the end and recorded a verdict, FAILURE only when a stage could not
+run. A failed test is a recorded verdict; making it a red build would make the
+verdict redundant and tempt somebody to read the colour instead of the reasons.
+
+### 10.4 The release rule, re-keyed
+
+`routes/_lib.sh` `tested_state()` now reads the TEST VERDICT for the
+superproject sha named in `release.json`, not an isle-test `results.json` beside
+the release. `polari-release` no longer triggers `polari-isle-test`: results are
+**carried over**, because the thing released must be the thing tested, and
+re-testing at release time would test a different moment from the one the
+decision to promote was made on. `polari-isle-test` stays as a manual tool and
+as `polari-test`'s inner loop.
+
+ci-10's coupling moved rather than vanished: the uninstall verdict reaches the
+routes *through* the test verdict, so it is enforced once where it is computed
+instead of twice in two places that could drift.
+
+### 10.5 Scans: advisory, and structurally unable to gate
+
+scn-0 lands here: `polari-jenkins/scan/scan.sh` + `scan-tools.lock` (pinned
+Trivy + gitleaks containers; `pip-audit` / `npm audit` from the workspace image
+when present, else skipped with a line). Every stage exits 0, the counts ride in
+the verdict, and `verdict.py`'s arithmetic does not read them. The lock's digest
+column is filled by `scan.sh lock-resolve` and committed deliberately, the
+`casc/plugins.txt` discipline.
+
+### 10.6 The queue: one deep, latest wins, quiet across the forest
+
+`polari-jenkins/quiet.sh` owns all of it; the Jenkinsfiles ask and obey.
+
+- **Quiet.** `quietPeriod(300)` on the poll jobs, plus a first stage that
+  re-reads the superproject **and every top-level submodule remote** by
+  `git ls-remote`. Anything that moved inside the window ends the build as
+  `NOT_BUILT` — *"changes still landing — re-polled"* — rather than building
+  half a promotion.
+- **The promotion marker.** A completed `pol jenkins promote` writes
+  `pool/promotions/<branch>/<sha>.json` naming the whole sha set. A live forest
+  that still matches it is quiet IMMEDIATELY: the marker is a promise that no
+  more commits are coming, so the timer would only delay the run for nothing.
+  Without a marker (a hand push, a push from elsewhere) the timer is the only
+  evidence there is, and it is used.
+- **One item.** `pool/queue/<branch>.json` holds at most one pending item, and
+  it always means "the newest state of the branch", never a sha — which is why
+  the run checks out the branch TIP. A newer change while one is pending
+  REPLACES it and restarts the clock; a newer change during a run sets that same
+  single item. No backlog can form.
+- **Deferral is unbounded by default** (`CI_QUIET_MINUTES=5`,
+  `CI_MAX_DEFER_MINUTES=0` = keep putting it off). Setting the second lets a run
+  proceed on the last quiet-enough state after that long; the log calls it an
+  override, not the default.
+- **Never concurrent, alternating.** Separate jobs = separate queues; both take
+  the `polari-build` lockable resource. FIFO already alternates them under a
+  steady stream; `quiet.sh turn` guards the case it cannot. A job that ran last
+  and finds the other pending **yields by ending** (`NOT_BUILT`) rather than
+  sleeping — sleeping would hold the build lock and an executor while starving
+  the job it is letting through, and the pending item survives untouched.
+- **No parameters on a poll path.** Jenkins coalesces queued items of a
+  non-parameterised job. `polari-release` therefore mints its version inside the
+  run and reads `CI_BUILD_OFFLINE_MEDIUM` from the device;
+  `polari-release-manual` keeps the parameters and nothing polls it.
+
+### 10.7 Open, and whose
+
+- **`promote main` is HIS call.** ci-12 built the gate and proved it refuses;
+  nothing has been promoted to main.
+- **ci-3 still blocks a `passed` verdict**, and therefore blocks every release.
+  It is now the single remaining thing between this pipeline and an artifact.
+- **The Lockable Resources FIFO claim** should be verified against the installed
+  plugin version on the pipeline device; the turn marker exists precisely so the
+  answer does not have to be trusted.

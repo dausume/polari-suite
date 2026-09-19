@@ -50,6 +50,20 @@ services:
       - CI_APP_REPO=${CI_APP_REPO:-}
       - CI_CORE_SOURCE=${CI_CORE_SOURCE:-release:latest}
       - CI_ROUTE_TARGET=${CI_ROUTE_TARGET:-}
+      # ci-12 — the branch model's scheduling knobs. ENVIRONMENT knobs, not
+      # device.env keys: they are about how THIS controller schedules, not about
+      # the device's identity (the ci-10 leak tolerances set that precedent).
+      #   CI_QUIET_MINUTES       how long the whole forest must stop moving before a run starts
+      #   CI_MAX_DEFER_MINUTES   0 = unlimited; his default is to keep putting it off
+      #   CI_SELFTEST_IMAGE      the image the module selftests run in
+      #   CI_SELFTEST_TIMEOUT_S  per suite
+      #   CI_BUILD_OFFLINE_MEDIUM  the offline medium knob, now that the polled release job takes no parameters
+      - CI_QUIET_MINUTES=${CI_QUIET_MINUTES:-5}
+      - CI_MAX_DEFER_MINUTES=${CI_MAX_DEFER_MINUTES:-0}
+      - CI_SELFTEST_IMAGE=${CI_SELFTEST_IMAGE:-prf-backend:staging}
+      - CI_SELFTEST_TIMEOUT_S=${CI_SELFTEST_TIMEOUT_S:-300}
+      - CI_BUILD_OFFLINE_MEDIUM=${CI_BUILD_OFFLINE_MEDIUM:-true}
+      - CI_DEVICE_NAME=${CI_DEVICE_NAME:-pipeline}
     volumes:
       - ${JENKINS_HOME:-./jenkins_home}:/var/jenkins_home
       - ./casc:/var/jenkins_casc:ro
@@ -72,6 +86,17 @@ services:
       # …and the image builder that reads it (the `images` stage of dev-build and
       # release calls this path; without the mount the stage dies with rc=127).
       - ./build-images.sh:/var/polari-jenkins/build-images.sh:ro
+      # ci-12 — the branch model's own pieces. quiet.sh owns the 5-minute quiet
+      # window and the one-deep queue; test-wipe.sh is the "wipe what we have
+      # locally" step; selftests.sh runs the module suites in the freshly built
+      # backend image; verdict.py is the ONE place the verdict arithmetic lives;
+      # scan/ is the advisory scanning layer (scn-0).
+      - ./quiet.sh:/var/polari-jenkins/quiet.sh:ro
+      - ./test-wipe.sh:/var/polari-jenkins/test-wipe.sh:ro
+      - ./selftests.sh:/var/polari-jenkins/selftests.sh:ro
+      - ./verdict.py:/var/polari-jenkins/verdict.py:ro
+      - ./scan:/var/polari-jenkins/scan:ro
+      - ./scan-tools.lock:/var/polari-jenkins/scan-tools.lock:ro
       # /etc/polari-jenkins/secrets (root:polari-ci 0640) after init-device;
       # ./secrets (host user, 0600) only until it has run — see secrets/README.md
       - ${POLARI_SECRETS_DIR:-./secrets}:/run/secrets:ro
