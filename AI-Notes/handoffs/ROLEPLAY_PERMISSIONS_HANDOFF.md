@@ -449,7 +449,19 @@ governance module), op-4 (`app.owned` manifest), a converge-every-app sweep for 
 and the FRONTEND halves: a bearer on the STOMP socket, reading the three advisory headers, the Trace / closure /
 traffic / apps-security tables by eye. STILL HIS: every browser pass; the `stop_grace_period` yes.
 
-**How to continue after a clear:** read this file top to bottom, then ledger §48–§66, then the guide. Rules that hold: security
+**2026-09-19, later — the ct-9 live proofs found a CORE defect and it is fixed (framework f9a893a, seventh deploy):**
+lazy boot serves requests before every class is restored (the swarm health probe, converge-on-read), and
+`_restoreDefinitionInstances` used to SKIP any class that already held an instance — so every class touched during
+boot (traffic, trace target, security decisions, …) silently lost its persisted rows, a person's confirmed ruling
+included, and the next persist overwrote the table (§66 addenda 2–3, evidence from the container logs and the sqlite
+file). The restore now MERGES (§66 addendum 4; `selftest_restore_merge.py` 17/17): same id = already restored, same
+name + different id = a boot-time row folded into the persisted one. Proven live: two confirmed inbound rows survive a
+forced restart, one per name, counts folded. Also on the way: traffic rows dedup by name on read and at flush (§66d),
+the confirm door takes the name in the BODY because names hold `://` (§66a), `kc_admin.py` is on the wrapper (§66c),
+and `PyJWKClient` fetches JWKS with its own urllib (a named, unwrappable gap). OWED: the same read of
+`objectTreeManagerDecorators.restoreFromDatabase`; a restart check for `SecurityDecision` confirmations.
+
+**How to continue after a clear:** read this file top to bottom, then ledger §48–§66 (with the §66 addenda), then the guide. Rules that hold: security
 WARN-ONLY in deployments (never `enforce`); Polari rows key people by Keycloak `sub` only; no real identifiers in tracked
 files; deploy only via `pol prod apply` (detached + polled); commit innermost-first and push every repo; hand work to
 non-Fable agents (opus builds, sonnet docs) and keep this handoff current.

@@ -3587,3 +3587,17 @@ cause_context **41/41**, apps **125/125**, refs **51/51**, persist_debounce **13
 logic and was NOT touched — it skips by matching ids, so it looks sound, but it deserves the same read before
 the next arc trusts it. And the deeper question stands: an instance that answers requests before its tree is
 loaded will keep producing races like this one; the merge makes them harmless rather than making them stop.
+
+## §66 addendum 4 — live proof of the restore merge after the seventh deploy (2026-09-19, framework `f9a893a`)
+
+| step | result |
+|---|---|
+| after boot | one `anonymous\|anonymous` row (`suggested`, 11 — the pre-fix image had already overwritten the table), outbound `keycloak\|Polari\|rest` |
+| confirm anonymous + origin (body door), wait 90 s | both `confirmed` (17 and 1) |
+| `docker service update --force prf-backend` | **both still `confirmed`, one row per name**; anonymous count 27 = 17 persisted + 10 boot-time probes folded in; the origin row intact; outbound row intact |
+| the new container's restore log | `[DefRestore] InboundPolicy: merged 0 persisted rows, 0 boot-time rows folded, 1 already restored` — the repeat passes are idempotent |
+
+The core hazard of addendum 3 is closed on this instance. OWED from it: the same read of
+`objectTreeManagerDecorators.restoreFromDatabase` (its own present-rows logic, unreviewed); a re-check that
+`SecurityDecision` confirmations survive a restart now that converge-on-read runs during boot (expected yes — same
+merge); `PyJWKClient`'s own JWKS fetch stays a named gap in the outbound map.
