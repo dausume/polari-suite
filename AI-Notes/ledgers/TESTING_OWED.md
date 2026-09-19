@@ -3601,3 +3601,275 @@ The core hazard of addendum 3 is closed on this instance. OWED from it: the same
 `objectTreeManagerDecorators.restoreFromDatabase` (its own present-rows logic, unreviewed); a re-check that
 `SecurityDecision` confirmations survive a restart now that converge-on-read runs during boot (expected yes — same
 merge); `PyJWKClient`'s own JWKS fetch stays a named gap in the outbound map.
+
+## §67 — ct-5 + ct-7: the `objects` topology view, and tasks + needs (2026-09-19, built, selftested)
+
+Design `AI-Notes/designs/CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md` §7 (the object topology), §8 (what particular
+individuals need), §9 (the `app.flows` manifest stanza), §11 rows ct-5 / ct-7. On top of §61 (ct-1 the map),
+§63 (ct-2/ct-4 the closure), §64 (ct-8 decisions) and §66 (ct-9 the traffic policies — whose
+`declared_flows()` had been written and left unused, *waiting for this view*).
+
+His asks these two slices answer: *"we are going to want to make topologies of objects that track how object
+instances may propagate between systems"* (ct-5), and *"what sort of things are needed for particular
+individuals"* (ct-7). **NO new row classes** — the security class count stays **36**.
+
+### ct-5 — the `objects` view
+
+| built | where |
+|---|---|
+| the view itself: `build` / `observed` / `declared` / `policy_flows` / `manifest_flows` / `drift` / `simulate` / `compare` | `modules/security/custom/security_objects_view.py` (new, 684 lines, in the manifest) |
+| the dispatch: `OBJECT_VIEW`, `ALL_VIEWS = VIEWS + ('objects',)`, `build/simulate/compare` gain `manager=` and delegate | `modules/security/custom/security_topology.py:29-36, 305-320, 327-333, 350-360` |
+| the ONE schema change design §7 allows: `SecurityTopologyEdge.payload` — *what* crosses (`MealEntry×12`) | `modules/security/objects/security/SecurityTopologyEdge.py` |
+| the fourth `SecurityDomain` row + two `SecurityArea` rows (`object-flow`, `trace-coverage`) | `modules/security/security_seed.py:26-34, 47-51` |
+| doors: `?view=objects` on `/topology`, `/simulate`, `/compare` (the manager is handed through), plus `GET /api/security/objects/drift` and `/objects/flows` (401 anonymous) | `modules/security/security_api.py:105-107, 175-190, 955-985` |
+| the page `security-objects`: 8 rows of configured structured panels + 2 configured class tables (`CausalEdge`, `TraceTarget`); no new component, nothing raw | `modules/security/security_page.py:159-224` |
+
+**The two provenances, one vocabulary.** *declared* = the modules' manifest `app.flows` stanzas (the app
+author's statement, at the level an author can honestly make one — a system KIND, never a host) **plus** the
+`OutboundPolicy`/`InboundPolicy` rows a PERSON confirmed (`security_traffic.declared_flows`, the deployment's
+statement). *observed* = the causal map's `external:` / `peer:` effects and the two `ws-*` means, with the
+payload classes the wrapper recorded in `detail`. A `crude` or `trigger-fire` edge is deliberately NOT a flow:
+causation inside the instance is ct-4's answer and this view does not repeat it.
+
+**The modes, for this view** (they mean the traffic policy's ladder, not the machine's rings): `stock` = an
+instance with no policy at all, every flow leaves · `today` = `POLARI_APP_PERMISSIONS` × the rows' states ·
+`complain` = dev, confirmed allowed and everything else LOGGED and proceeding (warn, never block) · `enforce` =
+production, closed by default. The chain named per edge is `app-flows → traffic-policy → outbound-wrapper →
+causal-map` (and `app-permissions → …` for a broadcast, which ct-6 decides per subscriber, so the view says
+LOGGED and names the gate rather than inventing one verdict for everybody).
+
+**The drift report** (`/api/security/objects/drift`): `observed_not_declared` (the finding — dev warns, never
+blocks), `declared_not_observed` (noise to prune, *unless* its classes were never traced), `by_app` with a
+`coverage` of none/partial/full, and `not_traced` / `not_traced_detail`. Matching is at two levels on purpose:
+a manifest declaration covers a system KIND, a confirmed policy row covers the configured system AND the wire.
+
+### ct-7 — tasks + needs
+
+| built | where |
+|---|---|
+| the task model: `clean_task`, `tasks_of` / `bump_task` (the `{task: count}` map), `session_tasks` / `state_task`, `current_task`, `group_by_task`, `verify_tasks` | `modules/security/custom/security_tasks.py` (new, 287 lines, in the manifest) |
+| `ObservationSession.task` + `tasks_json` (the stated-task history) | `modules/security/objects/security/ObservationSession.py` |
+| `PermissionObservation.tasks_json`, `UsageObservation.tasks_json` — `{task: count}` on the SAME counted row | the two class files |
+| `start_session(..., task=)`: posting the same door again CHANGES the task mid-session and keeps the history | `security_observe.py:412-440` |
+| the recorders attribute every act and every door to the open session's task | `security_observe.py` (`observe_permission`, `observe_usage`) |
+| `review(role)` gains `tasks` — tasks → doors → objects × verbs → closure per task (reusing `security_closure`) | `security_observe.py:review` + `security_tasks.group_by_task` |
+| `verify(role, group)` gains `tasks`, `tasks_broken`, `tasks_verdict` — which TASKS enforcement would break | `security_observe.py:verify` + `security_tasks.verify_tasks` |
+| `app.flows` (design §9): `FLOW_TARGETS` / `FLOW_DIRECTIONS` / `FLOW_CLASSES_MAX` / `flow_findings`, wired into `validate()`, and `flows` joins the HAND-SET keys `generate` preserves | `moduleService/manifests.py:56-127, 421-425, 458` |
+| the first two real declarations: `security` → keycloak carrying NO rows, `odooconnect` → odoo | `modules/{security,odooconnect}/polari-app.json` |
+| `task` on the sessions table of `security-events` | `security_page.py:124` |
+
+### Selftests — exact numbers (all run; nothing regressed)
+
+| suite | before | after |
+|---|---|---|
+| `modules/security/security_selftest.py` | 227/230 | **250/253** (+23 checks; the same 3 known environment failures) |
+| `accessControl/selftest_cause_context.py` | 41/41 | 41/41 |
+| `polariApiServer/selftest_outbound.py` | 61/61 | 61/61 |
+| `polariApiServer/selftest_restore_merge.py` | 17/17 | 17/17 |
+| `modules/polariapps/apps_selftest.py` | 125/125 | 125/125 |
+| `python3 -m moduleService.selftest_manifests` | 8/8 | 8/8 |
+| `polariApiServer/selftest_stomp_gate.py` | 41/41 | 41/41 |
+| `python3 -m moduleService.manifests conform --all` | 61/61 | 61/61 |
+| `import polariApiServer.polariServer` | clean | clean |
+
+The 3 failures are the known environment ones and the ONLY ones: ledger `mac_enforced`, mac profiles, expired
+internal certs. (`moduleService.selftest_app_taxonomy` reads 8/9 both with and against a stashed tree — a
+pre-existing `iso` category gap, not this slice.)
+
+The +23 checks: ct-5 — the fourth view builds for every mode and is deliberately absent from `VIEWS`; the
+manifest declared half; the confirmed-policy declared half (and a `suggested` row is NOT a declaration); the
+observed half and what it excludes; the four modes against a confirmed and an unconfirmed flow; the drift both
+ways; coverage none/partial/full with `not_traced`; **no instance ids, no addresses, no hostnames anywhere on
+the view**; `simulate` for `this instance` / `class:<C>` / `profile:<name>` and its refusals; `compare`'s mode
+axis; the five doors incl. the anonymous 401s; the §54 suffix-vs-responder route guard; the page's components.
+ct-7 — the `app.flows` vocabulary matching `outbound.SYSTEM_KINDS`, seven refusal shapes, `validate()` carrying
+them and `generate` preserving a hand-set stanza; the task stated, changed mid-session and kept in history; one
+act under two tasks = ONE row naming both; the review's task grouping incl. the unattributed bucket; the
+per-task closure; the per-task break verdict; the door's D18-1 rule (a body-supplied `actor` is still ignored).
+
+### Gotchas found / decisions taken where the design was silent
+
+1. **The task does NOT go in a row's name.** The observation ledgers are counted rows keyed by the act
+   (`groups|class|verb`, `role|kind|item`) — that is what keeps them readable. Putting the task in the key would
+   multiply every row by the tasks that touch it; a plain `task` column would let the last task silently claim
+   acts belonging to the one before. So each row carries `tasks_json`, a `{task: count}` map, capped at
+   `MAX_TASKS_PER_ROW` (24) with the overflow COUNTED under a named bucket rather than dropped.
+2. **`objects` is in `ALL_VIEWS`, not in `VIEWS`.** `security_seed._view_rows()` walks `VIEWS` and seeds a
+   node/edge row per view × scenario. The objects view is derived from the INSTANCE (manifests, confirmed
+   policies, causal map) and needs a manager, so seeding it at import time would write four copies of one answer
+   taken from an empty tree. The doors accept `ALL_VIEWS`; the seed walks `VIEWS`. **Consequence:** the objects
+   view's rows are NOT persisted as `SecurityTopologyNode`/`Edge` — the page reads the door. Writing them from a
+   GET would be a side effect on a read, and the rows would go stale the moment a policy is confirmed.
+3. **`compare('objects')` puts the MODES on the columns, not the scenarios** (`axis: 'mode'`, and `scenarios`
+   carries the mode names so the configured panel lines up unchanged). An object flow belongs to the instance,
+   not to the machine layout a scenario describes; four identical scenario columns would read as a finding.
+4. **`simulate('objects', actor='profile:<name>')`** is how design §7's *"from a person with a given profile,
+   what can leave this instance"* is delivered — the profile is expanded to its explicit classes through ct-4's
+   `profile_start`, and the answer is the union of those classes' flows. `this instance` means EVERYTHING that
+   leaves, not only the calls carrying no class.
+5. **A broadcast is not a send.** `ws-publish`/`ws-subscribe` edges appear on the view (the classes really do
+   leave the instance) but are excluded from the drift: nothing in `app.flows` declares a STOMP topic, and ct-6's
+   permission gate is what governs them. Saying so beats listing every broadcast as an undeclared flow.
+6. **`_classes_of` is a split on `detail`, defended.** `record_outbound` writes the payload classes comma-joined
+   into `CausalEdge.detail` and `_detail_accepted(record_outbound)` is False today (§62), so `detail` is the class
+   list — but the view still filters to plausible class names so a future `detail='ok'` cannot invent a class.
+7. **`manifest_flows()` is cached per process** (~60 JSON reads, and `compare` builds the view four times).
+   `refresh=True` re-reads after a `manifests generate` in a long-running dev loop.
+8. **Two real `app.flows` declarations, not a demo.** `security` → keycloak with `classes: []` (kc_admin resolves
+   a sub to a name and manages group membership; NO Polari row leaves — names live in Keycloak, D18-1) and
+   `odooconnect` → odoo with `classes: []` (the classes are a deployment's `OdooModelBinding` rows, not the
+   module's, so the confirmed `OutboundPolicy` row is where a deployment names what it really sends). Everything
+   else declares nothing, which is the truthful state and is exactly what the drift report is for.
+9. `odooconnect/polari-app.json` is indented with 2 spaces while `manifests.write()` writes indent=1 — running
+   `manifests generate odooconnect` reindents the whole file. The stanza was added by hand at the file's own
+   indent instead, so the diff is 8 lines rather than 256.
+
+### Deviations from the design, and why
+
+- **Design §7's node list** ("each `PeerNode`, each configured external system — `OdooInstanceConfig`, the
+  Keycloak realm, each S3 bucket/provider row") is **not** enumerated: nodes come from flows only, so a peer or
+  an Odoo config that has never flowed and that nothing declares does not appear. Enumerating configuration rows
+  is a third declared source (with §7's knobs: `GrpcExposure`, `apiFormatConfig.*WsEnabled`,
+  `OdooModelBinding.direction`, `PeerAgreement.scope`, shared-DB co-residency) and is listed under OWED rather
+  than half-built. Today a node with no edge would be noise.
+- **Design §7's `chain`** (`[PeerAgreement, MutationLease token, ObjectLockEntry, GrpcExposure, direction knob,
+  permission_verdict]`) is the consent chain the group-authority plan describes; only two of those rings exist as
+  code that decides an object flow today. The chain built is the honest one — `app-flows`, `traffic-policy`,
+  `outbound-wrapper`, `causal-map` (and `app-permissions` for a broadcast) — each naming what it really consults.
+- The `objects` view's boundary systems are LOCAL to the view rather than added to `security_facts.SYSTEMS`:
+  those are the machine's rings and each one gets a `SecurityControl` row per scenario, which would say the same
+  thing five times for a Polari code path.
+- ct-7's design line *"a module that declares nothing gets a FINDING the first time something flows"* is
+  delivered by the drift report's `observed_not_declared` (and ct-8's `flow:undeclared:<system>` subject, which
+  already existed) — **not** by a `conform` finding, because an absent stanza is not wrong until something
+  actually flows.
+
+### OWED
+
+- **No live proof.** Nothing here has run on `polari-lean` and no browser has seen `/display/security-objects`.
+  A live proof should check, in this order:
+  1. `GET /api/security/topology?view=objects` — the two declared manifest flows (keycloak, odoo) appear with
+     `provenance: declared` and an empty payload, and `drift.counts.observed` is 0 before anything is armed.
+  2. Arm a real class (`POST /api/security/observe/trace {"class_name": "UserAppPreference"}`), drive a real
+     chain that leaves the instance (a Keycloak name resolution through `/api/security/people/{sub}` is the
+     cheapest), then re-read: an OBSERVED keycloak edge, matched by the `security` manifest declaration, so it
+     is in NEITHER side of the drift.
+  3. Drive something nothing declares (an S3 artifact fetch, or a peer read) and confirm it lands in
+     `observed_not_declared` with its `finding`, and that NOTHING was refused (posture dev, gate advisory).
+  4. `?mode=enforce` on the same read: the unconfirmed flow reads `blocked`, the confirmed one `allowed` — and
+     the instance is still serving, because the mode is a READING and not an apply.
+  5. `/api/security/objects/drift` `by_app` — an app whose classes have never been armed reads coverage `none`
+     and names them in `not_traced`, NOT an empty list.
+  6. ct-7: `POST /api/security/observe/session {"role":"journalist","task":"publish an article"}`, act, POST the
+     same door with `"task":"score a source"`, act again, then `GET /api/security/observe/review?role=journalist`
+     — two task buckets with the right counts, one row per act (check `PermissionObservation` row count did NOT
+     grow), and each task's own closure.
+  7. `GET /api/security/observe/verify?role=journalist&group=journalist` after publishing a narrow profile —
+     `tasks_broken` names the task, not just a verb count.
+  8. **Restart check** (the §66 addenda's lesson): confirm `tasks_json` on a session and on an observation row
+     survives a forced restart, i.e. the new columns are persisted and restored by the merge, and that a session
+     open across the restart still attributes acts to its task.
+- **The third declared source** (§7's configuration knobs: `PeerNode`, `OdooInstanceConfig`/`OdooModelBinding.direction`,
+  `GrpcExposure`, `apiFormatConfig.*WsEnabled`, `PeerAgreement.scope`, shared-DB co-residency from
+  `object_ownership._storage_identity`) — not built. Until it is, a knob that declares a flow is invisible here
+  and an observed flow it permits still reads as undeclared.
+- **`app.flows` on the other 59 modules.** Two are declared. Every module that the ct-3 migration table (§62)
+  shows sending — collab/livekit, reticulum, materialsScience, mathshapes, cntfet, appstore, mqttbridge,
+  polariPeers, the AI/provider/voice paths — should declare its own, and until they do the drift report will name
+  them the first time they flow. That is the design's intent, but the sweep is owed.
+- **The objects view's rows are not persisted**, so no configured table shows an objects-view
+  `SecurityTopologyEdge` and the `payload` column is exercised only through the API and the class constructor. If
+  a durable row is wanted, it needs a converge step with an owner (a POST, or the page-converge thread), not a
+  write on a GET.
+- **Browser pass (his):** `/display/security-objects` — that the 8 panels read as tables rather than a JSON wall,
+  that NOT TRACED is legible as an answer rather than an empty list, and that the mode columns on the compare
+  table are understandable without the `axis` key.
+- ct-7's review/verify are not on a page (both need a `?role=`); the only ct-7 surface a browser sees today is
+  the `task` column on the sessions table.
+- `MAX_TASK_CLOSURES` (12) bounds how many tasks get a closure in one review; the rest say why. Unproven at
+  scale — nobody has role-played 12 tasks.
+
+## §68 — ct-6 / op-0 frontend: the socket has a name, and the browser reads what security said (2026-09-19, built, unit-tested)
+
+§65 closed the backend half of ct-6 and left three things open, all of them in the browser: the Angular STOMP
+client sent **no bearer**, so every live socket on a deployed stack was anonymous and `advisory` was the only
+honest mode; nothing read the `polariNotice` / `X-Polari-Permission-Advisory` frame the gate sends; and nothing
+read the four HTTP advisory headers the CRUDE, owner and traffic gates have been setting since §51/op-0/ct-9 —
+the instance had been talking to a browser that was not listening. All three are built.
+
+| what | where | note |
+|---|---|---|
+| the bearer, on every (re)connect | `polari-platform-angular/src/app/services/stomp.service.ts` `clientConfig()` / `connectHeaders()` | RxStomp `beforeConnect` re-reads the token from `AuthSessionService` and sets `connectHeaders: {Authorization: 'Bearer <token>'}`, so it rides the **STOMP CONNECT frame** — exactly the third place `accessControl/stomp_identity.py` looks. Verified in `@stomp/stompjs` that `connectHeaders` is read *after* `await this.beforeConnect()` (`client.js:422` then `:450`), so a token set inside the hook is the one sent. `Sec-WebSocket-Protocol` was deliberately NOT used: that route needs the server to echo one of the offered subprotocols in the handshake or the browser closes the socket, and it buys nothing here. Signed out = no header = an anonymous socket, byte-identical to before. NO second refresh mechanism: the token in hand at connect time is used, and the next reconnect picks up a fresher one. |
+| telling a notice from a change | `src/app/services/stomp-notices.ts` (new, 95 lines) | `gateNoticeOf(frame, refusedFrame?)` — reads `X-Polari-Permission-Advisory` (case-insensitively) and/or the body's `polariNotice`, and answers `{notice, refused, advisory, className, destination}`; `classOfDestination()` is the TS twin of `stomp_gate.class_of_topic` (`/topic/X` and `/topic/X/flatJson` are both `X`). A transport-free file so it is testable with plain objects. |
+| the notice never causes a refetch | `stomp.service.ts` `watchTopic()` → `divertNotice()` | the advisory MESSAGE arrives on the *very destination just subscribed to*, so it is filtered out at the ONE chokepoint every watcher (`watchChanges`, `crude-class-service.subscribeToChanges`, the three direct `watchTopic` callers) passes through, and handed to `SecurityAdvisoryService` instead. A notice can therefore never make a panel refetch, and never loop. |
+| a refused subscribe degrades, it does not kill | `stomp.service.ts` `wireGateErrors()` + `refusedFallback$()` | stompjs hands an ERROR frame to `onStompError` and does **not** close the connection (`stomp-handler.js:79`); RxStomp only fails a watch when `correlateErrors` says so, and that is **deliberately left unset** — so one refused destination cannot tear down the other subscriptions. Instead the class is recorded in `refusedClasses$` (a BehaviorSubject carrying a new `Set` each time, so a panel that starts watching *after* the refusal is armed too), and `watchChanges()` merges a `timer(60s, 60s)` tick carrying a `StompChangeNotification {operation:'update', instanceIds:[], fallback:true}` — the shape every existing consumer already treats as "refetch". `switchMap` on the arming signal means a refusal seen again (reconnect → re-SUBSCRIBE → ERROR again) restarts the one timer rather than stacking timers. The panel keeps its last data and keeps updating, slowly. |
+| the four HTTP advisory headers | `src/app/services/security-advisory.service.ts` (new, 190 lines) | ONE `providedIn: 'root'` service, a deduped **counted** list keyed `header × value`, each entry `{kind, header, value, outcome, subject, count, firstSeen, lastSeen, path}`, capped at **200** (past the cap the least recently seen entry goes). Reads `X-Polari-Permission-Advisory`, `X-Polari-Owner-Advisory`, `X-Polari-Traffic-Advisory`, `X-Polari-Auth`. `recordStompNotice()` is the socket door into the same list (kind `subscribe`). URLs are reduced to a path — a query string is not something to park in a notice bar. Nothing is persisted and nothing identifies a person: the values carry class / verb / row id only. |
+| the interceptor | `src/app/interceptors/advisory.interceptor.ts` (new) + `src/app/app.module.ts` | registered **LAST** in `HTTP_INTERCEPTORS` (after Auth, AuthError, Roleplay) so it observes the response every other interceptor has had its turn with. Read-only by construction: it clones nothing, swallows nothing, and records off the **error** path too — an enforcing verdict IS a failed request. Wrapped in try/catch: an advisory is never worth an exception in the HTTP path. |
+| where a person sees it | `src/app/components/demo-notice/system-notice.component.ts` (the EXISTING bar, already mounted at `app.component.html:5`) | one summarised line — *"Security advisory (dev): 3 would-deny, 1 would-project (seen 42 times) — click for details"* — expanding to the counted list (`×count · outcome · subject · header · path`) with a "Clear" button and a standing sentence that **nothing was blocked**. No new reusable component, no raw JSON. The bar is absent, not empty, when there is nothing to say — which on a production instance (advisories off) is always. Amber (`--color-warn-*`) when anything but `would-project` is present, info blue (`--color-info-*`) otherwise; theme tokens only, rule colours derived with `color-mix(… currentColor …)`, `@container` for the narrow layout. |
+| CORS | `polariApiServer/polariServer.py:418-420` — **no edit needed** | `Access-Control-Expose-Headers` already lists all four (`X-Polari-Auth, X-Polari-Permission-Advisory, X-Polari-Owner-Advisory, X-Polari-Traffic-Advisory`) — `X-Polari-Owner-Advisory` came in with f1fd6cc and the other three were already there. `prf-proxy/nginx.{staging,prod}.conf.template` set no `Expose-Headers` of their own and hide none, so the upstream header passes through. **Nothing in `polari-framework` was changed by this slice**, so no framework selftest was re-run. |
+
+**Build.** `cd polari-platform-angular && ng build --configuration=production` → **PASSES** (what `Dockerfile.prod` runs). Initial total 5.50 MB / 962.09 kB transfer — the same budget warning as before (bundle initial exceeds the 5 MB budget by ~496 kB), unchanged by this slice.
+
+**Tests.** `CHROME_BIN=/usr/bin/google-chrome ng test --watch=false --browsers=ChromeHeadless`:
+the three touched specs → **25/25 SUCCESS**
+(`security-advisory.service.spec.ts` new — 10 specs: four headers off one response, outcome/subject split, dedupe-and-count over 40 responses, distinct values kept apart, the 200 cap dropping the least recently seen, the STOMP half incl. the refused marker, the summary line's outcome tallies and info-vs-warning level, blanks and a headers object that *throws*, `clear()`, `pathOf()`;
+`advisory.interceptor.spec.ts` new — 4 specs: success response, ERROR response *with the error still surfacing*, a silent response recording nothing and passing the body through, counting across repeated requests;
+`stomp.service.spec.ts` extended — 11 specs: the original four, plus bearer-present / bearer-absent `connectHeaders`, an advisory MESSAGE that never reaches the refetch path while a real change does, the advisory landing in `SecurityAdvisoryService` instead, an ERROR frame marking one class refused while another watch stays alive, and the wire-shape helpers).
+Whole suite: **168 SUCCESS / 5 FAILED / 15 skipped (188)**. The 5 reds are `XrLobbyPageComponent` and are **PRE-EXISTING** — proven by `git stash -u` + re-run: 5/5 fail identically with this slice removed.
+
+**Gotchas.**
+1. `correlateErrors` is the RxStomp knob that maps an ERROR frame to a destination and **errors that watch's observable**. It is tempting and it is wrong here: the gate's ERROR frame says `destination: /topic/<Class>` with no format segment, so a `/topic/<Class>/flatJson` watch would never correlate, and a watch that *did* correlate would be killed rather than degraded. Left unset (its default is `() => undefined`, i.e. no watch is failed) and the refusal handled out-of-band.
+2. An advisory MESSAGE rides the **same destination** as a change notification, and `message-id: permission-advisory` is the only other tell. Without the filter, a panel that refetches on any frame would refetch because security spoke — and if a refetch re-subscribed, forever. This is why the filter lives in `watchTopic`, not in `watchChanges`: two of the three direct `watchTopic` callers would otherwise parse a notice as their payload.
+3. `AuthSessionService.refreshAccessToken()` is used rather than the cached `accessToken` subject, because `automaticSilentRenew` swaps the token in oidc-client-ts storage on its own schedule; the cached subject is the fallback when that call is unhappy.
+4. The fallback tick is on `watchChanges` only. The three direct `watchTopic` consumers (`equation-execution.service`, `module-bringup`, `api-config`'s WS test) get the *notice filtering* but not a synthetic frame — a fabricated `IMessage` would be parsed by those callers as their own payload shape.
+
+**OWED — the browser pass, on the home staging stack (a person, by eye).**
+1. **Signed-in socket.** `pol prod apply` the rebuilt frontend, sign in as a demo-viewer, open devtools → Network → WS → the frames tab: the **CONNECT frame carries `Authorization: Bearer …`**; the container log line reads `connected (STOMP protocol, identity <sub>)` and not `identity anonymous`. Then sign out and reload: the CONNECT frame has no Authorization and the log says `anonymous` — live updates still work.
+2. **Advisory notice, advisory mode** (`POLARI_APP_PERMISSIONS=advisory`, the deployed mode). Open a page whose class is outside that viewer's profile. Expect: the panel still updates live; the notice bar shows *"Security advisory (dev): 1 would-deny — click for details"*; expanding shows `×1 · would-deny · <Class>:read · STOMP SUBSCRIBE · /topic/<Class>`. **The key negative:** watch the Network tab for 60 seconds and confirm the panel does **not** refetch on the notice and does not settle into a refetch loop.
+3. **HTTP advisories.** On the same page, confirm entries appear for `X-Polari-Permission-Advisory` and (on an owned class) `X-Polari-Owner-Advisory: would-project <Class>:<id>`, with `count` **climbing rather than the list growing** as the page polls. Confirm the bar reads amber with a would-deny present and info-blue with only would-project, in **both** light and dark mode.
+4. **Enforce.** Flip the stack to `POLARI_APP_PERMISSIONS=enforce` (temporarily — the standing rule is warn-only in deployments). Expect: the ERROR frame in the frames tab; `/wsStatus` shows an empty subscriber list for that topic; the panel **keeps its last data** and refetches about once a minute; every OTHER panel on the page keeps its live subscription; the socket does not reconnect in a storm (the frames tab should show no repeated CONNECT). Put the knob back to `advisory`.
+5. **Cross-origin headers.** On the nip.io staging host (frontend and API on different names), confirm in devtools that the four `X-Polari-*` headers are actually *readable* — i.e. that `Access-Control-Expose-Headers` survives the nginx hop. This is the one thing the unit tests cannot prove.
+6. **Expired token.** Leave the tab open past token expiry, then force a reconnect (stop/start the backend): the new CONNECT must carry the **fresh** token, and `X-Polari-Auth: invalid-or-expired` must not be sitting in the advisory list afterwards.
+
+**OWED — code.**
+- A fallback path for the three direct `watchTopic` consumers, if `enforce` ever becomes a deployed mode (gotcha 4).
+- `REFUSED_FALLBACK_POLL_MS` (60 s) is a guess, not a measurement — it wants his number, or a knob.
+
+## §66 addendum 5 — the OTHER restore path (`restoreFromDatabase`), and the SecurityDecision restart re-check (2026-09-19)
+
+The read §66 addendum 4 owed. `objectTreeManagerDecorators.restoreFromDatabase` → `_restoreTableRows` is NOT
+"skip by id": its present-rows logic is `identifySeedDBIds()`, a property FINGERPRINT — any DB row matching a
+live instance on ≥ 60 % of comparable columns is dropped from the restore as a re-created seed. It runs FIRST at
+every module admission (`lazy_boot._admit`: `restoreTables()` then `ensureDefinitionTables()`), it covers the same
+classes as the definition merge (the merge's docstring saying otherwise is out of date), and lazy boot serves
+requests while it runs. Three defects, two fixed (framework commit "§66 addendum 5 core"):
+
+| defect | evidence | state |
+|---|---|---|
+| **D1 — it crashed module admission.** The fingerprint walked the LIVE `objectTables` (and the live per-class dict); a boot-time write adding a key mid-walk raised `RuntimeError: dictionary changed size during iteration` out of `restoreTables()`, failing the whole module | `[LazyBoot] islemesh FAILED …` at 01:39, 02:11, 02:17 and `polariapps` at 01:44 on `polari-lean` — every `/api/apps/security/*` door 503 until a restart | FIXED: both loops iterate a snapshot (the one `_mergeRestoredRows` already takes) |
+| **D3 — a duplicate the merge refused to fold.** When the fingerprint did NOT match, the persisted row was restored beside the boot-time row (same name, different id); the merge then saw the persisted id present, counted it "already restored" and skipped the fold | `[DefRestore] SecurityDecision: … 438 already restored` is the branch that actually runs live | FIXED: `_foldNameDuplicates()` shared by both merge branches |
+| **D2 — the fingerprint drops a persisted row that DIVERGED.** A boot-time observation and a person's ruling agree on the descriptive columns and differ only on `state` / `confirmed_by` / `confirmed_at` / the counter — 60 % is cleared, so the PERSISTED row is treated as a seed and never loaded; the next persist writes the boot-time row over it | every boot logs `[DB] Found 1 seed IDs for InboundPolicy` and never restores that table; the two `confirmed` ct-9 inbound rows (anonymous 79, origin) live at 02:05 were `suggested` 30 / gone after the restarts, in the API and in sqlite; `OutboundPolicy` likewise. `SecurityDecision` survived only because its table restored while the class had no live instance yet | **NOT FIXED in the addendum-5 commit** — see the next section for the fix |
+
+(b) The path is purely additive: it never pops `objectTables`, never calls `noteTreeDeletion`, never writes the
+DB, reads no tombstones and skips `polari_persist_state`. One indirect interaction, described not tested: every
+restored instance passes `treeObjectInit` → `noteTreeMutation`, which CANCELS a tombstone — harmless at boot, but
+`restoreTables()` also runs mid-life at admission, so a row deleted before its module came online is re-created.
+(c) Both paths run back to back on the same class at every admission; the merge heals D2 only for classes in
+`defClassList` and only when the fingerprint let the row through.
+
+**Selftests.** NEW `polariApiServer/selftest_restore_from_database.py` **15/15** (6/15 against the shipped code:
+D1 raises, D3 leaves two rows; the real methods bound to doubles in the live admission order); restore_merge
+17/17; persist_debounce 13/13; persist_tombstones 43/43; crude_delete_blast 21/21; quiesce 27/27; outbound 61/61;
+cause_context 41/41; apps 125/125.
+
+**Item 2 — a `SecurityDecision` confirmation survives a forced restart: YES** (stack `polari-lean`, posture dev,
+gate advisory, image WITHOUT the addendum-5 fixes). demo-admin bearer → coverage for `app-policy` = 438 subjects
+(432 open / 4 suggested / 1 confirmed) → `POST /api/apps/security/decisions/confirm {app, kind: owner-policy,
+subject: AccuracyPolicy, decision: confirmed}` 200 → 432/4/2 → wait 100 s → `docker service update --force` →
+**both confirmations intact with confirmer + timestamps, 438 rows, 438 distinct names, 432/4/2 identical, sqlite
+`[('confirmed', 2), ('open', 432), ('suggested', 4)]`**. Boot log: `[DefRestore] SecurityDecision: merged 0
+persisted rows, 0 boot-time rows folded, 438 already restored` and `[DB] Restoring 438 instances of
+SecurityDecision` — the table restore gets there first.
+
+**REGRESSION FOUND on the way (ct-9):** the confirmed traffic rows §66 addendum 4 proved surviving do NOT survive
+today — D2 above. Re-prove after the D2 fix deploys.

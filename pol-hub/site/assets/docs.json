@@ -222,6 +222,12 @@
      "title": "Network security",
      "gist": "Containment on the isle, the exposure ladder, Reticulum, VPN kinds and relays, encrypted overlays, known gaps.",
      "source": "AI-Notes/guides/security/NETWORK_SECURITY.md"
+    },
+    {
+     "href": "docs/app-security.html",
+     "title": "Application security",
+     "gist": "The one ring that is built and live: role-play permission profiles, causal tracing, traffic policies, per-app security decisions, owner-defined permissions, STOMP under the same posture as CRUDE.",
+     "source": "AI-Notes/guides/security/APP_SECURITY.md"
     }
    ]
   },

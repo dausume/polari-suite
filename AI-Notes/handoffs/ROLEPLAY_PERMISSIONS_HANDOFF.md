@@ -465,3 +465,40 @@ and `PyJWKClient` fetches JWKS with its own urllib (a named, unwrappable gap). O
 WARN-ONLY in deployments (never `enforce`); Polari rows key people by Keycloak `sub` only; no real identifiers in tracked
 files; deploy only via `pol prod apply` (detached + polled); commit innermost-first and push every repo; hand work to
 non-Fable agents (opus builds, sonnet docs) and keep this handoff current.
+
+## 2026-09-19 — round five: ct-5, ct-7, the ct-6 frontend half, the other restore path, the docs + the site
+
+Built by opus agents, reviewed by Fable, committed innermost-first (framework `6d77466` ct-5+ct-7, `51be381`
+§66 addendum 5; angular `621d299` ct-6 frontend; docs by a sonnet agent):
+
+- **ct-5 (§67)** — the fourth security topology view `objects` (`security_objects_view.py`): declared = manifest
+  `app.flows` + confirmed traffic policies, observed = the causal map's external / peer / ws edges with `payload`;
+  `?view=objects` on the three existing doors, `GET /api/security/objects/{drift,flows}` (401 anonymous), page
+  `security-objects` (configured panels only). An untraced class reads NOT TRACED. Objects rows are NOT persisted
+  (the page reads the door; `objects` is in `ALL_VIEWS`, not `VIEWS`). No new class: the count stays 36.
+- **ct-7 (§67)** — `ObservationSession.task` (+ `tasks_json` history; same door changes it mid-session), `{task:
+  count}` on the counted observation rows, `review.tasks` with a per-task closure, `verify.tasks_broken`;
+  manifest `app.flows` (`flow_findings`, preserved by `generate`; first declarations on `security` and
+  `odooconnect`).
+- **ct-6 frontend (§68)** — the bearer rides the STOMP CONNECT frame (`beforeConnect` → `connectHeaders`);
+  advisory MESSAGE frames are diverted at `watchTopic` (never a refetch); an ERROR frame on SUBSCRIBE marks the
+  class refused and `watchChanges` degrades to a 60 s tick; `SecurityAdvisoryService` + `AdvisoryInterceptor`
+  (registered last) read `X-Polari-Permission/Owner/Traffic-Advisory` + `X-Polari-Auth` into the EXISTING
+  system-notice bar as one counted line. `enforce` is still not a deployed mode (his rule) but is no longer
+  unsafe for live updates once this ships.
+- **§66 addendum 5** — the other restore path (`restoreFromDatabase` → `identifySeedDBIds`) was read: it crashed
+  module admission live (D1, fixed: snapshots), left same-name duplicates the merge would not fold (D3, fixed),
+  and its 60 % property FINGERPRINT drops a persisted row that diverged from its boot-time twin (D2) — which is
+  losing the ct-9 confirmed traffic rows on every restart today. `SecurityDecision` confirmations DO survive a
+  restart (proven live). D2's fix was delegated at the time of writing (see the addendum that follows §66
+  addendum 5 in the ledger, or `git log` for "D2").
+- **Docs + site** — `guides/security/APP_SECURITY.md` (new public page, in `pol-hub/site/assets/docs.json`),
+  the overview's layers + "Where things stand", four new operator-guide sections, plan §17d/§17e status, interfaces
+  plan §15; `pol-hub/site` regenerated (the hub image rebuilds with `pol prod apply`; polari-systems.org is the
+  droplet = HIS to publish). Pre-existing: the operator guide's older sections spell the home stack's LAN name;
+  `build-docs.py --check` compares un-scrubbed content and flags four pages stale forever.
+
+In flight at the time of writing: op-1 + op-2 + op-4 (+ the `security-owned` page and the Sharing tab) by an opus
+agent; the D2 fix. Then: `pol prod apply` (one deploy for the round), a live-proof agent running §67 steps 1–8,
+§68 step 1/3/5 (the CONNECT frame via a python websocket client; the exposed headers through nginx), the ct-9
+restart re-proof, the hub's `/docs/app-security.html`; a second docs pass for what this round built.

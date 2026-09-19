@@ -506,3 +506,203 @@ landing can never disagree: your tailored home when you have one, the main Polar
 **A locked shell still wins.** `?shellApp=<name>` clamps the whole browser session to one app (sep-0); the clamp
 guard runs first and sends `/`, `/home` and `/polari` alike to that app's home. Neither home exists inside a
 clamped shell.
+
+## Tracing what a role's actions cause (2026-09-18/19)
+
+Ledger §59, §61, §63, §65 (the causal-tracing arc). This is separate from the recording above: role-play
+records *who used what*; tracing records *what one class's activity really causes* — the events it fires, the
+solutions those run, the peers it touches, the classes it writes. Dev posture only; nothing traces in
+production (design `CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md` §10). Examples use `$API` for the backend base URL and
+`$TOKEN` for a bearer.
+
+**Arm one class, with budgets.** Only one class may be armed at a time; a second arm is refused, naming the one
+already active.
+```
+curl -sk -H "Authorization: Bearer $TOKEN" -X POST "$API/api/security/observe/trace" \
+     -H 'Content-Type: application/json' \
+     -d '{"class_name": "AppPermissionProfile", "max_edges": 50, "max_journal_rows": 500, "max_depth": 8, "window_seconds": 3600}'
+```
+Every field but `class_name` has a default (200 traces / 500 edges / 5000 journal rows / depth 8 / one hour).
+The first budget hit **disarms itself**, records `stopped_because`, and writes one `SecurityEvent`.
+
+**Status and coverage** — the armed class, its live counters, and every class ever traced (a class not listed
+here answers "not traced", never "nothing reaches it"):
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/observe/trace"
+```
+
+**Disarm manually:**
+```
+curl -sk -H "Authorization: Bearer $TOKEN" -X DELETE "$API/api/security/observe/trace"
+```
+
+**The causal-edge map** (Ledger A — counted, class-level, never duplicated):
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/trace/edges?target=AppPermissionProfile"
+```
+Filter with `?cause=`, `?effect=` or `?means=` (`crude`, `trigger-fire`, `solution-run`, `emit`, `ws-publish`,
+`ws-subscribe`, `shared-db`, `bundle-export`/`bundle-install`, or an outbound `kind`).
+
+**The effect journal** (Ledger B — instance-level, cleared the next time a target is armed):
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/trace/journal?class=AppPermissionProfile"
+```
+An anonymised class (see "Owner-defined rules" below) keeps the class and verb here and drops which actor
+wrote which instance.
+
+**The closure** — what a profile, event or role-play recording *really* reaches, transitively, walked from the
+map:
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/observe/closure?profile=journalist"
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/observe/closure?role=journalist"
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/observe/closure?event=some-trigger-name"
+```
+The answer carries `explicit` (the profile's own grants), `reachable` (everything the map walks to) and
+`implicit = reachable − explicit` — the permissions a grant hands out without saying so. Every item carries its
+`origin` (`observed | closure | declared`), whether it is reached **only** through a trigger running as the
+class's own definer (`definer_only`), and evidence (counts, first/last seen, a sample trace id to look an
+instance up with in the journal).
+
+**The review and verify doors now use it.** `review?role=` (§5 above) gains a `closure` block for the recorded
+session; `verify?role=&group=` (§7 above) gains a `transitive` verdict: `{covered, total, definer_only,
+not_traced, uncovered, reading}` — a sentence like *"the profile covers N of M transitively-touched class × verb
+pairs; K are reached only through triggers running as definer."* Neither call fails if the closure cannot be
+computed — the direct answer still stands, and nothing here enforces or widens anything on its own: a person
+still confirms.
+
+**Gotchas.** The CRUDE seam records one edge per act in dev regardless of the app-permissions knob — "after its
+verdict" means after the observation, since with the gate `off` there is no verdict to be after. A chain on a
+class nobody armed writes nothing (the scope rule). Reads write no journal rows; only creates, updates, deletes
+and the seams above do. `/display/security-events` carries the Trace status/targets/edges tables and five
+closure panels — none of it has had a browser pass yet.
+
+## Traffic policies (2026-09-19)
+
+Ledger §66 and its addenda. Outbound and inbound are **closed by default**: Polari does not maintain an
+allow-list itself, it **suggests** one from what actually crosses its own boundary in dev, and a person
+confirms or denies each row. Nothing needs to be "started" — the suggestions accumulate on their own as
+requests arrive and sends go out through the outbound wrapper.
+
+**See the suggestions and the current policy:**
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/traffic"
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/traffic/declared"
+```
+An inbound row's `source` is a peer name, an `origin|<scheme>://<host>` class, or `anonymous|anonymous` — never
+a raw IP address. An outbound row's name is `<kind>|<system>|<means>`.
+
+**Confirm through the BODY-addressed door.** An origin name holds `://`, which a URL path cannot carry (falcon
+decodes before routing, so no encoding of the `/{name}` form works) — use the body form for any such name; the
+plain `/{name}` path form still works for simple names like `anonymous|anonymous`.
+```
+curl -sk -H "Authorization: Bearer $TOKEN" -X POST "$API/api/security/traffic/inbound" \
+     -H 'Content-Type: application/json' \
+     -d '{"name": "origin|https://example.invalid", "decision": "confirmed"}'
+curl -sk -H "Authorization: Bearer $TOKEN" -X POST "$API/api/security/traffic/outbound/keycloak%7CPolari%7Crest" \
+     -d '{"decision": "confirmed"}'
+```
+`decision` is `"confirmed"` or `"denied"` only; anything else is `400`. Admin role required (`403` otherwise,
+`401` with no bearer at all, `404` on a name nothing has proposed).
+
+**The ladder.** In `dev`: `off` computes nothing that gets written; `advisory` proceeds and writes a
+`suggested` row plus the `X-Polari-Traffic-Advisory` header; `enforce` refuses anything without a `confirmed`
+row. In production, `off`/`advisory` write **no rows at all** (only a person's confirm is ever written there),
+and `enforce` is closed by default — the one write production ever permits is a confirmation, never an
+observation.
+
+**The anti-lockout paths.** `/api/health` and every `/api/security/traffic*` route are never refused by this
+gate, under any mode — otherwise the first `enforce` window could lock an administrator out of the very doors
+that fix it.
+
+**Gotchas.** `PyJWKClient`'s own JWKS fetch inside token validation cannot be wrapped (an internal urllib call
+neither the wrapper nor the straggler guard can see) and stays a named, permanent gap in the outbound map.
+Duplicate rows for the same name (a boot-time observation racing a restore) are healed automatically on every
+read — confirmed/denied rows outrank suggested, counts are summed, nothing is lost, but a fresh read after a
+redeploy is still worth a look. None of the three new `/display/security-events` panels (suggestions, the two
+policy tables, declared flows) has had a browser pass.
+
+## Security decisions per app × version (2026-09-18)
+
+Ledger §64. Every kind of security ruling an app needs is enumerated as a `SecurityDecision` row, subjects
+enumerated **from the app itself** so `open` is a real, countable gap: 8 kinds (`profile-verb`, `owner-policy`,
+`outbound`, `inbound`, `trigger-run-as`, `flow-declared`, `role-binding`, `trace-coverage`) × 6 states (`open`,
+`suggested`, `confirmed`, `denied`, `inherited`, `stale`).
+
+**Coverage, per app or across all converged apps:**
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/apps/security/coverage?app=app-policy"
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/apps/security/decisions?app=app-policy&state=open"
+```
+Coverage answers none / partial / full (full = nothing `open` and nothing `stale`) by kind × state, with
+instance counts per class. `GET …/coverage` with no `app` only answers apps already converged — converge runs
+per app on read, so an app nobody has queried yet will not appear.
+
+**Confirm one decision** (admin only — `401` anonymous, `403` otherwise):
+```
+curl -sk -H "Authorization: Bearer $ADMIN" -X POST "$API/api/apps/security/decisions/confirm" \
+     -H 'Content-Type: application/json' \
+     -d '{"app": "app-policy", "app_version": "set-862f3c1e", "kind": "owner-policy", "subject": "SomeClass"}'
+```
+`confirmed_by` stores the admin's `sub` and nothing else (D18-1). **The one confirmation that also acts on
+something:**
+```
+curl -sk -H "Authorization: Bearer $ADMIN" -X POST "$API/api/apps/security/confirm-profile" \
+     -H 'Content-Type: application/json' \
+     -d '{"role": "journalist", "profile": "journalist"}'
+```
+This verifies the proposal, hashes it, writes one `confirmed` row per class × verb × group **and then** marks
+the `RolePrototype` `concreted` — the ONE human confirmation on the concrete step in §6 above.
+
+**A version bump:**
+```
+curl -sk -H "Authorization: Bearer $ADMIN" -X POST "$API/api/apps/security/bump?app=app-policy&from=set-862f3c1e&to=set-9a1b2c3d"
+```
+A subject unchanged by the bump goes `inherited`; a subject the bump touched goes `stale` and needs a fresh
+ruling.
+
+**Not built yet:** a sweep that converges every app on its own schedule rather than only on read; the release
+gate does not cite these counts yet; the coverage panel on `/display/apps-security` has not had a browser pass.
+
+## Owner-defined rules (2026-09-18)
+
+Ledger §60, design `OWNER_DEFINED_PERMISSIONS_DESIGN.md` §3/§8. Opt-in per class only — nothing about a stock
+class changes. An `OwnedClassPolicy` names an **owner floor** (verbs the owner keeps on their own rows, e.g.
+read/update/delete), an **others' ceiling** (verbs and a field projection for everyone else), and whether the
+owner is even visible to others.
+
+**As built, the class gate always decides first** — owner-defined rules only ever **narrow** what the class
+profile already grants, for owner and non-owner alike; they never widen past it (a correction made during the
+build to the original design, which had let the owner floor exceed the class profile — design §3 step 1, ledger
+§59–§62 addendum).
+
+**See the opted-in classes:**
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/owned"
+```
+The first (and so far only) opted-in class is `UserAppPreference`: owner read/update/delete, `others_verbs []`,
+`owner_visible false`.
+
+**Your own verdict on one instance** — evidence-bearing, same `off | advisory | enforce` posture as everything
+else:
+```
+curl -sk -H "Authorization: Bearer $TOKEN" "$API/api/security/owned/UserAppPreference/<object_id>"
+```
+Under `advisory`, a verb the owner rules would refuse still runs, with `X-Polari-Owner-Advisory: would-deny
+<Class>:<id>:<verb>` on the response; a projected read carries `would-project <Class>:<id>` while still
+returning the whole row — a dev instance shows what enforcement would hide without hiding it.
+
+**Set or replace a class's policy** (admin only):
+```
+curl -sk -H "Authorization: Bearer $ADMIN" -X POST "$API/api/security/owned/SomeClass" \
+     -H 'Content-Type: application/json' \
+     -d '{"owner_verbs": ["read","update","delete"], "others_verbs": ["read"], "others_fields": ["title"], "owner_visible": false}'
+```
+
+**Anonymised classes** (a policy field, kept for classes like a ballot) drop the id from the STOMP change
+broadcast (class and operation only), drop the actor/object pairing from the trace journal, and name the class
+rather than the instance in a `SecurityEvent`.
+
+**Not built yet:** `OwnerGrant` rows and the per-instance Sharing tab that would let an owner name grantees by
+group or `sub` (op-1); the remaining anonymised-class side channels and `transfer` behaviour (op-2); `Ballot`
+rows with the governance module (op-3); the `app.owned` manifest stanza (op-4); and there is **no screen at
+all** yet for the policies themselves or a per-instance verdict — only the doors above.

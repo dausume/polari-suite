@@ -199,4 +199,54 @@ All DERIVED, never typed, each derivation in its own file under `modules/securit
 
 - **Certificate notices (2026-09-13, his ask: notify users when the cert on their app has expired and must be renewed, when auto-renew did not do it).** Auto-renew EXISTS (`pol cert auto-renew install` = a weekly cron running `ca/renew.sh` for Let's Encrypt and the internal certs; `pol prod apply` installs it with a public cert), so the notice is for when it is absent or failed. Built: `custom/security_notices.py` — a LIVE TLS probe of the instance's own public hosts (the backend cannot read the proxy's files, so it asks the proxy like a browser: `POLARI_PUBLIC_HOSTS` / `CORS_ORIGINS` / `PROD_DOMAIN`), the latest audit run's new `certs` ring (`edge-cert` days left via `openssl s_client` on :443, `auto-renew` = a renew.sh cron entry or a certbot/renew timer), and the ServiceIdentity rows → notices with a level (error expired / warning ≤14 d / info) and the ACTION (`pol cert renew`, then `pol cert auto-renew install`). `/api/security/notices`; the frontend's `app-system-notice` bar (mounted beside the demo notice in the app shell, polls every 10 min, red/amber/grey, "Hide for now" per session only). Selftest 40/40; tsc passes. Also visible on `pol security status` (cert expiries, unchanged) and in the audit.
 
+## 15. Built 2026-09-18/19 — the application ring's screens
+
+The causal-tracing and owner-defined-permissions arcs (§17d/§17e of `ISLE_HARDENING_PLAN.md`; ledger §59–§66,
+including the addenda) added one wholly new Display page and a run of new panels on the existing
+`security-events` page — every one a configured table or the generic structured panel over a door, no raw JSON,
+no new reusable component. None of it has had a browser pass yet.
+
+**New page — `/display/apps-security`** (`modules/polariapps/apps_page.py`, ct-8, ledger §64):
+- `apps-security-coverage` — coverage per app × version: counts by kind and state, live instance counts per
+  class, and none / partial / full.
+- `apps-security-totals` — totals across every app version, and the vocabulary (8 kinds, 6 states).
+- `apps-security-open` — subjects nobody has ruled on yet, filtered server-side to `state=open` (a real gap,
+  not silence).
+- `apps-security-decisions` — every `SecurityDecision` row: app × version × kind × subject, its state, what
+  proposed it, and which person confirmed it (Keycloak `sub`, resolved to a name on screen only).
+- `apps-security-profiles` — the `AppPermissionProfile` rows a confirmation concretes.
+- `apps-security-apps` — the `PolariAppDefinition` rows these versions belong to.
+
+**New panels on the existing `/display/security-events` page** (`modules/security/security_page.py`):
+- `security-trace-status` — the one `TraceTarget` armed right now, its budgets and live counters, plus coverage
+  across every class ever traced (ct-1, ledger §61).
+- `security-trace-targets` — every `TraceTarget` there has ever been: budgets, counters, why it stopped (ct-1).
+- `security-trace-edges` — `CausalEdge`, the causal map: one counted row per cause → effect by means, class
+  level only (ct-1/ct-2, ledger §61/§63).
+- `security-closure-objects` — the closure of the armed class: every class × verb it transitively reaches, its
+  origin, whether it is reached only through a trigger running as definer, and its evidence (ct-4, ledger §63).
+- `security-closure-not-traced` — classes the closure touches that have never been armed as a `TraceTarget`
+  (ct-4).
+- `security-closure-solutions` — the solutions the closure runs, and as whom (ct-4).
+- `security-closure-events` — the events the closure fires or publishes, trigger firings and STOMP topics
+  included (ct-4).
+- `security-closure-flows` — where objects go: peer edges (shared-DB reads, lease writes, bundle exports) and
+  external sends, with the classes that rode each one (ct-2/ct-4).
+- `security-traffic-suggestions` — sends and callers this instance has observed that nobody has ruled on yet;
+  this list IS the monitoring (ct-9, ledger §66).
+- `security-traffic-outbound` — `OutboundPolicy` rows: what may leave, per system and wire, the payload classes
+  observed, state, and who ruled (ct-9).
+- `security-traffic-inbound` — `InboundPolicy` rows: who may call this instance — a peer name, an origin host,
+  or a class like `anonymous` — never a raw address (ct-9).
+- `security-traffic-declared` — the confirmed traffic policies drawn as the object topology's declared flows
+  (ct-9).
+
+**Interface gaps.** There is **no screen at all yet** for `OwnedClassPolicy` or `OwnerGrant` — owner-defined
+permissions (op-0, ledger §60) exist only as doors (`/api/security/owned*`); nobody can see or set a class's
+owner policy, or a per-instance verdict, without calling the API directly. There is **no page for the
+`objects` topology view** (ct-5) that `declared_flows()` and the closure's `flows` panel were shaped to feed —
+until it exists, drift between what an app declares and what the causal map actually observes has no picture,
+only the two data sources separately. And every panel listed above — new page and new rows alike — is proven
+only over the API; **the browser pass is owed on all of it** (ledger §61/§63/§64/§66 OWED sections).
+
 - **Device inventory + ssh as a vector (2026-09-13, his asks: "check where everything is installed and in what formats across our three devices" and "track ssh capabilities across polari devices … the ssh accounted for on the isle topology").** `os-security/inventory.sh` (read-only JSON: OS, docker/swarm, Polari containers/stacks/images/volumes, debs, apt sources, CLIs, checkouts, units, timers, guests, the rings' files, and ssh: listen addresses, auth methods via `sshd -T`, root login, authorized keys by TYPE and hashed comment — never key material, private keys present, outbound relationships, fail2ban, failed logins). `pol deploy inventory <node> [--post <core>]` ships and runs it; POST `/api/security/inventory` → `DeviceInventory` + `SshCapability` rows (`custom/security_ssh.py`: role inferred, formats named, verdict exposed / keys-only / closed with the vectors named); `/api/security/ssh` = the isle's ssh surface (who accepts what, who reaches whom); two panels on `/display/topology-isle`. The audit gained an `ssh` ring (key-only-login, no-root-login, authorized-key-types, brute-force-guard, failed-logins-24h) and the network view / threats a `ssh-password-guess` threat with the keys-only counterexample. Selftest 45/45.
