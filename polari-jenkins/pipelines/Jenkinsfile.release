@@ -46,6 +46,11 @@ pipeline {
     }
 
     stage('debs') {
+      // same reason as dev-build: jpackage/jlink need the jmods-bearing JDK, stage-scoped only.
+      environment {
+        JAVA_HOME = "${env.POLARI_BUILD_JAVA_HOME ?: '/usr/lib/jvm/java-21-openjdk-amd64'}"
+        PATH = "${env.POLARI_BUILD_JAVA_HOME ?: '/usr/lib/jvm/java-21-openjdk-amd64'}/bin:${env.PATH}"
+      }
       steps {
         sh '''set -eu
           mkdir -p "$POOL/$POLARI_VERSION/debs"

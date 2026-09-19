@@ -25,8 +25,16 @@ pipeline {
     // genuinely-new ones are fetched. CI_CACHE=off in device.env turns all of it
     // off; an EMPTY cache still builds, over the network, and says so.
     stage('debs (isle bundle + both merged flavors)') {
+      // The shell deb is jpackage'd, and jlink needs a JDK WITH jmods — the image's
+      // own Temurin-layout JDK has none. POLARI_BUILD_JAVA_HOME (controller/Dockerfile)
+      // is Debian's openjdk-21; it is scoped to THIS stage so Jenkins keeps its runtime.
+      environment {
+        JAVA_HOME = "${env.POLARI_BUILD_JAVA_HOME ?: '/usr/lib/jvm/java-21-openjdk-amd64'}"
+        PATH = "${env.POLARI_BUILD_JAVA_HOME ?: '/usr/lib/jvm/java-21-openjdk-amd64'}/bin:${env.PATH}"
+      }
       steps {
         sh '''set -eu
+          echo "[debs] build JDK $(jpackage --version) at $JAVA_HOME — $(ls "$JAVA_HOME/jmods" | wc -l) jmods"
           bash /var/polari-jenkins/cache.sh status | head -20
           export POLARI_WHEEL_CACHE="$(bash /var/polari-jenkins/cache.sh dir wheels)"
           export POLARI_APT_CACHE="$(bash /var/polari-jenkins/cache.sh dir apt)"

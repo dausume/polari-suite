@@ -129,9 +129,14 @@ PY
 post_kind() {   # post_kind <json on stdin>
     local url tok rc=0 out
     url="$(core_url)"
-    [ -n "$url" ] || { say "no CI_CORE_URL — nothing posted"; return 0; }
+    # Every caller pipes a python generator into this function. Returning without
+    # reading that pipe hands the generator EPIPE on its final flush — the
+    # "BrokenPipeError: [Errno 32]" that used to litter a green build's log. So
+    # each early exit DRAINS stdin first: nothing is posted, and nothing shouts.
+    [ -n "$url" ] || { cat >/dev/null; say "no CI_CORE_URL — nothing posted"; return 0; }
     tok="$(read_token)"
     if [ -z "$tok" ]; then
+        cat >/dev/null
         warn "no posting credential ($(secrets_dir)/$CICD_TOKEN_SECRET) — an administrator mints one with"
         warn "  POST $url/api/cicd/device/token   then: pol jenkins secrets put $CICD_TOKEN_SECRET"
         return 0
