@@ -22,7 +22,13 @@ pipeline {
           env.POLARI_TAG     = "polari-v${env.POLARI_VERSION}"
           env.POLARI_SHA     = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
         }
-        sh 'echo "Polari version: $POLARI_VERSION  tag: $POLARI_TAG  sha: $POLARI_SHA"; mkdir -p "$POOL/$POLARI_VERSION"'
+        // the images stage builds polari-rf-node's two nested submodules, which the
+        // non-recursive checkout above leaves empty — init exactly those two (both https;
+        // Isle-Mesh's ssh-URL nesting stays untouched, which is why there is no --recursive).
+        sh '''set -eu
+          git -C polari-rf-node submodule update --init --depth 1 polari-framework polari-platform-angular
+          echo "Polari version: $POLARI_VERSION  tag: $POLARI_TAG  sha: $POLARI_SHA"
+          mkdir -p "$POOL/$POLARI_VERSION"'''
       }
     }
     // -------------------------------------------------------------------

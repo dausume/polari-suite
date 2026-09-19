@@ -17,7 +17,13 @@ pipeline {
         checkout([$class: 'GitSCM', branches: [[name: '*/dev']],
                   userRemoteConfigs: [[url: 'https://github.com/dausume/polari-suite.git']],
                   extensions: [[$class: 'SubmoduleOption', recursiveSubmodules: false, parentCredentials: false, trackingSubmodules: false, shallow: true]]])
-        sh 'git rev-parse --short HEAD > .polari-sha; cat .polari-sha'
+        // …but the `images` stage builds polari-rf-node's TWO nested submodules, which a
+        // non-recursive checkout leaves empty (buildx: "failed to read dockerfile"). Both are
+        // https URLs, so init exactly those two — Isle-Mesh's ssh-URL nesting is never touched.
+        sh '''set -eu
+          git -C polari-rf-node submodule update --init --depth 1 polari-framework polari-platform-angular
+          ls polari-rf-node/polari-framework/Dockerfile polari-rf-node/polari-platform-angular/Dockerfile
+          git rev-parse --short HEAD > .polari-sha; cat .polari-sha'''
       }
     }
     // ci-9 (his ask 2026-09-19): the wheels, npm packages, distro debs and base
