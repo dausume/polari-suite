@@ -6607,3 +6607,39 @@ the tampered fixture is refused by the builder, as designed.
 8. Nothing is committed.
 
 **§74 meet-in-the-middle (Fable review):** the two halves were built against the same contract and checked against each other after both landed — `shells/build-pipeline-deb.sh` built `polari-pipeline_0.1.0_all.deb` against the REAL `polari-jenkins/shell-verbs.json` ("11 verbs, all argv[0] allowlisted"), and the root-side validator `pipeline/verb-argv.py` accepts `apt-install-tools` and `docker-group` with their declared parameters, refuses an extra parameter, a parameter failing its regex (`area=../etc`), any unprivileged verb offered to pkexec, and — on this box — every `pol` verb, because `pol` here is user-local (`~/.local/bin`), which is the designed refusal. Neither half has run on a screen or under a real pkexec prompt.
+
+## §75 — the home devices cleared for the pipeline run (2026-09-19, his ask): the swarm gone, the isle's own uninstall run as a test — DIRTY
+
+**pol-core:** `docker stack rm polari-lean` → the two named volumes (`polari-suite_kc_lean_db`, `polari-suite_prf_lean_data` —
+today's live rulings and observations went with them; the ledger holds the proofs) → container/image/builder prune →
+`docker swarm leave --force`. After: swarm `inactive`, 0 images, 0 containers, 0 volumes, 0 build cache (15.96 GB
+reclaimed). `.generated/` (the deploy answers) kept.
+
+**isle-core — the product's own uninstall as the test (his rule, §73 layer 1):** `sudo ISLE_CONFIRM_DELETE=yes isle
+uninstall --everything --force` exited 0 in 3 min 47 s; then `isle uninstall --verify` exited **1**:
+
+    [!] images remaining: 3 (harmless; docker rmi to clear)
+    [✗] /usr/share/isle-mesh still present
+    [✓] network owner: NetworkManager (active)
+    [✗] footprint remains (above)
+
+and the hand-back proof: route OK, **public DNS FAIL**, apt FAIL (no DNS). Findings against the product — **verdict
+`dirty`**, which under the §73 rule means core is NOT releasable until the uninstall is clean:
+1. `apt purge of every isle package` left `polari-complete 0.1.34` installed (so `/usr/share/isle-mesh` and the
+   `isle` symlink stayed); `/etc/polari` (install-mode, posture.json) and the user's `~/polari-isle` (root-owned
+   files) were not removed; 3 images remained.
+2. **The network hand-back lost DNS again** (the 2026-09-13 failure, unchanged): NetworkManager owned the network
+   and the Wi-Fi profile was DHCP with auto-DNS, but systemd-resolved had NO DNS server on ANY link — the isle's
+   hand-back cleared resolved's per-link DNS and did not re-apply the connection. A stock `dnsmasq` service was
+   still bound on 127.0.0.1:53 beside resolved's stubs. FIX that worked: `nmcli con up <wifi profile>` — resolved
+   re-learned the DHCP servers at once (`Current DNS Server` populated, `getent` + `apt update` OK). The uninstall
+   should end with exactly that re-apply (or `resolvectl revert <link>` + `nmcli con up`) and PROVE DNS before
+   printing "complete". `isle rescue network` still does not exist.
+The remainder was cleared by hand (apt purge polari-complete, rm the three dirs, rmi, rm the symlink) and libvirt +
+virt-install installed so isle-core becomes the throwaway target. After: 0 packages, 0 containers, 0 images, 0
+volumes, 0 VMs, 0 units, DNS OK, 5.4 GB available. These two findings go to isle-core's contract note (the isle
+CLI is isle-core's code); the pipeline's teardown (§73) would have recorded exactly this `dirty` verdict.
+
+**econ-core:** empty before (Odoo gone since the 09-13 purge; two old deb folders on the desktop left alone); the
+suite cloned on dev at `545bd5c` with polari-cli + polari-rf-node bootstrapped; a `polari-ci_ed25519` key + an
+`isle-core` ssh alias (user-level config, never tracked) authorised on isle-core; the hop + `sudo -n` proven.
