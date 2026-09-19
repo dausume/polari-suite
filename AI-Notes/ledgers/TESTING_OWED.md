@@ -4821,3 +4821,247 @@ Trace target armed and disarmed around a single claim/release (his one-class-at-
 
 ### Artefacts (scratchpad)
 `boot0.log`, `boot1.log`, `boot2.log` (full container logs per boot), `d2_*.json` / `e2_*.json` (the five objects-view doors before and after the observed flow), `topo_enforce.json`, `sim_enforce.json`, `topo_obs.json`, `edges.json`, `cov1.json`, `sq.sh` (the sqlite reader).
+
+## §70 — ci-7: the pipeline device — target choice, preflight, doctor, the secrets posture
+
+His ask, 2026-09-19: *"Make it configurable to choose between the pipeline
+device being where the throwaway isle goes, vs another device via ssh.
+However, we want a way to determine (A) if the device is clear and has
+sufficient space before running the pipeline that has the throwaway isle;
+(B) the configuration was set properly, and we warn the user if it is not
+and what was not set up properly; (C) that we have a way to do the
+automated deployment of the artifacts, and that the secrets involved in it
+are only accessible via either sudo or the pipeline process itself, never a
+third party."*
+
+Built on `dev`, **uncommitted**. Nothing was deployed, no VM was started,
+no container was brought up, nothing was pushed. `pol jenkins doctor` and
+`pol jenkins preflight --isle` were run for real on pol-core against both
+targets (isle-core read-only).
+
+---
+
+### What, and where
+
+| what | where | notes |
+|---|---|---|
+| the device configuration | `polari-jenkins/device.env.example` (tracked) + `device.env` (gitignored, new `.gitignore` line) | `CI_ISLE_TARGET=local\|ssh`, `CI_ISLE_SSH_HOST` (an **alias**, never an address), `CI_ISLE_SSH_USER`, `CI_ISLE_VM_NAME/RAM_GB/VCPUS/DISK_GB`, `CI_ISLE_NESTED=auto\|required\|off`, `CI_ISLE_POOL`, `CI_ISLE_IMAGE_URL`, `CI_MIN_FREE_GB=20`, `CI_MIN_RAM_HEADROOM_GB=1`, `CI_EXECUTORS=1`, `CI_ROUTES` |
+| the one loader/validator | `polari-jenkins/device.sh` | sourced by the CLI, the doctor, the preflight and the throwaway script. Precedence: an exported `CI_*` → `device.env` → defaults. `on_target` runs a snippet locally or over `ssh -o BatchMode=yes`. |
+| **(A) preflight** | `polari-jenkins/isle/preflight.sh` + `pol jenkins preflight [--isle] [--json]` | rows `check \| value \| floor \| verdict`; any FAIL = **exit 4**; header says explicitly it is a **resource guard, not a security gate** |
+| the "device is clear" reading | `polari-jenkins/isle/footprint.sh` + `footprint.py` | reuses `os-security/inventory.sh` (the same JSON `pol deploy inventory` shows); counts only Polari/isle things — docker, sshd, containerd, libvirtd are not a footprint |
+| the throwaway VM | `polari-jenkins/isle/throwaway.sh` (`up\|verify\|down\|status`) | ONE script for both targets: `CI_ISLE_TARGET=ssh` scp's itself + `device.sh` to the device and re-runs there with the config in the environment (never in a file on that device). Ubuntu 24.04 cloud image cached under `<pool>/images`, qcow2 overlay, cloud-init NoCloud seed, **an ssh key generated per run**, `0600` under the run dir, shredded by `down`. Idempotent. |
+| **(B) doctor** | `polari-jenkins/doctor.sh` + `pol jenkins doctor [--strict]` | `OK` / `WARN <what is wrong> → <what to do>`; **never refuses** (exit 0) so it runs at the end of `pol jenkins up` and `pol jenkins status`; `--strict` exits 1 on any WARN |
+| **(C) the secrets posture** | `polari-jenkins/secrets.sh`, `polari-jenkins/init-device.sh`, `pol jenkins init-device \| secrets put \| rm \| status` | `sudo pol jenkins init-device` creates the `polari-ci` system user (nologin, in `docker`), `/etc/polari-jenkins/secrets` **root:polari-ci 0750, files 0640**, MOVES anything already in the checkout there, chowns `jenkins_home/` + `pool/`, writes `JENKINS_UID/GID/POLARI_SECRETS_DIR` into `.env` |
+| the controller follows | `docker-compose.yml` | `user: "${JENKINS_UID:-${UID:-1000}}:${JENKINS_GID:-${GID:-1000}}"`, `${POLARI_SECRETS_DIR:-./secrets}:/run/secrets:ro`, the `CI_*` knobs passed through, `isle/`, `device.sh` and `mint-tag.sh` mounted |
+| **(C) the automated half** | `routes/_lib.sh` `arm()`, all four routes, `Jenkinsfile.publish`, `seed.groovy` | `DRY_RUN=auto` is now the default: a route publishes for real only when **its secret is present AND it is in `CI_ROUTES`**. Each route's first line is `ARMED` / `DRY (secret <name> absent)` / `DRY (not in CI_ROUTES)`. `DRY_RUN` is a `choiceParam auto\|true\|false`. |
+| the tag, fixed | `polari-jenkins/mint-tag.sh` + `Jenkinsfile.release` | `polari-vYYYY.MM.DD`, `.2/.3…` for a second release the same day, read from `git ls-remote` so a shallow CI checkout counts right. The malformed `polari-v2026.09.19+sha` is gone; the sha stays in `release.json`. A new `tag the superproject` stage pushes **only** when `github/github_token` or `github/github_ssh_key` is present, else prints the tag it would have made and carries on in dry. |
+| the isle-test pipeline | `pipelines/Jenkinsfile.isle-test` + a `polari-isle-test` job | preflight (FIRST stage, `--isle` then `--json` archived) → `throwaway.sh up` → `verify` → `down` in `post { always }`. The deb-install → core-install → verify → uninstall cycle is a clearly marked **ci-3 TODO**. |
+| casc | `casc/jenkins.yaml` | `numExecutors: ${CI_EXECUTORS:-1}` (was a hard `2`), `POLARI_ISLE` env, a `github_ssh_key` credential |
+| the CLI | `polari-cli/scripts/jenkins.sh` (rewritten dispatcher, ~95 lines) + `polari-cli/scripts/lib/jenkins-device.sh` (device/guide/secrets half) | `pol jenkins help` is current; `index.js`'s one-line description updated |
+| docs | `polari-jenkins/README.md`, `polari-jenkins/secrets/README.md` | fresh-box order: checkout → `sudo pol jenkins init-device` → `pol jenkins target …` → `secrets put` → `up` → `doctor` → `preflight --isle` |
+| tests | `polari-jenkins/selftest.sh` | **56/56**, no docker, libvirt, sudo or network |
+
+---
+
+### The real outputs (pol-core, 2026-09-19)
+
+`pol jenkins doctor` — **local target** (7 WARN, exit 0):
+
+```
+polari-jenkins doctor — what is configured, and what is not (read-only; it changes nothing)
+device: this machine   user: user   secrets posture: repo
+
+-- the pipeline device (device.env)
+OK    device.env                 — …/polari-jenkins/device.env — present
+OK    CI_ISLE_TARGET             — local — the throwaway isle is created on this machine
+OK    CI_ISLE_VM_RAM_GB          — 4        … CI_ISLE_VM_DISK_GB 30, CI_MIN_FREE_GB 20, CI_EXECUTORS 1
+OK    CI_ROUTES                  — github-release,ghcr,homebrew,apt-repo — routes that may publish for real
+
+-- the controller (.env, compose)
+WARN  .env                       — absent → pol jenkins up writes it from .env.example
+OK    port binding               — 127.0.0.1 only (compose)
+OK    listening                  — nothing on port 8080 (controller down)
+OK    numExecutors               — casc follows CI_EXECUTORS (=1)
+
+-- state directories
+WARN  jenkins_home               — absent → pol jenkins up creates it
+OK    pool                       — user:user 775 (repo posture — the host user owns it)
+
+-- secrets — (C): reachable by sudo or the pipeline process, by nobody else
+WARN  posture                    — REPO — secrets are readable by every process of user user
+                                   (…/polari-jenkins/secrets) → sudo pol jenkins init-device — it creates the
+                                   polari-ci user and moves them to /etc/polari-jenkins/secrets (root:polari-ci 0640)
+OK    modes                      — every secret is 0600
+OK    git                        — no real secret is visible to git
+
+-- publication routes — ARMED (publishes for real) vs DRY (renders only)
+OK    route github-release       — DRY (secret absent: github/github_token)
+OK    route ghcr                 — DRY (secret absent: registries/ghcr_token)
+OK    route homebrew             — DRY (secret absent: github/github_token)
+OK    route apt-repo             — DRY (secret absent: signing/apt_signing_gpg signing/apt_signing_keyid ssh/distribution_host_key)
+OK    routes parked              — dockerhub npm pypi launchpad snap (routes/later/ — they need an outside account)
+
+-- the docker socket — membership is root-equivalent
+OK    docker group               — user (1 member(s); membership is root-equivalent)
+
+-- virtualisation on this machine
+WARN  /dev/kvm                   — absent, and CI_ISLE_TARGET=local — the throwaway isle cannot be created here
+                                   → pol jenkins target ssh <alias> to put the isle on a device with KVM
+WARN  libvirt client             — virsh absent and the isle target is local
+                                   → apt install libvirt-clients virtinst qemu-utils cloud-image-utils
+
+-- network
+WARN  wired IPv4                 — only a wireless interface carries an address ( wlx…) — builds will pull over Wi-Fi
+                                   → plug the device in: a release build pulls gigabytes and a dropped Wi-Fi link fails the run
+OK    git origin                 — reachable — polling works (public repos need no token)
+
+-- the pool
+WARN  pool floor                 — [retention] REFUSED to build: only 14 GB free, floor is 20 GB
+                                   → bash polari-jenkins/retention.sh prune, or lower CI_MIN_FREE_GB knowingly
+
+doctor: 7 warning(s) above — each says what is wrong and what to do. (Nothing was changed.)
+```
+
+`pol jenkins doctor` — **ssh target `isle-core`** (5 WARN; the isle half all OK):
+
+```
+-- the isle device over ssh
+OK    ssh target                 — isle-core reachable (BatchMode — no prompt)
+OK    target sudo -n             — passwordless
+OK    target /dev/kvm            — present
+-- virtualisation on this machine
+OK    /dev/kvm                   — absent here, but the isle target is ssh:isle-core
+OK    libvirt client             — not needed here (the isle target is remote)
+```
+
+`pol jenkins preflight --isle` — **local** (exit 4):
+
+```
+polari-jenkins preflight — RESOURCE GUARD (not a security gate): it refuses a run
+that would exhaust the device or build a throwaway isle on a device that has a real one.
+target: this machine   vm: polari-ci-isle 4GB/2vcpu/30GB   isle checks: on
+
+check                              value                  floor        verdict
+target reachable                   local                  -            PASS
+pool free (retention guard)        only 14 GB             20GB         FAIL
+/dev/kvm on the target             absent                 present      FAIL
+nested KVM                         unreadable             Y            FAIL
+free RAM on the target             8GB                    10GB         FAIL   ↳ short by 2GB
+  RAM budget                       VM 4 + controller 2 + build 3 + headroom 1   10GB   PASS
+free disk on …/polari-jenkins/pool 14GB                   50GB         FAIL   ↳ short by 36GB
+virt-install on the target         absent                 present      FAIL
+qemu-img on the target             absent                 present      FAIL
+virsh on the target                absent                 present      FAIL
+cloud-init seed tool               present                …            PASS
+no VM named polari-ci-isle         none                   none         PASS
+device is clear of Polari          NOT clear              nothing      WARN
+  ↳ this is the pipeline device itself — a local throwaway VM coexists, but the VM name must stay unique.
+    Found: containers:6 stacks:1 images:5 checkouts:1 volumes:2 pol-cli
+
+REFUSED: 8 check(s) FAIL, 1 warn — fix the rows above (exit 4)
+```
+
+`pol jenkins preflight --isle` — **ssh `isle-core`** (exit 4; the device is
+fit but is NOT a throwaway, which is exactly the FAIL he asked for):
+
+```
+target: ssh:isle-core   vm: polari-ci-isle 4GB/2vcpu/30GB   isle checks: on
+
+target reachable                   isle-core              -            PASS   ↳ ssh BatchMode
+target sudo -n                     yes                    yes          PASS
+pool free (retention guard)        only 14 GB             20GB         FAIL   (pol-core's pool, not isle-core's)
+/dev/kvm on the target             present                present      PASS
+nested KVM                         Y                      Y            PASS
+free RAM on the target             5GB                    5GB          PASS
+free disk on /var/lib/libvirt/images 826GB                50GB         PASS
+virt-install on the target         absent                 present      FAIL   ↳ install libvirt/qemu on ssh:isle-core
+qemu-img on the target             present                present      PASS
+virsh on the target                present                present      PASS
+cloud-init seed tool               present                …            PASS
+no VM named polari-ci-isle         none                   none         PASS
+device is clear of Polari          NOT clear              nothing      FAIL
+  ↳ ssh:isle-core carries a real Polari/isle installation — a throwaway run would fight it; pick an empty device.
+    Found: debs:1 containers:4 images:5 units:4 checkouts:1 guests:1 volumes:1 /etc/isle-mesh /etc/polari isle-cli /usr/share/isle-mesh
+
+REFUSED: 3 check(s) FAIL, 0 warn — fix the rows above (exit 4)
+```
+
+(The LAN address of neither machine appears anywhere: the config carries an
+ssh **alias**; `<lan>` is never written into a tracked file.)
+
+### selftest
+
+```
+polari-jenkins selftest — no docker, no libvirt, no sudo, no network
+-- mint-tag: polari-vYYYY.MM.DD, .N for a second release the same day
+-- routes: ARMED vs DRY (secret absent) vs DRY (not in CI_ROUTES)
+-- preflight: the arithmetic, and the device-is-clear reading
+-- doctor: one WARN per misconfiguration, each naming the fix
+
+56/56
+```
+
+6 tag-minting cases (base, `.2`, `.3`, a peeled `^{}` ref counted once,
+another day ignored, no `+sha`), 8 arming cases, 20 preflight cases
+(RAM/disk shortfalls with "short by", missing KVM/nested/tools, a leftover
+VM, a dirty vs clear device, unreachable target, no `sudo -n`, exit 0 vs 4,
+`--json` shape), 22 doctor cases (each misconfiguration's wording, the
+`--strict` exit, and a check that no secret VALUE is ever printed).
+
+---
+
+### Gotchas found and fixed while building
+
+- **`set -euo pipefail` in a sourced file changes the caller's shell.**
+  `device.sh` / `secrets.sh` / `footprint.sh` now apply strict mode only
+  when executed directly; every executable sets its own.
+- **`grep` in a `$(…)` pipeline under `pipefail` kills the script** when it
+  matches nothing — this silently truncated the doctor's output at the
+  "git" check on the first run. Every such pipeline now ends `|| true`.
+- **A non-numeric reading crashed the preflight's arithmetic**: `[ "$x" -ge
+  "$y" ]` with a path in `$x` aborted the remaining checks and still
+  reported "clear to run" — a false PASS. `cmp_row` now treats anything
+  non-numeric as `unknown` and marks it FAIL.
+- **`python3 - <<'PY'` feeds the SCRIPT on stdin**, so a heredoc'd analyser
+  cannot also read piped JSON — the footprint summariser silently returned
+  "unreadable". It is now `isle/footprint.py`, a real file (and testable).
+- **`VAR=x "$@" cmd`** does not treat `"$@"` as assignments; the selftest's
+  harness needs `env`.
+- `pol jenkins logs` verified to print secret **names** only
+  (`controller/entrypoint.sh:16`) — no value reaches a log.
+- Compose nested defaults (`${JENKINS_UID:-${UID:-1000}}`) do interpolate
+  correctly here (`docker compose config` → `user: 1000:1000`), so the
+  fallback posture still works before `init-device` has run.
+- `POLARI_SECRETS_DIR` is deliberately left **empty** in `.env.example`: a
+  non-empty default would make docker create `/etc/polari-jenkins/secrets`
+  as root on a box where `init-device` never ran, which reads like the
+  system posture without being it.
+
+---
+
+### OWED
+
+1. **The econ-core move is his** — bootstrap the checkout there, `sudo pol
+   jenkins init-device`, then put the secrets in
+   (`github/github_token` `contents:write`, `registries/ghcr_token`
+   `write:packages`; cosign and the apt pair later). Nothing in ci-7 does
+   that for him, by design.
+2. **`throwaway.sh up` has never run against real libvirt.** pol-core has
+   no `/dev/kvm`; isle-core is not clear (correctly refused). The first
+   real bring-up needs a KVM box that is empty — econ-core once it is set
+   up, or isle-core with `CI_ISLE_VM_NAME` unique and the footprint FAIL
+   knowingly overridden (there is no override flag today: the honest path
+   is an empty device).
+3. **ci-3: the install cycle inside the guest** — deb → `isle core-install`
+   → verify (incl. the router guest on nested KVM) → `isle uninstall
+   --everything` + `--verify` + the default-Ubuntu hand-back proof. Marked
+   TODO in `Jenkinsfile.isle-test`.
+4. **The local-target libvirt caveat**: the controller is a container and
+   libvirt is on the host, so `CI_ISLE_TARGET=local` needs either the
+   libvirt socket mounted in (a posture change — his call) or a host-tier
+   agent. The ssh target avoids it entirely.
+5. `isle-core` lacks `virt-install` (it has `virsh` + `qemu-img` +
+   `cloud-localds`) — one `apt install virtinst` on that box, when/if it is
+   ever the target.
+6. Nothing is committed. `polari-jenkins/device.env` on pol-core is
+   currently `CI_ISLE_TARGET=local` and is gitignored.

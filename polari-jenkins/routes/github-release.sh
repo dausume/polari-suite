@@ -1,7 +1,7 @@
 #!/bin/bash
 # GitHub Release on dausume/polari-suite: tag polari-v<VERSION>, upload debs + SHA256SUMS + release.json + offline chunks. The canonical home.
 source "$(dirname "$0")/_lib.sh"
-need GITHUB_TOKEN github/github_token
+arm GITHUB_TOKEN:github/github_token
 export GH_TOKEN="$GITHUB_TOKEN"
 TAG="polari-v$VERSION"; REPO=dausume/polari-suite
 SHA=$(manifest "['components']['superproject']['sha']")

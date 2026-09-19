@@ -10,8 +10,15 @@ pipeline {
         checkout([$class: 'GitSCM', branches: [[name: '*/main']],
                   userRemoteConfigs: [[url: 'https://github.com/dausume/polari-suite.git']],
                   extensions: [[$class: 'SubmoduleOption', recursiveSubmodules: false, parentCredentials: false, shallow: true]]])
-        script { env.POLARI_VERSION = sh(returnStdout: true, script: "date +%Y.%m.%d").trim() + '+' + sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim() }
-        sh 'echo "Polari version: $POLARI_VERSION"; mkdir -p "$POOL/$POLARI_VERSION"'
+        // ci-7: the version IS the tag name (POLARI_VERSIONING_PLAN §2) — polari-vYYYY.MM.DD, .N for a
+        // second release the same day. The old 'YYYY.MM.DD+<sha>' minted the malformed tag polari-v…+sha;
+        // the sha lives in release.json, where every component sha already is.
+        script {
+          env.POLARI_VERSION = sh(returnStdout: true, script: 'bash /var/polari-jenkins/mint-tag.sh').trim()
+          env.POLARI_TAG     = "polari-v${env.POLARI_VERSION}"
+          env.POLARI_SHA     = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+        }
+        sh 'echo "Polari version: $POLARI_VERSION  tag: $POLARI_TAG  sha: $POLARI_SHA"; mkdir -p "$POOL/$POLARI_VERSION"'
       }
     }
     stage('debs') {
@@ -49,10 +56,36 @@ PY'''
       steps { sh 'bash ./build-offline-medium.sh --version "$POLARI_VERSION" --target ubuntu-22.04 && cp -r "offline-build/$POLARI_VERSION" "$POOL/$POLARI_VERSION/offline"' }
     }
     stage('checksums') { steps { sh 'cd "$POOL/$POLARI_VERSION" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && wc -l SHA256SUMS' } }
+    // ci-7 (C): the tag is pushed ONLY when the credential that may push is present. Without it the job
+    // says which tag it WOULD have made and carries on in dry — a release never depends on a secret
+    // being there, and no secret is ever printed (Jenkins masks the bound values).
+    stage('tag the superproject') {
+      steps {
+        withCredentials([string(credentialsId: 'github_token', variable: 'GITHUB_TOKEN'),
+                         string(credentialsId: 'github_ssh_key', variable: 'GITHUB_SSH_KEY')]) {
+          sh '''set -eu
+            REPO=dausume/polari-suite
+            if [ -n "${GITHUB_TOKEN:-}" ]; then
+              git tag -a "$POLARI_TAG" -m "Polari $POLARI_VERSION"
+              git push "https://x-access-token:$GITHUB_TOKEN@github.com/$REPO.git" "refs/tags/$POLARI_TAG"
+              echo "[tag] pushed $POLARI_TAG (contents:write via github/github_token)"
+            elif [ -n "${GITHUB_SSH_KEY:-}" ]; then
+              K=$(mktemp); printf '%s\\n' "$GITHUB_SSH_KEY" > "$K"; chmod 0600 "$K"
+              git tag -a "$POLARI_TAG" -m "Polari $POLARI_VERSION"
+              GIT_SSH_COMMAND="ssh -i $K -o StrictHostKeyChecking=accept-new" git push "git@github.com:$REPO.git" "refs/tags/$POLARI_TAG"
+              rm -f "$K"; echo "[tag] pushed $POLARI_TAG (github/github_ssh_key)"
+            else
+              echo "[tag] DRY: would have made and pushed $POLARI_TAG at $POLARI_SHA — neither github/github_token nor github/github_ssh_key is present (pol jenkins secrets put github/github_token)"
+            fi'''
+        }
+      }
+    }
     // stage('tests') — absent by ruling; ci-3 (throwaway-VM isle tests) lands here before publish.
   }
   post {
-    success { build job: 'polari-publish', wait: false, parameters: [string(name: 'VERSION', value: env.POLARI_VERSION), booleanParam(name: 'DRY_RUN', value: true), string(name: 'ROUTES', value: 'github-release,apt-repo,ghcr')] }
+    // ci-7: DRY_RUN=auto — each route publishes for real only when its secret is present AND it is
+    // named in CI_ROUTES (device.env). Nothing is armed by being triggered.
+    success { build job: 'polari-publish', wait: false, parameters: [string(name: 'VERSION', value: env.POLARI_VERSION), string(name: 'DRY_RUN', value: 'auto'), string(name: 'ROUTES', value: env.CI_ROUTES ?: 'github-release,ghcr,homebrew,apt-repo')] }
     always { sh 'bash /var/polari-jenkins/retention.sh prune || true'; cleanWs() }
   }
 }

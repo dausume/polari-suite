@@ -1,7 +1,7 @@
 #!/bin/bash
 # Homebrew tap: bump the pol formula in dausume/homebrew-polari to this release's tarball + sha256.
 source "$(dirname "$0")/_lib.sh"
-need GITHUB_TOKEN github/github_token
+arm GITHUB_TOKEN:github/github_token
 export GH_TOKEN="$GITHUB_TOKEN"; TAP=dausume/homebrew-polari; TAG="polari-v$VERSION"
 URL="https://github.com/dausume/polari-suite/archive/refs/tags/$TAG.tar.gz"
 SHA=$( [ "$DRY_RUN" = 1 ] && echo "<sha256 of $URL>" || curl -fsSL "$URL" | sha256sum | cut -d' ' -f1 )

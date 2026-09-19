@@ -535,3 +535,21 @@ app-level, over the pipeline AND the artifacts (debs, images, source) —
 where no scan ever blocks a build or a publish; (2) **real artifact
 releases on merges to main** (today `polari-release` always triggers
 `polari-publish` with `DRY_RUN=true`, §6). Phases scn-0..6 / rel-0..3.
+
+## 9. ci-7 — the pipeline device (his ask 2026-09-19; BUILT, ledger §70)
+
+Configurable throwaway-isle target (`polari-jenkins/device.env`: `CI_ISLE_TARGET=local|ssh <alias>` + VM
+size + floors + `CI_ROUTES`), `pol jenkins preflight --isle` = (A) the resource guard (target reachable, KVM +
+nested, free RAM/disk against the VM size, libvirt tooling, no VM of that name, the device CLEAR of any Polari
+footprint via `os-security/inventory.sh` — a live isle is refused), `pol jenkins doctor` = (B) every
+misconfiguration named with its fix (runs after `up`/`status`), `sudo pol jenkins init-device` = (C) the
+`polari-ci` system user runs the controller and `/etc/polari-jenkins/secrets` is root:polari-ci 0750/0640 —
+readable by sudo and the pipeline process only; `DRY_RUN=auto` arms a route only when its secret exists AND it is
+in `CI_ROUTES`; the release tag is `polari-vYYYY.MM.DD[.N]` (the `+sha` form is gone), pushed only with a github
+credential. `pipelines/Jenkinsfile.isle-test` = preflight → throwaway up → verify → down (the ci-2c install cycle
+stays ci-3). selftest.sh 56/56. Measured 2026-09-19: econ-core (N95 4c / 7.5 GB / 256 GB NVMe / KVM nested, idle)
+fits controller + builds + scans serialised, NOT a concurrent isle VM — recommended split: econ-core = pipeline
+device, the throwaway isle on a device with KVM and no live isle (or econ-core at 16 GB). OWED (his): bootstrap
+the checkout on econ-core, `init-device`, `target`, secrets, a wired IPv4 there; a real `throwaway.sh up` on a
+KVM box; the local-target caveat (the controller is a container; libvirt is on the host — an ssh target
+sidesteps it).

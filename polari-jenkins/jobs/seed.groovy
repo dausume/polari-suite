@@ -21,8 +21,18 @@ pipelineJob('polari-publish') {
     logRotator { numToKeep(50) }
     parameters {
         stringParam('VERSION', '', 'polari version under pool/ (e.g. 2026.09.07-dev+7d6db81)')
-        booleanParam('DRY_RUN', true, 'render only — the default; set false to push')
-        stringParam('ROUTES', 'github-release,apt-repo,ghcr', 'comma list of ACTIVE routes: github-release,apt-repo,ghcr,homebrew (parked: routes/later/)')
+        // ci-7 (C): auto = publish for real only where the secret is present AND the route is in CI_ROUTES
+        choiceParam('DRY_RUN', ['auto', 'true', 'false'], 'auto (default): armed per route by secret + CI_ROUTES · true: render only · false: force a real push')
+        stringParam('ROUTES', 'github-release,ghcr,homebrew,apt-repo', 'comma list of ACTIVE routes (parked: routes/later/)')
     }
     definition { cps { script(pipe('Jenkinsfile.publish')); sandbox(true) } }
+}
+
+// ci-7: the throwaway-isle job. Preflight FIRST (the device must be clear and
+// have room), then up → verify → down. Manual only — nothing polls it, and the
+// deb-install cycle inside the guest is ci-3.
+pipelineJob('polari-isle-test') {
+    description('ci-7: preflight the pipeline device, stand a throwaway isle VM up on it (device.env: local or ssh), verify, destroy. Publishes nothing.')
+    logRotator { numToKeep(20) }
+    definition { cps { script(pipe('Jenkinsfile.isle-test')); sandbox(true) } }
 }

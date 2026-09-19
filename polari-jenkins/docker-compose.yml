@@ -8,7 +8,11 @@ services:
     image: polari-jenkins:local
     container_name: polari-jenkins
     restart: unless-stopped
-    user: "${UID:-1000}:${GID:-1000}"
+    # ci-7 (C): after `sudo pol jenkins init-device` this is the polari-ci
+    # system user — the "pipeline process" that may read the secrets. Before
+    # it has run, the fallback is the host user and the doctor says loudly
+    # that the secrets are then readable by every process of that user.
+    user: "${JENKINS_UID:-${UID:-1000}}:${JENKINS_GID:-${GID:-1000}}"
     group_add:
       - "${DOCKER_GID:-999}"
     ports:
@@ -19,6 +23,20 @@ services:
       - JENKINS_OPTS=--httpListenAddress=0.0.0.0
       - HOME=/var/jenkins_home
       - POLARI_POOL=/var/polari-pool
+      # ci-7: the pipeline device configuration reaches the jobs (and casc's
+      # numExecutors) as environment; `pol jenkins up` exports it from device.env.
+      - CI_EXECUTORS=${CI_EXECUTORS:-1}
+      - CI_ROUTES=${CI_ROUTES:-github-release,ghcr,homebrew,apt-repo}
+      - CI_ISLE_TARGET=${CI_ISLE_TARGET:-local}
+      - CI_ISLE_SSH_HOST=${CI_ISLE_SSH_HOST:-}
+      - CI_ISLE_SSH_USER=${CI_ISLE_SSH_USER:-}
+      - CI_ISLE_VM_NAME=${CI_ISLE_VM_NAME:-polari-ci-isle}
+      - CI_ISLE_VM_RAM_GB=${CI_ISLE_VM_RAM_GB:-4}
+      - CI_ISLE_VM_VCPUS=${CI_ISLE_VM_VCPUS:-2}
+      - CI_ISLE_VM_DISK_GB=${CI_ISLE_VM_DISK_GB:-30}
+      - CI_ISLE_NESTED=${CI_ISLE_NESTED:-auto}
+      - CI_MIN_FREE_GB=${CI_MIN_FREE_GB:-20}
+      - CI_MIN_RAM_HEADROOM_GB=${CI_MIN_RAM_HEADROOM_GB:-1}
     volumes:
       - ${JENKINS_HOME:-./jenkins_home}:/var/jenkins_home
       - ./casc:/var/jenkins_casc:ro
@@ -26,7 +44,12 @@ services:
       - ./pipelines:/var/polari-jenkins/pipelines:ro
       - ./routes:/var/polari-jenkins/routes:ro
       - ./retention.sh:/var/polari-jenkins/retention.sh:ro
-      - ./secrets:/run/secrets:ro
+      - ./isle:/var/polari-jenkins/isle:ro
+      - ./mint-tag.sh:/var/polari-jenkins/mint-tag.sh:ro
+      - ./device.sh:/var/polari-jenkins/device.sh:ro
+      # /etc/polari-jenkins/secrets (root:polari-ci 0640) after init-device;
+      # ./secrets (host user, 0600) only until it has run — see secrets/README.md
+      - ${POLARI_SECRETS_DIR:-./secrets}:/run/secrets:ro
       - ./pool:/var/polari-pool
       - /var/run/docker.sock:/var/run/docker.sock
     mem_limit: 2g

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Our signed apt repo on the distribution VM (apt.polari-systems.org): reprepro include + rsync. ⛔ KC rotation before this host faces the web.
 source "$(dirname "$0")/_lib.sh"
-need APT_SIGNING_GPG signing/apt_signing_gpg; need APT_SIGNING_KEYID signing/apt_signing_keyid; need DISTRIBUTION_HOST_KEY ssh/distribution_host_key
+arm APT_SIGNING_GPG:signing/apt_signing_gpg APT_SIGNING_KEYID:signing/apt_signing_keyid DISTRIBUTION_HOST_KEY:ssh/distribution_host_key
 HOST="${APT_HOST:-deploy@apt.polari-systems.org}"; REPO_DIR="${APT_REPO_DIR:-/srv/apt}"; DIST="${APT_DIST:-stable}"
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 export GNUPGHOME="$WORK/gnupg"; mkdir -m 0700 "$GNUPGHOME"

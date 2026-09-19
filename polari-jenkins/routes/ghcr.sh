@@ -1,7 +1,7 @@
 #!/bin/bash
 # GHCR: push prf-backend / prf-frontend / pol-reticulum as ghcr.io/dausume/<name>:<VERSION> (+ :latest), cosign-signed.
 source "$(dirname "$0")/_lib.sh"
-need GHCR_TOKEN registries/ghcr_token
+arm GHCR_TOKEN:registries/ghcr_token
 REG="${GHCR_NS:-ghcr.io/dausume}"
 run bash -c "printf '%s' \"\$GHCR_TOKEN\" | docker login ghcr.io -u dausume --password-stdin"
 for name in prf-backend prf-frontend pol-reticulum; do

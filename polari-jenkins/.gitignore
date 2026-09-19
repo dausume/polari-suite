@@ -5,6 +5,7 @@ secrets/**
 !secrets/**/*.example
 !secrets/**/.gitkeep
 .env
+device.env
 pool/**
 !pool/.gitkeep
 jenkins_home/

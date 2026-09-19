@@ -1,0 +1,63 @@
+// polari-isle-test — ci-7 SKELETON: prove the pipeline can stand a throwaway
+// isle up on the configured device and tear it down again. It publishes
+// nothing, installs nothing, and deploys nothing.
+//
+// PREFLIGHT IS THE FIRST STAGE, always (his ask (A) 2026-09-19): before the
+// job touches the device it proves the device is CLEAR — no VM by our name,
+// no Polari/isle footprint of its own — and has the RAM and disk the run
+// needs. A FAIL there exits 4 and the job stops with the table in the log.
+//
+// WHERE the VM goes is device.env (CI_ISLE_TARGET=local|ssh). With
+// CI_ISLE_TARGET=ssh the whole isle half happens on the other device over
+// ssh and this controller only orchestrates.
+//
+// ⚠ LOCAL TARGET CAVEAT: this controller is a CONTAINER and libvirt lives on
+// the host. The local path therefore needs either the libvirt socket mounted
+// into the controller (a posture change nobody has authorised) or the job
+// run by a host-tier agent. The ssh target has no such problem — which is
+// the reason ci-7 makes the device configurable at all. The doctor says so.
+pipeline {
+  agent any
+  options { timestamps(); timeout(time: 90, unit: 'MINUTES'); disableConcurrentBuilds(); lock(resource: 'polari-build') }
+  environment { ISLE = "${env.POLARI_ISLE ?: '/var/polari-jenkins/isle'}" }
+  stages {
+
+    stage('preflight — is the device clear, and does it have room?') {
+      steps {
+        sh 'bash "$ISLE/preflight.sh" --isle'          // exit 4 = REFUSED, with the table
+        sh 'bash "$ISLE/preflight.sh" --isle --json > preflight.json; cat preflight.json'
+      }
+      post { always { archiveArtifacts artifacts: 'preflight.json', allowEmptyArchive: true } }
+    }
+
+    stage('throwaway isle up') {
+      steps { sh 'bash "$ISLE/throwaway.sh" status; bash "$ISLE/throwaway.sh" up' }
+    }
+
+    stage('verify the guest') {
+      steps { sh 'bash "$ISLE/throwaway.sh" verify' }
+    }
+
+    // ---------------------------------------------------------------------
+    // TODO (ci-3, NOT in ci-7): the real cycle inside this guest —
+    //   1. copy pool/<version>/debs/polari-complete_*.deb into the guest
+    //   2. dpkg -i / apt install it, then `isle core-install` (the guided
+    //      install, non-interactive answers)
+    //   3. verify: the isle answers, its router guest booted (nested KVM),
+    //      `pol modules health`, the app store lists the catalogue
+    //   4. `isle uninstall --everything` + `uninstall --verify`, and prove
+    //      the hand-back: a default Ubuntu still has route, DNS and apt
+    //      (his rule, uninstall-lifecycle / "uninstall hands back a working
+    //      Ubuntu")
+    // CICD_PIPELINE_PLAN.md §1 and §3 own that cycle; ci-7 only proves the
+    // device is fit and that a VM can be made and destroyed on it.
+    // ---------------------------------------------------------------------
+    stage('deb install cycle (ci-3 — not built)') {
+      steps { echo 'ci-3: deb install → isle core-install → verify → uninstall --verify. Deliberately absent; see the TODO above.' }
+    }
+  }
+  post {
+    always  { sh 'bash "$ISLE/throwaway.sh" down || true' }   // a throwaway that survives a failure is not a throwaway
+    cleanup { cleanWs() }
+  }
+}

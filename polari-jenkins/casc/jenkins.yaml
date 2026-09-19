@@ -4,7 +4,7 @@
 # depends on a credential being present — the ROUTE refuses instead.
 jenkins:
   systemMessage: "polari-jenkins — host-tier build + publish. Polls GitHub; publishes only with DRY_RUN=false and a present secret."
-  numExecutors: 2
+  numExecutors: ${CI_EXECUTORS:-1}   # ci-7: follows device.env CI_ROUTES/CI_EXECUTORS; ONE build at a time on a home box
   mode: NORMAL
   securityRealm:
     local:
@@ -26,6 +26,8 @@ jenkins:
             value: /var/polari-pool
           - key: POLARI_ROUTES
             value: /var/polari-jenkins/routes
+          - key: POLARI_ISLE
+            value: /var/polari-jenkins/isle
           - key: DRY_RUN_DEFAULT
             value: "1"
           # data retention knobs (his rule 2026-09-08: no automated process overwhelms the host)
@@ -48,6 +50,7 @@ credentials:
     domainCredentials:
       - credentials:
           - string: { scope: GLOBAL, id: github_token,        description: "GitHub token (releases)",        secret: "${github_token:-}" }
+          - string: { scope: GLOBAL, id: github_ssh_key,      description: "GitHub deploy key (tag push, optional)", secret: "${github_ssh_key:-}" }
           - string: { scope: GLOBAL, id: ghcr_token,          description: "GHCR write:packages",            secret: "${ghcr_token:-}" }
           - string: { scope: GLOBAL, id: apt_signing_gpg,     description: "apt repo signing key (armored)",  secret: "${apt_signing_gpg:-}" }
           - string: { scope: GLOBAL, id: apt_signing_keyid,   description: "apt repo signing key id",         secret: "${apt_signing_keyid:-}" }
