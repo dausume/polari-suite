@@ -3873,3 +3873,268 @@ SecurityDecision` — the table restore gets there first.
 
 **REGRESSION FOUND on the way (ct-9):** the confirmed traffic rows §66 addendum 4 proved surviving do NOT survive
 today — D2 above. Re-prove after the D2 fix deploys.
+
+### §66 addendum 5 — the D2 fix: one rule for both restore paths (2026-09-19, fixed, selftested)
+
+D1/D3 stopped the main restore path crashing and taught the merge to fold duplicates on its already-restored
+branch, but the two paths still disagreed about what "this row is already here" means: `identifySeedDBIds`
+(`objectTreeManagerDecorators.py:~1186`) decides by a ≥ 60 % property FINGERPRINT, the merge by id and name. A
+persisted row that has DIVERGED from its boot-time twin — a person's `confirmed` ruling beside an observer's
+`suggested` guess — matches on the descriptive half and is dropped as if it were a re-created seed. Live on
+`polari-lean` every boot: `[DB] Found 1 seed IDs for InboundPolicy`, and no restore of that table. Where the
+merge runs afterwards it puts the row back; where it does not — a module whose admission died between
+`restoreTables()` and `ensureDefinitionTables()`, which D1 did four times — the ruling is gone and the next
+persist writes the half-booted tree over it.
+
+**The fix** (framework commit "§66 addendum 5 D2 core"): `polariServer` publishes the merge's remit to the
+manager (`_noteMergeGovernedClasses`, called where the def classes are registered and again in
+`ensureDefinitionTables` so dyn-2 live admissions are covered), and `identifySeedDBIds` SKIPS those classes
+entirely — they restore by id and the §66e name-merge folds the boot-time twin (persisted wins every field,
+counters summed, twin tombstoned). One rule governs both paths for every `defClassList` class; every other class
+keeps the fingerprint byte-for-byte, because a pure seed whose code definition changed must still lose to the
+code and only the merge can make that call by name. The generic rule ("any differing column ⇒ not a seed") was
+considered and rejected: it is that same changed-seed case, and without a name-merge behind it, it duplicates
+the seed permanently.
+
+**Selftests.** `polariApiServer/selftest_restore_from_database.py` **25/25** (22/25 with the exemption patched
+out — the three D2 checks, including "the ruling survives an admission that dies before the merge"); it also pins
+the bound: a pure seed duplicate of a non-merge class is still dropped, and a pure seed of a merge-governed class
+is deduplicated by the merge rather than by resemblance. Regression: restore_merge 17/17, persist_debounce
+13/13, persist_tombstones 43/43, crude_delete_blast 21/21, quiesce 27/27, outbound 61/61, cause_context 41/41,
+apps 125/125, security 250/253 (the 3 known env failures), import clean, `selftest_lazy_boot` 33/34 (the
+pre-existing manifest-drift pin).
+
+**OWED:** unproven live — the image on `polari-lean` carries none of addendum 5, so the ct-9
+`InboundPolicy`/`OutboundPolicy` confirmations lost across today's restarts are to be re-checked after the next
+rebuild; the `restoreTables()`-cancels-a-tombstone resurrection is described, not tested.
+
+## §69 — op-1 + op-2 + op-4: owner grants, anonymised classes, and the `app.owned` stanza (2026-09-19, built, selftested)
+
+Design `AI-Notes/designs/OWNER_DEFINED_PERMISSIONS_DESIGN.md` §2 (the rows), §3 step 3 (the verdict), §5 (the
+anonymised side channels), §6 (the doors and the Sharing tab), §7 (the manifest stanza), §8 (the decisions), §9
+rows op-1 / op-2 / op-4. On top of §60 (op-0: the policy, the stamp, the CRUDE gate). **op-3 (`Ballot` in the
+governance module) is NOT in this slice** — it waits for that module to exist; everything op-3 needs from the
+mechanism is now built and proven against a `Ballot` double.
+
+His ask this whole arc answers (2026-09-18): *"other people do not have the permission to alter the data on
+their vote, they only have partial read access and only to the contents of the vote and groups the vote
+corresponds to, not who specifically made that vote."* op-0 built the first half of that sentence; op-2 closes
+the three ways the second half ("not who") leaks anyway.
+
+**One new row class: `OwnerGrant`. The security class count goes 36 → 37, seed pairs 36 → 37, pages 9 → 10.**
+
+### op-1 — the owner's per-instance grants, and the Sharing tab
+
+| built | where |
+|---|---|
+| `OwnerGrant` — one owner sharing ONE of their own instances; `name` = `class\|id\|kind\|grantee` (the dedup key, so re-granting rewrites rather than doubles) | `modules/security/objects/security/OwnerGrant.py` (new, 62 lines) |
+| the model: `grants_for` / `grant` / `revoke` / `match` / `may_grant` / `prune_expired` / `expired` / `sharing` / `sharing_tab` | `modules/security/custom/security_owner_grants.py` (new, 487 lines, in the manifest) |
+| the verdict honours grants (design §3 step 3): verbs ∪ `others_verbs`, fields ∪ `others_fields`, evidence `grant:<id>` | `security_owned.owner_verdict` + `_grants_match` |
+| 3 doors: `GET` / `POST` / `DELETE /api/security/owned/{class}/{id}/grants` | `modules/security/security_api.py` (`on_get/post/delete_owned_grants`) |
+| `GET /api/security/owned/{class}/{id}` extended with `grants` + `sharing` (the tab's whole answer in one door) | `security_owned.verdict_for_id` |
+| the Sharing tab as DATA: a configured `class-rows-table` over `OwnerGrant`, `filterField: object_id` | `security_owner_grants.sharing_tab` |
+
+**A grant never widens the class door.** `crude_permission_gate` decides C × V for the grantee's groups before
+any instance is resolved; a grant only restores a verb `others_verbs` withheld and widens a projected read.
+The bounds are all checked at the door, never in the row class: `owner_may_grant` on, the caller is the OWNER
+(or an admin), `verbs ⊆ grantable_verbs`, `grantee_kind ∈ grantee_kinds`, `fields ⊆ the class's own columns`,
+never the owner column of an anonymised class, never a username where a `sub` belongs, and **never to
+yourself** (that is the owner floor written down twice).
+
+**Expiry is checked by the verdict, not by the prune.** A grant is dead the instant `valid_until` passes —
+`match()` skips expired rows — and `grants_for()` prunes them on the next read so the table does not grow a
+tail of dead permissions, writing a `SecurityEvent` per pruned row. A `valid_until` already in the past is
+refused at the door ("that is a revoke, not a grant"); an *unreadable* `valid_until` is refused at the door too,
+rather than silently becoming "never expires" once written.
+
+### op-2 — anonymised classes, `frozen_when`'s structured form, `transfer`
+
+| built | where |
+|---|---|
+| `anonymised` normalised where the policy is READ: forces `owner_visible` false **and** `transfer` `nobody` (`transfer_declared` keeps what the row says) | `security_owned.policy_for` |
+| `frozen_when`'s structured shape `{"class","field","in"\|"eq"\|"ne","via"}` beside op-0's sentence grammar, in the same column | `security_owned._frozen_structured` / `frozen` |
+| `transfer_owner()` + `POST /api/security/owned/{class}/{id}/transfer {"to": "<sub>"}` | `security_owned.py` + `security_api.on_post_owned_transfer` |
+| side channel 3: `event_target()` — the CLASS NAME alone for an anonymised class — and the owner gate now ledgers refused writes through it | `security_owned.event_target`, `accessControl/owner_gate.py::_event` |
+| side channel 1 (broadcast, built by ct-2) and 2 (trace journal, built by ct-1) — **verified**, not rebuilt | `grpcbridge/custom/transport_mux.py::publish_crude_change`, `security_trace._anonymised` |
+
+**The three side channels were never selftested together until now.** ct-2 dropped `instanceIds` for an
+anonymised class and ct-1 dropped the journal's `actor`/`object_id` pairing as they were built, but nothing
+proved either, and the third (`SecurityEvent.target`) did not exist. "Closed" is only true of the three at
+once, so §69 proves all three in one check block against one anonymised `Ballot` policy.
+
+**Transfer, and why this door refuses in every gate mode.** `advisory` makes the CRUDE gate warn instead of
+blocking *an app doing its job* — security is learning what it would stop. A transfer is not that: its only
+effect IS to move the ownership the gate reads, so a warning that proceeded would have done the thing it
+warned about. The admin policy door (`POST /api/security/owned/<Class>`) set this precedent in op-0. `nobody`
+refuses an administrator too, with the reason: change the policy first, on the record, then transfer.
+
+### op-4 — the `app.owned` manifest stanza
+
+| built | where |
+|---|---|
+| the vocabulary + `owned_findings()` (mirrors `role_findings` / `flow_findings`), wired into `validate()` | `moduleService/manifests.py:168-292, 660` |
+| `owned` joins the HAND-SET keys `generate` preserves, beside `roles` and `flows` | `manifests._preserve_hand_set` |
+| `OwnedClassPolicy.source` (`manifest` \| `admin` \| `''`) + `derived_from`; `SOURCES` | `objects/security/OwnedClassPolicy.py` |
+| the convergence: `declarations()` / `ensure_policies()` / `summary()` / `start_owned_converge()` | `modules/security/custom/security_owned_manifest.py` (new, 196 lines, in the manifest) |
+| converged on every read of `GET /api/security/owned` (via `policies(converge=True)`) and once at boot | `security_owned.policies`, `security_endpoints.construct_security_endpoints` |
+| the ONE real declaration: `polariapps` declares `UserAppPreference` | `modules/polariapps/polari-app.json` `app.owned` |
+| `SEED_OWNED_CLASS_POLICIES` emptied — the security module ships the mechanism and opts in nobody else's class | `modules/security/security_seed.py:128-146` |
+
+**Which source of truth wins, and why (the question op-0's seed left open).** The **manifest** wins for
+`UserAppPreference`, and the seed row is gone. A policy is a statement *about a class*, and the only place it
+can be kept beside the thing it describes is the module that defines the class — `polariapps`. A seed in
+`security` would go stale the moment `polariapps` changed `UserAppPreference` and nothing would say so; keeping
+both would be two sources of truth for one sentence, exactly the drift §57 removed from role→app bindings. The
+ladder is therefore:
+
+- `source: admin` — a person POSTed it. **Never** overwritten; the manifest declaration is reported as a named
+  `conflict` instead of applying (the `RoleAppBinding` discipline, §57).
+- `source: manifest` — re-derived on every read, so editing a manifest reaches a running instance with nobody
+  acting.
+- `source: ''` — an op-0 **seeded** row, written before the stanza existed. Treated as re-derivable, because
+  the seed IS this derivation's earlier spelling of the same sentence. **Consequence for the live stack:** the
+  existing `UserAppPreference` row on `polari-lean` converges *in place* (identical content, `source` set to
+  `manifest`) rather than a second row appearing for one class.
+
+### Screens
+
+`_page('security-owned', …)` in `modules/security/security_page.py` — 6 rows, `api-structured-panel` and
+`class-rows-table` only, **no new component, nothing raw**: the gate mode + opted-in classes; the
+`OwnedClassPolicy` table (with `source` / `derived_from`); the modules' declarations beside the last
+convergence and its conflicts; the `OwnerGrant` table; the parsed policies; and the owner gate's own
+`SecurityEvent` rows (where the anonymised `target` = class is visible). A `SecurityArea` row
+(`owner-permissions`, domain `app`) names the arc in the taxonomy on `/display/security`. It converges through
+the existing `seed_security_pages` / `start_page_converge` (the §54 gotcha: the core seed only INSERTS).
+
+### Selftests — exact numbers (all run; nothing regressed)
+
+| suite | before | after |
+|---|---|---|
+| `modules/security/security_selftest.py` | 250/253 | **283/286** (+33 checks; the same 3 known environment failures) |
+| `accessControl/selftest_cause_context.py` | 41/41 | 41/41 (the new converge thread listed in `KNOWN_THREAD_SITES`) |
+| `modules/polariapps/apps_selftest.py` | 125/125 | 125/125 |
+| `python3 -m moduleService.selftest_manifests` | 8/8 | 8/8 |
+| `python3 -m moduleService.manifests conform --all` | 61/61 | 61/61 |
+| `polariApiServer/selftest_crude_delete_blast.py` | 21/21 | 21/21 |
+| `polariApiServer/selftest_outbound.py` | 61/61 | 61/61 |
+| `polariApiServer/selftest_stomp_gate.py` | 41/41 | 41/41 |
+| `polariApiServer/selftest_restore_merge.py` | 17/17 | 17/17 |
+| `import polariApiServer.polariServer` | clean | clean |
+
+The 3 failures are the known environment ones and the ONLY ones: ledger `mac_enforced`, mac profiles, expired
+internal certs.
+
+The +33 checks, by slice. **op-1** (`_grant_checks`, 13): a class that forbids grants has no tab; *the* proof —
+a meal plan shared with ONE person by sub, refused before and projected-to-the-granted-fields after, with the
+verdict naming `grant:<id>`; nobody else in the same group gains anything; the sub stored in its own column;
+**expiry removes it** (past refused at the door, live grant dies on the clock, dead row pruned on read); the
+seven bound refusals each with its reason; a group grant and the fields UNION; revoke; the admin path and the
+404; the Sharing tab as a configured table with both `person` columns holding subs only; the four doors incl.
+the query-string revoke. **op-2** (`_anonymised_checks`, 11): `anonymised` normalised at the read; the
+projection; **all three side channels** — broadcast without ids (and a non-anonymised owned class keeping
+them), journal with no actor/object pair, `SecurityEvent.target` = class; no actor on the gate's own rows;
+`frozen_when` structured (open → certified → frozen, read survives, a spec with no operator is not frozen);
+transfer under `nobody` / `owner`, refused for a username, for self, for a non-owner, and always for an
+anonymised class; the door refusing in every gate mode. **op-4** (`_owned_manifest_checks`, 7): a well-formed
+stanza and the vocabulary matching the row class; eleven refusal shapes; `validate()` carrying them and
+`owned` surviving a regeneration; the one real declaration; the convergence creating the row with nobody
+touching an admin door, idempotently; an admin row never overwritten and reported as a conflict; a seeded
+(`source: ''`) row re-derived in place rather than doubled. Plus the three count checks (37 classes, 37 seed
+pairs, 10 pages) and the §54 route guard extended to five owner doors.
+
+### Gotchas found / decisions taken where the design was silent
+
+1. **`grantee` is TWO columns, not one.** The design names one `grantee` field holding *a group name, or a
+   `sub`*. A single column would put a Keycloak subject id and a Keycloak group name in one place, and §54's
+   `person` column format shortens a cell to 8 characters to resolve it live — so the first group grant would
+   render `household-members` as `househol` on the security-owned page (`PeopleService.short()` truncates
+   blindly; it does not check the value is sub-shaped). The row therefore keeps `grantee_group` and
+   `grantee_sub`, exactly one of which is ever set; the DOOR keeps the design's `{grantee_kind, grantee}`
+   shape and routes the value; the dicts carry `grantee` as the design spells it. Both `person`-formatted
+   columns (`granted_by`, `grantee_sub`) then hold a sub and nothing else.
+2. **There is no per-instance surface to hang a Sharing tab on, and none was invented.** `class-main-page`'s
+   tabs are hardcoded `mat-tab`s at the CLASS level; `components/instance/` has no tabs and reads no
+   `DisplayDefinition`; pages are route-level (`/display/<pageRoute>`) with no instance in scope. So op-1 built
+   the whole backend half and the tab itself as DATA: `sharing()` answers the grants, the bounds,
+   `show_tab`, `you_may_share` + why, and `table` — a complete `class-rows-table` item
+   (`className: OwnerGrant`, `filterField: object_id`, `filterValue: <id>`,
+   `columnFormats: granted_by:person,grantee_sub:person`) ready to render. **What the frontend needs** is in
+   the OWED list below; it is a host, not a component.
+3. **`class-rows-table`'s filter is an EXACT CRUDE match on one field**, so the per-instance scope is
+   `object_id`, not a prefix of the composite `name`. (And explicit `columns` bypass the `includeJsonFields`
+   filter, which is why `verbs_json` / `fields_json` can be named.)
+4. **`anonymised` is normalised in `policy_for`, not at each consumer.** Design §2 calls it *shorthand for
+   `owner_visible: false` + the §5 suppressions*. Resolving it at the single read point means a row saying
+   `anonymised: true, owner_visible: true, transfer: owner` comes back with `owner_visible` false and
+   `transfer` `nobody` — the owner cannot leak through whichever half of the pair a consumer forgot to check.
+   `transfer_declared` keeps what the row literally says, so the contradiction is visible rather than erased.
+5. **Refused list READS are not ledgered.** Design §5 says a refused act on an anonymised class names the
+   class. That is implemented for WRITES (`owner_gate_write`). A private list of a thousand rows would
+   otherwise write a thousand events, and an omitted or projected row is not an act somebody took — the
+   advisory header already tells the caller what enforcement would have hidden.
+6. **The owner gate records no `actor` on its own rows.** The person refused is the one the owner rules are
+   protecting a row *from*, and who performed which class × verb is already counted by `PermissionObservation`.
+   One ledger per question.
+7. **A grant is never a widening, and the code says so twice** — once in `OwnerGrant`'s docstring and once in
+   the door's `how`. The class gate has already run; a grant cannot reach past it. This matters because the
+   obvious misreading ("I'll grant a group `delete` on my row") would otherwise look like a privilege
+   escalation path.
+8. **The structured `frozen_when` shares op-0's column.** A JSON object in `frozen_when` is read as the
+   structured form; anything else goes to the sentence grammar. JSON is what a *manifest* can declare (op-4),
+   and a person can still type the sentence. Both failure modes are identical and deliberate: a malformed or
+   unresolvable condition is **NOT frozen**, and lands in the ledger.
+9. **Two converges per request, fixed.** `GET /api/security/owned` reads the manifest summary (which
+   converges) and then `policies(converge=False)` — one derivation per request.
+10. **`accessControl/selftest_owner_gate.py` does not exist** (op-0's gate selftest lives inside
+    `security_selftest._owned_checks`); the new checks went beside it in the same file, and the cause-context
+    thread-site guard needed the new converge worker listed or it fails.
+
+### OWED — the live proof on the home stack, and the browser pass
+
+Nothing in §69 has run on `polari-lean`. The exact steps, in order, once the framework pin moves and the swarm
+image is rebuilt (`pol swarm deploy` — the stack respawns from the IMAGE, so an in-place edit proves nothing):
+
+1. **The manifest declaration appears with nobody touching an admin door** (op-4's own proof).
+   `GET /api/security/owned` → `manifest.declared` names `polariapps` / `UserAppPreference`,
+   `manifest.converge.created` (fresh) or `.updated` (the existing seeded row converged *in place*), and the
+   policy row reads `source: manifest`, `derived_from: polariapps`, `owner_field: sub`. Then
+   `pol modules health` / a restart, and confirm there is still exactly ONE `OwnedClassPolicy` row for that
+   class — the seeded-row-converged-in-place case is the one that can go wrong on a live tree.
+2. **Opt a real class in and share one row by sub.** As an admin,
+   `POST /api/security/owned/MealPlan {"enabled": true, "owner_verbs": ["read","update","delete"],
+   "others_verbs": [], "owner_may_grant": true, "grantable_verbs": ["read"], "grantee_kinds": ["person"]}`
+   (this row will read `source: admin`, and step 1's convergence must then leave it alone — check
+   `manifest.converge.conflicts` is empty because nothing declares `MealPlan`, and that the row is not
+   rewritten on the next read). Create a meal plan as person A; confirm `owner` holds A's `sub` and nothing
+   else. As person B, `GET /api/MealPlan/<id>` — refused/omitted (advisory: the whole row plus
+   `X-Polari-Owner-Advisory: would-deny`). As A,
+   `POST /api/security/owned/MealPlan/<id>/grants {"grantee_kind":"person","grantee":"<B's sub>",
+   "verbs":["read"],"fields":["title","servings"]}`. As B, read again → the projected row, and
+   `GET /api/security/owned/MealPlan/<id>` shows `rule: grant:<id>`.
+3. **Expiry removes it.** Re-grant with `valid_until` two minutes out; read as B (allowed), wait, read again
+   (refused), then `GET …/grants` and confirm the row is gone and a `SecurityEvent` says why.
+4. **A transfer.** Set `MealPlan`'s policy `transfer: owner`; as A,
+   `POST /api/security/owned/MealPlan/<id>/transfer {"to": "<B's sub>"}`; confirm the `owner` column moved,
+   that A now reads the row as *others* do, and that the same call with a username instead of a sub is a 400
+   naming D18-1.
+5. **An anonymised class broadcasts no id.** Opt a throwaway class in with `anonymised: true`, subscribe a
+   STOMP client to `/topic/<Class>`, create a row, and confirm the frame carries `className` + `operation`
+   with `instanceIds: []` — while a non-anonymised owned class still carries its ids. Then arm that class as a
+   `TraceTarget`, create another row, and confirm the journal row has neither `actor` nor `objectId`. Then
+   refuse a write on it as a non-owner and confirm the `SecurityEvent.target` is the class name alone on
+   `/display/security-owned`.
+6. **The browser pass.** `/display/security-owned` renders: the summary chips, the policy table with
+   `source` / `derived_from`, the declarations and the convergence panels, the grants table with `granted_by`
+   and `grantee_sub` resolving to names through the gated people door (and a *group* grant showing its group
+   name in full, unshortened — the reason for gotcha 1), and the owner-gate events. Confirm no `api-json-panel`
+   and no raw JSON anywhere on it, and that the page CONVERGED rather than being inserted (the §54 gotcha).
+7. **The Sharing tab — still OWED, and it needs a frontend host.** `GET /api/security/owned/<Class>/<id>`
+   already returns `sharing.table`, a complete `class-rows-table` item filtered to the instance, plus
+   `show_tab` / `you_may_share` / `bounds`. What is missing is a per-instance page that reads
+   `DisplayDefinition`-style items — the same treatment `class-main-page` gives a class, given to one row — so
+   that a "Sharing" tab can render `sharing.table` and hide itself when `show_tab` is false (a ballot's page
+   must have no tab at all). No new component: the table component already exists and already takes
+   `filterField` / `filterValue` / `columnFormats`. Until that host exists there is nothing to click.
+8. **Also still open:** op-3 (`Ballot` + the derived `VoteRecord` tally) waits for the governance module; the
+   `events` verb is in `OWNER_VERBS` and `on_event` still carries no owner gate (§60's last OWED item, not
+   closed here); and `frozen_when` has still only been exercised against in-memory doubles in both spellings.
