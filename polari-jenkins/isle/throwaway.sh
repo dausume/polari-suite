@@ -241,7 +241,15 @@ up)
         --import --noautoconsole
     ip=$(wait_for_ip) || { say "no address after the wait — \`throwaway.sh status\`, then \`down\`"; exit 5; }
     echo "$ip" > "$RUN/ip"; chmod 0600 "$RUN/ip"
-    say "up at $ip (key: $RUN/id_ed25519, 0600, deleted by \`down\`)"
+    # An address arrives seconds before sshd does (cloud-init is still writing the key): the first real
+    # run (2026-09-19, §75) had `verify` refused with "Connection refused" 21 s after boot. `up` is not
+    # done until the guest ANSWERS over ssh, so verify/uninstall never race it.
+    waited=0
+    until guest_ssh true >/dev/null 2>&1; do
+        sleep 5; waited=$((waited + 5))
+        [ "$waited" -lt "${CI_ISLE_SSH_WAIT_S:-240}" ] || { say "the guest has an address ($ip) but ssh never answered in ${CI_ISLE_SSH_WAIT_S:-240} s — \`throwaway.sh status\`, then \`down\`"; exit 5; }
+    done
+    say "up at $ip after ${waited}s of ssh wait (key: $RUN/id_ed25519, 0600, deleted by \`down\`)"
     ;;
 verify)
     exists || { echo "[throwaway] $CI_ISLE_VM_NAME is not defined — run \`up\` first" >&2; exit 5; }
