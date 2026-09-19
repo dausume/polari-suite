@@ -203,12 +203,17 @@ PY'''
     // ci-8: the run's outcome, mirrored in (never fatal, never a Jenkins credential)
     // ci-9: the run's summary now carries the cache arithmetic, so "did the
     // cache help?" is answerable from the PipelineRun rows without a log dive.
-    always { script { sh "bash /var/polari-jenkins/cicd-sync.sh run release \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} \"\${POLARI_VERSION:-}\" \"release build — \$(bash /var/polari-jenkins/cache.sh report-show \"\$POOL/\${POLARI_VERSION:-none}/cache-report.json\" 2>/dev/null | head -1 || echo 'no cache report')\" || true" } }
+    // ONE `always` block: declarative pipeline refuses a duplicate condition name — the first real run on the
+    // pipeline device (2026-09-19, §75) failed to COMPILE with "Duplicate build condition name: always".
+    always {
+      script { sh "bash /var/polari-jenkins/cicd-sync.sh run release \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} \"\${POLARI_VERSION:-}\" \"release build — \$(bash /var/polari-jenkins/cache.sh report-show \"\$POOL/\${POLARI_VERSION:-none}/cache-report.json\" 2>/dev/null | head -1 || echo 'no cache report')\" || true" }
+      sh 'bash /var/polari-jenkins/retention.sh prune || true'
+      cleanWs()
+    }
     // ci-7: DRY_RUN=auto — each route publishes for real only when its secret is present AND it is
     // named in CI_ROUTES (device.env). Nothing is armed by being triggered.
     // ci-7b: and the routes re-read isle-test/results.json themselves (routes/_lib.sh), so triggering
     // publish on an untested build is safe — every route renders and says why.
     success { build job: 'polari-publish', wait: false, parameters: [string(name: 'VERSION', value: env.POLARI_VERSION), string(name: 'DRY_RUN', value: 'auto'), string(name: 'ROUTES', value: env.CI_ROUTES ?: 'github-release,ghcr,homebrew,apt-repo')] }
-    always { sh 'bash /var/polari-jenkins/retention.sh prune || true'; cleanWs() }
   }
 }

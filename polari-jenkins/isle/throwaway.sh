@@ -213,6 +213,19 @@ up)
     say "overlay disk: ${CI_ISLE_VM_DISK_GB}G on top of $(basename "$BASE") (the base is never written)"
     qemu-img create -q -f qcow2 -F qcow2 -b "$BASE" "$RUN/disk.qcow2" "${CI_ISLE_VM_DISK_GB}G"
     make_seed
+    # The hypervisor runs as ITS OWN user (libvirt-qemu on Ubuntu), not as the person: the first real run
+    # (2026-09-19, §75) died with "Cannot access storage file … (as uid:64055) Permission denied" because the
+    # run dir was 0700. The dir stays private to the person (the ssh key lives here and keeps its 0600);
+    # the hypervisor gets TRAVERSE on the dir and READ/WRITE on exactly the two files it opens. ACLs when the
+    # tool exists, the coarse mode bits otherwise. Parents are created 0775 by the umask (traversable).
+    hv_user="$(getent passwd libvirt-qemu >/dev/null 2>&1 && echo libvirt-qemu || echo qemu)"
+    if command -v setfacl >/dev/null 2>&1; then
+        chmod 0710 "$RUN"
+        setfacl -m "u:$hv_user:x" "$RUN"
+        setfacl -m "u:$hv_user:rw" "$RUN/disk.qcow2" "$RUN/seed.iso"
+    else
+        chmod 0711 "$RUN"; chmod 0666 "$RUN/disk.qcow2" "$RUN/seed.iso"
+    fi
     say "virt-install: ${CI_ISLE_VM_RAM_GB}GB / ${CI_ISLE_VM_VCPUS} vcpu"
     $SUDO virt-install \
         --connect "${LIBVIRT_URI:-qemu:///system}" \
