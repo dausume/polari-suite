@@ -6661,3 +6661,31 @@ Owed from here: the controller needs a JDK with jmods for the deb builders (and 
 BrokenPipe in cicd-sync, `polari-release` re-run after the compile fix (expected: builds, then every route DRY —
 no isle-test results yet), then ci-3 so a stage can install and the uninstall verdict stops being `skipped`. HIS:
 wired IPv4 on econ-core, `sudo bash polari-cli/shells/install-cli.sh`, `sudo pol jenkins init-device`, the tokens.
+
+### §75 addendum 2 — `polari-dev-build` GREEN on the pipeline device (2026-09-19, econ-core)
+
+Five fixes, each found by a real run; builds #3–#6 each failed one layer further in, #7 is **SUCCESS in 6.7 min**.
+
+| # | what broke | fix |
+|---|---|---|
+| 1 | `jlink failed: Module java.rmi / jdk.management.jfr not found` — `jenkins/jenkins:lts-jdk21` is a Temurin JRE-style layout with NO `jmods/`, so jpackage cannot link the shell runtime and `polari-complete` refuses a bundle without `polari-shell-core` | the controller also carries Debian's `openjdk-21-jdk-headless` (69 jmods + jpackage) as `POLARI_BUILD_JAVA_HOME`; the `debs` stages of dev-build and release scope `JAVA_HOME`/`PATH` to it, so Jenkins' own runtime (`/opt/java/openjdk`, first on PATH) never moves. **No JavaFX jmods needed** — the shell is packaged in classpath mode (`--input lib`), so jlink only resolves `java.*`/`jdk.*`. Image cost: +~180 MB |
+| 2 | `BrokenPipeError: [Errno 32]` on every cicd-sync call | `post_kind` drains stdin on both early returns — a device with no `CI_CORE_URL` no longer hands its python generator EPIPE |
+| 3 | `images` stage rc=127: `/var/polari-jenkins/build-images.sh: No such file or directory` | ci-9's builder was never added to the controller's per-script bind mounts |
+| 4 | buildx: `failed to read dockerfile` | the checkout is non-recursive on purpose (Isle-Mesh nests an ssh-URL submodule), which also left `polari-framework` + `polari-platform-angular` empty — both pipelines now init exactly those two (https), and dev-build asserts the two Dockerfiles exist |
+| 5 | `ng build` exit 134, *Ineffective mark-compacts near heap limit* | node sizes old-space from HOST RAM = **2096 MB** on the 7 GB device; the angular dev image's build RUN gets `NG_BUILD_HEAP_MB` (3072) as a build ARG — not an ENV, so the serving container keeps entrypoint.sh's 2048 (the oomd discipline) |
+
+Build #7 evidence: `.generated/debs` = `isle-mesh-cli_0.1.1_all` · `polari-shell-core_0.1.1_amd64` (48 M) ·
+`isle-app-store_0.1.1_all` · `polari-isle_0.1.0_all` · `polari-complete_0.1.1_amd64` (49 M) ·
+`polari-complete-offline_0.1.1_amd64` (49 M); images `prf-backend:staging` 1.4 GB, `prf-frontend:staging` 4.07 GB,
+`pol-reticulum:staging` 224 MB; cache report `100% of the bytes this run needed came from the cache`
+(debs 0 MB/0 MB in 137 s — nothing cacheable there yet; images 509.3 MB cached / 0.0 MB fetched in 246 s);
+`retention.sh` and `cicd-sync` quiet and non-fatal. A `curl: (22) 404` inside the backend build is the freetype
+mirror ladder doing its job — the second mirror served it and the sha256 matched.
+
+`polari-release` re-run (#2, `buildWithParameters` — the job is parameterised, a plain `/build` is HTTP 400):
+**FAILURE, and NOT a pipeline bug.** It compiles and reaches `the core — pulled from a release`, where
+`core-artifacts.sh: line 123: release_asset_urls: command not found` → `REFUSED: release polari-v2026.09.12
+carries no .deb assets`. The helper scripts are the device's **dev** checkout (bind-mounted), but the workspace is
+**main**, whose `polari-cli` pin (`684ee42`) predates `release_asset_urls` in `scripts/lib/providers.sh` — a
+dev↔main skew, not a defect in either. main is still at `0ee38c6` "ledger §44". OWED (HIS): fast-forward main to
+dev (the MAIN==DEV gate) and re-run polari-release; the DRY publish routes have still never been exercised.
