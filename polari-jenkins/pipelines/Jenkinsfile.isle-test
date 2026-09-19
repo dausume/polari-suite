@@ -1,11 +1,27 @@
-// polari-isle-test — ci-7 SKELETON: prove the pipeline can stand a throwaway
-// isle up on the configured device and tear it down again. It publishes
-// nothing, installs nothing, and deploys nothing.
+// polari-isle-test — THE THING THE PIPELINE ANALYSES (his ask 2026-09-19:
+// "the testing isle being what the pipeline is analyzing. The pipeline
+// should only generate artifact for things that are tested.").
 //
-// PREFLIGHT IS THE FIRST STAGE, always (his ask (A) 2026-09-19): before the
-// job touches the device it proves the device is CLEAR — no VM by our name,
-// no Polari/isle footprint of its own — and has the RAM and disk the run
+// PREFLIGHT IS THE FIRST STAGE, always (his ask (A)): before the job
+// touches the device it proves the device is CLEAR — no VM by our name, no
+// Polari/isle footprint of its own — and has the RAM and disk the run
 // needs. A FAIL there exits 4 and the job stops with the table in the log.
+//
+// THEN, ONE STAGE AT A TIME (CI_ISLE_STAGES in device.env, e.g.
+// "core; household; electronics,cntfet"): for each stage, build that
+// stage's app debs → stand a throwaway isle up → install the core debs and
+// that stage's app debs → run each app's `pol modules selftest` → record
+// the result → TEAR THE ISLE DOWN, and only then start the next stage.
+// Sequential on purpose: a space-limited device never needs room for more
+// than ONE isle at a time. That is the whole point of staging.
+//
+// A stage that fails does NOT abort the run: it is recorded as a failure,
+// the isle is destroyed, and the next stage still runs — a later stage may
+// pass, and what passed is exactly what may be released.
+//
+// The output is pool/<version>/isle-test/results.json, and THAT file is
+// what Jenkinsfile.release and routes/_lib.sh read: nothing untested is
+// ever published.
 //
 // WHERE the VM goes is device.env (CI_ISLE_TARGET=local|ssh). With
 // CI_ISLE_TARGET=ssh the whole isle half happens on the other device over
@@ -18,8 +34,14 @@
 // the reason ci-7 makes the device configurable at all. The doctor says so.
 pipeline {
   agent any
-  options { timestamps(); timeout(time: 90, unit: 'MINUTES'); disableConcurrentBuilds(); lock(resource: 'polari-build') }
-  environment { ISLE = "${env.POLARI_ISLE ?: '/var/polari-jenkins/isle'}" }
+  options { timestamps(); timeout(time: 180, unit: 'MINUTES'); disableConcurrentBuilds(); lock(resource: 'polari-build') }
+  parameters {
+    string(name: 'VERSION', defaultValue: '', description: 'the pool version under test (empty = a bare device proof; no results are recorded against a release)')
+  }
+  environment {
+    ISLE = "${env.POLARI_ISLE ?: '/var/polari-jenkins/isle'}"
+    POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}"
+  }
   stages {
 
     stage('preflight — is the device clear, and does it have room?') {
@@ -30,34 +52,88 @@ pipeline {
       post { always { archiveArtifacts artifacts: 'preflight.json', allowEmptyArchive: true } }
     }
 
-    stage('throwaway isle up') {
-      steps { sh 'bash "$ISLE/throwaway.sh" status; bash "$ISLE/throwaway.sh" up' }
-    }
+    stage('the testing stages') {
+      steps {
+        script {
+          // device.sh owns the parsing; ask it, never re-split the string here.
+          def raw = sh(returnStdout: true, script: 'bash -c \'source "$ISLE/../device.sh"; stages_list\'').trim()
+          def stages = raw.split('\n').collect { it.trim() }
+          echo "isle testing stages: ${stages.size()} — ${stages.collect { it ?: 'core only' }}"
 
-    stage('verify the guest') {
-      steps { sh 'bash "$ISLE/throwaway.sh" verify' }
-    }
+          def results = [version: params.VERSION ?: 'none', stages: [], tested: [], passed: [], untested: []]
+          def runDir  = params.VERSION ? "${env.POOL}/${params.VERSION}/isle-test" : "${env.WORKSPACE}/isle-test"
+          sh "mkdir -p '${runDir}'"
 
-    // ---------------------------------------------------------------------
-    // TODO (ci-3, NOT in ci-7): the real cycle inside this guest —
-    //   1. copy pool/<version>/debs/polari-complete_*.deb into the guest
-    //   2. dpkg -i / apt install it, then `isle core-install` (the guided
-    //      install, non-interactive answers)
-    //   3. verify: the isle answers, its router guest booted (nested KVM),
-    //      `pol modules health`, the app store lists the catalogue
-    //   4. `isle uninstall --everything` + `uninstall --verify`, and prove
-    //      the hand-back: a default Ubuntu still has route, DNS and apt
-    //      (his rule, uninstall-lifecycle / "uninstall hands back a working
-    //      Ubuntu")
-    // CICD_PIPELINE_PLAN.md §1 and §3 own that cycle; ci-7 only proves the
-    // device is fit and that a VM can be made and destroyed on it.
-    // ---------------------------------------------------------------------
-    stage('deb install cycle (ci-3 — not built)') {
-      steps { echo 'ci-3: deb install → isle core-install → verify → uninstall --verify. Deliberately absent; see the TODO above.' }
+          stages.eachWithIndex { appsLine, i ->
+            def idx  = i + 1
+            def apps = appsLine ? appsLine.split(' ').findAll { it } : []
+            def rec  = [index: idx, apps: apps, core_ok: false, results: [:],
+                        started: new Date().format("yyyy-MM-dd'T'HH:mm:ss"), finished: null]
+
+            stage("stage ${idx}: core${apps ? ' + ' + apps.join(', ') : ' only'}") {
+              try {
+                // 1. the app debs this stage needs — built by the ONE builder
+                //    (polari-framework appstore/custom/app_deb_builder.py),
+                //    never by a second deb writer living here.
+                if (apps) {
+                  sh "bash '${env.ISLE}/app-debs.sh' '${runDir}/stage-${idx}/debs' ${apps.join(' ')}"
+                }
+
+                // 2. a fresh throwaway isle, for this stage alone
+                sh 'bash "$ISLE/throwaway.sh" status; bash "$ISLE/throwaway.sh" up'
+                sh 'bash "$ISLE/throwaway.sh" verify'
+
+                // 3. -------------------------------------------------------
+                //    TODO (ci-3, NOT built): the real cycle inside this guest.
+                //      a. copy pool/<version>/debs/polari-complete_*.deb in
+                //      b. dpkg -i / apt install it, then `isle core-install`
+                //         (the guided install, non-interactive answers)
+                //      c. core verify: the isle answers, its router guest
+                //         booted (nested KVM), `pol modules health`, the app
+                //         store lists the catalogue  →  rec.core_ok
+                //      d. for each app in `apps`: install
+                //         stage-<idx>/debs/polari-app-<app>_*.deb, then run
+                //         `pol modules selftest <app>` INSIDE the isle and
+                //         record pass|fail per app  →  rec.results[app]
+                //      e. `isle uninstall --everything` + `--verify`, and the
+                //         default-Ubuntu hand-back proof (his rule).
+                //    Until (c)/(d) exist every result is 'skipped', core_ok
+                //    stays false, and THE RELEASE RULE therefore publishes
+                //    NOTHING. That is deliberate: the gate is honest before
+                //    it is convenient.
+                //    CICD_PIPELINE_PLAN.md §1 and §3 own that cycle.
+                // ---------------------------------------------------------
+                echo "ci-3 TODO: install the core debs, then ${apps ? apps.join(', ') + ' deb(s)' : 'no app debs'}, " +
+                     "then run pol modules selftest for each app inside the isle. Not built — every result is 'skipped'."
+                apps.each { rec.results[it] = 'skipped' }
+
+              } catch (err) {
+                echo "stage ${idx} FAILED: ${err} — recording it and carrying on; a later stage may still pass"
+                apps.each { rec.results[it] = rec.results[it] ?: 'fail' }
+                rec.error = err.toString()
+              } finally {
+                // a throwaway that survives its stage is not a throwaway
+                sh 'bash "$ISLE/throwaway.sh" down || true'
+                rec.finished = new Date().format("yyyy-MM-dd'T'HH:mm:ss")
+                results.stages << rec
+              }
+            }
+          }
+
+          // 4. the one file the release rule reads
+          results.tested   = results.stages.collectMany { it.results.keySet() as List }.unique()
+          results.passed   = results.stages.collectMany { it.results.findAll { k, v -> v == 'pass' }.keySet() as List }.unique()
+          results.untested = results.tested - results.passed
+          results.core_ok  = results.stages ? results.stages[0].core_ok : false
+          writeFile file: "${runDir}/results.json", text: groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(results))
+          sh "cat '${runDir}/results.json'"
+          archiveArtifacts artifacts: 'isle-test/results.json', allowEmptyArchive: true
+        }
+      }
     }
   }
   post {
-    always  { sh 'bash "$ISLE/throwaway.sh" down || true' }   // a throwaway that survives a failure is not a throwaway
+    always  { sh 'bash "$ISLE/throwaway.sh" down || true' }   // belt and braces: nothing survives this job
     cleanup { cleanWs() }
   }
 }

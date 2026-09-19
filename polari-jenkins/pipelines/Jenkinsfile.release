@@ -56,10 +56,47 @@ PY'''
       steps { sh 'bash ./build-offline-medium.sh --version "$POLARI_VERSION" --target ubuntu-22.04 && cp -r "offline-build/$POLARI_VERSION" "$POOL/$POLARI_VERSION/offline"' }
     }
     stage('checksums') { steps { sh 'cd "$POOL/$POLARI_VERSION" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && wc -l SHA256SUMS' } }
+
+    // ---------------------------------------------------------------------
+    // THE RELEASE RULE (his ask 2026-09-19): "The pipeline should only
+    // generate artifact for things that are tested." So the isle test runs
+    // HERE, on the version just built, before anything leaves this machine.
+    //
+    // Jenkins shape, chosen for being the simplest that works: a plain
+    // `build job: … wait: true` step. No upstream/downstream plumbing, no
+    // fingerprint matching — polari-isle-test is a normal job, it takes the
+    // VERSION, and it writes pool/<version>/isle-test/results.json where the
+    // gate below and every publish route read it. propagate:false because a
+    // failed stage must still leave its results behind: the gate decides
+    // what may ship, not the job's colour.
+    // ---------------------------------------------------------------------
+    stage('isle test — only what is tested may be released') {
+      steps {
+        build job: 'polari-isle-test', wait: true, propagate: false,
+              parameters: [string(name: 'VERSION', value: env.POLARI_VERSION)]
+        script {
+          def rf = "${env.POOL}/${env.POLARI_VERSION}/isle-test/results.json"
+          if (!fileExists(rf)) {
+            env.RELEASE_TESTED = 'no'
+            echo "NOT RELEASED: no isle-test results for ${env.POLARI_VERSION} — the pipeline only releases what it tested. The tag is NOT pushed and every route will stay DRY."
+          } else {
+            def r = readJSON file: rf
+            env.RELEASE_TESTED = r.core_ok ? 'yes' : 'no'
+            echo "isle test: core_ok=${r.core_ok} · passed=${r.passed} · untested/failed=${r.untested}"
+            if (!r.core_ok) echo "NOT RELEASED: the isle test did not record core_ok — nothing is published and the tag is not pushed."
+          }
+        }
+      }
+      post { always { archiveArtifacts artifacts: "isle-test/results.json", allowEmptyArchive: true } }
+    }
+
     // ci-7 (C): the tag is pushed ONLY when the credential that may push is present. Without it the job
     // says which tag it WOULD have made and carries on in dry — a release never depends on a secret
     // being there, and no secret is ever printed (Jenkins masks the bound values).
+    // ci-7b: and only when the isle test passed core — an untagged, unpublished build is the honest
+    // outcome of an untested one.
     stage('tag the superproject') {
+      when { environment name: 'RELEASE_TESTED', value: 'yes' }
       steps {
         withCredentials([string(credentialsId: 'github_token', variable: 'GITHUB_TOKEN'),
                          string(credentialsId: 'github_ssh_key', variable: 'GITHUB_SSH_KEY')]) {
@@ -80,11 +117,16 @@ PY'''
         }
       }
     }
-    // stage('tests') — absent by ruling; ci-3 (throwaway-VM isle tests) lands here before publish.
+    stage('not released (untested)') {
+      when { not { environment name: 'RELEASE_TESTED', value: 'yes' } }
+      steps { echo 'not released: untested/failed. The build stays in the pool, the tag is not pushed, and polari-publish is still triggered — every route will print its own DRY line naming the missing results. Run polari-isle-test for this version, then re-run polari-publish.' }
+    }
   }
   post {
     // ci-7: DRY_RUN=auto — each route publishes for real only when its secret is present AND it is
     // named in CI_ROUTES (device.env). Nothing is armed by being triggered.
+    // ci-7b: and the routes re-read isle-test/results.json themselves (routes/_lib.sh), so triggering
+    // publish on an untested build is safe — every route renders and says why.
     success { build job: 'polari-publish', wait: false, parameters: [string(name: 'VERSION', value: env.POLARI_VERSION), string(name: 'DRY_RUN', value: 'auto'), string(name: 'ROUTES', value: env.CI_ROUTES ?: 'github-release,ghcr,homebrew,apt-repo')] }
     always { sh 'bash /var/polari-jenkins/retention.sh prune || true'; cleanWs() }
   }

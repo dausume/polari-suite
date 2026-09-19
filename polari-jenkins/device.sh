@@ -13,7 +13,11 @@ DEVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 DEVICE_KEYS="CI_ISLE_TARGET CI_ISLE_SSH_HOST CI_ISLE_SSH_USER CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB \
 CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_POOL CI_ISLE_IMAGE_URL \
-CI_MIN_FREE_GB CI_MIN_RAM_HEADROOM_GB CI_EXECUTORS CI_ROUTES"
+CI_MIN_FREE_GB CI_MIN_RAM_HEADROOM_GB CI_EXECUTORS CI_ROUTES CI_ISLE_STAGES"
+
+# Where the module manifests live (modules/<name>/polari-app.json) — the
+# catalogue CI_ISLE_STAGES is validated against. Overridable for tests.
+CI_MODULES_DIR="${CI_MODULES_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/polari-rf-node/polari-framework/modules}"
 
 DEVICE_ENV_FILE="${DEVICE_ENV_FILE:-$DEVICE_DIR/device.env}"
 DEVICE_ENV_PRESENT=0
@@ -52,7 +56,67 @@ device_load() {
     : "${CI_MIN_RAM_HEADROOM_GB:=1}"
     : "${CI_EXECUTORS:=1}"
     : "${CI_ROUTES:=github-release,ghcr,homebrew,apt-repo}"
+    : "${CI_ISLE_STAGES:=core}"
 }
+
+# --------------------------------------------------------- testing stages
+# CI_ISLE_STAGES: stages separated by ';', apps within a stage by ','.
+# The literal `core` is the core debs only. Each stage runs in its OWN
+# throwaway isle, one at a time, so a space-limited device still tests
+# everything — just more slowly. Every stage installs the core debs first,
+# so core is re-verified in each; the recorded core result is stage 1's.
+#
+#   core; household; electronics,cntfet
+#     → stage 1 core only · stage 2 household · stage 3 electronics+cntfet
+stages_list() {   # one stage per line, apps space-separated ('core' → an empty line)
+    printf '%s' "$CI_ISLE_STAGES" | awk -v RS=';' '{
+        gsub(/[ \t\r\n]/, "");
+        n = split($0, a, ",");
+        out = "";
+        for (i = 1; i <= n; i++)
+            if (a[i] != "" && a[i] != "core") out = out (out == "" ? "" : " ") a[i];
+        print out
+    }'
+}
+stages_count()    { stages_list | wc -l | tr -d ' '; }
+stages_apps()     { stages_list | sed -n "${1}p"; }          # stages_apps <n>
+stages_all_apps() { stages_list | tr ' ' '\n' | grep -v '^$' | sort -u || true; }
+stages_known_apps() { [ -d "$CI_MODULES_DIR" ] && find "$CI_MODULES_DIR" -mindepth 2 -maxdepth 2 -name polari-app.json -printf '%h\n' 2>/dev/null | xargs -r -n1 basename | sort || true; }
+stages_app_known() { [ -f "$CI_MODULES_DIR/$1/polari-app.json" ]; }
+stages_print() {  # numbered, for `pol jenkins config`
+    local n=1 apps
+    while IFS= read -r apps; do
+        printf '  stage %d  %s\n' "$n" "$([ -n "$apps" ] && echo "core + $apps" || echo 'core only')"
+        n=$((n+1))
+    done < <(stages_list)
+}
+
+# --------------------------------------------------- write ONE key back
+# The single definition of "rewrite a key in device.env" — the CLI's
+# jd_set and `pol jenkins setup` both come here, so there is one writer.
+device_env_set() {   # device_env_set KEY VALUE
+    local k="$1" v="${2:-}" f="$DEVICE_ENV_FILE"
+    [ -f "$f" ] || { install -m 0600 /dev/null "$f"; }
+    if grep -qE "^$k=" "$f" 2>/dev/null; then
+        python3 - "$f" "$k" "$v" <<'PY'
+import sys
+path, key, val = sys.argv[1:4]
+out = []
+for line in open(path):
+    out.append('%s=%s\n' % (key, val) if line.split('=', 1)[0] == key else line)
+open(path, 'w').writelines(out)
+PY
+    else
+        printf '%s=%s\n' "$k" "$v" >> "$f"
+    fi
+    printf -v "$k" '%s' "$v"
+}
+
+# Re-read device.env after something else wrote it. Plain re-sourcing does
+# NOT do this: device_load treats an already-set CI_* as an explicit
+# override and wins it back, so a caller that has loaded once would keep
+# the stale value forever.
+device_reload() { local k; for k in $DEVICE_KEYS; do unset "$k"; done; device_load; }
 
 CI_SSH_TIMEOUT="${CI_SSH_TIMEOUT:-8}"
 # The controller's own budget, for the "everything serialised" RAM sum on a
@@ -64,6 +128,9 @@ device_print() {
     local k
     echo "# pipeline device configuration ($DEVICE_ENV_FILE$([ "$DEVICE_ENV_PRESENT" = 1 ] || echo ' — ABSENT, defaults shown'))"
     for k in $DEVICE_KEYS; do printf '%s=%s\n' "$k" "${!k}"; done
+    echo "# isle testing stages — each runs in its OWN throwaway isle, one at a time;"
+    echo "# ONLY what a stage tested is ever released (results.json, the release rule)"
+    stages_print
 }
 
 device_export() { local k; for k in $DEVICE_KEYS; do export "$k"; done; }
@@ -122,6 +189,42 @@ device_validate() {
 
     [ "${CI_EXECUTORS:-1}" = 1 ] || _row CI_EXECUTORS "$CI_EXECUTORS" WARN \
         "more than one executor on a home box overlaps builds → set CI_EXECUTORS=1"
+
+    device_validate_stages
+}
+
+# The testing stages: every app named must be a real module (a directory
+# with a polari-app.json), no app may be tested twice, no stage may be
+# empty. The release rule leans on this list: only what a stage TESTED is
+# published, so an unknown name here means an app silently never released.
+device_validate_stages() {
+    local n unknown="" dupes="" empties="" apps a seen=" " total
+    total=$(stages_count)
+    if [ "${total:-0}" -eq 0 ]; then
+        _row CI_ISLE_STAGES "$CI_ISLE_STAGES" FAIL "no testing stage at all → set at least: CI_ISLE_STAGES=core (pol jenkins setup --step stages)"
+        return
+    fi
+    n=0
+    while IFS= read -r apps; do
+        n=$((n+1))
+        [ -n "$apps" ] || { [ "$n" = 1 ] || empties="$empties $n"; continue; }
+        for a in $apps; do
+            stages_app_known "$a" || unknown="$unknown $a"
+            case "$seen" in *" $a "*) dupes="$dupes $a" ;; *) seen="$seen$a " ;; esac
+        done
+    done < <(stages_list)
+
+    if [ -n "$unknown" ]; then
+        _row CI_ISLE_STAGES "$CI_ISLE_STAGES" WARN \
+            "not a module with a polari-app.json:$unknown → known apps: $(stages_known_apps | tr '\n' ' ' | sed 's/ $//')"
+    else
+        local tested; tested="$(stages_all_apps | tr '\n' ' ' | sed 's/ $//')"
+        _row CI_ISLE_STAGES "$CI_ISLE_STAGES" OK "$total stage(s); apps tested: ${tested:-none (core only)}"
+    fi
+    [ -z "$dupes" ] || _row "isle stages (twice)" "$dupes" WARN \
+        "tested twice (each stage installs core + its own apps):$dupes → name each app in ONE stage"
+    [ -z "$empties" ] || _row "isle stages (empty)" "stage$empties" WARN \
+        "empty stage(s)$empties — they would re-test core only → remove them, or name their apps"
 }
 
 device_ssh_alias_known() {

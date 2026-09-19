@@ -16,3 +16,6 @@ jenkins_home/
 *.pem
 *.pub
 id_*
+SETUP_STATUS.md
+cosign.key
+!cosign.pub

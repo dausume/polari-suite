@@ -30,8 +30,64 @@ json.dump(m, open(p, 'w'), indent=1)
 PY
 }
 route_in_ci_routes(){ case ",$(echo "$CI_ROUTES" | tr -d ' ')," in *",$ROUTE,"*) return 0 ;; esac; return 1; }
+
+# ---------------------------------------------------------------------------
+# THE RELEASE RULE (his ask 2026-09-19): "The pipeline should only generate
+# artifact for things that are tested." The throwaway isle is what the
+# pipeline analyses; polari-isle-test writes pool/<version>/isle-test/
+# results.json; NOTHING is published that that file does not say passed.
+#
+#   no results.json at all   → every route is DRY and the tag is not pushed
+#   core_ok false            → every route is DRY (the core itself is untested)
+#   an app whose result is not 'pass' → its deb is left OUT of the assets and
+#                                       named under "not released"
+#
+# It is a TESTING rule, not a security gate — and it is HARD: DRY_RUN=false
+# does not override it. Forcing a publish of something untested is exactly
+# the thing the rule exists to prevent.
+RESULTS_JSON="${RESULTS_JSON:-$POOL_DIR/isle-test/results.json}"
+tested_state(){ # → 'OK' or the reason this version may not be published
+    [ -f "$RESULTS_JSON" ] || { echo "no isle-test results for $VERSION — the pipeline only releases what it tested"; return 1; }
+    python3 - "$RESULTS_JSON" "$VERSION" <<'PY' || return 1
+import json, sys
+p, ver = sys.argv[1:3]
+try: r = json.load(open(p))
+except Exception as e:
+    print('isle-test results unreadable (%s)' % e); sys.exit(1)
+if not r.get('core_ok'):
+    print('the isle test did not record core_ok for %s — the core itself is untested' % ver); sys.exit(1)
+print('OK')
+PY
+}
+tested_apps(){ # the app modules a stage recorded as pass — the only ones that may ship
+    [ -f "$RESULTS_JSON" ] || return 0
+    python3 -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1])).get("passed", [])))' "$RESULTS_JSON" 2>/dev/null || true
+}
+release_assets(){ # release_assets <dir> — the files this route MAY publish
+    local d="$1" f base app passed; passed=" $(tested_apps) "
+    for f in "$d"/*; do
+        [ -f "$f" ] || continue
+        base="$(basename "$f")"
+        case "$base" in
+            polari-app-*_*.deb) app="${base#polari-app-}"; app="${app%%_*}"
+                                case "$passed" in *" $app "*) echo "$f" ;; esac ;;
+            *) echo "$f" ;;
+        esac
+    done
+}
+release_excluded(){ # release_excluded <dir> — what is held back, and why
+    local d="$1" f base app passed; passed=" $(tested_apps) "
+    for f in "$d"/*; do
+        [ -f "$f" ] || continue
+        base="$(basename "$f")"
+        case "$base" in
+            polari-app-*_*.deb) app="${base#polari-app-}"; app="${app%%_*}"
+                                case "$passed" in *" $app "*) ;; *) echo "$base (untested or failed in the isle test)" ;; esac ;;
+        esac
+    done
+}
 arm(){ # arm VAR:area/name … — the FIRST line of every route: resolve DRY_RUN=auto and say why
-    local spec var path missing="" state
+    local spec var path missing="" state why excluded
     for spec in "$@"; do var="${spec%%:*}"; path="${spec#*:}"; [ -n "${!var:-}" ] || missing="$missing $path"; done
     case "$DRY_RUN" in
         0|false|no)  DRY_RUN=0; state="ARMED (DRY_RUN=false forced)" ;;
@@ -42,6 +98,12 @@ arm(){ # arm VAR:area/name … — the FIRST line of every route: resolve DRY_RU
             else DRY_RUN=0; state="ARMED"; fi ;;
         *) echo "[$ROUTE] REFUSED: DRY_RUN='$DRY_RUN' is not auto|true|false" >&2; exit 2 ;;
     esac
+    # THE RELEASE RULE — hard, and it overrides even DRY_RUN=false.
+    if ! why="$(tested_state)" || [ "$why" != OK ]; then
+        DRY_RUN=1; state="DRY ($why)"
+    fi
     echo "== route $ROUTE  version $VERSION  $state  pool $POOL_DIR"
+    excluded="$(release_excluded "$POOL_DIR/debs" 2>/dev/null || true)"
+    [ -n "$excluded" ] && { echo "[$ROUTE] not released: untested/failed —"; printf '%s\n' "$excluded" | sed 's/^/    /'; } || true
     for spec in "$@"; do need "${spec%%:*}" "${spec#*:}"; done
 }

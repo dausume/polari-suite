@@ -32,7 +32,8 @@ pipelineJob('polari-publish') {
 // have room), then up → verify → down. Manual only — nothing polls it, and the
 // deb-install cycle inside the guest is ci-3.
 pipelineJob('polari-isle-test') {
-    description('ci-7: preflight the pipeline device, stand a throwaway isle VM up on it (device.env: local or ssh), verify, destroy. Publishes nothing.')
+    description('ci-7b: preflight the device, then run every CI_ISLE_STAGES stage in its OWN throwaway isle (up → install core + that stage\'s app debs → selftest each → record → down), sequentially. Writes pool/<VERSION>/isle-test/results.json — THE file the release rule reads: only what a stage passed is ever published.')
     logRotator { numToKeep(20) }
+    parameters { stringParam('VERSION', '', 'the pool version under test (empty = a bare device proof; no results recorded against a release)') }
     definition { cps { script(pipe('Jenkinsfile.isle-test')); sandbox(true) } }
 }

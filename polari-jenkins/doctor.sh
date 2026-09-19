@@ -38,6 +38,24 @@ ME="$(id -un)"
 echo "polari-jenkins doctor — what is configured, and what is not (read-only; it changes nothing)"
 echo "device: $(device_target_name)   user: $ME   secrets posture: $(secrets_mode)"
 
+# --------------------------------------------------- the checkout + CLI
+# (added in ci-7b so `pol jenkins setup` reads these from the doctor
+# instead of growing a second copy of them.)
+sec "the checkout and the CLI"
+SUITE="$(cd "$J/.." && pwd)"
+MISSING_SUB=""
+for s in polari-cli polari-rf-node political-scorecard-node polari-app-shell Isle-Mesh; do
+    [ -d "$SUITE/$s" ] && [ -n "$(ls -A "$SUITE/$s" 2>/dev/null)" ] || MISSING_SUB="$MISSING_SUB $s"
+done
+[ -z "$MISSING_SUB" ] && ok "submodules" "all five populated (polari-cli, polari-rf-node, political-scorecard-node, polari-app-shell, Isle-Mesh)" \
+    || warn "submodules" "not populated:$MISSING_SUB" "git -C $SUITE submodule update --init --recursive (or ./bootstrap-dev.sh)"
+if command -v pol >/dev/null 2>&1; then ok "pol CLI" "$(command -v pol)"
+else warn "pol CLI" "pol is not on PATH" "bash $SUITE/polari-cli/shells/install-cli.sh, then open a new shell"; fi
+MISSING_TOOL=""
+for t in docker python3 git curl whiptail; do command -v "$t" >/dev/null 2>&1 || MISSING_TOOL="$MISSING_TOOL $t"; done
+[ -z "$MISSING_TOOL" ] && ok "host tools" "docker python3 git curl whiptail — all present" \
+    || warn "host tools" "absent:$MISSING_TOOL" "sudo apt-get install -y$(echo "$MISSING_TOOL" | sed 's/ docker/ docker.io/') (docker: https://docs.docker.com/engine/install/ubuntu/)"
+
 # ------------------------------------------------------------ device.env
 sec "the pipeline device (device.env)"
 while IFS='|' read -r key val status msg; do
@@ -164,6 +182,13 @@ else
     else warn "docker group" "$MEMBERS — $N members, and docker-group membership is root-equivalent on this machine" \
               "leave the $CI_USER user and ONE admin in it: sudo gpasswd -d <user> docker"; fi
 fi
+# …and whether the invoking human can actually use it (every build goes through it)
+if [ "$(id -u)" = 0 ] || id -nG "$ME" 2>/dev/null | tr ' ' '\n' | grep -qx docker; then
+    ok "your docker access" "$ME can talk to the docker socket"
+else
+    warn "your docker access" "$ME is not in the docker group — no build can run as $ME" \
+         "sudo usermod -aG docker $ME, then log out and back in (membership is read at login)"
+fi
 
 # ------------------------------------------------------ virtualisation
 sec "virtualisation on this machine"
@@ -197,6 +222,14 @@ if [ "$CI_ISLE_TARGET" = ssh ]; then
         else warn "target sudo -n" "the target asks for a sudo password" "a job cannot answer a prompt — grant NOPASSWD for the libvirt commands on that device"; fi
         on_target '[ -e /dev/kvm ]' >/dev/null 2>&1 && ok "target /dev/kvm" "present" \
             || warn "target /dev/kvm" "the isle device has no /dev/kvm" "choose a device with hardware virtualisation"
+        TMISS=""
+        for t in virt-install qemu-img virsh; do
+            on_target "command -v $t >/dev/null" >/dev/null 2>&1 || TMISS="$TMISS $t"
+        done
+        on_target 'command -v cloud-localds >/dev/null || command -v genisoimage >/dev/null' >/dev/null 2>&1 || TMISS="$TMISS cloud-localds"
+        [ -z "$TMISS" ] && ok "target libvirt" "virt-install qemu-img virsh + a cloud-init seed tool — all present" \
+            || warn "target libvirt" "absent on $(device_ssh_dest):$TMISS" \
+                    "ssh $(device_ssh_dest) 'sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients virtinst qemu-utils cloud-image-utils'"
     else
         warn "ssh target" "$(device_ssh_dest) is not reachable with BatchMode ssh (${out//$'\n'/ })" \
              "add a Host entry and a key: ssh-copy-id <alias>"
@@ -232,6 +265,31 @@ if FREE=$(POLARI_POOL="$J/pool" DISK_MIN_FREE_GB="$CI_MIN_FREE_GB" bash "$J/rete
     ok "pool floor" "$(echo "$FREE" | tail -1)"
 else
     warn "pool floor" "$(echo "$FREE" | tail -1)" "bash polari-jenkins/retention.sh prune, or lower CI_MIN_FREE_GB knowingly"
+fi
+
+# ------------------------------------------ what may be RELEASED at all
+# The release rule (his ask 2026-09-19): the pipeline only generates
+# artifacts for things it TESTED in a throwaway isle. So "can this device
+# run an isle test at all?" decides whether anything can ever be published.
+sec "isle testing stages — only what is TESTED is ever released"
+stages_print
+CAN_TEST=1; WHYNOT=""
+if [ "$CI_ISLE_TARGET" = ssh ]; then
+    [ -n "$CI_ISLE_SSH_HOST" ] || { CAN_TEST=0; WHYNOT="CI_ISLE_TARGET=ssh with no alias"; }
+elif [ ! -e /dev/kvm ]; then
+    CAN_TEST=0; WHYNOT="the target is this machine and it has no /dev/kvm"
+fi
+if [ "$CAN_TEST" = 1 ]; then ok "isle target for tests" "$(device_target_name) can host a throwaway isle (pol jenkins preflight --isle proves it)"
+else warn "isle target for tests" "$WHYNOT — NOTHING can be released until an isle target exists" \
+          "pol jenkins target ssh <alias> (a device with /dev/kvm + libvirt), then pol jenkins preflight --isle"; fi
+LATEST=$(ls -1 "$J/pool" 2>/dev/null | grep -E '^[0-9]{4}\.[0-9]{2}\.[0-9]{2}' | sort -V | tail -1 || true)
+if [ -z "$LATEST" ]; then
+    ok "isle-test results" "no release built yet — the first polari-release run mints a version"
+elif [ -f "$J/pool/$LATEST/isle-test/results.json" ]; then
+    ok "isle-test results" "$LATEST has results — the release rule can decide what to publish"
+else
+    warn "isle-test results" "$LATEST has no isle-test/results.json — every route stays DRY and the tag is not pushed" \
+         "run the polari-isle-test job for $LATEST (the pipeline only releases what it tested)"
 fi
 
 echo

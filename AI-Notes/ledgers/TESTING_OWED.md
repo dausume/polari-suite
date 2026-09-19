@@ -5065,3 +5065,280 @@ VM, a dirty vs clear device, unreachable target, no `sudo -n`, exit 0 vs 4,
    ever the target.
 6. Nothing is committed. `polari-jenkins/device.env` on pol-core is
    currently `CI_ISLE_TARGET=local` and is gitignored.
+
+### §70 addendum — setup + stages + the tested-only release rule
+
+His asks, 2026-09-19 (three, in the order they came):
+
+1. *"Our setup command for the pol jenkins should walk us through our
+   options and tell us how and what we should be setting up and where to
+   get everything to work."*
+2. *"this way pol jenkins setup is a one shot setup."*
+3. *"we should also be able to configure what all apps outside core we want
+   built and tested in the testing isle. Though default to only core I
+   believe."* … then: *"the testing isle being what the pipeline is
+   analyzing. The pipeline should only generate artifact for things that
+   are tested. We should also be able to setup Isle Testing stages, for the
+   case where we are space limited but still want to test as much as we
+   can. So for example we may have stage 1 being just core, then stage 2
+   testing household app, then stage 3 being electronics, and so on."*
+
+Built on `dev`, **uncommitted**. Nothing was deployed, no VM was started, no
+container was brought up, no `init-device` was run, nothing was pushed.
+`pol jenkins setup --report`, `doctor`, `preflight --isle` and the selftest
+were run for real on pol-core.
+
+---
+
+#### What, and where
+
+| what | where | notes |
+|---|---|---|
+| **the walkthrough** | `polari-jenkins/setup.sh` (~300 lines, the driver) + `setup/steps/0{1..7}-*.sh` | 8 steps: role · checkout · network · secrets · isle · stages · controller · summary. `--yes` · `--report`/`--non-interactive` · `--step <name>` · `--help` |
+| the CLI door | `pol jenkins setup` (`guide` kept as an alias) in `polari-cli/scripts/jenkins.sh` + `lib/jenkins-device.sh` (`jd_setup`, `jd_setup_line`) | the old 20-line `jd_guide` is GONE — its six questions are now step 5's |
+| **the shared dialogs** | NEW `polari-cli/scripts/lib/tui.sh` | `tui_available/menu/input/yesno/msg/password/checklist`; whiptail when there is a tty, numbered plain prompts otherwise; `POL_TUI=plain` forces plain. Sourced by `jenkins.sh`; `setup.sh` finds it via `POL_TUI_LIB`. **prod.sh untouched** — its own `tui_*` copies stay (OWED 1) |
+| the status file | `polari-jenkins/SETUP_STATUS.md` (gitignored, new `.gitignore` lines) | done/to-do table + the release rule + the verdict; `pol jenkins status` prints one line from it |
+| **the stages knob** | `CI_ISLE_STAGES` in `device.env(.example)`, parsed and validated in `device.sh` | `;` between stages, `,` inside one, the literal `core` = core debs only. Default `core`. `stages_list/count/apps/all_apps/known_apps/app_known/print` |
+| the ONE device.env writer | `device.sh device_env_set` + `device_reload` | `jd_set` now delegates; `device_reload` exists because plain re-sourcing keeps a stale value (device_load treats an already-set `CI_*` as an explicit override) |
+| the doctor learns 8 new rows | `doctor.sh` | `submodules` · `pol CLI` · `host tools` · `target libvirt` · `CI_ISLE_STAGES` (+ `isle stages (twice)` / `(empty)`) · `isle target for tests` · `isle-test results` |
+| the stage loop | `pipelines/Jenkinsfile.isle-test` (rewritten) + a `VERSION` param in `jobs/seed.groovy` | preflight → per stage: `app-debs.sh` → `throwaway up` → `verify` → *(ci-3 TODO: install + selftest)* → record → `throwaway down`; a failing stage records and the next still runs; writes `pool/<version>/isle-test/results.json` |
+| the app debs | NEW `polari-jenkins/isle/app-debs.sh` | **THIN VERB** — reuses `polari-rf-node/polari-framework/modules/appstore/custom/app_deb_builder.py` (`python3 -m appstore.custom.app_deb_builder <mods>` with `PYTHONPATH=.:modules`, pool pointed at the run dir via `POLARI_APP_DEBS_DIR`), the same implementation `Isle-Mesh/isle-cli/scripts/apps.sh:37-52` calls. No second deb writer |
+| **the release rule** | `routes/_lib.sh` (`tested_state` `tested_apps` `release_assets` `release_excluded`, consulted inside `arm`) + `Jenkinsfile.release` + `routes/github-release.sh` | hard: no results → every route DRY and the tag NOT pushed; `core_ok` false → same; an app not `pass` → its deb left out of the assets and named under "not released: untested/failed" in the log and the release notes. `DRY_RUN=false` does **not** override it |
+| the Jenkins shape | `Jenkinsfile.release`: `build job: 'polari-isle-test', wait: true, propagate: false` + a `when { environment RELEASE_TESTED == 'yes' }` on the tag stage | chosen for being the simplest that works: no upstream/downstream plumbing, no fingerprints — isle-test is a normal job taking `VERSION`. `propagate:false` so a failed stage still leaves its results behind; the gate decides what ships, not the job's colour |
+| docs | `polari-jenkins/README.md` (setup is now the entry point, with a step table and a "release rule" section), `pol jenkins help`, `polari-cli/index.js` | |
+| tests | `polari-jenkins/selftest.sh` | **120/120** (was 56/56) — still no docker, libvirt, sudo or network |
+
+#### What each step actually DOES (his "one shot")
+
+| step | it explains | it checks LIVE | it offers to do |
+|---|---|---|---|
+| 1 role | controller 2 GB, build ~3 GB, VM 4 GB/2 vCPU/30 GB, nested KVM | `/proc/meminfo`, `nproc`, `df`, `/dev/kvm`, the nested module param | nothing (read-only by design) |
+| 2 checkout | docker-group membership is root-equivalent | doctor rows `submodules` `pol CLI` `host tools` + the group | `apt-get install` the missing tools · `install-cli.sh` · `usermod -aG docker` · `submodule update --init --recursive` |
+| 3 network | outbound only; a dropped Wi-Fi link fails a gigabyte build | doctor rows `wired IPv4` `git origin` + `nmcli con show` | `nmcli con up "<the wired connection>"` |
+| 4 secrets | the two postures, verbatim | `secrets_mode`, `secrets_have` per route secret | `sudo pol jenkins init-device` · paste (hidden) each outside-authority token · GENERATE cosign / gpg / ssh material and store both halves |
+| 5 isle | local vs ssh + the local-target caveat | doctor rows `ssh target` `target sudo -n` `target /dev/kvm` `target libvirt`, then the real `preflight --isle` | `pol jenkins target …` · `ssh-keygen` · `ssh-copy-id` · the sudoers drop-in over `ssh -t` (shown verbatim, `visudo -c`'d) · libvirt over ssh · the VM knobs |
+| 6 stages | the space trade-off, the cost per app, the release rule | `CI_ISLE_STAGES` against `modules/*/polari-app.json` | build the stage list (a checklist per stage) and write the knob |
+| 7 controller | 127.0.0.1 only, `ssh -L`, the admin password, the four jobs, `DRY_RUN=auto` | `.env`, `jenkins_home`, the UI's HTTP code | `pol jenkins up` |
+| 8 summary | — | doctor warning count + `preflight --isle` verdict | writes `SETUP_STATUS.md` |
+
+#### WHERE to get each secret (the table the selftest checks for completeness)
+
+| secret | kind | where | how |
+|---|---|---|---|
+| `github/github_token` | paste | https://github.com/settings/personal-access-tokens/new | fine-grained → repo `dausume/polari-suite` → **Contents: Read and write** (releases + the tag push); a classic token with `repo` also works |
+| `registries/ghcr_token` | paste | https://github.com/settings/tokens | **classic** (fine-grained cannot do packages) → `write:packages` + `read:packages`; `delete:packages` only to remove a bad tag |
+| `signing/cosign_key` + `cosign_password` | generated here | cosign is in the controller image; binaries at https://github.com/sigstore/cosign/releases | `cosign generate-key-pair`, else `docker run --rm -v "$PWD":/w -w /w ghcr.io/sigstore/cosign/cosign generate-key-pair`; a random 24-char passphrase; `cosign.pub` → `polari-jenkins/cosign.pub` (tracked, it is public — `.gitignore` gained `!cosign.pub`) |
+| `signing/apt_signing_gpg` + `apt_signing_keyid` | generated here, **BLOCKED** | nothing to fetch | `gpg --quick-generate-key "Polari apt signing <apt@polari.invalid>" ed25519 sign 2y` then `--armor --export-secret-keys`; **blocked until the Keycloak rotation (CICD §5.4)** — offered with default NO, the route stays DRY |
+| `ssh/distribution_host_key` | generated here, **BLOCKED** | its `.pub` goes in the downloads host's `authorized_keys` | `ssh-keygen -t ed25519 -C polari-ci-apt` |
+| `github/github_ssh_key` | optional | the repo → Settings → Deploy keys → Allow write access | `ssh-keygen -t ed25519 -C polari-ci`; the public half printed for pasting |
+| parked | — | — | `dockerhub npm pypi launchpad snap` — each needs an outside account; **parked by his rule, nothing is asked** |
+
+Nothing above ever prints, echoes or logs a VALUE. Generated material is
+stored through `pol jenkins secrets put`, so it lands in
+`/etc/polari-jenkins/secrets` (root:polari-ci 0640) when the system posture
+is in force and in the checkout with a loud warning when it is not.
+
+#### The real `pol jenkins setup --report` (pol-core, 2026-09-19)
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│ pol jenkins setup — the pipeline device, one step at a time              │
+└──────────────────────────────────────────────────────────────────────────┘
+   device: this machine   secrets posture: repo   mode: report
+   READ-ONLY: this run changes nothing. It prints the state and the to-do list.
+
+══ step 1/8 — this device's role
+   [ok]   measured here: 15.5 GB RAM, 4 vCPU, 14 GB free: controller + builds serialised — not a concurrent isle VM; put the isle on another device (pol jenkins target ssh <alias>) or add RAM
+   [ok]   controller: yes — the controller is capped at 2 GB
+   [ok]   builds: yes — controller 2 GB + one build ~3 GB, serialised
+   [--]   isle-here: no — no /dev/kvm on this machine
+   [--]   isle-only: no — no /dev/kvm on this machine
+   [--]   nested KVM: unreadable (the isle's router guest runs INSIDE the throwaway VM)
+
+══ step 2/8 — the checkout and the CLI
+   [ok]   submodules: all five populated (polari-cli, polari-rf-node, political-scorecard-node, polari-app-shell, Isle-Mesh)
+   [ok]   pol CLI: /home/user/.local/bin/pol
+   [ok]   host tools: docker python3 git curl whiptail — all present
+   [ok]   docker group: user can talk to the docker socket
+
+══ step 3/8 — the network — outbound only
+   [--]   wired IPv4: only a wireless interface carries an address ( <lan>) — builds will pull over Wi-Fi
+   [ok]   git origin: reachable — polling works (public repos need no token)
+   [ok]   inbound: nothing is opened — the UI binds 127.0.0.1 and every publish is an outbound push
+
+══ step 4/8 — the secrets posture, and the secrets
+   [--]   posture: REPO — /home/user/Desktop/polari-suite/polari-jenkins/secrets, readable by EVERY process of user
+   [--]   github/github_token — absent: the github-release and homebrew routes: create the release, upload its assets, push the version tag
+   [--]   registries/ghcr_token — absent: the ghcr route: push the release images to ghcr.io/dausume
+   [--]   signing/apt_signing_gpg — absent (BLOCKED until the Keycloak rotation (CICD_PIPELINE_PLAN §5.4): the apt/downloads route may not be armed before it. Generate the material if you like — the route stays DRY.)
+   [--]   signing/apt_signing_keyid — absent (BLOCKED until the Keycloak rotation (CICD_PIPELINE_PLAN §5.4): the apt/downloads route may not be armed before it. Generate the material if you like — the route stays DRY.)
+   [--]   ssh/distribution_host_key — absent (BLOCKED until the Keycloak rotation (CICD_PIPELINE_PLAN §5.4): the apt/downloads route may not be armed before it. Generate the material if you like — the route stays DRY.)
+   [ok]   signing/cosign_key — absent (optional: signs the release images and the checksums so a downloader can verify them)
+   [ok]   signing/cosign_password — absent (optional: the passphrase of the cosign private key (generated with it))
+   [ok]   github/github_ssh_key — absent (optional: OPTIONAL alternative to github_token for the tag push only (a deploy key))
+   [ok]   parked routes: dockerhub npm pypi launchpad snap — each needs an outside account; parked by his rule, nothing is asked for them
+
+══ step 5/8 — where the throwaway isle goes
+   [ok]   target: this machine (device.env: CI_ISLE_TARGET=local)
+   [ok]   VM: polari-ci-isle — 4 GB / 2 vCPU / 30 GB, nested=auto
+   [--]   KVM here: absent, and CI_ISLE_TARGET=local — the throwaway isle cannot be created here
+   [--]   libvirt here: virsh absent and the isle target is local
+   [--]   LOCAL-TARGET CAVEAT: the controller is a CONTAINER and libvirt lives on the host, so a local target needs the libvirt socket mounted in (a posture change nobody has authorised) or a host-tier agent. The ssh target has no such problem.
+   [--]   testable: the target is this machine and it has no /dev/kvm — NOTHING can be released until an isle target exists
+   [--]   preflight --isle: FAIL — pol jenkins preflight --isle shows the table
+
+══ step 6/8 — isle testing stages — what gets tested, and so what ships
+  stage 1  core only
+   [ok]   CI_ISLE_STAGES=core — 1 stage(s), run one after another, each in its OWN throwaway isle
+   [ok]   every app named is a real module (modules/<name>/polari-app.json)
+   [ok]   THE RELEASE RULE: core publishes only when the isle test recorded core_ok; an app deb ships only when its stage result is pass; no results.json for a version = NOTHING published, tag not pushed
+
+══ step 7/8 — bring the controller up
+   [--]   .env: absent
+   [--]   jenkins_home: absent
+   [ok]   port binding: 127.0.0.1 only (compose)
+   [--]   nothing answers on 127.0.0.1:8080 — the controller is down
+   [ok]   admin password: /home/user/Desktop/polari-suite/polari-jenkins/secrets/admin/jenkins_admin_password (generated by pol jenkins up, printed once)
+   [ok]   reach it from another machine: ssh -L 8080:127.0.0.1:8080 <alias>, then http://127.0.0.1:8080 — nothing is ever exposed
+
+══ step 8/8 — summary
+
+   done:
+     ✓ this device's role — 15.5 GB RAM, 4 vCPU, 14 GB free: controller + builds serialised — not a concurrent isle VM; put the isle on another device (pol jenkins target ssh <alias>) or add RAM
+     ✓ the checkout and the CLI — checkout, pol, docker and the host tools are all in place
+     ✓ isle testing stages — what gets tested, and so what ships — 1 stage(s): core
+
+   still to do, in order:
+      1. [network] put this device on a wire — a release build pulls gigabytes and a dropped Wi-Fi link fails the run
+         → nmcli con show   then   nmcli con up "<the wired connection>"
+      2. [secrets] move the secrets out of the checkout (the posture (C) asks for)
+         → sudo pol jenkins init-device
+      3. [secrets] put github/github_token in place
+         → https://github.com/settings/personal-access-tokens/new
+      4. [secrets] put registries/ghcr_token in place
+         → https://github.com/settings/tokens
+      5. [isle] this machine has no /dev/kvm — the isle cannot be built here
+         → pol jenkins target ssh <alias>, or enable VT-x/AMD-V in firmware
+      6. [isle] the preflight refuses this device
+         → pol jenkins preflight --isle   (each FAIL row names its own fix)
+      7. [controller] start the controller
+         → pol jenkins up
+
+   THE RELEASE RULE — the pipeline only generates artifacts for things it 
+   TESTED in a throwaway isle. Stages now: core. Core debs and images 
+   publish only when the isle test recorded core_ok; an app's deb ships only 
+   when its stage result is pass; with no isle-test/results.json for a 
+   version NOTHING is published and the tag is not pushed.
+
+   NOT READY — 7 thing(s) stand in the way; the first is: put this device on a wire — a release build pulls gigabytes and a dropped Wi-Fi link fails the run
+   steps: 3 of 8 complete   ·   full state: pol jenkins setup --report
+   saved: /home/user/Desktop/polari-suite/polari-jenkins/SETUP_STATUS.md (gitignored)
+```
+
+(The wireless interface name is written `<lan>` above; no address, hostname
+or e-mail is written anywhere — `SETUP_STATUS.md` is gitignored and names
+only "this machine" or an ssh alias.)
+
+#### selftest
+
+```
+polari-jenkins selftest — no docker, no libvirt, no sudo, no network
+-- mint-tag: polari-vYYYY.MM.DD, .N for a second release the same day
+-- routes: ARMED vs DRY (secret absent) vs DRY (not in CI_ROUTES)
+-- preflight: the arithmetic, and the device-is-clear reading
+-- doctor: one WARN per misconfiguration, each naming the fix
+-- setup: the role arithmetic, the where-to-get-it table, --report, idempotence
+-- stages: parsing, the twice/unknown/empty warnings, and what may be released
+
+120/120
+```
+
+64 new cases on top of ci-7's 56:
+- **11** role-fit arithmetic (16 GB fits everything · 7.5 GB fits builds but
+  not a concurrent isle and the sentence says so and names the ssh way out ·
+  no KVM → no isle role · 4.5 GB hosts the VM but cannot build · too little
+  disk → no isle here · the headline carries RAM/vCPU/disk);
+- **11** the where-to-get-it table (every ACTIVE route's secret carries a URL
+  **or** a generate command — the completeness check; the fine-grained token
+  page and its exact permission; `write:packages`; cosign's two methods; the
+  `.invalid` address; both apt items marked blocked; the Deploy keys page; no
+  `-----BEGIN` can appear in the table);
+- **12** `--report` with no terminal (READ-ONLY, all 8 steps, the to-do list,
+  the release rule, a verdict, the URL, the step count, `SETUP_STATUS.md`
+  written with the verdict and the count, no secret value) + idempotence
+  (a second run changes no configuration and reports the same count) + the
+  skip path (answering nothing leaves `device.env` alone and says
+  `already: OK`);
+- **13** stage parsing (`core` → one stage with no apps · `;` · `,` ·
+  whitespace anywhere · `core` inside a stage is implicit · an empty stage is
+  a line, not dropped) and the warnings (unknown name + the known list ·
+  tested twice · empty stage · no stage at all → FAIL · the stage builder's
+  rendering);
+- **17** the release rule (`core_ok` + secret + CI_ROUTES → ARMED · a
+  not-passed app held back and NAMED · `core_ok` false → DRY · no results
+  file → DRY with his wording verbatim · `DRY_RUN=false` cannot force it ·
+  `release_assets` keeps the core deb and the passed app deb and drops the
+  untested one).
+
+#### Gotchas found and fixed while building
+
+- **Re-sourcing `device.sh` keeps the STALE value.** `device_load` captures
+  every already-set `CI_*` as an "explicit override" and wins it back after
+  reading the file — so a caller that had loaded once could never see what it
+  had just written. Hence `device_reload` (unset, then load). The same trap
+  is why `jd_setup` no longer calls `jd_export_for_compose` first: exported
+  `CI_*` would shadow everything setup writes.
+- **`$(…)` strips the trailing newline, so `while read` silently drops the
+  last line.** The role step printed 3 of its 4 roles. `printf '%s\n'` plus a
+  `[ -n "$role" ] || continue` guard.
+- **`read` failing under `set -u` leaves the variable UNBOUND**, not empty —
+  `tui_yesno` died with `c: unbound variable` the moment stdin hit EOF. Every
+  helper now declares `local c=""` and `_tui_read` ends `|| true`.
+- **`/dev/tty` can exist and still not be openable** (`-r` passes, the open
+  fails with "No such device or address"). The test is now
+  `{ : </dev/tty; } 2>/dev/null`, not `[ -r /dev/tty ]`.
+- **The isle CLI's module path is stale**: `Isle-Mesh/isle-cli/scripts/apps.sh`
+  invokes `appstore.app_deb_builder`, but the file lives at
+  `modules/appstore/custom/app_deb_builder.py` and only
+  `appstore.custom.app_deb_builder` imports. `app-debs.sh` uses the working
+  path (OWED 3).
+- `local v() ; v() { … }` is not valid bash — a helper inside
+  `setup_role_headline` had to become three plain `awk` extractions.
+- Adding the release rule to `arm()` retroactively made every ci-7 arming
+  test DRY; the selftest now seeds a passing `results.json` for those cases
+  and tests the gate separately. That is the rule working, not a regression.
+- `CI_ISLE_STAGES=` empty can never reach the "no stage at all" FAIL through
+  `device.env` (the `:=` default fills it), so that guard is tested by
+  clearing the variable after `device_load` — it stays as defence, not dead
+  weight.
+
+#### OWED
+
+1. **`prod.sh` still carries its own `tui_menu/input/yesno/msg`** (lines
+   ~166-190). They are now duplicated by `polari-cli/scripts/lib/tui.sh`.
+   Deliberate for this slice — prod.sh was declared untouched — but it is a
+   real duplication and should collapse into `lib/tui.sh` next time prod.sh
+   is opened. The Textual guide (`prodguide`) has no `jenkins` equivalent and
+   none is planned.
+2. **ci-3 is still the blocker, and now it blocks RELEASES.** The install +
+   selftest body inside the guest is a marked TODO, so every stage records
+   `skipped`, `core_ok` stays false, and the release rule therefore publishes
+   **nothing** and pushes no tag. That is the honest state — but it means the
+   pipeline cannot release at all until ci-3 lands. Flagging it loudly: this
+   is a behaviour change for anyone who expected `polari-release` to publish.
+3. **`Isle-Mesh/isle-cli/scripts/apps.sh` names a module path that does not
+   import** (`appstore.app_deb_builder` vs `appstore.custom.app_deb_builder`).
+   One-line fix on isle-core's working copy; not touched from here.
+4. **`app-debs.sh` has never run.** It needs a framework checkout (present)
+   and the builder's own preconditions (the module registry); no deb was
+   generated in this slice — nothing was built, per the brief.
+5. **`polari-release` now waits on `polari-isle-test`.** On a device with no
+   isle target that inner job REFUSES at the preflight (exit 4), the release
+   still completes the build, and nothing publishes. Correct, but it makes
+   the isle target a hard prerequisite for any release — the doctor says so
+   (`isle target for tests`).
+6. The `gh release upload` change uses `mapfile`, so the github-release route
+   now needs bash (it already had `#!/bin/bash`).
+7. Nothing is committed. `polari-jenkins/device.env` on pol-core is unchanged
+   (`CI_ISLE_TARGET=local`, no `CI_ISLE_STAGES` key, so the default `core`
+   applies) and is gitignored.

@@ -553,3 +553,21 @@ device, the throwaway isle on a device with KVM and no live isle (or econ-core a
 the checkout on econ-core, `init-device`, `target`, secrets, a wired IPv4 there; a real `throwaway.sh up` on a
 KVM box; the local-target caveat (the controller is a container; libvirt is on the host — an ssh target
 sidesteps it).
+
+### 9a. ci-7b — `pol jenkins setup`, isle testing STAGES, the tested-only release rule (his asks 2026-09-19; BUILT, ledger §70 addendum)
+
+`pol jenkins setup` = a ONE-SHOT walkthrough: 8 steps (role · checkout · network · secrets · isle target · testing
+stages · controller · summary), each explains, checks live through doctor/preflight, says what/how/WHERE (URLs +
+scopes for every token, generate commands for cosign/GPG/ssh keys), and PERFORMS the local part (apt, docker
+group, init-device, key generation, secrets put, device.env, up, doctor, preflight); outside tokens are pasted
+inline (hidden) or skipped onto the to-do list; `--yes` / `--report` / `--step`; idempotent; the summary says
+READY or the one thing in the way; saved to SETUP_STATUS.md. `CI_ISLE_STAGES` (default `core`; `;` between
+stages, `,` within) — each stage is its own throwaway isle run in turn, so a space-limited device still tests
+everything over time; `Jenkinsfile.isle-test` loops the stages, records `pool/<version>/isle-test/results.json`,
+a failing stage does not abort the run. **THE RELEASE RULE (his): the pipeline only generates artifacts for
+things it TESTED** — `routes/_lib.sh arm()`: core publishes only with `core_ok`, an app deb ships only with a
+`pass`, no results for the version = nothing published and no tag; `DRY_RUN=false` cannot override it; `polari-
+release` runs `polari-isle-test` first (`build job:`, `propagate: false`). App debs reuse
+`modules/appstore/custom/app_deb_builder.py`. selftest 120/120. ⚠️ Until ci-3's in-guest install + selftest body
+exists every stage records `skipped`, so the release job publishes NOTHING — honest, by his rule. NEXT: ci-8 =
+the `cicd` Polari app (settings as rows, runs mirrored in, always admitted on the pipeline device).
