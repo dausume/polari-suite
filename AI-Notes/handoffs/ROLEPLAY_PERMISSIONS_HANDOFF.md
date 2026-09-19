@@ -408,6 +408,25 @@ broadcast, no actor/object pairing in the trace journal). The vote: `Ballot` row
 role-grant design; `VoteRecord` tally derived; certification freezes ballots. First opt-in = `UserAppPreference`.
 Slices op-0..op-4; no open decisions (defaults in design §8, his to overrule).
 
+## 2026-09-18/19 — the tracing + owner arcs are BUILDING (ct-0, op-0, ct-1, ct-3, ct-2, ct-4, ct-8 built; all pushed)
+
+Six slices built by opus agents, each reviewed by Fable for coherence, selftested and pushed; two `pol prod apply`
+deploys on the home stack (dev posture, gate advisory). Ledger §59 (ct-0 cause context), §60 (op-0 owner policy +
+stamp + gate), §61 (ct-1 TraceTarget + CausalEdge + journal), §62 (ct-3 outbound wrapper, 21 files / 35 sites,
+straggler guard), §59–§62 addendum (LIVE PROOF: arm dev-only + sub-keyed, second arm refused, one counted edge from
+two reads, untraced class writes nothing, manual disarm, coverage; owner gate: own row whole, viewer would-deny),
+§63 (ct-2 emit / nested / ws-publish / shared-db / bundle / ai / boot edges + ct-4 `closure()`, `/observe/closure`,
+review.closure, verify.transitive, page panels), §64 (ct-8 `SecurityDecision` in polariapps — enumerated per
+app × version, 8 kinds × 6 states, `/api/apps/security/{decisions,coverage,confirm-profile,bump}`, a human
+confirms with a sub + proposal hash). Selftests at the pin: security 200/203 (the 3 env failures), polariapps
+125/125, cause context 41/41, outbound 51/51, refs 51/51. Two things the build corrected in the designs: the class
+gate ALWAYS runs first (owner rules only narrow — owner design §3/§8), and `X-Polari-Owner-Advisory` needed exposing
+to browsers (fixed, framework f1fd6cc). REMAINING slices: ct-6 (STOMP subscribe = CRUDE posture), ct-7 (session
+tasks), ct-9 (Outbound/InboundPolicy rows, closed by default, suggested from dev traffic), op-1 (OwnerGrant), op-2
+(the rest of anonymised: SecurityEvent target, transfer), op-3 (Ballot, with the rg governance module), op-4
+(`app.owned` manifest). STILL HIS: every browser pass (Trace tab, closure panels, apps-security page), the
+`stop_grace_period` yes.
+
 **How to continue after a clear:** read this file top to bottom, then ledger §48–§58, then the guide. Rules that hold: security
 WARN-ONLY in deployments (never `enforce`); Polari rows key people by Keycloak `sub` only; no real identifiers in tracked
 files; deploy only via `pol prod apply` (detached + polled); commit innermost-first and push every repo; hand work to

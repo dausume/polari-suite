@@ -3233,3 +3233,148 @@ mac_enforced, mac profiles, expired internal certs) · `accessControl/selftest_c
   module version and see `stale` appear.
 - **Browser pass:** `/display/apps-security` — that the coverage panel reads as a table (per app × version, kind
   × state, instance counts) and not as a JSON wall, and that `confirmed_by` resolves through the `person` format.
+
+## §65 — ct-6: STOMP subscribe follows the CRUDE posture (2026-09-19, built, selftested)
+
+His ruling 2026-09-18 (design §10): *"STOMP should just follow from the CRUDE security posture … they should be
+the same."* Until now ANY socket could subscribe to ANY `/topic/<Class>` — the one door in the instance with no
+identity and no verdict. It now asks the same question the CRUDE gate asks, of the same function, under the same
+knob.
+
+| what | where | note |
+|---|---|---|
+| identity on the socket | `accessControl/stomp_identity.py` | `StompConnection` (`__slots__`: websocket, client_id, user_info, auth_failed — it *cannot* hold a name); bearer read from the WS upgrade `Authorization`, then `Sec-WebSocket-Protocol: bearer.<token>` / `access_token.<token>` (the browser convention — the JS WebSocket API cannot set headers), then the CONNECT frame's `Authorization` or STOMP's own `passcode`. `login` is never read. Validated by `JwtValidator.get()` — the middleware's own singleton, never a second implementation. `scrub_principal()` keeps `sub` + roles + the `groups` claim and drops username/email on the floor (D18-1). |
+| the verdict | `accessControl/stomp_gate.py` | `subscribe_verdict()` = `permission_verdict(manager, user_info, class_name, 'read')` — the SAME function, the same admin bypass, the same profile resolution. `events` is stamped on the returned dict as `derivedFrom: read`, never granted separately. No `AppPermissionProfile` table → `None`, reported as `no-profile-table`, allow (today's behavior, stated) exactly as the CRUDE gate does. |
+| the mode | same file, `gate_subscribe()` | `gate_mode()` from `app_permissions_gate` — one knob, `POLARI_APP_PERMISSIONS=off\|advisory\|enforce`. |
+| the seam | `polariApiServer/stompWebSocketServer.py` `handle_subscribe()` (:143), called from `_handler`'s `SUBSCRIBE` branch (:205) | the sync half is separated on purpose so the whole decision is testable with no socket. |
+| the manager | `initLocalhostPolariServer.py:160-164` | `StompWebSocketServer(..., manager=localHostedManagerServer)`; `set_manager()` for a lazy boot. Reference only — the sidecar is still not on the tree. |
+| the edge | `stomp_gate.record_subscribe()` | dev posture only; mints its OWN root cause (`api`, `SUBSCRIBE /topic/<Class>`) because contextvars do not cross the STOMP thread (design §4 — the site was already listed in `KNOWN_THREAD_SITES` as "ct-6"); `touch(manager, Class, 'read')` then `record_edge('endpoint:SUBSCRIBE /topic/<Class>', 'object:<Class>:read', 'ws-subscribe', detail='<groups, comma-joined>')`. The counterpart to ct-2's `ws-publish`, which deliberately left "who subscribes" here. |
+| the observation | same function | `security_observe.observe_permission(manager, user_info, Class, 'events', verdict=<the read verdict>)` — the existing public function, called by lazy import with the vocabulary verb, so derived profiles include what a role *subscribed* to and not only what it read over HTTP. No security file was edited. |
+
+**The notice mechanism (the "how does a STOMP server set a header" question), answered with what the server
+already had.** A STOMP server can say three things: MESSAGE, ERROR, RECEIPT. All three are used and nothing is
+invented.
+- **advisory** (the deployed mode — security warns, never blocks, §17): the subscription *is* registered, and the
+  client gets a `MESSAGE` frame on the destination it just subscribed to, carrying
+  `X-Polari-Permission-Advisory: would-deny <Class>:read` as a frame header and the evidence-bearing verdict as
+  its JSON body, marked `"polariNotice": "permission-advisory"` so a client can tell it from a change
+  notification. If the SUBSCRIBE asked for a `receipt`, the same header also rides the `RECEIPT` frame — the
+  closest thing STOMP has to the HTTP response header the CRUDE gate sets.
+- **enforce**: an `ERROR` frame with the same header, `message: permission refused` (or `unauthenticated`), the
+  verdict as the body, `receipt-id` when asked for — and the socket is NOT added to the topic.
+- **off**: nothing computed, nothing sent, byte-identical to before.
+- §51 holds on the socket too: an EXPIRED bearer answers `unauthenticated <Class>:read (token invalid or
+  expired)` + `X-Polari-Auth: invalid-or-expired`, never `would-deny`.
+
+**Selftests.** `PYTHONPATH=.:modules python3 polariApiServer/selftest_stomp_gate.py` → **41/41** (no network:
+the sync `handle_subscribe` is driven with a fake connection and a fake profile table). Regression set, all green:
+`accessControl/selftest_cause_context.py` **41/41** (the thread table needed no change — the STOMP site was
+already listed "ct-6"); `python3 -m testing.stomp_selftest` **6/6** (the wire, unchanged — default knob is `off`);
+`modules/grpcbridge/contracts_selftest.py` **31/31**; `modules/grpcbridge/serving_selftest.py` **23/23**;
+`PYTHONPATH=.:modules python3 -c "import polariApiServer.polariServer"` clean.
+
+**Gotchas.** (1) `modules/testing/transports_selftest.py` reads 8/10 — the two reds are PRE-EXISTING and nothing
+to do with ct-6: it shells `python3 -m testing.selftest_stomp` / `testing.selftest_formats`, and the files are
+named `stomp_selftest.py` / `formats_selftest.py`. Worth a one-line fix in that runner. (2) `polariServer.py`
+imports clean only with `PYTHONPATH=.:modules`. (3) A gate error can never close a socket: every failure path in
+`gate_subscribe` degrades to allow with the reason on the advisory.
+
+**OWED.**
+- **Live proof with a real websocket client:** on the home staging stack (dev posture, `POLARI_APP_PERMISSIONS=advisory`),
+  connect with a real Keycloak bearer as a demo-viewer, subscribe to an out-of-profile class, and see the MESSAGE
+  advisory arrive; flip to `enforce` and see the ERROR frame and an empty subscriber list in `/wsStatus`. Then arm
+  a `TraceTarget` on that class and check one `ws-subscribe` edge appears in `/api/security/trace/edges` with the
+  subscriber's groups in `detail` — pairing with ct-2's `ws-publish` edge to close the loop.
+- **Frontend half, not built:** the Angular STOMP client sends no bearer today (neither on the upgrade nor on
+  CONNECT), so on a live stack every socket is still anonymous; and nothing yet reads `polariNotice` /
+  `X-Polari-Permission-Advisory` or handles an ERROR frame on SUBSCRIBE. Until that lands, `enforce` would
+  silently stop live updates for real users — which is exactly why advisory is the deployed mode.
+- **Browser pass:** that an advisory notice does not make a page refetch in a loop, and that a refused subscribe
+  degrades to polling rather than a dead panel.
+
+## §63–§64 addendum — live proof on `polari-lean` (2026-09-19, framework `f1fd6cc`, posture dev, gate advisory)
+
+Second `pol prod apply`; backend 200 after ~70 s. Over the API with `demo-admin` / `demo-journalist`:
+
+| step | result |
+|---|---|
+| `GET /api/security/observe/closure` (armed class, no parameter) | five start nodes for `AppPermissionProfile` with `seen` true only for `read` (the one edge recorded) — "no edges yet" is an answer, not silence |
+| `?profile=journalist` | `explicit` = the profile's 4 class × read grants, `implicit []`, counts all zero except objects 4 — nothing beyond the explicit list has been traced, and it says so |
+| `review?role=journalist` / `verify` | `closure` block present (10 keys); `transitive {covered 0, total 0, definer_only 0, not_traced [], reading …}` |
+| `GET /api/apps/security/coverage?app=app-policy` | version `set-862f3c1e`, **436 subjects**: profile-verb 310 (62 classes × 5 verbs), owner-policy 62, role-binding, trace-coverage; 434 `open` + 2 `suggested`; coverage `none`; instance counts per class |
+| confirm one `owner-policy` subject | anonymous 401, journalist 403, admin `ok` → row `confirmed`; coverage → `partial` (433 open / 2 suggested / 1 confirmed); totals across apps agree |
+| `Access-Control-Expose-Headers` | now lists `X-Polari-Owner-Advisory` |
+
+**Found:** `GET /api/apps/security/coverage` with no `app` answers only apps already converged (one after this proof) — converge runs per app on read; a "converge every app" sweep is owed (ct-8 OWED). `review?role=journalist` answers "nothing recorded for this role yet" on this instance — the role-play observations of §51 are not on the live tree after the redeploys; not this arc's regression, but worth a look before the browser pass.
+
+## §66 — ct-9: traffic policies — outbound + inbound, closed by default, suggested from dev traffic (2026-09-19, built, selftested)
+
+His rulings (2026-09-18): *"Outbound guard should be tracked in dev as well, and it should be closed by default;
+we should suggest outbound and inbounds based on our monitoring of traffic in and out of polari … we just know we
+cannot track objects outside of polari."* Design `CAUSAL_TRACE_OBJECT_FLOW_DESIGN.md` §5a (with §6 and §7 as the
+consumers). Security row classes 34 → **36**.
+
+| built | where |
+|---|---|
+| `OutboundPolicy` — `kind\|system\|means`, `payload_classes_json`, `state`, `derived_from`, `confirmed_by` (a `sub`), `count`, first/last seen | `modules/security/objects/security/OutboundPolicy.py` |
+| `InboundPolicy` — `source_kind\|source` (peer name / `scheme://host` / `anonymous` / `ip-literal`), `paths_json` (TEMPLATES, capped 50) | `modules/security/objects/security/InboundPolicy.py` |
+| the model: `outbound_verdict`, `inbound_verdict`, `note_inbound_path`, `confirm_outbound/inbound`, `policies`, `suggestions`, `declared_flows`, `summary` | `modules/security/custom/security_traffic.py` (new, 468 lines) |
+| the inbound gate + the advisory sink + the classifier (`classify`, `normalise_origin`) | `accessControl/traffic_middleware.py` (new, 279 lines), registered right after `CauseContextMiddleware` (`polariServer.py:493`) |
+| the outbound wrapper consults the policy BEFORE `fn()`; `OutboundRefused` | `polariApiServer/outbound.py:54` (the exception), `:149` `_policy_check` / `:169` `_refuse_if_enforced`, `send()` and `wrap.__enter__()` |
+| `X-Polari-Traffic-Advisory` drained onto the response | `accessControl/cause_middleware.py:97` (+ the CORS expose list, `polariServer.py:420`) |
+| four doors | `modules/security/security_api.py:120-123` routes, `:825-863` responders |
+| three page rows on `security-events` (suggestions panel, the two tables, declared flows) — seed_upsert convergence, no raw JSON, no new component | `modules/security/security_page.py:145-158` |
+| five registration sites + manifest (`37 classes`) | `objects/security/__init__.py`, `security_basis.py`, `security_seed.py` (seeded EMPTY on purpose), `feature_imports.py:1253`, `polariServer.py:1257` |
+
+**The ladder — posture × mode.** One knob, `POLARI_APP_PERMISSIONS`, the same one every other gate reads.
+
+| | `off` | `advisory` | `enforce` |
+|---|---|---|---|
+| **dev** (rows written) | verdict computed, a `suggested` row created/bumped, nothing acted on | row written; send/request proceeds; `would-deny …` on the header; one counted `SecurityEvent` | row written; send raises `OutboundRefused`, request is 403 from `process_request` |
+| **production** (NO rows written) | verdict computed, nothing written, nothing acted on | proceeds + header + `SecurityEvent` | **closed by default**: anything without a `confirmed` row is refused, `SecurityEvent` outcome `denied` |
+
+`confirmed` allows · `denied` refuses · `suggested` is a PROPOSAL and refuses · no row at all refuses ·
+no security rows on the instance → `no-security`, allowed and stated. The ONE write production permits is a
+person's `confirm_*` — a decision, not an observation. The home stack runs `advisory`, so there it warns and
+never blocks (§17).
+
+**Where inbound is classified.** `TrafficPolicyMiddleware.process_request` → `classify(manager, req)`: a
+registered `PeerNode.base_url` matching the Origin or Host gives the peer's NAME; an `X-Polari-Trace` with no
+registered sender is `peer|unregistered`; an Origin becomes `origin|<scheme>://<host>` with port, path and query
+stripped, and an IP-LITERAL Origin collapses to the class `origin|ip-literal` (a raw address never lands in a
+row); everything else is `anonymous|anonymous`. The endpoint TEMPLATE is added in `process_resource`, where
+falcon has routed — `path_template()` deliberately does NOT fall back to `req.path` (ct-0 may, a policy row may
+not: `/api/MealEntry/m-1` carries an instance id). `/api/health` and `/api/security/traffic*` are never refused,
+stated: gating the confirmation door behind the confirmations would lock an admin out on the first `enforce`.
+
+**Doors.** `GET /api/security/traffic` (signed in: policies + suggestions + declared + mode + posture) ·
+`GET /api/security/traffic/declared` (the confirmed rows as §7 declared edges: `direction`, `system`/`source`,
+`means`, `classes`, `node`) · `POST /api/security/traffic/outbound/{name}` and `/inbound/{name}`
+`{"decision": "confirmed"|"denied"}` — 401 without a `sub`, 403 without an admin role, 400 on any other decision,
+404 on a row nothing proposed.
+
+**Selftests.** `PYTHONPATH=.:modules python3 modules/security/security_selftest.py` → **219/222** (+19 ct-9
+checks; the same 3 known environment failures as before — the two live-MAC-profile reads and the expired-cert
+probe). `polariApiServer/selftest_outbound.py` → **61/61** (+10: enforce refuses and `fn` never runs, `wrap`
+refuses on the way in and records once, advisory/off proceed, a confirmed row goes through, a BLOWN-UP or ABSENT
+policy never blocks a send). Regression set all green: `accessControl/selftest_cause_context.py` **41/41**,
+`modules/polariapps/apps_selftest.py` **125/125**, `polariRefs/selftest_refs.py` **51/51**,
+`python3 -m moduleService.manifests conform --all` **61/61**, `import polariApiServer.polariServer` clean.
+
+**Gotchas.** (1) The advisory cannot ride the cause dict alone — production posture mints NO cause (ct-0), so the
+sink is a contextvar in `traffic_middleware` and the cause dict is a mirror; `process_request` drains first so a
+line can never leak into the next response. (2) `_peer_names` reads the manager's OWN `PeerNode` table: the
+security module's `_FALLBACK` test rows are invisible to a core-resident gate (cost one red in the selftest).
+(3) Seeding an allow-list would be a grant nobody made — both tables seed EMPTY and the selftest asserts 36 pairs.
+
+**OWED.**
+- **Live proof** on the home staging stack (dev, advisory): watch `GET /api/security/traffic` fill with suggestions
+  from real frontend and Keycloak traffic, confirm one of each direction as `demo-admin`, check the row carries the
+  `sub` and that `X-Polari-Traffic-Advisory` stops appearing for it; then one `enforce` window to see a refusal.
+  Expect noise first: every unconfirmed source adds a header line to every response in dev.
+- **The `objects` topology view (ct-5)** is what `declared_flows` was shaped for — `compare(declared, observed)`
+  against the causal map's `external:`/`peer:` edges is the drift report, and nothing draws it yet.
+- **Browser pass** on the three new `security-events` rows (suggestions panel, the two tables, declared flows):
+  that `paths_json` / `payload_classes_json` render as lists and not as raw JSON strings.
+- **The straggler table** still lists `modules/security/custom/kc_admin.py`: an unwrapped send is a send this
+  policy cannot see, so it is also a hole in the outbound allow-list, not only in the map.
