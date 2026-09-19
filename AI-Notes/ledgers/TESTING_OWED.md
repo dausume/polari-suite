@@ -6643,3 +6643,21 @@ CLI is isle-core's code); the pipeline's teardown (§73) would have recorded exa
 **econ-core:** empty before (Odoo gone since the 09-13 purge; two old deb folders on the desktop left alone); the
 suite cloned on dev at `545bd5c` with polari-cli + polari-rf-node bootstrapped; a `polari-ci_ed25519` key + an
 `isle-core` ssh alias (user-level config, never tracked) authorised on isle-core; the hop + `sudo -n` proven.
+
+### §75 addendum — the FIRST REAL RUNS on the pipeline device (2026-09-19, econ-core → isle-core)
+
+| step | result |
+|---|---|
+| `pol jenkins preflight --isle` (target ssh:isle-core) | 14/14 PASS after the stale `isle-mesh-boot.service` (left by the 09-13 purge) was removed — "clear to run" |
+| `pol jenkins up` on econ-core | controller image built over Wi-Fi, `Jenkins is fully up`, UI 200 on loopback, 4 jobs seeded, doctor 4 WARN (wired IPv4, repo secrets posture, no `init-device`, user-local pol) |
+| cycle 1: `isle up` | **FAIL** — `virt-install`: `Cannot access storage file …/ci-isle/polari-ci-isle/disk.qcow2 (as uid:64055) Permission denied` — the run dir was 0700 and the hypervisor runs as `libvirt-qemu`. FIX (`3c2b54c`): the dir gets traverse and the two files rw for the hypervisor user via ACLs (the key keeps 0600) |
+| cycle 2: `isle up` | VM up with an address in 21 s; `verify` **refused** (`Connection refused`) — an address arrives before sshd. FIX: `up` waits until the guest answers over ssh (`CI_ISLE_SSH_WAIT_S`, default 240) |
+| cycle 3 | **`up` 26 s (5 s of ssh wait) → `verify` inside the guest (hostname polari-ci-isle, 2 vCPU, 3.8 GB, 27 GB free, /dev/kvm present) → `uninstall` = `skipped` (nothing installed — ci-3) → `down` (run dir removed, wipe: nothing else, nothing foreign touched) → `leakcheck check` CLEAN**: MemAvailable 5310 → 6323 MB, images-dir −598 MB (the cached cloud image, on the same filesystem, inside the tolerance), swap 848 → 833 MB |
+| a leftover the baseline exposed | a 3 GB `qemu-system-x86_64` launched by hand from `/tmp/polari-vm` (the ISO arc's test guest, up 3.8 days) was still running on isle-core — not the isle's, not ours; killed by PID (`pkill -f` with the pattern in my own ssh command line killed the SESSION first — the handoff's gotcha, again) |
+| `polari-dev-build` #1 (triggered through the loopback API; the admin password file carries a trailing newline — trim it) | **FAILURE** in the debs stage: `jlink failed with: Error: Module jdk.management.jfr not found` — the controller image (`jenkins/jenkins:lts-jdk21`, Temurin) ships NO jmods, so the shell's jpackage cannot link a runtime and `polari-complete` refuses to bundle without `polari-shell-core`; plus a non-fatal `BrokenPipeError` from `cicd-sync.sh` |
+| `polari-release` (its own poll of main) | **FAILURE to compile**: `Duplicate build condition name: "always"` — two `post { always }` blocks from today's stacked edits. FIXED (`3c2b54c`), not yet re-run |
+
+Owed from here: the controller needs a JDK with jmods for the deb builders (and the dev-build re-run to green), the
+BrokenPipe in cicd-sync, `polari-release` re-run after the compile fix (expected: builds, then every route DRY —
+no isle-test results yet), then ci-3 so a stage can install and the uninstall verdict stops being `skipped`. HIS:
+wired IPv4 on econ-core, `sudo bash polari-cli/shells/install-cli.sh`, `sudo pol jenkins init-device`, the tokens.
