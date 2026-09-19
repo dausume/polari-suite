@@ -339,6 +339,13 @@ off and do the LAST one that came in for that queue."*
   marker is a promise that no more commits are coming, so the timer would only
   delay the run for nothing. Without a marker (a hand push, a push from another
   machine) the timer is the only evidence there is, and it is used.
+  **The marker is device-local.** `pol jenkins promote` writes it into the pool
+  of the machine it runs on. Promoting from a developer box while the pipeline
+  lives on another device therefore leaves the pipeline with no marker, and it
+  waits out the five minutes — correct, just slower. Promoting **on** the
+  pipeline device gets the fast path. A shared marker would mean the promoting
+  machine could write into the pipeline's pool, which is a door nobody has
+  asked for and the timer costs five minutes.
 - **One item, and it means "the newest state".** `pool/queue/<branch>.json`
   holds at most one pending item. A newer change while one is pending REPLACES
   it and restarts the clock; a newer change *during* a run sets that same
@@ -589,7 +596,7 @@ gains a `residue from an earlier run` row that FAILs and names the wipe.
 - The poll queues are one item deep and latest-wins (`pool/queue/<branch>.json`), so no automated process can build a backlog of runs to work through.
 
 ## Tests
-`bash polari-jenkins/selftest.sh` — the ci-7 … ci-12 tests, **463/463**. They
+`bash polari-jenkins/selftest.sh` — the ci-7 … ci-12 tests, **474/474**. They
 need **no docker, libvirt, sudo or network**: the scripts run against a temp
 tree and PATH shims, covering the doctor's WARN wording per
 misconfiguration, the preflight's PASS/FAIL arithmetic and the

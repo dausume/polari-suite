@@ -12,6 +12,16 @@
 #
 # So three rules, and this file is all three of them:
 #
+#   0. A DEFERRAL MUST BE RETRYABLE. Jenkins' SCM trigger fires on a CHANGE; a
+#      run that defers because the change is still landing would then never be
+#      retried, because by the time the forest IS quiet nothing has changed
+#      again. So the jobs are driven by a periodic trigger and `gate` is what
+#      makes that cheap: ONE `git ls-remote` of the superproject, before any
+#      checkout, answering "is there anything here that is not already tested?".
+#      Idle ticks cost a second; only a tick with work to do pays for a clone.
+#      (Measured on the pipeline device: a shallow forest checkout is ~6 minutes
+#      over Wi-Fi. Deferring AFTER that would be an expensive way to do nothing.)
+#
 #   1. QUIET. A run starts only when the WHOLE FOREST — the superproject and
 #      every top-level submodule remote — has not moved for CI_QUIET_MINUTES
 #      (default 5). `check` compares a live `git ls-remote` sha set against the
@@ -38,7 +48,11 @@
 #      yields while the other side has something pending, so a fast-re-queueing
 #      test branch cannot starve main.
 #
-#   quiet.sh check <branch>            exit 0 quiet · 6 defer (and say why)
+#   quiet.sh gate <branch>             the CHEAP pre-check: one ls-remote of the
+#                                      superproject, no checkout. exit 0 = worth
+#                                      checking out · 6 = nothing to do
+#   quiet.sh check <branch>            the FULL forest check, after a checkout.
+#                                      exit 0 quiet · 6 defer (and say why)
 #   quiet.sh saw <branch>              record the live sha set as pending (a poll)
 #   quiet.sh claim <branch> <sha>      a run started: pending=false, running=<sha>
 #   quiet.sh done <branch> <sha>       a run ended
@@ -95,9 +109,24 @@ _module_urls() {
     done
 }
 
+# The superproject's own remote. A `gate` runs BEFORE any checkout exists, so it
+# cannot ask a working copy — CI_SUITE_REMOTE is the knob, defaulting to the same
+# URL both Jenkinsfiles already hard-code for their checkout.
+super_remote() {
+    local u
+    u="$(git -C "$SUITE" remote get-url origin 2>/dev/null || true)"
+    printf '%s' "${u:-${CI_SUITE_REMOTE:-https://github.com/dausume/polari-suite.git}}"
+}
+
+super_sha() {  # super_sha <branch> → the superproject tip, or 'none'
+    local sha
+    sha="$(git ls-remote "$(super_remote)" "refs/heads/$1" 2>/dev/null | awk '{print $1}' | head -1)"
+    printf '%s' "${sha:-none}"
+}
+
 forest_shas() {  # forest_shas <branch> → 'repo<TAB>sha' lines, superproject FIRST
     local branch="$1" origin name url sha
-    origin="$(git -C "$SUITE" remote get-url origin 2>/dev/null || echo '')"
+    origin="$(super_remote)"
     sha="$(git ls-remote "$origin" "refs/heads/$branch" 2>/dev/null | awk '{print $1}' | head -1)"
     printf 'superproject\t%s\n' "${sha:-none}"
     while IFS=$'\t' read -r name url; do
@@ -166,17 +195,56 @@ do_saw() {  # do_saw <branch>
     fi
 }
 
-# `check` — may this run proceed on the branch TIP?
-do_check() {  # do_check <branch>
-    local branch="$1" dg sup prev since age marker
-    dg="$(_digest "$branch")"; sup="$(_super "$branch")"
-    [ "$sup" != none ] && [ -n "$sup" ] || { say "$branch has no published tip — nothing to run"; exit 6; }
-    prev="$(_queue_read "$branch" digest)"
+# `gate`  — the CHEAP pre-check, before any checkout (superproject only).
+# `check` — the FULL forest check, after one.
+#
+# Both share the same three questions, in this order:
+#   1. is this exact state already tested?          → nothing to do (exit 6)
+#   2. has it moved since the reading we recorded?  → restart the window (exit 6)
+#   3. has the window elapsed (or is there a matching promotion marker)?
+#                                                   → proceed (exit 0)
+do_check() {  # do_check <branch> [--super-only]
+    local branch="$1" scope="${2:-}" dg sup prev since age marker key lastkey
+    if [ "$scope" = --super-only ]; then
+        sup="$(super_sha "$branch")"; dg="$sup"
+        key=super_digest; lastkey=last_run_super
+    else
+        dg="$(_digest "$branch")"; sup="$(_super "$branch")"
+        key=digest; lastkey=last_run_digest
+    fi
+    [ -n "$sup" ] && [ "$sup" != none ] || { say "$branch has no published tip — nothing to run"; exit 6; }
+
+    # 1. ALREADY TESTED. A periodic trigger fires whether or not anything
+    # changed, so the first thing to answer is "is there anything here that is
+    # not already done?". Without this the retry loop would rebuild the same sha
+    # every tick, forever.
+    if [ "$dg" = "$(_queue_read "$branch" "$lastkey")" ]; then
+        say "$branch: ${sup:0:12} is exactly what the last run already covered — nothing to do"
+        exit 6
+    fi
+
+    prev="$(_queue_read "$branch" "$key")"
     since="$(_queue_read "$branch" since 0)"
-    if [ "$dg" != "$prev" ] || [ -z "$since" ] || [ "$since" = 0 ]; then
-        _queue_write "$branch" digest="$dg" newest_sha="$sup" pending=true "since=$(now)" "since_iso=$(date -Is)"
+    if [ -n "$prev" ] && [ "$dg" != "$prev" ]; then
+        # it MOVED since the reading we recorded — the window restarts.
+        _queue_write "$branch" "$key=$dg" newest_sha="$sup" pending=true "since=$(now)" "since_iso=$(date -Is)"
         since="$(now)"
-        say "$branch: the forest moved while this run was starting — the quiet window restarts at ${sup:0:12}"
+        say "$branch: the forest moved → the ${QUIET_MINUTES}-minute quiet window restarts at ${sup:0:12}"
+    elif [ -z "$prev" ]; then
+        # FIRST reading at this scope. The gate reads the superproject alone and
+        # the check reads the whole forest, so the check's first pass has no
+        # previous digest of its own — but the window the GATE started is the
+        # same window, and resetting it here would mean the full check could
+        # never pass on a branch that has stopped moving. Record the digest,
+        # keep the clock.
+        if [ -z "$since" ] || [ "$since" = 0 ]; then
+            _queue_write "$branch" "$key=$dg" newest_sha="$sup" pending=true "since=$(now)" "since_iso=$(date -Is)"
+            since="$(now)"
+            say "$branch: first reading at ${sup:0:12} — the ${QUIET_MINUTES}-minute quiet window starts now"
+        else
+            _queue_write "$branch" "$key=$dg" newest_sha="$sup" pending=true
+            say "$branch: first whole-forest reading at ${sup:0:12} — keeping the window the gate already started"
+        fi
     fi
     age=$(( $(now) - since ))
 
@@ -184,7 +252,7 @@ do_check() {  # do_check <branch>
     # sha set; if the live set still matches it, the promotion is finished and
     # waiting out the timer would only delay a run for nothing.
     marker="$POOL/promotions/$branch/$sup.json"
-    if [ -f "$marker" ] && _marker_matches "$branch" "$marker"; then
+    if [ -f "$marker" ] && { [ "$scope" = --super-only ] || _marker_matches "$branch" "$marker"; }; then
         say "$branch: promotion marker for ${sup:0:12} matches the live forest — QUIET immediately (a finished promotion does not have to prove it stopped)"
         printf 'QUIET_SHA=%s\n' "$sup"
         return 0
@@ -203,7 +271,7 @@ do_check() {  # do_check <branch>
     fi
 
     say "$branch: changes still landing — only ${age}s of quiet, $(( QUIET_MINUTES * 60 - age ))s to go. DEFERRING;"
-    say "  the single pending item stays pending at ${sup:0:12} and the next poll picks it up. Nothing is queued behind it."
+    say "  the single pending item stays pending at ${sup:0:12} and the next tick picks it up. Nothing is queued behind it."
     exit 6
 }
 
@@ -227,8 +295,22 @@ PY
     return $rc
 }
 
-do_claim() { _queue_write "$1" pending=false running="$2" "running_since=$(now)"; say "$1: run started on ${2:0:12} — pending cleared (a change from here on sets ONE new pending item)"; }
-do_done()  { _queue_write "$1" running='' last_run_sha="$2" "last_run_at=$(now)" "last_run_iso=$(date -Is)"; say "$1: run finished on ${2:0:12}"; }
+# A run CLAIMS the state it is about to test, and on DONE that state becomes
+# "already covered" — which is what stops a periodic trigger rebuilding the same
+# sha every tick. Both digests travel, because `gate` compares superproject-only
+# readings and `check` compares whole-forest ones, and the two must not be
+# compared against each other.
+do_claim() {
+    _queue_write "$1" pending=false running="$2" "running_since=$(now)" \
+                 "claim_digest=$(_queue_read "$1" digest)" "claim_super=$(_queue_read "$1" super_digest)"
+    say "$1: run started on ${2:0:12} — pending cleared (a change from here on sets ONE new pending item)"
+}
+do_done() {
+    _queue_write "$1" running='' last_run_sha="$2" "last_run_at=$(now)" "last_run_iso=$(date -Is)" \
+                 "last_run_digest=$(_queue_read "$1" claim_digest)" \
+                 "last_run_super=$(_queue_read "$1" claim_super)"
+    say "$1: run finished on ${2:0:12} — that state is now 'already covered'; a periodic tick will not rebuild it"
+}
 
 do_queue() {
     local want="${1:-}"
@@ -312,6 +394,7 @@ do_turn_done() {
 }
 
 case "${1:-queue}" in
+    gate)      do_check "${2:?branch}" --super-only ;;
     check)     do_check "${2:?branch}" ;;
     saw)       do_saw "${2:?branch}" ;;
     claim)     do_claim "${2:?branch}" "${3:-}" ;;

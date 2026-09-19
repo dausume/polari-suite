@@ -1320,6 +1320,42 @@ eq "  …naming the newest state, which is what the next run will check out" "ff
 q done test eee555 >/dev/null
 eq "  …and after the run there is still exactly one queue file" "1" "$(ls -1 "$QP/queue" | wc -l | tr -d ' ')"
 
+# ---- the GATE: the cheap pre-check, and "already covered"
+# A shallow forest checkout costs ~6 minutes on the pipeline device, so an idle
+# tick must not pay for one — and a run that DEFERRED must be retryable, which
+# an SCM trigger cannot do (by the time the forest is quiet, nothing has changed
+# again). The gate is one ls-remote, before any checkout.
+export CI_SUITE_REMOTE="https://example.invalid/polari-suite.git"
+g() { ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T/nosuchcheckout" CI_QUIET_MINUTES="${QM:-5}" \
+        CI_SUITE_REMOTE="$CI_SUITE_REMOTE" FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" 2>&1 ) || true; }
+grc(){ ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T/nosuchcheckout" CI_QUIET_MINUTES="${QM:-5}" \
+        CI_SUITE_REMOTE="$CI_SUITE_REMOTE" FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" >/dev/null 2>&1 ); echo "$?"; }
+rm -rf "$QP/queue" "$QP/turn.json"
+export FAKE_HEADS="test=111aaa"
+OUT="$(g gate test)"
+has "gate: with NO checkout at all it still reads the superproject tip" "111aaa" "$OUT"
+eq "  …and the first sighting starts the window, so it defers" "6" "$(grc gate test)"
+eq "gate: once the window has elapsed it says go" "0" "$(QM=0 grc gate test)"
+QM=0 g claim test 111aaa >/dev/null
+QM=0 g done test 111aaa >/dev/null
+eq "gate: the SAME state after a completed run is 'already covered' — a periodic tick does not rebuild it" \
+   "6" "$(QM=0 grc gate test)"
+has "  …and it says so rather than pretending to defer" "already covered" "$(QM=0 g gate test)"
+export FAKE_HEADS="test=222bbb"
+eq "gate: a NEW tip is work again" "0" "$(QM=0 grc gate test)"
+has "the job ticks on a TIMER, not on an SCM change — a deferral must be retryable" \
+    "cron('H/5 * * * *')" "$(cat "$J/jobs/seed.groovy")"
+has "  …and the reason is written down where the trigger is" "would never" "$(cat "$J/jobs/seed.groovy")"
+has "the test pipeline gates BEFORE it checks out" "is there anything to test" "$(cat "$J/pipelines/Jenkinsfile.test")"
+# the shared window: the gate starts the clock, the full check does not reset it
+rm -rf "$QP/queue"
+export FAKE_HEADS="test=333ccc"
+QM=5 g gate test >/dev/null
+python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["since"]="1"; json.dump(d,open(p,"w"))' "$QP/queue/test.json"
+OUT="$(q check test)"
+has "the full forest check does NOT restart the window the gate started" "keeping the window the gate already started" "$OUT"
+has "  …so it can proceed on a branch the gate already timed" "QUIET_SHA=333ccc" "$OUT"
+
 # the TIP-not-trigger rule, stated where it is enforced
 has "the test pipeline checks out the TIP of test, never the sha that triggered it" \
     "checkout the TIP of test" "$(cat "$J/pipelines/Jenkinsfile.test")"

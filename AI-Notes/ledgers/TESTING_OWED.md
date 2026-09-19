@@ -6840,3 +6840,15 @@ door refuses an app-mode release that leaves it empty. Two new columns instead â
 5. **The `cicd` app's verdict page has never been rendered in a browser.** Same
    OWED as ci-8's: the rows, the door and the page are selftested, and no real
    backend has served them.
+6. **The promotion marker is device-local.** `pol jenkins promote` writes it
+   into the pool of the machine it runs on, so a promotion from a developer box
+   leaves the pipeline device with no marker and it waits out the five minutes.
+   Correct, just slower; promoting ON the pipeline device gets the fast path. A
+   shared marker would mean the promoting machine could write into the
+   pipeline's pool â€” a door nobody has asked for, to save five minutes.
+7. **A new job needs a controller RESTART, not just `pol jenkins up`.** JCasC's
+   job-dsl wrote `polari-test`'s `config.xml` to disk during boot but Jenkins had
+   already passed "Loaded all jobs", so the item existed on disk and not in the
+   model: the API listed four jobs while `jenkins_home/jobs/` held six. A
+   `docker restart polari-jenkins` loaded them. Worth a line in `pol jenkins up`
+   (or a `reload-configuration` POST) so the next person does not lose the time.

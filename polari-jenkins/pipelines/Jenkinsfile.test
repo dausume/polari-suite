@@ -27,11 +27,22 @@
 // that; this file asks it and obeys. A deferral is NOT_BUILT — the pending item
 // stays pending and the next poll takes it, so no backlog can form.
 //
-// WHY THE CHECKOUT COMES FIRST. The quiet check reads the superproject AND every
-// top-level submodule remote, and the only place the submodule REMOTES are
-// written down is the checkout's own .gitmodules. So the shallow checkout
-// happens first and the quiet check runs against it; a deferral then costs one
-// shallow clone, which is the price of knowing what the forest even consists of.
+// TWO CHECKS, AND WHY. A shallow checkout of this forest takes ~6 minutes on the
+// pipeline device, so deferring after one is an expensive way to do nothing. The
+// run therefore asks TWICE:
+//   · `quiet.sh gate` — ONE `git ls-remote` of the superproject, before any
+//     checkout. "Is there anything here that is not already tested, and has it
+//     stopped moving?" An idle tick costs a second.
+//   · `quiet.sh check` — the FULL forest, after the checkout, because the only
+//     place the submodule REMOTES are written down is the checkout's own
+//     .gitmodules. A submodule that moved while the superproject stood still is
+//     caught here.
+//
+// AND WHY THE TRIGGER IS PERIODIC, NOT SCM. Jenkins' SCM trigger fires on a
+// CHANGE. A run that defers because the change is still landing would then never
+// be retried — by the time the forest IS quiet, nothing has changed again. That
+// is not a hypothetical: it is what build #1 did on the pipeline device. So the
+// job ticks on a timer and `gate` makes an idle tick cheap.
 //
 // AND WHY `PROCEED` IS A GUARD ON EVERY STAGE. Declarative has no "stop here
 // without failing": `error()` makes the build FAILURE, which is exactly the
@@ -57,11 +68,43 @@ pipeline {
   }
   stages {
 
-    // ------------------------------------------------- 0. the TIP, not the trigger
+    // ---------------------------------------------------------- 0. is there work?
+    // The cheap half: whose turn it is, and one ls-remote of the superproject.
+    // No checkout, so an idle tick costs a second rather than a six-minute clone.
+    stage('is there anything to test, and is it my turn?') {
+      steps {
+        script {
+          env.PROCEED = 'no'
+          def turn = sh(returnStatus: true, script: 'bash /var/polari-jenkins/quiet.sh turn test --once')
+          if (turn == 7) {
+            env.DEFER_WHY = 'yielding to polari-release — it has something pending and test ran last. ' +
+                            'The pending test item is untouched; the next tick takes it.'
+            echo env.DEFER_WHY
+            return
+          }
+          def out = sh(returnStdout: true, script: '''set +e
+            bash /var/polari-jenkins/quiet.sh gate test
+            echo "QUIET_RC=$?" ''')
+          echo out
+          def m = (out =~ /QUIET_RC=(\d+)/)
+          def rc = m ? (m[0][1] as int) : 1
+          if (rc == 6) {
+            env.DEFER_WHY = 'nothing to test yet (already covered, or the branch is still moving) — the next tick looks again'
+            echo env.DEFER_WHY
+            return
+          }
+          if (rc != 0) { error("quiet.sh could not read the superproject remote (rc=${rc})") }
+          env.PROCEED = 'gate'          // worth a checkout; the full check confirms it
+        }
+      }
+    }
+
+    // ------------------------------------------------- 1. the TIP, not the trigger
     // The single pending item never named a sha — it meant "the newest state of
     // test". So the checkout is of the branch TIP. Anything else would build a
     // superseded commit and call its verdict current.
     stage('checkout the TIP of test') {
+      when { expression { env.PROCEED == 'gate' } }
       steps {
         checkout([$class: 'GitSCM', branches: [[name: '*/test']],
                   userRemoteConfigs: [[url: 'https://github.com/dausume/polari-suite.git']],
@@ -78,26 +121,15 @@ pipeline {
       }
     }
 
-    // ---------------------------------------------------------------- 1. may I?
-    // Two questions, both answered by quiet.sh and neither by this file:
-    //   · is it my turn (alternation with polari-release)?
-    //   · has the WHOLE FOREST been quiet for CI_QUIET_MINUTES?
-    // A "no" to either sets PROCEED=no; every stage below is guarded on it and
-    // `post` stamps the build NOT_BUILT. That is the cheapest possible yield: no
-    // lock is held for long, no executor is slept in, and the single pending item
-    // is untouched so the next poll simply tries again.
-    stage('whose turn is it, and has the forest stopped moving?') {
+    // ------------------------------------------------ 2. the WHOLE forest, confirmed
+    // The expensive half, and the one that catches a submodule that moved while
+    // the superproject stood still. A "no" here sets PROCEED=no; every stage
+    // below is guarded on it and `post` stamps NOT_BUILT.
+    stage('has the whole forest stopped moving?') {
+      when { expression { env.PROCEED == 'gate' } }
       steps {
         script {
           env.PROCEED = 'no'
-          def turn = sh(returnStatus: true,
-                        script: "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh turn test --once")
-          if (turn == 7) {
-            env.DEFER_WHY = 'yielding to polari-release — it has something pending and test ran last. ' +
-                            'The pending test item is untouched; the next poll takes it.'
-            echo env.DEFER_WHY
-            return
-          }
           def out = sh(returnStdout: true, script: """set +e
             POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh check test
             echo "QUIET_RC=\$?" """)
@@ -105,9 +137,9 @@ pipeline {
           def m = (out =~ /QUIET_RC=(\d+)/)
           def rc = m ? (m[0][1] as int) : 1
           if (rc == 6) {
-            env.DEFER_WHY = 'changes still landing — re-polled. A promotion that is still pushing must not ' +
-                            'be built half-way; the single pending item stays and the next poll picks up ' +
-                            'the newest state.'
+            env.DEFER_WHY = 'changes still landing in a submodule — a promotion that is still pushing must ' +
+                            'not be built half-way; the single pending item stays and the next tick picks ' +
+                            'up the newest state.'
             echo env.DEFER_WHY
             return
           }

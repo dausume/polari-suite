@@ -25,7 +25,38 @@ pipeline {
       steps { sh 'bash /var/polari-jenkins/cicd-sync.sh pull || true' }
     }
     stage('disk guard') { steps { sh 'bash /var/polari-jenkins/retention.sh guard' } }
+    // ci-12 — the cheap half, before any checkout: whose turn it is, and one
+    // ls-remote of the superproject. See Jenkinsfile.test for why a run asks
+    // twice and why the trigger is periodic rather than SCM.
+    stage('is there anything to release, and is it my turn?') {
+      steps {
+        script {
+          env.PROCEED = 'no'
+          def turn = sh(returnStatus: true, script: 'bash /var/polari-jenkins/quiet.sh turn release --once')
+          if (turn == 7) {
+            env.DEFER_WHY = 'yielding to polari-test — it has something pending and main ran last. The pending main item is untouched.'
+            echo env.DEFER_WHY
+            return
+          }
+          def out = sh(returnStdout: true, script: '''set +e
+            bash /var/polari-jenkins/quiet.sh gate main
+            echo "QUIET_RC=$?" ''')
+          echo out
+          def m = (out =~ /QUIET_RC=(\d+)/)
+          def rc = m ? (m[0][1] as int) : 1
+          if (rc == 6) {
+            env.DEFER_WHY = 'nothing to release yet (already covered, or main is still moving) — the next tick looks again'
+            echo env.DEFER_WHY
+            return
+          }
+          if (rc != 0) { error("quiet.sh could not read the superproject remote (rc=${rc})") }
+          env.PROCEED = 'gate'
+        }
+      }
+    }
+
     stage('checkout main (top-level submodules only)') {
+      when { expression { env.PROCEED == 'gate' } }
       steps {
         checkout([$class: 'GitSCM', branches: [[name: '*/main']],
                   userRemoteConfigs: [[url: 'https://github.com/dausume/polari-suite.git']],
@@ -48,17 +79,11 @@ pipeline {
     // checkout's own .gitmodules. A "no" sets PROCEED=no; every stage below is
     // guarded on it and `post` stamps NOT_BUILT — "there was nothing to do" is
     // not a red build.
-    stage('whose turn is it, and has the forest stopped moving?') {
+    stage('has the whole forest stopped moving?') {
+      when { expression { env.PROCEED == 'gate' } }
       steps {
         script {
           env.PROCEED = 'no'
-          def turn = sh(returnStatus: true,
-                        script: "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh turn release --once")
-          if (turn == 7) {
-            env.DEFER_WHY = 'yielding to polari-test — it has something pending and main ran last. The pending main item is untouched.'
-            echo env.DEFER_WHY
-            return
-          }
           def out = sh(returnStdout: true, script: """set +e
             POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh check main
             echo "QUIET_RC=\$?" """)
@@ -66,7 +91,7 @@ pipeline {
           def m = (out =~ /QUIET_RC=(\d+)/)
           def rc = m ? (m[0][1] as int) : 1
           if (rc == 6) {
-            env.DEFER_WHY = 'changes still landing on main — re-polled. A promotion that is still pushing must not be released half-way.'
+            env.DEFER_WHY = 'changes still landing in a submodule of main — a promotion that is still pushing must not be released half-way.'
             echo env.DEFER_WHY
             return
           }

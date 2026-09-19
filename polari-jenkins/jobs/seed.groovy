@@ -61,8 +61,15 @@ built backend image, runs the throwaway-isle stages, and records ONE verdict per
 PUBLISHES NOTHING. The job is SUCCESS when it ran to the end — a failed test is a recorded VERDICT, not a red build; it is FAILURE only when a \
 stage could not run. pol jenkins test-status &lt;sha&gt; prints the verdict; pol jenkins promote main refuses anything but `passed`.''')
     logRotator { numToKeep(20); artifactNumToKeep(10) }
-    triggers { scm('H/5 * * * *') }
-    quietPeriod(300)          // 5 minutes; any further change inside the window restarts it
+    // ci-12: a PERIODIC tick, not an SCM trigger. Jenkins' SCM trigger fires on a
+    // CHANGE, so a run that defers because the change is still landing would never
+    // be retried — by the time the forest IS quiet, nothing has changed again.
+    // (That is what build #1 on the pipeline device did.) The tick is made cheap
+    // by `quiet.sh gate`: one ls-remote of the superproject before any checkout,
+    // which answers "is there anything here that is not already tested?" in a
+    // second. quietPeriod still coalesces the ticks into one queued item.
+    triggers { cron('H/5 * * * *') }
+    quietPeriod(300)          // 5 minutes; any further tick inside the window folds into the same item
     // NO parameters, deliberately: Jenkins coalesces queued items of a
     // non-parameterised job, so ten pushes in five minutes are ONE queued run.
     definition { cps { script(pipe('Jenkinsfile.test')); sandbox(true) } }
@@ -74,7 +81,7 @@ release.json + the offline medium into pool/&lt;version&gt;/ and triggers polari
 It runs NO tests: the release rule now reads the TEST verdict recorded for this sha (pool/test/&lt;sha&gt;/verdict.json must say `passed`), \
 and every route stays DRY without one. Not parameterised, so the poll queue can never hold more than one item.''')
     logRotator { numToKeep(10); artifactNumToKeep(3) }  // the pool itself is pruned by retention.sh (POOL_KEEP)
-    triggers { scm('H/10 * * * *') }
+    triggers { cron('H/10 * * * *') }     // periodic, for the same reason polari-test is — see above
     quietPeriod(300)
     definition { cps { script(pipe('Jenkinsfile.release')); sandbox(true) } }
 }
