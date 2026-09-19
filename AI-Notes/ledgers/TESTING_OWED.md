@@ -3481,3 +3481,44 @@ stub `security` package the fakes install, or it would shadow the real tree),
 real, named gap in the outbound picture, not an oversight. The `objects` topology view (ct-5) and the browser
 pass on the three page rows remain. Next live proof: redeploy, confirm a row, redeploy AGAIN and check it is
 still `confirmed`; and check `keycloak|<realm>|rest` now appears from ordinary `/api/security/people` traffic.
+
+## §66 addendum 2 — live re-proof after the fifth deploy (2026-09-19, framework `5303398`, posture dev, gate advisory)
+
+| step | result |
+|---|---|
+| outbound rows after boot | `keycloak\|Polari\|rest` `suggested` — the empty outbound list is gone (§66c: `kc_admin.py` onto the wrapper; `PyJWKClient`'s own urllib stays a named gap) |
+| confirm `anonymous\|anonymous`, wait 90 s, `docker service update --force prf-backend` | the confirmed row **survived** (`confirmed`, count 14) — the restore race (§66b) no longer discards it |
+| the same listing after the restart | **DEFECT: a second `anonymous\|anonymous` row** (`suggested`, count 7) beside the confirmed one — boot-time observations still create a duplicate instead of landing on the restored row; handed back (see "§66 addendum 3") |
+| the origin row confirmed under the deploy-4 image | gone — lost by the pre-fix image's restore race, as expected |
+
+### §66 addendum 3 — one row per name (2026-09-19, fixed, selftested)
+
+The §66b fix held on `polari-lean` — a `confirmed anonymous|anonymous` (count 14) SURVIVED a
+`docker service update --force` — but the read then showed that name TWICE: ('confirmed', 14) beside
+('suggested', 7). So the parked counts landed BESIDE the restored row instead of on it.
+
+**Root cause.** `definitionsRestored` is one flag for the whole restore pass, and that pass is not one pass:
+`ensureDefinitionTables` runs several times over a lazy boot (six times in the live log). So the flag can read
+True while the restore of *this* class is still to come; the flush's `_find` legitimately finds nothing, writes
+its own row, and the class's restore then adds the persisted one beside it. Chasing per-class boot ordering is
+the wrong fix — a name is either the key or it is not.
+
+**Fix (§66d).** The name is now enforced as the key at every lookup and every read.
+`security_traffic._find()` collapses duplicates before answering; `heal_duplicates(manager, direction)` does the
+same for a whole table and is called from `_rows()` (so `policies`, `suggestions`, `declared_flows` and the
+doors all heal) and from `flush_pending()` (so a parked count lands on the restored row). `_collapse()` keeps
+the row a PERSON ruled on — `confirmed`/`denied` outrank `suggested`, ties go to the oldest `first_seen` — SUMS
+the counts, unions the payload classes and the paths, keeps `confirmed_by`/`confirmed_at` untouched, and
+deletes the losers from the tree with `noteTreeDeletion` so a persist in flight cannot write them back. An
+instance that already has duplicates (the live tree does) heals on the next door read; no migration.
+
+**Selftests.** `modules/security/security_selftest.py` **227/230** (+2: a restore landing AFTER the flush ends
+as ONE row, `confirmed`, count 14 + 7 = 21 with the confirmer intact; and three pre-existing duplicates
+collapsing on a door read — counts summed, paths unioned, oldest `first_seen` kept, rows removed, and a second
+heal removing nothing. Same 3 known environment failures.) `selftest_outbound` **61/61**, `cause_context`
+**41/41**, `apps_selftest` **125/125**, `selftest_refs` **51/51**, `conform --all` **61/61**, `polariServer`
+imports clean.
+
+**Owed.** Next live proof: restart and confirm ONE `anonymous|anonymous` at count 21-ish; re-confirm
+`origin|https://prf.<D>` (lost under the pre-fix image, expected) and restart again to prove it holds. The
+`PyJWKClient` JWKS gap, the ct-5 `objects` view and the browser pass are unchanged.
