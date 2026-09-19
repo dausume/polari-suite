@@ -15,9 +15,9 @@
 //
 // THE JOB'S COLOUR MEANS "DID IT RUN", NOT "DID IT PASS". SUCCESS when the run
 // reached the end and recorded a verdict; FAILURE only when a stage could not
-// run at all. A failed test is a RECORDED VERDICT — turning it into a red build
-// would make the verdict redundant and tempt somebody to read the colour instead
-// of the reasons.
+// run. A failed test is a RECORDED VERDICT — turning it into a red build would
+// make the verdict redundant and tempt somebody to read the colour instead of
+// the reasons.
 //
 // SCANS ARE ADVISORY (his standing rule). Every scan stage exits 0, the counts
 // ride in the verdict, and no finding changes the verdict by one letter.
@@ -26,6 +26,18 @@
 // minutes across the whole forest before anything starts. quiet.sh owns all of
 // that; this file asks it and obeys. A deferral is NOT_BUILT — the pending item
 // stays pending and the next poll takes it, so no backlog can form.
+//
+// WHY THE CHECKOUT COMES FIRST. The quiet check reads the superproject AND every
+// top-level submodule remote, and the only place the submodule REMOTES are
+// written down is the checkout's own .gitmodules. So the shallow checkout
+// happens first and the quiet check runs against it; a deferral then costs one
+// shallow clone, which is the price of knowing what the forest even consists of.
+//
+// AND WHY `PROCEED` IS A GUARD ON EVERY STAGE. Declarative has no "stop here
+// without failing": `error()` makes the build FAILURE, which is exactly the
+// wrong colour for "there was nothing to do". So stage 0 decides once, every
+// later stage carries `when { expression { env.PROCEED == 'yes' } }`, and `post`
+// stamps NOT_BUILT. Verbose, and it is the honest shape.
 pipeline {
   agent any
   // abortPrevious:false — aborting the running build on every new poll would
@@ -42,50 +54,10 @@ pipeline {
   environment {
     POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}"
     ISLE = "${env.POLARI_ISLE ?: '/var/polari-jenkins/isle'}"
-    BRANCH_UNDER_TEST = 'test'
   }
   stages {
 
-    // ---------------------------------------------------------------- 0. may I?
-    // Two questions, both answered by quiet.sh and neither by this file:
-    //   · is it my turn (alternation with polari-release)?
-    //   · has the forest been quiet for CI_QUIET_MINUTES?
-    // A "no" to either ends the build as NOT_BUILT with its reason. That is the
-    // cheapest possible yield: no lock is held for long, no executor is slept in,
-    // and the pending item is untouched so the next poll simply tries again.
-    stage('whose turn is it, and has the forest stopped moving?') {
-      steps {
-        script {
-          def turn = sh(returnStatus: true, script: 'bash /var/polari-jenkins/quiet.sh turn test --once')
-          if (turn == 7) {
-            currentBuild.result = 'NOT_BUILT'
-            error('yielding to polari-release — it has something pending and test ran last. The pending test item is untouched; the next poll takes it.')
-          }
-          def out = sh(returnStdout: true, returnStatus: false, script: '''set +e
-            bash /var/polari-jenkins/quiet.sh check test; echo "QUIET_RC=$?"''')
-          echo out
-          def rc = (out =~ /QUIET_RC=(\d+)/) ? (out =~ /QUIET_RC=(\d+)/)[0][1] as int : 1
-          if (rc == 6) {
-            currentBuild.result = 'NOT_BUILT'
-            error('changes still landing — re-polled. A promotion that is still pushing must not be built half-way; the single pending item stays and the next poll picks up the newest state.')
-          }
-          if (rc != 0) {
-            error("quiet.sh could not read the forest (rc=${rc}) — a run that cannot tell whether the branch is settled must not build")
-          }
-          env.QUIET_SHA = ((out =~ /QUIET_SHA=(\S+)/) ? (out =~ /QUIET_SHA=(\S+)/)[0][1] : '')
-          echo "the forest is settled at ${env.QUIET_SHA}"
-        }
-      }
-    }
-
-    // ci-8: Polari owns this device's settings; device.env is the fallback. Non-fatal.
-    stage('sync settings from Polari (non-fatal)') {
-      steps { sh 'bash /var/polari-jenkins/cicd-sync.sh pull || true' }
-    }
-
-    stage('disk guard') { steps { sh 'bash /var/polari-jenkins/retention.sh guard' } }
-
-    // ---------------------------------------------------- 1. the TIP, not the trigger
+    // ------------------------------------------------- 0. the TIP, not the trigger
     // The single pending item never named a sha — it meant "the newest state of
     // test". So the checkout is of the branch TIP. Anything else would build a
     // superseded commit and call its verdict current.
@@ -101,19 +73,74 @@ pipeline {
         script {
           env.TEST_SHA = sh(returnStdout: true, script: 'git rev-parse HEAD').trim()
           env.RUN_DIR  = "${env.POOL}/test/${env.TEST_SHA}"
-          echo "testing ${env.TEST_SHA}"
+          echo "the tip of test is ${env.TEST_SHA}"
+        }
+      }
+    }
+
+    // ---------------------------------------------------------------- 1. may I?
+    // Two questions, both answered by quiet.sh and neither by this file:
+    //   · is it my turn (alternation with polari-release)?
+    //   · has the WHOLE FOREST been quiet for CI_QUIET_MINUTES?
+    // A "no" to either sets PROCEED=no; every stage below is guarded on it and
+    // `post` stamps the build NOT_BUILT. That is the cheapest possible yield: no
+    // lock is held for long, no executor is slept in, and the single pending item
+    // is untouched so the next poll simply tries again.
+    stage('whose turn is it, and has the forest stopped moving?') {
+      steps {
+        script {
+          env.PROCEED = 'no'
+          def turn = sh(returnStatus: true,
+                        script: "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh turn test --once")
+          if (turn == 7) {
+            env.DEFER_WHY = 'yielding to polari-release — it has something pending and test ran last. ' +
+                            'The pending test item is untouched; the next poll takes it.'
+            echo env.DEFER_WHY
+            return
+          }
+          def out = sh(returnStdout: true, script: """set +e
+            POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh check test
+            echo "QUIET_RC=\$?" """)
+          echo out
+          def m = (out =~ /QUIET_RC=(\d+)/)
+          def rc = m ? (m[0][1] as int) : 1
+          if (rc == 6) {
+            env.DEFER_WHY = 'changes still landing — re-polled. A promotion that is still pushing must not ' +
+                            'be built half-way; the single pending item stays and the next poll picks up ' +
+                            'the newest state.'
+            echo env.DEFER_WHY
+            return
+          }
+          if (rc != 0) {
+            error("quiet.sh could not read the forest (rc=${rc}) — a run that cannot tell whether the branch is settled must not build")
+          }
+          def q = (out =~ /QUIET_SHA=(\S+)/)
+          env.QUIET_SHA = q ? q[0][1] : ''
           if (env.QUIET_SHA && env.QUIET_SHA != env.TEST_SHA) {
-            echo "note: the tip moved between the quiet check and the checkout (${env.QUIET_SHA} → ${env.TEST_SHA}). " +
+            echo "note: the tip moved between the checkout and the quiet check (${env.TEST_SHA} → ${env.QUIET_SHA}). " +
                  "Testing what was checked out and recording ITS sha; the next poll will see the newer one."
           }
-          sh "bash /var/polari-jenkins/quiet.sh claim test '${env.TEST_SHA}'"
+          env.PROCEED = 'yes'
+          sh "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh claim test '${env.TEST_SHA}'"
           sh "bash /var/polari-jenkins/cicd-sync.sh run test \"\$BUILD_NUMBER\" running '${env.TEST_SHA}' 'wipe, build, scan, test' || true"
         }
       }
     }
 
+    // ci-8: Polari owns this device's settings; device.env is the fallback. Non-fatal.
+    stage('sync settings from Polari (non-fatal)') {
+      when { expression { env.PROCEED == 'yes' } }
+      steps { sh 'bash /var/polari-jenkins/cicd-sync.sh pull || true' }
+    }
+
+    stage('disk guard') {
+      when { expression { env.PROCEED == 'yes' } }
+      steps { sh 'bash /var/polari-jenkins/retention.sh guard' }
+    }
+
     // ----------------------------------------------------------------- 2. the WIPE
     stage('wipe what we have locally') {
+      when { expression { env.PROCEED == 'yes' } }
       steps { sh "bash /var/polari-jenkins/test-wipe.sh '${env.RUN_DIR}' '${env.TEST_SHA}'" }
     }
 
@@ -122,6 +149,7 @@ pipeline {
     // the same ci-9 cache. A test run that built differently from a dev build
     // would be testing a different artifact from the one anybody ships.
     stage('build — debs (isle bundle + both flavors)') {
+      when { expression { env.PROCEED == 'yes' } }
       environment {
         JAVA_HOME = "${env.POLARI_BUILD_JAVA_HOME ?: '/usr/lib/jvm/java-21-openjdk-amd64'}"
         PATH = "${env.POLARI_BUILD_JAVA_HOME ?: '/usr/lib/jvm/java-21-openjdk-amd64'}/bin:${env.PATH}"
@@ -141,6 +169,7 @@ pipeline {
       }
     }
     stage('build — images') {
+      when { expression { env.PROCEED == 'yes' } }
       steps {
         sh '''set -eu
           bash /var/polari-jenkins/build-images.sh "$PWD" "$RUN_DIR/cache-report.json"
@@ -154,6 +183,7 @@ pipeline {
     // red mark into it. catchError keeps even a catastrophic scanner failure from
     // touching the build's result; scan.sh already exits 0 on its own.
     stage('scan (ADVISORY — no finding gates anything)') {
+      when { expression { env.PROCEED == 'yes' } }
       steps {
         catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
           sh '''set +e
@@ -162,7 +192,7 @@ pipeline {
             bash /var/polari-jenkins/scan/scan.sh images --out "$RUN_DIR/scan"
             bash /var/polari-jenkins/scan/scan.sh debs   --out "$RUN_DIR/scan" "$RUN_DIR/debs"
             bash /var/polari-jenkins/scan/scan.sh summary --out "$RUN_DIR/scan"
-            cat "$RUN_DIR/scan/SCAN_SUMMARY.md" 2>/dev/null | head -40
+            head -40 "$RUN_DIR/scan/SCAN_SUMMARY.md" 2>/dev/null
             exit 0'''
         }
       }
@@ -173,10 +203,11 @@ pipeline {
     // packages. They run in the image the build stage just made, so they test
     // THIS sha's code. A failing suite is recorded, not thrown.
     stage('test — module selftests (no isle needed)') {
+      when { expression { env.PROCEED == 'yes' } }
       steps {
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
           sh '''set -eu
-            MODS="core $(bash -c 'source /var/polari-jenkins/device.sh; stages_all_apps' | tr '\\n' ' ')"
+            MODS="core $(bash -c '. /var/polari-jenkins/device.sh; stages_all_apps' | tr '\\n' ' ')"
             echo "[test] modules configured for this run: $MODS"
             bash /var/polari-jenkins/selftests.sh "$RUN_DIR/selftests" $MODS'''
         }
@@ -190,6 +221,7 @@ pipeline {
     // propagate:false — a failed stage must still leave its results behind; the
     // verdict decides, not the inner job's colour.
     stage('test — the throwaway isle stages') {
+      when { expression { env.PROCEED == 'yes' } }
       steps {
         catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
           build job: 'polari-isle-test', wait: true, propagate: false,
@@ -201,6 +233,7 @@ pipeline {
 
     // ---------------------------------------------------------------- 6. THE VERDICT
     stage('the verdict') {
+      when { expression { env.PROCEED == 'yes' } }
       steps {
         sh '''set -eu
           python3 /var/polari-jenkins/verdict.py build "$RUN_DIR" \
@@ -211,25 +244,31 @@ pipeline {
         sh 'bash /var/polari-jenkins/cicd-sync.sh verdict "$RUN_DIR/verdict.json" "$JOB_NAME#$BUILD_NUMBER" || true'
       }
       post {
-        always {
-          archiveArtifacts artifacts: 'verdict.json', allowEmptyArchive: true
-        }
+        always { archiveArtifacts artifacts: 'verdict.json', allowEmptyArchive: true }
       }
     }
   }
   post {
     always {
       script {
-        sh 'bash /var/polari-jenkins/quiet.sh turn-done test || true'
-        sh "bash /var/polari-jenkins/quiet.sh done test '${env.TEST_SHA ?: ''}' || true"
-        def v = 'not reached'
-        if (env.RUN_DIR && fileExists("${env.RUN_DIR}/verdict.json")) {
-          v = readJSON(file: "${env.RUN_DIR}/verdict.json").verdict
+        if (env.PROCEED != 'yes') {
+          // "there was nothing to do" is NOT_BUILT, not FAILURE — the difference
+          // matters, because a red build on a deferral would train people to
+          // ignore red builds.
+          currentBuild.result = 'NOT_BUILT'
+          echo "DEFERRED: ${env.DEFER_WHY ?: 'the run did not proceed'}"
+        } else {
+          sh "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh turn-done test || true"
+          sh "bash /var/polari-jenkins/quiet.sh done test '${env.TEST_SHA ?: ''}' || true"
+          def v = 'not reached'
+          if (env.RUN_DIR && fileExists("${env.RUN_DIR}/verdict.json")) {
+            v = readJSON(file: "${env.RUN_DIR}/verdict.json").verdict
+          }
+          sh "bash /var/polari-jenkins/cicd-sync.sh run test \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} '${env.TEST_SHA ?: ''}' 'test verdict: ${v}' || true"
+          echo "TEST VERDICT for ${env.TEST_SHA ?: '(no sha)'}: ${v}  —  pol jenkins test-status ${env.TEST_SHA ?: ''}"
+          sh 'bash /var/polari-jenkins/retention.sh prune || true'
         }
-        sh "bash /var/polari-jenkins/cicd-sync.sh run test \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} '${env.TEST_SHA ?: ''}' 'test verdict: ${v}' || true"
-        echo "TEST VERDICT for ${env.TEST_SHA ?: '(no sha)'}: ${v}  —  pol jenkins test-status ${env.TEST_SHA ?: ''}"
       }
-      sh 'bash /var/polari-jenkins/retention.sh prune || true'
       cleanWs()
     }
   }
