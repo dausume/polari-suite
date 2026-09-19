@@ -427,7 +427,29 @@ tasks), ct-9 (Outbound/InboundPolicy rows, closed by default, suggested from dev
 (`app.owned` manifest). STILL HIS: every browser pass (Trace tab, closure panels, apps-security page), the
 `stop_grace_period` yes.
 
-**How to continue after a clear:** read this file top to bottom, then ledger §48–§58, then the guide. Rules that hold: security
+## 2026-09-19 — round four landed: ct-6 + ct-9 (+ the §66 fix); the arcs' first pass is complete
+
+ct-6 (§65: STOMP subscribe = the ONE `permission_verdict(read)` under the same knob; bearer read from the WS upgrade /
+`Sec-WebSocket-Protocol` / CONNECT; sub + groups only on the socket; advisory = a MESSAGE-frame notice, enforce = an
+ERROR frame; ⚠️ the Angular client sends NO bearer yet, so advisory must stay the deployed mode or live updates die) and
+ct-9 (§66: `OutboundPolicy` / `InboundPolicy`, `security_traffic.py`, `TrafficPolicyMiddleware` after the cause
+middleware; dev writes `suggested` rows + `X-Polari-Traffic-Advisory`, production writes nothing and refuses under
+enforce; anti-lockout for `/api/health` and `/traffic*`; inbound source = peer name / origin scheme+host / anonymous,
+never an IP) are built, selftested, pushed. LIVE (third deploy, framework 4a2b75b): inbound classification, suggested
+rows counting, the exposed advisory, no raw IPs, admin confirm of the anonymous row — and ONE DEFECT: a row name with
+`://` cannot ride the URL path (404), plus outbound rows 0 because boot-time sends find no manager. Both fixed in
+framework 6c15288 (body-addressed `POST /api/security/traffic/{outbound,inbound}`; a bounded pending buffer flushed at
+the first tree read, cleared in production), security selftest 222/225; the FOURTH deploy carries it — see the §66
+addendum for the live re-proof. Selftests at the pin: security 222/225 (the 3 env failures), polariapps 125/125, cause
+context 41/41, outbound 61/61, stomp gate 41/41, refs 51/51.
+
+**What is left of the two arcs:** ct-5 (the `objects` topology view — `declared_flows()` is waiting for it), ct-7
+(session tasks), op-1 (OwnerGrant + the Sharing tab), op-2 (SecurityEvent target / transfer), op-3 (Ballot — with the rg
+governance module), op-4 (`app.owned` manifest), a converge-every-app sweep for ct-8, `kc_admin.py` onto the wrapper,
+and the FRONTEND halves: a bearer on the STOMP socket, reading the three advisory headers, the Trace / closure /
+traffic / apps-security tables by eye. STILL HIS: every browser pass; the `stop_grace_period` yes.
+
+**How to continue after a clear:** read this file top to bottom, then ledger §48–§66, then the guide. Rules that hold: security
 WARN-ONLY in deployments (never `enforce`); Polari rows key people by Keycloak `sub` only; no real identifiers in tracked
 files; deploy only via `pol prod apply` (detached + polled); commit innermost-first and push every repo; hand work to
 non-Fable agents (opus builds, sonnet docs) and keep this handoff current.

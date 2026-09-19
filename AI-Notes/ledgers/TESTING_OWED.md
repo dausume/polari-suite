@@ -3378,3 +3378,53 @@ security module's `_FALLBACK` test rows are invisible to a core-resident gate (c
   that `paths_json` / `payload_classes_json` render as lists and not as raw JSON strings.
 - **The straggler table** still lists `modules/security/custom/kc_admin.py`: an unwrapped send is a send this
   policy cannot see, so it is also a hole in the outbound allow-list, not only in the map.
+
+## §65–§66 addendum — live proof on `polari-lean` (2026-09-19, framework `4a2b75b`, posture dev, gate advisory)
+
+Third `pol prod apply`. Over the API:
+
+| step | result |
+|---|---|
+| request with `Origin: https://prf.<D>` | 200 + `X-Polari-Traffic-Advisory: would-deny inbound origin:https://prf.<D>`; the header is in `Access-Control-Expose-Headers` |
+| anonymous request | 200 + `would-deny inbound anonymous:anonymous` |
+| `GET /api/security/traffic` (admin) | mode `advisory`, posture `dev`; inbound rows `anonymous|anonymous` (count 7) and `origin|https://prf.<D>` (count 1), both `suggested` — the monitoring IS the suggestion list |
+| any inbound row with a bare IP | none |
+| confirm `anonymous|anonymous` (admin) | 200 |
+| confirm `origin|https://prf.<D>` (admin) | **404 — DEFECT:** the name rides the URL path and contains `://`; URL-encoding does not help (Falcon decodes before routing). Fix handed back to the ct-9 builder: a body-addressed `POST /api/security/traffic/{outbound,inbound}` |
+| `GET /api/security/traffic/declared` | 0 flows (nothing confirmed yet), the `how` text explains the shape |
+| outbound rows | **0** although Keycloak/JWKS sends happen — likely boot-time sends find no process manager and write nothing; being checked by the builder, else OWED |
+
+ct-6 (STOMP) is deployed but NOT proven live: it needs a websocket client sending a bearer, and the Angular client sends none yet (advisory keeps live updates working).
+
+### §66 addendum — two defects the live proof on `polari-lean` found (2026-09-19, fixed, selftested)
+
+The ct-9 live proof on the home stack (dev posture, gate advisory) proved the whole slice — origin/anonymous
+classification, `suggested` rows counting up, `X-Polari-Traffic-Advisory` present and on the expose list, no raw
+IPs anywhere — and found two things.
+
+1. **A policy name a URL path cannot carry.** An inbound row is named `origin|https://<host>`; falcon
+   percent-DECODES before routing, so `%2F%2F` is `//` by the time the router sees it and
+   `POST /api/security/traffic/inbound/origin|https://…` is a 404 no encoding can fix. (`anonymous|anonymous`
+   confirmed fine at 200 — the path form works for every simple name.) **Fix:** two more doors,
+   `POST /api/security/traffic/outbound` and `/inbound`, taking `{"name": …, "decision": …}` in the BODY
+   (`security_api.py:122-123` routes, `:879-895` responders). The `{name}` form stays. Same function, same
+   refusals, one extra 400 when no name is given. Proven against falcon's own `CompiledRouter`: the `{name}`
+   route does not match a name holding `://`, the body route does.
+2. **Outbound rows were 0 although Keycloak/JWKS sends demonstrably happen.** `outbound.process_manager()`
+   answers None until `polariServer` injects the manager (`polariServer.py:780`), and the EARLIEST sends run
+   before that — so exactly the sends a person most wants to rule on were the ones never written. **Fix:** a
+   bounded in-process buffer (`security_traffic._PENDING`, 200 subjects, counted, classes merged) parks a send
+   with no tree and `flush_pending()` turns it into rows at the first verdict or door read with a real manager;
+   in production the buffer is cleared and nothing is written, so production still derives nothing. The send is
+   allowed meanwhile — a guard with nowhere to write must not block a boot.
+
+**Selftests.** `modules/security/security_selftest.py` **222/225** (+3: the body door with a `://` name — admin
+ok, journalist 403, anonymous 401, no-name 400 — plus the park-and-flush and its production drop; the same 3
+known environment failures). `polariApiServer/selftest_outbound.py` **61/61**,
+`accessControl/selftest_cause_context.py` **41/41**, `modules/polariapps/apps_selftest.py` **125/125**,
+`manifests conform --all` **61/61**, `import polariApiServer.polariServer` clean.
+
+**Still owed** (unchanged from §66): the `objects` topology view (ct-5), the browser pass on the three new page
+rows, and `kc_admin.py` — still an unwrapped straggler, so still a hole in the outbound allow-list. New: re-run
+the live proof to confirm boot-time Keycloak/JWKS sends now appear as `keycloak|…` suggestions after the first
+request.
