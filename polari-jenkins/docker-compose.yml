@@ -69,6 +69,9 @@ services:
       - ./cache.sh:/var/polari-jenkins/cache.sh:ro
       - ./cache-manifest.py:/var/polari-jenkins/cache-manifest.py:ro
       - ./cache-proxies.sh:/var/polari-jenkins/cache-proxies.sh:ro
+      # …and the image builder that reads it (the `images` stage of dev-build and
+      # release calls this path; without the mount the stage dies with rc=127).
+      - ./build-images.sh:/var/polari-jenkins/build-images.sh:ro
       # /etc/polari-jenkins/secrets (root:polari-ci 0640) after init-device;
       # ./secrets (host user, 0600) only until it has run — see secrets/README.md
       - ${POLARI_SECRETS_DIR:-./secrets}:/run/secrets:ro
