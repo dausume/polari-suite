@@ -7042,3 +7042,60 @@ was never told about.
    pipeline.** Correct (one build at a time), but on a busy `dev` it delays
    every test run by a dev build. Worth deciding whether dev-build should yield
    to test the way test and release yield to each other.
+
+### §76 addendum 4 — the eight core suites
+
+The first real `polari-test` run recorded **80/88 core selftest suites passing
+inside `prf-backend:staging`** and named the eight that did not. They are fixed.
+Seven of the eight reproduced on the host exactly as the pipeline saw them
+(`PYTHONPATH=.:modules python3 -m <dotted>`, the same invocation
+`polari-jenkins/selftests.sh` makes); one existed ONLY inside the image, and that
+one turned out to be the most interesting.
+
+#### The eight, one row each
+
+| suite | before | the failing check | cause | fix |
+|---|---|---|---|---|
+| `accessControl/selftest_cause_context.py` | 40/41 | "the thread table is not stale" — all 16 listed sites reported missing | **image-only.** `thread_sites()` shelled out to `grep -rn --include=*.py`; the runtime image is `python:3.12-alpine` and **busybox grep has no `--include`** — it printed a usage error to stderr and nothing to stdout, so the scan found **0 sites**. The companion check ("every site is a KNOWN one") therefore passed on an EMPTY set: the inventory had been vacuously green in-image for as long as it has existed | the scan is done in python (`os.walk` + the `_THREAD_RE` the file already compiled and never used) — same answer in every environment, no shell-out (`accessControl/selftest_cause_context.py:102`) |
+| `moduleService/selftest_app_taxonomy.py` | 8/9 | "every module is mapped (DEFAULTS)" — `['cicd', 'iso']` | **new modules.** Both declare a correct `app.category`/`subcategories` in their manifests; neither had a `DEFAULTS` row. A legitimately changed fact | `moduleService/app_taxonomy.py:93` — two `platform-operations` rows matching each manifest |
+| `moduleService/selftest_json_seeds.py` | crash at check 3 | `load_export_hook('moduleService')` raised instead of returning `None` | **code drift from its own contract.** The custom/ fallback (sap-2) re-raised when the SECOND import failed, and for a package with no `custom/` at all the missing name is `<pkg>.custom`, not `<pkg>.custom.export_hook`, so the "is it just absent?" guard never matched. Any package without a hook AND without a `custom/` package raised | `moduleService/json_seeds.py:259` — both homes tried, the three absent-names set decides "no hook"; a hook that EXISTS and fails to import still raises |
+| `moduleService/selftest_lazy_boot.py` | 33/34 | "FEATURE_REQUIRES has NO edges the json register lacks" | **register drift.** `hwmap` carries `requires: [hardwareapps, islemesh]` in `FEATURE_REQUIRES` and in its own `polari-app.json`, but its `modules/polari-modules.json` entry had no `requires` — and the json register is the authoritative source | the register learned the edge (`modules/polari-modules.json`, hwmap). `requires_drift()` is `{}`; `manifests conform --all` stays 62/62 |
+| `moduleService/selftest_module_dependencies.py` | 13/14 | "every declared boundary is present on disk" — `{'xr', 'waxprint'}` | **mp-4 moved them.** Both boundaries live at `modules/<name>` now (the import seam keeps their names); the tracker only ever looked at the framework root | `moduleService/module_dependency_tracker.py:125` — a `boundary_dir()` that resolves root **or** `modules/`, used by both the scan and the graph |
+| `topology/selftest_move_operations.py` | 24/25 | "every relocatable subject is cataloged" | **new subject.** `cnt-engines` (the microchip compute worker, the `:9700` stack) joined `MOVE_SUBJECTS` | pin updated, `topology/selftest_move_operations.py:152` |
+| `topology/selftest_testing.py` | 18/19 | "discovery finds topology + techtree suites" | **drift from the CLI rule the docstring claims.** `discover_suites()` matched `selftest_*.py` only; the pol CLI and `polari-jenkins/selftests.sh` both match **two** globs — `<topic>_selftest.py` AND `selftest_<topic>.py`. Every module-shaped suite (253 files, techtree's included) was invisible to the testing report | `topology/topology_testing.py:167` — both globs. Discovery now sees **341 suites across 77 packages** where it saw 88 across 15 |
+| `topology/selftest_topology.py` | 47/52 | 5 checks: edge providers, "full observation => no drift", package machines, merge creates, merge skips | **the `cnt-engines` instance on `isle-core`.** The seed gained an instance, a machine, an assignment and the `cntfet@prf-a->cntfet.engines` edge; five pins predated it, and the drift fixture observed only two of the three nodes | `topology/selftest_topology.py` — provider set, an `ISLE_CORE_SERVICES` observation for the third node, machines `['econ-core','isle-core','staging-a']`, and both merge counts to `1+3+11+13+5+16 = 49` |
+
+#### The numbers
+
+| suite set | before | after |
+|---|---|---|
+| core selftests, pipeline discovery (`*/selftest_*.py`, not `modules/`) | 80/88 suites | **88/88 suites** |
+| `modules/security/security_selftest.py` | 296/299 | 296/299 (the same 3 environment checks — MAC complain-mode + an expired internal cert) |
+| `modules/cicd/cicd_selftest.py` | 205/205 | 205/205 |
+| `modules/polariapps/apps_selftest.py` | 125/125 | 125/125 |
+| `python3 -m moduleService.manifests conform --all` | 62/62 | 62/62 |
+
+`modules/collab/collab_selftest.py` and `modules/reticulum/reticulum_selftest.py`
+each fail one host check; both fail IDENTICALLY on the unmodified tree and
+neither is in the core set.
+
+#### What this run taught that a passing run could not
+
+* **A shelled-out `grep` is an environment assumption.** The host is GNU, the
+  image is busybox, and the difference did not throw — it returned an empty
+  answer that a "no unknown sites" check reads as success. Any selftest that
+  asks the SHELL a question about the tree should ask python instead.
+* **Two of the eight were pins that a real change had outgrown** (cicd/iso,
+  cnt-engines ×2) and three were code that had drifted from a contract it
+  states in its own docstring (the export hook, the boundary roots, the
+  discovery globs). The pipeline found both kinds on its first honest pass,
+  which is the argument for running the suites in the image and not on a
+  developer's box.
+* One caveat worth stating: the image the pipeline builds is the DEFAULT
+  `POLARI_MODULE_SET=all`. A `core`-variant image strips the optional modules,
+  and three of these checks (the boundary presence, techtree's discovery, the
+  thread table's `stub_odoo.py`) would then fail for a legitimate reason. If a
+  core-variant image is ever tested, those three want variant-awareness first.
+
+**Expected on the next `test` run: 88/88 core suites, 0 fail.** Nothing was
+triggered on the device — the promotion is his.
