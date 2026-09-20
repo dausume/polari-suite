@@ -33,6 +33,12 @@ J="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUITE="$(cd "$J/.." && pwd)"
 SWEEP="$SUITE/polari-cli/shells/push-all-dev.sh"
 POOL="${POLARI_POOL:-$J/pool}"
+# ci-12: in the system posture the pool belongs to polari-ci and this shell may
+# not read it. pool.sh reads THROUGH the controller (the pipeline process reading
+# its own pool — exactly who the posture says may), so `promote main` never says
+# "no verdict" when it means "I may not look".
+# shellcheck source=pool.sh
+. "$J/pool.sh"
 
 say()  { printf '[promote] %s\n' "$*"; }
 die()  { printf '[promote] %s\n' "$*" >&2; exit "${2:-1}"; }
@@ -43,21 +49,24 @@ remote_sha() {  # remote_sha <branch>
     git -C "$SUITE" ls-remote origin "refs/heads/$1" 2>/dev/null | awk '{print $1}' | head -1
 }
 
+_verdict_json() { pool_read "test/$1/verdict.json" 2>/dev/null; }
+
 verdict_of() {  # verdict_of <sha> → passed|failed|partial|none
-    local f="$POOL/test/$1/verdict.json"
-    [ -f "$f" ] || { echo none; return; }
-    python3 -c 'import json,sys
-try: print(json.load(open(sys.argv[1])).get("verdict") or "none")
-except Exception: print("none")' "$f"
+    local body; body="$(_verdict_json "$1")" || { echo none; return; }
+    [ -n "$body" ] || { echo none; return; }
+    printf '%s' "$body" | python3 -c 'import json,sys
+try: print(json.load(sys.stdin).get("verdict") or "none")
+except Exception: print("none")'
 }
 
 verdict_why() {  # verdict_why <sha> → the one-line reason
-    local f="$POOL/test/$1/verdict.json"
-    [ -f "$f" ] || { echo "no test run has ever been recorded for this sha"; return; }
-    python3 -c 'import json,sys
-try: d = json.load(open(sys.argv[1]))
+    local body; body="$(_verdict_json "$1")" || {
+        printf 'no test run has ever been recorded for this sha (%s)' "$(pool_why_unreadable)"; return; }
+    [ -n "$body" ] || { printf 'no test run has ever been recorded for this sha'; return; }
+    printf '%s' "$body" | python3 -c 'import json,sys
+try: d = json.load(sys.stdin)
 except Exception as e: print("verdict.json unreadable (%s)" % e); raise SystemExit
-print(d.get("why") or "")' "$f"
+print(d.get("why") or "")'
 }
 
 write_marker() {  # write_marker <branch> <summary.json>

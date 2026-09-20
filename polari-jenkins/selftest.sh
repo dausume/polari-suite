@@ -24,7 +24,7 @@ eq()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "$2" "$3"; }
 DEV="$T/dev"; mkdir -p "$DEV"
 cp -r "$J/device.sh" "$J/secrets.sh" "$J/doctor.sh" "$J/retention.sh" "$J/mint-tag.sh" "$J/setup.sh" \
       "$J/cicd-sync.sh" \
-      "$J/quiet.sh" "$J/promote.sh" "$J/verdict.py" "$J/test-wipe.sh" "$J/selftests.sh" \
+      "$J/quiet.sh" "$J/promote.sh" "$J/verdict.py" "$J/test-wipe.sh" "$J/selftests.sh" "$J/pool.sh" \
       "$J/scan" "$J/scan-tools.lock" \
       "$J/cache.sh" "$J/cache-manifest.py" "$J/cache-proxies.sh" "$J/build-images.sh" \
       "$J/cache" "$J/docker-compose.proxies.yml" \
@@ -1460,6 +1460,22 @@ eq "  …and none is left untranslated" "" \
 has "pol jenkins up tells the controller what the host calls those two paths" "CI_HOST_POOL" \
     "$(cat "$J/../polari-cli/scripts/jenkins.sh")"
 
+# ---- reading the pool in the SYSTEM posture: "none" must mean ABSENT, never
+# "I may not look". After init-device the pool belongs to polari-ci, and the
+# first `promote main` on the pipeline device reported "verdict: none" for a sha
+# whose verdict.json existed and said `failed`.
+pr() { ( cd "$DEV" && env POLARI_POOL="$1" CI_CONTROLLER_CONTAINER=no-such-container \
+         bash -c 'source ./pool.sh; pool_read "$1" || echo UNREADABLE' _ "$2" 2>/dev/null ) || true; }
+mkdir -p "$T/readable/test/abc"; printf '{"verdict":"passed"}' > "$T/readable/test/abc/verdict.json"
+has "a readable pool is read directly" '"verdict":"passed"' "$(pr "$T/readable" test/abc/verdict.json)"
+eq "  …an absent file is UNREADABLE, not an empty success" "UNREADABLE" "$(pr "$T/readable" test/nope/verdict.json)"
+has "the unreadable-pool sentence says it may not LOOK, not that nothing is there" "may not read it" \
+    "$( ( cd "$DEV" && mkdir -p "$T/locked" && chmod 0000 "$T/locked" && env POLARI_POOL="$T/locked" \
+          bash -c 'source ./pool.sh; pool_why_unreadable' 2>/dev/null ); chmod 0755 "$T/locked" 2>/dev/null )"
+has "pool.sh reads THROUGH the controller — the pipeline process reading its own pool" "docker exec" "$(cat "$J/pool.sh")"
+has "promote.sh uses it rather than cat" "pool_read" "$(cat "$J/promote.sh")"
+has "  …and pol jenkins test-status too" "pool_read" "$(cat "$J/../polari-cli/scripts/lib/jenkins-device.sh")"
+
 # the TIP-not-trigger rule, stated where it is enforced
 has "the test pipeline checks out the TIP of test, never the sha that triggered it" \
     "checkout the TIP of test" "$(cat "$J/pipelines/Jenkinsfile.test")"
@@ -1488,7 +1504,7 @@ has "  …and states the rule in words" "latest wins" "$OUT"
 
 # ---- promote: the refusals
 PSUITE="$T/psuite"; mkdir -p "$PSUITE/polari-cli/shells" "$PSUITE/polari-jenkins"
-cp "$DEV/promote.sh" "$PSUITE/polari-jenkins/promote.sh"
+cp "$DEV/promote.sh" "$DEV/pool.sh" "$PSUITE/polari-jenkins/"
 cat > "$PSUITE/polari-cli/shells/push-all-dev.sh" <<'SH'
 #!/bin/bash
 # the sweep, stubbed: it records the arguments it was given and writes the marker
