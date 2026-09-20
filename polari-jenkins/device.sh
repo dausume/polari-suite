@@ -205,12 +205,25 @@ device_validate() {
     elif [ -n "$CI_APP_NAME$CI_APP_REPO" ]; then
         _row CI_APP_NAME "$CI_APP_NAME" WARN "set but the mode is suite → it is ignored; set CI_MODE=app to maintain one app"
     fi
-    case "$CI_CORE_SOURCE" in
-        build)      _row CI_CORE_SOURCE build OK "the core is REBUILT from this suite checkout" ;;
-        release:)   _row CI_CORE_SOURCE "$CI_CORE_SOURCE" FAIL "release: with no tag → release:latest, or release:<a Polari release tag>" ;;
-        release:*)  _row CI_CORE_SOURCE "$CI_CORE_SOURCE" OK "the core debs and images are PULLED from that Polari release, never rebuilt" ;;
-        *)          _row CI_CORE_SOURCE "$CI_CORE_SOURCE" FAIL "unknown core source → release:<tag> | release:latest (pull) or build (rebuild)" ;;
-    esac
+    # ---- CI_CORE_SOURCE is an APP-MODE knob, and only an app-mode knob (ci-12
+    # addendum 7). In SUITE mode the core under test is what THIS RUN built; the
+    # release-pull path is never taken, so a `release:*` left here — and ci-9's
+    # default IS release:latest — promises something the device does not do. The
+    # row must not claim it does: it is INFO, not a WARN and not a promise.
+    # Live, on the pipeline device: a suite-mode device carrying release:latest
+    # sent every isle stage to core-artifacts.sh, which REFUSED
+    # ("providers.sh is not in this checkout") and failed the run.
+    if [ "$CI_MODE" != app ]; then
+        _row CI_CORE_SOURCE "$CI_CORE_SOURCE" OK \
+             "INFO: suite mode builds its own core here; CI_CORE_SOURCE is an app-mode knob and is ignored"
+    else
+        case "$CI_CORE_SOURCE" in
+            build)      _row CI_CORE_SOURCE build OK "the core is REBUILT from this suite checkout" ;;
+            release:)   _row CI_CORE_SOURCE "$CI_CORE_SOURCE" FAIL "release: with no tag → release:latest, or release:<a Polari release tag>" ;;
+            release:*)  _row CI_CORE_SOURCE "$CI_CORE_SOURCE" OK "the core debs and images are PULLED from that Polari release, never rebuilt" ;;
+            *)          _row CI_CORE_SOURCE "$CI_CORE_SOURCE" FAIL "unknown core source → release:<tag> | release:latest (pull) or build (rebuild)" ;;
+        esac
+    fi
 
     case "$CI_ISLE_TARGET" in
         local) _row CI_ISLE_TARGET local OK "the throwaway isle is created on this machine" ;;

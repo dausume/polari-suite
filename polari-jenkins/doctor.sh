@@ -473,6 +473,14 @@ if [ "$CI_MODE" = app ]; then
                      "check the tag against github.com/dausume/polari-suite/releases, or set CI_CORE_SOURCE=build knowingly"
             fi ;;
     esac
+else
+    # ci-12 addendum 7 — SUITE MODE. The core under test is the one this run
+    # builds, so CI_CORE_SOURCE decides nothing here. It is said as an INFO
+    # rather than left silent because ci-9's default (release:latest) is in
+    # every device.env, and a reader who finds it there is entitled to know
+    # whether this device will act on it. It will not.
+    sec "suite mode — the core is built here"
+    ok "core source" "INFO: suite mode: the core is built here; CI_CORE_SOURCE is ignored (it reads '$CI_CORE_SOURCE', an app-mode knob). The isle stages install the debs THIS run built, from the run's own pool directory."
 fi
 
 # ------------------------------------------------------------ the pool

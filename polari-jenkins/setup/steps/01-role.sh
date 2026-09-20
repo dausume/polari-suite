@@ -141,6 +141,11 @@ step_role_check() {
             || check MISS "  CI_ROUTE_TARGET is empty — app-mode releases must name YOUR owner/namespace"
     else
         check OK "maintains: the whole Polari suite — core, apps and images are all built here"
+        # ci-12 addendum 7: the question below is asked ONLY in app mode, so say
+        # what the leftover default means here rather than letting it look like
+        # a setting this device acts on. It is not: a suite run's isle stages
+        # install the debs the run itself built.
+        check OK "  core: built by this run — CI_CORE_SOURCE ($CI_CORE_SOURCE) is an app-mode knob and is ignored in suite mode"
     fi
     head="$(setup_role_headline "$ROLE_RAM_MB" "$ROLE_CPUS" "$ROLE_FREE_GB" "$ROLE_KVM" \
              "$CI_ISLE_VM_RAM_GB" "$CI_ISLE_VM_DISK_GB" "$CI_CONTROLLER_RAM_GB" "$CI_BUILD_RAM_GB" \

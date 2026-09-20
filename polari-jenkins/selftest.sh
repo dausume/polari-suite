@@ -432,12 +432,34 @@ dev_env CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_ISLE_STAGES='core; ge
 has "app mode: no stage tests the app it maintains → WARN with the default" "core; household" "$(dv)"
 dev_env CI_MODE=sideways
 has "an unknown mode → WARN, read as suite"       "reading it as suite"           "$(dv)"
+# ---- CI_CORE_SOURCE IS AN APP-MODE KNOB (ci-12 addendum 7, found live).
+# ci-9's default is release:latest, and it is written into EVERY device.env —
+# suite-mode ones included. In suite mode the core under test is the one this
+# run built, so the knob decides nothing; a row that read "the core debs are
+# PULLED from that Polari release" was a promise the device does not keep, and
+# the Jenkinsfiles believed it (isle-test #5: "REFUSED: providers.sh is not in
+# this checkout"). The MATRIX, both modes × the three shapes:
+dev_env CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_CORE_SOURCE=release:
+has "app mode: core source release: with no tag → FAIL" "release: with no tag"    "$(dv)"
+dev_env CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_CORE_SOURCE=somewhere
+has "app mode: an unknown core source → FAIL naming both shapes" "release:<tag>"  "$(dv)"
+dev_env CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_CORE_SOURCE=build
+has "app mode: core source build → the core is rebuilt here" "REBUILT"            "$(dv)"
+dev_env CI_MODE=app CI_APP_NAME=household CI_APP_REPO=x CI_CORE_SOURCE=release:latest
+has "app mode: release:latest → the core is PULLED, never rebuilt" "PULLED"       "$(dv)"
+dev_env CI_MODE=suite CI_CORE_SOURCE=release:latest
+has "suite mode: release:latest is INFO — the core is built here and the knob is ignored" \
+    "suite mode builds its own core here" "$(dv)"
+hasnt "  …and it does NOT promise a pulled core, which is what the Jenkinsfiles believed" \
+    "PULLED" "$(dv)"
 dev_env CI_MODE=suite CI_CORE_SOURCE=release:
-has "core source release: with no tag → FAIL"     "release: with no tag"          "$(dv)"
-dev_env CI_MODE=suite CI_CORE_SOURCE=somewhere
-has "an unknown core source → FAIL naming both shapes" "release:<tag>"            "$(dv)"
+has "suite mode: even a MALFORMED release: is only INFO — nothing reads it here" \
+    "is an app-mode knob and is ignored" "$(dv)"
+hasnt "  …so a suite device cannot be failed by a knob it does not use" "FAIL" \
+    "$(dv | grep CI_CORE_SOURCE || true)"
 dev_env CI_MODE=suite CI_CORE_SOURCE=build
-has "core source build → the core is rebuilt here" "REBUILT"                      "$(dv)"
+has "suite mode: build says the same thing — the core is built here" \
+    "suite mode builds its own core here" "$(dv)"
 
 # --- the pull: Polari is the source of truth, device.env follows
 mkdir -p "$DEV/secrets/polari"
@@ -1427,6 +1449,139 @@ python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["since"]="1"
 OUT="$(q check test)"
 hasnt "the whole-forest check does NOT read the previous tip's digest as movement" "the forest moved" "$OUT"
 has "  …it proceeds on the tip the gate already timed" "QUIET_SHA=555eee" "$OUT"
+
+# ---- ci-12 addendum 7: THE RELEASE RULE AT THE GATE, and a refusal that COVERS
+# Two rules §76 stated and the release side did not keep. polari-release
+# #84/#85/#86 all ran on the SAME main sha (0ee38c6), ten minutes apart, each one
+# re-deriving the same refusal and ending FAILURE for it:
+#   · a sha already covered is NOT re-run (the test job has had this since ci-12);
+#   · a release-rule refusal is a RECORDED OUTCOME, not a build error.
+rm -rf "$QP/queue" "$QP/turn.json" "$QP/test" "$QP/release"
+m() { ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T/nosuchcheckout" CI_QUIET_MINUTES="${QM:-0}" \
+        CI_SUITE_REMOTE="$CI_SUITE_REMOTE" FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" 2>&1 ) || true; }
+mrc(){ ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T/nosuchcheckout" CI_QUIET_MINUTES="${QM:-0}" \
+        CI_SUITE_REMOTE="$CI_SUITE_REMOTE" FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" >/dev/null 2>&1 ); echo "$?"; }
+put_verdict() { mkdir -p "$QP/test/$1"; printf '{"sha": "%s", "verdict": "%s", "why": "a test fixture"}\n' "$1" "$2" > "$QP/test/$1/verdict.json"; }
+export FAKE_HEADS="main=0ee38c614395"
+MSHA=0ee38c614395
+
+eq "release rule: a sha with NO test verdict is REFUSED (exit 6), not built" "6" "$(mrc release-rule main $MSHA)"
+OUT="$(m release-rule main $MSHA)"
+has "  …and it says which rule and what it found" "no passed verdict" "$OUT"
+has "  …and the fix, in the words of the branch model" "pol jenkins promote test" "$OUT"
+has "  …it is NOT a build failure, and says so" "This is NOT a build failure" "$OUT"
+eq "  …the refusal is RECORDED on disk, where a person can read it" "1" \
+   "$([ -f "$QP/release/$MSHA/refused.json" ] && echo 1 || echo 0)"
+RJ="$(cat "$QP/release/$MSHA/refused.json" 2>/dev/null || echo '{}')"
+eq "  …carrying the sha, the verdict it found, the reason and when" "ok" \
+   "$(jq_ "$RJ" 'print("ok" if d.get("sha") and d.get("verdict")=="none" and d.get("reason")=="no passed verdict" and d.get("at") else d)')"
+# THE POINT OF ALL OF IT: the next periodic tick must not do this again.
+eq "gate: the refused sha is now COVERED — the 10-minute tick does not re-run it" "6" "$(mrc gate main)"
+has "  …and it says covered, with the reason, not 'deferring'" \
+    "covered 0ee38c614395 (refused: no passed verdict)" "$(m gate main)"
+has "  …and names what would make it run again" "when main moves, or when that sha's test verdict changes" "$(m gate main)"
+has "pol jenkins queue shows main as covered, with the refusal" \
+    "covered 0ee38c614395 (refused: no passed verdict)" "$(m queue main)"
+
+# RE-ARM 1: the verdict CHANGES (the sha was promoted to test and tested).
+put_verdict "$MSHA" failed
+OUT="$(m gate main)"          # the FIRST look is the one that re-arms; read it, then re-ask
+has "the verdict changing re-arms the sha, and it says what changed" "changed (none → failed)" "$OUT"
+eq "  …so the branch is work again" "0" "$(mrc gate main)"
+eq "  …but 'failed' is still not 'passed', so the rule refuses again" "6" "$(mrc release-rule main $MSHA)"
+has "  …naming the verdict it found this time" "the verdict is failed, not passed" "$(m release-rule main $MSHA)"
+eq "  …and covers the sha again, on the NEW reading" "6" "$(mrc gate main)"
+eq "  …the recorded refusal was rewritten with the verdict that is now on file" "failed" \
+   "$(jq_ "$(cat "$QP/release/$MSHA/refused.json")" 'print(d.get("verdict"))')"
+
+# RE-ARM 2: …and a PASSED verdict lets it through, with nobody touching main.
+put_verdict "$MSHA" passed
+eq "a verdict that changes to passed re-arms the sha without main moving" "0" "$(mrc gate main)"
+eq "  …and the release rule now lets it through" "0" "$(mrc release-rule main $MSHA)"
+has "  …saying so" "has a PASSED test verdict" "$(m release-rule main $MSHA)"
+
+# main MOVING is the other way out, and a refusal never covers a different sha.
+put_verdict "$MSHA" failed
+m release-rule main $MSHA >/dev/null
+eq "the refusal covers THIS sha…" "6" "$(mrc gate main)"
+export FAKE_HEADS="main=99new99new99"
+eq "  …and not the next one: a moved main is a new question" "0" "$(mrc gate main)"
+hasnt "  …and the queue stops calling it covered once main has moved" "covered" "$(m queue main)"
+
+# a run that reached a real verdict SUPERSEDES the refusal — otherwise the
+# refusal would go on answering for a sha that has since been released.
+export FAKE_HEADS="main=$MSHA"
+put_verdict "$MSHA" failed; m release-rule main $MSHA >/dev/null
+m claim main $MSHA >/dev/null; m covered main $MSHA >/dev/null
+hasnt "a verdict-covered sha is not reported as a refusal any more" "refused:" "$(m queue main)"
+
+# and the rule is applied where it is cheap: BEFORE the checkout.
+RELSRC="$(cat "$J/pipelines/Jenkinsfile.release")"
+has "the release rule is asked at the GATE, before anything is checked out" \
+    "quiet.sh release-rule main" "$RELSRC"
+GATEIDX=$(printf '%s' "$RELSRC" | grep -n 'quiet.sh release-rule main' | head -1 | cut -d: -f1)
+COIDX=$(printf '%s' "$RELSRC" | grep -n "stage('checkout main" | head -1 | cut -d: -f1)
+[ -n "$GATEIDX" ] && [ -n "$COIDX" ] && [ "$GATEIDX" -lt "$COIDX" ] \
+    && ok "  …and it really is BEFORE the checkout stage in the file" \
+    || bad "  …and it really is BEFORE the checkout stage in the file" "release-rule before checkout" "rule@${GATEIDX:-?} checkout@${COIDX:-?}"
+has "a refusal ends the build NOT_BUILT — the colour says whether it RAN" \
+    "currentBuild.result = 'NOT_BUILT'" "$RELSRC"
+has "  …and a refused build publishes nothing, not even a DRY route run" \
+    "env.RELEASE_REFUSED != 'yes'" "$RELSRC"
+eq "the recorded refusals are EXEMPT from retention (they are not a version that ages out)" "ok" \
+   "$(grep -q 'KEEP_DIRS="${KEEP_DIRS:-$CACHE_NAME test promotions queue release}"' "$J/retention.sh" && echo ok || echo missing)"
+
+# ---- ci-12 addendum 7: SUITE MODE BUILDS ITS OWN CORE
+# isle-test #5 reached "the core — pulled from a release" on a SUITE device and
+# refused: "polari-cli/scripts/lib/providers.sh is not in this checkout". It was
+# right to refuse and should never have been asked — the condition was
+# `app mode OR CI_CORE_SOURCE startsWith release:`, and ci-9's DEFAULT for
+# CI_CORE_SOURCE is release:latest, in every device.env there is.
+for JF in "$J/pipelines/Jenkinsfile.isle-test" "$J/pipelines/Jenkinsfile.release"; do
+    WHENS="$(grep -n 'when *{ *expression' "$JF" | grep 'CI_CORE_SOURCE' || true)"
+    eq "no stage of $(basename "$JF") branches on CI_CORE_SOURCE — the mode decides (addendum 7)" "" "$WHENS"
+    has "  …the release-pull path in $(basename "$JF") is app mode, and only app mode" \
+        "CI_MODE == 'app'" "$(cat "$JF")"
+done
+has "app mode's pull stage fetches the ONE submodule its reader lives in" \
+    "git submodule update --init --depth 1 polari-cli" "$(cat "$J/pipelines/Jenkinsfile.isle-test")"
+has "  …because the isle-test workspace carries no checkout of its own" \
+    "providers.sh" "$(cat "$J/pipelines/Jenkinsfile.isle-test")"
+has "suite mode installs the debs THIS RUN built" \
+    'core-artifacts.sh\" built' "$(cat "$J/pipelines/Jenkinsfile.isle-test")"
+
+# THE DEBS PATH, for BOTH jobs. The version is the only thing that differs:
+#   polari-test     VERSION=test/<sha>  →  pool/test/<sha>/debs
+#   polari-release  VERSION=<version>   →  pool/<version>/debs
+CAP="$T/carts"; rm -rf "$CAP"
+ca() { ( cd "$DEV" && env POLARI_POOL="$CAP" CI_MODE=suite bash isle/core-artifacts.sh "$@" 2>&1 ) || true; }
+mkdir -p "$CAP/test/abc123def456/debs" "$CAP/2026.09.20/debs" "$CAP/empty/debs"
+: > "$CAP/test/abc123def456/debs/polari-complete_1.0_amd64.deb"
+: > "$CAP/2026.09.20/debs/polari-complete_1.0_amd64.deb"
+: > "$CAP/empty/debs/polari-app-household_1.0_amd64.deb"
+has "debs path — polari-test's shape (VERSION=test/<sha>)" \
+    "CORE_DEBS=$CAP/test/abc123def456/debs" "$(ca built test/abc123def456)"
+has "debs path — polari-release's shape (VERSION=<version>)" \
+    "CORE_DEBS=$CAP/2026.09.20/debs" "$(ca built 2026.09.20)"
+has "  …and the core it names is THIS build, never a release tag" "CORE_TAG=this build" \
+    "$(ca built test/abc123def456)"
+has "a pool dir with app debs but no core deb is REFUSED, naming what is missing" \
+    "carries no polari-complete_*.deb" "$(ca built empty)"
+has "a version with no pool directory at all is REFUSED before the guest is touched" \
+    "has not built its core debs yet" "$(ca built 2026.01.01)"
+has "no version at all is the bare-device proof, and it says so" \
+    "bare device proof" "$(ca built)"
+eq "  …and every one of those refusals is exit 6, not a silent fallback to building" "6" \
+   "$( ( cd "$DEV" && env POLARI_POOL="$CAP" CI_MODE=suite bash isle/core-artifacts.sh built 2026.01.01 >/dev/null 2>&1 ); echo $? )"
+
+# the knob's own story, in the three places a person reads it
+has "device.env.example says the knob is ignored in suite mode" \
+    "IN SUITE MODE THIS LINE IS IGNORED" "$(cat "$J/device.env.example")"
+has "the doctor prints it as an INFO row, not a warning" \
+    "suite mode: the core is built here; CI_CORE_SOURCE is ignored" \
+    "$( cd "$DEV" && CI_MODE=suite bash doctor.sh 2>&1 || true )"
+has "  …and the setup's role step says the same in suite mode" \
+    "is an app-mode knob and is ignored in suite mode" "$(cat "$J/setup/steps/01-role.sh")"
 
 # A BACKTICK IN A DOUBLE-QUOTED MESSAGE IS A COMMAND SUBSTITUTION. His doctor run
 # on the pipeline device printed `doctor.sh: line 459: partial: command not found`

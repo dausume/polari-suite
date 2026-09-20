@@ -60,6 +60,16 @@
 #                                      not rebuild that state. Only the verdict
 #                                      stage calls this: an aborted run must
 #                                      leave the work outstanding.
+#   quiet.sh release-rule main <sha>   THE RELEASE RULE, AT THE GATE. exit 0 =
+#                                      this sha has a `passed` test verdict and
+#                                      may be released · 6 = it does not: the
+#                                      refusal is RECORDED (pool/release/<sha>/
+#                                      refused.json), the sha counts as covered,
+#                                      and the build ends NOT_BUILT.
+#   quiet.sh refused <branch> <sha> <verdict> [reason]
+#                                      record that refusal directly (what
+#                                      release-rule calls; a stage that refuses
+#                                      later can call it too).
 #   quiet.sh queue [<branch>]          print both queues (or one)
 #   quiet.sh queue --json [<branch>]
 #   quiet.sh turn <job> [--once]       wait for this job's turn (test|release);
@@ -242,7 +252,17 @@ do_check() {  # do_check <branch> [--super-only]
     fi
     [ -n "$sup" ] && [ "$sup" != none ] || { say "$branch has no published tip — nothing to run"; exit 6; }
 
-    # 1. ALREADY TESTED. A periodic trigger fires whether or not anything
+    # 1a. ALREADY COVERED BY A REFUSAL. A release-rule refusal is a RECORDED
+    # OUTCOME — "this sha has no passed verdict" is an answer, not a build error
+    # — so the sha is covered by it, exactly as it would be by a verdict. It
+    # stays covered until main MOVES or that sha's test VERDICT CHANGES, and the
+    # second half is what makes it re-armable: promote the sha to test, let
+    # polari-test record `passed`, and the next tick releases it without anybody
+    # touching main. (Live: polari-release #84/#85/#86 all ran on 0ee38c6, ten
+    # minutes apart, each one re-deriving the same refusal and going red for it.)
+    if _refusal_still_stands "$branch" "$sup"; then exit 6; fi
+
+    # 1b. ALREADY TESTED. A periodic trigger fires whether or not anything
     # changed, so the first thing to answer is "is there anything here that is
     # not already done?". Without this the retry loop would rebuild the same sha
     # every tick, forever.
@@ -359,6 +379,106 @@ do_done() {
     say "$1: run finished on ${2:0:12}"
 }
 
+# --------------------------------------------- the release rule, at the gate
+# TWO RULES §76 STATED AND THE RELEASE SIDE DID NOT KEEP (found live, 2026-09-20):
+#
+#   · latest-wins says a sha that is already COVERED is not re-run. The test job
+#     has had that since ci-12 (the NOT_BUILT "exactly what the last run already
+#     covered" path). The release job only ever marked a sha covered from its
+#     LAST stage, so any run that ended earlier left the sha outstanding and the
+#     next tick did the whole thing again. polari-release #84/#85/#86 each ran
+#     on 0ee38c6, ten minutes apart.
+#   · a release-rule refusal is a RECORDED OUTCOME, not a build error. "There is
+#     no passed verdict for this sha" is the rule working. It was ending the
+#     build FAILURE, which is the same confusion §76 set out to remove: the
+#     colour is supposed to say whether it RAN.
+#
+# So the rule moved to the GATE — which already knows the tip sha, from the one
+# ls-remote it does before any checkout — and its refusal is written down:
+#
+#     pool/release/<sha>/refused.json   { sha, verdict, reason, at }
+#
+# …after which the sha is covered, and stays covered until main moves or that
+# sha's verdict CHANGES. A sha promoted to test and passed there re-arms itself.
+VERDICT_ROOT="${POLARI_TEST_POOL:-$POOL/test}"
+RELEASE_ROOT="$POOL/release"
+
+_verdict_of() {  # _verdict_of <sha> → the recorded verdict, or 'none'
+    local f="$VERDICT_ROOT/$1/verdict.json"
+    [ -f "$f" ] || { printf 'none'; return 0; }
+    python3 -c 'import json,sys
+try: print(json.load(open(sys.argv[1])).get("verdict") or "none")
+except Exception: print("unreadable")' "$f" 2>/dev/null || printf 'unreadable'
+}
+
+_refusal_reason() {  # _refusal_reason <verdict> → the short phrase the queue shows
+    case "$1" in
+        none)       printf 'no passed verdict' ;;
+        unreadable) printf 'the verdict for this sha is unreadable' ;;
+        *)          printf 'the verdict is %s, not passed' "$1" ;;
+    esac
+}
+
+# Does the recorded refusal still cover this tip? Yes → the caller ends the build
+# NOT_BUILT. No (main moved, or the verdict changed under it) → it is work again,
+# and the refusal is cleared here so the next answer is computed fresh.
+_refusal_still_stands() {  # _refusal_still_stands <branch> <sup>
+    local branch="$1" sup="$2" covsha covv now
+    covsha="$(_queue_read "$branch" covered_sha)"
+    covv="$(_queue_read "$branch" covered_verdict)"
+    [ -n "$covv" ] || return 1                      # no refusal on file
+    [ "$covsha" = "$sup" ] || return 1              # main moved — a different question
+    now="$(_verdict_of "$sup")"
+    if [ "$now" = "$covv" ]; then
+        say "$branch: covered ${sup:0:12} (refused: $(_refusal_reason "$covv")) — nothing to do."
+        say "  It runs again when main moves, or when that sha's test verdict changes (promote it to test and let polari-test record 'passed')."
+        return 0
+    fi
+    _queue_write "$branch" covered_verdict='' covered_reason='' pending=true \
+                 "since=$(now)" "since_iso=$(date -Is)"
+    say "$branch: the test verdict for ${sup:0:12} changed ($covv → $now) — the refusal no longer stands and this sha is work again"
+    return 1
+}
+
+# `refused` — the rule said no, and that is an ANSWER. Record it where a person
+# can read it, and cover the sha with it.
+do_refused() {  # do_refused <branch> <sha> <verdict> [reason]
+    local branch="$1" sha="$2" verdict="${3:-none}" reason="${4:-}"
+    [ -n "$reason" ] || reason="$(_refusal_reason "$verdict")"
+    mkdir -p "$RELEASE_ROOT/$sha"
+    python3 - "$RELEASE_ROOT/$sha/refused.json" "$sha" "$verdict" "$reason" "$branch" <<'PY'
+import json, os, sys
+path, sha, verdict, reason, branch = sys.argv[1:6]
+import datetime
+d = {'sha': sha, 'branch': branch, 'verdict': verdict, 'reason': reason,
+     'at': datetime.datetime.now().astimezone().isoformat(timespec='seconds'),
+     'rule': 'only a sha whose test verdict is `passed` may be released',
+     'rearms_when': 'main moves, or the test verdict for this sha changes to passed'}
+tmp = path + '.tmp'
+json.dump(d, open(tmp, 'w'), indent=1)
+os.replace(tmp, path)
+PY
+    _queue_write "$branch" covered_sha="$sha" covered_verdict="$verdict" \
+                 covered_reason="$reason" newest_sha="$sha" pending=false running=''
+    say "$branch: RECORDED the refusal for ${sha:0:12} — $reason ($RELEASE_ROOT/$sha/refused.json)"
+    say "  the sha is now COVERED: no tick re-runs it until main moves or its verdict changes. This is NOT a build failure."
+}
+
+# `release-rule` — ask it, at the gate, before anything is checked out.
+do_release_rule() {  # do_release_rule <branch> <sha>
+    local branch="$1" sha="$2" v
+    [ -n "$sha" ] || { say "release-rule: no sha given — nothing to check"; return 0; }
+    v="$(_verdict_of "$sha")"
+    if [ "$v" = passed ]; then
+        say "$branch: ${sha:0:12} has a PASSED test verdict — the release rule is satisfied"
+        return 0
+    fi
+    say "$branch: REFUSED by the release rule — $(_refusal_reason "$v") for ${sha:0:12}"
+    say "  Fix: pol jenkins promote test, let polari-test record a passing verdict for this sha, and this tick releases it."
+    do_refused "$branch" "$sha" "$v"
+    exit 6
+}
+
 # `covered` — this state has a VERDICT. Called by the verdict stage and by
 # nothing else, so an aborted or failed run leaves the work outstanding and the
 # next tick picks it up.
@@ -368,7 +488,12 @@ do_covered() {
         say "$1: ${2:0:12} reached a verdict without a claim — not marking it covered (there is nothing to compare)"
         return 0
     fi
-    _queue_write "$1" "last_run_digest=$cd" "last_run_super=$cs" "covered_sha=$2"
+    # covered_verdict/_reason are the REFUSAL's fields. A run that got all the way
+    # to a verdict has superseded any refusal on file, so they are cleared here —
+    # otherwise the refusal would keep answering for a sha that has since been
+    # released.
+    _queue_write "$1" "last_run_digest=$cd" "last_run_super=$cs" "covered_sha=$2" \
+                 covered_verdict='' covered_reason=''
     say "$1: ${2:0:12} now has a verdict — that state is 'already covered' and a periodic tick will not rebuild it"
 }
 
@@ -376,12 +501,18 @@ do_queue() {
     local want="${1:-}"
     for b in test main; do
         [ -z "$want" ] || [ "$want" = "$b" ] || continue
-        local pend sup since run last
+        local pend sup since run last covsha covv covr
         pend="$(_queue_read "$b" pending false)"; sup="$(_queue_read "$b" newest_sha)"
         since="$(_queue_read "$b" since_iso)"; run="$(_queue_read "$b" running)"
         last="$(_queue_read "$b" last_run_iso)"
+        covsha="$(_queue_read "$b" covered_sha)"; covv="$(_queue_read "$b" covered_verdict)"
+        covr="$(_queue_read "$b" covered_reason)"
         printf '%-5s  %s\n' "$b" "$(
             if [ -n "$run" ]; then printf 'RUNNING %s' "${run:0:12}"
+            # a REFUSED sha is covered, not idle and not pending: the queue has an
+            # answer for it and is waiting for main to move or its verdict to change.
+            elif [ -n "$covv" ] && [ "$covsha" = "$sup" ]; then
+                printf 'covered %s (refused: %s)' "${covsha:0:12}" "${covr:-$(_refusal_reason "$covv")}"
             elif [ "$pend" = true ]; then printf 'pending %s since %s' "${sup:0:12}" "${since:-?}"
             else printf 'idle'; fi)"
         printf '       newest %s   last run %s\n' "${sup:0:12}" "${last:-never}"
@@ -460,10 +591,12 @@ case "${1:-queue}" in
     claim)     do_claim "${2:?branch}" "${3:-}" ;;
     done)      do_done "${2:?branch}" "${3:-}" ;;
     covered)   do_covered "${2:?branch}" "${3:-}" ;;
+    refused)   do_refused "${2:?branch}" "${3:?sha}" "${4:-none}" "${5:-}" ;;
+    release-rule) do_release_rule "${2:?branch}" "${3:-}" ;;
     queue)     if [ "${2:-}" = --json ]; then do_queue_json; else do_queue "${2:-}"; fi ;;
     turn)      do_turn "${2:?job}" "${3:-}" ;;
     turn-done) do_turn_done "${2:?job}" ;;
     shas)      forest_shas "${2:?branch}" ;;
     --help|-h) sed -n '2,50p' "$0" ;;
-    *) printf 'usage: quiet.sh check|saw|claim|done|queue|turn|turn-done|shas …\n' >&2; exit 2 ;;
+    *) printf 'usage: quiet.sh gate|check|saw|claim|done|covered|refused|release-rule|queue|turn|turn-done|shas …\n' >&2; exit 2 ;;
 esac

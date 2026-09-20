@@ -148,6 +148,19 @@ developer's **own** routes. A fork is never republished under an upstream
 name, and the release record names the core release the app passed against.
 `CI_CORE_SOURCE=build` is the escape hatch for somebody who also patches core.
 
+**`CI_CORE_SOURCE` IS AN APP-MODE KNOB, AND ONLY AN APP-MODE KNOB** (ci-12
+addendum 7). Its default is `release:latest` and that line is written into
+*every* `device.env`, suite-mode ones included — so both Jenkinsfiles used to
+take the release-pull path on a device that builds its own core, and
+`polari-isle-test #5` refused with *"polari-cli/scripts/lib/providers.sh is not
+in this checkout"* while every `polari-release` run went red at the same stage.
+The condition is now `CI_MODE == 'app'` and nothing else. In suite mode the
+core under test is the one **this run built**, installed out of the run's own
+pool directory — `pool/test/<sha>/debs` for a test run, `pool/<version>/debs`
+for a release build; `isle/core-artifacts.sh built <version>` is the one place
+that resolution lives, for both jobs. `pol jenkins doctor` prints an INFO row
+saying the knob is ignored, rather than leaving the line looking load-bearing.
+
 **ci-9 made app mode real.** `pol jenkins setup`'s **first question** is now
 "what does this pipeline maintain?", and answering *ONE Polari app* asks for
 the module, its repository (cloned under `<pool>/apps/<name>` with `pol
@@ -401,6 +414,26 @@ re-reads the verdict itself** (`routes/_lib.sh`), so triggering
 - **an app the isle stages did not record as `pass`** → its deb is left out of
   the release assets and named under *"not released: untested/failed"* in the
   job log and in the release notes.
+
+**The rule is asked at the GATE, and its refusal is a RECORDED OUTCOME**
+(ci-12 addendum 7). `quiet.sh gate main` already reads main's tip with one
+`ls-remote` before any checkout, and the verdict is keyed on exactly that sha —
+so `quiet.sh release-rule main <sha>` answers "may this be released?" there, for
+the cost of reading one file, instead of after a full build. When it refuses:
+
+- `pool/release/<sha>/refused.json` records the sha, the verdict it found, the
+  reason and the time;
+- the sha becomes **covered** — `pol jenkins queue` reads
+  `main   covered <sha> (refused: no passed verdict)` — so the ten-minute tick
+  does not re-run it;
+- the build ends **NOT_BUILT, never FAILURE**. The colour says whether the job
+  RAN; the refusal says what the rule found.
+
+It re-arms itself in exactly two cases: **main moves**, or **that sha's test
+verdict changes**. Promote the sha to `test`, let `polari-test` record `passed`,
+and the next tick releases it with nobody touching `main`. (Before this,
+`polari-release` #84/#85/#86 all ran on the same sha ten minutes apart, each
+re-deriving the same refusal and going red for it.)
 
 ci-10's coupling is not lost, it moved: the verdict already required the isle
 stages' `core_ok`, which already required a CLEAN hand-back from the product's

@@ -85,20 +85,68 @@ pipeline {
       post { always { archiveArtifacts artifacts: 'preflight.json', allowEmptyArchive: true } }
     }
 
-    // ci-9: in app mode (or whenever CI_CORE_SOURCE names a release) the core
-    // the stages install is PULLED, not built — fetched once into the cache and
-    // verified against the release's own SHA256SUMS. results.json then records
-    // `tested_against`, so "the app passed" always names the core it passed
-    // against. CI_CORE_SOURCE=build leaves this stage out entirely.
-    stage('the core under test — from a release (app mode)') {
-      when { expression { return (env.CI_MODE == 'app') || (env.CI_CORE_SOURCE ?: '').startsWith('release:') } }
+    // ci-9: in APP MODE the core the stages install is PULLED, not built —
+    // fetched once into the cache and verified against the release's own
+    // SHA256SUMS. results.json then records `tested_against`, so "the app
+    // passed" always names the core it passed against.
+    //
+    // ci-12 addendum 7 — THE CONDITION IS `CI_MODE == 'app'`, AND NOTHING ELSE.
+    // It used to be `app mode OR CI_CORE_SOURCE startsWith release:`, and ci-9's
+    // DEFAULT for CI_CORE_SOURCE is release:latest — which is in every
+    // device.env, suite-mode ones included. So this stage fired on the pipeline
+    // device, which is a suite device, and refused:
+    //     [core-artifacts] REFUSED: polari-cli/scripts/lib/providers.sh is not
+    //                      in this checkout
+    // (isle-test #5). It was right to refuse — but it should never have been
+    // asked: in suite mode the core under test is the one THIS RUN built, and
+    // CI_CORE_SOURCE is an app-mode knob the suite path ignores.
+    //
+    // The checkout matters here too: this job has no `checkout` step at all (its
+    // workspace is cleaned every run), so `providers.sh` — the ONE reader of
+    // what a Polari release carries — is absent even in app mode. Init exactly
+    // that submodule, and nothing else: a full forest checkout to read one
+    // library would cost the six minutes the gate exists to avoid.
+    stage('the core under test — pulled from a release (app mode)') {
+      when { expression { return env.CI_MODE == 'app' } }
       steps {
+        // the top level alone, then exactly ONE submodule. Anything more would
+        // pay for the whole forest to read one shell library.
+        checkout([$class: 'GitSCM', branches: [[name: '*/main']],
+                  userRemoteConfigs: [[url: 'https://github.com/dausume/polari-suite.git']],
+                  extensions: [[$class: 'CloneOption', shallow: true, depth: 1],
+                               [$class: 'SubmoduleOption', disableSubmodules: true]]])
+        sh '''set -eu
+          git submodule update --init --depth 1 polari-cli
+          ls -l polari-cli/scripts/lib/providers.sh'''
         script {
           def rep = params.VERSION ? "${env.POOL}/${params.VERSION}/cache-report.json" : "${env.WORKSPACE}/cache-report.json"
-          def out = sh(returnStdout: true, script: "CACHE_REPORT='${rep}' bash \"\$ISLE/core-artifacts.sh\" fetch").trim()
-          env.CORE_TAG  = (out =~ /CORE_TAG=(\S+)/) ? (out =~ /CORE_TAG=(\S+)/)[0][1] : ''
-          env.CORE_DEBS = (out =~ /CORE_DEBS=(\S+)/) ? (out =~ /CORE_DEBS=(\S+)/)[0][1] : ''
+          // no Matcher in a local (CPS persists locals across step boundaries and
+          // java.util.regex.Matcher is not serializable) — sed does the reading.
+          env.CORE_TAG = sh(returnStdout: true,
+                            script: "CACHE_REPORT='${rep}' bash \"\$ISLE/core-artifacts.sh\" fetch | sed -n 's/^CORE_TAG=//p'").trim()
+          env.CORE_DEBS = sh(returnStdout: true,
+                             script: "CACHE_REPORT='${rep}' bash \"\$ISLE/core-artifacts.sh\" fetch | sed -n 's/^CORE_DEBS=//p'").trim()
           echo "the stages below install the core of ${env.CORE_TAG ?: '(built here — CI_CORE_SOURCE=build)'}"
+        }
+      }
+    }
+
+    // ci-12 addendum 7 — SUITE MODE: the core is what this very run built, and
+    // the debs are in the pool under the version the caller named:
+    //   polari-test    VERSION=test/<sha>  →  pool/test/<sha>/debs
+    //   polari-release VERSION=<version>   →  pool/<version>/debs
+    // core-artifacts.sh owns that resolution for BOTH jobs (`built <version>`),
+    // so neither Jenkinsfile composes a pool path of its own. An empty VERSION
+    // is the bare-device proof: no pool directory, no core to install, and the
+    // stage says so instead of failing.
+    stage('the core under test — built by this run (suite mode)') {
+      when { expression { return env.CI_MODE != 'app' && params.VERSION != '' } }
+      steps {
+        script {
+          env.CORE_TAG  = 'this build'
+          env.CORE_DEBS = sh(returnStdout: true,
+                             script: "bash \"\$ISLE/core-artifacts.sh\" built '${params.VERSION}' | sed -n 's/^CORE_DEBS=//p'").trim()
+          echo "the stages below install the core THIS RUN built: ${env.CORE_DEBS}"
         }
       }
     }
@@ -112,9 +160,14 @@ pipeline {
           echo "isle testing stages: ${stages.size()} — ${stages.collect { it ?: 'core only' }}"
 
           // ci-9: the core these stages install, named once, recorded everywhere.
+          // ci-12 addendum 7: in SUITE mode that is always this build — the run's
+          // own debs out of its own pool directory — and the record says so in
+          // those words. It used to say "release:polari-v<version>", which for a
+          // test run would have read `release:polari-vtest/<sha>`: a release that
+          // does not exist, named as the thing the stages were tested against.
           def testedAgainst = env.CORE_TAG ?: ((env.CI_MODE == 'app')
                                                ? (env.CI_CORE_SOURCE ?: 'build')
-                                               : (params.VERSION ? "release:polari-v${params.VERSION}" : 'this build'))
+                                               : 'this build')
           def results = [version: params.VERSION ?: 'none', mode: (env.CI_MODE ?: 'suite'),
                          app_name: (env.CI_APP_NAME ?: ''), tested_against: testedAgainst,
                          core_debs: (env.CORE_DEBS ?: ''),

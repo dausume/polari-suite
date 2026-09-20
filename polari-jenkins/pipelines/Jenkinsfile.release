@@ -51,6 +51,32 @@ pipeline {
             return
           }
           if (rc != 0) { error("quiet.sh could not read the superproject remote (rc=${rc})") }
+
+          // ci-12 addendum 7 — THE RELEASE RULE, HERE, BEFORE THE CHECKOUT.
+          // The gate already knows main's tip from its one ls-remote, and the
+          // verdict is keyed on exactly that sha, so "may this be released?" is
+          // answerable now — for the cost of reading one file. Asking it here
+          // instead of after the build is the whole fix: polari-release
+          // #84/#85/#86 each did a full checkout, and each ended FAILURE on a
+          // rule that could have been read in a millisecond.
+          //
+          // A refusal is RECORDED (pool/release/<sha>/refused.json) and COVERS
+          // the sha, so the next tick says "covered … (refused: no passed
+          // verdict)" and ends in a second. It re-arms itself when main moves or
+          // when that sha's verdict changes to `passed` — no hand-reset.
+          env.MAIN_SHA = sh(returnStdout: true,
+                            script: "sed -n 's/^\\[quiet\\] .*QUIET_SHA=//p;s/^QUIET_SHA=//p' .quiet-gate.log | head -1").trim()
+          def rr = sh(returnStatus: true,
+                      script: "set +e; bash /var/polari-jenkins/quiet.sh release-rule main '${env.MAIN_SHA}' > .release-rule.log 2>&1; rc=\$?; cat .release-rule.log; exit \$rc")
+          if (rr == 6) {
+            env.DEFER_WHY = 'the release rule refused this sha and the refusal is RECORDED ' +
+                            '(pool/release/' + (env.MAIN_SHA ?: '?') + '/refused.json). NOT a build failure: ' +
+                            'there is no passed test verdict for it, which is the rule working. The sha is now ' +
+                            'covered — promote it to test, let polari-test record `passed`, and the next tick releases it.'
+            echo env.DEFER_WHY
+            return
+          }
+          if (rr != 0) { error("quiet.sh could not apply the release rule (rc=${rr})") }
           env.PROCEED = 'gate'
         }
       }
@@ -122,13 +148,22 @@ pipeline {
     // CI_CORE_SOURCE=build is the escape hatch for somebody who also patches
     // core — then the stages below run as they always did.
     // -------------------------------------------------------------------
+    // ci-12 addendum 7 — THE CONDITION IS `CI_MODE == 'app'`, AND NOTHING ELSE.
+    // It used to be `app mode OR CI_CORE_SOURCE startsWith release:`, and ci-9's
+    // DEFAULT for CI_CORE_SOURCE is release:latest — so on a SUITE device (which
+    // is what the pipeline device is) this stage fired, went looking for a
+    // published release to pull a core from, and there is none: every
+    // polari-release run ended FAILURE here. In suite mode the core released is
+    // the one the `debs` stage below builds, out of this run's own pool
+    // directory — CI_CORE_SOURCE is an app-mode knob and this path ignores it.
     stage('the core — pulled from a release (app mode)') {
-      when { expression { env.PROCEED == 'yes' && ((env.CI_MODE == 'app') || (env.CI_CORE_SOURCE ?: '').startsWith('release:')) } }
+      when { expression { env.PROCEED == 'yes' && env.CI_MODE == 'app' } }
       steps {
         script {
-          def out = sh(returnStdout: true, script: 'CACHE_REPORT="$POOL/$POLARI_VERSION/cache-report.json" bash /var/polari-jenkins/isle/core-artifacts.sh fetch').trim()
-          env.CORE_TAG  = (out =~ /CORE_TAG=(\S+)/) ? (out =~ /CORE_TAG=(\S+)/)[0][1] : ''
-          env.CORE_DEBS = (out =~ /CORE_DEBS=(\S+)/) ? (out =~ /CORE_DEBS=(\S+)/)[0][1] : ''
+          // no Matcher in a local — it is not serializable and CPS persists
+          // every local across a step boundary (it killed polari-test #4).
+          env.CORE_TAG = sh(returnStdout: true, script: 'CACHE_REPORT="$POOL/$POLARI_VERSION/cache-report.json" bash /var/polari-jenkins/isle/core-artifacts.sh fetch | sed -n "s/^CORE_TAG=//p"').trim()
+          env.CORE_DEBS = sh(returnStdout: true, script: 'CACHE_REPORT="$POOL/$POLARI_VERSION/cache-report.json" bash /var/polari-jenkins/isle/core-artifacts.sh fetch | sed -n "s/^CORE_DEBS=//p"').trim()
           echo "core: ${env.CORE_TAG ?: 'built here (CI_CORE_SOURCE=build)'}  ${env.CORE_DEBS ?: ''}"
         }
       }
@@ -313,9 +348,18 @@ PY'''
         sh "bash /var/polari-jenkins/quiet.sh covered main '${env.POLARI_FULL_SHA}'"
       }
     }
+    // Reaching here means the verdict CHANGED between the gate and this stage —
+    // the gate already refuses a sha without a passed verdict, before anything
+    // is checked out. Rare, and it is still a recorded outcome rather than a
+    // failure: the refusal is written down and the sha covered, exactly as the
+    // gate would have done.
     stage('not released (untested)') {
       when { expression { env.PROCEED == 'yes' && env.RELEASE_TESTED != 'yes' } }
-      steps { echo 'not released: this sha has no PASSED test verdict. The build stays in the pool, the tag is not pushed, and polari-publish is still triggered — every route prints its own DRY line naming the missing verdict. The fix is not to re-run anything here: promote the sha to `test`, let polari-test record a passing verdict, then promote main.' }
+      steps {
+        echo 'not released: this sha has no PASSED test verdict. The build stays in the pool, the tag is not pushed, and polari-publish is still triggered — every route prints its own DRY line naming the missing verdict. The fix is not to re-run anything here: promote the sha to `test`, let polari-test record a passing verdict, then promote main.'
+        sh "bash /var/polari-jenkins/quiet.sh refused main '${env.POLARI_FULL_SHA}' '${env.RELEASE_VERDICT ?: 'none'}'"
+        script { env.RELEASE_REFUSED = 'yes' }
+      }
     }
   }
   post {
@@ -329,6 +373,12 @@ PY'''
         if (env.PROCEED != 'yes') {
           currentBuild.result = 'NOT_BUILT'
           echo "DEFERRED: ${env.DEFER_WHY ?: 'the run did not proceed'}"
+        } else if (env.RELEASE_REFUSED == 'yes') {
+          // ci-12 addendum 7: a refusal is a RECORDED OUTCOME, never a red
+          // build. The colour says whether the job RAN; the refusal says what
+          // the rule found, and it is on disk under pool/release/<sha>/.
+          currentBuild.result = 'NOT_BUILT'
+          echo "NOT RELEASED (recorded, not failed): the release rule refused ${env.POLARI_FULL_SHA}"
         }
       }
       sh "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh turn-done release || true"
@@ -341,6 +391,6 @@ PY'''
     // named in CI_ROUTES (device.env). Nothing is armed by being triggered.
     // ci-12: and the routes re-read pool/test/<sha>/verdict.json themselves (routes/_lib.sh), so triggering
     // publish on an untested build is safe — every route renders and says why.
-    success { script { if (env.PROCEED == 'yes') { build job: 'polari-publish', wait: false, parameters: [string(name: 'VERSION', value: env.POLARI_VERSION), string(name: 'DRY_RUN', value: 'auto'), string(name: 'ROUTES', value: env.CI_ROUTES ?: 'github-release,ghcr,homebrew,apt-repo')] } } }
+    success { script { if (env.PROCEED == 'yes' && env.RELEASE_REFUSED != 'yes') { build job: 'polari-publish', wait: false, parameters: [string(name: 'VERSION', value: env.POLARI_VERSION), string(name: 'DRY_RUN', value: 'auto'), string(name: 'ROUTES', value: env.CI_ROUTES ?: 'github-release,ghcr,homebrew,apt-repo')] } } }
   }
 }

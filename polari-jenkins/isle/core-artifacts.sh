@@ -14,7 +14,18 @@
 #
 #   core-artifacts.sh resolve        print the tag CI_CORE_SOURCE means (or `build`)
 #   core-artifacts.sh fetch          resolve, fetch + verify, print the directory
+#   core-artifacts.sh built <ver>    SUITE MODE: the core debs THIS RUN built, in
+#                                    the pool. No network, no release, no cache.
 #   core-artifacts.sh status         what is cached, for which tags
+#
+# ci-12 addendum 7 — `fetch` IS THE APP-MODE PATH. Suite mode must never take
+# it: the core a suite run tests is the one it just built, and pulling a release
+# instead would test something else entirely and label it with this sha. The
+# Jenkinsfiles now branch on CI_MODE alone (never on CI_CORE_SOURCE, which is an
+# app-mode knob), and the suite branch asks `built` for the pool directory. That
+# is the whole of defect (1) of isle-test #5, whose stage refused with
+# "providers.sh is not in this checkout" — it was trying to pull a release on a
+# device that builds its own core.
 #
 # THE ONE READER. The tag→assets lookup is `polari-cli/scripts/lib/providers.sh`
 # — the same `release_tags_with_debs` / `release_asset_urls` that `pol prod`'s
@@ -169,6 +180,43 @@ images_published() {   # images_published <tag> — does ghcr carry prf-backend:
     registry_image_tags "ghcr.io/$owner" prf-backend 2>/dev/null | grep -qx "$tag"
 }
 
+# ------------------------------------------------- SUITE MODE: the run's own
+# THE CORE THIS RUN BUILT. Both jobs put their debs in the pool, under the
+# version they are working on, and the version is the ONLY thing that differs:
+#
+#   polari-test     VERSION=test/<sha>   →  pool/test/<sha>/debs
+#   polari-release  VERSION=<version>    →  pool/<version>/debs
+#
+# so the resolution is one line and both jobs get it from here rather than each
+# composing a path of its own. An empty VERSION is the bare-device proof
+# (polari-isle-test run by hand with no version): there is no pool directory,
+# nothing is recorded against a release, and that is said rather than guessed.
+POOL_DIR_DEFAULT="${POLARI_POOL:-/var/polari-pool}"
+core_debs_built() {   # core_debs_built <version> → the dir, or '' with a reason on stderr
+    local ver="${1:-}" pool dir
+    pool="${POLARI_POOL:-$POOL_DIR_DEFAULT}"
+    [ -n "$ver" ] || { warn "no version given — a bare device proof installs no core debs"; return 1; }
+    dir="$pool/$ver/debs"
+    [ -d "$dir" ] || { warn "$dir does not exist — this run has not built its core debs yet"; return 1; }
+    # a directory with no polari-complete deb in it is not a core, and finding
+    # that out here is cheaper than finding it out inside the guest.
+    local n; n="$(find "$dir" -maxdepth 1 -name 'polari-complete_*.deb' 2>/dev/null | wc -l)"
+    [ "$n" -gt 0 ] || { warn "$dir carries no polari-complete_*.deb — the build stage produced no core"; return 1; }
+    printf '%s' "$dir"
+}
+
+do_built() {  # do_built <version>
+    local ver="${1:-}" dir
+    if dir="$(core_debs_built "$ver")"; then
+        say "suite mode: the core under test is the one THIS RUN built — $dir ($(find "$dir" -maxdepth 1 -name '*.deb' | wc -l) deb(s))"
+        echo "CORE_TAG=this build"
+        echo "CORE_DIR=$(dirname "$dir")"
+        echo "CORE_DEBS=$dir"
+        return 0
+    fi
+    die "suite mode: there are no core debs for version '${ver:-(none)}' in the pool — the build stage must run before the isle stages install anything"
+}
+
 # ------------------------------------------------------------------ status
 do_status() {
     local d; d="$(cache_area releases)"
@@ -203,7 +251,8 @@ case "${1:-status}" in
         [ -n "${CACHE_REPORT:-}" ] && python3 "$J/cache-manifest.py" report "$CACHE_REPORT" releases \
             "${CORE_ARTIFACTS_CACHED:-0}" "${CORE_ARTIFACTS_FETCHED:-0}" "${CORE_ARTIFACTS_SECONDS:-0}" >/dev/null 2>&1 || true
         ;;
+    built)   do_built "${2:-}" ;;
     status)  do_status ;;
     --help|-h) sed -n '2,30p' "$0" ;;
-    *) echo "core-artifacts.sh resolve|fetch|status" >&2; exit 2 ;;
+    *) echo "core-artifacts.sh resolve|fetch|built|status" >&2; exit 2 ;;
 esac

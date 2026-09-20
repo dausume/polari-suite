@@ -22,9 +22,11 @@ CACHE_NAME="${CACHE_NAME:-cache}"
 # "version" that ages out. `test/<sha>/` holds each test run and THE VERDICT the
 # release rule reads (deleting it would silently un-test a released sha);
 # `promotions/<branch>/` holds the markers the quiet-period re-check keys on;
-# `queue/` is the one-deep queue itself. All exempt here; `test/` is bounded by
-# its own keep count below, the other two are tiny.
-KEEP_DIRS="${KEEP_DIRS:-$CACHE_NAME test promotions queue}"
+# `queue/` is the one-deep queue itself; `release/<sha>/refused.json` (addendum 7)
+# is the recorded answer to "why was this sha not released?", and deleting it
+# would lose the only durable trace of a refusal. All exempt here; `test/` is
+# bounded by its own keep count below, the other three are tiny.
+KEEP_DIRS="${KEEP_DIRS:-$CACHE_NAME test promotions queue release}"
 TEST_KEEP="${TEST_KEEP:-5}"
 free_gb(){ df -BG --output=avail "$1" | tail -1 | tr -dc '0-9'; }
 case "${1:-}" in
@@ -37,7 +39,7 @@ case "${1:-}" in
     mapfile -t VERS < <(ls -1dt */ 2>/dev/null | sed 's#/##' | grep -v '^test-' | grep -vE "^(${KEEP_RE})\$")
     echo "[retention] pool versions (newest first): ${VERS[*]:-none}; keeping $KEEP"
     echo "[retention] EXEMPT (never a version): $KEEP_DIRS — the offline cache (ci-9), the test runs and their"
-    echo "[retention]   verdicts, the promotion markers and the queue (ci-12). 'retention.sh cache-prune' is the cache's only deleter."
+    echo "[retention]   verdicts, the promotion markers, the queue and the recorded release refusals (ci-12). 'retention.sh cache-prune' is the cache's only deleter."
     for v in "${VERS[@]:$KEEP}"; do
         echo "[retention] dropping pool/$v ($(du -sh "$v" | cut -f1))"; rm -rf "$v"
         docker images --format '{{.Repository}}:{{.Tag}}' | grep -E ":${v}$" | xargs -r docker rmi -f >/dev/null 2>&1 && echo "[retention]   images tagged :$v removed" || true
