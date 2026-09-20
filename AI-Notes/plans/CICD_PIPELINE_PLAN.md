@@ -786,3 +786,25 @@ column is filled by `scan.sh lock-resolve` and committed deliberately, the
 - **The Lockable Resources FIFO claim** should be verified against the installed
   plugin version on the pipeline device; the turn marker exists precisely so the
   answer does not have to be trusted.
+- **Eight core selftest suites fail** on the first tested sha (ledger §76
+  addendum). They are not ci-12's to fix, and until they are, no sha can reach
+  `passed` — so ci-3 is no longer the only thing between this pipeline and a
+  release.
+
+### 10.8 Proven live (2026-09-19/20, econ-core)
+
+The `test` branch exists on all ten repos, `polari-test` ran end to end and
+recorded `failed` for the right reason, and `pol jenkins promote main` refused
+with exit 4 naming the sha, the verdict and its cause. Eleven defects were found
+by those runs and fixed — the four worth carrying forward as rules:
+
+1. **A deferral must be retryable.** An SCM trigger fires on a CHANGE, so a run
+   that defers because the change is still landing is never retried. Periodic
+   ticks, made cheap by a pre-checkout `gate`.
+2. **No `java.util.regex.Matcher` in a pipeline local.** CPS persists locals
+   across every step boundary; it is not serializable.
+3. **`docker -v` is resolved by the DAEMON, on the host.** Anything mounting a
+   path from inside the controller must translate it first, or it writes where
+   nobody can read — silently.
+4. **A parent that waits for a child needs a second executor**, and must not
+   hold the lock the child wants.

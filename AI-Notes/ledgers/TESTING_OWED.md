@@ -6852,3 +6852,140 @@ door refuses an app-mode release that leaves it empty. Two new columns instead �
    model: the API listed four jobs while `jenkins_home/jobs/` held six. A
    `docker restart polari-jenkins` loaded them. Worth a line in `pol jenkins up`
    (or a `reload-configuration` POST) so the next person does not lose the time.
+
+### §76 addendum — THE FIRST REAL RUNS on the pipeline device (2026-09-19/20, econ-core)
+
+The `test` branch was created on **all ten repos** by `pol jenkins promote test`
+(dev → test, innermost-first, ff-only; every repo went in one sweep, and the
+superproject last). `polari-test` then ran for real. **Nothing was promoted to
+main — that is his call, and the gate refused it anyway.**
+
+#### The verdict it recorded — `failed`, and it is honest
+
+```
+TEST VERDICT — FAILED  (test)
+  sha        9251e415c89a12ad1331b7ba935955c8c80ac256
+  why        module selftests failed: core (8 of 88 suites)
+  selftests  88 suite(s): 80 pass, 8 fail   modules: core=fail
+  isle       NO results  core_ok=False  stages=0  uninstall: none
+  scans      critical=4 high=35 low=3 medium=32   (ADVISORY — no finding changes this verdict)
+```
+
+The brief expected `partial`. It is `failed`, and for a real reason: **eight core
+selftest suites fail on this sha** —
+
+    accessControl.selftest_cause_context          moduleService.selftest_app_taxonomy
+    moduleService.selftest_json_seeds             moduleService.selftest_lazy_boot
+    moduleService.selftest_module_dependencies    topology.selftest_move_operations
+    topology.selftest_testing                     topology.selftest_topology
+
+That is the pipeline doing its job on its first run: eight suites nobody was
+running have been failing, and the branch model found them in ~4 minutes.
+
+**The release rule then refused, live** (`pol jenkins promote main --dry-run`,
+exit 4):
+
+```
+[promote] origin/test is at 9251e415c89a; its recorded test verdict is: failed
+[promote] REFUSED: 9251e415c89a12ad1331b7ba935955c8c80ac256
+[promote]   the test verdict for this sha is failed, not passed.
+[promote]   module selftests failed: core (8 of 88 suites)
+[promote]   Fix: push to test …   Override knowingly: … --force-untested
+```
+
+#### Durations (build #18, econ-core, Wi-Fi)
+
+| stage | |
+|---|---|
+| `quiet.sh gate` (one ls-remote, no checkout) | **0.5 s** |
+| checkout the tip of test + the two nested submodules | ~6 min cold, **14 s** warm |
+| the whole-forest check (10 ls-remote) | ~2 min before the caching fix |
+| wipe (pool, `:staging` images, isle wipe + leak baseline) | 9 s |
+| debs (isle bundle + both flavors) | 00:38:52 → 00:41:10, **2 min 18 s** |
+| images (buildx, ci-9 cache) | 00:41:10 → 00:42:04, **54 s** |
+| scans (Trivy ×8 targets + gitleaks + npm audit) | 00:42:04 → 00:43:59, **1 min 55 s** |
+| module selftests — 88 suites in `prf-backend:staging` | 00:43:59 → 00:47:32, **3 min 33 s** |
+| isle stages | triggered, then DEADLOCKED on the single executor (below) |
+| verdict | written at 01:09:01 |
+
+#### The scan summary (counts only — advisory, and they changed nothing)
+
+`critical 4 · high 35 · medium 32 · low 3`, **all of them from `npm audit`** on
+`polari-platform-angular`'s lockfile. Every Trivy target and gitleaks SKIPPED with
+a line (the docker-outside-of-docker defect below), and `pip-audit` skipped
+because the workspace image does not carry it. The verdict carried the counts and
+the skip list, and was `failed` for the selftests — not for a single finding.
+
+#### Eleven defects, every one found by a real run
+
+| # | what | fix |
+|---|---|---|
+| 1 | `pol jenkins promote test` refused a brand-new branch as "NOT fast-forwardable" | `git rev-parse refs/heads/test` PRINTS the ref it cannot resolve and then fails, so `$( … \|\| echo none )` captured the string. `--verify -q` is the only silent form; no branch at all is now the CREATION case |
+| 2 | a new job exists on disk but not in Jenkins' model after `pol jenkins up` | JCasC's job-dsl wrote `config.xml` after "Loaded all jobs" — `jenkins_home/jobs/` held six, the API listed four. A `docker restart` loads them (OWED 7) |
+| 3 | `quiet.sh` in the controller saw NO submodules | `POLARI_SUITE` defaulted to `/var`; the submodule remotes are only in the checkout's `.gitmodules`. Both pipelines check out first and pass `POLARI_SUITE=$WORKSPACE` |
+| 4 | **a deferral was never retried** | Jenkins' SCM trigger fires on a CHANGE; by the time the forest is quiet nothing has changed again. Build #1 established the baseline, deferred, and would have sat there forever. Both jobs tick on a TIMER now, and `quiet.sh gate` — one ls-remote, before any checkout — makes an idle tick cost 0.5 s instead of a 6-minute clone |
+| 5 | `NotSerializableException: java.util.regex.Matcher` **after every check had passed** | CPS persists every local across a step boundary. `def m = (out =~ /…/)` is a local holding a Matcher. Both pipelines take the exit code from `sh(returnStatus:)` instead; the selftest now asserts the rule over every Jenkinsfile |
+| 6 | a deferral printed no reason | Jenkins runs `sh` as `sh -xe`, so `bash quiet.sh … > log; rc=$?; cat log` ended at quiet.sh's deliberate exit 6 and the `cat` never ran. `set +e` first |
+| 7 | **an aborted run retired a sha that had never been tested** | `post always` ran `quiet.sh done`, which marked the state covered; every tick after said "nothing to do". `done` and `covered` are now two verbs, and only the VERDICT stage calls `covered` |
+| 8 | the quiet window was missed by 1–4 seconds, every time | a 5-minute tick against a 5-minute window always lands a little early ("only 296s of quiet, 4s to go"). `CI_QUIET_GRACE_S` (30) is a rounding allowance on the poll — with it at 0 the same reading still defers, so it is a knob, not a silent floor change. The cron jobs also dropped Jenkins' own `quietPeriod`, which was stacking a second five minutes on top |
+| 9 | **every scanner ran and produced nothing** | `docker build` sends its context from the CLIENT but `docker -v` is resolved by the DAEMON, on the HOST. The controller mounted its own `/var/polari-pool` path, docker created an empty directory there on the host, and the reports landed where nobody could read them — silently, and it would have read as "no findings" forever. `host_path()` translates; `pol jenkins up` supplies `CI_HOST_POOL` / `CI_HOST_JENKINS_HOME` |
+| 10 | **ONE executor deadlocks `polari-test`** | it waits for `polari-isle-test` with `wait: true` while holding the only slot — the child sat at "Waiting for next available executor". `CI_EXECUTORS` defaults to 2; the second slot exists ONLY so a blocked parent has somewhere to block, and the `polari-build` lock is still what stops overlap. (A second, latent deadlock was fixed in the same slice: isle-test used to take `polari-build`, the lock its caller holds — it takes `polari-isle-target` now.) |
+| 11 | in the system posture the CLI said "no verdict" when it meant "I may not look" | after `init-device` the pool belongs to `polari-ci`. `promote main` printed `verdict: none` for a sha whose verdict said `failed`. `pool.sh` reads directly, then THROUGH THE CONTROLLER (the pipeline process reading its own pool), then `sudo -n`; `pol jenkins queue` and the doctor's queue row do the same. Also: `pol jenkins up` no longer tries to REGENERATE an admin password it merely cannot see |
+
+#### The queue and the turn, live on the device
+
+```
+test   idle
+       newest 9251e415c89a   last run 2026-09-20T01:09:03+00:00
+main   idle
+       newest 0ee38c614395   last run 2026-09-20T01:33:18+00:00
+       one item deep, latest wins: a newer change REPLACES the pending item; nothing queues behind it
+       quiet window 5 min (CI_QUIET_MINUTES), max defer unlimited (his default)
+       last turn: release
+```
+
+Ten repos were pushed in one promotion and produced **ONE** queued `polari-test`
+item (Jenkins reported it as *"In the quiet period. Expires in 3 min 16 sec"*).
+Every subsequent tick either deferred with its reason or said "already covered";
+no backlog ever formed, and the alternation marker moved between `test` and
+`release` on its own.
+
+#### Also landed in this addendum
+
+* **The tokens are named for what they are FOR, and every listing says where
+  they GO** (his two asks): `github/release_token` (fine-grained PAT — the
+  release pool and the homebrew tap) and `github/registry_token` (classic PAT —
+  the container registry; a fine-grained token cannot write packages).
+  `routes/destinations.sh` is the ONE place that knows where each route pushes;
+  the routes read their REPO/TAP/registry from it and the secrets catalogue
+  renders its destinations from the same constants, so a listing cannot promise
+  what a route does not do — and in app mode it names the DEVELOPER'S namespace.
+  The pre-ci-12 names still work everywhere, the doctor WARNs once with the exact
+  rename, and `sudo pol jenkins secrets mv <old> <new>` does it in place without
+  the value passing through the shell.
+* A backtick inside a doctor message was being EXECUTED (his run:
+  `doctor.sh: line 459: partial: command not found`, then "the verdict will be
+  at best"). Fixed, and asserted over every message-bearing script here.
+
+#### The numbers
+
+| suite | before | after |
+|---|---|---|
+| `polari-jenkins/selftest.sh` | 364/364 | **529/529** |
+| `modules/cicd/cicd_selftest.py` | 183/183 | **205/205** |
+| `python3 -m moduleService.manifests conform --all` | 62/62 | **62/62** |
+
+#### OWED from the live runs
+
+1. **The eight failing core suites are now a stated, dated fact.** They are not
+   ci-12's to fix, and until they are fixed no sha can reach `passed` — which
+   means ci-3 is no longer the only thing between this pipeline and a release.
+2. **The isle stages have still never completed a run.** The executor deadlock
+   held them, and the fix (two executors) landed after the run that recorded the
+   verdict. The next full run is the first that can produce an isle result.
+3. **`pip-audit` and the Trivy targets were skipped** in the recorded run — the
+   host-path fix also landed after it. The scan counts above are `npm audit`'s
+   alone, and the next run should carry all of them.
+4. **`scan-tools.lock` digests are still `unresolved`.** `aquasec/trivy:0.58.1`
+   and `zricethezav/gitleaks:v8.21.2` both pulled, so the tags are real; a
+   `scan.sh lock-resolve` on the device would pin them.
