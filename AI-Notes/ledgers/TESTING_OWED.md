@@ -7606,3 +7606,56 @@ from fixtures; and the `released != tested` refusal.
 `modules/cicd/cicd_selftest.py` **217/217**, with the ci-10 fixtures updated to
 carry an install and a verify — since ci-3, a stage that claims a core has to
 have made one.
+
+### §77 addendum — PROVEN ON THE HARDWARE (2026-09-20, econ-core → isle-core)
+
+Four real runs. Every one of them found something, which is the point.
+
+| run | what happened |
+|---|---|
+| `polari-test` #219 / `polari-isle-test` **#7** | the whole cycle ran for the first time. `payload` 6 core debs + `images.tar.gz` **346 MB in 14 s**; debs to the target in **81 s**, the image tarball in **167 s**; guest up at 5 GB / 2 vCPU. In the guest: prereqs **323 s**, `docker load` + re-tag **53 s**, `apt-get install polari-complete_0.1.1_amd64.deb` **71 s** (sha256 `d608e2f0…`), the `.env` seed written `POLARI_IMAGE_REPO=localhost/ POLARI_IMAGE_TAG=ci`, and `isle core-install --skip-security` ran to its own `════ ISLE CORE READY ════` banner. **verify: ok — all 8 checks pass**, including `router guest: openwrt-isle-router — libvirt domain state: running (nested KVM)` and `store: Isle app store — 28 apps`. **88 core suites ran inside `prf-isle-backend`**, 87 pass, and `polariRefs.selftest_refs` **fail (49/51 checks green)**. **uninstall verdict: dirty** with the product's own findings. |
+| the defect #7 found | `install: fail in 447s — the guest could not be reached over ssh`, about an isle that was standing there fully working. `isle core-install` printed everything and then the connection died before the script's next `echo`, so the fenced end marker never arrived. A PRODUCT finding (the documented remote route is `ssh -t host 'sudo isle core-install'`) and a pipeline one. |
+| **#8** | `throwaway.sh: line 249: tag: unbound variable` — under `set -u` bash expands EVERY assignment word of one `local` before performing any of them, so `local tag=$1 … dir="…/$tag"` dies. It cost a full 346 MB transfer. The same trap was latent in `cache.sh`'s `cache_fetch`. |
+| **#9** | the detached runner sat in its poll loop for **46 minutes**. `run.sh` in the guest was **0 bytes**: ssh forwards its OWN stdin to the remote command, so the `mkdir` call before the `cat > run.sh` swallowed the entire script being piped in. Fixed with `< /dev/null` on every call but that one, plus a refusal the moment the script does not land — and the heartbeat moved to stderr, because this function's stdout IS the reading the caller captures, so those 46 minutes were silent as well as wasted. |
+
+**The verdict, printed by the CLI after #219** — the whole chain, working:
+
+    TEST VERDICT — FAILED  (test)
+      sha        e453fea4f6a5c16d7e3e790e3c064e15f3a4bebf
+      why        isle stage 1 did not pass — install: the guest could not be reached over ssh …
+      selftests  88 suite(s): 88 pass, 0 fail   modules: core=pass
+      isle       results present  core_ok=False  stages=1  uninstall: stage1=dirty
+      scans      critical=5 high=156 low=103 medium=147 unknown=2   (ADVISORY — no finding changes this verdict)
+        stage 1  core only   install=False  verify=True  suites=87/88  uninstall=dirty
+      report     /var/polari-pool/test/e453fea…/TEST_REPORT.md
+
+`pol jenkins report` printed the page: the six debs with their sha256, the two image IDs under
+*"the IDs, which is what \"tested == released\" is asserted on"*, the scans, the device selftests and the
+stage. The `released != tested` refusal was exercised against a fixture and reads
+`DRY (released != tested - prf-backend:2026.09.20 is sha256:CCC but the isle tested sha256:AAA)`.
+
+#### The honest verdict today
+
+**`failed`, and it should be** — on the run that produced a complete reading, for two named reasons:
+
+1. **the product's own uninstall came back `dirty`.** `isle uninstall --everything` exited 0, and then its own
+   verify said `[✗] /usr/share/isle-mesh still present` / `[✗] footprint remains`, with `/etc/polari` also left.
+   Under the ci-10 rule that alone makes the core not releasable, and the rule was NOT weakened. (The
+   hand-back's DNS half PASSED in this guest — route, public DNS, apt and `systemd-networkd` all fine — so the
+   §75 DNS failure did not reproduce on a cloud image with no NetworkManager. That is the row that bites a
+   desktop.)
+2. **`polariRefs.selftest_refs` fails INSIDE the isle** (49/51) while passing on the device (88/88). That is
+   precisely the class of defect ci-3 exists to find: the same suite, in the installed product, behaving
+   differently. It is a Polari finding, not an isle one, and it is owed.
+
+#### Timings, and what dominates
+
+A full `polari-test` run is **~25 min of build + scan + device tests** and **~35–45 min of isle stage**, so
+**60–75 minutes end to end** on this device. What dominates, in order: the 346 MB image tarball over
+**Wi-Fi to the target (163–167 s)**, `apt` inside the guest for the prerequisites the deb does not depend on
+(**323 s**), `isle core-install` itself (**~9 min**), and the 88 in-isle suites (**~4 min**). The frontend
+change paid for itself twice: `prf-frontend:staging` went from **4.07 GB to 131 MB** (`ng build
+--configuration=production` in **186 s**), which is what makes a 346 MB payload possible at all. The image
+tarball is cached on the target under its image IDs, so a run that rebuilt identical images transfers
+nothing — though BuildKit does not make a rebuild after `docker image rm` bit-identical, so in practice the
+cache helps a re-run, not the next commit.
