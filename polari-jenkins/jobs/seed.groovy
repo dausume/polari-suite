@@ -69,7 +69,12 @@ stage could not run. pol jenkins test-status &lt;sha&gt; prints the verdict; pol
     // which answers "is there anything here that is not already tested?" in a
     // second. quietPeriod still coalesces the ticks into one queued item.
     triggers { cron('H/5 * * * *') }
-    quietPeriod(300)          // 5 minutes; any further tick inside the window folds into the same item
+    // NO quietPeriod here. Jenkins' quiet period delays the queued item by five
+    // minutes ON TOP of the tick, and quiet.sh already owns the five-minute
+    // forest window — the two stacked would make the shortest path from a push
+    // to a verdict ten minutes for no gain. Coalescing does not need it either:
+    // Jenkins merges queued items of a NON-PARAMETERISED job on its own, which
+    // is why this job takes no parameters.
     // NO parameters, deliberately: Jenkins coalesces queued items of a
     // non-parameterised job, so ten pushes in five minutes are ONE queued run.
     definition { cps { script(pipe('Jenkinsfile.test')); sandbox(true) } }
@@ -82,7 +87,7 @@ It runs NO tests: the release rule now reads the TEST verdict recorded for this 
 and every route stays DRY without one. Not parameterised, so the poll queue can never hold more than one item.''')
     logRotator { numToKeep(10); artifactNumToKeep(3) }  // the pool itself is pruned by retention.sh (POOL_KEEP)
     triggers { cron('H/10 * * * *') }     // periodic, for the same reason polari-test is — see above
-    quietPeriod(300)
+    // no quietPeriod, for the same reason: quiet.sh owns the window.
     definition { cps { script(pipe('Jenkinsfile.release')); sandbox(true) } }
 }
 

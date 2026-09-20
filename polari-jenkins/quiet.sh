@@ -79,6 +79,13 @@ POOL="${POLARI_POOL:-$J/pool}"
 # ci-10 leak tolerances set that precedent.
 QUIET_MINUTES="${CI_QUIET_MINUTES:-5}"
 MAX_DEFER_MINUTES="${CI_MAX_DEFER_MINUTES:-0}"   # 0 = unlimited (his default: keep putting it off)
+# A periodic tick cannot land exactly on the boundary. With a 5-minute tick and a
+# 5-minute window the tick that SHOULD pass arrives a few seconds early — the
+# pipeline device measured "only 296s of quiet, 4s to go" and "299s, 1s to go" —
+# and the run is then put off for another whole tick. 30 seconds of grace turns a
+# four-second miss into a run. It is a rounding allowance on the poll, not a
+# weakening of the window: nothing proceeds that has not been still for ~5 min.
+QUIET_GRACE_S="${CI_QUIET_GRACE_S:-30}"
 TURN_MAX_WAIT_S="${CI_TURN_MAX_WAIT_S:-3600}"
 TURN_POLL_S="${CI_TURN_POLL_S:-20}"
 
@@ -262,8 +269,8 @@ do_check() {  # do_check <branch> [--super-only]
         return 0
     fi
 
-    if [ "$age" -ge $(( QUIET_MINUTES * 60 )) ]; then
-        say "$branch: quiet for ${age}s (floor $(( QUIET_MINUTES * 60 ))s) at ${sup:0:12} — proceeding"
+    if [ $(( age + QUIET_GRACE_S )) -ge $(( QUIET_MINUTES * 60 )) ]; then
+        say "$branch: quiet for ${age}s (floor $(( QUIET_MINUTES * 60 ))s, ${QUIET_GRACE_S}s poll grace) at ${sup:0:12} — proceeding"
         printf 'QUIET_SHA=%s\n' "$sup"
         return 0
     fi
@@ -274,7 +281,7 @@ do_check() {  # do_check <branch> [--super-only]
         return 0
     fi
 
-    say "$branch: changes still landing — only ${age}s of quiet, $(( QUIET_MINUTES * 60 - age ))s to go. DEFERRING;"
+    say "$branch: changes still landing — only ${age}s of quiet, $(( QUIET_MINUTES * 60 - QUIET_GRACE_S - age ))s to go. DEFERRING;"
     say "  the single pending item stays pending at ${sup:0:12} and the next tick picks it up. Nothing is queued behind it."
     exit 6
 }

@@ -351,6 +351,14 @@ off and do the LAST one that came in for that queue."*
   it and restarts the clock; a newer change *during* a run sets that same
   single item rather than queuing a second. No backlog can form. Because the
   item never named a sha, the run checks out the branch **tip**.
+- **A poll cannot land on the boundary.** With a five-minute tick and a
+  five-minute window, the tick that should pass arrives a few seconds early —
+  the pipeline device measured *"only 296s of quiet, 4s to go"* — and the run
+  would then wait a whole further tick. `CI_QUIET_GRACE_S` (30) is a rounding
+  allowance on the poll, not a weakening of the window. The jobs also carry **no
+  Jenkins `quietPeriod`**: it would stack another five minutes on top of the one
+  `quiet.sh` already enforces, and coalescing comes from the jobs being
+  non-parameterised, not from the quiet period.
 - **Deferral is unbounded by default** (`CI_QUIET_MINUTES=5`,
   `CI_MAX_DEFER_MINUTES=0`): a branch that keeps changing keeps getting put
   off, which is what he asked for. Setting `CI_MAX_DEFER_MINUTES` lets a run
@@ -596,7 +604,7 @@ gains a `residue from an earlier run` row that FAILs and names the wipe.
 - The poll queues are one item deep and latest-wins (`pool/queue/<branch>.json`), so no automated process can build a backlog of runs to work through.
 
 ## Tests
-`bash polari-jenkins/selftest.sh` — the ci-7 … ci-12 tests, **486/486**. They
+`bash polari-jenkins/selftest.sh` — the ci-7 … ci-12 tests, **488/488**. They
 need **no docker, libvirt, sudo or network**: the scripts run against a temp
 tree and PATH shims, covering the doctor's WARN wording per
 misconfiguration, the preflight's PASS/FAIL arithmetic and the

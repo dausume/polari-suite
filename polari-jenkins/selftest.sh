@@ -1269,9 +1269,9 @@ has "  …and the stage still exits 0 — a scan can never fail a build" "rc=0" 
 # ---- the queue: ONE item deep, latest wins, and the quiet window
 QP="$T/qpool"; rm -rf "$QP"; mkdir -p "$QP"
 q() { ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T" CI_QUIET_MINUTES=5 \
-        FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" 2>&1 ) || true; }
+        CI_QUIET_GRACE_S="${CI_QUIET_GRACE_S:-30}" FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" 2>&1 ) || true; }
 qrc(){ ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T" CI_QUIET_MINUTES="${QM:-5}" \
-        FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" >/dev/null 2>&1 ); echo "$?"; }
+        CI_QUIET_GRACE_S="${CI_QUIET_GRACE_S:-30}" FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" >/dev/null 2>&1 ); echo "$?"; }
 qfield(){ python3 -c 'import json,sys
 try: print(json.load(open(sys.argv[1])).get(sys.argv[2], ""))
 except Exception: print("")' "$QP/queue/$1.json" "$2"; }
@@ -1292,7 +1292,16 @@ eq "  …nothing was appended: there is no backlog to work through" "1" \
    "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(1 if isinstance(d.get("pending"), bool) else 0)' "$QP/queue/test.json")"
 
 eq "quiet: a forest that moved inside the window DEFERS (exit 6), it does not build half a promotion" "6" \
-   "$(qrc check test)"
+   "$(CI_QUIET_GRACE_S=0 qrc check test)"
+# the poll cannot land on the boundary: 30s of grace turns a four-second miss
+# into a run rather than another whole tick of waiting (measured on the device:
+# "only 296s of quiet, 4s to go").
+python3 -c 'import json,sys,time; p=sys.argv[1]; d=json.load(open(p)); d["since"]=str(int(time.time())-290); json.dump(d,open(p,"w"))' "$QP/queue/test.json"
+eq "quiet: 290s of a 300s window is inside the poll grace — it proceeds rather than waiting another tick" \
+   "0" "$(qrc check test)"
+eq "  …and with the grace turned off it is still a deferral, so the grace is a knob and not a silent floor change" \
+   "6" "$(CI_QUIET_GRACE_S=0 qrc check test)"
+python3 -c 'import json,sys,time; p=sys.argv[1]; d=json.load(open(p)); d["since"]=str(int(time.time())); json.dump(d,open(p,"w"))' "$QP/queue/test.json"
 OUT="$(q check test)"
 has "  …and the deferral says the pending item stays and the next poll takes it" "Nothing is queued behind it" "$OUT"
 eq "quiet: once the window has elapsed the run proceeds" "0" "$(QM=0 qrc check test)"
