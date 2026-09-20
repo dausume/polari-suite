@@ -131,25 +131,42 @@ super_remote() {
 
 super_sha() {  # super_sha <branch> → the superproject tip, or 'none'
     local sha
-    sha="$(git ls-remote "$(super_remote)" "refs/heads/$1" 2>/dev/null | awk '{print $1}' | head -1)"
+    sha="$(GIT_TERMINAL_PROMPT=0 timeout "${CI_LSREMOTE_TIMEOUT_S:-20}" git ls-remote "$(super_remote)" "refs/heads/$1" 2>/dev/null | awk '{print $1}' | head -1)"
     printf '%s' "${sha:-none}"
 }
 
 forest_shas() {  # forest_shas <branch> → 'repo<TAB>sha' lines, superproject FIRST
     local branch="$1" origin name url sha
     origin="$(super_remote)"
-    sha="$(git ls-remote "$origin" "refs/heads/$branch" 2>/dev/null | awk '{print $1}' | head -1)"
+    sha="$(GIT_TERMINAL_PROMPT=0 timeout "${CI_LSREMOTE_TIMEOUT_S:-20}" git ls-remote "$origin" "refs/heads/$branch" 2>/dev/null | awk '{print $1}' | head -1)"
     printf 'superproject\t%s\n' "${sha:-none}"
     while IFS=$'\t' read -r name url; do
         [ -n "$name" ] || continue
         if [ "$url" = '-' ]; then continue; fi          # not pollable (ssh URL) — skipped on purpose
-        sha="$(git ls-remote "$url" "refs/heads/$branch" 2>/dev/null | awk '{print $1}' | head -1)"
+        # a remote that hangs must not hang the pipeline: one tick's reading is
+        # worth a few seconds, never minutes. An unreadable remote reads as
+        # `none`, which differs from a sha and so DEFERS — the safe direction.
+        sha="$(GIT_TERMINAL_PROMPT=0 timeout "${CI_LSREMOTE_TIMEOUT_S:-20}" git ls-remote "$url" "refs/heads/$branch" 2>/dev/null | awk '{print $1}' | head -1)"
         printf '%s\t%s\n' "$name" "${sha:-none}"
     done < <(_module_urls | sort -u)
 }
 
-_digest() { forest_shas "$1" | sort | sha256sum | cut -c1-16; }
-_super()  { forest_shas "$1" | awk -F'\t' '$1=="superproject"{print $2}'; }
+# ONE read per invocation. forest_shas is ~10 `git ls-remote` round trips over
+# whatever link the device has; calling it once for the digest, again for the
+# superproject sha and a third time for the marker comparison tripled the cost of
+# every tick for nothing. The reading is cached in a temp file for the life of
+# the process.
+_FOREST_CACHE=""
+_forest() {  # _forest <branch> → the cached reading
+    if [ -z "$_FOREST_CACHE" ]; then
+        _FOREST_CACHE="$(mktemp)"
+        trap 'rm -f "$_FOREST_CACHE"' EXIT
+        forest_shas "$1" > "$_FOREST_CACHE"
+    fi
+    cat "$_FOREST_CACHE"
+}
+_digest() { _forest "$1" | sort | sha256sum | cut -c1-16; }
+_super()  { _forest "$1" | awk -F'\t' '$1=="superproject"{print $2}'; }
 
 # ------------------------------------------------------------- the queue file
 _queue_path() { printf '%s/%s.json' "$QUEUE_DIR" "$1"; }
@@ -288,7 +305,7 @@ do_check() {  # do_check <branch> [--super-only]
 
 _marker_matches() {  # _marker_matches <branch> <marker.json>
     local branch="$1" marker="$2" tmp rc=0
-    tmp="$(mktemp)"; forest_shas "$branch" > "$tmp"
+    tmp="$(mktemp)"; _forest "$branch" > "$tmp"
     python3 - "$marker" "$tmp" <<'PY' || rc=$?
 import json, sys
 marker, live = sys.argv[1:3]
