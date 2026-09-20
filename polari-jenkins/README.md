@@ -41,7 +41,7 @@ pol jenkins setup --step isle  re-run one step
 | 2 | the checkout and the CLI | `apt` the missing tools, `install-cli.sh`, `usermod -aG docker`, `submodule update` |
 | 3 | the network | a wired IPv4 (`nmcli con up`), github reachable; says plainly that nothing inbound is opened |
 | 4 | the secrets posture | `sudo pol jenkins init-device`; then per secret: the exact URL + scopes and a hidden paste, or it GENERATES the material (cosign, gpg, ssh) and stores it |
-| 5 | the throwaway-isle target | local vs ssh, the `~/.ssh/config` block, `ssh-copy-id`, the sudoers drop-in shown verbatim and applied on yes, libvirt over ssh, the VM knobs, then a real `preflight --isle` |
+| 5 | the throwaway-isle target | local vs ssh, the `~/.ssh/config` block, `ssh-copy-id`, **`pol jenkins isle authorize` — the PIPELINE user's own key onto that device**, the sudoers drop-in shown verbatim and applied on yes, libvirt over ssh, the VM knobs, then a real `preflight --isle` |
 | 6 | the isle testing stages | `CI_ISLE_STAGES` — what each isle tests, and therefore what may ever ship |
 | 7 | bring the controller up | `pol jenkins up`, the tunnel, the admin password, the four jobs |
 | 8 | summary | done / still-to-do in order, a READY / NOT READY verdict, saved to `SETUP_STATUS.md` (gitignored) |
@@ -434,6 +434,7 @@ polari-jenkins/
 ├── mint-tag.sh               polari-vYYYY.MM.DD[.N] — the release version/tag
 ├── selftest.sh               the ci-7/ci-7b tests (no docker, libvirt, sudo or network needed)
 ├── isle/preflight.sh         (A) is the device CLEAR and does it have room? exit 4 = refused
+├── isle/authorize.sh         `pol jenkins isle authorize <alias>` — the PIPELINE user's own key onto the isle device
 ├── isle/app-debs.sh          a stage's app debs — a THIN VERB over polari-framework's appstore/custom/app_deb_builder.py
 ├── isle/throwaway.sh         the throwaway isle VM: up | verify | uninstall | down | wipe | status (local or over ssh)
 ├── isle/guest-uninstall.sh   ci-10: the PRODUCT'S OWN `isle uninstall --everything` run inside the guest, as a TEST
@@ -499,6 +500,7 @@ sudo pol jenkins init-device
 # 3. where the throwaway isle goes, and what each isle tests
 pol jenkins target local            # this machine (needs /dev/kvm + libvirt + RAM)
 pol jenkins target ssh <alias>      # another device over ssh (an ALIAS, never an address)
+pol jenkins isle authorize <alias>  # ssh target only — the PIPELINE user's own key onto that device
 pol jenkins stages                  # CI_ISLE_STAGES — what may ever be released
 
 # 4. the secrets (value from stdin — never a shell argument)
@@ -546,6 +548,50 @@ system user the controller runs as and `/etc/polari-jenkins/secrets`
 anything they run. Until it has run, the fallback is `./secrets` and the
 doctor says loudly that those are readable by every process of that user.
 Details: `secrets/README.md`.
+
+### The pipeline user's own key to the isle target (§76 addendum 3)
+
+`init-device` also gives `polari-ci` **its own ssh key** —
+`jenkins_home/.ssh/id_ed25519`, `0600`, comment `polari-ci@<CI_DEVICE_NAME>`
+(the device's chosen name, never a hostname). The controller's `HOME` *is*
+`jenkins_home`, so inside it a plain `ssh <alias>` finds that key, that
+`config` and that `known_hosts`; nothing in `device.env` knows about keys.
+
+**Why it exists.** Before it, the isle target was reached with the
+*interactive* user's key. After `init-device` the controller runs as
+`polari-ci`, which cannot read that user's `~/.ssh` at all — so
+`polari-isle-test` refused at its own preflight with `target reachable …
+FAIL` while `ssh <alias>` from a shell still worked perfectly (found live,
+ledger §76 addendum 2).
+
+**One verb closes it**, run by the person who already reaches the target:
+
+```
+pol jenkins isle authorize <alias>      # not sudo — it uses YOUR working alias
+```
+
+It reads the pipeline user's **public** key, resolves the alias with
+`ssh -G <alias>` (so the controller's entry is the same destination a person
+proved, not a second description of it), **verifies** the target's host key
+against that person's own `known_hosts` and **refuses on a mismatch or on
+nothing to compare against** — `ssh-keyscan` alone would make a MITM
+permanent — appends the key to the target's `authorized_keys` through the
+working alias, and writes `jenkins_home/.ssh/{config,known_hosts}` owned by
+`polari-ci`, `0600`. A second run adds nothing, anywhere. Neither file is
+ever tracked: the **address lives in `~/.ssh/config` and there only**.
+
+Two doctor rows say whether it worked, and they are about the *pipeline*, not
+about your shell:
+
+```
+OK  controller → isle target   — the pipeline user reaches <alias> with its own key, no prompt (BatchMode)
+OK  controller target sudo -n  — the pipeline user's login on <alias> has passwordless sudo
+```
+
+Both are read with `docker exec polari-jenkins ssh -o BatchMode=yes <alias>
+…` — asking the controller itself, because that is the only hop an isle
+stage ever makes. The interactive user's key is untouched, and the
+CLI-from-a-shell path keeps working exactly as it did.
 
 **The throwaway VM** — `isle/throwaway.sh up|verify|down|status` (also
 `pol jenkins isle …`): one script for both targets (with `CI_ISLE_TARGET=ssh`
@@ -620,7 +666,7 @@ gains a `residue from an earlier run` row that FAILs and names the wipe.
 - The poll queues are one item deep and latest-wins (`pool/queue/<branch>.json`), so no automated process can build a backlog of runs to work through.
 
 ## Tests
-`bash polari-jenkins/selftest.sh` — the ci-7 … ci-12 tests, **535/535**. They
+`bash polari-jenkins/selftest.sh` — the ci-7 … ci-12 tests, **588/588**. They
 need **no docker, libvirt, sudo or network**: the scripts run against a temp
 tree and PATH shims, covering the doctor's WARN wording per
 misconfiguration, the preflight's PASS/FAIL arithmetic and the
@@ -641,7 +687,13 @@ the report arithmetic, the network fallback when the cache is empty or off,
 while its knob is off, the setup's mode question in `--report`,
 `core-artifacts.sh resolve` against a fixture release list, and app-mode
 release filtering — one deb, `tested_against` recorded, an upstream target
-refused). It prints `N/N`.
+refused), and §76 addendum 3's **pipeline user's key** (authorize refusing
+before `init-device` has made one, the `config` rendered from `ssh -G`, a
+second run adding nothing to `authorized_keys`, the controller's `config` or
+its `known_hosts`, a host key that is not the one your `known_hosts` already
+trusts REFUSED with both fingerprints and nothing written, no reference to
+verify against also refused, and the two `controller → isle target` doctor
+rows). It prints `N/N`.
 
 ## Not yet
 The `ReleasePublication` rows in Polari (ci-6a), agent nodes beyond the
