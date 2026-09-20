@@ -9,7 +9,9 @@
 #
 #   · the ISLE tests — install the deb, `isle core-install`, prove the product
 #     hands the machine back. They need a throwaway VM, and that is
-#     Jenkinsfile.isle-test's stage loop (still gated on ci-3).
+#     Jenkinsfile.isle-test's stage loop, which ci-3 filled in: the deb goes on,
+#     `isle core-install` runs, the isle answers, and the SAME suites run again
+#     inside `prf-isle-backend` (isle/guest-selftests.sh).
 #   · the MODULE selftests — pure python against the framework. They need
 #     nothing but the backend image the build stage just made. That is this
 #     file, and it is why a `partial` verdict is still worth having: the module

@@ -20,5 +20,13 @@ if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1 && [ "$DRY_RUN" != 1 ]; the
 run gh release create "$TAG" -R "$REPO" --target "$SHA" --title "Polari $VERSION" --notes-file "$NOTES" --latest=false
 # the release rule: app debs the isle test did not pass are NOT uploaded
 mapfile -t ASSETS < <(release_assets "$POOL_DIR/debs")
-run gh release upload "$TAG" -R "$REPO" "${ASSETS[@]}" "$POOL_DIR/SHA256SUMS" "$POOL_DIR/release.json" --clobber
+# ci-3: and the EVIDENCE travels with them — the one-page test report, the
+# advisory scan summary and the verdict itself. "What was this release tested
+# with?" must be answerable from the release page alone, by somebody who has
+# never seen the device that built it.
+mapfile -t EVIDENCE < <(tested_assets)
+[ ${#EVIDENCE[@]} -gt 0 ] && echo "[$ROUTE] evidence attached: $(printf '%s ' "${EVIDENCE[@]##*/}")" \
+                          || echo "[$ROUTE] no TEST_REPORT.md / SCAN_SUMMARY.md / verdict.json for this sha to attach"
+run gh release upload "$TAG" -R "$REPO" "${ASSETS[@]}" "${EVIDENCE[@]}" \
+    "$POOL_DIR/SHA256SUMS" "$POOL_DIR/release.json" --clobber
 record "https://github.com/$REPO/releases/tag/$TAG"

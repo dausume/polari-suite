@@ -97,6 +97,66 @@ if verdict != "passed":
 print("OK")
 ' "$vp" "$VERSION" || return 1
 }
+# ---------------------------------------------------------------------------
+# ci-3 — RELEASED == TESTED, asserted on IMAGE IDS.
+#
+# The release rule above answers "was this sha tested?". It cannot answer "is
+# what you are about to publish the thing that was tested?" — and on a device
+# that builds continuously those are different questions. The isle stages record
+# the ID of every image they actually installed and ran the suites against; the
+# release records the ID of every image it is about to push. If a tag moved in
+# between, the two sets differ, and publishing anyway would put a passed verdict
+# on an image nobody tested.
+#
+# It is a HARD refusal like the release rule, for the same reason, and DRY_RUN=false
+# does not override it. A release that publishes NO images (app mode) passes it
+# trivially and says so.
+released_vs_tested(){ # -> 'OK' or the reason this build may not be published
+    local vp; vp="$(verdict_path)" || { echo OK; return 0; }
+    [ -f "$vp" ] || { echo OK; return 0; }
+    python3 - "$vp" "$POOL_DIR/images/DIGESTS.txt" <<'PY'
+import json, os, sys
+vp, digests = sys.argv[1:3]
+try:
+    tested = (json.load(open(vp)).get("isle") or {}).get("images") or {}
+except Exception:
+    print("the test verdict is unreadable, so released-vs-tested cannot be checked"); sys.exit(1)
+rows = []
+if os.path.exists(digests):
+    for line in open(digests):
+        parts = line.split()
+        if len(parts) >= 2 and parts[0].startswith("sha256:"):
+            rows.append((parts[1], parts[0]))
+if not rows:
+    print("OK"); sys.exit(0)          # nothing is being published as an image
+if not tested:
+    print("this build publishes %d image(s) but the isle stages recorded none - "
+          "nothing proves the published images are the tested ones" % len(rows)); sys.exit(1)
+by_name = {k.split(":")[0]: v for k, v in tested.items()}
+bad = []
+for ref, iid in rows:
+    name = ref.split(":")[0]
+    if name not in by_name:
+        bad.append("%s was never installed in a throwaway isle" % ref)
+    elif by_name[name] != iid:
+        bad.append("%s is %s but the isle tested %s" % (ref, iid[:19], by_name[name][:19]))
+missing = [n for n in by_name if n not in {r.split(":")[0] for r, _ in rows}]
+for n in missing:
+    bad.append("%s was tested in the isle but is not in this release" % n)
+if bad:
+    print("released != tested - " + "; ".join(bad)); sys.exit(1)
+print("OK")
+PY
+}
+tested_assets(){ # the files a release should carry beside the debs: the report, the scans, the verdict
+    local vp sha d
+    sha="$(release_sha)"; [ -n "$sha" ] || return 0
+    d="$POLARI_POOL/test/$sha"
+    for f in "$d/TEST_REPORT.md" "$d/scan/SCAN_SUMMARY.md" "$d/verdict.json"; do
+        [ -f "$f" ] && echo "$f"
+    done
+    return 0
+}
 tested_apps(){ # the app modules the test run recorded as passing - the only ones that may ship
     local vp; vp="$(verdict_path)" || return 0
     [ -f "$vp" ] || return 0
@@ -178,6 +238,12 @@ arm(){ # arm VAR:area/name … — the FIRST line of every route: resolve DRY_RU
     # THE RELEASE RULE — hard, and it overrides even DRY_RUN=false.
     if ! why="$(tested_state)" || [ "$why" != OK ]; then
         DRY_RUN=1; state="DRY ($why)"
+    fi
+    # ci-3 — RELEASED == TESTED, equally hard: the images this build is about to
+    # publish must be the ones the isle stages actually installed and tested.
+    local iwhy
+    if ! iwhy="$(released_vs_tested)" || [ "$iwhy" != OK ]; then
+        DRY_RUN=1; state="DRY ($iwhy)"
     fi
     # ci-9 — THE TARGET RULE, equally hard: an app-mode device that has not
     # named its OWN owner/namespace, or has named the upstream one, publishes

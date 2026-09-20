@@ -24,7 +24,7 @@ eq()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "$2" "$3"; }
 DEV="$T/dev"; mkdir -p "$DEV"
 cp -r "$J/device.sh" "$J/secrets.sh" "$J/doctor.sh" "$J/retention.sh" "$J/mint-tag.sh" "$J/setup.sh" \
       "$J/cicd-sync.sh" \
-      "$J/quiet.sh" "$J/promote.sh" "$J/verdict.py" "$J/test-wipe.sh" "$J/selftests.sh" "$J/pool.sh" \
+      "$J/quiet.sh" "$J/promote.sh" "$J/verdict.py" "$J/report.py" "$J/test-wipe.sh" "$J/selftests.sh" "$J/pool.sh" \
       "$J/jsonget.py" \
       "$J/scan" "$J/scan-tools.lock" \
       "$J/cache.sh" "$J/cache-manifest.py" "$J/cache-proxies.sh" "$J/build-images.sh" \
@@ -947,11 +947,20 @@ uncouple() {  # uncouple <uninstall_verdict> → build the verdict from real isl
     rm -rf "$UNDIR"; mkdir -p "$UNDIR/selftests" "$UNDIR/isle-test"
     printf '{"ran": true, "modules": {"core": "pass"}, "counts": {"suites": 1, "pass": 1, "fail": 0}}' \
         > "$UNDIR/selftests/results.json"
+    # ci-3: a stage that could claim a core has INSTALLED and VERIFIED one. The
+    # hand-back is still the only thing this case varies.
     python3 -c 'import json,sys
 uv = sys.argv[2]
+why = ("installed, verified, tested and handed the machine back clean" if uv == "clean"
+       else "the product own uninstall came back %s - volumes remaining: 2" % uv)
 json.dump({"version": "1", "core_ok": uv == "clean", "passed": ["gears"], "tested": ["gears"],
-           "untested": [], "stages": [{"index": 1, "uninstall_verdict": uv,
-                                       "uninstall_findings": ["volumes remaining: 2"]}],
+           "untested": [], "why": why,
+           "images": {"prf-backend:staging": "sha256:aaa"},
+           "stages": [{"index": 1, "apps": [], "core_ok": uv == "clean", "why": why,
+                       "install": {"ok": True, "time_to_online": 402}, "verify": {"ok": True},
+                       "results": {},
+                       "uninstall_verdict": uv,
+                       "uninstall_findings": ["volumes remaining: 2"]}],
            "leak_summary": {"uninstall": {"stage1": uv}}}, open(sys.argv[1], "w"))' \
         "$UNDIR/isle-test/results.json" "$1"
     python3 "$DEV/verdict.py" build "$UNDIR" --sha deadbee --at 2026-01-01T00:00:00 >/dev/null 2>&1
@@ -966,7 +975,11 @@ has "  …and the verdict it carries is FAILED, not partial" "failed"           
 has "  …naming the product's own finding"             "dirty"                                  "$(ungate)"
 uncouple skipped
 has "a SKIPPED hand-back is not a pass either"        "DRY"                                    "$(ungate)"
-has "  …it is PARTIAL, and the reason names ci-3"     "ci-3"                                   "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["why"])' "$UNDIR/verdict.json")"
+# ci-3: a skipped hand-back used to be PARTIAL, because before ci-3 nothing was ever
+# installed and so nothing could ever be handed back. Now an install happened, so a
+# hand-back that did not run is a FAILURE of the thing that should have run.
+has "  …and since ci-3 it is FAILED, not partial: something installed, so something should have been removed" \
+    "failed" "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["verdict"])' "$UNDIR/verdict.json")"
 seedverdict passed ''
 
 # ------------------------------------------ the pipeline loop, as written
@@ -978,9 +991,28 @@ has "  …then checks for leaks"                                 'leakcheck.sh\"
 has "a leak is re-wiped once and re-checked before it is believed" "re-wiping once"            "$JF"
 has "  …and then STOPS the run as a resource guard"            "STOPPING as a resource guard"  "$JF"
 has "  …unless CI_LEAK_POLICY=continue"                        "CI_LEAK_POLICY"                "$JF"
-has "results.json carries leak_summary"                        "leak_summary"                  "$JF"
-has "  …and per stage the leaks and the deltas"                "ram_delta_mb"                  "$JF"
-has "core_ok requires a CLEAN uninstall, in the pipeline too"  "uninstall_verdict == 'clean'"  "$JF"
+# ci-3 moved the ARITHMETIC out of Groovy and into isle/results.py, so these three
+# now pin it where it lives. A Jenkinsfile cannot be executed by a selftest; that
+# file can, and is, above.
+RESPY="$(cat "$J/isle/results.py")"
+has "the pipeline delegates the arithmetic to isle/results.py"       "results.py'"             "$JF"
+has "  …writing the stage record there"                             '${RES} stage'            "$JF"
+has "  …and assembling results.json there too, never in Groovy"      '${RES} assemble'         "$JF"
+hasnt "  …so no core_ok is computed in Groovy any more"              "rec.core_ok"             "$JF"
+has "results.json carries leak_summary"                        "leak_summary"                  "$RESPY"
+has "  …and per stage the leaks and the deltas"                "ram_delta_mb"                  "$RESPY"
+has "core_ok requires a CLEAN uninstall, in the arithmetic itself"  "uninstall['verdict'] == 'clean'" "$RESPY"
+has "  …and, since ci-3, an install that worked and a verify that passed"  "install['ok'] and verify['ok']" "$RESPY"
+# ci-3: the guest cycle runs over the ONE target-exec, and nothing bypasses it
+TWAY="$(cat "$J/isle/throwaway.sh")"
+has "the guest cycle is throwaway.sh verbs, not a second way into the guest"  "install|apps|verify-isle|selftests" "$TWAY"
+has "  …and the three libraries travel to an ssh target like wipe.sh does"    "guest-install.sh" "$TWAY"
+has "the isle selftests use the SAME discovery expression as pol modules selftest" \
+    "_selftest.py" "$(cat "$J/isle/guest-selftests.sh")"
+has "  …and exec into the isle's own backend container, not a bare docker run" \
+    "prf-isle-backend" "$(cat "$J/isle/guest-selftests.sh")"
+has "payload.sh REFUSES rather than letting the guest pull a published image" \
+    "it never falls back to a" "$(cat "$J/isle/payload.sh")"
 
 # ------------------------------------------ the preflight refuses residue
 has "the preflight names the wipe as the fix"                  "pol jenkins isle wipe"         "$(cat "$J/isle/preflight.sh")"
@@ -1220,32 +1252,59 @@ mkverdict() {  # mkverdict <dir> <selftests.json> <isle.json> [scan.json]
 }
 SELF_OK='{"ran": true, "modules": {"core": "pass"}, "counts": {"suites": 88, "pass": 88, "fail": 0}}'
 SELF_BAD='{"ran": true, "modules": {"core": "fail"}, "counts": {"suites": 88, "pass": 80, "fail": 8}}'
-ISLE_OK='{"core_ok": true, "stages": [{"index": 1}], "passed": ["household"], "untested": [], "leak_summary": {"uninstall": {"stage1": "clean"}}}'
-ISLE_SKIP='{"core_ok": false, "stages": [{"index": 1}], "passed": [], "untested": [], "leak_summary": {"uninstall": {"stage1": "skipped"}}}'
-ISLE_DIRTY='{"core_ok": false, "stages": [{"index": 1}], "passed": [], "untested": [], "leak_summary": {"uninstall": {"stage1": "dirty"}}}'
+# ci-3: an isle stage is now a real record — it installed something, verified it, ran suites
+# INSIDE it and handed the machine back. The fixtures say so, because the arithmetic reads it.
+STG_OK='{"index": 1, "apps": [], "core_ok": true, "why": "installed, verified, tested and handed the machine back clean", "install": {"ok": true, "time_to_online": 402}, "verify": {"ok": true}, "selftest_counts": {"suites": 9, "pass": 9, "fail": 0}, "uninstall_verdict": "clean", "leak_verdict": "clean", "leaks": [], "results": {}}'
+STG_DIRTY='{"index": 1, "apps": [], "core_ok": false, "why": "the product'"'"'s own uninstall came back dirty — /usr/share/isle-mesh is still present", "install": {"ok": true, "time_to_online": 402}, "verify": {"ok": true}, "uninstall_verdict": "dirty", "results": {}}'
+STG_NOINST='{"index": 1, "apps": [], "core_ok": false, "why": "install: the isle did not answer: /api/health no reply", "install": {"ok": false}, "verify": {"ok": false}, "uninstall_verdict": "skipped", "results": {}}'
+STG_APPFAIL='{"index": 2, "apps": ["gears"], "core_ok": true, "why": "app selftests inside the isle did not pass: gears=fail", "install": {"ok": true, "time_to_online": 380}, "verify": {"ok": true}, "uninstall_verdict": "clean", "results": {"gears": "fail"}}'
+STG_NOTRUN='{"index": 2, "apps": ["gears"], "core_ok": false, "why": "not run — stage 1 leaked", "error": "not run — stage 1 leaked", "install": {"ok": false}, "verify": {"ok": false}, "uninstall_verdict": "skipped", "results": {"gears": "skipped"}}'
+IMGS='{"prf-backend:staging": "sha256:aaa", "prf-frontend:staging": "sha256:bbb"}'
+ISLE_OK="{\"core_ok\": true, \"images\": $IMGS, \"stages\": [$STG_OK], \"passed\": [], \"untested\": [], \"leak_summary\": {\"uninstall\": {\"stage1\": \"clean\"}}}"
+ISLE_DIRTY="{\"core_ok\": false, \"images\": $IMGS, \"stages\": [$STG_DIRTY], \"passed\": [], \"untested\": [], \"leak_summary\": {\"uninstall\": {\"stage1\": \"dirty\"}}}"
+ISLE_NOINST="{\"core_ok\": false, \"images\": {}, \"stages\": [$STG_NOINST], \"passed\": [], \"untested\": [], \"leak_summary\": {\"uninstall\": {\"stage1\": \"skipped\"}}}"
+ISLE_APPFAIL="{\"core_ok\": true, \"images\": $IMGS, \"stages\": [$STG_OK, $STG_APPFAIL], \"passed\": [], \"untested\": [\"gears\"], \"leak_summary\": {\"uninstall\": {\"stage1\": \"clean\"}}}"
+ISLE_NOTRUN="{\"core_ok\": true, \"images\": $IMGS, \"stages\": [$STG_OK, $STG_NOTRUN], \"passed\": [], \"untested\": [\"gears\"], \"leak_summary\": {\"uninstall\": {\"stage1\": \"clean\"}}}"
 
 mkverdict "$VD/pass" "$SELF_OK" "$ISLE_OK"
 V="$(python3 "$DEV/verdict.py" build "$VD/pass" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
-has "verdict: every selftest passes and the isle recorded core_ok → PASSED" "PASSED" "$V"
-
-mkverdict "$VD/partial" "$SELF_OK" "$ISLE_SKIP"
-V="$(python3 "$DEV/verdict.py" build "$VD/partial" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
-has "verdict: selftests pass but every isle stage is SKIPPED → PARTIAL (today's honest state)" "PARTIAL" "$V"
-has "  …and it says exactly why, naming ci-3 rather than shrugging" "ci-3" "$V"
-hasnt "  …a partial is NOT a pass" "PASSED" "$V"
+has "verdict: every selftest passes and the isle installed, verified, tested, handed back → PASSED" "PASSED" "$V"
+has "  …and the stage line carries the time to online a person reads first" "402" "$V"
 
 mkverdict "$VD/fail" "$SELF_BAD" "$ISLE_OK"
 V="$(python3 "$DEV/verdict.py" build "$VD/fail" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
-has "verdict: a failing module selftest → FAILED, naming the module" "FAILED" "$V"
+has "verdict: a failing module selftest on the DEVICE → FAILED, naming the module" "FAILED" "$V"
 has "  …and names the module that failed" "core" "$V"
+
+# ---- ci-3: the isle half can now FAIL, which before ci-3 it structurally could not
+mkverdict "$VD/noinstall" "$SELF_OK" "$ISLE_NOINST"
+V="$(python3 "$DEV/verdict.py" build "$VD/noinstall" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
+has "verdict: the deb went on but the isle never answered → FAILED (not partial)" "FAILED" "$V"
+has "  …and the reason names the FIRST failing part, not all of them" "install:" "$V"
 
 mkverdict "$VD/dirty" "$SELF_OK" "$ISLE_DIRTY"
 V="$(python3 "$DEV/verdict.py" build "$VD/dirty" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
-has "verdict: a DIRTY hand-back is a failure, not a partial (ci-10's coupling survives)" "FAILED" "$V"
+has "verdict: a DIRTY hand-back is a failure, not a partial (ci-10's coupling survives ci-3)" "FAILED" "$V"
+has "  …and the product's own words are what the reason says" "uninstall came back dirty" "$V"
+
+mkverdict "$VD/appfail" "$SELF_OK" "$ISLE_APPFAIL"
+V="$(python3 "$DEV/verdict.py" build "$VD/appfail" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
+has "verdict: a core stage that passed and an APP stage that did not → FAILED, naming the app" "FAILED" "$V"
+has "  …by name and state" "gears=fail" "$V"
+
+mkverdict "$VD/notrun" "$SELF_OK" "$ISLE_NOTRUN"
+V="$(python3 "$DEV/verdict.py" build "$VD/notrun" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
+has "verdict: a stage that could NOT RUN at all is the one thing that is still PARTIAL" "PARTIAL" "$V"
+hasnt "  …and a partial is never a pass" "PASSED" "$V"
 
 mkverdict "$VD/noisle" "$SELF_OK" ""
 V="$(python3 "$DEV/verdict.py" build "$VD/noisle" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
 has "verdict: no isle results at all → PARTIAL, saying nothing was tested in an isle" "PARTIAL" "$V"
+
+# ci-3 removed the apology: there is no longer a rule that says "skipped is expected"
+SRC_VERDICT="$(cat "$DEV/verdict.py")"
+hasnt "verdict.py no longer special-cases the ci-3 TODO — the cycle it apologised for exists" \
+    "so core_ok cannot become true" "$SRC_VERDICT"
 
 mkverdict "$VD/scan" "$SELF_OK" "$ISLE_OK" '{"totals": {"critical": 9, "high": 40}, "tools": {"trivy": {"critical": 9}}}'
 V="$(python3 "$DEV/verdict.py" build "$VD/scan" --sha deadbeef --at 2026-01-01T00:00:00 2>&1)"
@@ -1257,6 +1316,71 @@ eq "  …the verdict file records scans WITHOUT them entering the arithmetic" "p
 mkverdict "$VD/nobuild" "$SELF_OK" "$ISLE_OK"
 V="$(python3 "$DEV/verdict.py" build "$VD/nobuild" --sha deadbeef --built false --at 2026-01-01T00:00:00 2>&1)"
 has "verdict: nothing was BUILT → FAILED (there was nothing to test)" "FAILED" "$V"
+
+# ---- ci-3: THE STAGE ARITHMETIC, in the one place it lives (isle/results.py)
+RD="$T/isleres"
+mkstage() {   # mkstage <install.ok> <verify.ok> <core suite state> <uninstall verdict> [apps] [app state]
+    rm -rf "$RD"; mkdir -p "$RD"
+    printf '{"ok": %s, "why": "w", "seconds": 900, "time_to_online": 402, "deb": "polari-complete_0.1.1_amd64.deb", "deb_sha256": "abc", "images": {"prf-backend:staging": "sha256:aaa"}, "log_tail": ["x"]}' "$1" > "$RD/install-1.json"
+    printf '{"ok": %s, "why": "w", "checks": [{"check": "routes", "verdict": "pass", "detail": "200"}]}' "$2" > "$RD/verify-1.json"
+    if [ -n "${5:-}" ]; then
+        printf '{"ok": true, "modules": {"%s": "%s"}, "suites": {"%s.s_selftest": {"state": "%s"}}, "counts": {"suites": 1, "pass": 1, "fail": 0}}' "$5" "${6:-pass}" "$5" "${6:-pass}" > "$RD/selftests-1.json"
+    else
+        printf '{"ok": true, "modules": {"core": "%s"}, "suites": {"a.b_selftest": {"state": "%s"}}, "counts": {"suites": 1, "pass": 1, "fail": 0}}' "$3" "$3" > "$RD/selftests-1.json"
+    fi
+    printf '{"verdict": "%s", "findings": ["f1"]}' "$4" > "$RD/uninstall-1.json"
+    printf '{"verdict": "clean", "leaks": [], "ram_delta_mb": 10, "disk_delta_mb": -5}' > "$RD/leak-check-1.json"
+    python3 "$DEV/isle/results.py" stage "$RD" --index 1 --apps "${5:-}" >/dev/null 2>&1
+    python3 "$DEV/jsonget.py" "$RD/stage-1.json" core_ok --default false
+}
+eq "ci-3 core_ok: install ok + verify ok + core suites pass + a CLEAN hand-back → true" \
+   "true" "$(mkstage true true pass clean)"
+eq "  …a failed install alone makes it false" "false" "$(mkstage false true pass clean)"
+eq "  …a failed verify alone makes it false" "false" "$(mkstage true false pass clean)"
+eq "  …a failing CORE suite inside the isle alone makes it false" "false" "$(mkstage true true fail clean)"
+eq "  …a DIRTY hand-back alone makes it false" "false" "$(mkstage true true pass dirty)"
+eq "  …and so does a SKIPPED one: it was never exercised" "false" "$(mkstage true true pass skipped)"
+mkstage true true pass clean >/dev/null
+has "ci-3 the stage record carries install {ok, seconds, log}" '"seconds": 900' "$(cat "$RD/stage-1.json")"
+has "  …verify {ok, details}, rendered as one line per check" "pass: routes" "$(cat "$RD/stage-1.json")"
+has "  …selftests as suite -> state" '"a.b_selftest": "pass"' "$(cat "$RD/stage-1.json")"
+has "  …images as name -> id, which is what released==tested is asserted on" '"prf-backend:staging": "sha256:aaa"' "$(cat "$RD/stage-1.json")"
+has "  …uninstall {verdict, findings}" '"findings": [' "$(cat "$RD/stage-1.json")"
+has "  …and the deb's OWN sha256, so a stage names the artefact it tested" '"deb_sha256": "abc"' "$(cat "$RD/stage-1.json")"
+# a stage that names an app records THAT app, and core_ok does not silently absorb it
+mkstage true true pass clean gears fail >/dev/null
+eq "  …an app stage's failing app is in its own results map, not folded into core_ok" "fail" \
+   "$(python3 "$DEV/jsonget.py" "$RD/stage-1.json" results.gears)"
+# a MISSING reading is a failure, not a zero
+rm -rf "$RD"; mkdir -p "$RD"
+python3 "$DEV/isle/results.py" stage "$RD" --index 1 --error "not run — stage 0 leaked" >/dev/null 2>&1
+eq "ci-3 a stage with NO readings at all is core_ok=false, not a survivable blank" "false" \
+   "$(python3 "$DEV/jsonget.py" "$RD/stage-1.json" core_ok --default true)"
+has "  …and says the reading never came back, rather than defaulting to 'skipped'" \
+    "no install reading came back" "$(cat "$RD/stage-1.json")"
+python3 "$DEV/isle/results.py" assemble "$RD" --version test/abc >/dev/null 2>&1
+eq "  …and the assembled results.json takes core_ok from stage 1" "false" \
+   "$(python3 "$DEV/jsonget.py" "$RD/results.json" core_ok --default true)"
+
+# ---- ci-3: THE REPORT, rendered from fixtures
+REP="$T/report"
+mkverdict "$REP" "$SELF_OK" "$ISLE_OK"
+mkdir -p "$REP/debs"; printf 'x' > "$REP/debs/polari-complete_0.1.1_amd64.deb"
+python3 "$DEV/verdict.py" build "$REP" --sha cafebabe --at 2026-01-01T00:00:00 >/dev/null 2>&1
+python3 "$DEV/report.py" build "$REP" >/dev/null 2>&1
+RPT="$(cat "$REP/TEST_REPORT.md")"
+has "ci-3 report: one page, headed by the sha" "Polari test report — cafebabe" "$RPT"
+has "  …the verdict and why, quoted from verdict.json and never recomputed" "verdict   PASSED" "$RPT"
+has "  …the debs with their sha256" "polari-complete_0.1.1_amd64.deb" "$RPT"
+has "  …the IMAGE IDS that were installed" "sha256:aaa" "$RPT"
+has "  …the advisory scan section, saying so in its own heading" "ADVISORY" "$RPT"
+has "  …the device selftests" "Module selftests on the device" "$RPT"
+has "  …per isle stage: the install and its time to online" "time to online: 402 s" "$RPT"
+has "  …the uninstall verdict" "uninstall clean" "$RPT"
+has "  …the leak diff" "leaks     clean" "$RPT"
+has "  …and THE RELEASE RULE, stated on the page a person promotes from" "THE RELEASE RULE" "$RPT"
+eq "  …and the verdict names the report, so test-status can print its path" "$REP/TEST_REPORT.md" \
+   "$(python3 "$DEV/jsonget.py" "$REP/verdict.json" report_path)"
 
 # ---- the release rule, keyed on the verdict
 RL="$T/rule"; mkdir -p "$RL/debs"
@@ -1272,7 +1396,7 @@ rm -rf "$T/rulepool"; mkdir -p "$T/rulepool/test/cafebabe0000"
 OUT="$(rule)"
 has "release rule: NO verdict for the sha → DRY, naming the fix in his words" "no passed test run" "$OUT"
 has "  …and the reason tells you to push to test first" "promote test" "$OUT"
-cp "$VD/partial/verdict.json" "$T/rulepool/test/cafebabe0000/verdict.json"
+cp "$VD/notrun/verdict.json" "$T/rulepool/test/cafebabe0000/verdict.json"
 OUT="$(rule)"
 has "release rule: a PARTIAL verdict → still DRY" "not passed" "$OUT"
 DRY_RUN=false OUT="$(DRY_RUN=false rule)"
@@ -1785,9 +1909,9 @@ OUT="$(pro main --dry-run)"
 has "  …and the refusal names the sha" "aaa111" "$OUT"
 has "  …and says what to do instead" "push to test" "$OUT"
 mkdir -p "$PPOOL/test/aaa111"
-cp "$VD/partial/verdict.json" "$PPOOL/test/aaa111/verdict.json"
+cp "$VD/notrun/verdict.json" "$PPOOL/test/aaa111/verdict.json"
 eq "promote main: a PARTIAL verdict → still REFUSED" "4" "$(prorc main --dry-run)"
-has "  …and it repeats the verdict's own reason, not a generic one" "ci-3" "$(pro main --dry-run)"
+has "  …and it repeats the verdict's own reason, not a generic one" "could not run" "$(pro main --dry-run)"
 OUT="$(pro main --dry-run --force-untested)"
 has "promote main --force-untested: it proceeds, LOUDLY" "FORCING AN UNTESTED PROMOTION" "$OUT"
 has "  …naming the sha and the verdict it is overriding" "verdict: partial" "$OUT"

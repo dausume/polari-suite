@@ -23,9 +23,12 @@
 #     survived our own teardown. It is a resource guard, not a release gate.
 #
 # Verdicts:  clean | dirty | failed | skipped
-#   skipped  nothing was installed in the guest. Until the ci-3 install cycle
-#            lands this is EVERY stage's verdict, and it is the honest one:
-#            an uninstall that was never asked to remove anything proves nothing.
+#   skipped  nothing was installed in the guest, so there was nothing to remove.
+#            Before ci-3 this was EVERY stage's verdict. Since ci-3 a stage always
+#            installs, so `skipped` now means the install did not get far enough to
+#            leave a footprint — which is a failure upstream of this reading, and
+#            `core_ok` stays false either way: an uninstall that was never asked to
+#            remove anything proves nothing.
 #   failed   the uninstall command itself did not run, or the guest was lost
 #   dirty    it ran, and the product's own verify (or the hand-back proof) says
 #            something was left behind
@@ -138,9 +141,10 @@ verified = 'VERIFIED: nothing of isle-mesh/polari remains' in log
 if reached != 'ok':
     verdict, why = 'failed', 'the guest could not be reached over ssh — the uninstall never ran'
 elif not installed:
-    verdict, why = 'skipped', ('nothing was installed in this guest, so the product\'s uninstall was not exercised. '
-                               'Until the ci-3 install cycle lands this is every stage\'s verdict — an uninstall '
-                               'that removed nothing proves nothing.')
+    verdict, why = 'skipped', ('nothing was installed in this guest, so the product\'s uninstall was not '
+                               'exercised. Since ci-3 every stage installs, so this means the install did not '
+                               'get far enough to leave a footprint — an uninstall that removed nothing '
+                               'proves nothing, and core_ok stays false.')
 elif rc_ev not in ('0', 'skipped'):
     verdict, why = 'failed', 'isle uninstall --everything exited %s' % (rc_ev or '?')
 elif findings or not verified:

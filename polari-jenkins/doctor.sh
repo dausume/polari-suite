@@ -592,7 +592,7 @@ print("%s|%s" % (s.get("uninstall_verdict","(not recorded)"), "; ".join(s.get("u
     IFS='|' read -r UVERD UWHY <<<"$UV"
     case "$UVERD" in
         clean) ok "isle uninstall (the product's own)" "stage 1: CLEAN — isle uninstall --everything handed the machine back, so this core MAY be released" ;;
-        skipped) ok "isle uninstall (the product's own)" "stage 1: skipped — nothing was installed in the guest (the ci-3 install cycle is not built), so core_ok stays false" ;;
+        skipped) warn "isle uninstall (the product's own)" "stage 1: skipped — nothing was installed in that guest, so the hand-back was never exercised and core_ok stays false. Since ci-3 a stage DOES install: a skipped verdict now means the install did not get far enough to leave anything to remove" ;;
         *) warn "isle uninstall (the product's own)" "stage 1: $UVERD${UWHY:+ — $UWHY}" \
                 "this is a FAILURE OF THE PRODUCT, not of the pipeline: an isle that cannot hand the machine back is not releasable (routes/_lib.sh)" ;;
     esac

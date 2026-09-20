@@ -50,7 +50,7 @@ if [ -z "${DEVICE_KEYS:-}" ]; then
     source "$CACHE_DIR_SELF/device.sh"
 fi
 
-CACHE_AREAS="wheels npm apt images cloud scanners releases layers proxies"
+CACHE_AREAS="wheels npm apt images cloud scanners releases layers proxies ciimages"
 CACHE_MANIFEST_PY="${CACHE_MANIFEST_PY:-$CACHE_DIR_SELF/cache-manifest.py}"
 
 cache_on() { [ "${CI_CACHE:-on}" = on ]; }

@@ -334,6 +334,13 @@ print(json.dumps({'kind': 'isle-test', 'device': dev, 'run': run, 'stage_index':
                   'uninstall_findings': data.get('uninstall_findings', []),
                   'leak_verdict': data.get('leak_verdict', 'clean'), 'leaks': data.get('leaks', []),
                   'ram_delta_mb': data.get('ram_delta_mb', 0), 'disk_delta_mb': data.get('disk_delta_mb', 0),
+                  # ci-3: the cycle — install, verify, the suites INSIDE the product, and the image ids
+                  # that "released == tested" is asserted on. The ingest door ANDs core_ok with the first
+                  # two, as it already did with the uninstall verdict.
+                  'install': data.get('install', {}), 'verify': data.get('verify', {}),
+                  'selftests': data.get('selftests', {}),
+                  'selftest_counts': data.get('selftest_counts', {}),
+                  'images': data.get('images', {}),
                   'finished': datetime.datetime.now().isoformat(timespec='seconds')}))
 PY
 }
@@ -390,6 +397,8 @@ print(json.dumps({'kind': 'test-verdict', 'device': dev,
                   'scans': v.get('scans') or {}, 'selftests': v.get('selftests') or {},
                   'isle': v.get('isle') or {},
                   'run': run or v.get('run', ''), 'decided_by': v.get('decided_by', 'pipeline'),
+                  # ci-3: the page a person reads, named on the row
+                  'report_path': v.get('report_path', ''),
                   'at': v.get('at', '')}))
 PY
 }

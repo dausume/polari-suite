@@ -272,6 +272,13 @@ pipeline {
             --sha "$TEST_SHA" --branch test --built true \
             --run "$JOB_NAME#$BUILD_NUMBER" --device "${CI_DEVICE_NAME:-pipeline}"
           cp "$RUN_DIR/verdict.json" verdict.json'''
+        // ci-3: ONE PAGE PER COMMIT, rendered from the run's own readings and
+        // published as a release asset by routes/github-release.sh. It re-derives
+        // nothing — the verdict line in it is quoted from the file above.
+        sh '''set -eu
+          python3 /var/polari-jenkins/report.py build "$RUN_DIR"
+          cp "$RUN_DIR/TEST_REPORT.md" TEST_REPORT.md
+          sed -n "1,40p" TEST_REPORT.md'''
         // ci-8/ci-12: the verdict is mirrored into the cicd app as its own kind.
         sh 'bash /var/polari-jenkins/cicd-sync.sh verdict "$RUN_DIR/verdict.json" "$JOB_NAME#$BUILD_NUMBER" || true'
         // …and ONLY now is this state "already covered". `done` in post runs for
@@ -281,7 +288,7 @@ pipeline {
         sh "bash /var/polari-jenkins/quiet.sh covered test '${env.TEST_SHA}'"
       }
       post {
-        always { archiveArtifacts artifacts: 'verdict.json', allowEmptyArchive: true }
+        always { archiveArtifacts artifacts: 'verdict.json,TEST_REPORT.md', allowEmptyArchive: true }
       }
     }
   }

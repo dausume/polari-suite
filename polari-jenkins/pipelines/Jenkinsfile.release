@@ -246,6 +246,25 @@ m = {'polari': ver, 'builtAt': datetime.datetime.now().isoformat(timespec='secon
      'testedAgainst': (env('CORE_TAG', '') or env('CI_CORE_SOURCE', '')) if mode == 'app' else ('release:polari-v%s' % ver),
      'components': comps, 'debs': sorted(os.listdir(os.path.join(pool, 'debs'))),
      'images': open(digests).read().split() if os.path.exists(digests) else [], 'publishedTo': {}}
+# ci-3 — THE TEST RUN THIS RELEASE IS ALLOWED BY, named in the manifest itself.
+#
+# `testedAgainst` above is a different thing and keeps its meaning: in app mode it
+# is the CORE RELEASE the app passed against. This is the TEST RUN: the sha, the
+# one-word verdict, and the IDs of the images the throwaway isle actually
+# installed. routes/_lib.sh refuses to publish when the images in DIGESTS.txt are
+# not these (`released != tested`), so a tag that moved between the test and the
+# release cannot become a published claim.
+_sha = (comps.get('superproject') or {}).get('sha', '')
+_vp = os.path.join(env('POLARI_POOL', '/var/polari-pool'), 'test', _sha, 'verdict.json')
+try:
+    _v = json.load(open(_vp))
+    m['tested_against'] = {'sha': _sha, 'verdict': _v.get('verdict', ''), 'why': _v.get('why', ''),
+                           'images': (_v.get('isle') or {}).get('images') or {},
+                           'report': os.path.join(os.path.dirname(_vp), 'TEST_REPORT.md'),
+                           'at': _v.get('at', '')}
+except Exception as e:
+    m['tested_against'] = {'sha': _sha, 'verdict': '', 'images': {},
+                           'why': 'no test verdict for this sha on this device (%s)' % e}
 try:
     m['cacheReport'] = json.load(open(os.path.join(pool, 'cache-report.json')))
 except Exception:

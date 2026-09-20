@@ -20,12 +20,14 @@ THE ARITHMETIC, stated once:
     failed   something that RAN said no
     partial  nothing said no, but something that should have answered did not
 
-`partial` is not a hedge, it is the honest state of this pipeline today: the
-isle stage body is still the marked ci-3 TODO, so every stage records `skipped`
-and `core_ok` stays false. A run whose selftests all pass and whose isle stages
-are skipped is therefore `partial`, and `why` says exactly that in words. It is
-NOT `passed`, so `promote main` refuses — which is the release rule holding,
-not a bug.
+`partial` is not a hedge: it is for a run where something that should have
+answered did not — no isle results at all, or a stage that could not be run
+because an earlier one leaked. It is NOT the resting state any more. Before ci-3
+it was: the isle stage body was a marked TODO, so every stage recorded `skipped`
+and `core_ok` could never become true. That cycle now exists, so a run that
+installs the deb, stands the isle up, runs the suites inside it and hands the
+machine back clean reaches `passed` — and one that cannot reaches `failed` with
+the first failing part named.
 
 SCANS ARE NEVER IN THE ARITHMETIC. They are carried in the verdict so a person
 reading it sees the counts, and they cannot change the verdict by one letter
@@ -68,28 +70,62 @@ def isle_summary(run_dir):
     doc = _load(os.path.join(run_dir, 'isle-test', 'results.json'))
     if not doc:
         return {'present': False, 'core_ok': False, 'stages': 0, 'passed': [], 'untested': [],
-                'uninstall': {}, 'leak': {}}
+                'uninstall': {}, 'leak': {}, 'why': '', 'stage_rows': [], 'images': {},
+                'not_run': []}
     stages = doc.get('stages') or []
+    rows, not_run = [], []
+    for st in stages:
+        row = {'index': st.get('index'), 'apps': st.get('apps') or [],
+               'core_ok': bool(st.get('core_ok')), 'why': st.get('why', ''),
+               'install_ok': bool((st.get('install') or {}).get('ok')),
+               'time_to_online': (st.get('install') or {}).get('time_to_online'),
+               'verify_ok': bool((st.get('verify') or {}).get('ok')),
+               'selftests': st.get('selftest_counts') or {},
+               'uninstall': st.get('uninstall_verdict', 'skipped'),
+               'results': st.get('results') or {}}
+        rows.append(row)
+        if st.get('error'):
+            not_run.append('stage %s: %s' % (st.get('index'), st.get('error')))
     return {'present': True, 'core_ok': bool(doc.get('core_ok')), 'stages': len(stages),
             'passed': list(doc.get('passed') or []), 'untested': list(doc.get('untested') or []),
             'tested_against': doc.get('tested_against', ''),
+            'why': doc.get('why', ''), 'stage_rows': rows, 'not_run': not_run,
+            'images': doc.get('images') or {},
             'uninstall': (doc.get('leak_summary') or {}).get('uninstall') or {},
             'leak': {'stages_clean': (doc.get('leak_summary') or {}).get('stages_clean', 0),
                      'stages_leaked': (doc.get('leak_summary') or {}).get('stages_leaked', 0)}}
 
 
 def decide(built, selftests, isle):
-    """(verdict, why) — the whole arithmetic, in one function so it is testable."""
-    reasons = []
+    """(verdict, why) — the whole arithmetic, in one function so it is testable.
+
+    ci-3 (his ask 2026-09-20) closed the last hole in it. Until ci-3 the isle
+    stages could not install anything, so `core_ok` could never be true and a
+    run whose selftests all passed was `partial` BY CONSTRUCTION — the special
+    case that said so in words is gone, because the cycle it apologised for now
+    exists. What is left is the plain reading:
+
+        failed   something that RAN said no — a module suite, an install, a
+                 verify, a suite inside the isle, or the product's own uninstall.
+                 `why` names THE FIRST failing part, not all of them.
+        partial  nothing said no, but something that should have answered did
+                 not: no isle results at all, or a stage that could not run.
+        passed   every configured module selftest passed on the device, every
+                 isle stage recorded core_ok, and every app a stage was
+                 configured to test passed inside the isle.
+    """
     if not built:
         return 'failed', 'the build stage did not produce the artifacts this run was supposed to test'
 
+    # ---- 1. the device selftests (they need no isle, and they run first)
     failed_modules = sorted(m for m, s in (selftests.get('modules') or {}).items() if s == 'fail')
     skipped_modules = sorted(m for m, s in (selftests.get('modules') or {}).items() if s == 'skipped')
     if failed_modules:
-        return 'failed', ('module selftests failed: %s (%d of %d suites)'
+        return 'failed', ('module selftests failed on the device: %s (%d of %d suites)'
                           % (', '.join(failed_modules), selftests.get('failed', 0),
                              selftests.get('suites', 0)))
+
+    reasons = []
     if not selftests.get('ran'):
         reasons.append('the module selftests did not run at all (no backend image on this device)')
     elif not selftests.get('modules'):
@@ -97,21 +133,34 @@ def decide(built, selftests, isle):
     elif skipped_modules:
         reasons.append('no selftest suite exists for: %s (skipped is not a pass)' % ', '.join(skipped_modules))
 
+    # ---- 2. the isle stages: install, verify, the suites inside the product,
+    #         and the product's own hand-back.
     if not isle.get('present'):
         reasons.append('the isle stages left no results.json — nothing was tested in a throwaway isle')
-    elif not isle.get('core_ok'):
-        uninst = isle.get('uninstall') or {}
-        if set(uninst.values()) <= {'skipped'} and uninst:
-            reasons.append('every isle stage recorded uninstall=skipped: the install + selftest cycle '
-                           'INSIDE the guest is still the marked ci-3 TODO, so core_ok cannot become true '
-                           'yet and no core has actually been exercised in an isle')
-        else:
-            return 'failed', ('the isle stages did not record core_ok (uninstall verdicts: %s)'
-                              % (', '.join('%s=%s' % kv for kv in sorted(uninst.items())) or 'none'))
+    else:
+        rows = isle.get('stage_rows') or []
+        if not rows:
+            reasons.append('the isle stages recorded no stage at all')
+        for row in rows:
+            if row.get('why', '').startswith('not run'):
+                reasons.append('isle stage %s could not run: %s' % (row.get('index'), row.get('why')))
+                continue
+            if not row.get('core_ok'):
+                return 'failed', ('isle stage %s did not pass — %s'
+                                  % (row.get('index'), row.get('why') or 'no reason recorded'))
+            bad = sorted(a for a, v in (row.get('results') or {}).items() if v != 'pass')
+            if bad:
+                return 'failed', ('isle stage %s: the app(s) it was configured to test did not pass — %s'
+                                  % (row.get('index'),
+                                     ', '.join('%s=%s' % (a, row['results'][a]) for a in bad)))
+        if rows and not isle.get('core_ok'):
+            return 'failed', ('the isle stages did not record core_ok — %s'
+                              % (isle.get('why') or 'no reason recorded'))
 
     if reasons:
         return 'partial', '; '.join(reasons)
-    return 'passed', 'every configured module selftest passed and the isle stages recorded core_ok'
+    return 'passed', ('every configured module selftest passed on the device, every isle stage installed, '
+                      'verified, tested and handed the machine back clean')
 
 
 def build(args):
@@ -127,6 +176,8 @@ def build(args):
         'scans': scans, 'selftests': selftests, 'isle': isle,
         'verdict': verdict, 'why': why,
         'decided_by': 'pipeline',
+        # ci-3: the one page a person reads. report.py renders it beside this file.
+        'report_path': os.path.join(run_dir, 'TEST_REPORT.md'),
         'at': args.at or __import__('datetime').datetime.now().isoformat(timespec='seconds'),
         'release_rule': ('only a sha whose verdict is `passed` may be promoted to main; '
                          '`pol jenkins promote main --force-untested` is the only override and it says so '
@@ -156,6 +207,14 @@ def show(doc):
     sc = (doc.get('scans') or {}).get('totals') or {}
     print('  scans      %s   (ADVISORY — no finding changes this verdict)'
           % (' '.join('%s=%s' % (k, v) for k, v in sorted(sc.items()) if v) or 'nothing found'))
+    for row in (isle.get('stage_rows') or []):
+        print('    stage %-2s %-18s install=%s (%ss to online)  verify=%s  suites=%s/%s  uninstall=%s'
+              % (row.get('index'), (', '.join(row.get('apps') or []) or 'core only')[:18],
+                 row.get('install_ok'), row.get('time_to_online'), row.get('verify_ok'),
+                 (row.get('selftests') or {}).get('pass', 0), (row.get('selftests') or {}).get('suites', 0),
+                 row.get('uninstall')))
+    if doc.get('report_path'):
+        print('  report     %s' % doc['report_path'])
     print('')
 
 

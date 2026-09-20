@@ -10,8 +10,39 @@
 // THEN, ONE STAGE AT A TIME (CI_ISLE_STAGES in device.env, e.g.
 // "core; household; electronics,cntfet"): for each stage, build that
 // stage's app debs → stand a throwaway isle up → install the core debs and
-// that stage's app debs → run each app's `pol modules selftest` → record
-// the result → TEAR THE ISLE DOWN, and only then start the next stage.
+// that stage's app debs → run the selftests INSIDE the installed product →
+// record the result → TEAR THE ISLE DOWN, and only then start the next stage.
+//
+// ci-3 (his ask 2026-09-20) is the part of that sentence that used to be a
+// marked TODO. Each half is now a NAMED stage of its own, so a run reads as a
+// list of things that either happened or did not:
+//
+//   stage N · app debs        the stage's apps, from the ONE deb writer
+//   stage N · payload         this run's core debs AND this run's own images.
+//                             payload.sh REFUSES if an image is not on this
+//                             daemon rather than letting the guest pull a
+//                             published one — a verdict about an image we did
+//                             not build is not a verdict.
+//   stage N · throwaway up    the VM
+//   stage N · install core    the prerequisites the deb does not depend on, the
+//                             images loaded, `apt install polari-complete`, the
+//                             .env pinned at the seed, and
+//                             `ISLE_ASSUME_YES=1 isle core-install --skip-security`
+//                             — then the WAIT for the isle to answer, which is
+//                             what `install.ok` means (core-install ends on an
+//                             echo, so its exit code proves nothing)
+//   stage N · verify isle     from inside the guest: both routes 200,
+//                             /api/health with its module count, the store, the
+//                             router guest RUNNING under nested KVM, the CA
+//   stage N · install apps    this stage's app debs, into the isle
+//   stage N · selftests       the SAME suites `pol modules selftest` discovers,
+//                             run with `docker exec prf-isle-backend`
+//   stage N · uninstall …     unchanged (ci-10) — but now exercised for real
+//   stage N · down + wipe / leak check   unchanged (ci-10)
+//
+// The arithmetic that turns those readings into `core_ok` lives in
+// isle/results.py, NOT here: a Jenkinsfile cannot be executed by a selftest and
+// this is the one number the release rule turns on.
 // Sequential on purpose: a space-limited device never needs room for more
 // than ONE isle at a time. That is the whole point of staging.
 //
@@ -42,7 +73,8 @@
 //
 // The output is pool/<version>/isle-test/results.json, and THAT file is
 // what Jenkinsfile.release and routes/_lib.sh read: nothing untested is
-// ever published.
+// ever published. ci-3 added the image IDs to it, so routes/_lib.sh can also
+// refuse a release whose images are not the ones that were tested.
 //
 // WHERE the VM goes is device.env (CI_ISLE_TARGET=local|ssh). With
 // CI_ISLE_TARGET=ssh the whole isle half happens on the other device over
@@ -160,19 +192,13 @@ pipeline {
           echo "isle testing stages: ${stages.size()} — ${stages.collect { it ?: 'core only' }}"
 
           // ci-9: the core these stages install, named once, recorded everywhere.
-          // ci-12 addendum 7: in SUITE mode that is always this build — the run's
-          // own debs out of its own pool directory — and the record says so in
-          // those words. It used to say "release:polari-v<version>", which for a
-          // test run would have read `release:polari-vtest/<sha>`: a release that
-          // does not exist, named as the thing the stages were tested against.
+          // ci-12 addendum 7: in SUITE mode that is always this build.
           def testedAgainst = env.CORE_TAG ?: ((env.CI_MODE == 'app')
                                                ? (env.CI_CORE_SOURCE ?: 'build')
                                                : 'this build')
-          def results = [version: params.VERSION ?: 'none', mode: (env.CI_MODE ?: 'suite'),
-                         app_name: (env.CI_APP_NAME ?: ''), tested_against: testedAgainst,
-                         core_debs: (env.CORE_DEBS ?: ''),
-                         stages: [], tested: [], passed: [], untested: []]
-          def runDir  = params.VERSION ? "${env.POOL}/${params.VERSION}/isle-test" : "${env.WORKSPACE}/isle-test"
+          def coreDebs = env.CORE_DEBS ?: ''
+          def runDir   = params.VERSION ? "${env.POOL}/${params.VERSION}/isle-test" : "${env.WORKSPACE}/isle-test"
+          def RES      = "python3 '${env.ISLE}/results.py'"
           sh "mkdir -p '${runDir}'"
 
           // ci-10 — the reading everything below is diffed against. Taken ONCE,
@@ -183,95 +209,104 @@ pipeline {
           def stopped = ''
 
           stages.eachWithIndex { appsLine, i ->
-            def idx  = i + 1
-            def apps = appsLine ? appsLine.split(' ').findAll { it } : []
-            def rec  = [index: idx, apps: apps, core_ok: false, results: [:],
-                        uninstall_verdict: 'skipped', uninstall_findings: [],
-                        leaks: [], leak_verdict: 'clean', ram_delta_mb: 0, disk_delta_mb: 0,
-                        started: new Date().format("yyyy-MM-dd'T'HH:mm:ss"), finished: null]
+            def idx     = i + 1
+            def apps    = appsLine ? appsLine.split(' ').findAll { it } : []
+            def appStr  = apps.join(' ')
+            def started = new Date().format("yyyy-MM-dd'T'HH:mm:ss")
+            def stageArgs = "--index ${idx} --apps '${appStr}' --started '${started}' " +
+                            "--version '${params.VERSION ?: ''}' --tested-against '${testedAgainst}'"
             if (stopped) {
-              rec.error = "not run — ${stopped}"
-              apps.each { rec.results[it] = 'skipped' }
-              rec.finished = new Date().format("yyyy-MM-dd'T'HH:mm:ss")
-              results.stages << rec
+              // no reading files exist for this stage, and results.py says so in
+              // words rather than defaulting it to something survivable.
+              sh "${RES} stage '${runDir}' ${stageArgs} --error 'not run — ${stopped.replaceAll(/['\n]/, ' ')}'"
               return
             }
 
-            stage("stage ${idx}: core${apps ? ' + ' + apps.join(', ') : ' only'}") {
-              try {
-                // 1. the app debs this stage needs — built by the ONE builder
-                //    (polari-framework appstore/custom/app_deb_builder.py),
-                //    never by a second deb writer living here.
-                if (apps) {
-                  sh "bash '${env.ISLE}/app-debs.sh' '${runDir}/stage-${idx}/debs' ${apps.join(' ')}"
+            def err = ''
+            def leakVerdict = ''
+            try {
+              // ---- 1. the app debs this stage needs — built by the ONE builder
+              //      (polari-framework appstore/custom/app_deb_builder.py).
+              if (apps) {
+                stage("stage ${idx} · app debs") {
+                  sh "bash '${env.ISLE}/app-debs.sh' '${runDir}/stage-${idx}/debs' ${appStr}"
                 }
+              }
 
-                // 2. a fresh throwaway isle, for this stage alone
+              // ---- 2. THE ARTIFACTS UNDER TEST, gathered: this run's core debs
+              //      and this run's own images. payload.sh REFUSES if an image is
+              //      not on this daemon rather than letting the guest pull a
+              //      published one — a verdict about an image we did not build is
+              //      not a verdict.
+              stage("stage ${idx} · payload (the artifacts under test)") {
+                sh "bash '${env.ISLE}/payload.sh' build '${runDir}/stage-${idx}/payload' '${coreDebs}' " +
+                   (apps ? "'${runDir}/stage-${idx}/debs'" : "''")
+              }
+
+              // ---- 3. a fresh throwaway isle, for this stage alone
+              stage("stage ${idx} · throwaway up") {
                 sh 'bash "$ISLE/throwaway.sh" status; bash "$ISLE/throwaway.sh" up'
                 sh 'bash "$ISLE/throwaway.sh" verify'
+              }
 
-                // 3. -------------------------------------------------------
-                //    TODO (ci-3, NOT built): the real cycle inside this guest.
-                //      a. copy pool/<version>/debs/polari-complete_*.deb in
-                //      b. dpkg -i / apt install it, then `isle core-install`
-                //         (the guided install, non-interactive answers)
-                //      c. core verify: the isle answers, its router guest
-                //         booted (nested KVM), `pol modules health`, the app
-                //         store lists the catalogue  →  rec.core_ok
-                //      d. for each app in `apps`: install
-                //         stage-<idx>/debs/polari-app-<app>_*.deb, then run
-                //         `pol modules selftest <app>` INSIDE the isle and
-                //         record pass|fail per app  →  rec.results[app]
-                //      e. `isle uninstall --everything` + `--verify`, and the
-                //         default-Ubuntu hand-back proof (his rule).
-                //    Until (c)/(d) exist every result is 'skipped', core_ok
-                //    stays false, and THE RELEASE RULE therefore publishes
-                //    NOTHING. That is deliberate: the gate is honest before
-                //    it is convenient.
-                //    CICD_PIPELINE_PLAN.md §1 and §3 own that cycle.
-                // ---------------------------------------------------------
-                echo "ci-3 TODO: install the core debs from " +
-                     "${env.CORE_DEBS ?: (params.VERSION ? env.POOL + '/' + params.VERSION + '/debs' : 'the build')}" +
-                     " (core: ${testedAgainst}), then ${apps ? apps.join(', ') + ' deb(s)' : 'no app debs'}, " +
-                     "then run pol modules selftest for each app inside the isle. Not built — every result is 'skipped'."
-                apps.each { rec.results[it] = 'skipped' }
-
-              } catch (err) {
-                echo "stage ${idx} FAILED: ${err} — recording it and carrying on; a later stage may still pass"
-                apps.each { rec.results[it] = rec.results[it] ?: 'fail' }
-                rec.error = err.toString()
-              } finally {
-                // ---- ci-10 layer 1: the PRODUCT's own uninstall, as a TEST.
-                // It runs BEFORE the VM is destroyed and its verdict is
-                // independent of everything below: a dirty hand-back is the
-                // product's failure, a leak below is the pipeline's.
-                def unPath = "${runDir}/uninstall-${idx}.json"
-                sh "bash \"\$ISLE/throwaway.sh\" uninstall --stage ${idx} --json '${unPath}' || true"
-                if (fileExists(unPath)) {
-                  // NOT readJSON: pipeline-utility-steps is not in casc/plugins.txt
-                  // and has never been installed. This call has been latent since
-                  // ci-10 — no run reached it until ci-12, and then it threw.
-                  rec.uninstall_verdict  = sh(returnStdout: true,
-                      script: "python3 ${JSONGET} '${unPath}' verdict --default failed").trim()
-                  rec.uninstall_findings = sh(returnStdout: true,
-                      script: "python3 ${JSONGET} '${unPath}' findings --lines").trim()
-                      .split('\n').findAll { it }
-                } else {
-                  rec.uninstall_verdict  = 'failed'
-                  rec.uninstall_findings = ['no uninstall reading came back from the guest']
+              // ---- 4. ci-3: install the product, from the deb, as a person would.
+              //      catchError, not `|| true`: a failed install must not abort the
+              //      run (the reading IS the result) but must not look green either.
+              stage("stage ${idx} · install core") {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                  sh "bash \"\$ISLE/throwaway.sh\" install --payload '${runDir}/stage-${idx}/payload' " +
+                     "--json '${runDir}/install-${idx}.json' --stage ${idx}"
                 }
-                // THE COUPLING (his addendum): an isle that cannot hand the
-                // machine back is not releasable, whatever else passed.
-                if (rec.uninstall_verdict != 'clean') { rec.core_ok = false }
-                echo "stage ${idx} uninstall verdict: ${rec.uninstall_verdict}" +
-                     (rec.uninstall_findings ? " — ${rec.uninstall_findings.join('; ')}" : '')
+              }
 
-                // ---- ci-10 layer 2: a throwaway that survives its stage is
-                // not a throwaway. `down` now ends in a scoped `wipe`.
+              // ---- 5. ci-3: is what is standing there an isle?
+              stage("stage ${idx} · verify isle") {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                  sh "bash \"\$ISLE/throwaway.sh\" verify-isle --json '${runDir}/verify-${idx}.json' --stage ${idx}"
+                }
+              }
+
+              // ---- 6. ci-3: this stage's apps, into the isle
+              if (apps) {
+                stage("stage ${idx} · install apps") {
+                  catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    sh "bash \"\$ISLE/throwaway.sh\" apps --apps '${appStr}' " +
+                       "--json '${runDir}/apps-${idx}.json' --stage ${idx}"
+                  }
+                }
+              }
+
+              // ---- 7. ci-3: THE TESTS, run inside the installed product.
+              //      A core-only stage runs the framework's own suites; a stage
+              //      that names apps runs those apps' suites.
+              stage("stage ${idx} · selftests (inside the isle)") {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                  sh "bash \"\$ISLE/throwaway.sh\" selftests --modules '${apps ? appStr : 'core'}' " +
+                     "--json '${runDir}/selftests-${idx}.json' --stage ${idx}"
+                }
+              }
+
+            } catch (e) {
+              err = e.toString()
+              echo "stage ${idx} FAILED: ${e} — recording it and carrying on; a later stage may still pass"
+            } finally {
+              // ---- ci-10 layer 1: the PRODUCT's own uninstall, as a TEST. It runs
+              // BEFORE the VM is destroyed and its verdict is independent of
+              // everything below: a dirty hand-back is the product's failure, a
+              // leak below is the pipeline's.
+              stage("stage ${idx} · uninstall (the product's own)") {
+                sh "bash \"\$ISLE/throwaway.sh\" uninstall --stage ${idx} --json '${runDir}/uninstall-${idx}.json' || true"
+              }
+
+              // ---- ci-10 layer 2: a throwaway that survives its stage is not a
+              // throwaway. `down` now ends in a scoped `wipe`.
+              stage("stage ${idx} · down + wipe") {
                 sh 'bash "$ISLE/throwaway.sh" down || true'
+              }
 
-                // ---- ci-10 layer 3: prove it, by diff. A leak is re-wiped
-                // once and re-checked before it is believed.
+              // ---- ci-10 layer 3: prove it, by diff. A leak is re-wiped once and
+              // re-checked before it is believed.
+              stage("stage ${idx} · leak check") {
                 def leakRc = sh(returnStatus: true,
                                 script: "CI_LEAK_DIR='${runDir}' bash \"\$ISLE/leakcheck.sh\" check --stage ${idx}")
                 if (leakRc == 5) {
@@ -279,74 +314,45 @@ pipeline {
                   sh 'bash "$ISLE/throwaway.sh" wipe || true'
                   leakRc = sh(returnStatus: true,
                               script: "CI_LEAK_DIR='${runDir}' bash \"\$ISLE/leakcheck.sh\" check --stage ${idx}")
-                  rec.leak_verdict = (leakRc == 5) ? 'leaked-after-rewipe' : 'clean'
+                  leakVerdict = (leakRc == 5) ? 'leaked-after-rewipe' : 'clean'
                 } else {
-                  rec.leak_verdict = (leakRc == 0) ? 'clean' : 'leak-check-unreadable'
+                  leakVerdict = (leakRc == 0) ? 'clean' : 'leak-check-unreadable'
                 }
-                def leakPath = "${runDir}/leak-check-${idx}.json"
-                if (fileExists(leakPath)) {
-                  // the leak SENTENCE is formatted in jsonget.py — one place, so
-                  // the reader and the rendering cannot drift.
-                  rec.leaks = sh(returnStdout: true,
-                      script: "python3 ${JSONGET} '${leakPath}' leaks --leak-lines").trim()
-                      .split('\n').findAll { it }
-                  rec.ram_delta_mb  = sh(returnStdout: true,
-                      script: "python3 ${JSONGET} '${leakPath}' ram_delta_mb --default 0").trim() as Integer
-                  rec.disk_delta_mb = sh(returnStdout: true,
-                      script: "python3 ${JSONGET} '${leakPath}' disk_delta_mb --default 0").trim() as Integer
-                }
-                if (rec.leak_verdict == 'leaked-after-rewipe') {
+                if (leakVerdict == 'leaked-after-rewipe') {
                   if (leakPolicy == 'continue') {
-                    echo "stage ${idx} leaked and a second wipe did not clear it — CI_LEAK_POLICY=continue, carrying on " +
-                         "onto a host that is already dirtier than the baseline"
+                    echo "stage ${idx} leaked and a second wipe did not clear it — CI_LEAK_POLICY=continue, " +
+                         "carrying on onto a host that is already dirtier than the baseline"
                   } else {
-                    stopped = "stage ${idx} leaked and a second wipe did not clear it (${rec.leaks.join('; ')}) — " +
+                    stopped = "stage ${idx} leaked and a second wipe did not clear it — " +
                               "STOPPING as a resource guard: the next stage would start on a dirty host. " +
                               "Set CI_LEAK_POLICY=continue to run anyway."
                     echo stopped
                   }
                 }
-                rec.finished = new Date().format("yyyy-MM-dd'T'HH:mm:ss")
-                results.stages << rec
-                // ci-8: mirror THIS stage into Polari as it finishes, so a long run is legible while it
-                // is still running and a stage that dies later does not take its result with it.
-                writeFile file: "${runDir}/stage-${idx}.json",
-                          text: groovy.json.JsonOutput.toJson([version: params.VERSION ?: '', tested: apps,
-                                                               tested_against: testedAgainst,
-                                                               results: rec.results,
-                                                               // ci-10: both teardown readings travel with the stage
-                                                               uninstall_verdict: rec.uninstall_verdict,
-                                                               uninstall_findings: rec.uninstall_findings,
-                                                               leak_verdict: rec.leak_verdict, leaks: rec.leaks,
-                                                               ram_delta_mb: rec.ram_delta_mb,
-                                                               disk_delta_mb: rec.disk_delta_mb])
-                sh """bash /var/polari-jenkins/cicd-sync.sh isle-test '${env.JOB_NAME}#${env.BUILD_NUMBER}' ${idx} ${rec.core_ok} '${runDir}/stage-${idx}.json' || true"""
               }
+
+              // ---- the stage's record, assembled from the readings by the ONE
+              // piece of arithmetic (isle/results.py) rather than in Groovy.
+              def finished = new Date().format("yyyy-MM-dd'T'HH:mm:ss")
+              sh "${RES} stage '${runDir}' ${stageArgs} --finished '${finished}' " +
+                 "--leak-verdict '${leakVerdict}' --error '${err.replaceAll(/['\n]/, ' ')}'"
+              def coreOk = sh(returnStdout: true,
+                              script: "python3 ${JSONGET} '${runDir}/stage-${idx}.json' core_ok --default false").trim()
+              // ci-8: mirror THIS stage into Polari as it finishes, so a long run is
+              // legible while it is still running.
+              sh """bash /var/polari-jenkins/cicd-sync.sh isle-test '${env.JOB_NAME}#${env.BUILD_NUMBER}' ${idx} ${coreOk} '${runDir}/stage-${idx}.json' || true"""
             }
           }
 
-          // 4. the one file the release rule reads
-          results.tested   = results.stages.collectMany { it.results.keySet() as List }.unique()
-          results.passed   = results.stages.collectMany { it.results.findAll { k, v -> v == 'pass' }.keySet() as List }.unique()
-          results.untested = results.tested - results.passed
-          // core_ok is stage 1's — AND ci-10's coupling: an isle that could not
-          // hand the machine back never counts as a passing core.
-          results.core_ok  = results.stages ? (results.stages[0].core_ok
-                                               && results.stages[0].uninstall_verdict == 'clean') : false
-          results.leak_summary = [
-            policy: leakPolicy,
-            stopped: stopped ?: '',
-            stages_clean:  results.stages.count { it.leak_verdict == 'clean' },
-            stages_leaked: results.stages.count { it.leak_verdict != 'clean' },
-            leaks: results.stages.collectMany { it.leaks ?: [] },
-            ram_delta_mb:  results.stages.collect { it.ram_delta_mb  ?: 0 }.sum() ?: 0,
-            disk_delta_mb: results.stages.collect { it.disk_delta_mb ?: 0 }.sum() ?: 0,
-            uninstall: results.stages.collectEntries { ["stage${it.index}": it.uninstall_verdict] },
-          ]
-          writeFile file: "${runDir}/results.json", text: groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(results))
+          // ---- the one file the release rule reads
+          sh "${RES} assemble '${runDir}' --version '${params.VERSION ?: ''}' --mode '${env.CI_MODE ?: 'suite'}' " +
+             "--tested-against '${testedAgainst}' --core-debs '${coreDebs}' --leak-policy '${leakPolicy}' " +
+             "--stopped '${stopped.replaceAll(/['\n]/, ' ')}'"
           sh "cat '${runDir}/results.json'"
-          archiveArtifacts artifacts: 'isle-test/results.json,isle-test/leak-*.json,isle-test/uninstall-*.json',
-                           allowEmptyArchive: true
+          // the pool is not the workspace: copy the readings in before archiving,
+          // which is why every earlier run logged "No artifacts found".
+          sh "mkdir -p isle-test && cp '${runDir}'/*.json isle-test/ 2>/dev/null || true"
+          archiveArtifacts artifacts: 'isle-test/*.json', allowEmptyArchive: true
           if (stopped) {
             currentBuild.result = 'UNSTABLE'
             echo "the run stopped early: ${stopped}"
