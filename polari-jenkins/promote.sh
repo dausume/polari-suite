@@ -41,7 +41,7 @@ POOL="${POLARI_POOL:-$J/pool}"
 . "$J/pool.sh"
 
 say()  { printf '[promote] %s\n' "$*"; }
-die()  { printf '[promote] %s\n' "$*" >&2; exit "${2:-1}"; }
+die()  { printf '[promote] %s\n' "$1" >&2; exit "${2:-1}"; }
 
 # The superproject sha a branch points at, read from the ORIGIN (a promotion is
 # about what is published, not about what this checkout happens to hold).
@@ -107,6 +107,14 @@ do_promote() {  # do_promote <target> <source> [--dry-run]
     args=(--branch "$target" --promote-from "$source" --summary-json "$summary")
     [ "$dry" = 1 ] || args+=(--push)
     say "$source → $target, innermost-first, fast-forward only$([ "$dry" = 1 ] && echo '  (DRY RUN — nothing is pushed)')"
+    # ci-13: a promotion kicks off a run on THIS device's controller. If the controller was started with
+    # different pipeline files than the checkout now holds (a git pull since the last `pol jenkins up`), the
+    # run would execute the OLD pipeline — so refuse, unless the controller is not running here at all.
+    if [ "$dry" = 0 ] && docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "${CI_CONTROLLER_CONTAINER:-polari-jenkins}"; then
+        if ! bash "$J/controller-stamp.sh" check; then
+            [ "${CI_PROMOTE_FORCE:-0}" = 1 ] || die "promotion REFUSED: pol jenkins up first (CI_PROMOTE_FORCE=1 overrides, and the run will execute the controller's OLD pipeline files)" 4
+        fi
+    fi
     if ! bash "$SWEEP" "${args[@]}"; then
         rm -f "$summary"
         die "the promotion did NOT complete — the repo named above must be reconciled first (ff-only, by design)" 1

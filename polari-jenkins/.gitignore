@@ -19,3 +19,4 @@ id_*
 SETUP_STATUS.md
 cosign.key
 !cosign.pub
+.controller-stamp
