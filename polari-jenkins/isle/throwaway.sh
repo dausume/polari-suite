@@ -246,7 +246,12 @@ guest_ssh() {  # guest_ssh <command…>
 #
 #   guest_run_detached <tag> <end marker> <timeout s>   — script on stdin, log on stdout
 guest_run_detached() {
-    local tag="$1" marker="$2" tmo="${3:-2400}" dir="/home/$GUEST_USER/polari-ci-$tag"
+    local tag="$1" marker="$2" tmo="${3:-2400}"
+    # NOT on the line above. Under `set -u` bash expands EVERY assignment word of
+    # a single `local` before it performs any of them, so `local a=$1 b=x-$a`
+    # dies with "a: unbound variable" — which is exactly how this failed on
+    # isle-test #8, after the payload had already been moved.
+    local dir="/home/$GUEST_USER/polari-ci-$tag"
     local waited=0 step=15 last=""
     guest_ssh "rm -rf $dir && mkdir -p $dir" >/dev/null 2>&1 || return 1
     guest_ssh "cat > $dir/run.sh" || return 1

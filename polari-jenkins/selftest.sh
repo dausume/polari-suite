@@ -1021,6 +1021,32 @@ has "the guest cycle runs DETACHED, because the product takes the ssh session do
     "setsid nohup bash run.sh" "$TWAY"
 has "  …and polls with FRESH connections until the fenced end marker appears"  "grep -q " "$TWAY"
 has "the install uses it"    "guest_run_detached install"   "$(cat "$J/isle/guest-install.sh")"
+# ci-3, found live on isle-test #8: under `set -u` bash expands EVERY assignment
+# word of one `local` before performing any of them, so a default that refers to
+# an earlier name in the same declaration is an unbound-variable death. It cost a
+# full run, after the payload had already been moved. Pinned across the whole
+# sub-project rather than in the one file it bit.
+DEPLOCAL="$(python3 - "$J" <<'PY'
+import glob, os, re, sys
+J = sys.argv[1]
+bad = []
+for path in sorted(glob.glob(J + '/*.sh') + glob.glob(J + '/isle/*.sh') + glob.glob(J + '/routes/*.sh')):
+    for n, line in enumerate(open(path), 1):
+        m = re.match(r'\s*local\s+(.*)', line.rstrip('\n'))
+        if not m:
+            continue
+        assigned = []
+        for word in m.group(1).split():
+            name, sep, value = word.partition('=')
+            if sep and any(re.search(r'\$\{?%s\b' % re.escape(a), value) for a in assigned):
+                bad.append('%s:%d: %s' % (os.path.basename(path), n, line.strip()))
+                break
+            if sep:
+                assigned.append(name)
+print('\n'.join(bad))
+PY
+)"
+eq "no 'local a=\$1 b=\$a' anywhere — set -u expands them all before assigning any" "" "$DEPLOCAL"
 has "  …and so does the uninstall, whose network hand-back is the thing under test" \
     "guest_run_detached uninstall" "$(cat "$J/isle/guest-uninstall.sh")"
 hasnt "  …and the uninstall does not pipe a script into a single ssh any more" \

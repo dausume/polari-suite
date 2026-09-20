@@ -90,7 +90,12 @@ cache_hit() {
 # fatal on a cache problem: a failed fetch is a failed fetch (rc 1), a failed
 # *cache* write is a warning.
 cache_fetch() {
-    local area="$1" entry="$2" url="$3" what="${4:-$entry}"
+    local area="$1" entry="$2" url="$3"
+    # `what` is SEPARATE on purpose: under `set -u` bash expands every assignment
+    # word of a single `local` before performing any of them, so a default that
+    # refers to an earlier name in the same declaration dies with "entry: unbound
+    # variable". The same trap took isle-test #8 down (throwaway.sh line 249).
+    local what="${4:-$entry}"
     local dir path
     if ! cache_on; then
         echo "[cache] off (CI_CACHE=off) — $entry comes from the network" >&2
