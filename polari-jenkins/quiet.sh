@@ -55,7 +55,11 @@
 #                                      exit 0 quiet · 6 defer (and say why)
 #   quiet.sh saw <branch>              record the live sha set as pending (a poll)
 #   quiet.sh claim <branch> <sha>      a run started: pending=false, running=<sha>
-#   quiet.sh done <branch> <sha>       a run ended
+#   quiet.sh done <branch> <sha>       a run ended (for ANY reason)
+#   quiet.sh covered <branch> <sha>    …and it reached a VERDICT, so a tick will
+#                                      not rebuild that state. Only the verdict
+#                                      stage calls this: an aborted run must
+#                                      leave the work outstanding.
 #   quiet.sh queue [<branch>]          print both queues (or one)
 #   quiet.sh queue --json [<branch>]
 #   quiet.sh turn <job> [--once]       wait for this job's turn (test|release);
@@ -305,20 +309,28 @@ do_claim() {
                  "claim_digest=$(_queue_read "$1" digest)" "claim_super=$(_queue_read "$1" super_digest)"
     say "$1: run started on ${2:0:12} — pending cleared (a change from here on sets ONE new pending item)"
 }
+# `done` only ends the run. It does NOT mark the state covered, because a run
+# can end for reasons that prove nothing: aborted, killed by a restart, failed in
+# the build. polari-test #11 on the pipeline device was aborted mid-build and its
+# `done` marked the sha covered — after which every tick said "nothing to do" and
+# the sha was never tested at all. Only `covered` claims that, and only the
+# VERDICT stage calls it.
 do_done() {
-    # Only a run that actually CLAIMED a state may declare it covered. A run that
-    # died before the claim (or deferred) must not write an empty "covered"
-    # marker — that would either mean nothing, or, worse, match an empty reading
-    # later and make the gate skip real work.
+    _queue_write "$1" running='' last_run_sha="$2" "last_run_at=$(now)" "last_run_iso=$(date -Is)"
+    say "$1: run finished on ${2:0:12}"
+}
+
+# `covered` — this state has a VERDICT. Called by the verdict stage and by
+# nothing else, so an aborted or failed run leaves the work outstanding and the
+# next tick picks it up.
+do_covered() {
     local cd cs; cd="$(_queue_read "$1" claim_digest)"; cs="$(_queue_read "$1" claim_super)"
     if [ -z "$cd$cs" ]; then
-        _queue_write "$1" running='' last_run_sha="$2" "last_run_at=$(now)" "last_run_iso=$(date -Is)"
-        say "$1: run finished on ${2:0:12} — it never claimed a state, so nothing is marked covered"
+        say "$1: ${2:0:12} reached a verdict without a claim — not marking it covered (there is nothing to compare)"
         return 0
     fi
-    _queue_write "$1" running='' last_run_sha="$2" "last_run_at=$(now)" "last_run_iso=$(date -Is)" \
-                 "last_run_digest=$cd" "last_run_super=$cs"
-    say "$1: run finished on ${2:0:12} — that state is now 'already covered'; a periodic tick will not rebuild it"
+    _queue_write "$1" "last_run_digest=$cd" "last_run_super=$cs" "covered_sha=$2"
+    say "$1: ${2:0:12} now has a verdict — that state is 'already covered' and a periodic tick will not rebuild it"
 }
 
 do_queue() {
@@ -408,6 +420,7 @@ case "${1:-queue}" in
     saw)       do_saw "${2:?branch}" ;;
     claim)     do_claim "${2:?branch}" "${3:-}" ;;
     done)      do_done "${2:?branch}" "${3:-}" ;;
+    covered)   do_covered "${2:?branch}" "${3:-}" ;;
     queue)     if [ "${2:-}" = --json ]; then do_queue_json; else do_queue "${2:-}"; fi ;;
     turn)      do_turn "${2:?job}" "${3:-}" ;;
     turn-done) do_turn_done "${2:?job}" ;;

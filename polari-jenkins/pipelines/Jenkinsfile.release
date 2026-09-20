@@ -299,7 +299,12 @@ PY'''
     // was tested against. Mirrored in with the posting-only credential; never fatal.
     stage('mirror the release record into Polari') {
       when { expression { env.PROCEED == 'yes' } }
-      steps { sh 'bash /var/polari-jenkins/cicd-sync.sh release "$POLARI_VERSION" "$POOL/$POLARI_VERSION/release.json" || true' }
+      steps {
+        sh 'bash /var/polari-jenkins/cicd-sync.sh release "$POLARI_VERSION" "$POOL/$POLARI_VERSION/release.json" || true'
+        // only a run that got this far has covered its state; an abort must
+        // leave the work outstanding for the next tick.
+        sh "bash /var/polari-jenkins/quiet.sh covered main '${env.POLARI_FULL_SHA}'"
+      }
     }
     stage('not released (untested)') {
       when { expression { env.PROCEED == 'yes' && env.RELEASE_TESTED != 'yes' } }

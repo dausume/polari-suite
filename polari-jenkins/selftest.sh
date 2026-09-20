@@ -1338,7 +1338,10 @@ eq "  …and the first sighting starts the window, so it defers" "6" "$(grc gate
 eq "gate: once the window has elapsed it says go" "0" "$(QM=0 grc gate test)"
 QM=0 g claim test 111aaa >/dev/null
 QM=0 g done test 111aaa >/dev/null
-eq "gate: the SAME state after a completed run is 'already covered' — a periodic tick does not rebuild it" \
+eq "gate: a run that ENDED without a verdict leaves the work outstanding (an abort must not retire a sha)" \
+   "0" "$(QM=0 grc gate test)"
+QM=0 g covered test 111aaa >/dev/null
+eq "gate: the SAME state once it has a VERDICT is 'already covered' — a periodic tick does not rebuild it" \
    "6" "$(QM=0 grc gate test)"
 has "  …and it says so rather than pretending to defer" "already covered" "$(QM=0 g gate test)"
 export FAKE_HEADS="test=222bbb"

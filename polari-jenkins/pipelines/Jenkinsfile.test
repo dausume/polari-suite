@@ -272,6 +272,11 @@ pipeline {
           cp "$RUN_DIR/verdict.json" verdict.json'''
         // ci-8/ci-12: the verdict is mirrored into the cicd app as its own kind.
         sh 'bash /var/polari-jenkins/cicd-sync.sh verdict "$RUN_DIR/verdict.json" "$JOB_NAME#$BUILD_NUMBER" || true'
+        // …and ONLY now is this state "already covered". `done` in post runs for
+        // an aborted or failed run too, and marking the state there meant an
+        // abort silently retired a sha that had never been tested (polari-test
+        // #11 on the pipeline device).
+        sh "bash /var/polari-jenkins/quiet.sh covered test '${env.TEST_SHA}'"
       }
       post {
         always { archiveArtifacts artifacts: 'verdict.json', allowEmptyArchive: true }
