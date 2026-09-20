@@ -6989,3 +6989,56 @@ no backlog ever formed, and the alternation marker moved between `test` and
 4. **`scan-tools.lock` digests are still `unresolved`.** `aquasec/trivy:0.58.1`
    and `zricethezav/gitleaks:v8.21.2` both pulled, so the tags are real; a
    `scan.sh lock-resolve` on the device would pin them.
+
+### §76 addendum 2 — the scans working, the isle stages reached, and four more live defects
+
+Three more promotions and eight more runs after the first addendum. What changed:
+
+**The scans now produce reports.** With the `host_path()` fix in the container,
+`polari-test #34` recorded, in 4 min 20 s:
+
+```
+scan summary: critical=85 high=1594 medium=4437 low=1854 unknown=456
+```
+
+— Trivy over the tree, the three `:staging` images and all seven debs, plus
+gitleaks and `npm audit`. **Not one of those 85 criticals changed the verdict by
+a letter**, which is the rule working; the verdict was still `failed`, still for
+the eight core selftest suites.
+
+**The isle stages were reached, and refused for the right reason.**
+`polari-isle-test #2` ran (13 min 52 s) and stopped at its FIRST stage:
+
+```
+target reachable            isle-core        -        FAIL
+throwaway-isle checks       skipped          -        FAIL
+REFUSED: 2 check(s) FAIL, 0 warn — fix the rows above (exit 4)
+```
+
+The controller now runs as `polari-ci` (his `init-device`), and the ssh key that
+reaches `isle-core` was the previous user's. The preflight refused rather than
+half-running a test — ci-7's guard doing exactly its job, on a posture change it
+was never told about.
+
+#### Four more defects, all found by a real run
+
+| # | what | fix |
+|---|---|---|
+| 12 | the quiet window was restarted by a digest from an EARLIER tip | the gate reads the superproject alone, the check reads the whole forest, and the check was comparing against the previous tip's reading — "quiet for 417s — proceeding" at 01:47:58, "the forest moved" at 01:48:17. The window is keyed on the TIP now: a new tip clears both readings, and within one tip a changed digest means a SUBMODULE moved under a fixed pointer, which is the still-landing case worth deferring on |
+| 13 | **a fix could be committed, pushed, pulled — and not running** | a FILE bind mount binds an INODE. `git pull` writes a new file; `./quiet.sh:/var/polari-jenkins/quiet.sh:ro` keeps the old one until the container is recreated. Three runs in a row behaved like code that had already been replaced. The doctor now compares the container's copy of every mounted script with the checkout's and names `pol jenkins up`, with the reason — because the symptom is "my fix did nothing" |
+| 14 | **two executors were still not enough** | a build WAITING for the `polari-build` lock holds an executor (declarative takes the node first, then the lock), so `polari-dev-build` parked on the lock while `polari-test` held the other and `polari-isle-test #2` sat at "Waiting for next available executor". `CI_EXECUTORS` is 4 — one per job that can be in flight. They are WAITING SLOTS: the lock is what serialises the real work, and always was |
+| 15 | `pol jenkins queue` and the doctor's queue row read "idle / never" on a device with state | the same posture problem as the verdict; both read through the controller now |
+
+#### OWED, added
+
+5. **The controller cannot reach `isle-core` any more.** After `init-device` the
+   controller is `polari-ci` and the ssh key that the hop needs is the previous
+   user's. HIS: put a key the `polari-ci` user can read where the controller can
+   use it (`/etc/polari-jenkins/secrets/ssh/…` + a mount, or `polari-ci`'s own
+   `~/.ssh`), then `pol jenkins preflight --isle` should read 14/14 PASS again.
+   Until then every isle stage refuses at the preflight and no verdict can get
+   past `partial` even if the eight core suites are fixed.
+6. **`polari-dev-build` competes for the `polari-build` lock with the test
+   pipeline.** Correct (one build at a time), but on a busy `dev` it delays
+   every test run by a dev build. Worth deciding whether dev-build should yield
+   to test the way test and release yield to each other.

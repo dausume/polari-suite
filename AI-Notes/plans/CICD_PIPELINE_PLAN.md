@@ -806,5 +806,10 @@ by those runs and fixed — the four worth carrying forward as rules:
 3. **`docker -v` is resolved by the DAEMON, on the host.** Anything mounting a
    path from inside the controller must translate it first, or it writes where
    nobody can read — silently.
-4. **A parent that waits for a child needs a second executor**, and must not
-   hold the lock the child wants.
+4. **A parent that waits for a child needs its own executor** — and so does
+   every build parked on the lock, because declarative takes the node first and
+   the lock second. Four, one per job that can be in flight; the lock is what
+   serialises the work.
+5. **A file bind mount binds an inode.** `git pull` writes a new file, so a
+   container can run code that was replaced hours ago. The doctor now says when
+   the container's copy and the checkout's differ.
