@@ -7770,3 +7770,17 @@ path never raises, the marker does not change the posture); `selftest_lazy_boot`
 the run dir. **OWED:** the first real run with the bake (expected: the first run pays the bake once, ~2 min of
 shutdown + flatten on top of the apt; the second run's prerequisite step drops from ~380 s to seconds); the
 `pipelineTest` field read from a live throwaway's `/api/health`; the bake's disk cost in the cache (~2–3 GB).
+
+### §78 addendum — two measured runs (2026-09-20, econ-core → isle-core)
+
+| run | bake | prerequisite step in the install | test images after the run |
+|---|---|---|---|
+| `d8b5b05` (isle-test after the first push) | "baked" after 45 s — FALSE: the apt behind `\| tail` had failed on the cloud image's early apt lock, and a BARE 2.1 GB image went into the cache under a prepared name (removed by hand from isle-core's cache + manifest) | 336 s | still present — the controller was running the PREVIOUS `Jenkinsfile.test`: the seed copies each Jenkinsfile into the job config at `pol jenkins up`, so a pull alone changes nothing the jobs run |
+| `4c037c7` (after `pol jenkins up`) | the full apt ran (6 min) and every package installed, but the verification refused: `dpkg -s qemu-kvm` — on Ubuntu 24.04 `qemu-kvm` is a transitional name with no status entry — so NO base was flattened | **4 s** (the same guest, prerequisites already there — the saving the prepared base buys every later run) | **gone** — `test-wipe.sh --images-only` in the post ran; `docker images` on the device lists no `prf-*` / `pol-reticulum` |
+
+Fixes: the bake verifies with `apt-get install --dry-run` (nothing left to `Inst`) instead of `dpkg -s` per name;
+`pol jenkins up` records the pipeline files the controller started with (`controller-stamp.sh write`) and
+`pol jenkins promote` REFUSES when the checkout has moved since (`CI_PROMOTE_FORCE=1` overrides) — the doctor's
+"OLDER copy" row said it, now the promotion enforces it. Verdict both runs: `failed` on the isle uninstall only;
+89/89 suites inside the isle (the new posture suite included). OWED: the run that bakes for real, and the one
+after it that boots from the prepared base (expect `secs_prereqs` in single digits and no bake at all).

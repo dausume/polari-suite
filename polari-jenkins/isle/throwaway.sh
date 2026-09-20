@@ -319,7 +319,8 @@ bake_prepared() {  # the guest is up and pristine: install the prerequisites, sh
         sudo apt-get update -qq 2>&1 | tail -2; \
         sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ${CI_ISLE_PREREQ_PKGS:-} 2>&1 | tail -3; \
         sudo apt-get clean; \
-        for p in ${CI_ISLE_PREREQ_PKGS:-}; do dpkg -s \"\$p\" >/dev/null 2>&1 || { echo \"NOT INSTALLED: \$p\"; exit 1; }; done" < /dev/null \
+        left=\$(sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --dry-run ${CI_ISLE_PREREQ_PKGS:-} 2>/dev/null | grep -E '^Inst ' | awk '{print \$2}' | tr '\n' ' '); \
+        [ -z \"\$left\" ] || { echo \"NOT INSTALLED: \$left\"; exit 1; }" < /dev/null \
         || { say "the prerequisites did not all install — NO prepared base baked (the run continues on the bare image; the install step will try again)"; return 0; }
     say "shutting the guest down cleanly to flatten its disk"
     $VIRSH shutdown "$CI_ISLE_VM_NAME" >/dev/null 2>&1 || true
