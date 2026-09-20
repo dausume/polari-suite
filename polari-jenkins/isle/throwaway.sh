@@ -310,8 +310,17 @@ choose_base() {  # sets BASE_FOR_RUN
 bake_prepared() {  # the guest is up and pristine: install the prerequisites, shut down, flatten, restart
     local p t=0; p="$(prepared_path)"
     say "baking the prepared base: installing the prerequisites in the guest"
-    guest_ssh "sudo apt-get update -qq >/dev/null 2>&1; sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ${CI_ISLE_PREREQ_PKGS:-} 2>&1 | tail -3; sudo apt-get clean" < /dev/null \
-        || { say "the prerequisites did not install — no prepared base baked (the run continues on the bare image)"; return 0; }
+    # The first bake (2026-09-20) said "baked" after 45 s while the install still spent 336 s on the same
+    # packages: a fresh cloud image holds the apt lock for its first minutes (cloud-init, apt-daily), the
+    # failure hid behind `| tail`, and a BARE image went into the cache under a prepared name. So: wait for
+    # cloud-init, pipefail, and prove every package is INSTALLED before anything is flattened.
+    guest_ssh "set -o pipefail; cloud-init status --wait >/dev/null 2>&1 || true; \
+        for i in \$(seq 1 60); do sudo fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock >/dev/null 2>&1 || break; sleep 5; done; \
+        sudo apt-get update -qq 2>&1 | tail -2; \
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ${CI_ISLE_PREREQ_PKGS:-} 2>&1 | tail -3; \
+        sudo apt-get clean; \
+        for p in ${CI_ISLE_PREREQ_PKGS:-}; do dpkg -s \"\$p\" >/dev/null 2>&1 || { echo \"NOT INSTALLED: \$p\"; exit 1; }; done" < /dev/null \
+        || { say "the prerequisites did not all install — NO prepared base baked (the run continues on the bare image; the install step will try again)"; return 0; }
     say "shutting the guest down cleanly to flatten its disk"
     $VIRSH shutdown "$CI_ISLE_VM_NAME" >/dev/null 2>&1 || true
     until [ "$(state)" = "shut off" ]; do sleep 3; t=$((t + 3)); [ "$t" -lt 180 ] || { $VIRSH destroy "$CI_ISLE_VM_NAME" >/dev/null 2>&1 || true; break; }; done
