@@ -91,7 +91,13 @@ if [ "$CI_ISLE_TARGET" = ssh ] && [ "${CI_ISLE_REMOTE:-0}" != 1 ]; then
         "$HERE/guest-install.sh" "$HERE/guest-verify.sh" "$HERE/guest-selftests.sh" \
         "$J/device.sh" "$J/cache.sh" "$J/cache-manifest.py" "$DEST:$REMOTE_DIR/"
     ENVS="CI_ISLE_REMOTE=1 CI_ISLE_TARGET=local"
-    for k in CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_IMAGE_URL CI_MIN_FREE_GB CI_CACHE CI_CACHE_DIR CI_CACHE_MAX_GB CI_WIPE_TAG; do
+    # ci-3: the guest-cycle knobs travel too. They were the kind of omission that
+    # only shows up on the target — a timeout set on the controller that silently
+    # keeps its default over there is worse than no knob at all.
+    for k in CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_IMAGE_URL CI_MIN_FREE_GB CI_CACHE CI_CACHE_DIR CI_CACHE_MAX_GB CI_WIPE_TAG \
+             CI_ISLE_SSH_WAIT_S CI_ISLE_IP_TRIES \
+             CI_ISLE_MODULES CI_ISLE_IMAGE_TAG CI_ISLE_CORE_INSTALL_TMO_S CI_ISLE_ONLINE_WAIT_S \
+             CI_ISLE_BACKEND_CONTAINER CI_ISLE_SELFTEST_TIMEOUT_S CI_ISLE_SELFTEST_CORE_LIMIT; do
         ENVS="$ENVS $k=$(printf '%q' "${!k:-}")"
     done
     ENVS="$ENVS CI_ISLE_POOL=$(printf '%q' "$(device_pool)")"

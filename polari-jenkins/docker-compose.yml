@@ -44,6 +44,21 @@ services:
       - CI_ISLE_NESTED=${CI_ISLE_NESTED:-auto}
       - CI_MIN_FREE_GB=${CI_MIN_FREE_GB:-20}
       - CI_MIN_RAM_HEADROOM_GB=${CI_MIN_RAM_HEADROOM_GB:-1}
+      # ci-3 — THE GUEST CYCLE's knobs. Environment, not device.env identity: they
+      # are about how long this controller waits for a product to install itself.
+      #   CI_ISLE_MODULES            what `isle core-install --modules` loads (default islemesh)
+      #   CI_ISLE_IMAGE_TAG          the tag the run's own images are re-tagged to in the guest
+      #   CI_ISLE_CORE_INSTALL_TMO_S core-install's own ceiling; 2400 s is ~2x the observed cold run
+      #   CI_ISLE_ONLINE_WAIT_S      how long to wait for the isle to ANSWER after that
+      #   CI_ISLE_BACKEND_CONTAINER  the isle's backend container the suites exec into
+      #   CI_ISLE_SELFTEST_CORE_LIMIT 0 = every core suite inside the isle
+      - CI_ISLE_MODULES=${CI_ISLE_MODULES:-islemesh}
+      - CI_ISLE_IMAGE_TAG=${CI_ISLE_IMAGE_TAG:-ci}
+      - CI_ISLE_CORE_INSTALL_TMO_S=${CI_ISLE_CORE_INSTALL_TMO_S:-2400}
+      - CI_ISLE_ONLINE_WAIT_S=${CI_ISLE_ONLINE_WAIT_S:-600}
+      - CI_ISLE_BACKEND_CONTAINER=${CI_ISLE_BACKEND_CONTAINER:-prf-isle-backend}
+      - CI_ISLE_SELFTEST_TIMEOUT_S=${CI_ISLE_SELFTEST_TIMEOUT_S:-300}
+      - CI_ISLE_SELFTEST_CORE_LIMIT=${CI_ISLE_SELFTEST_CORE_LIMIT:-0}
       # ci-9: the offline-first cache. CI_CACHE_DIR is deliberately left empty by
       # default so it resolves to <pool>/cache INSIDE the container (/var/polari-pool),
       # which is the same directory as polari-jenkins/pool/cache on the host.
