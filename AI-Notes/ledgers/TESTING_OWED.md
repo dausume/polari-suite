@@ -7099,3 +7099,69 @@ neither is in the core set.
 
 **Expected on the next `test` run: 88/88 core suites, 0 fail.** Nothing was
 triggered on the device — the promotion is his.
+
+### §76 addendum 5 — `readJSON` was never installed, and the verdict still went red
+
+`polari-test #37` is the first run that went the whole way: gate → checkout →
+whole-forest check → wipe → debs → images → **scans** (`critical=85 high=1594
+medium=4437 low=1854 unknown=456`) → **88 selftest suites** (80 pass, 8 fail) →
+`polari-isle-test #3` → **the verdict written** → the state marked covered. And
+then it went **FAILURE**, in its post block:
+
+```
+java.lang.NoSuchMethodError: No such DSL method 'readJSON'
+```
+
+`readJSON` comes from **pipeline-utility-steps, which is not in
+`casc/plugins.txt`** and has never been installed on this controller. The call
+had been latent since **ci-10** — `Jenkinsfile.isle-test` calls it twice per
+stage and no run had ever reached that code — and ci-12 was the first slice that
+got far enough to hit it, in three files at once.
+
+It mattered more than a stack trace: the job's colour is supposed to mean **did
+it run**, and a missing plugin turned a correctly recorded verdict into a red
+build. That is precisely the confusion §76 set out to avoid.
+
+**Fixed by removing the dependency, not by adding the plugin.** `jsonget.py` is
+the parser every other reader in this sub-project already uses — python3, a real
+file taking argv (`python3 - <<'PY'` feeds the SCRIPT on stdin, the trap this
+codebase has now hit four times). A missing field or an unreadable file is the
+default and **exit 0**: a pipeline reading an optional reading must not die
+because it is absent. ci-10's leak SENTENCE moved into it too, so the rendering
+and the reader can no longer drift. The selftest asserts that no `readJSON`
+CALL survives in any Jenkinsfile **and** that the plugin list still does not
+carry it, so the rule is not a coincidence.
+
+**A defect of my own, found the same way.** ci-12's new "the controller's copy
+of these scripts" doctor section assigned `$( … )` without `|| true`, so a
+container that would not answer ABORTED `doctor.sh` mid-section and truncated
+everything after it — the §70 gotcha, again. It was not its own tests that
+failed but two of the concurrent `pol jenkins isle authorize` ones, whose rows
+print further down. Worth remembering: under strict mode a doctor row that
+cannot read something must `continue`, never die, because what it takes down is
+the rows after it.
+
+**Where it left the branch.** `test` is at `04689bc` with its verdict recorded
+(`failed`, the eight core suites), and every tick since says *"04689bc7090b is
+exactly what the last run already covered — nothing to do"* — the queue idling
+for the right reason. The `jsonget` fix is deployed on the device and seeded
+into the jobs, so the next promotion's run is the first that can end in the
+colour it means. That promotion is blocked, correctly, by the sweep's clean-tree
+check while the `isle authorize` work is still uncommitted:
+
+```
+tree not clean (5 entries) — commit or stash first
+promotion STOPPED at . — nothing after it was touched
+```
+
+#### OWED, added
+
+7. **No `polari-test` run has yet ended SUCCESS.** #37 recorded a verdict and
+   went red on the `readJSON` throw; the fix is deployed but `test` has not
+   moved since, so the loop is idle on "already covered". The next promotion
+   proves the colour.
+8. **`casc/plugins.txt` is not asserted against what the Jenkinsfiles use.**
+   `readJSON` sat uninstalled and uncalled for two slices. A selftest that
+   extracted every DSL step the pipelines invoke and checked it against the
+   plugin list would have caught it at ci-10; today only `readJSON` itself is
+   pinned by name.
