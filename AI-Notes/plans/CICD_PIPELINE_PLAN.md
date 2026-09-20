@@ -898,3 +898,20 @@ could not run at all.
 The rest of the product findings are the isle CLI's and go to isle-core through
 `Isle-Mesh/NOTES-FROM-POL-CORE.md`, which is the contract channel.
 
+
+#### Proven on the hardware — `polari-isle-test` #10 / `polari-test` #226
+
+Five real runs on econ-core against a throwaway guest on isle-core. #7 ran the
+whole cycle and found three pipeline faults (ssh dying under `isle core-install`,
+a `set -u` multi-assignment `local`, and ssh eating a piped script's stdin); #10
+is the first with all three fixed, and it read every part:
+
+    install=True (573s to online)  verify=True  suites=87/88  uninstall=dirty
+    leaks clean (none)   RAM +34 MB, disk -358 MB
+    why  isle stage 1 did not pass — the core selftests inside the isle are fail
+
+The verdict is **`failed`**, correctly, and what it names is the product, not the
+pipeline: `polariRefs.selftest_refs` passes on the device and fails inside the
+installed isle, and `isle uninstall --everything` exits 0 while its own verify
+prints two `[✗]` rows. Both are owed; neither was papered over. That is ci-3
+working — the capability is done, and what remains on it is two bugs it found.
