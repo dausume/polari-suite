@@ -113,7 +113,9 @@ run install -d -o "$CI_USER" -g "$CI_USER" -m 0700 "$CI_SSH_DIR"
 if [ "$DRY" = 1 ]; then
     echo "  would: ssh-keygen -t ed25519 -C polari-ci@$CI_DEVICE_NAME -f $CI_KEY (if absent)"
 elif [ -s "$CI_KEY" ]; then
-    say "the pipeline user already has a key: $CI_KEY ($(ssh-keygen -lf "$CI_KEY.pub" 2>/dev/null | awk '{print $2}' || echo 'fingerprint unreadable'))"
+    # Only the PATH and the PUBLIC half's SHA256 fingerprint are printed (a hash of the public key — safe to
+    # show, and how `authorize` and the target will identify it). The private key is never read here.
+    say "the pipeline user already has a key at $CI_KEY — public-key fingerprint $(ssh-keygen -lf "$CI_KEY.pub" 2>/dev/null | awk '{print $2}' || echo 'unreadable') (the private half is never printed)"
 else
     say "creating the pipeline user's own ssh key — $CI_KEY (comment polari-ci@$CI_DEVICE_NAME)"
     ssh-keygen -t ed25519 -C "polari-ci@$CI_DEVICE_NAME" -f "$CI_KEY" -N "" -q
