@@ -71,8 +71,24 @@ CI_KEY="$CI_SSH_DIR/id_ed25519"
 # Everything under jenkins_home belongs to the pipeline user (0750), so this
 # shell usually cannot read the key or write the config. Elevate only when
 # that is actually true — in a sandbox (and as root) it is not.
-if [ -r "$CI_KEY.pub" ] && [ -w "$CI_SSH_DIR" ]; then PRIV=""; else PRIV="sudo"; fi
+if [ -r "$CI_SSH_DIR" ] && [ -w "$CI_SSH_DIR" ]; then
+    PRIV=""                               # ours already (a sandbox, or root)
+elif [ -r "$JH" ] && [ ! -e "$CI_SSH_DIR" ]; then
+    PRIV=""                               # visibly absent: no root needed to know there is no key
+else
+    PRIV="sudo"
+fi
 priv() { if [ -z "$PRIV" ]; then "$@"; else sudo "$@"; fi; }
+
+# …and if it cannot elevate, SAY THAT. Without this check a sudo that simply
+# refuses looks exactly like a key that was never created, and the verb would
+# send a person to `init-device` for a key they already have.
+if [ -n "$PRIV" ] && ! sudo -n true 2>/dev/null && [ ! -t 0 ]; then
+    fail "$CI_SSH_DIR belongs to $CI_USER; reading the pipeline user's key needs root, this shell has no passwordless sudo, and there is no terminal to ask on."
+    echo "  Run it at a terminal on that device (it asks for YOUR password once):" >&2
+    echo "    pol jenkins isle authorize $ALIAS" >&2
+    exit 2
+fi
 
 # ---------------------------------------------------- 1. the pipeline's key
 if ! priv test -s "$CI_KEY.pub" 2>/dev/null; then

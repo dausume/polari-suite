@@ -1718,6 +1718,15 @@ az() {   # az [env KEY=VAL…] -- <args…>  → OUT carries the output and rc=N
 }
 authkeys_lines() { wc -l < "$AZ/target/.ssh/authorized_keys" 2>/dev/null | tr -d ' ' || echo 0; }
 
+# --- it cannot elevate: that is NOT the same as "there is no key", and saying
+#     so would send a person to init-device for a key they already have
+mkdir -p "$AZ/nosudo"; printf '#!/bin/bash\nexit 1\n' > "$AZ/nosudo/sudo"; chmod +x "$AZ/nosudo/sudo"
+mkdir -p "$AZ/locked/.ssh"; chmod 0000 "$AZ/locked/.ssh"
+az JENKINS_HOME="$AZ/locked" PATH="$AZ/nosudo:$T/bin:$PATH" -- isle-alias
+has "no passwordless sudo and no terminal → it says THAT, not 'there is no key'" "no terminal to ask on" "$OUT"
+hasnt "  …and does not send you to init-device for a key you may already have" "sudo pol jenkins init-device" "$OUT"
+chmod 0700 "$AZ/locked/.ssh"
+
 # --- the key does not exist yet: it says the exact two commands, and stops
 az -- isle-alias
 has "authorize with no pipeline key → REFUSED, naming init-device"  "sudo pol jenkins init-device" "$OUT"
