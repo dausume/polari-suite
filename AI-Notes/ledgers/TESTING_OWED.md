@@ -7537,3 +7537,72 @@ fix each of those ten-minute ticks did a full checkout and ended red.
    `main` is untouched at `0ee38c6`; nothing was promoted to it.
 3. **`casc/plugins.txt` is still not asserted against the DSL steps the pipelines
    use** (addendum 5, OWED 8) — unchanged.
+## §77 — ci-3: the tests run inside the isle; the report; passed means passed
+
+His ask, 2026-09-20, verbatim:
+
+> *"make sure the overall functionality including getting the actual tests to
+> run and the reports built as well as turning them into pipeline stages …
+> finish out actual completion of the testing capability so we can be confident
+> when doing a deployment from test to main and in the end-result artifacts from
+> that."*
+
+ci-3 was the last marked TODO in this pipeline and the reason `partial` was the
+resting state of every verdict. `Jenkinsfile.isle-test` stood a throwaway isle
+up, proved it was a VM, and installed nothing in it; `core_ok` could therefore
+never become true, `promote main` always refused, and every route stayed DRY.
+Three mechanisms all agreeing, honestly, that nothing had been tested. This
+section is what replaced that.
+
+### What was built
+
+| file | what it is |
+|---|---|
+| `polari-jenkins/isle/payload.sh` | THE ARTIFACTS UNDER TEST, gathered: this run's core debs + `docker save` of this run's own images, with `images.txt` (name → ID) and `images.key` (the sha256 of the IDs). REFUSES when an image is not on the daemon rather than letting the guest pull a published one |
+| `polari-jenkins/isle/guest-install.sh` | the install, inside the guest: the prerequisites the deb does not depend on, `docker load`, `apt-get install ./polari-complete_*.deb`, the `.env` override at the compose SEED, `ISLE_ASSUME_YES=1 isle core-install --skip-security`, then the WAIT for the isle to answer. Plus `apps` — this stage's app debs |
+| `polari-jenkins/isle/guest-verify.sh` | the isle's own verification, from inside the guest: both routes, `/api/health` + the module count, the store, the router guest RUNNING under nested KVM, the three containers, the CA, and split DNS as its own row |
+| `polari-jenkins/isle/guest-selftests.sh` | the module selftests INSIDE `prf-isle-backend`, using `pol modules selftest`'s own discovery expression |
+| `polari-jenkins/isle/results.py` | THE ARITHMETIC, out of Groovy so a selftest can execute it |
+| `polari-jenkins/report.py` | `pool/test/<sha>/TEST_REPORT.md` — one page per commit |
+
+and, changed: `Jenkinsfile.isle-test` (the stage loop, each half a named
+stage), `Jenkinsfile.test` (renders the report), `Jenkinsfile.release`
+(`release.json` gains `tested_against`), `throwaway.sh` (four new verbs + the
+image-tarball cache), `build-images.sh` (the frontend the isle can actually
+run), `verdict.py`, `routes/_lib.sh`, `routes/github-release.sh`,
+`cicd-sync.sh`, `docker-compose.yml`, `device.env.example`, `doctor.sh`,
+`polari-cli` (`pol jenkins report`, `core_backend_container`), and the `cicd`
+module (`IsleTestResult` + `TestVerdict`).
+
+### The arithmetic, stated once
+
+    stage.core_ok  = install.ok
+                   AND verify.ok
+                   AND the uninstall verdict is `clean`
+                   AND, for a stage that ran the CORE suites, every core suite passed
+
+    results.core_ok = stage 1's core_ok
+
+    verdict `passed`  = built AND every device selftest passed AND every stage's
+                        core_ok AND every app a stage was configured to test passed
+    verdict `failed`  = something that RAN said no — and `why` names the FIRST
+                        failing part, not all of them
+    verdict `partial` = only a stage that could not run at all
+
+`install.ok` is deliberately NOT core-install's exit code. That script ends on
+an `echo` and has no explicit `exit`, so it returns 0 whatever happened;
+`install.ok` is the two HTTP 200s from inside the guest,
+`https://api.polari.isle/api/health` and `https://polari.isle/isle`, resolved to
+loopback the way the product's own scripts do it.
+
+### Tests
+
+`polari-jenkins/selftest.sh` **651 → 694**, including: the stage record's
+schema; the six single-term cases of the `core_ok` formula; a stage with NO
+readings at all (false, and it says the reading never came back, rather than
+defaulting to something survivable); the verdict rules (a failed install, a
+dirty hand-back, a failing app, a stage that could not run); the report rendered
+from fixtures; and the `released != tested` refusal.
+`modules/cicd/cicd_selftest.py` **217/217**, with the ci-10 fixtures updated to
+carry an install and a verify — since ci-3, a stage that claims a core has to
+have made one.

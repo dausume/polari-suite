@@ -97,7 +97,8 @@ if [ "$CI_ISLE_TARGET" = ssh ] && [ "${CI_ISLE_REMOTE:-0}" != 1 ]; then
     for k in CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_IMAGE_URL CI_MIN_FREE_GB CI_CACHE CI_CACHE_DIR CI_CACHE_MAX_GB CI_WIPE_TAG \
              CI_ISLE_SSH_WAIT_S CI_ISLE_IP_TRIES \
              CI_ISLE_MODULES CI_ISLE_IMAGE_TAG CI_ISLE_CORE_INSTALL_TMO_S CI_ISLE_ONLINE_WAIT_S \
-             CI_ISLE_BACKEND_CONTAINER CI_ISLE_SELFTEST_TIMEOUT_S CI_ISLE_SELFTEST_CORE_LIMIT; do
+             CI_ISLE_BACKEND_CONTAINER CI_ISLE_SELFTEST_TIMEOUT_S CI_ISLE_SELFTEST_CORE_LIMIT \
+             CI_ISLE_UNINSTALL_TMO_S; do
         ENVS="$ENVS $k=$(printf '%q' "${!k:-}")"
     done
     ENVS="$ENVS CI_ISLE_POOL=$(printf '%q' "$(device_pool)")"
@@ -228,6 +229,40 @@ guest_ssh() {  # guest_ssh <command…>
         -o LogLevel=ERROR -o ConnectTimeout=10 "$GUEST_USER@$ip" "$@"
 }
 
+
+# ci-3, found on the FIRST real install (isle-test #7, 2026-09-20): a guest
+# script that reconfigures the guest's own network CANNOT be run down a single
+# ssh pipe. `isle core-install` printed its whole log and its "ISLE CORE READY"
+# banner, and then the connection died before the script's next `echo` — so the
+# fenced `###…END` marker never arrived and the reading said "the guest could
+# not be reached", about an isle that was standing there fully working. The same
+# is true by construction of `isle uninstall --everything`, whose network
+# hand-back is the thing it is being tested for.
+#
+# So: write the script INTO the guest, start it DETACHED (setsid + nohup, stdin
+# closed, output to a file), and then poll with FRESH connections until its end
+# marker appears. A dropped connection becomes a failed poll and the next one
+# succeeds; the reading is a file, and a file survives the network.
+#
+#   guest_run_detached <tag> <end marker> <timeout s>   — script on stdin, log on stdout
+guest_run_detached() {
+    local tag="$1" marker="$2" tmo="${3:-2400}" dir="/home/$GUEST_USER/polari-ci-$tag"
+    local waited=0 step=15 last=""
+    guest_ssh "rm -rf $dir && mkdir -p $dir" >/dev/null 2>&1 || return 1
+    guest_ssh "cat > $dir/run.sh" || return 1
+    guest_ssh "cd $dir && setsid nohup bash run.sh > run.log 2>&1 < /dev/null & echo started" >/dev/null 2>&1 || return 1
+    say "$tag: running detached in the guest (it reconfigures the network, so the ssh session is not trusted to survive it)"
+    while [ "$waited" -lt "$tmo" ]; do
+        if guest_ssh "grep -q '$marker' $dir/run.log" >/dev/null 2>&1; then break; fi
+        sleep "$step"; waited=$((waited + step))
+        # a heartbeat, so a twenty-minute step is legible while it happens
+        if [ $((waited % 60)) = 0 ]; then
+            last="$(guest_ssh "grep -a '^###STEP ' $dir/run.log 2>/dev/null | tail -1" 2>/dev/null || true)"
+            say "$tag: ${waited}s — ${last:-(the guest is not answering right now; that is expected while it re-does its own network)}"
+        fi
+    done
+    guest_ssh "cat $dir/run.log" 2>/dev/null || true
+}
 
 fetch_base() {
     mkdir -p "$IMAGES"

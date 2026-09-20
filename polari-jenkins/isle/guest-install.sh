@@ -40,6 +40,17 @@
 # a prereq that would not install, a deb that would not unpack, core-install
 # exiting non-zero — is recorded with its reason and the log tail, and
 # `core_ok` stays false.
+#
+# AND IT DOES NOT RUN DOWN AN SSH PIPE. Found on the first real install
+# (isle-test #7, 2026-09-20): `isle core-install` printed its entire log and its
+# "ISLE CORE READY" banner, and then the connection died before the script's
+# very next `echo`. The fenced end marker never arrived, so the reading said
+# "the guest could not be reached" — about an isle that was standing there with
+# all eight verify checks passing. The step reconfigures the guest's own network;
+# the session it is run over is exactly what it is most likely to take down.
+# So the script is written INTO the guest, started detached, and its log is
+# polled with fresh connections (throwaway.sh's guest_run_detached), which also
+# makes the twenty-minute wait legible while it happens.
 
 # ---------------------------------------------------------------- the guest half
 # $1 = the directory the payload was copied to, inside the guest
@@ -257,7 +268,12 @@ install_do() {   # install_do <payload dir on THIS machine> [<json out>] [<stage
             say "the payload could not be copied into the guest"
             raw=""; reached=no
         else
-            raw=$(_install_guest_script "$gdir" "$modules" | guest_ssh 'bash -s' 2>&1) || true
+            # DETACHED, not down a pipe: `isle core-install` kills the ssh
+            # session it is run over (isle-test #7 — see throwaway.sh's
+            # guest_run_detached for what that looked like).
+            raw=$(_install_guest_script "$gdir" "$modules" \
+                  | guest_run_detached install '###POLARI-INSTALL-END' \
+                        "$(( ${CI_ISLE_CORE_INSTALL_TMO_S:-2400} + ${CI_ISLE_ONLINE_WAIT_S:-600} + 900 ))" 2>&1) || true
             case "$raw" in *POLARI-INSTALL-END*) reached=ok ;; *) reached=no ;; esac
             # the payload STAYS in the guest: the `apps` verb is a second ssh
             # hop with its own scratch directory on the target, so the only

@@ -813,3 +813,88 @@ by those runs and fixed — the four worth carrying forward as rules:
 5. **A file bind mount binds an inode.** `git pull` writes a new file, so a
    container can run code that was replaced hours ago. The doctor now says when
    the container's copy and the checkout's differ.
+### 9f. ci-3 — the testing capability, completed: the tests run INSIDE the isle, and the run renders one report (his ask 2026-09-20; BUILT, ledger §77)
+
+His ask, verbatim: *"make sure the overall functionality including getting the
+actual tests to run and the reports built as well as turning them into pipeline
+stages … finish out actual completion of the testing capability so we can be
+confident when doing a deployment from test to main and in the end-result
+artifacts from that."*
+
+ci-3 was the last marked TODO in the pipeline and the reason every verdict was
+`partial`: `Jenkinsfile.isle-test` stood a throwaway isle up, proved it was a
+VM, and then installed nothing. What follows is what now happens inside it.
+
+**Each half is a NAMED stage.** Per isle stage N: `app debs` · `payload` ·
+`throwaway up` · `install core` · `verify isle` · `install apps` · `selftests` ·
+`uninstall (the product's own)` · `down + wipe` · `leak check`. A run reads as a
+list of things that either happened or did not, and each one records a file.
+
+**What is installed is THE ARTIFACTS UNDER TEST, not a published release.**
+`isle/payload.sh` gathers the run's own core debs and `docker save`s the run's
+own images. It REFUSES when an image is not on the daemon rather than letting
+the guest `docker pull` — a verdict about an image we did not build is not a
+verdict. The image IDs travel into `results.json`, and `routes/_lib.sh` refuses
+a release whose published IDs are not the tested ones (`released != tested`).
+
+**The install is the isle route, as a person would do it** — `isle/guest-install.sh`:
+the prerequisites `polari-complete` does NOT depend on (docker, libvirt,
+dnsmasq), the images loaded and re-tagged under `localhost/`, `apt-get install
+./polari-complete_*.deb`, the `.env` override written at the compose SEED
+(`/usr/share/isle-mesh/polari-isle/.env`, because the deploy copies that seed
+into `~/polari-isle` on FIRST run only), then
+`sudo ISLE_ASSUME_YES=1 isle core-install --skip-security`, and then the WAIT
+for the isle to answer. `install.ok` is the two HTTP 200s, never core-install's
+exit code — that script ends on an `echo` and so exits 0 whatever happened.
+
+**The verify is the isle's own** — `isle/guest-verify.sh`, from inside the
+guest: both routes 200, `/api/health` with its module count, the store's
+catalogue door, the router guest RUNNING under nested KVM, the three
+containers, the CA. Split DNS is its own row so a DNS failure is named as DNS.
+
+**The tests are the SAME suites, in the installed product** —
+`isle/guest-selftests.sh` uses `pol modules selftest`'s own discovery
+expression and `docker exec prf-isle-backend python3 -m <dotted>`. The device
+selftests (`selftests.sh`) still run too; these are the second reading, in the
+thing that was installed.
+
+**The arithmetic left Groovy.** `isle/results.py` owns it, so a selftest can
+execute it:
+
+    stage.core_ok = install.ok AND verify.ok AND the uninstall verdict is `clean`
+                    AND, for a stage that ran the CORE suites, every core suite passed
+    results.core_ok = stage 1's
+
+**The report.** `report.py` renders `pool/test/<sha>/TEST_REPORT.md`: the
+verdict and why, the debs with their sha256, the image IDs installed, the
+advisory scan counts and top findings, the device selftests, and per isle stage
+the install time-to-online, the verify details, the suites that ran inside the
+product, the uninstall verdict with the product's own findings, and the leak
+diff. `pol jenkins report [<sha>]` prints it through the controller;
+`pol jenkins test-status` names its path; `routes/github-release.sh` attaches it
+with `SCAN_SUMMARY.md` and `verdict.json`, and `release.json` gains
+`tested_against: {sha, verdict, images, report}`.
+
+**`partial` stopped being the resting state.** `verdict.py`'s ci-3 apology is
+gone. `failed` names the FIRST failing part; `partial` is only for a stage that
+could not run at all.
+
+#### Two product-shaped findings the BUILD itself turned up
+
+1. **Every release so far published a frontend image no isle could run.**
+   `build-images.sh` built `prf-frontend:staging` from `Dockerfile` — the DEV
+   image: `node:20`, `ng serve`, 4.07 GB. `Isle-Mesh/polari-isle/docker-compose.yml`
+   mounts `runtime-config.json` into `/usr/share/nginx/html/assets/` and caps the
+   service at `mem_limit: 128m`. The dev image has neither the path nor a chance
+   of starting in 128 MB. It now builds `Dockerfile.prod` (nginx, 86.7 MB), which
+   is also what makes the image payload small enough to move over the wire.
+2. **`pol modules selftest` could not find an isle's backend.**
+   `core_backend_container()` matched `prf-backend` and `polari-node_backend`
+   exactly, never `prf-isle-backend` — so on a machine installed from
+   `polari-complete` it died advising `pol suite up / pol node up`, which an isle
+   is neither. Fixed in `polari-cli`. (The pipeline's own runner still cannot use
+   it: `pol` is not installed by `polari-complete` at all.)
+
+The rest of the product findings are the isle CLI's and go to isle-core through
+`Isle-Mesh/NOTES-FROM-POL-CORE.md`, which is the contract channel.
+

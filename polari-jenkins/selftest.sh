@@ -1013,6 +1013,22 @@ has "  …and exec into the isle's own backend container, not a bare docker run"
     "prf-isle-backend" "$(cat "$J/isle/guest-selftests.sh")"
 has "payload.sh REFUSES rather than letting the guest pull a published image" \
     "it never falls back to a" "$(cat "$J/isle/payload.sh")"
+# ci-3, found on the FIRST real install (isle-test #7): a guest script that
+# re-does the guest's own network cannot be run down a single ssh pipe. Both the
+# install and the uninstall do exactly that, so both run detached and both read
+# a FILE the guest wrote.
+has "the guest cycle runs DETACHED, because the product takes the ssh session down" \
+    "setsid nohup bash run.sh" "$TWAY"
+has "  …and polls with FRESH connections until the fenced end marker appears"  "grep -q " "$TWAY"
+has "the install uses it"    "guest_run_detached install"   "$(cat "$J/isle/guest-install.sh")"
+has "  …and so does the uninstall, whose network hand-back is the thing under test" \
+    "guest_run_detached uninstall" "$(cat "$J/isle/guest-uninstall.sh")"
+hasnt "  …and the uninstall does not pipe a script into a single ssh any more" \
+    "guest_ssh 'bash -s'" "$(cat "$J/isle/guest-uninstall.sh")"
+# the two that do NOT touch the network still use the pipe, and that is right:
+# a detached run costs a poll loop, and verify/selftests finish in seconds.
+has "verify and the in-isle selftests still use the simple pipe — they change nothing" \
+    "guest_ssh 'bash -s'" "$(cat "$J/isle/guest-verify.sh")"
 
 # ------------------------------------------ the preflight refuses residue
 has "the preflight names the wipe as the fix"                  "pol jenkins isle wipe"         "$(cat "$J/isle/preflight.sh")"

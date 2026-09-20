@@ -173,7 +173,13 @@ uninstall_do() {   # uninstall_do [<json out path>] [<stage label>]
         say "no domain '$CI_ISLE_VM_NAME' — nothing to uninstall inside"
         raw=""; reached=no
     else
-        raw=$(_guest_script | guest_ssh 'bash -s' 2>&1) || true
+        # ci-3: DETACHED, for the same reason the install is — and here the
+        # reason is the point of the test. `isle uninstall --everything` ends in
+        # a NETWORK HAND-BACK, so the ssh session it is run over is exactly what
+        # it is most likely to take down with it. Reading a file the guest wrote
+        # is the only way to see what the hand-back said about itself.
+        raw=$(_guest_script | guest_run_detached uninstall '###POLARI-UNINSTALL-END' \
+                  "${CI_ISLE_UNINSTALL_TMO_S:-1800}" 2>&1) || true
         case "$raw" in *POLARI-UNINSTALL-END*) reached=ok ;; *) reached=no ;; esac
     fi
     printf '%s\n' "$raw"
