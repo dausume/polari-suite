@@ -7697,3 +7697,56 @@ change paid for itself twice: `prf-frontend:staging` went from **4.07 GB to 131 
 tarball is cached on the target under its image IDs, so a run that rebuilt identical images transfers
 nothing — though BuildKit does not make a rebuild after `docker image rm` bit-identical, so in practice the
 cache helps a re-run, not the next commit.
+
+### §77 addendum 2 — polariRefs inside the isle
+
+The first of §77's two faults is closed, and it was **(a) a test-environment assumption, not a product
+bug**. The evidence is one line:
+
+    polariRefs/selftest_refs.py:77   os.environ.setdefault('POLARI_INSTANCE_ID', 'a')
+
+and one it never consulted:
+
+    polariRefs/ref_format.py:47      iid = (os.environ.get('POLARI_INSTANCE_ID') or 'a').strip()
+
+`local_identity()` is where the ladder learns who "this instance" is, and `resolver.py:61
+_is_local_instance` is the rung that routes `authority.instance` local-or-remote from it. On the host
+nothing sets `POLARI_INSTANCE_ID`, so the `setdefault` wins and the suite's hard-coded `'a'` *is* this
+instance. Inside the installed isle it does not: `Isle-Mesh/polari-isle/docker-compose.yml` starts
+`prf-isle-backend` with `POLARI_INSTANCE_NAME=prf-isle` and `POLARI_INSTANCE_ID=isle`, the `setdefault`
+is a no-op, and `'a'` becomes a *peer*. Both failing checks then did exactly the right thing: the local
+rung declined, the ref rode on to rung 3/4 and refused naming `PeerAgreement`. The ladder was correct;
+the suite was the thing that believed it knew its own name.
+
+Reproduced on the host before touching anything, which is the part worth keeping:
+
+    POLARI_INSTANCE_ID=isle POLARI_INSTANCE_NAME=prf-isle \
+      PYTHONPATH=.:modules python3 polariRefs/selftest_refs.py   →  49/51
+
+the same two lines the pool carried for run #226 / isle-test #10, verbatim — `authority instance 'a'
+(this instance) resolves locally` and `authority ref through resolve_binding rides the ladder`. No other
+check moved, which is itself the confirmation: every peer-facing check ('b' stays two objects, the
+peer's different value, the uninstalled class hydrating from the peer registry, the rung-4 fall-through)
+is indifferent to what *we* are called.
+
+**The fix is in the suite, and it is environment-honest.** `selftest_refs.py` now reads `LOCAL_ID` from
+`local_identity()` — the same call the resolver makes — so the local-authority checks follow the
+process's real identity instead of asserting a default. A precondition check states the assumption out
+loud rather than assuming it (`the suite's stand-in peers 'b'/'c' are not this instance ('<id>')`).
+
+**And the host now covers the isle's shape, which is the actual lesson.** A suite that only ever runs as
+the default node name cannot see this class of defect at all — that is why it took the in-isle stage to
+find it. `_isle_shape_rungs()` re-runs both local-authority rungs with `POLARI_INSTANCE_ID` /
+`POLARI_INSTANCE_NAME` deliberately changed (and restored in a `finally`), proving both directions: the
+new name resolves locally through `resolve_ref` *and* through `resolve_binding`, and the name that was
+this instance a moment ago is now a peer that refuses naming the join flow. On a host run the renamed
+identity is the isle's; run inside the isle it renames the other way, so neither environment is the
+privileged one. Three checks, and the host reading would now fail if the isle's reading would.
+
+    host (default 'a')              55/55
+    POLARI_INSTANCE_ID=isle …       55/55   (was 49/51)
+    all 88 core suites under the isle's env   88/88
+    security_selftest 296/299 · cicd_selftest 217/217 · pol modules conform --all 62/62
+
+The 51 → 55 is the four new checks. Run #226's named reason is gone; what is left of §77 is the
+uninstall, which is isle-core's.
