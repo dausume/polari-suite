@@ -324,6 +324,19 @@
    ]
   },
   {
+   "id": "pipeline",
+   "title": "Pipeline",
+   "blurb": "The build-test-release pipeline: the branch model, setup, tokens, day-to-day operation, and what it cannot do yet.",
+   "pages": [
+    {
+     "href": "docs/pipeline-guide.html",
+     "title": "The Polari pipeline — an operator's guide",
+     "gist": "dev iterate, test decide, main release: setup by CLI or as a desktop app, the two publish tokens and where they go, day-to-day operation, and today's known limits.",
+     "source": "AI-Notes/guides/PIPELINE_GUIDE.md"
+    }
+   ]
+  },
+  {
    "id": "reference",
    "title": "Reference",
    "blurb": "Lookup, not reading: remote access, environment configuration, the AI-facing surface.",
