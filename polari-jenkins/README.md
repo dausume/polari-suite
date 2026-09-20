@@ -450,12 +450,28 @@ polari-jenkins/
 ├── pool/                     build output on the host (gitignored): pool/<polari-version>/…
 └── secrets/                  AUTH MATERIAL — gitignored except README + *.example
     ├── admin/                jenkins_admin_password
-    ├── github/               github_token (releases), github_ssh_key (optional)
-    ├── registries/           ghcr_token (dockerhub_* = parked)
+    ├── github/               release_token (the release pool + the homebrew tap), registry_token (the container registry), github_ssh_key (optional)
+    ├── registries/           (dockerhub_* = parked)
     ├── signing/              apt_signing_gpg (armored private key), apt_signing_keyid, cosign_key, cosign_password
     ├── packaging/            (parked routes) npm_token, pypi_token, snapcraft_login, launchpad_ssh_key — not declared to Jenkins today
     └── ssh/                  distribution_host_key (deploy key for the apt/downloads VM)
 ```
+**The names say what the token is FOR, and every listing says where it GOES**
+(ci-12, his ask). `github/release_token` is the fine-grained PAT that creates
+the release and pushes the tag; `github/registry_token` is the classic PAT that
+writes packages — a fine-grained token cannot. `pol jenkins secrets status`, the
+doctor's route rows and the setup all print
+`name — destination — routes — present/absent`, and the **destination is
+rendered from `routes/destinations.sh`** — the very constants the route scripts
+push to, so a listing cannot promise something a route does not do, and in APP
+mode it names the developer's own namespace rather than upstream's. `bash
+polari-jenkins/routes/destinations.sh` prints the table on its own.
+
+The pre-ci-12 names (`github/github_token`, `registries/ghcr_token`) are still
+read by every route; the doctor WARNs once with the exact rename, and
+`sudo pol jenkins secrets mv <old> <new>` does it in place, keeping mode and
+owner — the value never passes through the shell.
+
 Each secret is ONE FILE whose name is the variable Jenkins sees (mounted at
 `/run/secrets`, read by Configuration as Code as `${name}`). Missing files
 are fine: the credential exists with an empty value, the route stays DRY and
@@ -486,8 +502,8 @@ pol jenkins target ssh <alias>      # another device over ssh (an ALIAS, never a
 pol jenkins stages                  # CI_ISLE_STAGES — what may ever be released
 
 # 4. the secrets (value from stdin — never a shell argument)
-pol jenkins secrets put github/github_token
-pol jenkins secrets put registries/ghcr_token
+pol jenkins secrets put github/release_token    # fine-grained PAT: Contents read+write on the release repo AND the tap
+pol jenkins secrets put github/registry_token   # CLASSIC PAT: write:packages + read:packages
 
 # 5. the controller
 pol jenkins up                      # UI at http://127.0.0.1:8080; runs the doctor afterwards
