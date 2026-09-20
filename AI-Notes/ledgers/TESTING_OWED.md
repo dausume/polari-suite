@@ -7165,3 +7165,117 @@ promotion STOPPED at . — nothing after it was touched
    extracted every DSL step the pipelines invoke and checked it against the
    plugin list would have caught it at ci-10; today only `readJSON` itself is
    pinned by name.
+
+### §76 addendum 3 — the pipeline user's key to the isle target
+
+§76 addendum 2 closed with OWED 5: *"the controller cannot reach `isle-core`
+any more … the ssh key that the hop needs is the previous user's."* Closing it
+turned up a second, larger half of the same gap that no key would have fixed.
+
+#### The shape of the fix
+
+**The pipeline user owns its own key.** `sudo pol jenkins init-device` now also
+creates `jenkins_home/.ssh/id_ed25519` (`0600`, `polari-ci`, comment
+`polari-ci@<CI_DEVICE_NAME>` — the device's chosen name, never a hostname).
+The controller's `HOME` *is* `jenkins_home`, so inside it a plain `ssh <alias>`
+finds that key, that `config` and that `known_hosts`; **nothing in `device.env`
+changed**, and every target-exec path (`on_target`, `throwaway.sh`,
+`preflight.sh`, `leakcheck.sh`) picks it up for free. The interactive user's
+key stays theirs, and the CLI-from-a-shell path is untouched.
+
+**One new verb authorises it**, run by the person who already reaches the
+target — `pol jenkins isle authorize [<alias>]` (`isle/authorize.sh`, new;
+`isle-authorize` in the verb allowlist, `privileged: true`, so a front end only
+ever *describes* it). It:
+
+1. reads the pipeline user's **public** key (sudo only when it must — and if it
+   can neither elevate nor ask, it says *that*, instead of reporting a key that
+   is merely unreadable as a key that was never made);
+2. resolves the alias with `ssh -G <alias>`, so the controller's entry is the
+   **same destination the person proved**, not a second description of it;
+3. `ssh-keyscan`s the resolved HostName and **verifies every fingerprint
+   against that person's own `known_hosts`** — a mismatch, or nothing to
+   compare against, **refuses** and writes nothing. A scan on its own is no
+   better than `StrictHostKeyChecking=no`, and authorising at that moment is
+   exactly how a MITM would be made permanent;
+4. appends the key to the target's `authorized_keys` **through the working
+   alias** (a second run adds nothing);
+5. writes `jenkins_home/.ssh/{config,known_hosts}`, `polari-ci` `0600`, never
+   tracked — the address lives in `~/.ssh/config` and there only;
+6. proves it with `docker exec polari-jenkins ssh -o BatchMode=yes <alias>
+   true`, and refuses to run under `sudo` (root's `~/.ssh` is a different file,
+   and `init-device` — which *does* need sudo — names this verb in its own
+   closing advice).
+
+Step 5 of `pol jenkins setup` offers it, and two doctor rows report it —
+**about the pipeline's hop, not your shell's**: `controller → isle target` and
+`controller target sudo -n`, both read through the controller itself.
+
+#### The half a key could never have fixed (found live, econ-core)
+
+The very first run of the new doctor row on the pipeline device answered:
+
+```
+WARN  controller → isle target — the pipeline user cannot reach isle-core
+      (No user exists for uid 999)
+```
+
+Compose starts the controller as the **host's** `polari-ci` uid, which the
+image knew nothing about. `ssh` calls `getpwuid()` and dies before it parses an
+argument — `docker exec polari-jenkins ssh -V` failed with the same line. **No
+key, config or `known_hosts` could ever have helped: the isle hop was
+impossible from inside the container, and had been since `init-device` first
+ran.** The image now takes `JENKINS_UID`/`JENKINS_GID` as build args (compose
+passes what `init-device` wrote into `.env`) and carries a passwd entry for
+that uid whose home is `/var/jenkins_home` — `ssh` expands `~/.ssh` from
+`pw_dir`, **not** from `$HOME`, so the home is the load-bearing half. Proven on
+econ-core after `pol jenkins up`:
+
+```
+polari-ci:x:999:999::/var/jenkins_home:/usr/sbin/nologin
+OpenSSH_10.0p2 Debian-7+deb13u4
+```
+
+The doctor reports that cause **separately**, because its fix is the rebuild
+and not `authorize`.
+
+#### What ran, and what is left to him
+
+`bash polari-jenkins/selftest.sh` — **598/598** (535 before this slice), on
+this machine and on econ-core, with no docker, libvirt, sudo or network:
+authorize refusing before `init-device` has made a key, the `config` rendered
+from `ssh -G`, a second run adding nothing to `authorized_keys`, to the
+controller's `config` or to its `known_hosts`, a host key that is not the one
+the person's `known_hosts` trusts refused with both fingerprints and nothing
+written, no reference to verify against also refused, the sudo refusal, the
+`JENKINS_UID` build arg and the passwd entry, and the two doctor rows with
+their two different fixes.
+
+On econ-core, for real, as a user **without** sudo:
+
+| what | result |
+|---|---|
+| `pol jenkins isle authorize isle-core` | refused, precisely: *"jenkins_home/.ssh belongs to polari-ci; reading the pipeline user's key needs root, this shell has no passwordless sudo, and there is no terminal to ask on"* (exit 2) |
+| `pol jenkins up` (rebuild) | the passwd entry live, `ssh -V` working inside the controller for the first time |
+| `pol jenkins doctor` | `controller → isle target` moved from *"No user exists for uid 999"* to *"Could not resolve hostname isle-core"* — the alias has no entry in the controller's `config` **yet**, which is exactly what `authorize` writes, and the row names it |
+
+**HIS, two commands at a terminal on econ-core** (the first needs root, the
+second must NOT be run with sudo):
+
+```
+sudo pol jenkins init-device          # idempotent; it now also makes the key
+pol jenkins isle authorize isle-core  # as yourself, through your own alias
+```
+
+Then `pol jenkins doctor` should read `controller → isle target` OK, and
+`pol jenkins preflight --isle` should read `target reachable … PASS` again —
+which is the one thing standing between the isle stages and a verdict better
+than `partial`.
+
+#### OWED, added
+
+9. **`pol jenkins isle authorize` has never been run end to end.** Every part
+   of it is proven — against a real ed25519 pair, a real `ssh-keygen -F`
+   comparison and a real `authorized_keys` append — but only against shims.
+   The first true run is his, above, and it is the only step of the isle arc
+   still unproven on hardware.

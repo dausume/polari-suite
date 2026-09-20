@@ -1811,6 +1811,14 @@ has "doctor: and the target sudo of the PIPELINE user's login is a row too" \
     "has passwordless sudo" "$(FAKE_CONTAINERS=polari-jenkins doc)"
 has "doctor: that login without NOPASSWD names the step that writes the drop-in" \
     "setup --step isle" "$(FAKE_CONTAINERS=polari-jenkins FAKE_CTR_SUDO_RC=1 doc)"
+# --- and it refuses sudo, because `init-device` (which does need sudo) names
+#     it in its own closing advice and the habit would carry over
+AZSRC="$(cat "$J/isle/authorize.sh")"
+has "authorize refuses to run under sudo — root's ~/.ssh is a different file" \
+    'id -u)" = 0 ] && [ -n "${SUDO_USER' "$AZSRC"
+has "  …and the isle verbs route it to the person, not through the controller" \
+    "authorize" "$(cat "$J/../polari-cli/scripts/jenkins.sh")"
+
 # --- the OTHER half of the same gap, found live on econ-core: a key is no use
 #     if ssh cannot even start. The image must know the uid it is run as.
 DKF="$(cat "$J/controller/Dockerfile")"

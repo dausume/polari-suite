@@ -64,6 +64,16 @@ esac
 say()  { printf '[authorize] %s\n' "$*"; }
 fail() { printf '[authorize] REFUSED: %s\n' "$*" >&2; }
 
+# `init-device` needs sudo, and this verb is the next line of its own advice —
+# so it will be typed with sudo. It must not be. Root's ~/.ssh is a different
+# file: the alias, the key and the known_hosts this copies THROUGH are the
+# person's, and under sudo none of them is in scope.
+if [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ]; then
+    fail "run this as yourself, NOT with sudo — it copies through the alias in YOUR ~/.ssh/config, and root's is a different file."
+    echo "    pol jenkins isle authorize $ALIAS        (it will ask for your password if it needs root)" >&2
+    exit 2
+fi
+
 JH="${JENKINS_HOME:-$J/jenkins_home}"
 CI_SSH_DIR="$JH/.ssh"
 CI_KEY="$CI_SSH_DIR/id_ed25519"
