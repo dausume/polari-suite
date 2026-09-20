@@ -7279,3 +7279,56 @@ than `partial`.
    comparison and a real `authorized_keys` append — but only against shims.
    The first true run is his, above, and it is the only step of the isle arc
    still unproven on hardware.
+
+### §76 addendum 6 — the run the brief predicted: SUCCESS, verdict `partial`
+
+`polari-test #47` (2026-09-20, econ-core, **8 min 2 s**) is the first run to end
+in the colour it means:
+
+```
+Finished: SUCCESS
+
+TEST VERDICT — PARTIAL  (test)
+  sha        5c081dc57d16b27229b646849e062ba0606856d8
+  why        the isle stages left no results.json — nothing was tested in a throwaway isle
+  selftests  88 suite(s): 88 pass, 0 fail   modules: core=pass
+  isle       NO results  core_ok=False  stages=0  uninstall: none
+  scans      critical=85 high=1594 low=1854 medium=4437 unknown=456   (ADVISORY — no finding changes this verdict)
+```
+
+Everything the brief expected, and each part for its own reason:
+
+* **`partial`, not `failed`** — the eight core suites that failed on the first
+  tested sha are fixed (addendum 4), so all **88 pass**. What is left is the
+  isle half, which is ci-3 plus the pipeline user's key (addendum 3): the stages
+  produced no `results.json`, and the verdict says exactly that in words.
+* **`partial` is not a pass**, so `pol jenkins promote main` **REFUSED**,
+  repeating the verdict's own reason rather than a generic one:
+
+  ```
+  [promote] origin/test is at 5c081dc57d16; its recorded test verdict is: partial
+  [promote] REFUSED: … the test verdict for this sha is partial, not passed.
+  [promote]   the isle stages left no results.json — nothing was tested in a throwaway isle
+  ```
+* **The job is SUCCESS** even though the verdict is not a pass, and even though
+  the inner `polari-isle-test #4` went FAILURE. That is the rule §76 set out to
+  make true — *the colour says whether it RAN; the verdict says what it found* —
+  and it is the first run where it is observable, because the `readJSON` throw
+  (addendum 5) had been turning recorded verdicts red.
+* **85 criticals changed nothing.** The scan counts are identical to #34's and
+  the verdict turned on the isle half alone.
+
+The whole ci-12 loop is now demonstrated end to end on real hardware: promote →
+poll → quiet window → wipe → build → advisory scans → module selftests → isle
+stages → ONE verdict → the release rule refusing on it.
+
+#### OWED, closed and remaining
+
+* ~~OWED 7 (addendum 5): no run had ended SUCCESS.~~ **Closed by #47.**
+* ~~The eight core suites.~~ **Closed** (addendum 4) — 88/88.
+* **Still open: the isle half.** `polari-isle-test #4` fails at its preflight,
+  and until it can stand a throwaway isle up no sha can reach `passed`, so
+  nothing can be released. That is ci-3 plus the pipeline user's key to the isle
+  device — the two remaining things between this pipeline and an artifact.
+* **Still open: `casc/plugins.txt` is not asserted against the DSL steps the
+  pipelines use** (addendum 5, OWED 8).
