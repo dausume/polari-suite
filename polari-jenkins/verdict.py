@@ -208,9 +208,12 @@ def show(doc):
     print('  scans      %s   (ADVISORY — no finding changes this verdict)'
           % (' '.join('%s=%s' % (k, v) for k, v in sorted(sc.items()) if v) or 'nothing found'))
     for row in (isle.get('stage_rows') or []):
-        print('    stage %-2s %-18s install=%s (%ss to online)  verify=%s  suites=%s/%s  uninstall=%s'
+        tto = row.get('time_to_online')
+        print('    stage %-2s %-18s install=%s (%s)  verify=%s  suites=%s/%s  uninstall=%s'
               % (row.get('index'), (', '.join(row.get('apps') or []) or 'core only')[:18],
-                 row.get('install_ok'), row.get('time_to_online'), row.get('verify_ok'),
+                 row.get('install_ok'),
+                 ('%ss to online' % tto) if tto is not None else 'never came online',
+                 row.get('verify_ok'),
                  (row.get('selftests') or {}).get('pass', 0), (row.get('selftests') or {}).get('suites', 0),
                  row.get('uninstall')))
     if doc.get('report_path'):

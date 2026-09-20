@@ -74,6 +74,12 @@ for M in $MODULES; do
         echo "###SUITE $M|$S|$ST|$RC|$SEC"
         if [ "$ST" = fail ]; then
             echo "###SUITELOG-BEGIN $S"
+            # the FAILING checks by name FIRST — a plain tail put 49 passing
+            # lines in front of them on the first real run and showed neither
+            # of the two that mattered (polari-isle-test #7) — then the tail,
+            # for the traceback or the summary line.
+            printf '%s\n' "$OUT" | grep -aiE 'FAIL|Traceback|Error|assert' | head -20
+            echo "--- (tail)"
             printf '%s\n' "$OUT" | tail -25
             echo "###SUITELOG-END"
         fi

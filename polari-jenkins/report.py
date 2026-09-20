@@ -188,6 +188,10 @@ def render(run_dir):
         failing = sorted(k for k, st2 in (s.get('selftests') or {}).items() if st2 != 'pass')
         for k in failing:
             a('              FAIL %s' % k)
+            # the failing CHECKS by name, not just the suite's. A report that
+            # says "one suite failed" and nothing else sends a person to a log.
+            for line in (s.get('selftest_logs') or {}).get(k, [])[:8]:
+                a('                   %s' % str(line)[:110])
         if s.get('results'):
             a('    apps      %s' % ', '.join('%s=%s' % kv for kv in sorted(s['results'].items())))
         a('    uninstall %s' % s.get('uninstall_verdict'))

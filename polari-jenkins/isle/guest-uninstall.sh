@@ -133,6 +133,15 @@ COMPLAINT = re.compile(r'\[✗\]|footprint remains|remaining:|still present|may 
 findings = [l.strip() for l in log.splitlines() if COMPLAINT.search(l)]
 findings += ['hand-back proof: %s — %s' % (p['check'], p['detail'])
              for p in proofs if p['verdict'] == 'fail']
+# `--everything` ends with its own zero-footprint sweep and `--verify` then runs
+# the SAME sweep, so every complaint arrives twice. Recorded once, in order: a
+# duplicate is not a second finding, and a report that says "8 findings" when
+# there are four is a report nobody will trust the next number in.
+_seen, _once = set(), []
+for _f in findings:
+    if _f not in _seen:
+        _seen.add(_f); _once.append(_f)
+findings = _once
 
 installed = fields.get('installed') == '1'
 rc_ev = fields.get('rc_everything', '')

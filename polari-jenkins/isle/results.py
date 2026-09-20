@@ -128,6 +128,9 @@ def build_stage(run_dir, index, apps, started='', finished='', error='',
                             'pass': int(counts.get('pass') or 0),
                             'fail': int(counts.get('fail') or 0)},
         'selftests_why': st.get('why', ''),
+        # the first lines of each failing suite's own output, so the report can
+        # name the failing CHECKS and not merely the failing suite
+        'selftest_logs': {k: [str(x) for x in v[:8]] for k, v in (st.get('failing_logs') or {}).items()},
         'selftest_backend_image': st.get('image', ''),
         'core_selftests': core_selftests,
         'app_install': {'ok': bool(appi.get('ok')), 'why': appi.get('why', '')} if apps else {},
