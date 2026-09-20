@@ -1496,6 +1496,15 @@ has "pool.sh reads THROUGH the controller — the pipeline process reading its o
 has "promote.sh uses it rather than cat" "pool_read" "$(cat "$J/promote.sh")"
 has "  …and pol jenkins test-status too" "pool_read" "$(cat "$J/../polari-cli/scripts/lib/jenkins-device.sh")"
 
+# ---- a FILE bind mount binds an INODE, and `git pull` writes a new file. The
+# container then serves the OLD script while the checkout holds the fix — which
+# is exactly what happened on the pipeline device: three runs in a row behaved
+# like code that had already been replaced. The doctor now says so.
+has "the doctor checks that the container is running THIS checkout's scripts" \
+    "controller scripts" "$(cat "$J/doctor.sh")"
+has "  …and names the reason, not just the symptom" "binds an inode" "$(cat "$J/doctor.sh")"
+has "  …and the fix" "pol jenkins up" "$(cat "$J/doctor.sh")"
+
 # the TIP-not-trigger rule, stated where it is enforced
 has "the test pipeline checks out the TIP of test, never the sha that triggered it" \
     "checkout the TIP of test" "$(cat "$J/pipelines/Jenkinsfile.test")"

@@ -226,6 +226,34 @@ LEAKED=$( { git -C "$J/.." status --porcelain polari-jenkins/secrets 2>/dev/null
 [ "$LEAKED" = 0 ] && ok "git" "no real secret is visible to git" \
     || warn "git" "$LEAKED real secret file(s) under polari-jenkins/secrets are visible to git" "move them: pol jenkins secrets put <area>/<name>"
 
+# ---------------------------------------------- ci-12: is the container's code
+# the checkout's code? A FILE bind mount binds an INODE. `git pull` writes a new
+# file, so the container keeps serving the old one — and a fix can sit in the
+# checkout, pushed and committed, while the pipeline runs the previous version.
+# It cost three live runs to notice (the deployed quiet.sh had none of the fix
+# that had been pulled onto the device). `pol jenkins up` recreates the
+# container and re-binds; this row says when that is needed.
+sec "the controller's copy of these scripts"
+_CC="${CI_CONTROLLER_CONTAINER:-polari-jenkins}"
+if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$_CC"; then
+    ok "controller scripts" "the controller is down — it re-binds every script when it next starts"
+else
+    STALE=""
+    for f in quiet.sh verdict.py test-wipe.sh selftests.sh cicd-sync.sh device.sh retention.sh scan/scan.sh; do
+        [ -f "$J/$f" ] || continue
+        H1=$(sha256sum "$J/$f" 2>/dev/null | cut -c1-16)
+        H2=$(docker exec "$_CC" sha256sum "/var/polari-jenkins/$f" 2>/dev/null | cut -c1-16)
+        [ -n "$H2" ] || continue
+        [ "$H1" = "$H2" ] || STALE="$STALE $f"
+    done
+    if [ -z "$STALE" ]; then
+        ok "controller scripts" "the container is running exactly what this checkout holds"
+    else
+        warn "controller scripts" "the container is running an OLDER copy of:$STALE — a file bind mount binds an inode, and git pull writes a new file" \
+             "pol jenkins up — it recreates the container and re-binds. Until then the pipeline runs the previous version of those scripts."
+    fi
+fi
+
 # routes armed vs dry
 sec "publication routes — ARMED (publishes for real) vs DRY (renders only)"
 # ci-12 (his ask): every route row NAMES ITS DESTINATION — which release pool,
