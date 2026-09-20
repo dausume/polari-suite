@@ -92,9 +92,11 @@ write_marker() {  # write_marker <branch> <summary.json>
     local branch="$1" summary="$2" sha
     sha="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("superproject") or "")' "$summary" 2>/dev/null || true)"
     [ -n "$sha" ] || { say "no superproject sha in the sweep summary — no marker written"; return 0; }
-    mkdir -p "$POOL/promotions/$branch"
-    cp "$summary" "$POOL/promotions/$branch/$sha.json"
-    say "marker: pool/promotions/$branch/$sha.json — quiet.sh reads it as 'this promotion is COMPLETE'"
+    if pool_write "promotions/$branch/$sha.json" < "$summary"; then
+        say "marker: pool/promotions/$branch/$sha.json — quiet.sh reads it as 'this promotion is COMPLETE'"
+    else
+        say "marker NOT written (the pool is not writable from this shell and the controller is not running) — the poller will simply wait the full quiet window"
+    fi
 }
 
 do_promote() {  # do_promote <target> <source> [--dry-run]

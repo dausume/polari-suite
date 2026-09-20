@@ -43,6 +43,23 @@ pool_read() {
 # pool_exists <path> — is it there at all (as opposed to unreadable)?
 pool_exists() { pool_read "$1" >/dev/null 2>&1; }
 
+# pool_write <rel>  — stdin → pool/<rel>, creating the directory. Directly when this shell may write
+# the pool; otherwise THROUGH the controller (the pipeline process writing its own pool — the only
+# writer the system posture allows). The first promotion from the pipeline device (2026-09-20) lost
+# its marker to "mkdir: Permission denied": the pool is polari-ci's, the promoter's shell is not.
+pool_write() {
+    local rel="$1" dir
+    dir="$(dirname "$rel")"
+    if mkdir -p "$POOL/$dir" 2>/dev/null && [ -w "$POOL/$dir" ]; then
+        cat > "$POOL/$rel"; return $?
+    fi
+    if docker inspect "$POOL_CONTAINER" >/dev/null 2>&1; then
+        docker exec -i "$POOL_CONTAINER" sh -c "mkdir -p '$POOL_IN_CONTAINER/$dir' && cat > '$POOL_IN_CONTAINER/$rel'"
+        return $?
+    fi
+    return 1
+}
+
 # pool_why_unreadable — the sentence to print when a read fails, so the answer is
 # never a bare "none".
 pool_why_unreadable() {
