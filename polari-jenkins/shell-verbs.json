@@ -99,6 +99,14 @@
    "privileged": false,
    "stdin": null,
    "label": "Bring the controller up (through the docker socket — not root)"
+  },
+  "isle-authorize": {
+   "argv": ["pol", "jenkins", "isle", "authorize", "{alias}"],
+   "privileged": true,
+   "stdin": null,
+   "params": {"alias": "^[A-Za-z0-9._-]{1,64}$"},
+   "label": "Put the PIPELINE user's own public key on the isle device, by ssh ALIAS (never an address). It copies over the alias the person running it already reaches the target by, and refuses if the target's host key is not the one their known_hosts already trusts.",
+   "why_privileged": "it reads the pipeline user's key and writes that user's ssh config — both root-owned under jenkins_home/.ssh"
   }
  }
 }

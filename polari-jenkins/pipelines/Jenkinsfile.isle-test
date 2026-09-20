@@ -68,6 +68,7 @@ pipeline {
   environment {
     ISLE = "${env.POLARI_ISLE ?: '/var/polari-jenkins/isle'}"
     POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}"
+    JSONGET = '/var/polari-jenkins/jsonget.py'   // no readJSON: that plugin is not installed
   }
   stages {
 
@@ -194,9 +195,14 @@ pipeline {
                 def unPath = "${runDir}/uninstall-${idx}.json"
                 sh "bash \"\$ISLE/throwaway.sh\" uninstall --stage ${idx} --json '${unPath}' || true"
                 if (fileExists(unPath)) {
-                  def un = readJSON file: unPath
-                  rec.uninstall_verdict  = un.verdict ?: 'failed'
-                  rec.uninstall_findings = un.findings ?: []
+                  // NOT readJSON: pipeline-utility-steps is not in casc/plugins.txt
+                  // and has never been installed. This call has been latent since
+                  // ci-10 — no run reached it until ci-12, and then it threw.
+                  rec.uninstall_verdict  = sh(returnStdout: true,
+                      script: "python3 ${JSONGET} '${unPath}' verdict --default failed").trim()
+                  rec.uninstall_findings = sh(returnStdout: true,
+                      script: "python3 ${JSONGET} '${unPath}' findings --lines").trim()
+                      .split('\n').findAll { it }
                 } else {
                   rec.uninstall_verdict  = 'failed'
                   rec.uninstall_findings = ['no uninstall reading came back from the guest']
@@ -226,10 +232,15 @@ pipeline {
                 }
                 def leakPath = "${runDir}/leak-check-${idx}.json"
                 if (fileExists(leakPath)) {
-                  def lk = readJSON file: leakPath
-                  rec.leaks         = (lk.leaks ?: []).collect { "${it.kind}: ${it.item} (${it.baseline} → ${it.now})" }
-                  rec.ram_delta_mb  = lk.ram_delta_mb ?: 0
-                  rec.disk_delta_mb = lk.disk_delta_mb ?: 0
+                  // the leak SENTENCE is formatted in jsonget.py — one place, so
+                  // the reader and the rendering cannot drift.
+                  rec.leaks = sh(returnStdout: true,
+                      script: "python3 ${JSONGET} '${leakPath}' leaks --leak-lines").trim()
+                      .split('\n').findAll { it }
+                  rec.ram_delta_mb  = sh(returnStdout: true,
+                      script: "python3 ${JSONGET} '${leakPath}' ram_delta_mb --default 0").trim() as Integer
+                  rec.disk_delta_mb = sh(returnStdout: true,
+                      script: "python3 ${JSONGET} '${leakPath}' disk_delta_mb --default 0").trim() as Integer
                 }
                 if (rec.leak_verdict == 'leaked-after-rewipe') {
                   if (leakPolicy == 'continue') {

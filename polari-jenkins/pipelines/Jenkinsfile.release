@@ -18,7 +18,10 @@
 pipeline {
   agent any
   options { timestamps(); timeout(time: 180, unit: 'MINUTES'); disableConcurrentBuilds(); lock(resource: 'polari-build') }  // never overlaps a dev build or a test run (same daemon, same staging tags)
-  environment { POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}" }
+  environment {
+    POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}"
+    JSONGET = '/var/polari-jenkins/jsonget.py'   // no readJSON: that plugin is not installed
+  }
   stages {
     // ci-8: the settings come from the `cicd` Polari app (non-fatal pull), and the run is mirrored back.
     stage('sync settings from Polari (non-fatal)') {
@@ -252,15 +255,19 @@ PY'''
                  "polari-test — push it to `test` first (pol jenkins promote test), let polari-test record a verdict, " +
                  "then promote main. The build stays in the pool, the tag is NOT pushed and every route will stay DRY."
           } else {
-            def v = readJSON file: vf
-            env.RELEASE_TESTED  = (v.verdict == 'passed') ? 'yes' : 'no'
-            env.RELEASE_VERDICT = v.verdict
+            // NOT readJSON — pipeline-utility-steps is not installed on this
+            // controller and never has been (it threw NoSuchMethodError on the
+            // first complete polari-test run). jsonget.py needs no plugin.
+            def jg = { k, d -> sh(returnStdout: true,
+                                  script: "python3 ${JSONGET} '${vf}' ${k} --default '${d}'").trim() }
+            env.RELEASE_VERDICT = jg('verdict', 'unreadable')
+            env.RELEASE_TESTED  = (env.RELEASE_VERDICT == 'passed') ? 'yes' : 'no'
             sh "cp '${vf}' verdict.json"
-            echo "test verdict for ${env.POLARI_FULL_SHA}: ${v.verdict} — ${v.why}"
-            echo "  selftests: ${v.selftests?.passed ?: 0} pass / ${v.selftests?.failed ?: 0} fail" +
-                 "   isle core_ok=${v.isle?.core_ok}   scans (advisory): ${v.scans?.totals}"
-            if (v.verdict != 'passed') {
-              echo "NOT RELEASED: the verdict is '${v.verdict}', not 'passed'. Nothing is published and the tag is not pushed."
+            echo "test verdict for ${env.POLARI_FULL_SHA}: ${env.RELEASE_VERDICT} — ${jg('why', '')}"
+            echo "  selftests: ${jg('selftests.passed', '0')} pass / ${jg('selftests.failed', '0')} fail" +
+                 "   isle core_ok=${jg('isle.core_ok', 'false')}   scans (advisory): ${jg('scans.totals', '{}')}"
+            if (env.RELEASE_VERDICT != 'passed') {
+              echo "NOT RELEASED: the verdict is '${env.RELEASE_VERDICT}', not 'passed'. Nothing is published and the tag is not pushed."
             }
           }
         }

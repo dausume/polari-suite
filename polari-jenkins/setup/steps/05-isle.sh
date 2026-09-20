@@ -24,9 +24,16 @@ step_isle_check() {
     if [ "$CI_ISLE_TARGET" = ssh ]; then
         doctor_check 'ssh target'    'ssh'            || okall=0
         doctor_check 'target sudo -n' 'sudo -n'       || okall=0
+        # the PIPELINE's own hop — a different key, a different user, and the
+        # only one any isle stage actually uses (§76 addendum 2/3)
+        doctor_check 'controller → isle target' 'the pipeline user reaching the target' || okall=0
+        doctor_check 'controller target sudo -n' 'the pipeline user'\''s login sudo -n' || okall=0
         doctor_check 'target /dev/kvm' '/dev/kvm'     || okall=0
         doctor_check 'target libvirt' 'libvirt tools' || okall=0
         doctor_ok 'ssh target' 2>/dev/null     || todo "make the isle device answer a BatchMode ssh" "ssh-copy-id $CI_ISLE_SSH_HOST  (after a Host entry in ~/.ssh/config)"
+        doctor_ok 'controller → isle target' 2>/dev/null || todo \
+            "give the PIPELINE user (not you) a key the isle device accepts — every isle stage runs inside the controller as polari-ci and cannot read your ~/.ssh" \
+            "pol jenkins isle authorize $CI_ISLE_SSH_HOST"
         doctor_ok 'target sudo -n' 2>/dev/null || todo "grant passwordless sudo on the isle device (a job cannot answer a prompt)" "pol jenkins setup --step isle — it writes the drop-in for you"
         doctor_ok 'target libvirt' 2>/dev/null || todo "install libvirt/qemu on the isle device" "$(doctor_fix 'target libvirt' 2>/dev/null || echo 'sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients virtinst qemu-utils cloud-image-utils')"
     else
@@ -53,6 +60,10 @@ step_isle_check() {
 # the OTHER device) is deliberately NOT offered as an action: each needs a
 # password on a machine that is not this one, which no unattended caller can
 # answer. They stay on the to-do list with their exact command.
+# §76 addendum 3 adds ONE exception, `isle-authorize`, and it is still only
+# DESCRIBED (privileged: true): it needs no password on the other device —
+# it goes through the alias that already works — but it does read the
+# pipeline user's root-owned key, so a person runs it at a terminal.
 step_isle_json() {
     json_explain "The throwaway isle is a VM the pipeline creates, installs Polari into, tests and then destroys. It needs /dev/kvm, libvirt, ${CI_ISLE_VM_RAM_GB} GB of RAM and ${CI_ISLE_VM_DISK_GB} GB of disk — and nested KVM, because an isle boots its own router guest inside that VM.
 
@@ -70,6 +81,17 @@ SSH means the VM is made on another device. This machine then needs only docker;
     json_question CI_ISLE_VM_DISK_GB 'VM disk (GB) — an isle install wants 30 or more' text 30 "$CI_ISLE_VM_DISK_GB" ''
     json_action preflight 'Run the preflight resource guard' 0 preflight 0 \
         'reads only: is the device CLEAR of a Polari/isle installation of its own, and has it the room? Any FAIL refuses a run.' ''
+    # §76 addendum 3 — the pipeline user's key. PRIVILEGED and so only ever
+    # DESCRIBED here: it reads a root-owned key and writes that user's ssh
+    # config. It is also the one action in this step that must be run by a
+    # PERSON at their own terminal — it copies through the alias THEY reach
+    # the target by, and refuses a host key their known_hosts does not know.
+    if [ "$CI_ISLE_TARGET" = ssh ] && [ -n "$CI_ISLE_SSH_HOST" ]; then
+        json_action isle-authorize "Authorise the pipeline user's own key on $CI_ISLE_SSH_HOST" 1 isle-authorize \
+            "$(doctor_ok 'controller → isle target' 2>/dev/null && echo 1 || echo 0)" \
+            'the controller runs as polari-ci and cannot read your ~/.ssh; without a key of its own every isle stage refuses at the preflight' \
+            "alias=$CI_ISLE_SSH_HOST"
+    fi
 }
 
 step_isle_do() {
@@ -143,6 +165,25 @@ SSH means the VM is made on another device. This machine then needs only docker;
             fi
         else
             check OK "$dest answers a BatchMode ssh — already: OK"
+        fi
+
+        # ---- the PIPELINE user's key (§76 addendum 3). Everything above is
+        # about YOUR shell reaching the target. Every isle stage runs inside
+        # the controller, as polari-ci, with HOME=jenkins_home — a user that
+        # cannot read your ~/.ssh at all. It needs a key of its own, and a
+        # person has to authorise it once, from here.
+        if doctor_ok 'controller → isle target' 2>/dev/null; then
+            check OK "the pipeline user already reaches $CI_ISLE_SSH_HOST with its own key — already: OK"
+        else
+            explain "The controller runs as the polari-ci system user and cannot read your ~/.ssh. \`pol jenkins isle authorize\` copies THE PIPELINE USER'S public key (sudo pol jenkins init-device creates it) onto the target through the alias you already use, and writes the controller's own ssh config for it. It verifies the target's host key against your known_hosts and refuses on a mismatch; a second run adds nothing."
+            howto "pol jenkins isle authorize $CI_ISLE_SSH_HOST"
+            if ask "authorise the pipeline user's key on $CI_ISLE_SSH_HOST?" \
+                   "Copy the polari-ci user's PUBLIC key to $CI_ISLE_SSH_HOST now, over your own working alias? Nothing of yours changes, and no private key is read." ; then
+                act "the pipeline user's key is authorised on $CI_ISLE_SSH_HOST" -- bash "$J/isle/authorize.sh" "$CI_ISLE_SSH_HOST" || \
+                    todo "authorise the pipeline user's key on the isle device" "pol jenkins isle authorize $CI_ISLE_SSH_HOST   (sudo pol jenkins init-device first, if it says the key is absent)"
+            else
+                todo "authorise the pipeline user's key on the isle device" "pol jenkins isle authorize $CI_ISLE_SSH_HOST"
+            fi
         fi
 
         if ssh -o BatchMode=yes -o ConnectTimeout=8 "$dest" 'sudo -n true' >/dev/null 2>&1; then

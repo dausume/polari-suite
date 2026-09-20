@@ -102,6 +102,8 @@ services:
       - ./test-wipe.sh:/var/polari-jenkins/test-wipe.sh:ro
       - ./selftests.sh:/var/polari-jenkins/selftests.sh:ro
       - ./verdict.py:/var/polari-jenkins/verdict.py:ro
+      - ./jsonget.py:/var/polari-jenkins/jsonget.py:ro
+      - ./pool.sh:/var/polari-jenkins/pool.sh:ro
       - ./scan:/var/polari-jenkins/scan:ro
       - ./scan-tools.lock:/var/polari-jenkins/scan-tools.lock:ro
       # /etc/polari-jenkins/secrets (root:polari-ci 0640) after init-device;

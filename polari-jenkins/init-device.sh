@@ -15,7 +15,12 @@
 #   3. MOVES any secret already sitting in polari-jenkins/secrets/ there
 #      (naming each one it moved — none are printed, only their names);
 #   4. chowns jenkins_home/ and pool/ to polari-ci;
-#   5. writes JENKINS_UID / JENKINS_GID / POLARI_SECRETS_DIR into .env, so
+#   5. gives the pipeline user its OWN ssh key — jenkins_home/.ssh/id_ed25519
+#      (0600, polari-ci), the controller's HOME being that directory. The
+#      interactive user's key stays theirs; the pipeline reaches the isle
+#      target with a key of its own, which a person authorises once with
+#      `pol jenkins isle authorize <alias>`;
+#   6. writes JENKINS_UID / JENKINS_GID / POLARI_SECRETS_DIR into .env, so
 #      docker-compose.yml runs the controller as that user and mounts the
 #      system secrets directory.
 #
@@ -26,12 +31,17 @@ set -euo pipefail
 J="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=secrets.sh
 source "$J/secrets.sh"
+# the device's own NAME (a name somebody chose — never a hostname: his privacy
+# rule) is the comment on the key this creates, so an authorized_keys line on a
+# target says WHICH pipeline device it lets in.
+# shellcheck source=device.sh
+source "$J/device.sh"
 
 DRY=0
 while [ $# -gt 0 ]; do
     case "$1" in
         --dry-run) DRY=1 ;;
-        --help|-h) sed -n '2,22p' "$0"; exit 0 ;;
+        --help|-h) sed -n '2,28p' "$0"; exit 0 ;;
         *) echo "init-device.sh: unknown argument '$1' (--dry-run --help)" >&2; exit 2 ;;
     esac; shift
 done
@@ -90,7 +100,29 @@ for d in jenkins_home pool; do
     run chown -R "$CI_USER":"$CI_USER" "$J/$d"
 done
 
-# 5. .env — the controller runs AS polari-ci and mounts the system secrets
+# 5. the pipeline user's OWN ssh key
+# The controller's HOME is the jenkins_home bind mount, so a key at
+# jenkins_home/.ssh/id_ed25519 is `~/.ssh/id_ed25519` to everything running
+# inside it — `ssh <alias>` then just works, and nothing in device.env has to
+# know a thing about keys. Before this existed the isle target was reached
+# with the INTERACTIVE user's key, which the controller cannot read at all
+# (§76 addendum 2: "target reachable … FAIL", every isle stage refused).
+CI_SSH_DIR="$J/jenkins_home/.ssh"
+CI_KEY="$CI_SSH_DIR/id_ed25519"
+run install -d -o "$CI_USER" -g "$CI_USER" -m 0700 "$CI_SSH_DIR"
+if [ "$DRY" = 1 ]; then
+    echo "  would: ssh-keygen -t ed25519 -C polari-ci@$CI_DEVICE_NAME -f $CI_KEY (if absent)"
+elif [ -s "$CI_KEY" ]; then
+    say "the pipeline user already has a key: $CI_KEY ($(ssh-keygen -lf "$CI_KEY.pub" 2>/dev/null | awk '{print $2}' || echo 'fingerprint unreadable'))"
+else
+    say "creating the pipeline user's own ssh key — $CI_KEY (comment polari-ci@$CI_DEVICE_NAME)"
+    ssh-keygen -t ed25519 -C "polari-ci@$CI_DEVICE_NAME" -f "$CI_KEY" -N "" -q
+    chown "$CI_USER":"$CI_USER" "$CI_KEY" "$CI_KEY.pub"
+    chmod 0600 "$CI_KEY"; chmod 0644 "$CI_KEY.pub"
+fi
+[ "$DRY" = 1 ] || chown -R "$CI_USER":"$CI_USER" "$CI_SSH_DIR"
+
+# 6. .env — the controller runs AS polari-ci and mounts the system secrets
 UIDN=$(id -u "$CI_USER" 2>/dev/null || echo '')
 GIDN=$(id -g "$CI_USER" 2>/dev/null || echo '')
 if [ "$DRY" = 1 ]; then
@@ -113,6 +145,14 @@ cat <<EOF
                → root (sudo) and the pipeline process ($CI_USER). Nobody else,
                  including $OWNER's own shell and anything it runs.
   controller   runs as $CI_USER ($UIDN:$GIDN), docker group, loopback port only
+  ssh key      $CI_KEY  (0600 $CI_USER) — the pipeline's OWN key, not yours
   put a secret sudo pol jenkins secrets put <area>/<name>     (reads stdin)
   check it     pol jenkins doctor
 EOF
+if [ "$CI_ISLE_TARGET" = ssh ] && [ "$DRY" = 0 ]; then
+cat <<EOF
+  ⚠ the isle target is reached over ssh, and the key above is NOT yet on it.
+    As YOURSELF (not root — it copies through the alias you already use):
+        pol jenkins isle authorize ${CI_ISLE_SSH_HOST:-<alias>}
+EOF
+fi

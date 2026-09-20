@@ -241,8 +241,12 @@ else
     STALE=""
     for f in quiet.sh verdict.py test-wipe.sh selftests.sh cicd-sync.sh device.sh retention.sh scan/scan.sh; do
         [ -f "$J/$f" ] || continue
-        H1=$(sha256sum "$J/$f" 2>/dev/null | cut -c1-16)
-        H2=$(docker exec "$_CC" sha256sum "/var/polari-jenkins/$f" 2>/dev/null | cut -c1-16)
+        # `|| true` on BOTH: a failing command inside $( ) aborts this script
+        # under strict mode and truncates the doctor's output mid-section — the
+        # §70 gotcha, and it cost two other tests their output before it was
+        # spotted. A container that will not answer is a `continue`, not a death.
+        H1=$(sha256sum "$J/$f" 2>/dev/null | cut -c1-16 || true)
+        H2=$(docker exec "$_CC" sha256sum "/var/polari-jenkins/$f" 2>/dev/null | cut -c1-16 || true)
         [ -n "$H2" ] || continue
         [ "$H1" = "$H2" ] || STALE="$STALE $f"
     done
@@ -345,6 +349,36 @@ if [ "$CI_ISLE_TARGET" = ssh ]; then
     else
         warn "ssh target" "$(device_ssh_dest) is not reachable with BatchMode ssh (${out//$'\n'/ })" \
              "add a Host entry and a key: ssh-copy-id <alias>"
+    fi
+
+    # ------------------------------------------------ the CONTROLLER's own hop
+    # Two different reachabilities, and only one of them is the pipeline's.
+    # The rows above are THIS shell's: the interactive user's key, config and
+    # known_hosts. Every isle stage runs inside the controller, as polari-ci,
+    # with HOME=/var/jenkins_home — and after `init-device` that user cannot
+    # read the interactive user's ~/.ssh at all. §76 addendum 2: the preflight
+    # read "target reachable … FAIL" while `ssh isle-core` from a shell worked
+    # perfectly. So: ask the controller itself.
+    if [ -n "$CI_ISLE_SSH_HOST" ]; then
+        CTR="${CI_CONTROLLER_CONTAINER:-polari-jenkins}"
+        if ! command -v docker >/dev/null 2>&1 || ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CTR"; then
+            warn "controller → isle target" "the controller is not running, so its own ssh to $CI_ISLE_SSH_HOST cannot be tested (yours says nothing about the pipeline user's)" \
+                 "pol jenkins up, then pol jenkins doctor"
+        elif ! docker exec "$CTR" sh -c 'command -v ssh >/dev/null' 2>/dev/null; then
+            warn "controller → isle target" "the controller image carries no ssh client — no job could ever reach the isle device" \
+                 "pol jenkins build (controller/Dockerfile installs openssh-client)"
+        elif cout=$(docker exec "$CTR" ssh -o BatchMode=yes -o ConnectTimeout="$CI_SSH_TIMEOUT" "$CI_ISLE_SSH_HOST" true 2>&1); then
+            ok "controller → isle target" "the pipeline user reaches $CI_ISLE_SSH_HOST with its own key, no prompt (BatchMode)"
+            if docker exec "$CTR" ssh -o BatchMode=yes -o ConnectTimeout="$CI_SSH_TIMEOUT" "$CI_ISLE_SSH_HOST" 'sudo -n true' >/dev/null 2>&1; then
+                ok "controller target sudo -n" "the pipeline user's login on $CI_ISLE_SSH_HOST has passwordless sudo"
+            else
+                warn "controller target sudo -n" "the login the pipeline user gets on $CI_ISLE_SSH_HOST has no passwordless sudo (a job cannot answer a prompt)" \
+                     "pol jenkins setup --step isle — it writes the /etc/sudoers.d drop-in for that login"
+            fi
+        else
+            warn "controller → isle target" "the pipeline user cannot reach $CI_ISLE_SSH_HOST (${cout//$'\n'/ }) — your own shell's key is not the controller's" \
+                 "pol jenkins isle authorize $CI_ISLE_SSH_HOST"
+        fi
     fi
 fi
 

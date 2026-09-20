@@ -65,6 +65,8 @@ pipeline {
   environment {
     POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}"
     ISLE = "${env.POLARI_ISLE ?: '/var/polari-jenkins/isle'}"
+    // no readJSON anywhere in this file: pipeline-utility-steps is not installed
+    JSONGET = '/var/polari-jenkins/jsonget.py'
   }
   stages {
 
@@ -295,9 +297,15 @@ pipeline {
         } else {
           sh "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh turn-done test || true"
           sh "bash /var/polari-jenkins/quiet.sh done test '${env.TEST_SHA ?: ''}' || true"
+          // NOT readJSON: it comes from pipeline-utility-steps, which is not in
+          // casc/plugins.txt and has never been installed here. It threw
+          // NoSuchMethodError in this very block on the first complete run —
+          // AFTER the verdict had been written — and turned a recorded verdict
+          // into a red build. jsonget.py needs no plugin.
           def v = 'not reached'
           if (env.RUN_DIR && fileExists("${env.RUN_DIR}/verdict.json")) {
-            v = readJSON(file: "${env.RUN_DIR}/verdict.json").verdict
+            v = sh(returnStdout: true,
+                   script: "python3 ${JSONGET} '${env.RUN_DIR}/verdict.json' verdict --default 'not reached'").trim()
           }
           sh "bash /var/polari-jenkins/cicd-sync.sh run test \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} '${env.TEST_SHA ?: ''}' 'test verdict: ${v}' || true"
           echo "TEST VERDICT for ${env.TEST_SHA ?: '(no sha)'}: ${v}  —  pol jenkins test-status ${env.TEST_SHA ?: ''}"

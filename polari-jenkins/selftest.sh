@@ -25,6 +25,7 @@ DEV="$T/dev"; mkdir -p "$DEV"
 cp -r "$J/device.sh" "$J/secrets.sh" "$J/doctor.sh" "$J/retention.sh" "$J/mint-tag.sh" "$J/setup.sh" \
       "$J/cicd-sync.sh" \
       "$J/quiet.sh" "$J/promote.sh" "$J/verdict.py" "$J/test-wipe.sh" "$J/selftests.sh" "$J/pool.sh" \
+      "$J/jsonget.py" \
       "$J/scan" "$J/scan-tools.lock" \
       "$J/cache.sh" "$J/cache-manifest.py" "$J/cache-proxies.sh" "$J/build-images.sh" \
       "$J/cache" "$J/docker-compose.proxies.yml" \
@@ -47,8 +48,16 @@ cat > "$T/bin/ssh" <<'SH'
 #!/bin/bash
 # a scripted target: the last argument is the command the caller asked for
 CMD="${!#}"
+# §76 addendum 3: `ssh -G <alias>` is how authorize.sh learns the destination
+# the INTERACTIVE user already resolved. FAKE_SSH_G is that answer, verbatim.
+if [ "${1:-}" = -G ]; then printf '%s\n' "${FAKE_SSH_G:-}"; exit 0; fi
 [ "${FAKE_SSH_UP:-1}" = 1 ] || { echo "ssh: connect: Network is unreachable" >&2; exit 255; }
 case "$CMD" in
+  # §76 addendum 3: the authorized_keys append is run FOR REAL against a fake
+  # target HOME, so "a second run adds nothing" is tested, not asserted.
+  *authorized_keys*)
+      [ -n "${FAKE_TARGET_HOME:-}" ] || { echo "no target" >&2; exit 255; }
+      HOME="$FAKE_TARGET_HOME" bash -c "$CMD"; exit $? ;;
   # ci-10 probes, matched FIRST: both snippets mention paths the older patterns
   # below would otherwise claim (libvirt/images, virsh list).
   *"ci-10 residue probe"*)     printf '%s\n' "${FAKE_RESIDUE:-}" ;;
@@ -102,6 +111,27 @@ case "$*" in
   *"remote get-url"*) printf 'https://example.invalid/polari-suite.git\n'; exit 0 ;;
   *config*--get-regexp*) [ -x "$REAL" ] && exec "$REAL" "$@"; exit 1 ;;
   *) exit 1 ;;
+esac
+SH
+# §76 addendum 3 — ssh-keyscan and docker. The scan is what a MITM would
+# control, so the test drives it directly; docker is how BOTH the doctor and
+# authorize ask the CONTROLLER (not this shell) whether it reaches the target.
+cat > "$T/bin/ssh-keyscan" <<'SH'
+#!/bin/bash
+[ -n "${FAKE_SCAN:-}" ] || exit 1
+printf '%s\n' "$FAKE_SCAN"
+SH
+cat > "$T/bin/docker" <<'SH'
+#!/bin/bash
+case "$1" in
+  ps)   printf '%s\n' ${FAKE_CONTAINERS:-}; exit 0 ;;
+  exec) case "$*" in
+            *"sudo -n true"*)   exit "${FAKE_CTR_SUDO_RC:-0}" ;;
+            *"command -v ssh"*) exit "${FAKE_CTR_HAS_SSH_RC:-0}" ;;
+            *)  [ "${FAKE_CTR_REACH_RC:-0}" = 0 ] || { echo "Permission denied (publickey)." >&2; exit "${FAKE_CTR_REACH_RC}"; }
+                exit 0 ;;
+        esac ;;
+  *)    exit 0 ;;
 esac
 SH
 chmod +x "$T/bin"/*
@@ -1505,6 +1535,30 @@ has "the doctor checks that the container is running THIS checkout's scripts" \
 has "  …and names the reason, not just the symptom" "binds an inode" "$(cat "$J/doctor.sh")"
 has "  …and the fix" "pol jenkins up" "$(cat "$J/doctor.sh")"
 
+# ---- NO `readJSON` ANYWHERE. It comes from pipeline-utility-steps, which is not
+# in casc/plugins.txt and has never been installed on the controller — so it
+# threw NoSuchMethodError the first time a run reached it, which was ci-12's
+# first complete polari-test: AFTER the verdict had been written and the state
+# marked covered, turning a recorded verdict into a red build. (Latent since
+# ci-10: Jenkinsfile.isle-test called it twice per stage and no run got there.)
+for JF in "$J"/pipelines/Jenkinsfile.*; do
+    CALLS="$(grep -nE '(^|[^/])\breadJSON[ (]' "$JF" | grep -vE '^[0-9]+: *//' || true)"
+    eq "no readJSON CALL in $(basename "$JF") — that plugin is not installed (NoSuchMethodError, polari-test #37)" "" "$CALLS"
+done
+eq "  …and the plugin list still does not carry it, so the rule is not a coincidence" "" \
+   "$(grep -i 'pipeline-utility' "$J/casc/plugins.txt" 2>/dev/null || true)"
+JG="$T/jg.json"
+printf '{"verdict":"failed","why":"8 of 88","selftests":{"passed":80,"failed":8},"isle":{"core_ok":false},"findings":["a","b"],"leaks":[{"kind":"VM","item":"x","baseline":"absent","now":"present"}],"ram_delta_mb":-7}' > "$JG"
+eq "jsonget: a scalar" "failed" "$(python3 "$DEV/jsonget.py" "$JG" verdict)"
+eq "  …a dotted path" "80" "$(python3 "$DEV/jsonget.py" "$JG" selftests.passed)"
+eq "  …a boolean, rendered as a shell/groovy boolean" "false" "$(python3 "$DEV/jsonget.py" "$JG" isle.core_ok)"
+eq "  …a negative number survives" "-7" "$(python3 "$DEV/jsonget.py" "$JG" ram_delta_mb)"
+eq "  …a MISSING field is the default and exit 0, never a dead pipeline" "0" "$(python3 "$DEV/jsonget.py" "$JG" no.such.thing --default 0)"
+eq "  …an unreadable FILE is the default too" "none" "$(python3 "$DEV/jsonget.py" "$T/not-a-file" verdict --default none)"
+eq "  …a list comes back one per line" "a b" "$(python3 "$DEV/jsonget.py" "$JG" findings --lines | tr '\n' ' ' | sed 's/ $//')"
+eq "  …and the ci-10 leak SENTENCE is formatted in ONE place" "VM: x (absent → present)" \
+   "$(python3 "$DEV/jsonget.py" "$JG" leaks --leak-lines)"
+
 # the TIP-not-trigger rule, stated where it is enforced
 has "the test pipeline checks out the TIP of test, never the sha that triggered it" \
     "checkout the TIP of test" "$(cat "$J/pipelines/Jenkinsfile.test")"
@@ -1627,6 +1681,127 @@ has "polari-isle-test locks the ISLE TARGET, not polari-build (its caller holds 
     "polari-isle-target" "$(cat "$J/pipelines/Jenkinsfile.isle-test")"
 has "polari-dev-build's description says it is the OPTIONAL quick build: no tests, no scans, no publish" \
     "NO isle tests, NO scans, NO publish" "$(cat "$J/jobs/seed.groovy")"
+
+# ============================== §76 addendum 3: the pipeline user's own key
+# The gap this closes, found live: after `sudo pol jenkins init-device` the
+# controller runs as polari-ci with HOME=jenkins_home and cannot read the
+# INTERACTIVE user's ~/.ssh — so every isle stage refused at its preflight
+# with "target reachable … FAIL" while `ssh isle-core` from a shell worked.
+echo "-- §76 addendum 3: the pipeline user's key to the isle target (authorize + the two doctor rows)"
+
+AZ="$T/az"; rm -rf "$AZ"; mkdir -p "$AZ/jh/.ssh" "$AZ/home/.ssh" "$AZ/target"
+chmod 0700 "$AZ/home/.ssh"
+# a REAL host key for the fake target, so ssh-keygen -F / -l do real work
+ssh-keygen -t ed25519 -f "$AZ/hostkey"  -N "" -q -C fake-target
+ssh-keygen -t ed25519 -f "$AZ/hostkey2" -N "" -q -C an-imposter
+AZ_HOSTLINE="target.invalid $(cut -d' ' -f1,2 "$AZ/hostkey.pub")"
+AZ_IMPOSTOR="target.invalid $(cut -d' ' -f1,2 "$AZ/hostkey2.pub")"
+printf '%s\n' "$AZ_HOSTLINE" > "$AZ/home/.ssh/known_hosts"
+printf 'Host isle-alias\n    HostName target.invalid\n    User ciuser\n' > "$AZ/home/.ssh/config"
+# what `ssh -G isle-alias` answers for the interactive user — the ONE source
+# the controller's entry is rendered from, so the two cannot describe
+# different destinations.
+AZ_G="host isle-alias
+hostname target.invalid
+user ciuser
+port 22
+identityfile $AZ/home/.ssh/id_ed25519
+userknownhostsfile $AZ/home/.ssh/known_hosts"
+printf 'CI_ISLE_TARGET=ssh\nCI_ISLE_SSH_HOST=isle-alias\n' > "$AZ/device.env"
+
+az() {   # az [env KEY=VAL…] -- <args…>  → OUT carries the output and rc=N
+    local envs=() ; while [ "${1:-}" != -- ]; do envs+=("$1"); shift; done; shift
+    OUT="$( cd "$DEV" && env HOME="$AZ/home" JENKINS_HOME="$AZ/jh" CI_USER=polari-ci-absent \
+        DEVICE_ENV_FILE="$AZ/device.env" FAKE_SSH_G="$AZ_G" FAKE_SCAN="$AZ_HOSTLINE" \
+        FAKE_TARGET_HOME="$AZ/target" FAKE_CONTAINERS="" "${envs[@]}" \
+        bash isle/authorize.sh "$@" 2>&1; echo "rc=$?" )"
+}
+authkeys_lines() { wc -l < "$AZ/target/.ssh/authorized_keys" 2>/dev/null | tr -d ' ' || echo 0; }
+
+# --- the key does not exist yet: it says the exact two commands, and stops
+az -- isle-alias
+has "authorize with no pipeline key → REFUSED, naming init-device"  "sudo pol jenkins init-device" "$OUT"
+has "  …and the very next command after it"                          "pol jenkins isle authorize isle-alias" "$OUT"
+has "  …exit 3 (a missing key is not a target failure)"              "rc=3" "$OUT"
+
+# --- init-device's half: the pipeline user's OWN key, with the DEVICE's name
+ssh-keygen -t ed25519 -f "$AZ/jh/.ssh/id_ed25519" -N "" -q -C "polari-ci@pipeline"
+IDSRC="$(cat "$J/init-device.sh")"
+has "init-device creates the pipeline user's own key in jenkins_home/.ssh" "jenkins_home/.ssh" "$IDSRC"
+has "  …named for the DEVICE, never a hostname (his privacy rule)"   'polari-ci@$CI_DEVICE_NAME' "$IDSRC"
+has "  …and it is idempotent: an existing key is kept, not replaced" "already has a key" "$IDSRC"
+has "  …0600, owned by the pipeline user"                            'chmod 0600 "$CI_KEY"' "$IDSRC"
+
+# --- the first authorize
+az -- isle-alias
+has "authorize: the key is added to the target's authorized_keys"    "the key was added" "$OUT"
+has "  …exit 0"                                                      "rc=0" "$OUT"
+eq  "  …one line in authorized_keys"                     "1" "$(authkeys_lines)"
+has "  …the host key was VERIFIED against your own known_hosts, not accepted" "not blindly accepted" "$OUT"
+CFG="$(cat "$AZ/jh/.ssh/config")"
+has "the controller's config is rendered from ssh -G: the Host"      "Host isle-alias"          "$CFG"
+has "  …HostName"                                                    "HostName target.invalid"  "$CFG"
+has "  …User"                                                        "User ciuser"              "$CFG"
+has "  …IdentityFile — the PIPELINE user's key, not yours"           "IdentityFile ~/.ssh/id_ed25519" "$CFG"
+has "  …IdentitiesOnly, so it cannot fall back to some other key"    "IdentitiesOnly yes"       "$CFG"
+has "  …and StrictHostKeyChecking stays ON in the controller"        "StrictHostKeyChecking yes" "$CFG"
+eq  "  …the scanned host key is in the controller's known_hosts" "1" \
+    "$(grep -cxF "$AZ_HOSTLINE" "$AZ/jh/.ssh/known_hosts" | tr -d ' ')"
+
+# --- IDEMPOTENCE: a second run adds nothing, anywhere
+az -- isle-alias
+has "a second authorize adds nothing to authorized_keys"             "already there" "$OUT"
+eq  "  …still ONE line in authorized_keys"               "1" "$(authkeys_lines)"
+eq  "  …still ONE Host block in the controller's config" "1" "$(grep -c '^Host isle-alias$' "$AZ/jh/.ssh/config" | tr -d ' ')"
+eq  "  …still ONE line in the controller's known_hosts"  "1" "$(wc -l < "$AZ/jh/.ssh/known_hosts" | tr -d ' ')"
+
+# --- the MITM case: something else is answering at that address NOW
+az FAKE_SCAN="$AZ_IMPOSTOR" -- isle-alias
+has "a host key that is not the one you trust → REFUSED"             "not the one you already trust" "$OUT"
+has "  …it prints both fingerprints, and says nothing was written"   "Nothing was copied" "$OUT"
+has "  …exit 5"                                                      "rc=5" "$OUT"
+eq  "  …and authorized_keys is untouched"                "1" "$(authkeys_lines)"
+
+# --- nothing to verify AGAINST is also a refusal, not a shrug
+: > "$AZ/home/.ssh/known_hosts"
+az -- isle-alias
+has "no known_hosts entry of your own → REFUSED (you are the one who can judge it)" "no known_hosts entry" "$OUT"
+has "  …and it names the one command that fixes it"                  "ssh isle-alias true" "$OUT"
+printf '%s\n' "$AZ_HOSTLINE" > "$AZ/home/.ssh/known_hosts"
+
+# --- a device that answers nothing
+az FAKE_SCAN= -- isle-alias
+has "a target that returns no host key at all → REFUSED"             "no host key" "$OUT"
+
+# --- and the proof, through the controller itself
+az FAKE_CONTAINERS=polari-jenkins -- isle-alias
+has "with the controller up, authorize PROVES the hop as the pipeline user" "PROVEN" "$OUT"
+az FAKE_CONTAINERS=polari-jenkins FAKE_CTR_SUDO_RC=1 -- isle-alias
+has "  …and warns when that login has no passwordless sudo on the target" "no passwordless sudo" "$OUT"
+
+# --- an alias nobody configured
+az FAKE_SSH_G="host nope
+hostname nope
+user me
+port 22" -- nope
+has "an alias with no Host entry of your own → refused, nothing copied" "no Host entry" "$OUT"
+
+# --- the two doctor rows
+dev_env CI_ISLE_TARGET=ssh CI_ISLE_SSH_HOST=isle-alias
+has "doctor: the controller not running is NOT proof the pipeline can reach the target" \
+    "the controller is not running" "$(FAKE_CONTAINERS= doc)"
+has "doctor: the pipeline user cannot reach the target → the fix is authorize, by name" \
+    "pol jenkins isle authorize isle-alias" "$(FAKE_CONTAINERS=polari-jenkins FAKE_CTR_REACH_RC=255 doc)"
+has "doctor: a controller image with no ssh client is named as such" \
+    "no ssh client" "$(FAKE_CONTAINERS=polari-jenkins FAKE_CTR_HAS_SSH_RC=1 doc)"
+has "doctor: the pipeline user reaching the target is its OWN row, not yours" \
+    "the pipeline user reaches isle-alias with its own key" "$(FAKE_CONTAINERS=polari-jenkins doc)"
+has "doctor: and the target sudo of the PIPELINE user's login is a row too" \
+    "has passwordless sudo" "$(FAKE_CONTAINERS=polari-jenkins doc)"
+has "doctor: that login without NOPASSWD names the step that writes the drop-in" \
+    "setup --step isle" "$(FAKE_CONTAINERS=polari-jenkins FAKE_CTR_SUDO_RC=1 doc)"
+eq "the allowlist carries isle-authorize, privileged, with an anchored alias regex" "ok" \
+   "$(jq_ "$(cat "$J/shell-verbs.json")" 'v=d["verbs"].get("isle-authorize") or {}; p=(v.get("params") or {}).get("alias",""); print("ok" if v.get("privileged") and v.get("why_privileged") and p.startswith("^") and p.endswith("$") else v)')"
 
 echo
 TOTAL=$((PASS+FAIL))
