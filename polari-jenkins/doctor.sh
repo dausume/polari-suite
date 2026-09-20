@@ -375,6 +375,13 @@ if [ "$CI_ISLE_TARGET" = ssh ]; then
                 warn "controller target sudo -n" "the login the pipeline user gets on $CI_ISLE_SSH_HOST has no passwordless sudo (a job cannot answer a prompt)" \
                      "pol jenkins setup --step isle — it writes the /etc/sudoers.d drop-in for that login"
             fi
+        # Two causes, two different fixes, and they must never be reported as
+        # one. "No user exists for uid" is not a key problem at all: the image
+        # has no passwd entry for the uid compose starts it as, and ssh dies
+        # on getpwuid() before it reads an argument (found live on econ-core).
+        elif case "$cout" in *"No user exists for uid"*) true ;; *) false ;; esac; then
+            warn "controller → isle target" "the controller image has no passwd entry for the uid it runs as (${cout//$'\n'/ }) — ssh dies on getpwuid() before any key is consulted" \
+                 "pol jenkins up — it rebuilds with JENKINS_UID from .env and re-creates the container"
         else
             warn "controller → isle target" "the pipeline user cannot reach $CI_ISLE_SSH_HOST (${cout//$'\n'/ }) — your own shell's key is not the controller's" \
                  "pol jenkins isle authorize $CI_ISLE_SSH_HOST"

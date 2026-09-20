@@ -5,6 +5,13 @@ services:
   jenkins:
     build:
       context: ./controller
+      # §76 addendum 3: the image must carry a passwd entry for the uid it is
+      # STARTED as (below) — ssh calls getpwuid() and dies without one, so the
+      # isle hop was impossible before this. Changing the arg rebuilds the
+      # layer, which is why `pol jenkins up` (compose up -d --build) is enough.
+      args:
+        JENKINS_UID: "${JENKINS_UID:-${UID:-1000}}"
+        JENKINS_GID: "${JENKINS_GID:-${GID:-1000}}"
     image: polari-jenkins:local
     container_name: polari-jenkins
     restart: unless-stopped

@@ -128,7 +128,9 @@ case "$1" in
   exec) case "$*" in
             *"sudo -n true"*)   exit "${FAKE_CTR_SUDO_RC:-0}" ;;
             *"command -v ssh"*) exit "${FAKE_CTR_HAS_SSH_RC:-0}" ;;
-            *)  [ "${FAKE_CTR_REACH_RC:-0}" = 0 ] || { echo "Permission denied (publickey)." >&2; exit "${FAKE_CTR_REACH_RC}"; }
+            *)  [ "${FAKE_CTR_REACH_RC:-0}" = 0 ] || {
+                    echo "${FAKE_CTR_REACH_MSG:-Permission denied (publickey).}" >&2
+                    exit "${FAKE_CTR_REACH_RC}"; }
                 exit 0 ;;
         esac ;;
   *)    exit 0 ;;
@@ -1809,6 +1811,20 @@ has "doctor: and the target sudo of the PIPELINE user's login is a row too" \
     "has passwordless sudo" "$(FAKE_CONTAINERS=polari-jenkins doc)"
 has "doctor: that login without NOPASSWD names the step that writes the drop-in" \
     "setup --step isle" "$(FAKE_CONTAINERS=polari-jenkins FAKE_CTR_SUDO_RC=1 doc)"
+# --- the OTHER half of the same gap, found live on econ-core: a key is no use
+#     if ssh cannot even start. The image must know the uid it is run as.
+DKF="$(cat "$J/controller/Dockerfile")"
+has "the controller image takes the pipeline uid as a build arg"     "ARG JENKINS_UID" "$DKF"
+has "  …and gives it a passwd entry — ssh dies on getpwuid() without one" "useradd -u \"\$JENKINS_UID\"" "$DKF"
+has "  …whose home is jenkins_home, because ssh expands ~ from pw_dir, not \$HOME" "-d /var/jenkins_home" "$DKF"
+has "compose passes that uid to the build, so the image follows the device"  'JENKINS_UID: "${JENKINS_UID:-' "$(cat "$J/docker-compose.yml")"
+has "doctor: a missing passwd entry is NOT reported as a key problem" \
+    "no passwd entry for the uid it runs as" \
+    "$(FAKE_CONTAINERS=polari-jenkins FAKE_CTR_REACH_RC=255 FAKE_CTR_REACH_MSG='No user exists for uid 999' doc)"
+has "  …and its fix is the rebuild, not authorize" \
+    "pol jenkins up — it rebuilds with JENKINS_UID" \
+    "$(FAKE_CONTAINERS=polari-jenkins FAKE_CTR_REACH_RC=255 FAKE_CTR_REACH_MSG='No user exists for uid 999' doc)"
+
 eq "the allowlist carries isle-authorize, privileged, with an anchored alias regex" "ok" \
    "$(jq_ "$(cat "$J/shell-verbs.json")" 'v=d["verbs"].get("isle-authorize") or {}; p=(v.get("params") or {}).get("alias",""); print("ok" if v.get("privileged") and v.get("why_privileged") and p.startswith("^") and p.endswith("$") else v)')"
 

@@ -261,8 +261,14 @@ if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/n
         fi
     else
         fail "the controller still cannot reach $ALIAS: ${out//$'\n'/ }"
-        echo "  If the controller was started before this ran, it may hold an older mount:" >&2
-        echo "    pol jenkins up      (then: pol jenkins doctor)" >&2
+        case "$out" in
+            *"No user exists for uid"*)
+                echo "  That is not about the key at all: the image has no passwd entry for the uid" >&2
+                echo "  compose starts it as, and ssh dies on getpwuid() before reading an argument." >&2
+                echo "    pol jenkins up      (it rebuilds with JENKINS_UID from .env)" >&2 ;;
+            *)  echo "  If the controller was started before this ran, it may hold an older mount:" >&2
+                echo "    pol jenkins up      (then: pol jenkins doctor)" >&2 ;;
+        esac
         exit 4
     fi
 else

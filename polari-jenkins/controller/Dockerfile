@@ -28,6 +28,27 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o 
 # No JavaFX jmods are needed: build-shared-shell.sh packages in classpath mode
 # (--input lib), so jlink only ever resolves java.*/jdk.* system modules.
 ENV POLARI_BUILD_JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+# §76 addendum 3 — A PASSWD ENTRY FOR THE UID THIS RUNS AS.
+# After `sudo pol jenkins init-device` compose starts this container as the
+# HOST's polari-ci uid (999 on econ-core), which the image knows nothing
+# about. Anything that calls getpwuid() then dies outright — and `ssh` does,
+# before it parses a single argument:
+#
+#     $ docker exec polari-jenkins ssh -V
+#     No user exists for uid 999
+#
+# So no key, config or known_hosts could ever have helped: the isle hop was
+# impossible from inside the controller. One passwd line fixes it, and its
+# home must be /var/jenkins_home, because ssh expands ~/.ssh from pw_dir and
+# NOT from $HOME. The uid comes from .env (init-device writes it), so the
+# image follows the device instead of the device bending to the image.
+ARG JENKINS_UID=1000
+ARG JENKINS_GID=1000
+RUN if ! getent passwd "$JENKINS_UID" >/dev/null 2>&1; then \
+        getent group "$JENKINS_GID" >/dev/null 2>&1 || groupadd -g "$JENKINS_GID" polari-ci ; \
+        useradd -u "$JENKINS_UID" -g "$JENKINS_GID" -M -d /var/jenkins_home -s /usr/sbin/nologin polari-ci ; \
+    fi \
+    && getent passwd "$JENKINS_UID"
 COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
 RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
 USER jenkins

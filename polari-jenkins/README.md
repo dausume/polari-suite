@@ -593,6 +593,23 @@ Both are read with `docker exec polari-jenkins ssh -o BatchMode=yes <alias>
 stage ever makes. The interactive user's key is untouched, and the
 CLI-from-a-shell path keeps working exactly as it did.
 
+**And the half no key could have fixed.** The first live doctor run on the
+pipeline device answered:
+
+```
+WARN  controller → isle target — the pipeline user cannot reach <alias> (No user exists for uid 999)
+```
+
+Compose starts the controller as the *host's* `polari-ci` uid, which the
+image knew nothing about — and `ssh` calls `getpwuid()` and dies before it
+parses an argument, so even `ssh -V` failed inside the container. The image
+now takes `JENKINS_UID`/`JENKINS_GID` as **build args** (compose passes what
+`init-device` wrote into `.env`) and carries a passwd entry for that uid whose
+home is `/var/jenkins_home` — `ssh` expands `~/.ssh` from `pw_dir`, **not**
+from `$HOME`. Changing the arg rebuilds the layer, so `pol jenkins up` is
+enough. The doctor reports that cause separately, because its fix is the
+rebuild and not `authorize`.
+
 **The throwaway VM** — `isle/throwaway.sh up|verify|down|status` (also
 `pol jenkins isle …`): one script for both targets (with `CI_ISLE_TARGET=ssh`
 it copies itself to the device and runs there), an Ubuntu 24.04 cloud image
@@ -666,7 +683,7 @@ gains a `residue from an earlier run` row that FAILs and names the wipe.
 - The poll queues are one item deep and latest-wins (`pool/queue/<branch>.json`), so no automated process can build a backlog of runs to work through.
 
 ## Tests
-`bash polari-jenkins/selftest.sh` — the ci-7 … ci-12 tests, **588/588**. They
+`bash polari-jenkins/selftest.sh` — the ci-7 … ci-12 tests, **596/596**. They
 need **no docker, libvirt, sudo or network**: the scripts run against a temp
 tree and PATH shims, covering the doctor's WARN wording per
 misconfiguration, the preflight's PASS/FAIL arithmetic and the
