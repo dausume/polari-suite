@@ -7332,3 +7332,208 @@ stages → ONE verdict → the release rule refusing on it.
   device — the two remaining things between this pipeline and an artifact.
 * **Still open: `casc/plugins.txt` is not asserted against the DSL steps the
   pipelines use** (addendum 5, OWED 8).
+
+### §76 addendum 7 — suite mode builds its own core; the main queue stops re-running a covered sha
+
+Two defects, both found by real runs on the pipeline device, both fixed and both
+proven live on econ-core (2026-09-20).
+
+#### Defect 1 — a SUITE device was trying to PULL a core it builds itself
+
+`polari-isle-test #5` reached *"the core — pulled from a release"* and refused:
+
+```
+[core-artifacts] REFUSED: polari-cli/scripts/lib/providers.sh is not in this checkout
+```
+
+It was right to refuse and **should never have been asked**. The condition was
+`CI_MODE == 'app' || CI_CORE_SOURCE startsWith 'release:'`, and ci-9's DEFAULT
+for `CI_CORE_SOURCE` is `release:latest` — a line written into *every*
+`device.env`, suite-mode ones included. The pipeline device is a suite device,
+so the release-pull path fired on both jobs. The same stage in
+`Jenkinsfile.release` is why `polari-release` #84–#88 each ended FAILURE:
+
+```
++ bash /var/polari-jenkins/isle/core-artifacts.sh fetch
+[core-artifacts] fetching the core artifacts of release polari-v2026.09.12 …
+core-artifacts.sh: line 123: release_asset_urls: command not found
+[core-artifacts] REFUSED: release polari-v2026.09.12 carries no .deb assets
+ERROR: script returned exit code 6
+Finished: FAILURE
+```
+
+**`CI_CORE_SOURCE` is an APP-MODE knob and only that.** Suite mode ignores it,
+and every surface a person reads says so rather than leaving the line looking
+load-bearing: `device.sh:208` (validation, INFO not a promise), `doctor.sh:483`
+(one INFO row), `device.env.example` (in the knob's own comment),
+`setup/steps/01-role.sh:148` (the suite branch of the role report — the QUESTION
+was already app-mode-only), and the python mirror
+`modules/cicd/custom/cicd_validate.py:306`, so the shell and the core cannot
+drift about it.
+
+**Every Jenkinsfile condition is now `CI_MODE == 'app'`, and nothing else**
+(`Jenkinsfile.isle-test:110`, `Jenkinsfile.release:160`).
+
+**The suite path installs the debs THIS RUN built**, out of the run's own pool
+directory. `isle/core-artifacts.sh:208` — `built <version>` — is the ONE place
+that resolution lives, for both jobs:
+
+| job | VERSION | debs |
+|---|---|---|
+| `polari-test` → `polari-isle-test` | `test/<sha>` | `pool/test/<sha>/debs` |
+| `polari-release` | `<version>` | `pool/<version>/debs` |
+
+A pool directory with no `polari-complete_*.deb`, or none at all, is refused
+BEFORE the guest is touched — finding that out here is cheaper than finding it
+out inside a VM. An empty VERSION is the bare-device proof and says so.
+
+**App mode keeps the pull**, and its stage now checks the top level out and runs
+`git submodule update --init --depth 1 polari-cli` first: `polari-isle-test` has
+no checkout of its own (`cleanWs` every run), so `providers.sh` — the ONE reader
+of what a Polari release carries — was absent there in app mode too. The brief's
+assumption that the isle-test checkout was "top-level-only" was generous: there
+was no checkout at all.
+
+One smaller thing fixed in passing: `tested_against` in suite mode used to read
+`release:polari-v<version>`, which for a test run renders
+`release:polari-vtest/<sha>` — a release that does not exist, named as the thing
+the stages were tested against. It is `this build` now.
+
+#### Defect 2 — the main queue re-ran a covered sha every ten minutes
+
+`polari-release` #84/#85/#86 (and #87/#88) all ran on the SAME `main` sha
+(`0ee38c6`), ten minutes apart, each one re-deriving the same answer and going
+red for it. Two rules §76 stated and the release side did not keep:
+
+* **latest-wins says a sha already covered is NOT re-run.** The test job has had
+  that since ci-12 (the NOT_BUILT *"exactly what the last run already covered"*
+  path). The release job only marked a sha covered from its LAST stage, so any
+  run that ended earlier left the sha outstanding.
+* **a release-rule refusal is a RECORDED OUTCOME, not a build error.** "There is
+  no passed verdict for this sha" is the rule working. Ending FAILURE on it is
+  the same confusion §76 set out to remove: the colour says whether it RAN.
+
+So the rule moved to the **gate** — which already reads main's tip with one
+`ls-remote` before any checkout, and the verdict is keyed on exactly that sha,
+so the answer costs one file read instead of a full build.
+`quiet.sh release-rule main <sha>` (`quiet.sh:468`) is asked at
+`Jenkinsfile.release:70`, before the checkout stage. When it refuses:
+
+* `pool/release/<sha>/refused.json` records the sha, the verdict found, the
+  reason and the time (`quiet.sh:445`);
+* the sha becomes **covered** (`quiet.sh:425`), so no tick re-runs it;
+* the build ends **NOT_BUILT** (`Jenkinsfile.release:376`), and a refused build
+  publishes nothing — not even a DRY route run;
+* `pol jenkins queue` reads `main   covered <sha> (refused: no passed verdict)`.
+
+It re-arms in exactly two cases: **main moves**, or **that sha's verdict
+CHANGES**. Promote the sha to `test`, let `polari-test` record `passed`, and the
+next tick releases it with nobody touching `main`. A run that reaches a real
+verdict supersedes the refusal, so a released sha is never answered for by a
+stale refusal. `retention.sh` exempts `pool/release/` — the refusals are not
+versions that age out, and they are the only durable trace of why a sha was not
+released.
+
+#### The proofs, live on econ-core
+
+**1. the isle stage got past core-artifacts** — `polari-test #170` →
+`polari-isle-test #6`, 2026-09-20 13:59:25 → 14:01:00 UTC. The preflight read
+**14/14 PASS**, then:
+
+```
+Stage "the core under test — pulled from a release (app mode)" skipped due to when conditional
++ bash /var/polari-jenkins/isle/core-artifacts.sh built test/3b95232529b5f1f0f4125a6b54cf4dee88239748
+[core-artifacts] suite mode: the core under test is the one THIS RUN built —
+                 /var/polari-pool/test/3b95232529b5…/debs (6 deb(s))
+the stages below install the core THIS RUN built: /var/polari-pool/test/3b95232529b5…/debs
+```
+
+…the throwaway isle stood up on `isle-core` (`up at 192.168.122.15 after 5s of
+ssh wait`), `verified`, reached the ci-3 TODO naming the right directory:
+
+```
+ci-3 TODO: install the core debs from /var/polari-pool/test/3b95232529b5…/debs
+           (core: this build), then no app debs, then run pol modules selftest
+           for each app inside the isle. Not built — every result is 'skipped'.
+stage 1 uninstall verdict: skipped
+[throwaway:polari-ci-isle] destroying … run directory removed (disk, seed, key)
+leak check — stage 1, target ssh:isle-core, against the baseline of 2026-09-20T13:59:40
+    "leak_verdict": "clean",   "stages_leaked": 0
+Finished: SUCCESS
+```
+
+**`polari-isle-test` has never before finished SUCCESS** (#3, #4 and #5 were all
+FAILURE). The verdict is `partial` **for the right reason** — and it says
+`results present`, not "no results.json":
+
+```
+TEST VERDICT — PARTIAL  (test)
+  sha        3b95232529b5f1f0f4125a6b54cf4dee88239748
+  why        every isle stage recorded uninstall=skipped: the install + selftest cycle
+             INSIDE the guest is still the marked ci-3 TODO, so core_ok cannot become
+             true yet and no core has actually been exercised in an isle
+  selftests  88 suite(s): 88 pass, 0 fail   modules: core=pass
+  isle       results present  core_ok=False  stages=1  uninstall: stage1=skipped
+  scans      critical=85 high=1594 low=1854 medium=4439 unknown=467   (ADVISORY)
+```
+
+**2. the main queue answered once and then stopped.** `polari-release`, the same
+sha throughout, `main` untouched at `0ee38c6`:
+
+| build | at (UTC) | outcome | why |
+|---|---|---|---|
+| #87 | 13:23:02 | **FAILURE** | pre-fix: pulled a core release, refused |
+| #88 | 13:33:02 | **FAILURE** | pre-fix: same |
+| #89 | 13:43:05 | **NOT_BUILT** | the one run that did work: refusal RECORDED |
+| #90 | 14:01:05 | **NOT_BUILT** | `covered … (refused: no passed verdict) — nothing to do.` |
+| #91 | 14:04:18 | **NOT_BUILT** | same |
+| #92 | 14:13:00 | **NOT_BUILT** | same |
+
+#89, in full:
+
+```
+[quiet] main: REFUSED by the release rule — no passed verdict for 0ee38c614395
+[quiet]   Fix: pol jenkins promote test, let polari-test record a passing verdict
+          for this sha, and this tick releases it.
+[quiet] main: RECORDED the refusal for 0ee38c614395 — no passed verdict
+          (/var/polari-pool/release/0ee38c61…/refused.json)
+[quiet]   the sha is now COVERED: no tick re-runs it until main moves or its
+          verdict changes. This is NOT a build failure.
+Finished: NOT_BUILT
+```
+
+```json
+{ "sha": "0ee38c61439527fd727d9803d7996fa9958bf6ec", "branch": "main",
+  "verdict": "none", "reason": "no passed verdict", "at": "2026-09-20T13:43:08+00:00",
+  "rule": "only a sha whose test verdict is `passed` may be released",
+  "rearms_when": "main moves, or the test verdict for this sha changes to passed" }
+```
+
+```
+main   covered 0ee38c614395 (refused: no passed verdict)
+       newest 0ee38c614395   last run 2026-09-20T14:04:19+00:00
+```
+
+**One honest caveat about "no more runs".** The trigger is `cron('H/10 …')` and
+a cron tick always creates a build — §76 chose that over `pollSCM` deliberately,
+because an SCM trigger fires on a CHANGE and a deferral would then never be
+retried (addendum 1, defect 4). So the ticks continue; what changed is that a
+covered tick now does NOTHING and says so. #89 (the run that recorded the
+refusal) took **5.3 s**; #92 took **4.2 s** and never left the gate. Before the
+fix each of those ten-minute ticks did a full checkout and ended red.
+
+#### OWED
+
+1. **ci-3 is the whole remaining backlog.** Every isle stage still records
+   `skipped`, `core_ok` stays false, every verdict is `partial`, and no sha can
+   reach `passed` — so `pol jenkins promote main` refuses and the release rule
+   records a refusal. That is three separate mechanisms all agreeing, honestly,
+   that nothing has been tested inside a guest yet. The install + selftest cycle
+   inside the throwaway (ci-3 (c)/(d), marked in `Jenkinsfile.isle-test`) is the
+   one thing between this pipeline and an artifact.
+2. **The verdict-changed re-arm has not been proven on hardware.** Both re-arms
+   are selftested (a `none → failed` change and a `failed → passed` one), and the
+   live half needs a sha with a PASSING verdict on `main` — which needs ci-3.
+   `main` is untouched at `0ee38c6`; nothing was promoted to it.
+3. **`casc/plugins.txt` is still not asserted against the DSL steps the pipelines
+   use** (addendum 5, OWED 8) — unchanged.
