@@ -1420,8 +1420,18 @@ printf '[{"Description": "a key"}, {"Description": "another"}]\n' > "$SC/gitleak
 printf '{"metadata": {"vulnerabilities": {"info": 0, "low": 2, "moderate": 1, "high": 0, "critical": 0, "total": 3}}}\n' > "$SC/npm-audit.json"
 printf '{"dependencies": [{"name": "x", "vulns": [{"id": "PYSEC-1"}]}]}\n' > "$SC/pip-audit.json"
 printf 'trivy: the image could not be pulled\n' > "$SC/SKIPPED.txt"
+printf '{"Results": [{"Target": "prf-backend:staging (alpine 3.20)", "Vulnerabilities": [{"Severity": "CRITICAL", "PkgName": "openssl", "VulnerabilityID": "CVE-2026-0001", "PrimaryURL": "https://avd/CVE-2026-0001"}, {"Severity": "HIGH", "PkgName": "busybox", "VulnerabilityID": "CVE-2026-0002"}]}]}\n' > "$SC/trivy-images.json"
 OUT="$(python3 "$DEV/scan/summarize.py" summary "$SC" "$DEV/scan-tools.lock" 2>&1)"
 SUM="$(cat "$SC/SCAN_SUMMARY.md")"
+# ci-3: a table of totals tells a person there is something to look at; it does not
+# tell them WHAT. The report carries the worst rows BY PACKAGE, and they gate nothing.
+has "scan summary: the worst findings are listed by package, worst first" "openssl" "$SUM"
+has "  …with the advisory id" "CVE-2026-0001" "$SUM"
+has "  …and the section says in its own heading that it gates nothing" "this list gates nothing" "$SUM"
+eq "  …SUMMARY.json carries them too, for the report to render" "critical" \
+   "$(python3 "$DEV/jsonget.py" "$SC/SUMMARY.json" top.0.severity)"
+eq "  …worst FIRST, so a top-10 is the ten that matter" "openssl" \
+   "$(python3 "$DEV/jsonget.py" "$SC/SUMMARY.json" top.0.package)"
 has "scan summary: trivy's four kinds of finding are counted by severity" "| trivy-source | 1 | 2 | 1 | 1 |" "$SUM"
 has "  …gitleaks has no severity of its own, and a leaked credential is counted HIGH" "| gitleaks | 0 | 2 |" "$SUM"
 has "  …npm audit's moderate is normalised to medium rather than dropped" "| npm-audit | 0 | 0 | 1 | 2 |" "$SUM"
@@ -1429,7 +1439,7 @@ has "  …pip-audit states no severity, so it is counted UNKNOWN, not invented" 
 has "  …there is a TOTAL row" "**total**" "$SUM"
 has "  …a tool that could not run is SKIPPED with its reason, not silently absent" "could not be pulled" "$SUM"
 has "  …and the summary states, first, that nothing below gates anything" "Nothing below gates anything" "$SUM"
-eq "  …SUMMARY.json carries the totals the verdict will embed" "4" \
+eq "  …SUMMARY.json carries the totals the verdict will embed" "5" \
    "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["totals"]["high"])' "$SC/SUMMARY.json")"
 
 LOCKOUT="$( cd "$DEV" && bash scan/scan.sh lock 2>&1 )"
