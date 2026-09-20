@@ -456,7 +456,7 @@ if [ -z "$BR_TEST" ]; then
 elif [ -f "$J/pool/test/$BR_TEST/isle-test/results.json" ]; then
     ok "isle-test results" "the tip of test has isle results — the verdict can be computed from them"
 else
-    warn "isle-test results" "the tip of test has no isle-test/results.json — the verdict will be `partial` at best" \
+    warn "isle-test results" "the tip of test has no isle-test/results.json — the verdict will be 'partial' at best" \
          "let polari-test run (it triggers polari-isle-test with VERSION=test/<sha>)"
 fi
 

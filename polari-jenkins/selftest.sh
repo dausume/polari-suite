@@ -1364,6 +1364,16 @@ OUT="$(q check test)"
 has "the full forest check does NOT restart the window the gate started" "keeping the window the gate already started" "$OUT"
 has "  …so it can proceed on a branch the gate already timed" "QUIET_SHA=333ccc" "$OUT"
 
+# A BACKTICK IN A DOUBLE-QUOTED MESSAGE IS A COMMAND SUBSTITUTION. His doctor run
+# on the pipeline device printed `doctor.sh: line 459: partial: command not found`
+# and then "the verdict will be  at best" — the word had been EXECUTED and its
+# (empty) output substituted. Asserted over every message-bearing script here,
+# because the same mistake is invisible on the page and obvious in the terminal.
+for F in "$J/doctor.sh" "$J/quiet.sh" "$J/promote.sh" "$J/test-wipe.sh" "$J/selftests.sh" "$J/scan/scan.sh"; do
+    TICKS="$(grep -nE '^[^#]*(ok|warn|say|check|_row) +"[^"]*`' "$F" || true)"
+    eq "no backtick inside a message string in $(basename "$F") (it would be RUN, not printed)" "" "$TICKS"
+done
+
 # the TIP-not-trigger rule, stated where it is enforced
 has "the test pipeline checks out the TIP of test, never the sha that triggered it" \
     "checkout the TIP of test" "$(cat "$J/pipelines/Jenkinsfile.test")"
