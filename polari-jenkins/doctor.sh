@@ -228,15 +228,33 @@ LEAKED=$( { git -C "$J/.." status --porcelain polari-jenkins/secrets 2>/dev/null
 
 # routes armed vs dry
 sec "publication routes — ARMED (publishes for real) vs DRY (renders only)"
+# ci-12 (his ask): every route row NAMES ITS DESTINATION — which release pool,
+# which registry — rendered from routes/destinations.sh, the same constants the
+# route script pushes to. In app mode that is the developer's own namespace, so
+# the row cannot say "dausume" to somebody publishing to their own account.
 for r in $SECRETS_ACTIVE_ROUTES; do
     need=$(secrets_route_requires "$r"); miss=""
     for s in $need; do secrets_have "$s" || miss="$miss $s"; done
     inlist=0; for c in ${CI_ROUTES//,/ }; do [ "$c" = "$r" ] && inlist=1; done
-    if [ "$inlist" = 0 ]; then ok "route $r" "DRY (not in CI_ROUTES)"
-    elif [ -n "$miss" ]; then ok "route $r" "DRY (secret absent:$miss)"
-    else ok "route $r" "ARMED — a release WILL publish to it"; fi
+    DEST="$(route_destination "$r" 2>/dev/null || echo '(no destination declared)')"
+    if [ "$inlist" = 0 ]; then ok "route $r" "DRY (not in CI_ROUTES) — would go to: $DEST"
+    elif [ -n "$miss" ]; then ok "route $r" "DRY (secret absent:$miss) — would go to: $DEST"
+    else ok "route $r" "ARMED — a release WILL publish to: $DEST"; fi
 done
 ok "routes parked" "$SECRETS_PARKED_ROUTES (routes/later/ — they need an outside account)"
+# ci-12: a token still stored under its pre-ci-12 name keeps working, and the
+# doctor says so ONCE with the exact rename. Silence would leave the old name in
+# place forever, which is the whole reason the rename was asked for.
+LEGACY="$(secrets_legacy_names)"
+if [ -n "$LEGACY" ]; then
+    while read -r oldn newn; do
+        [ -n "$oldn" ] || continue
+        warn "secret name" "$oldn is stored under the OLD name (it still works, and every route reads it)" \
+             "sudo pol jenkins secrets mv $oldn $newn — the new name says what the token is FOR"
+    done <<< "$LEGACY"
+else
+    ok "secret names" "the two GitHub tokens use their ci-12 names: github/release_token (the release pool) and github/registry_token (the registry)"
+fi
 
 # --------------------------------------------------------------- docker
 sec "the docker socket — membership is root-equivalent"

@@ -11,19 +11,30 @@
 
 STEP_TITLE_secrets="the secrets posture, and the secrets"
 
+# ci-12: the where-to-get-it entries below name the ACTUAL destination — which
+# release pool, which registry — and those come from the ONE catalogue
+# (secrets.sh → routes/destinations.sh). A step file can be sourced on its own
+# (the selftest does), so make sure the catalogue is there rather than printing
+# an entry with a hole where the destination should be.
+if ! command -v secrets_destination >/dev/null 2>&1; then
+    _S04="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+    # shellcheck source=../../secrets.sh
+    [ -f "$_S04/secrets.sh" ] && . "$_S04/secrets.sh"
+fi
+
 # ------------------------------------------------------- where to get it
 # kind | blocked | what it is for | where | how
 # kind: paste (outside authority) · cosign · gpg · ssh · auto
 setup_secret_info() {
     case "$1" in
-    github/github_token) printf '%s\t%s\t%s\t%s\t%s\n' paste 0 \
-        "the github-release and homebrew routes: create the release, upload its assets, push the version tag" \
+    github/release_token) printf '%s\t%s\t%s\t%s\t%s\n' paste 0 \
+        "the RELEASE token — $(secrets_destination github/release_token). It creates the release, uploads its assets and pushes the version tag." \
         "https://github.com/settings/personal-access-tokens/new" \
-        "Fine-grained token → Repository access: only dausume/polari-suite → Permissions → Contents: Read and write. (A classic token with the 'repo' scope works too: https://github.com/settings/tokens)" ;;
-    registries/ghcr_token) printf '%s\t%s\t%s\t%s\t%s\n' paste 0 \
-        "the ghcr route: push the release images to ghcr.io/dausume" \
-        "https://github.com/settings/tokens" \
-        "A CLASSIC token (fine-grained tokens cannot do packages) → scopes write:packages and read:packages. Add delete:packages only if you ever need to remove a bad tag." ;;
+        "GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Repository access: ONLY $(dest_release_repo) and $(dest_homebrew_tap). Permissions → Repository → Contents: Read and write. NO account permissions. (A classic token with the 'repo' scope also works: https://github.com/settings/tokens/new.) EXAMPLES, documentation only — the routes are GitHub today: GitLab → User Settings → Access Tokens, scopes api + write_registry; Gitea → Settings → Applications → Generate token, scopes write:repository + write:package." ;;
+    github/registry_token) printf '%s\t%s\t%s\t%s\t%s\n' paste 0 \
+        "the REGISTRY token — $(secrets_destination github/registry_token)." \
+        "https://github.com/settings/tokens/new" \
+        "GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token. It MUST be classic: a fine-grained token cannot write packages. Scopes: write:packages and read:packages. Add delete:packages only if you ever need to remove a bad tag. EXAMPLES, documentation only — the routes are GitHub today: GitLab → User Settings → Access Tokens, scope write_registry; Gitea → Settings → Applications → Generate token, scope write:package." ;;
     signing/cosign_key) printf '%s\t%s\t%s\t%s\t%s\n' cosign 0 \
         "signs the release images and the checksums so a downloader can verify them" \
         "nothing to fetch — generated here; cosign is in the controller image, standalone binaries at https://github.com/sigstore/cosign/releases" \
@@ -45,8 +56,8 @@ setup_secret_info() {
         "generated here; its PUBLIC half goes into that host's ~/.ssh/authorized_keys" \
         "ssh-keygen -t ed25519 -C polari-ci-apt -f ./polari-apt -N \"\"  — the private half is the secret, the .pub goes on the distribution host" ;;
     github/github_ssh_key) printf '%s\t%s\t%s\t%s\t%s\n' ssh 0 \
-        "OPTIONAL alternative to github_token for the tag push only (a deploy key)" \
-        "https://github.com/dausume/polari-suite/settings/keys → Add deploy key → Allow write access" \
+        "OPTIONAL alternative to the RELEASE token, for the tag push only (a deploy key)" \
+        "https://github.com/$(dest_release_repo)/settings/keys → Add deploy key → Allow write access" \
         "ssh-keygen -t ed25519 -C polari-ci -f ./polari-ci-deploy -N \"\"  — the private half is the secret, the .pub is the deploy key" ;;
     admin/jenkins_admin_password) printf '%s\t%s\t%s\t%s\t%s\n' auto 0 \
         "the local Jenkins admin login" \

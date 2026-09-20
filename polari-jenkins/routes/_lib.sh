@@ -9,6 +9,11 @@
 #   ARMED · DRY (secret <name> absent) · DRY (not in CI_ROUTES)
 # DRY_RUN=1/true and DRY_RUN=0/false still force the old behaviour.
 set -eu
+# ci-12: WHERE each route pushes, in ONE place — the same constants the secrets
+# catalogue renders its destinations from, so a listing cannot promise something
+# a route does not do.
+# shellcheck source=destinations.sh
+. "$(dirname "${BASH_SOURCE[0]}")/destinations.sh"
 DRY_RUN="${DRY_RUN:-auto}"
 CI_ROUTES="${CI_ROUTES:-github-release,ghcr,homebrew,apt-repo}"
 : "${VERSION:?VERSION required}"; : "${POOL_DIR:?POOL_DIR required}"
@@ -115,7 +120,7 @@ except Exception: pass' "$vp" 2>/dev/null || true
 CI_MODE="${CI_MODE:-suite}"
 CI_APP_NAME="${CI_APP_NAME:-}"
 CI_ROUTE_TARGET="${CI_ROUTE_TARGET:-}"
-CI_UPSTREAM_OWNER="${CI_UPSTREAM_OWNER:-dausume}"
+# the upstream owner is declared ONCE, in destinations.sh (sourced above)
 route_target_state(){ # → 'OK', or the reason this device may not publish
     [ "$CI_MODE" = app ] || { echo OK; return 0; }
     [ -n "$CI_APP_NAME" ] || { echo "app mode names no app (CI_APP_NAME) — there is nothing to release"; return 1; }

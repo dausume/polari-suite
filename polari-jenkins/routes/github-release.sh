@@ -1,9 +1,14 @@
 #!/bin/bash
-# GitHub Release on dausume/polari-suite: tag polari-v<VERSION>, upload debs + SHA256SUMS + release.json + offline chunks. The canonical home.
+# GitHub Release on <owner>/polari-suite: tag polari-v<VERSION>, upload debs + SHA256SUMS +
+# release.json + offline chunks. The canonical home. The owner comes from
+# routes/destinations.sh, which is also what the secrets catalogue names as this
+# token's destination — one constant, so the two cannot disagree.
 source "$(dirname "$0")/_lib.sh"
-arm GITHUB_TOKEN:github/github_token
+arm GITHUB_TOKEN:github/release_token
 export GH_TOKEN="$GITHUB_TOKEN"
-TAG="polari-v$VERSION"; REPO=dausume/polari-suite
+# the destination comes from routes/destinations.sh, which is also what the
+# secrets catalogue renders — so "where does this token publish?" has ONE answer.
+TAG="polari-v$VERSION"; REPO="$(dest_release_repo)"
 SHA=$(manifest "['components']['superproject']['sha']")
 NOTES="$POOL_DIR/RELEASE_NOTES.md"
 { echo "# Polari $VERSION"; echo

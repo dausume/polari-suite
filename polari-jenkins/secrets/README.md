@@ -34,15 +34,16 @@ exists to prevent, and the doctor's readability test says so.
 ## Handling
 
 ```
-pol jenkins secrets put github/github_token    # value from stdin, never a shell argument
+pol jenkins secrets put github/release_token   # value from stdin, never a shell argument
                                                #   (no history, no ps, no log)
 pol jenkins secrets status                     # names only, plus which routes are ARMED
-pol jenkins secrets rm  github/github_token
+pol jenkins secrets rm  github/release_token
+pol jenkins secrets mv  github/github_token github/release_token   # the ci-12 rename, keeping mode + owner
 pol jenkins restart                            # the controller re-reads them at boot
 ```
 
 - One secret = one file; the FILE NAME is the variable Configuration as
-  Code reads (`${github_token}` ← `github/github_token`). No extension.
+  Code reads (`${release_token}` ← `github/release_token`). No extension.
   A trailing newline is stripped by Jenkins.
 - `controller/entrypoint.sh` flattens `<area>/<name>` into one private
   directory at boot and logs the NAMES only — `pol jenkins logs` never
@@ -64,9 +65,9 @@ and `pol jenkins doctor` shows the same table before anything runs.
 | directory | file | used by |
 |---|---|---|
 | admin/ | jenkins_admin_password | the local admin login (no anonymous access) |
-| github/ | github_token | routes/github-release.sh + routes/homebrew.sh, and the **release tag push** (`contents:write`) |
+| github/ | **release_token** | routes/github-release.sh + routes/homebrew.sh, and the **release tag push**. A FINE-GRAINED PAT: Contents Read and write on the release repo AND the homebrew tap, no account permissions. Destination: `bash polari-jenkins/routes/destinations.sh` prints exactly where. The pre-ci-12 name `github_token` still works everywhere; `pol jenkins secrets mv github/github_token github/release_token` renames it. |
 | github/ | github_ssh_key | optional alternative for the tag push |
-| registries/ | ghcr_token | routes/ghcr.sh (`write:packages`) |
+| github/ | **registry_token** | routes/ghcr.sh. A CLASSIC PAT (a fine-grained one cannot write packages): scopes `write:packages` + `read:packages`. Destination: the container registry — `bash polari-jenkins/routes/destinations.sh`. The pre-ci-12 name `registries/ghcr_token` still works. |
 | registries/ | dockerhub_user, dockerhub_token | routes/later/dockerhub.sh (PARKED) |
 | signing/ | apt_signing_gpg, apt_signing_keyid | routes/apt-repo.sh (armored private key + its key id) |
 | signing/ | cosign_key, cosign_password | image signing in ghcr.sh / dockerhub.sh |

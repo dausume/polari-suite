@@ -19,10 +19,10 @@ pipeline {
         script {
           def routes = params.ROUTES.split(',').collect { it.trim() }.findAll { it }
           def creds = [
-            'github-release': [string(credentialsId: 'github_token', variable: 'GITHUB_TOKEN')],
+            'github-release': [string(credentialsId: 'release_token', variable: 'GITHUB_TOKEN')],
             'apt-repo':       [string(credentialsId: 'apt_signing_gpg', variable: 'APT_SIGNING_GPG'), string(credentialsId: 'apt_signing_keyid', variable: 'APT_SIGNING_KEYID'), string(credentialsId: 'distribution_host_key', variable: 'DISTRIBUTION_HOST_KEY')],
-            'ghcr':           [string(credentialsId: 'ghcr_token', variable: 'GHCR_TOKEN'), string(credentialsId: 'cosign_key', variable: 'COSIGN_KEY'), string(credentialsId: 'cosign_password', variable: 'COSIGN_PASSWORD')],
-            'homebrew':       [string(credentialsId: 'github_token', variable: 'GITHUB_TOKEN')],
+            'ghcr':           [string(credentialsId: 'registry_token', variable: 'GHCR_TOKEN'), string(credentialsId: 'cosign_key', variable: 'COSIGN_KEY'), string(credentialsId: 'cosign_password', variable: 'COSIGN_PASSWORD')],
+            'homebrew':       [string(credentialsId: 'release_token', variable: 'GITHUB_TOKEN')],
           ]
           for (r in routes) {
             stage(r) {

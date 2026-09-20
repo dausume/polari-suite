@@ -34,6 +34,29 @@ TIMEOUT="${POLARI_SCAN_TIMEOUT:-600}"
 DOCKER="${SCAN_DOCKER:-docker}"
 
 say()  { printf '[scan] %s\n' "$*"; }
+
+# ---------------------------------------------------------- docker-outside-docker
+# THE TRAP, and it is silent: `docker build` sends its context from the CLIENT,
+# but `docker -v` is resolved by the DAEMON — on the HOST. This scanner runs
+# inside the Jenkins controller, so `-v /var/polari-pool/…:/out` would have
+# docker create an empty directory at that path ON THE HOST and trivy would
+# write its report somewhere the controller cannot see. That is exactly what the
+# first real run did: every tool pulled, ran, and "produced no report".
+#
+# So every path handed to `-v` goes through host_path(). CI_HOST_POOL and
+# CI_HOST_JENKINS_HOME are written by `pol jenkins up` from the checkout it is
+# standing in; without them the translation is the identity, which is correct
+# when the scanner runs on the host itself.
+JH="${JENKINS_HOME:-/var/jenkins_home}"
+host_path() {
+    case "$1" in
+        "$POOL") printf '%s' "${CI_HOST_POOL:-$POOL}" ;;
+        "$POOL"/*) printf '%s%s' "${CI_HOST_POOL:-$POOL}" "${1#"$POOL"}" ;;
+        "$JH") printf '%s' "${CI_HOST_JENKINS_HOME:-$JH}" ;;
+        "$JH"/*) printf '%s%s' "${CI_HOST_JENKINS_HOME:-$JH}" "${1#"$JH"}" ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
 skip() { printf '[scan] SKIPPED: %s\n' "$*"; mkdir -p "$OUT"; printf '%s\n' "$*" >> "$OUT/SKIPPED.txt"; }
 
 # ----------------------------------------------------------------- the lock
@@ -100,10 +123,10 @@ run_trivy() {  # run_trivy <report-name> <trivy args…>
     mkdir -p "$OUT" "$POOL/cache/scanners"
     say "trivy ($img) → $OUT/$name.json"
     timeout "$TIMEOUT" "$DOCKER" run --rm \
-        -v "$WORK:/work:ro" -v "$POOL/cache/scanners:/root/.cache/trivy" \
+        -v "$(host_path "$WORK"):/work:ro" -v "$(host_path "$POOL/cache/scanners"):/root/.cache/trivy" \
         -v /var/run/docker.sock:/var/run/docker.sock \
-        -v "$OUT:/out" "$img" --quiet --format json --output "/out/$name.json" "$@" \
-        2>&1 | tail -5
+        -v "$(host_path "$OUT"):/out" "$img" --quiet --format json --output "/out/$name.json" "$@" \
+        2>&1 | tail -15
     [ -s "$OUT/$name.json" ] || { skip "trivy: $name produced no report (see the lines above)"; }
     return 0
 }
@@ -114,9 +137,9 @@ scan_source() {
     local gl; gl="$(lock_image gitleaks)"
     if [ -n "$gl" ] && have_docker; then
         say "gitleaks ($gl) → $OUT/gitleaks.json"
-        timeout "$TIMEOUT" "$DOCKER" run --rm -v "$WORK:/work:ro" -v "$OUT:/out" "$gl" \
+        timeout "$TIMEOUT" "$DOCKER" run --rm -v "$(host_path "$WORK"):/work:ro" -v "$(host_path "$OUT"):/out" "$gl" \
             detect --source /work --no-git --report-format json --report-path /out/gitleaks.json \
-            --exit-code 0 2>&1 | tail -5
+            --exit-code 0 2>&1 | tail -15
         [ -f "$OUT/gitleaks.json" ] || skip "gitleaks: no report produced"
     else
         skip "gitleaks: no image in $LOCK or no docker daemon"
@@ -174,7 +197,9 @@ scan_debs() {
     for f in "$dir"/*.deb; do
         [ -f "$f" ] || continue
         n=$((n+1)); base="$(basename "$f" .deb)"
-        tmp="$(mktemp -d)"
+        # unpack INSIDE the workspace, so host_path() can translate it — a
+        # mktemp -d under /tmp is a path only this container has.
+        tmp="$(mktemp -d -p "${SCAN_UNPACK_DIR:-$WORK}" .scan-deb-XXXXXX)"
         if dpkg-deb -x "$f" "$tmp" 2>/dev/null; then
             SCAN_WORKSPACE_SAVE="$WORK"; WORK="$tmp"
             run_trivy "trivy-deb-$base" fs --scanners vuln,secret --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL /work
@@ -196,6 +221,10 @@ do_summary() {
 }
 
 # ------------------------------------------------------------------ dispatch
+# SOURCEABLE. The selftest exercises host_path() and the counters directly, and a
+# file that ran its whole dispatch on `source` could not be tested that way.
+if [ "${BASH_SOURCE[0]}" != "${0}" ]; then return 0 2>/dev/null || true; fi
+
 VERB="${1:-all}"; shift || true
 while [ $# -gt 0 ]; do
     case "$1" in --out) OUT="${2:-$OUT}"; shift ;; *) break ;; esac

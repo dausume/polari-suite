@@ -65,7 +65,15 @@ device_load() {
     : "${CI_ISLE_IMAGE_URL:=https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img}"
     : "${CI_MIN_FREE_GB:=20}"
     : "${CI_MIN_RAM_HEADROOM_GB:=1}"
-    : "${CI_EXECUTORS:=1}"
+    # ci-12: TWO, and the reason is specific. `polari-test` triggers
+    # `polari-isle-test` with wait:true, and a waiting parent keeps holding its
+    # executor — with one executor the parent waits for the child and the child
+    # waits for the parent. (It happened: polari-isle-test #1 sat at "Waiting for
+    # next available executor" while polari-test #18 held the only one.) The
+    # second slot exists ONLY so a blocked parent has somewhere to block; what
+    # actually stops two builds overlapping is the `polari-build` lock, not the
+    # executor count.
+    : "${CI_EXECUTORS:=2}"
     : "${CI_ROUTES:=github-release,ghcr,homebrew,apt-repo}"
     : "${CI_ISLE_STAGES:=core}"
     # ci-9 (his ask 2026-09-19): "the jenkins pipeline should try and use offline artifacts for building
@@ -241,8 +249,13 @@ device_validate() {
     [ -z "$bad" ] && _row CI_ROUTES "$CI_ROUTES" OK "routes that may publish for real" \
         || _row CI_ROUTES "$CI_ROUTES" FAIL "not publishable:$bad → ACTIVE routes are github-release,ghcr,homebrew,apt-repo"
 
-    [ "${CI_EXECUTORS:-1}" = 1 ] || _row CI_EXECUTORS "$CI_EXECUTORS" WARN \
-        "more than one executor on a home box overlaps builds → set CI_EXECUTORS=1"
+    if [ "${CI_EXECUTORS:-2}" -lt 2 ] 2>/dev/null; then
+        _row CI_EXECUTORS "$CI_EXECUTORS" WARN \
+            "one executor DEADLOCKS polari-test: it waits for polari-isle-test while holding the only slot → set CI_EXECUTORS=2 (the polari-build lock is what stops builds overlapping, not this number)"
+    elif [ "${CI_EXECUTORS:-2}" -gt 2 ] 2>/dev/null; then
+        _row CI_EXECUTORS "$CI_EXECUTORS" WARN \
+            "more than two executors on a home box lets unrelated builds overlap → 2 is what the parent/child wait needs"
+    fi
 
     device_validate_cache
     device_validate_route_target

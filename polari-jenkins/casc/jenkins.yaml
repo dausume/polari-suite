@@ -4,7 +4,7 @@
 # depends on a credential being present — the ROUTE refuses instead.
 jenkins:
   systemMessage: "polari-jenkins — host-tier build + publish. Polls GitHub; publishes only with DRY_RUN=false and a present secret."
-  numExecutors: ${CI_EXECUTORS:-1}   # ci-7: follows device.env CI_ROUTES/CI_EXECUTORS; ONE build at a time on a home box
+  numExecutors: ${CI_EXECUTORS:-2}   # ci-7: follows device.env CI_ROUTES/CI_EXECUTORS; ONE build at a time on a home box
   mode: NORMAL
   securityRealm:
     local:
@@ -49,9 +49,12 @@ credentials:
   system:
     domainCredentials:
       - credentials:
-          - string: { scope: GLOBAL, id: github_token,        description: "GitHub token (releases)",        secret: "${github_token:-}" }
-          - string: { scope: GLOBAL, id: github_ssh_key,      description: "GitHub deploy key (tag push, optional)", secret: "${github_ssh_key:-}" }
-          - string: { scope: GLOBAL, id: ghcr_token,          description: "GHCR write:packages",            secret: "${ghcr_token:-}" }
+          # ci-12: the names say what the token is FOR, and the description says
+          # WHERE it publishes. `${release_token:-${github_token:-}}` keeps a
+          # device that still holds the pre-ci-12 name working.
+          - string: { scope: GLOBAL, id: release_token,       description: "GitHub RELEASE token — release pool: github.com/<owner>/polari-suite/releases + the pol formula in <owner>/homebrew-polari", secret: "${release_token:-${github_token:-}}" }
+          - string: { scope: GLOBAL, id: github_ssh_key,      description: "GitHub deploy key — the version tag only (an alternative to the release token)", secret: "${github_ssh_key:-}" }
+          - string: { scope: GLOBAL, id: registry_token,      description: "GitHub REGISTRY token — registry: ghcr.io/<owner> (prf-backend, prf-frontend, pol-reticulum)", secret: "${registry_token:-${ghcr_token:-}}" }
           - string: { scope: GLOBAL, id: apt_signing_gpg,     description: "apt repo signing key (armored)",  secret: "${apt_signing_gpg:-}" }
           - string: { scope: GLOBAL, id: apt_signing_keyid,   description: "apt repo signing key id",         secret: "${apt_signing_keyid:-}" }
           - string: { scope: GLOBAL, id: cosign_key,          description: "cosign private key",              secret: "${cosign_key:-}" }

@@ -25,7 +25,7 @@ services:
       - POLARI_POOL=/var/polari-pool
       # ci-7: the pipeline device configuration reaches the jobs (and casc's
       # numExecutors) as environment; `pol jenkins up` exports it from device.env.
-      - CI_EXECUTORS=${CI_EXECUTORS:-1}
+      - CI_EXECUTORS=${CI_EXECUTORS:-2}
       - CI_ROUTES=${CI_ROUTES:-github-release,ghcr,homebrew,apt-repo}
       - CI_ISLE_TARGET=${CI_ISLE_TARGET:-local}
       - CI_ISLE_SSH_HOST=${CI_ISLE_SSH_HOST:-}
@@ -64,6 +64,13 @@ services:
       - CI_SELFTEST_TIMEOUT_S=${CI_SELFTEST_TIMEOUT_S:-300}
       - CI_BUILD_OFFLINE_MEDIUM=${CI_BUILD_OFFLINE_MEDIUM:-true}
       - CI_DEVICE_NAME=${CI_DEVICE_NAME:-pipeline}
+      # ci-12: `docker -v` is resolved by the DAEMON, on the HOST. A scanner
+      # running inside this container that mounts its own /var/polari-pool path
+      # would have docker create an empty directory on the host and write the
+      # report where nobody can read it. These two say what the host calls the
+      # paths this container knows by another name.
+      - CI_HOST_POOL=${CI_HOST_POOL:-}
+      - CI_HOST_JENKINS_HOME=${CI_HOST_JENKINS_HOME:-}
     volumes:
       - ${JENKINS_HOME:-./jenkins_home}:/var/jenkins_home
       - ./casc:/var/jenkins_casc:ro

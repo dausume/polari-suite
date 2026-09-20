@@ -153,10 +153,10 @@ json.dump({"sha": "deadbee", "branch": "test", "verdict": sys.argv[2], "why": sy
 }
 seedverdict passed ''
 armrun() { ( cd "$DEV/routes" && env -u GITHUB_TOKEN VERSION=1 POOL_DIR="$T/pool" POLARI_POOL="$VPOOL" ROUTE=github-release "$@" \
-             bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token; echo "resolved=$DRY_RUN"' 2>&1 ) || true; }
+             bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/release_token; echo "resolved=$DRY_RUN"' 2>&1 ) || true; }
 has "auto + secret + in CI_ROUTES → ARMED"        "ARMED"                    "$(armrun CI_ROUTES=github-release GITHUB_TOKEN=x)"
 has "  …and DRY_RUN resolves to 0"                "resolved=0"               "$(armrun CI_ROUTES=github-release GITHUB_TOKEN=x)"
-has "auto + secret absent → DRY, naming it"       "DRY (secret github/github_token absent)" "$(armrun CI_ROUTES=github-release)"
+has "auto + secret absent → DRY, naming it"       "DRY (secret github/release_token absent)" "$(armrun CI_ROUTES=github-release)"
 has "auto + not in CI_ROUTES → DRY, saying so"    "DRY (not in CI_ROUTES)"   "$(armrun CI_ROUTES=ghcr GITHUB_TOKEN=x)"
 has "  …a secret alone never arms a route"        "resolved=1"               "$(armrun CI_ROUTES=ghcr GITHUB_TOKEN=x)"
 has "DRY_RUN=true forces render-only"             "DRY (DRY_RUN=true forced)" "$(armrun DRY_RUN=true CI_ROUTES=github-release GITHUB_TOKEN=x)"
@@ -231,17 +231,17 @@ has "an unknown route in CI_ROUTES → WARN"       "wat(unknown)"               
 dev_env CI_ISLE_TARGET=local CI_ISLE_VM_DISK_GB=10
 has "a too-small VM disk → WARN"                 "an isle install wants"           "$(doc)"
 dev_env CI_ISLE_TARGET=local CI_EXECUTORS=4
-has "more than one executor → WARN"              "overlaps builds"                 "$(doc)"
+has "more than TWO executors → WARN (two is what the parent/child wait needs)" "lets unrelated builds overlap"                 "$(doc)"
 
 dev_env CI_ISLE_TARGET=local
 has "(C) repo secrets posture → the loud WARN"   "readable by every process"       "$(doc)"
 has "  …and names init-device as the fix"        "init-device"                     "$(doc)"
-printf 'x' > "$DEV/secrets/github/github_token"; chmod 0644 "$DEV/secrets/github/github_token"
+printf 'x' > "$DEV/secrets/github/release_token"; chmod 0644 "$DEV/secrets/github/release_token"
 has "a secret that is not 0600 → WARN"           "not 0600"                        "$(doc)"
-chmod 0600 "$DEV/secrets/github/github_token"
+chmod 0600 "$DEV/secrets/github/release_token"
 has "a present secret arms its route"            "route github-release       — ARMED" "$(doc)"
 has "  …and a route with no secret stays DRY"    "route ghcr                 — DRY" "$(doc)"
-rm -f "$DEV/secrets/github/github_token"
+rm -f "$DEV/secrets/github/release_token"
 
 printf 'JENKINS_PORT=8080\nDOCKER_GID=424242\n' > "$DEV/.env"
 has "DOCKER_GID that is not the docker group → WARN" "the docker group is"         "$(doc)"
@@ -252,7 +252,7 @@ sed -i 's/^      - "127\.0\.0\.1:/      - "/' "$DEV/docker-compose.yml"
 has "a port not pinned to loopback → WARN"       "does not pin the port"           "$(doc)"
 eq "the doctor never refuses (exit 0)"           "0"  "$( ( cd "$DEV" && bash doctor.sh >/dev/null 2>&1 ); echo $? )"
 eq "--strict does refuse when something warns"   "1"  "$( ( cd "$DEV" && bash doctor.sh --strict >/dev/null 2>&1 ); echo $? )"
-hasnt "no secret VALUE is ever printed"          "supersecretvalue"                "$(printf 'supersecretvalue' > "$DEV/secrets/github/github_token"; chmod 0600 "$DEV/secrets/github/github_token"; doc)"
+hasnt "no secret VALUE is ever printed"          "supersecretvalue"                "$(printf 'supersecretvalue' > "$DEV/secrets/github/release_token"; chmod 0600 "$DEV/secrets/github/release_token"; doc)"
 
 # ================================================== 5. the setup walkthrough
 echo "-- setup: the role arithmetic, the where-to-get-it table, --report, idempotence"
@@ -287,9 +287,9 @@ wtable() { ( source "$DEV/secrets.sh"; source "$DEV/setup/steps/04-secrets.sh"
              printf '%s' "${miss# }" ) }
 eq "every ACTIVE route's secret has a URL or a generate command" "" "$(wtable)"
 sinfo() { ( source "$DEV/setup/steps/04-secrets.sh"; setup_secret_info "$1" | cut -f"$2" ) }
-has "github_token names the fine-grained token page" "settings/personal-access-tokens" "$(sinfo github/github_token 4)"
-has "  …and the exact permission"                    "Contents: Read and write"        "$(sinfo github/github_token 5)"
-has "ghcr_token says CLASSIC + write:packages"       "write:packages"                  "$(sinfo registries/ghcr_token 5)"
+has "the RELEASE token names the fine-grained token page" "settings/personal-access-tokens" "$(sinfo github/release_token 4)"
+has "  …and the exact permission"                    "Contents: Read and write"        "$(sinfo github/release_token 5)"
+has "the REGISTRY token says CLASSIC + write:packages"       "write:packages"                  "$(sinfo github/registry_token 5)"
 has "cosign is generated, not fetched"               "cosign generate-key-pair"        "$(sinfo signing/cosign_key 5)"
 has "  …with a fallback for a host without cosign"   "ghcr.io/sigstore/cosign"         "$(sinfo signing/cosign_key 5)"
 has "the apt key uses an .invalid address"           "apt@polari.invalid"              "$(sinfo signing/apt_signing_gpg 5)"
@@ -355,7 +355,7 @@ eq "  …and an empty build is just core"           "core" "$(rend '')"
 # used to do itself now happens once, inside verdict.py, where the verdict is
 # computed — see the ci-12 section for those cases.)
 gate() { ( cd "$DEV/routes" && env -u GITHUB_TOKEN VERSION=1 POOL_DIR="$T/pool" POLARI_POOL="$VPOOL" GITHUB_TOKEN=x CI_ROUTES=github-release \
-           bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 ) || true; }
+           bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/release_token' 2>&1 ) || true; }
 mkdir -p "$T/pool/debs"; : > "$T/pool/debs/polari-complete_1_all.deb"
 : > "$T/pool/debs/polari-app-household_1_all.deb"; : > "$T/pool/debs/polari-app-gears_1_all.deb"
 seedverdict passed ''
@@ -372,7 +372,7 @@ rm -f "$VPOOL/test/deadbee/verdict.json"
 has "no verdict at all → DRY, naming why"         "no passed test run for deadbee"     "$(gate)"
 has "  …and it says what to do: push to test first" "promote test"                     "$(gate)"
 FORCED=$( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" POLARI_POOL="$VPOOL" GITHUB_TOKEN=x DRY_RUN=false CI_ROUTES=github-release \
-          bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 || true )
+          bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/release_token' 2>&1 || true )
 has "the rule is HARD: DRY_RUN=false cannot force it" "DRY (no passed test run"        "$FORCED"
 seedverdict passed ''
 assets() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" POLARI_POOL="$VPOOL" bash -c 'source ./_lib.sh; release_assets "$POOL_DIR/debs"' 2>/dev/null ) || true; }
@@ -443,7 +443,7 @@ has "no CI_CORE_URL → this device.env is the only truth, said plainly" "only t
 
 # --- the push: PRESENCE and readiness, never a value
 dev_env CI_MODE=suite CI_ISLE_TARGET=local CI_CORE_URL=http://127.0.0.1:9999 CI_ROUTES=ghcr
-printf 'supersecretvalue' > "$DEV/secrets/github/github_token"; chmod 0600 "$DEV/secrets/github/github_token"
+printf 'supersecretvalue' > "$DEV/secrets/github/release_token"; chmod 0600 "$DEV/secrets/github/release_token"
 SYNCCMD=push
 : > "$T/posted.json"
 OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_POSTED="$T/posted.json")
@@ -465,7 +465,7 @@ SYNCCMD=push-secrets
 : > "$T/posted-secrets.json"
 OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_POSTED="$T/posted-secrets.json")
 has "push-secrets posts the secrets kind"         '"kind": "secrets"'             "$(cat "$T/posted-secrets.json" 2>/dev/null)"
-has "  …naming the secret and whether it is PRESENT" '"secret_name": "github_token"' "$(cat "$T/posted-secrets.json" 2>/dev/null)"
+has "  …naming the secret and whether it is PRESENT" '"secret_name": "release_token"' "$(cat "$T/posted-secrets.json" 2>/dev/null)"
 has "  …as a boolean"                             '"present": true'               "$(cat "$T/posted-secrets.json" 2>/dev/null)"
 hasnt "  …and NEVER the value"                    "supersecretvalue"              "$(cat "$T/posted-secrets.json" 2>/dev/null)"
 hasnt "  …not in the pushed device body either"   "supersecretvalue"              "$(cat "$T/posted.json" 2>/dev/null)"
@@ -474,7 +474,7 @@ SYNCCMD=status
 OUT=$(sync_ FAKE_CORE=ok FAKE_CORE_JSON="$T/core.json")
 has "status names the credential by NAME only"    "polari/cicd_ingest_token"      "$OUT"
 hasnt "  …and never prints it"                    "the-posting-token"             "$OUT"
-rm -f "$DEV/secrets/github/github_token"
+rm -f "$DEV/secrets/github/release_token"
 
 # ============================ 8. ci-9: the offline-first cache + app mode
 echo "-- cache: the manifest, prune by last_used, the report arithmetic, the network fallback"
@@ -657,7 +657,7 @@ has "app mode releases the app's own deb"          "polari-app-household_1_all.d
 hasnt "  …and NOT the core it was tested against"  "polari-complete"                "$OUT"
 hasnt "  …nor another app a stage happened to test here" "polari-app-gears"         "$OUT"
 apparm() { ( cd "$DEV/routes" && env VERSION=1 POOL_DIR="$T/pool" GITHUB_TOKEN=x CI_ROUTES=github-release "$@" \
-             bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 ) || true; }
+             bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/release_token' 2>&1 ) || true; }
 has "app mode names the one deb and the target it goes to" "releasing ONLY polari-app-household to some-developer" \
     "$(apparm CI_MODE=app CI_APP_NAME=household CI_ROUTE_TARGET=some-developer)"
 has "  …and says the core is NOT re-released"      "is NOT re-released" \
@@ -1022,7 +1022,7 @@ eq "  …and it round-trips back"  "suite"  "$(jq_ "$A2" 'print(d["device"]["mod
 A3="$(jset --step role --answer NOT_A_KEY=1)"
 eq "an answer that is not a device.env key is REFUSED, and the refusal says so"  "ok" \
    "$(jq_ "$A3" 'print("ok" if any("refused NOT_A_KEY" in t["text"] for t in d["todo"]) else d["todo"])')"
-A4="$(jset --step secrets --answer github/github_token=hunter2)"
+A4="$(jset --step secrets --answer github/release_token=hunter2)"
 eq "A SECRET may NOT be answered here — a value in an argument is a value in the process list"  "ok" \
    "$(jq_ "$A4" 'print("ok" if any("SECRET name" in t["text"] for t in d["todo"]) else d["todo"])')"
 hasnt "  …and the refused value appears NOWHERE in the document"  "hunter2"  "$A4"
@@ -1042,16 +1042,16 @@ has "--run without --json is refused: it belongs to the machine protocol"  "mach
 
 # --- NO SECRET VALUE, anywhere --------------------------------------------
 mkdir -p "$DEV/secrets/github"
-printf 'ghp_thisisaverysecretvalue' > "$DEV/secrets/github/github_token"
+printf 'ghp_thisisaverysecretvalue' > "$DEV/secrets/github/release_token"
 SDOC="$(jset)"
 hasnt "a stored secret's VALUE never appears in the document"  "ghp_thisisaverysecretvalue"  "$SDOC"
 eq "  …a secret question says PRESENT and nothing more"  "present" \
-   "$(jq_ "$SDOC" 'print([q["answered"] for s in d["steps"] for q in s["questions"] if q["key"]=="github/github_token"][0])')"
+   "$(jq_ "$SDOC" 'print([q["answered"] for s in d["steps"] for q in s["questions"] if q["key"]=="github/release_token"][0])')"
 eq "  …and a secret question binds to NO answer verb: its value goes to stdin, never to argv"  "ok" \
    "$(jq_ "$SDOC" 'print("ok" if not [q for s in d["steps"] for q in s["questions"] if q["kind"]=="secret" and q.get("action")] else "a secret question carries an action")')"
 eq "  …while every other question DOES bind, with {answer} left for the executor to fill"  "ok" \
    "$(jq_ "$SDOC" 'qs=[q for s in d["steps"] for q in s["questions"] if q["kind"]!="secret"]; print("ok" if qs and all(q.get("action",{}).get("params",{}).get("value")=="{answer}" for q in qs) else [q["key"] for q in qs if not q.get("action")])')"
-rm -f "$DEV/secrets/github/github_token"
+rm -f "$DEV/secrets/github/release_token"
 
 # --- nothing privileged is ever RUN by the protocol ------------------------
 eq "a privileged action is DESCRIBED, never run — every one of them names a verb and says why"  "ok" \
@@ -1212,7 +1212,7 @@ printf '{"components": {"superproject": {"sha": "cafebabe0000"}}}' > "$RL/releas
 rule() {
     ( cd "$DEV/routes" && env VERSION=2026.01.01 POOL_DIR="$RL" POLARI_POOL="$T/rulepool" \
         DRY_RUN="${DRY_RUN:-auto}" CI_ROUTES=github-release GITHUB_TOKEN=x \
-        bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/github_token' 2>&1 ) || true
+        bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/release_token' 2>&1 ) || true
 }
 rm -rf "$T/rulepool"; mkdir -p "$T/rulepool/test/cafebabe0000"
 OUT="$(rule)"
@@ -1385,6 +1385,80 @@ for F in "$J/doctor.sh" "$J/quiet.sh" "$J/promote.sh" "$J/test-wipe.sh" "$J/self
     TICKS="$(grep -nE '^[^#]*(ok|warn|say|check|_row) +"[^"]*`' "$F" || true)"
     eq "no backtick inside a message string in $(basename "$F") (it would be RUN, not printed)" "" "$TICKS"
 done
+
+# ---- THE SECRETS CATALOGUE: names that say what they are FOR, destinations
+# that say where they GO, and both derived from what the route actually pushes to.
+cat_() { ( cd "$DEV" && env CI_MODE="${CI_MODE:-suite}" CI_ROUTE_TARGET="${CI_ROUTE_TARGET:-}" \
+           bash -c 'source ./secrets.sh; '"$1" 2>&1 ) || true; }
+has "the release token's destination names the RELEASE POOL" \
+    "github.com/dausume/polari-suite/releases" "$(cat_ 'secrets_destination github/release_token')"
+has "  …and the homebrew tap it also feeds" "dausume/homebrew-polari" "$(cat_ 'secrets_destination github/release_token')"
+has "the registry token's destination names the REGISTRY, and the images" \
+    "ghcr.io/dausume (prf-backend, prf-frontend, pol-reticulum)" "$(cat_ 'secrets_destination github/registry_token')"
+has "a catalogue line is name — destination — routes — present/absent" \
+    "github/release_token — release pool" "$(cat_ 'secrets_catalog_line github/release_token')"
+has "  …and it says which routes use it" "routes: github-release, homebrew" "$(cat_ 'secrets_catalog_line github/release_token')"
+has "  …and whether it is there" "absent" "$(cat_ 'secrets_catalog_line github/release_token')"
+# THE ANTI-DRIFT CHECK: the destination text must equal what the route script
+# would actually push to. Both come from routes/destinations.sh, and this proves
+# it by deriving the route's own constant the same way the route does.
+RREPO="$(cat_ 'dest_release_repo')"; RREG="$(cat_ 'dest_registry_ns')"; RTAP="$(cat_ 'dest_homebrew_tap')"
+has "the github-release route pushes to the repo the catalogue names" "$RREPO" "$(cat_ 'secrets_destination github/release_token')"
+has "the ghcr route pushes to the registry the catalogue names" "$RREG" "$(cat_ 'secrets_destination github/registry_token')"
+has "  …and the route script itself reads that constant, not a literal" "dest_release_repo" "$(cat "$J/routes/github-release.sh")"
+has "  …ghcr too" "dest_registry_ns" "$(cat "$J/routes/ghcr.sh")"
+has "  …and homebrew" "dest_homebrew_tap" "$(cat "$J/routes/homebrew.sh")"
+eq "  …so no ROUTE hard-codes the upstream owner any more (only destinations.sh knows it)" "" \
+   "$(grep -l 'dausume' "$J"/routes/*.sh 2>/dev/null | grep -v destinations.sh || true)"
+has "  …and the upstream owner itself is declared exactly once" "1" \
+    "$(grep -c 'CI_UPSTREAM_OWNER=' "$J"/routes/destinations.sh)"
+# APP MODE: the destinations are the DEVELOPER'S, rendered from the device
+# settings — a listing must never tell a fork that its token publishes upstream.
+APP="$(CI_MODE=app CI_ROUTE_TARGET=some-developer cat_ 'secrets_destination github/registry_token')"
+has "app mode: the registry destination is the DEVELOPER'S namespace" "ghcr.io/some-developer" "$APP"
+hasnt "  …and never the upstream owner" "dausume" "$APP"
+APP2="$(CI_MODE=app CI_ROUTE_TARGET=some-developer cat_ 'secrets_destination github/release_token')"
+has "app mode: the release pool is theirs too" "some-developer/polari-suite/releases" "$APP2"
+
+# ---- BACKWARD COMPATIBILITY: a token under its pre-ci-12 name still works,
+# and the doctor says so once with the exact rename.
+mkdir -p "$DEV/secrets/github" "$DEV/secrets/registries"
+printf 'x' > "$DEV/secrets/github/github_token"; chmod 0600 "$DEV/secrets/github/github_token"
+eq "a token stored under the OLD name is still FOUND" "0" \
+   "$( ( cd "$DEV" && bash -c 'source ./secrets.sh; secrets_have github/release_token' ) >/dev/null 2>&1; echo $?)"
+has "  …and the listing says it is present under the old name" "under the OLD name github/github_token" \
+    "$(cat_ 'secrets_catalog_line github/release_token')"
+has "the doctor WARNs once, naming the exact rename" "secrets mv github/github_token github/release_token" "$(doc)"
+hasnt "  …and does NOT print its value" "x-the-value" "$(doc)"
+rm -f "$DEV/secrets/github/github_token"
+has "with the new names in place the doctor says so instead" "use their ci-12 names" "$(doc)"
+has "the route rows name their DESTINATION" "would go to: release pool: github.com/dausume/polari-suite/releases" "$(doc)"
+has "  …and the registry row names the images" "prf-backend, prf-frontend, pol-reticulum" "$(doc)"
+# the where-to-get-it entries, renamed and with the click path
+has "the RELEASE token's how names the click path, not just a URL" "Developer settings" "$(sinfo github/release_token 5)"
+has "  …and that it needs BOTH the release repo and the tap" "homebrew-polari" "$(sinfo github/release_token 5)"
+has "  …and that it carries no account permissions" "NO account permissions" "$(sinfo github/release_token 5)"
+has "the REGISTRY token's how says it must be CLASSIC" "MUST be classic" "$(sinfo github/registry_token 5)"
+has "  …and both name GitLab and Gitea as documentation-only examples" "documentation only" "$(sinfo github/registry_token 5)"
+
+# ---- docker-outside-of-docker: `-v` is resolved by the DAEMON, on the HOST.
+# The first real scan run pulled every tool, ran it, and produced nothing: the
+# controller mounted its OWN /var/polari-pool path, docker created an empty
+# directory at that path on the host, and the reports landed where nobody could
+# read them. Silent, and it would have looked like "no findings" forever.
+HP() { ( cd "$DEV" && env POLARI_POOL=/var/polari-pool JENKINS_HOME=/var/jenkins_home \
+         CI_HOST_POOL=/srv/polari/pool CI_HOST_JENKINS_HOME=/srv/polari/jh \
+         bash -c 'source ./scan/scan.sh >/dev/null 2>&1; host_path "$1"' _ "$1" 2>/dev/null ) || true; }
+eq "scan.sh is SOURCEABLE, so its helpers can be tested at all" "0" \
+   "$( ( cd "$DEV" && bash -c 'source ./scan/scan.sh' >/dev/null 2>&1 ); echo $?)"
+eq "a pool path is translated to what the HOST calls it" "/srv/polari/pool/test/abc/scan" "$(HP /var/polari-pool/test/abc/scan)"
+eq "  …a workspace path too" "/srv/polari/jh/workspace/polari-test" "$(HP /var/jenkins_home/workspace/polari-test)"
+eq "  …and anything else is left alone (the scanner also runs on the host)" "/etc/hosts" "$(HP /etc/hosts)"
+eq "every -v the scanner issues goes through host_path" "3" "$(grep -c 'v "$(host_path' "$J/scan/scan.sh")"
+eq "  …and none is left untranslated" "" \
+   "$(grep -nE '\-v "\$(WORK|OUT|POOL)' "$J/scan/scan.sh" || true)"
+has "pol jenkins up tells the controller what the host calls those two paths" "CI_HOST_POOL" \
+    "$(cat "$J/../polari-cli/scripts/jenkins.sh")"
 
 # the TIP-not-trigger rule, stated where it is enforced
 has "the test pipeline checks out the TIP of test, never the sha that triggered it" \

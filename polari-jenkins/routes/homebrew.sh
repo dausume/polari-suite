@@ -1,9 +1,10 @@
 #!/bin/bash
-# Homebrew tap: bump the pol formula in dausume/homebrew-polari to this release's tarball + sha256.
+# Homebrew tap: bump the pol formula in <owner>/homebrew-polari to this release's tarball + sha256.
+# The owner comes from routes/destinations.sh (app mode publishes to the developer's own tap).
 source "$(dirname "$0")/_lib.sh"
-arm GITHUB_TOKEN:github/github_token
-export GH_TOKEN="$GITHUB_TOKEN"; TAP=dausume/homebrew-polari; TAG="polari-v$VERSION"
-URL="https://github.com/dausume/polari-suite/archive/refs/tags/$TAG.tar.gz"
+arm GITHUB_TOKEN:github/release_token
+export GH_TOKEN="$GITHUB_TOKEN"; TAP="$(dest_homebrew_tap)"; TAG="polari-v$VERSION"
+URL="https://github.com/$(dest_release_repo)/archive/refs/tags/$TAG.tar.gz"
 SHA=$( [ "$DRY_RUN" = 1 ] && echo "<sha256 of $URL>" || curl -fsSL "$URL" | sha256sum | cut -d' ' -f1 )
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 run gh repo clone "$TAP" "$WORK/tap" -- -q
