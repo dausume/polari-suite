@@ -228,12 +228,6 @@ guest_ssh() {  # guest_ssh <command…>
         -o LogLevel=ERROR -o ConnectTimeout=10 "$GUEST_USER@$ip" "$@"
 }
 
-guest_scp_to() {  # guest_scp_to <local path> <remote path> — the ONE way in
-    local ip; ip=$(cat "$RUN/ip" 2>/dev/null || guest_ip)
-    [ -n "$ip" ] || { echo "no address for $CI_ISLE_VM_NAME (is it up?)" >&2; return 1; }
-    scp -i "$KEY" -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        -o LogLevel=ERROR -o ConnectTimeout=10 -r "$1" "$GUEST_USER@$ip:$2"
-}
 
 fetch_base() {
     mkdir -p "$IMAGES"

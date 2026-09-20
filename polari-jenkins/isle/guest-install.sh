@@ -248,9 +248,12 @@ install_do() {   # install_do <payload dir on THIS machine> [<json out>] [<stage
         raw=""; reached=no
     else
         local gdir="/home/$GUEST_USER/polari-ci-payload"
-        guest_ssh "rm -rf $gdir && mkdir -p $gdir" || true
-        say "pushing the payload into the guest ($(du -sh "$pay" | cut -f1))"
-        if ! guest_scp_to "$pay/." "$gdir/"; then
+        say "pushing the payload into the guest ($(du -shL "$pay" | cut -f1))"
+        # tar over ssh, NOT scp. OpenSSH 9 runs scp over SFTP, where `scp -r dir/.`
+        # no longer reliably means "the contents of dir"; and `-h` here is
+        # load-bearing, because images.tar.gz is a SYMLINK into the target's cache
+        # whenever the tarball was already there (throwaway.sh install resolves it).
+        if ! tar -C "$pay" -chf - . | guest_ssh "rm -rf $gdir && mkdir -p $gdir && tar -C $gdir -xf -"; then
             say "the payload could not be copied into the guest"
             raw=""; reached=no
         else
