@@ -7750,3 +7750,23 @@ privileged one. Three checks, and the host reading would now fail if the isle's 
 
 The 51 → 55 is the four new checks. Run #226's named reason is gone; what is left of §77 is the
 uninstall, which is isle-core's.
+
+## §78 — ci-13: test images discarded, a prepared base for the throwaway, and the pipeline-test marker (2026-09-20, his rulings; built by Fable directly, selftested)
+
+His rulings: *"keep only images that are being sent out to production from a main pipeline; images produced
+for test should be discarded after"* and *"a flag indicating if it is a Polari setup for pipeline testing, since
+in that case re-using the same offline deb builds and/or images is the most efficient route."*
+
+| what | where | note |
+|---|---|---|
+| test images discarded after the run | `Jenkinsfile.test` post (the proceed branch) → `test-wipe.sh --images-only <run-dir> <sha>` | the `:staging` images this test run built are removed once the verdict is written; the pool run dir (verdict, report, logs) is KEPT; `CI_KEEP_TEST_IMAGES=1` keeps the images for a look. A release (`polari-release`, main) keeps its images — they are what ships. The target's image-cache tarballs (keyed by image id) remain a CACHE under `cache-prune`, not a kept artifact |
+| the PREPARED base | `isle/throwaway.sh` `choose_base` / `bake_prepared`; `device.sh` `CI_ISLE_PREPARED=auto\|off`, `CI_ISLE_PREREQ_PKGS` | the guest's prerequisites (qemu/libvirt/docker — 383 s of apt on the first real install, §77) are baked ONCE: the first throwaway on a cloud image + package list installs them while still pristine, shuts down cleanly, its disk is flattened into `<cache>/cloud/prepared-<key>.qcow2` (key = sha256 of image name + package list; a changed list or image = a new bake), and the guest restarts to continue the run. Every later run overlays the prepared base; `guest-install.sh`'s prerequisite step then takes seconds. `off` boots the bare cloud image every time |
+| ONE prerequisite list | `device.sh` `CI_ISLE_PREREQ_PKGS` → `throwaway.sh` (the bake) and `guest-install.sh` (`$PREREQS`) | the bake and the install cannot drift |
+| the pipeline-test marker | `guest-install.sh` step 4: `/etc/polari/pipeline-test` (`{pipelineTest, sha, device, at}`) + `POLARI_PIPELINE_TEST=1` in the isle's `.env` seed; `Isle-Mesh/polari-isle/docker-compose.yml` passes it to the backend; `moduleService/posture.py` `pipeline_test()`; `/api/health` reports `pipelineTest` | a statement about the INSTALLATION, not a posture: it changes no gate; health, the cicd app and a person can tell a pipeline's test instance from a real one |
+
+**Selftests.** NEW `moduleService/selftest_posture.py` 8/8 (env wins, the file counts, absence is False, a broken
+path never raises, the marker does not change the posture); `selftest_lazy_boot` 34/34; conform 62/62;
+`polari-jenkins/selftest.sh` 709/709; `test-wipe.sh --images-only` proven by hand to remove the images and keep
+the run dir. **OWED:** the first real run with the bake (expected: the first run pays the bake once, ~2 min of
+shutdown + flatten on top of the apt; the second run's prerequisite step drops from ~380 s to seconds); the
+`pipelineTest` field read from a live throwaway's `/api/health`; the bake's disk cost in the cache (~2–3 GB).

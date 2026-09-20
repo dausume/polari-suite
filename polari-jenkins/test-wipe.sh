@@ -26,7 +26,10 @@
 set -uo pipefail
 
 J="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RUN_DIR="${1:?usage: test-wipe.sh <run-dir> <sha>}"
+# ci-13 (his ruling 2026-09-20): test-built images are DISCARDED after the run — only a release keeps its
+# images. `--images-only` is the post-run form: the pool run dir (the reports, the verdict) is kept.
+IMAGES_ONLY=0; [ "${1:-}" = --images-only ] && { IMAGES_ONLY=1; shift; }
+RUN_DIR="${1:?usage: test-wipe.sh [--images-only] <run-dir> <sha>}"
 SHA="${2:-}"
 DOCKER="${WIPE_DOCKER:-docker}"
 STAGING_TAGS="${CI_STAGING_TAGS:-prf-backend:staging prf-frontend:staging pol-reticulum:staging}"
@@ -36,11 +39,11 @@ say() { printf '[test-wipe] %s\n' "$*"; }
 say "wiping this device's state before testing ${SHA:0:12} — the verdict must be about the CODE"
 
 # 1. this sha's own previous run
-if [ -d "$RUN_DIR" ]; then
+if [ "$IMAGES_ONLY" = 0 ] && [ -d "$RUN_DIR" ]; then
     say "removing the previous test run for this sha: $RUN_DIR"
     rm -rf "$RUN_DIR"
 fi
-mkdir -p "$RUN_DIR"
+[ "$IMAGES_ONLY" = 1 ] || mkdir -p "$RUN_DIR"
 
 # 2. the pool's ordinary bound (never the cache — retention.sh exempts it)
 bash "$J/retention.sh" prune 2>&1 | sed 's/^/  /' || say "retention prune said no; carrying on"

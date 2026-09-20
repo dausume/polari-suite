@@ -760,3 +760,13 @@ container and libvirt lives on the host, so `CI_ISLE_TARGET=local` needs
 either the libvirt socket mounted into the controller (a posture change
 nobody has authorised) or a host-tier agent. The **ssh** target has no such
 problem — which is much of why ci-7 makes the device configurable.
+
+## ci-13 — what a test run keeps, and the prepared base
+
+- Test-built images are DISCARDED after the run (`test-wipe.sh --images-only` in `Jenkinsfile.test`'s post);
+  only a release keeps its images. `CI_KEEP_TEST_IMAGES=1` keeps them for a look.
+- The throwaway's prerequisites are baked ONCE into a prepared base (`<cache>/cloud/prepared-<key>.qcow2`,
+  key = cloud image + `CI_ISLE_PREREQ_PKGS`); later runs skip ~6 min of apt. `CI_ISLE_PREPARED=off` boots the
+  bare cloud image every time.
+- A Polari installed by the pipeline says so: `/etc/polari/pipeline-test` + `POLARI_PIPELINE_TEST=1`;
+  `/api/health` reports `pipelineTest: true`.

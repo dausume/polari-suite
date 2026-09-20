@@ -63,6 +63,13 @@ device_load() {
     : "${CI_ISLE_NESTED:=auto}"
     : "${CI_ISLE_POOL:=}"
     : "${CI_ISLE_IMAGE_URL:=https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img}"
+    # ci-13 (his ruling 2026-09-20): a Polari set up FOR PIPELINE TESTING reuses what it can. The guest's
+    # prerequisites are baked ONCE into a PREPARED base image in the cache (keyed by the cloud image + this
+    # list) and every later throwaway boots from it; `off` boots the bare cloud image every time.
+    : "${CI_ISLE_PREPARED:=auto}"
+    : "${CI_ISLE_PREREQ_PKGS:=qemu-kvm qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients bridge-utils dnsmasq acl net-tools wget jq python3 docker.io docker-compose-v2}"
+    # test-built images are DISCARDED after the run (only a release keeps its images); 1 keeps them for a look
+    : "${CI_KEEP_TEST_IMAGES:=0}"
     : "${CI_MIN_FREE_GB:=20}"
     : "${CI_MIN_RAM_HEADROOM_GB:=1}"
     # ci-12: FOUR, and every one of them is a WAITING SLOT, not a concurrent

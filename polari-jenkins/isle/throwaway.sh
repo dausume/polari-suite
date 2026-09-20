@@ -98,7 +98,8 @@ if [ "$CI_ISLE_TARGET" = ssh ] && [ "${CI_ISLE_REMOTE:-0}" != 1 ]; then
              CI_ISLE_SSH_WAIT_S CI_ISLE_IP_TRIES \
              CI_ISLE_MODULES CI_ISLE_IMAGE_TAG CI_ISLE_CORE_INSTALL_TMO_S CI_ISLE_ONLINE_WAIT_S \
              CI_ISLE_BACKEND_CONTAINER CI_ISLE_SELFTEST_TIMEOUT_S CI_ISLE_SELFTEST_CORE_LIMIT \
-             CI_ISLE_UNINSTALL_TMO_S; do
+             CI_ISLE_UNINSTALL_TMO_S \
+             CI_ISLE_PREPARED CI_ISLE_PREREQ_PKGS CI_TEST_SHA CI_DEVICE_NAME; do
         ENVS="$ENVS $k=$(printf '%q' "${!k:-}")"
     done
     ENVS="$ENVS CI_ISLE_POOL=$(printf '%q' "$(device_pool)")"
@@ -286,6 +287,50 @@ guest_run_detached() {
     guest_ssh "cat $dir/run.log" </dev/null 2>/dev/null || true
 }
 
+# ci-13 — THE PREPARED BASE. A Polari set up for pipeline testing reuses what it can (his ruling
+# 2026-09-20). The guest's prerequisites (qemu/libvirt/docker: ~6 min of apt on the first real install,
+# ledger §77) are baked ONCE: the first throwaway on a given cloud image + package list installs them, shuts
+# down cleanly, and its disk is flattened into <cache>/cloud/prepared-<key>.qcow2; every later run overlays
+# THAT. The key changes when the cloud image or the package list does, so a stale bake is never reused.
+# `CI_ISLE_PREPARED=off` boots the bare cloud image every time (the slow, fully-from-scratch reading).
+prepared_key()  { printf '%s|%s' "$IMG_NAME" "${CI_ISLE_PREREQ_PKGS:-}" | sha256sum | cut -c1-16; }
+prepared_path() { printf '%s/prepared-%s.qcow2' "$IMAGES" "$(prepared_key)"; }
+choose_base() {  # sets BASE_FOR_RUN
+    BASE_FOR_RUN="$BASE"
+    [ "${CI_ISLE_PREPARED:-auto}" = off ] && return 0
+    local p; p="$(prepared_path)"
+    if [ -s "$p" ]; then
+        say "prepared base cached: $(basename "$p") ($(du -h "$p" | cut -f1)) — prerequisites baked in; keyed by the cloud image + the package list"
+        cache_touch cloud "$(basename "$p")" 2>/dev/null || true
+        BASE_FOR_RUN="$p"
+    else
+        say "no prepared base for this cloud image + prerequisite list — this run bakes one after the guest answers (later runs skip the prerequisites)"
+    fi
+}
+bake_prepared() {  # the guest is up and pristine: install the prerequisites, shut down, flatten, restart
+    local p t=0; p="$(prepared_path)"
+    say "baking the prepared base: installing the prerequisites in the guest"
+    guest_ssh "sudo apt-get update -qq >/dev/null 2>&1; sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ${CI_ISLE_PREREQ_PKGS:-} 2>&1 | tail -3; sudo apt-get clean" < /dev/null \
+        || { say "the prerequisites did not install — no prepared base baked (the run continues on the bare image)"; return 0; }
+    say "shutting the guest down cleanly to flatten its disk"
+    $VIRSH shutdown "$CI_ISLE_VM_NAME" >/dev/null 2>&1 || true
+    until [ "$(state)" = "shut off" ]; do sleep 3; t=$((t + 3)); [ "$t" -lt 180 ] || { $VIRSH destroy "$CI_ISLE_VM_NAME" >/dev/null 2>&1 || true; break; }; done
+    mkdir -p "$IMAGES"
+    if qemu-img convert -q -O qcow2 "$RUN/disk.qcow2" "$p.part" && mv "$p.part" "$p"; then
+        cache_put cloud "$(basename "$p")" "the throwaway isle's PREPARED base: the cloud image + the prerequisites, baked once (ci-13)" 2>/dev/null || true
+        say "prepared base baked: $(basename "$p") ($(du -h "$p" | cut -f1))"
+    else
+        rm -f "$p.part"; say "could not flatten the disk — no prepared base this time"
+    fi
+    $VIRSH start "$CI_ISLE_VM_NAME" >/dev/null 2>&1 || true
+    local waited=0
+    until guest_ssh true < /dev/null >/dev/null 2>&1; do
+        sleep 5; waited=$((waited + 5))
+        [ "$waited" -lt "${CI_ISLE_SSH_WAIT_S:-240}" ] || { say "the guest did not come back after the bake — \`throwaway.sh status\`, then \`down\`"; exit 5; }
+    done
+    say "guest back after the bake (${waited}s)"
+}
+
 fetch_base() {
     mkdir -p "$IMAGES"
     if [ -s "$BASE" ]; then
@@ -347,8 +392,9 @@ up)
     fi
     mkdir -p "$RUN"; chmod 0700 "$RUN"
     fetch_base
-    say "overlay disk: ${CI_ISLE_VM_DISK_GB}G on top of $(basename "$BASE") (the base is never written)"
-    qemu-img create -q -f qcow2 -F qcow2 -b "$BASE" "$RUN/disk.qcow2" "${CI_ISLE_VM_DISK_GB}G"
+    choose_base
+    say "overlay disk: ${CI_ISLE_VM_DISK_GB}G on top of $(basename "$BASE_FOR_RUN") (the base is never written)"
+    qemu-img create -q -f qcow2 -F qcow2 -b "$BASE_FOR_RUN" "$RUN/disk.qcow2" "${CI_ISLE_VM_DISK_GB}G"
     make_seed
     # The hypervisor runs as ITS OWN user (libvirt-qemu on Ubuntu), not as the person: the first real run
     # (2026-09-19, §75) died with "Cannot access storage file … (as uid:64055) Permission denied" because the
@@ -387,6 +433,9 @@ up)
         [ "$waited" -lt "${CI_ISLE_SSH_WAIT_S:-240}" ] || { say "the guest has an address ($ip) but ssh never answered in ${CI_ISLE_SSH_WAIT_S:-240} s — \`throwaway.sh status\`, then \`down\`"; exit 5; }
     done
     say "up at $ip after ${waited}s of ssh wait (key: $RUN/id_ed25519, 0600, deleted by \`down\`)"
+    # ci-13: the first run on a cloud image + package list bakes the prepared base now, while the guest is
+    # still pristine — everything after this point (the payload, the isle) must never end up in the bake.
+    if [ "${CI_ISLE_PREPARED:-auto}" != off ] && [ ! -s "$(prepared_path)" ]; then bake_prepared; fi
     ;;
 verify)
     exists || { echo "[throwaway] $CI_ISLE_VM_NAME is not defined — run \`up\` first" >&2; exit 5; }

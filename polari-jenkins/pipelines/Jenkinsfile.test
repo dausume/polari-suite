@@ -304,6 +304,9 @@ pipeline {
         } else {
           sh "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh turn-done test || true"
           sh "bash /var/polari-jenkins/quiet.sh done test '${env.TEST_SHA ?: ''}' || true"
+          // ci-13 (his ruling): the images this TEST run built are discarded now — only a release keeps
+          // images. The pool run dir (verdict, report, logs) stays; CI_KEEP_TEST_IMAGES=1 keeps the images.
+          sh "if [ \"\${CI_KEEP_TEST_IMAGES:-0}\" = 1 ]; then echo 'CI_KEEP_TEST_IMAGES=1 — the test images are kept'; else bash /var/polari-jenkins/test-wipe.sh --images-only '${env.RUN_DIR ?: '/nonexistent'}' '${env.TEST_SHA ?: ''}' || true; fi"
           // NOT readJSON: it comes from pipeline-utility-steps, which is not in
           // casc/plugins.txt and has never been installed here. It threw
           // NoSuchMethodError in this very block on the first complete run —

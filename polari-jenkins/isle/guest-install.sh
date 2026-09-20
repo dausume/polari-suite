@@ -67,6 +67,11 @@ MODULES="$2"
 CORE_TMO="${CI_ISLE_CORE_INSTALL_TMO_S:-2400}"
 ONLINE_TMO="${CI_ISLE_ONLINE_WAIT_S:-600}"
 IMAGE_TAG="${CI_ISLE_IMAGE_TAG:-ci}"
+# ci-13: ONE prerequisite list, shared with the prepared base (throwaway.sh bakes exactly this set); when the
+# guest booted from a prepared base this apt line finds everything installed and takes seconds.
+PREREQS="${CI_ISLE_PREREQ_PKGS:-qemu-kvm qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients bridge-utils dnsmasq acl net-tools wget jq python3 docker.io docker-compose-v2}"
+TEST_SHA="${CI_TEST_SHA:-}"
+DEVICE_NAME="${CI_DEVICE_NAME:-pipeline}"
 GUEST
 cat <<'GUEST'
 echo "###POLARI-INSTALL-BEGIN"
@@ -75,10 +80,7 @@ echo "###POLARI-INSTALL-BEGIN"
 echo "###STEP prereqs"
 T0=$(date +%s)
 sudo apt-get update -qq 2>&1 | tail -5
-sudo apt-get install -y -qq \
-    qemu-kvm qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients \
-    bridge-utils dnsmasq acl net-tools wget jq python3 \
-    docker.io docker-compose-v2 2>&1 | tail -20
+sudo apt-get install -y -qq $PREREQS 2>&1 | tail -20
 RC=$?
 echo "###FIELD rc_prereqs=$RC"
 sudo systemctl enable --now libvirtd 2>&1 | tail -3 || true
@@ -127,7 +129,12 @@ echo "###FIELD secs_deb=$(( $(date +%s) - T0 ))"
 echo "###STEP env"
 SEED=/usr/share/isle-mesh/polari-isle/.env
 if [ -d /usr/share/isle-mesh/polari-isle ]; then
-    printf 'POLARI_IMAGE_REPO=localhost/\nPOLARI_IMAGE_TAG=%s\n' "$IMAGE_TAG" | sudo tee "$SEED" >/dev/null
+    printf 'POLARI_IMAGE_REPO=localhost/\nPOLARI_IMAGE_TAG=%s\nPOLARI_PIPELINE_TEST=1\n' "$IMAGE_TAG" | sudo tee "$SEED" >/dev/null
+    # ci-13: this Polari is SET UP FOR PIPELINE TESTING and says so — a marker the product reads
+    # (posture.pipeline_test(); /api/health reports pipelineTest) and the env the isle compose passes on.
+    sudo mkdir -p /etc/polari
+    printf '{"pipelineTest": true, "sha": "%s", "device": "%s", "at": "%s"}\n' "$TEST_SHA" "$DEVICE_NAME" "$(date -u +%FT%TZ)" | sudo tee /etc/polari/pipeline-test >/dev/null
+    echo "###FIELD pipeline_test=/etc/polari/pipeline-test"
     echo "###FIELD env_seed=$(sudo cat "$SEED" | tr '\n' ' ')"
 else
     echo "###FIELD env_seed=MISSING — /usr/share/isle-mesh/polari-isle is not there, so the deb did not lay its compose seed down"
