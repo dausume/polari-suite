@@ -51,6 +51,20 @@ remote_sha() {  # remote_sha <branch>
 
 _verdict_json() { pool_read "test/$1/verdict.json" 2>/dev/null; }
 
+# Is THIS machine the pipeline device at all? The verdicts live in the device's
+# pool; on a developer box there is nothing to read and never was. Saying a bare
+# "none" there reads as "this sha failed to be tested", when the truth is "ask
+# the device". Same distinction pool.sh draws between absent and unreadable.
+_is_pipeline_device() {
+    [ -d "$POOL/test" ] && return 0
+    command -v docker >/dev/null 2>&1 \
+        && docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "${CI_CONTROLLER_CONTAINER:-polari-jenkins}"
+}
+_not_here() {
+    _is_pipeline_device && return 1
+    printf 'no verdict on THIS machine — the verdicts live in the pipeline device'"'"'s pool. Run pol jenkins test-status there, or promote from there.'
+}
+
 verdict_of() {  # verdict_of <sha> → passed|failed|partial|none
     local body; body="$(_verdict_json "$1")" || { echo none; return; }
     [ -n "$body" ] || { echo none; return; }
@@ -60,9 +74,14 @@ except Exception: print("none")'
 }
 
 verdict_why() {  # verdict_why <sha> → the one-line reason
+    local elsewhere; elsewhere="$(_not_here || true)"
     local body; body="$(_verdict_json "$1")" || {
+        [ -n "$elsewhere" ] && { printf '%s' "$elsewhere"; return; }
         printf 'no test run has ever been recorded for this sha (%s)' "$(pool_why_unreadable)"; return; }
-    [ -n "$body" ] || { printf 'no test run has ever been recorded for this sha'; return; }
+    if [ -z "$body" ]; then
+        [ -n "$elsewhere" ] && { printf '%s' "$elsewhere"; return; }
+        printf 'no test run has ever been recorded for this sha'; return
+    fi
     printf '%s' "$body" | python3 -c 'import json,sys
 try: d = json.load(sys.stdin)
 except Exception as e: print("verdict.json unreadable (%s)" % e); raise SystemExit
@@ -135,11 +154,14 @@ case "${1:-status}" in
     ;;
 
   status)
+    _not_here >/dev/null && say "(this machine is not the pipeline device — verdicts are read from its pool, so they read 'none here')"
     for b in test main; do
         S="$(remote_sha "$b" || true)"
         if [ -z "$S" ]; then printf '%-5s  (not published yet)\n' "$b"; continue; fi
         M="$POOL/promotions/$b/$S.json"
-        printf '%-5s  %s  verdict=%s  marker=%s\n' "$b" "${S:0:12}" "$(verdict_of "$S")" \
+        V="$(verdict_of "$S")"
+        [ "$V" = none ] && _not_here >/dev/null && V="none here"
+        printf '%-5s  %s  verdict=%s  marker=%s\n' "$b" "${S:0:12}" "$V" \
                "$([ -f "$M" ] && echo present || echo none)"
     done
     D="$(remote_sha dev || true)"; printf '%-5s  %s\n' dev "${D:0:12}"

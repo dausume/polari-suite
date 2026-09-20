@@ -1620,6 +1620,12 @@ has "promote test (for real): the sweep is told to push" "--push" "$(cat "$T/swe
     || bad "  …and the PROMOTION MARKER is written for the superproject sha" "$PPOOL/promotions/test/aaa111.json" "absent"
 
 eq "promote main: NO verdict for the tip of test → REFUSED (exit 4)" "4" "$(prorc main --dry-run)"
+# "none" from a developer box means "ask the device", not "this sha failed to be
+# tested" — the verdicts live in the pipeline device's pool. Same distinction
+# pool.sh draws between absent and unreadable, one machine further out.
+has "  …and off the pipeline device it says the verdict lives THERE, not that there is none" \
+    "verdicts live in the pipeline device" "$(pro main --dry-run)"
+has "  …promote status marks those readings 'none here', not 'none'" "none here" "$(pro status)"
 OUT="$(pro main --dry-run)"
 has "  …and the refusal names the sha" "aaa111" "$OUT"
 has "  …and says what to do instead" "push to test" "$OUT"
