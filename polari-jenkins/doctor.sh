@@ -465,7 +465,14 @@ d=json.load(open(sys.argv[1])); print("%s|%s" % (d.get("verdict","?"), (d.get("w
         *) warn "test verdict" "${BR_TEST:0:12} $VV — $VWHY" "pol jenkins test-status ${BR_TEST:0:12}" ;;
     esac
 fi
-QLINE=$(bash "$J/quiet.sh" queue 2>/dev/null | head -4 | tr '\n' ' ' | tr -s ' ' || true)
+# read it the way `pol jenkins queue` does: through the controller when the pool
+# belongs to the pipeline user (the system posture), directly otherwise.
+_QC="${CI_CONTROLLER_CONTAINER:-polari-jenkins}"
+if [ -r "$J/pool" ] || ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$_QC"; then
+    QLINE=$(bash "$J/quiet.sh" queue 2>/dev/null | head -4 | tr '\n' ' ' | tr -s ' ' || true)
+else
+    QLINE=$(docker exec "$_QC" bash /var/polari-jenkins/quiet.sh queue 2>/dev/null | head -4 | tr '\n' ' ' | tr -s ' ' || true)
+fi
 ok "queue" "${QLINE:-both queues idle} (one item deep, latest wins — no backlog can form)"
 
 # ------------------------------------------ the isle results the verdict reads
