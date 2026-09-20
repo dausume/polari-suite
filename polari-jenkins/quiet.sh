@@ -251,6 +251,21 @@ do_check() {  # do_check <branch> [--super-only]
         exit 6
     fi
 
+    # THE WINDOW BELONGS TO THE SUPERPROJECT TIP, not to a scope. The gate reads
+    # the superproject alone and the check reads the whole forest, so they record
+    # different digests — and a digest left over from an EARLIER tip made the
+    # check announce "the forest moved" seconds after the gate had already timed
+    # the current one. (Seen live: gate "quiet for 417s — proceeding", then the
+    # check restarting the clock at 0s.) When the tip changes, BOTH readings are
+    # cleared with it; within one tip, a scope's digest changing means a
+    # SUBMODULE moved under a fixed pointer, which is exactly the still-landing
+    # case worth deferring on.
+    local window_sha; window_sha="$(_queue_read "$branch" window_sha)"
+    if [ "$window_sha" != "$sup" ]; then
+        _queue_write "$branch" window_sha="$sup" digest='' super_digest='' \
+                     newest_sha="$sup" pending=true "since=$(now)" "since_iso=$(date -Is)"
+        say "$branch: a new tip (${sup:0:12}) — the ${QUIET_MINUTES}-minute quiet window starts now"
+    fi
     prev="$(_queue_read "$branch" "$key")"
     since="$(_queue_read "$branch" since 0)"
     if [ -n "$prev" ] && [ "$dg" != "$prev" ]; then

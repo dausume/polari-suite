@@ -1375,6 +1375,26 @@ python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["since"]="1"
 OUT="$(q check test)"
 has "the full forest check does NOT restart the window the gate started" "keeping the window the gate already started" "$OUT"
 has "  …so it can proceed on a branch the gate already timed" "QUIET_SHA=333ccc" "$OUT"
+# …and it must not restart it because of a digest left over from an EARLIER tip.
+# Seen live: the gate said "quiet for 417s — proceeding" and the whole-forest
+# check restarted the clock at 0s twenty seconds later, because its own `digest`
+# key still held the previous tip's reading. The window belongs to the TIP.
+rm -rf "$QP/queue"
+# 1. an OLD tip is read by both scopes, so both digests are on file
+export FAKE_HEADS="test=444ddd"
+QM=0 g gate test >/dev/null; QM=0 q check test >/dev/null
+# 2. the tip moves. The GATE runs first (that is the pipeline's order) and must
+#    clear BOTH readings with the tip, or the whole-forest check that follows
+#    seconds later reads its own stale digest as "the forest moved" and restarts
+#    a clock the gate has already run. Exactly what happened live: gate
+#    "quiet for 417s — proceeding", check "the forest moved" 20 seconds later.
+export FAKE_HEADS="test=555eee"
+OUT="$(QM=5 g gate test)"
+has "a NEW tip starts a fresh window, and says so in those words" "a new tip (555eee)" "$OUT"
+python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["since"]="1"; json.dump(d,open(p,"w"))' "$QP/queue/test.json"
+OUT="$(q check test)"
+hasnt "the whole-forest check does NOT read the previous tip's digest as movement" "the forest moved" "$OUT"
+has "  …it proceeds on the tip the gate already timed" "QUIET_SHA=555eee" "$OUT"
 
 # A BACKTICK IN A DOUBLE-QUOTED MESSAGE IS A COMMAND SUBSTITUTION. His doctor run
 # on the pipeline device printed `doctor.sh: line 459: partial: command not found`
