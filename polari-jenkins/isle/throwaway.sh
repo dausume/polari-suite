@@ -253,20 +253,37 @@ guest_run_detached() {
     # isle-test #8, after the payload had already been moved.
     local dir="/home/$GUEST_USER/polari-ci-$tag"
     local waited=0 step=15 last=""
-    guest_ssh "rm -rf $dir && mkdir -p $dir" >/dev/null 2>&1 || return 1
+    # `< /dev/null` ON EVERY CALL BUT THE ONE THAT WANTS IT. ssh forwards its own
+    # stdin to the remote command, so the FIRST guest_ssh here swallowed the whole
+    # script that was being piped into this function — `run.sh` arrived 0 bytes,
+    # the marker never appeared, and isle-test #9 sat in the poll loop for
+    # forty-six minutes waiting for a script that was never written. Only the
+    # `cat >` reads stdin; everything else is explicitly given none.
+    guest_ssh "rm -rf $dir && mkdir -p $dir" </dev/null >/dev/null 2>&1 || return 1
     guest_ssh "cat > $dir/run.sh" || return 1
-    guest_ssh "cd $dir && setsid nohup bash run.sh > run.log 2>&1 < /dev/null & echo started" >/dev/null 2>&1 || return 1
-    say "$tag: running detached in the guest (it reconfigures the network, so the ssh session is not trusted to survive it)"
+    guest_ssh "cd $dir && setsid nohup bash run.sh > run.log 2>&1 < /dev/null & echo started" </dev/null >/dev/null 2>&1 || return 1
+    # and it must actually have landed — an empty script is the failure above,
+    # and it is far better caught here than by a timeout an hour later.
+    if [ "$(guest_ssh "wc -c < $dir/run.sh" </dev/null 2>/dev/null | tr -d ' \r')" = 0 ]; then
+        echo "[throwaway] $tag: the script did not reach the guest (run.sh is empty) — not waiting for a marker that cannot come" >&2
+        return 1
+    fi
+    # STDERR, not stdout: this function's stdout IS the guest's log (the caller
+    # captures it), so a heartbeat written there would be swallowed into the
+    # reading instead of appearing in the Jenkins log — which is exactly what
+    # happened on isle-test #9: forty minutes of silence from a step that was
+    # printing a progress line every sixty seconds, into a variable.
+    say "$tag: running detached in the guest (it reconfigures the network, so the ssh session is not trusted to survive it)" >&2
     while [ "$waited" -lt "$tmo" ]; do
-        if guest_ssh "grep -q '$marker' $dir/run.log" >/dev/null 2>&1; then break; fi
+        if guest_ssh "grep -q '$marker' $dir/run.log" </dev/null >/dev/null 2>&1; then break; fi
         sleep "$step"; waited=$((waited + step))
         # a heartbeat, so a twenty-minute step is legible while it happens
         if [ $((waited % 60)) = 0 ]; then
-            last="$(guest_ssh "grep -a '^###STEP ' $dir/run.log 2>/dev/null | tail -1" 2>/dev/null || true)"
-            say "$tag: ${waited}s — ${last:-(the guest is not answering right now; that is expected while it re-does its own network)}"
+            last="$(guest_ssh "grep -a '^###STEP ' $dir/run.log 2>/dev/null | tail -1" </dev/null 2>/dev/null || true)"
+            say "$tag: ${waited}s — ${last:-(the guest is not answering right now; that is expected while it re-does its own network)}" >&2
         fi
     done
-    guest_ssh "cat $dir/run.log" 2>/dev/null || true
+    guest_ssh "cat $dir/run.log" </dev/null 2>/dev/null || true
 }
 
 fetch_base() {

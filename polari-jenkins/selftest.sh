@@ -1021,6 +1021,17 @@ has "the guest cycle runs DETACHED, because the product takes the ssh session do
     "setsid nohup bash run.sh" "$TWAY"
 has "  …and polls with FRESH connections until the fenced end marker appears"  "grep -q " "$TWAY"
 has "the install uses it"    "guest_run_detached install"   "$(cat "$J/isle/guest-install.sh")"
+# ci-3, found live on isle-test #9: ssh forwards ITS OWN stdin to the remote
+# command, so a guest_ssh before the `cat >` swallows the very script being
+# piped in — run.sh landed 0 bytes and the poll loop waited 46 minutes for a
+# marker that could never come. Every call but the one that wants stdin is
+# given none, and an empty script is caught at once instead of by a timeout.
+has "the detached runner denies stdin to every ssh but the one writing the script" \
+    "guest_ssh \"rm -rf \$dir && mkdir -p \$dir\" </dev/null" "$TWAY"
+has "  …and it REFUSES at once when the script did not land, rather than polling for an hour" \
+    "run.sh is empty" "$TWAY"
+has "  …the heartbeat goes to STDERR, because this function's stdout IS the reading" \
+    "running detached in the guest" "$TWAY"
 # ci-3, found live on isle-test #8: under `set -u` bash expands EVERY assignment
 # word of one `local` before performing any of them, so a default that refers to
 # an earlier name in the same declaration is an unbound-variable death. It cost a
