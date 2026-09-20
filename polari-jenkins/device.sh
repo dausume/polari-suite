@@ -65,15 +65,20 @@ device_load() {
     : "${CI_ISLE_IMAGE_URL:=https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img}"
     : "${CI_MIN_FREE_GB:=20}"
     : "${CI_MIN_RAM_HEADROOM_GB:=1}"
-    # ci-12: TWO, and the reason is specific. `polari-test` triggers
-    # `polari-isle-test` with wait:true, and a waiting parent keeps holding its
-    # executor — with one executor the parent waits for the child and the child
-    # waits for the parent. (It happened: polari-isle-test #1 sat at "Waiting for
-    # next available executor" while polari-test #18 held the only one.) The
-    # second slot exists ONLY so a blocked parent has somewhere to block; what
-    # actually stops two builds overlapping is the `polari-build` lock, not the
-    # executor count.
-    : "${CI_EXECUTORS:=2}"
+    # ci-12: FOUR, and every one of them is a WAITING SLOT, not a concurrent
+    # build. What serialises the real work is the `polari-build` lock — nothing
+    # here. The count only has to be large enough that nobody deadlocks, and on
+    # this pipeline three things hold an executor while doing nothing:
+    #   · a build WAITING for the lock holds its executor (declarative allocates
+    #     the node first, then takes the lock), so dev-build and release can each
+    #     be sitting on one while test runs;
+    #   · a parent WAITING for a child holds its own (polari-test → isle-test);
+    #   · the child then needs one of its own.
+    # Two was not enough: with dev-build parked on the lock, polari-isle-test #2
+    # sat at "Waiting for next available executor" while polari-test #34 held the
+    # other. Four is one per job that can be in flight (dev-build, test, release,
+    # isle-test) — raising it does NOT let two builds compile at once.
+    : "${CI_EXECUTORS:=4}"
     : "${CI_ROUTES:=github-release,ghcr,homebrew,apt-repo}"
     : "${CI_ISLE_STAGES:=core}"
     # ci-9 (his ask 2026-09-19): "the jenkins pipeline should try and use offline artifacts for building
@@ -249,12 +254,12 @@ device_validate() {
     [ -z "$bad" ] && _row CI_ROUTES "$CI_ROUTES" OK "routes that may publish for real" \
         || _row CI_ROUTES "$CI_ROUTES" FAIL "not publishable:$bad → ACTIVE routes are github-release,ghcr,homebrew,apt-repo"
 
-    if [ "${CI_EXECUTORS:-2}" -lt 2 ] 2>/dev/null; then
+    if [ "${CI_EXECUTORS:-4}" -lt 4 ] 2>/dev/null; then
         _row CI_EXECUTORS "$CI_EXECUTORS" WARN \
-            "one executor DEADLOCKS polari-test: it waits for polari-isle-test while holding the only slot → set CI_EXECUTORS=2 (the polari-build lock is what stops builds overlapping, not this number)"
-    elif [ "${CI_EXECUTORS:-2}" -gt 2 ] 2>/dev/null; then
+            "too few: a build WAITING for the polari-build lock holds an executor, and polari-test also waits for polari-isle-test while holding its own — fewer than 4 deadlocks the isle stage → set CI_EXECUTORS=4 (they are waiting slots; the lock is what stops builds overlapping)"
+    elif [ "${CI_EXECUTORS:-4}" -gt 4 ] 2>/dev/null; then
         _row CI_EXECUTORS "$CI_EXECUTORS" WARN \
-            "more than two executors on a home box lets unrelated builds overlap → 2 is what the parent/child wait needs"
+            "more than 4 is more than the jobs that can be in flight (dev-build, test, release, isle-test) — harmless, but it is not buying anything"
     fi
 
     device_validate_cache

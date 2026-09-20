@@ -4,7 +4,7 @@
 # depends on a credential being present — the ROUTE refuses instead.
 jenkins:
   systemMessage: "polari-jenkins — host-tier build + publish. Polls GitHub; publishes only with DRY_RUN=false and a present secret."
-  numExecutors: ${CI_EXECUTORS:-2}   # ci-7: follows device.env CI_ROUTES/CI_EXECUTORS; ONE build at a time on a home box
+  numExecutors: ${CI_EXECUTORS:-4}   # ci-7: follows device.env CI_ROUTES/CI_EXECUTORS; ONE build at a time on a home box
   mode: NORMAL
   securityRealm:
     local:

@@ -25,7 +25,7 @@ services:
       - POLARI_POOL=/var/polari-pool
       # ci-7: the pipeline device configuration reaches the jobs (and casc's
       # numExecutors) as environment; `pol jenkins up` exports it from device.env.
-      - CI_EXECUTORS=${CI_EXECUTORS:-2}
+      - CI_EXECUTORS=${CI_EXECUTORS:-4}
       - CI_ROUTES=${CI_ROUTES:-github-release,ghcr,homebrew,apt-repo}
       - CI_ISLE_TARGET=${CI_ISLE_TARGET:-local}
       - CI_ISLE_SSH_HOST=${CI_ISLE_SSH_HOST:-}

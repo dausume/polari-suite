@@ -230,8 +230,8 @@ has "a PARKED route in CI_ROUTES → WARN"         "npm(PARKED)"                
 has "an unknown route in CI_ROUTES → WARN"       "wat(unknown)"                    "$(doc)"
 dev_env CI_ISLE_TARGET=local CI_ISLE_VM_DISK_GB=10
 has "a too-small VM disk → WARN"                 "an isle install wants"           "$(doc)"
-dev_env CI_ISLE_TARGET=local CI_EXECUTORS=4
-has "more than TWO executors → WARN (two is what the parent/child wait needs)" "lets unrelated builds overlap"                 "$(doc)"
+dev_env CI_ISLE_TARGET=local CI_EXECUTORS=5
+has "more than FOUR executors → WARN (four is one per job that can be in flight)" "more than the jobs that can be in flight"                 "$(doc)"
 
 dev_env CI_ISLE_TARGET=local
 has "(C) repo secrets posture → the loud WARN"   "readable by every process"       "$(doc)"
