@@ -13,7 +13,7 @@ DEVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 DEVICE_KEYS="CI_MODE CI_APP_NAME CI_APP_REPO CI_CORE_SOURCE \
 CI_ISLE_TARGET CI_ISLE_SSH_HOST CI_ISLE_SSH_USER CI_ISLE_VM_NAME CI_ISLE_VM_RAM_GB \
-CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_POOL CI_ISLE_IMAGE_URL \
+CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_POOL CI_ISLE_IMAGE_URL CI_BUILD_OFFLINE_MEDIUM \
 CI_MIN_FREE_GB CI_MIN_RAM_HEADROOM_GB CI_EXECUTORS CI_ROUTES CI_ISLE_STAGES \
 CI_CACHE CI_CACHE_DIR CI_CACHE_MAX_GB CI_CACHE_PROXIES CI_ROUTE_TARGET \
 CI_CORE_URL CI_DEVICE_NAME"
@@ -70,6 +70,8 @@ device_load() {
     : "${CI_ISLE_PREREQ_PKGS:=qemu-kvm qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients bridge-utils dnsmasq acl net-tools wget jq python3 docker.io docker-compose-v2}"
     # test-built images are DISCARDED after the run (only a release keeps its images); 1 keeps them for a look
     : "${CI_KEEP_TEST_IMAGES:=0}"
+    # the optional offline medium in a release (2 GB, minutes); false skips it — a device knob, not a job parameter
+    : "${CI_BUILD_OFFLINE_MEDIUM:=true}"
     : "${CI_MIN_FREE_GB:=20}"
     : "${CI_MIN_RAM_HEADROOM_GB:=1}"
     # ci-12: FOUR, and every one of them is a WAITING SLOT, not a concurrent

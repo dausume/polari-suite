@@ -180,7 +180,7 @@ EOF
 ok "marker + honest README"
 
 step "Chunk to $MEDIA media (framework chunker — the ONE implementation)"
-( cd "$FRAMEWORK" && PYTHONPATH=.:modules python3 -m appstore.offline_chunker \
+( cd "$FRAMEWORK" && PYTHONPATH=.:modules python3 -m appstore.custom.offline_chunker \
     plan "$POOL" "$MEDIA" "$POOL" \
     --target "$TARGET" --media-label "$MEDIA" \
     --built-at "$(date +%F)" ) || fail "chunk planning refused"
@@ -217,7 +217,7 @@ if [ "$ISO" = 1 ]; then
         STAGE="$OUT/.iso-stage"
         rm -rf "$STAGE"; mkdir -p "$STAGE"
         ( cd "$FRAMEWORK" && PYTHONPATH=.:modules \
-            python3 -m appstore.offline_chunker emit "$POOL" "$MEDIA" "$i" "$STAGE" )
+            python3 -m appstore.custom.offline_chunker emit "$POOL" "$MEDIA" "$i" "$STAGE" )
         # EVERY medium is self-identifying: marker + manifests ride
         # on each disk, not just the chunk they packed into.
         cp "$POOL/chunks.json" "$POOL/sha256SUMS" \
