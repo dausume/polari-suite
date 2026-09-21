@@ -106,8 +106,16 @@ def build_stage(run_dir, index, apps, started='', finished='', error='',
 
     ran_core = 'core' in selftest_modules
     core_selftests = selftest_modules.get('core', 'not run in this stage')
-    core_ok = (install['ok'] and verify['ok'] and uninstall['verdict'] == 'clean'
+    # His ruling 2026-09-20: the product's own uninstall is a WARNING, not a failure — it is recorded, named in
+    # the report and the verdict's warnings, and gates nothing unless CI_UNINSTALL_GATE=fail is set.
+    uninstall_gates = os.environ.get('CI_UNINSTALL_GATE', 'warn').strip().lower() == 'fail'
+    core_ok = (install['ok'] and verify['ok']
+               and (uninstall['verdict'] == 'clean' or not uninstall_gates)
                and (not ran_core or core_selftests == 'pass'))
+    warnings = []
+    if uninstall['verdict'] != 'clean' and not uninstall_gates:
+        warnings.append("uninstall %s (WARNING — not gating, CI_UNINSTALL_GATE=warn): %s"
+                        % (uninstall['verdict'], '; '.join(uninstall['findings']) or 'no findings recorded'))
 
     results = {}
     for a in apps:
@@ -147,11 +155,12 @@ def build_stage(run_dir, index, apps, started='', finished='', error='',
         'disk_delta_mb': int(leak.get('disk_delta_mb') or 0),
         'results': results, 'apps_ok': apps_ok,
         'core_ok': core_ok,
-        'why': _stage_why(install, verify, uninstall, ran_core, core_selftests, results),
+        'warnings': warnings,
+        'why': _stage_why(install, verify, uninstall, ran_core, core_selftests, results, uninstall_gates),
     }
 
 
-def _stage_why(install, verify, uninstall, ran_core, core_selftests, results):
+def _stage_why(install, verify, uninstall, ran_core, core_selftests, results, uninstall_gates=True):
     """The FIRST failing part, named. Order matters: it is the order they run."""
     if not install['ok']:
         return 'install: %s' % install['why']
@@ -164,7 +173,11 @@ def _stage_why(install, verify, uninstall, ran_core, core_selftests, results):
         return 'app selftests inside the isle did not pass: %s' % ', '.join(
             '%s=%s' % (a, results[a]) for a in bad)
     if uninstall['verdict'] != 'clean':
-        return ("the product's own uninstall came back %s — %s"
+        if uninstall_gates:
+            return ("the product's own uninstall came back %s — %s"
+                    % (uninstall['verdict'], '; '.join(uninstall['findings']) or 'no findings recorded'))
+        return ("installed, verified and tested — the product's own uninstall came back %s (a WARNING by his "
+                "ruling, not a failure): %s"
                 % (uninstall['verdict'], '; '.join(uninstall['findings']) or 'no findings recorded'))
     return 'installed, verified, tested and handed the machine back clean'
 

@@ -949,14 +949,20 @@ uncouple() {  # uncouple <uninstall_verdict> → build the verdict from real isl
         > "$UNDIR/selftests/results.json"
     # ci-3: a stage that could claim a core has INSTALLED and VERIFIED one. The
     # hand-back is still the only thing this case varies.
-    python3 -c 'import json,sys
+    python3 -c 'import json,sys,os
 uv = sys.argv[2]
+# his ruling 2026-09-20: the uninstall is a WARNING unless CI_UNINSTALL_GATE=fail (results.py computes this;
+# the fixture mirrors the same rule so the route sees what a real stage would have written)
+gates = os.environ.get("CI_UNINSTALL_GATE", "warn").lower() == "fail"
+co = uv == "clean" or not gates
 why = ("installed, verified, tested and handed the machine back clean" if uv == "clean"
-       else "the product own uninstall came back %s - volumes remaining: 2" % uv)
-json.dump({"version": "1", "core_ok": uv == "clean", "passed": ["gears"], "tested": ["gears"],
+       else ("installed, verified and tested - the product own uninstall came back %s (a WARNING by his ruling, not a failure): volumes remaining: 2" % uv
+             if not gates else "the product own uninstall came back %s - volumes remaining: 2" % uv))
+warnings = [] if (uv == "clean" or gates) else ["uninstall %s (WARNING - not gating): volumes remaining: 2" % uv]
+json.dump({"version": "1", "core_ok": co, "passed": ["gears"], "tested": ["gears"],
            "untested": [], "why": why,
            "images": {"prf-backend:staging": "sha256:aaa"},
-           "stages": [{"index": 1, "apps": [], "core_ok": uv == "clean", "why": why,
+           "stages": [{"index": 1, "apps": [], "core_ok": co, "why": why, "warnings": warnings,
                        "install": {"ok": True, "time_to_online": 402}, "verify": {"ok": True},
                        "results": {},
                        "uninstall_verdict": uv,
@@ -969,17 +975,19 @@ json.dump({"version": "1", "core_ok": uv == "clean", "passed": ["gears"], "teste
 ungate() { gate; }
 uncouple clean
 has "a CLEAN hand-back lets the route arm"            "ARMED"                                  "$(ungate)"
+# his ruling 2026-09-20: the product's own uninstall is a WARNING, not a failure. A dirty hand-back is
+# recorded and named, but the verdict passes and the route arms. CI_UNINSTALL_GATE=fail restores the gate.
 uncouple dirty
-has "a DIRTY hand-back holds the whole release"       "not passed"                             "$(ungate)"
-has "  …and the verdict it carries is FAILED, not partial" "failed"                            "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["verdict"])' "$UNDIR/verdict.json")"
-has "  …naming the product's own finding"             "dirty"                                  "$(ungate)"
+has "a DIRTY hand-back is a WARNING: the route still arms"   "ARMED"                            "$(ungate)"
+has "  …and the verdict is PASSED"                    "passed"                                 "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["verdict"])' "$UNDIR/verdict.json")"
+has "  …with the product's finding named as a warning" "WARNING"                                "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["why"])' "$UNDIR/verdict.json")"
+CI_UNINSTALL_GATE=fail uncouple dirty
+has "CI_UNINSTALL_GATE=fail: a DIRTY hand-back holds the release again" "not passed"           "$(ungate)"
+has "  …and the verdict is FAILED under the gate"     "failed"                                 "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["verdict"])' "$UNDIR/verdict.json")"
 uncouple skipped
-has "a SKIPPED hand-back is not a pass either"        "DRY"                                    "$(ungate)"
-# ci-3: a skipped hand-back used to be PARTIAL, because before ci-3 nothing was ever
-# installed and so nothing could ever be handed back. Now an install happened, so a
-# hand-back that did not run is a FAILURE of the thing that should have run.
-has "  …and since ci-3 it is FAILED, not partial: something installed, so something should have been removed" \
-    "failed" "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["verdict"])' "$UNDIR/verdict.json")"
+has "a SKIPPED hand-back warns too (default): the route arms" "ARMED"                          "$(ungate)"
+CI_UNINSTALL_GATE=fail uncouple skipped
+has "  …and under the gate a skipped hand-back is not a pass" "DRY"                            "$(ungate)"
 seedverdict passed ''
 
 # ------------------------------------------ the pipeline loop, as written

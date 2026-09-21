@@ -82,6 +82,8 @@ def isle_summary(run_dir):
                'verify_ok': bool((st.get('verify') or {}).get('ok')),
                'selftests': st.get('selftest_counts') or {},
                'uninstall': st.get('uninstall_verdict', 'skipped'),
+               # his ruling 2026-09-20: a stage's WARNINGS (the uninstall, by default) ride with it
+               'warnings': list(st.get('warnings') or []),
                'results': st.get('results') or {}}
         rows.append(row)
         if st.get('error'):
@@ -159,6 +161,12 @@ def decide(built, selftests, isle):
 
     if reasons:
         return 'partial', '; '.join(reasons)
+    warnings = [w for row in (isle.get('stage_rows') or []) for w in (row.get('warnings') or [])]
+    if warnings:
+        # passed WITH warnings: the product's own uninstall (by his ruling a warning, not a failure) or any
+        # other non-gating finding is named here so a reader never mistakes "passed" for "clean".
+        return 'passed', ('every configured module selftest passed on the device and every isle stage '
+                          'installed, verified and tested — WITH WARNINGS: %s' % '; '.join(warnings))
     return 'passed', ('every configured module selftest passed on the device, every isle stage installed, '
                       'verified, tested and handed the machine back clean')
 

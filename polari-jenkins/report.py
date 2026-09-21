@@ -194,7 +194,11 @@ def render(run_dir):
                 a('                   %s' % str(line)[:110])
         if s.get('results'):
             a('    apps      %s' % ', '.join('%s=%s' % kv for kv in sorted(s['results'].items())))
-        a('    uninstall %s' % s.get('uninstall_verdict'))
+        a('    uninstall %s%s' % (s.get('uninstall_verdict'),
+                                   '  (a WARNING, not a failure — his ruling 2026-09-20; CI_UNINSTALL_GATE=fail restores the gate)'
+                                   if s.get('warnings') else ''))
+        for w in (s.get('warnings') or []):
+            a('    WARNING   %s' % w)
         for f in (s.get('uninstall_findings') or []):
             a('              - %s' % f)
         a('    leaks     %s (%s)   RAM %+d MB, disk %+d MB'

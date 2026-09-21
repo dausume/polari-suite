@@ -7784,3 +7784,14 @@ Fixes: the bake verifies with `apt-get install --dry-run` (nothing left to `Inst
 "OLDER copy" row said it, now the promotion enforces it. Verdict both runs: `failed` on the isle uninstall only;
 89/89 suites inside the isle (the new posture suite included). OWED: the run that bakes for real, and the one
 after it that boots from the prepared base (expect `secs_prereqs` in single digits and no bake at all).
+
+### §78 addendum 2 — his ruling: the uninstall is a WARN step, not a failure (2026-09-20)
+
+*"If the only thing holding it back is the uninstall then we can just make that a warn step, not a failure
+step."* `isle/results.py`: `core_ok` no longer requires `uninstall == clean` unless `CI_UNINSTALL_GATE=fail`;
+a dirty or skipped hand-back becomes a stage `warning` (named with the product's findings); `verdict.py` carries
+the warnings and a passing verdict says **"passed … WITH WARNINGS: uninstall dirty …"**; `report.py` prints the
+uninstall line as a warning with the findings. The route arms on `passed`. Selftests updated: a dirty
+hand-back arms the route and the verdict is `passed` naming the warning; `CI_UNINSTALL_GATE=fail` restores the
+old behaviour (`not passed`, `failed`). This supersedes §73's "an isle that cannot hand the machine back is not
+releasable" for the default; the findings still go to isle-core's contract note.
