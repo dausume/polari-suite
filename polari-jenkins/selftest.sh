@@ -1399,8 +1399,12 @@ eq "ci-3 core_ok: install ok + verify ok + core suites pass + a CLEAN hand-back 
 eq "  …a failed install alone makes it false" "false" "$(mkstage false true pass clean)"
 eq "  …a failed verify alone makes it false" "false" "$(mkstage true false pass clean)"
 eq "  …a failing CORE suite inside the isle alone makes it false" "false" "$(mkstage true true fail clean)"
-eq "  …a DIRTY hand-back alone makes it false" "false" "$(mkstage true true pass dirty)"
-eq "  …and so does a SKIPPED one: it was never exercised" "false" "$(mkstage true true pass skipped)"
+# his ruling 2026-09-20: the hand-back is a WARNING by default — core_ok stays true and the stage carries the
+# warning; CI_UNINSTALL_GATE=fail restores the gate.
+eq "  …a DIRTY hand-back alone leaves it TRUE (a warning, not a failure — his ruling)" "true" "$(mkstage true true pass dirty)"
+eq "  …and so does a SKIPPED one (warned, never exercised)" "true" "$(mkstage true true pass skipped)"
+eq "  …CI_UNINSTALL_GATE=fail: a DIRTY hand-back makes it false again" "false" "$(CI_UNINSTALL_GATE=fail mkstage true true pass dirty)"
+eq "  …CI_UNINSTALL_GATE=fail: and so does a SKIPPED one" "false" "$(CI_UNINSTALL_GATE=fail mkstage true true pass skipped)"
 mkstage true true pass clean >/dev/null
 has "ci-3 the stage record carries install {ok, seconds, log}" '"seconds": 900' "$(cat "$RD/stage-1.json")"
 has "  …verify {ok, details}, rendered as one line per check" "pass: routes" "$(cat "$RD/stage-1.json")"
