@@ -164,18 +164,41 @@ they go (`polari-jenkins/secrets/README.md`, `routes/destinations.sh`):
 
 ### `github/release_token`
 
-A **fine-grained** GitHub personal access token.
+What it does: pushes the version tag (`git push refs/tags/polari-v…`),
+creates the GitHub Release and uploads its assets (`routes/github-release.sh`),
+and bumps the `pol` formula in the homebrew tap (`routes/homebrew.sh`). All of
+that is one GitHub permission — *write the contents of those two repositories*.
+
+**Recommended — a classic token, scope `repo`, nothing else.**
+
+- Create it at `https://github.com/settings/tokens/new` (Tokens (classic)).
+- Tick **`repo`** only. It is a *second* token: keep it apart from the
+  registry one, so each can be revoked alone.
+- Set an expiry and note it; the doctor prints it.
+
+**The tighter option — a fine-grained token.**
 
 - Create it at `https://github.com/settings/personal-access-tokens/new`.
 - **Repository access:** only the two repositories this pushes to — the
   suite's own repo and the homebrew tap. Never "all repositories."
-- **Repository permissions:** `Contents` — Read and write; `Metadata` —
-  Read.
+- **Repository permissions:** `Contents` — **Read and write** (Metadata —
+  Read is added by itself).
 - **Account permissions:** none.
+- ⚠ GitHub's fine-grained UI shows a token's grants **nowhere** after it is
+  made, and there is no API to ask. The first real release (2026-09-22) died
+  at the tag push on a fine-grained token that could read the repository and
+  not write it — nothing in the UI said so. That is why the doctor probes.
 
-It publishes GitHub Releases for the suite and pushes the `pol` formula to
-the homebrew tap (`routes/github-release.sh`, `routes/homebrew.sh`), and
-it is also what pushes the version tag.
+**Either way, prove it:** after `secrets put`, run `pol jenkins doctor`. Its
+token rows (`routes/token-check.sh`) try a write-free `git push --dry-run`
+against the release repo and the tap, read the token's kind, scopes and
+expiry from its own headers, and look the tap repository up — and say
+exactly what is missing. *Present is not able.*
+
+The homebrew tap repository (`<owner>/homebrew-polari`) must exist before the
+homebrew route can push; an empty repository is enough. Until it does, the
+doctor says so and the route fails — take `homebrew` out of `CI_ROUTES` or
+create the repository.
 
 ### `github/registry_token`
 

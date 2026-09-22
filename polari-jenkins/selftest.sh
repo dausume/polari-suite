@@ -319,8 +319,11 @@ wtable() { ( source "$DEV/secrets.sh"; source "$DEV/setup/steps/04-secrets.sh"
              printf '%s' "${miss# }" ) }
 eq "every ACTIVE route's secret has a URL or a generate command" "" "$(wtable)"
 sinfo() { ( source "$DEV/setup/steps/04-secrets.sh"; setup_secret_info "$1" | cut -f"$2" ) }
-has "the RELEASE token names the fine-grained token page" "settings/personal-access-tokens" "$(sinfo github/release_token 4)"
-has "  …and the exact permission"                    "Contents: Read and write"        "$(sinfo github/release_token 5)"
+# 2026-09-22 (his ruling): CLASSIC first — the fine-grained UI shows a token's grants nowhere
+has "the RELEASE token names the CLASSIC token page first" "settings/tokens/new"       "$(sinfo github/release_token 4)"
+has "  …scope 'repo' and nothing else"               "Scopes: 'repo' and NOTHING else" "$(sinfo github/release_token 5)"
+has "  …and the fine-grained option with its exact permission" "Contents = Read and write" "$(sinfo github/release_token 5)"
+has "  …and that the doctor PROVES it"               "pol jenkins doctor"              "$(sinfo github/release_token 5)"
 has "the REGISTRY token says CLASSIC + write:packages"       "write:packages"                  "$(sinfo github/registry_token 5)"
 has "cosign is generated, not fetched"               "cosign generate-key-pair"        "$(sinfo signing/cosign_key 5)"
 has "  …with a fallback for a host without cosign"   "ghcr.io/sigstore/cosign"         "$(sinfo signing/cosign_key 5)"
@@ -1783,6 +1786,28 @@ has "test: Build Now is a manual run" "quiet.sh rearm test" "$TESTSRC"
 has "release: the tag step carries a TAGGER identity (releases #210–#269 died without one)" 'GIT_COMMITTER_EMAIL="${CI_TAGGER_EMAIL:-' "$RELSRC"
 eq "  …and the default is a chosen name at a reserved domain, never a person" "ok" \
    "$(grep -q 'CI_TAGGER_EMAIL:-polari-pipeline@noreply.invalid' "$J/docker-compose.yml" && echo ok || echo missing)"
+
+# ---- 2026-09-22: PRESENT IS NOT ABLE — the token probe
+# The first real release (#337) had both tokens present and every route ARMED and
+# died at the tag push: a fine-grained token that could read and not write, which
+# GitHub's UI shows nowhere. routes/token-check.sh tries, write-free.
+TK="$T/tokcheck"; rm -rf "$TK"; mkdir -p "$TK/github"
+tc() { ( cd "$DEV" && TOKEN_CHECK_SECRETS_DIR="$TK" GITHUB_API="http://127.0.0.1:9/unreachable" CI_ROUTES="${TCR:-github-release,ghcr,homebrew}" bash routes/token-check.sh "$@" 2>&1 ) || true; }
+OUT="$(tc)"
+has "token probe: no tokens at all → one WARN per token, naming the put command" "github/release_token is absent" "$OUT"
+has "  …and the registry one" "github/registry_token is absent" "$OUT"
+has "  …the release advice is a CLASSIC token with 'repo'" "CLASSIC token with the 'repo' scope" "$OUT"
+eq "  …rows are tab-separated OK|WARN/check/msg/fix for the doctor" "WARN" "$(printf '%s\n' "$OUT" | head -1 | cut -f1)"
+eq "  …four fields" "4" "$(printf '%s\n' "$OUT" | head -1 | awk -F'\t' '{print NF}')"
+printf 'github_pat_notreal' > "$TK/github/release_token"; printf 'ghp_notreal' > "$TK/github/registry_token"
+OUT="$(tc)"
+has "token probe: GitHub unreachable → says NOTHING is proven rather than guessing" "GitHub did not answer" "$OUT"
+hasnt "  …and never prints a token" "notreal" "$OUT"
+has "doctor: renders the probe's rows" 'routes/token-check.sh' "$(cat "$J/doctor.sh")"
+has "  …through the controller when it runs (that is where /run/secrets is readable)" 'docker exec -e CI_ROUTES="$CI_ROUTES"' "$(cat "$J/doctor.sh")"
+has "setup: the release-token advice leads with the CLASSIC token, scope repo" "RECOMMENDED — a CLASSIC token" "$(cd "$DEV" && bash -c '. setup/steps/04-secrets.sh 2>/dev/null; . routes/destinations.sh; . secrets.sh 2>/dev/null; setup_secret_info github/release_token' 2>/dev/null || grep -h "RECOMMENDED — a CLASSIC token" setup/steps/04-secrets.sh)"
+has "  …and says the fine-grained UI shows grants nowhere" "shows a token's grants NOWHERE" "$(cat "$J/setup/steps/04-secrets.sh")"
+has "homebrew: the tap commit uses the release tagger identity, not a mailbox" 'user.email=${CI_TAGGER_EMAIL:-polari-pipeline@noreply.invalid}' "$(cat "$J/routes/homebrew.sh")"
 
 # ---- ci-12 addendum 7: SUITE MODE BUILDS ITS OWN CORE
 # isle-test #5 reached "the core — pulled from a release" on a SUITE device and

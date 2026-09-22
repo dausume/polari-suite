@@ -274,6 +274,27 @@ for r in $SECRETS_ACTIVE_ROUTES; do
     else ok "route $r" "ARMED — a release WILL publish to: $DEST"; fi
 done
 ok "routes parked" "$SECRETS_PARKED_ROUTES (routes/later/ — they need an outside account)"
+# 2026-09-22: PRESENT is not ABLE. The first real release (#337) had both tokens
+# present and every route ARMED, and died at `git push refs/tags/…`: the
+# fine-grained release token could read the repo and not write it, and GitHub's
+# UI shows a fine-grained token's grants nowhere. routes/token-check.sh asks the
+# only reliable way — a write-free `git push --dry-run`, the token's own headers,
+# a lookup of the tap — wherever the secrets are readable: the controller
+# (/run/secrets) when it is running, else this shell (sudo in the system posture).
+CTR="${CI_CONTROLLER_CONTAINER:-polari-jenkins}"
+if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CTR"; then
+    TOKROWS="$(docker exec -e CI_ROUTES="$CI_ROUTES" -e CI_MODE="${CI_MODE:-suite}" -e CI_ROUTE_TARGET="${CI_ROUTE_TARGET:-}" "$CTR" bash /var/polari-jenkins/routes/token-check.sh 2>/dev/null || true)"
+else
+    TOKROWS="$(CI_ROUTES="$CI_ROUTES" bash "$J/routes/token-check.sh" 2>/dev/null || true)"
+fi
+if [ -n "$TOKROWS" ]; then
+    while IFS=$'\t' read -r st key msg fix; do
+        [ -n "$key" ] || continue
+        case "$st" in OK) ok "$key" "$msg" ;; WARN) warn "$key" "$msg" "$fix" ;; esac
+    done <<< "$TOKROWS"
+else
+    ok "token probe" "skipped — the secrets are not readable from here (start the controller: pol jenkins up, or run the doctor with sudo)"
+fi
 # ci-12: a token still stored under its pre-ci-12 name keeps working, and the
 # doctor says so ONCE with the exact rename. Silence would leave the old name in
 # place forever, which is the whole reason the rename was asked for.

@@ -491,9 +491,15 @@ polari-jenkins/
     └── ssh/                  distribution_host_key (deploy key for the apt/downloads VM)
 ```
 **The names say what the token is FOR, and every listing says where it GOES**
-(ci-12, his ask). `github/release_token` is the fine-grained PAT that creates
-the release and pushes the tag; `github/registry_token` is the classic PAT that
-writes packages — a fine-grained token cannot. `pol jenkins secrets status`, the
+(ci-12, his ask). `github/release_token` creates the release, uploads its
+assets, pushes the version tag and bumps the homebrew tap — a **classic** PAT
+with the `repo` scope (recommended; a fine-grained one with Contents: Read and
+write on both repos also works, but GitHub shows a fine-grained token's grants
+nowhere and the first real release died on one that could only read);
+`github/registry_token` is the classic PAT that writes packages — a fine-grained
+token cannot. **The doctor proves both** (`routes/token-check.sh`: a write-free
+`git push --dry-run`, the token's own headers, a lookup of the tap) — PRESENT is
+not ABLE. `pol jenkins secrets status`, the
 doctor's route rows and the setup all print
 `name — destination — routes — present/absent`, and the **destination is
 rendered from `routes/destinations.sh`** — the very constants the route scripts
@@ -537,8 +543,9 @@ pol jenkins isle authorize <alias>  # ssh target only — the PIPELINE user's ow
 pol jenkins stages                  # CI_ISLE_STAGES — what may ever be released
 
 # 4. the secrets (value from stdin — never a shell argument)
-pol jenkins secrets put github/release_token    # fine-grained PAT: Contents read+write on the release repo AND the tap
+pol jenkins secrets put github/release_token    # CLASSIC PAT, scope 'repo' only (a second token) — or fine-grained: Contents R+W on the release repo AND the tap
 pol jenkins secrets put github/registry_token   # CLASSIC PAT: write:packages + read:packages
+pol jenkins doctor                              # PROVES each token can do its job (git push --dry-run; tap exists) — present is not able
 
 # 5. the controller
 pol jenkins up                      # UI at http://127.0.0.1:8080; runs the doctor afterwards

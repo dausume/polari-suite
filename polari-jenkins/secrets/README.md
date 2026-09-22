@@ -65,7 +65,7 @@ and `pol jenkins doctor` shows the same table before anything runs.
 | directory | file | used by |
 |---|---|---|
 | admin/ | jenkins_admin_password | the local admin login (no anonymous access) |
-| github/ | **release_token** | routes/github-release.sh + routes/homebrew.sh, and the **release tag push**. A FINE-GRAINED PAT: Contents Read and write on the release repo AND the homebrew tap, no account permissions. Destination: `bash polari-jenkins/routes/destinations.sh` prints exactly where. The pre-ci-12 name `github_token` still works everywhere; `pol jenkins secrets mv github/github_token github/release_token` renames it. |
+| github/ | **release_token** | routes/github-release.sh + routes/homebrew.sh, and the **release tag push**. A CLASSIC PAT with the `repo` scope only (recommended — a second token, apart from the registry one); or a fine-grained PAT with Repository access = the release repo AND the homebrew tap, Contents: Read and write, no account permissions (GitHub shows a fine-grained token's grants nowhere afterwards — `pol jenkins doctor` proves it can push, write-free). Destination: `bash polari-jenkins/routes/destinations.sh` prints exactly where. The pre-ci-12 name `github_token` still works everywhere; `pol jenkins secrets mv github/github_token github/release_token` renames it. |
 | github/ | github_ssh_key | optional alternative for the tag push |
 | github/ | **registry_token** | routes/ghcr.sh. A CLASSIC PAT (a fine-grained one cannot write packages): scopes `write:packages` + `read:packages`. Destination: the container registry — `bash polari-jenkins/routes/destinations.sh`. The pre-ci-12 name `registries/ghcr_token` still works. |
 | registries/ | dockerhub_user, dockerhub_token | routes/later/dockerhub.sh (PARKED) |

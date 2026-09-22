@@ -23,6 +23,6 @@ class Pol < Formula
   end
 end
 RB
-run git -C "$WORK/tap" -c user.name=polari-jenkins -c user.email=jenkins@polari-systems.org commit -qam "pol $VERSION" 
+run git -C "$WORK/tap" -c "user.name=${CI_TAGGER_NAME:-Polari pipeline}" -c "user.email=${CI_TAGGER_EMAIL:-polari-pipeline@noreply.invalid}" commit -qam "pol $VERSION"   # the same identity as the release tag 
 run git -C "$WORK/tap" push -q
 record "https://github.com/$TAP"
