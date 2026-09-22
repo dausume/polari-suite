@@ -5,9 +5,10 @@
 # source of truth; this file is their fallback on the device, exactly as
 # device.env is for the device itself (cicd-sync.sh pull rewrites it).
 #
-#   deploy/targets.env      gitignored. NEVER an address or a hostname — an ssh
-#                           ALIAS from the pipeline user's ~/.ssh/config, and a
-#                           chosen name that may be rendered on a page.
+#   deploy/targets.env      gitignored, 0644 (the controller reads it as another uid).
+#                           NEVER an address, a hostname or a secret — an ssh ALIAS
+#                           from the pipeline user's ~/.ssh/config, a chosen name that
+#                           may be rendered on a page, public health urls.
 #
 # Sourced by conditions.sh / apply.sh / deploy.sh:
 #   targets_list                     → the names, one per line
@@ -76,7 +77,9 @@ for k, v in new.items():
         out.append('%s=%s' % (k, v))
 os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
 tmp = path + '.tmp'
-open(tmp, 'w').write('\n'.join(out) + '\n'); os.chmod(tmp, 0o600); os.replace(tmp, path)
+# 0644: the CONTROLLER (another uid) reads this file, and by its own rule it holds nothing secret —
+# aliases, chosen names, public health urls. A secret never belongs here (secrets/ does that).
+open(tmp, 'w').write('\n'.join(out) + '\n'); os.chmod(tmp, 0o644); os.replace(tmp, path)
 PY
 }
 target_remove() {

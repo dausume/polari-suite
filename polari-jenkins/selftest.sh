@@ -1855,7 +1855,7 @@ has "deploy add: writes the target with its ssh ALIAS (never an address)" "SSH_A
 eq "  …defaults fill what was not given (route swarm, channel release, needs github-release,ghcr)" "swarm release github-release,ghcr" \
    "$( . "$DEV/deploy/targets.sh"; TARGETS_ENV="$DP/targets.env"; echo "$(target_field public-site ROUTE) $(target_field public-site CHANNEL) $(target_field public-site NEEDS)")"
 has "  …and names the next step (authorize)" "deploy authorize public-site" "$OUT"
-eq "  …mode 0600" "600" "$(stat -c %a "$DP/targets.env")"
+eq "  …mode 0644 (the controller reads it as another uid; nothing secret is allowed in it)" "644" "$(stat -c %a "$DP/targets.env")"
 has "  …a value with spaces (the HEALTH urls) survives being sourced" "https://example.invalid/api/health" "$( . "$DEV/deploy/targets.sh"; TARGETS_ENV="$DP/targets.env"; target_field public-site HEALTH)"
 has "deploy add: a hostname-looking name is refused (names are chosen)" "never a hostname" "$(d deploy.sh add my.host.example SSH_ALIAS=x </dev/null)"
 hasnt "  …and nothing was written for it" "my.host" "$(cat "$DP/targets.env")"
