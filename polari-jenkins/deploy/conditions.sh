@@ -4,7 +4,7 @@
 #   conditions.sh <target> <version> [--now] [--report]
 #
 # Eight conditions, every one PRINTED with its evidence, in this order:
-#   1 newer     the target runs an OLDER release than <version> (READ over ssh: `pol prod current`)
+#   1 newer     the target runs an OLDER release than <version> (READ over ssh from the deploy agent: `current`)
 #   2 tested    <version> has a `passed` test verdict, and released == tested by image id (routes/_lib.sh)
 #   3 published <version> was published FOR REAL to every route this target consumes (release.json publishedTo)
 #   4 window    now is inside the target's maintenance window (cron) — a person's --now overrides
@@ -35,21 +35,26 @@ row() {  # row GO|SKIP|INFO <condition> <evidence>
     printf '%-4s %-9s %s\n' "$1" "$2" "$3"; ROWS+=("$1"$'\t'"$2"$'\t'"$3")
     if [ "$1" = SKIP ]; then VERDICT=SKIP; [ -n "$FIRST_FAIL" ] || FIRST_FAIL="$2: $3"; fi
 }
-tssh() { "$SSH_BIN" -o BatchMode=yes -o ConnectTimeout="$SSH_TMO" "$ALIAS" "$@" 2>&1; }
+# ONLY the deploy agent's verbs ever cross this ssh (his ruling 2026-09-22): the pipeline's key is restricted
+# to the agent on the target (authorize --forced-command), which reads no answers, vault or certificate.
+# The prefix is what an unrestricted dev key needs; a restricted key ignores it (SSH_ORIGINAL_COMMAND).
+tssh() { "$SSH_BIN" -o BatchMode=yes -o ConnectTimeout="$SSH_TMO" "$ALIAS" "pol prod agent $*" 2>&1; }
 
 echo "deploy conditions — target $TARGET (alias $ALIAS, route $(target_field "$TARGET" ROUTE), profile $(target_field "$TARGET" PROFILE)) ← release $VERSION${NOW:+ }$([ "$NOW" = 1 ] && echo '[--now: a person; window + hold overridden]')"
 
 # ---- 1 newer: what the target runs is READ, never guessed
-CUR="$(tssh 'pol prod current' 2>/dev/null)"; RC=$?
+CUR="$(tssh current 2>/dev/null)"; RC=$?
 if [ "$RC" != 0 ] || ! printf '%s' "$CUR" | grep -q '^release='; then
-    row SKIP newer "cannot read the target: ssh $ALIAS 'pol prod current' → rc=$RC ${CUR:+(${CUR//$'\n'/ | }})"
+    row SKIP newer "cannot read the target: ssh $ALIAS 'pol prod agent current' → rc=$RC ${CUR:+(${CUR//$'\n'/ | }})"
     CUR_REL=""
 else
     CUR_REL="$(printf '%s\n' "$CUR" | sed -n 's/^release=//p' | head -1)"
     CUR_STACK="$(printf '%s\n' "$CUR" | sed -n 's/^stack=//p' | head -1)"
     WANT="polari-v$VERSION"
-    if [ -z "$CUR_REL" ]; then
-        row GO newer "the target runs NO release yet (stack ${CUR_STACK:-none}) — $WANT would be its first"
+    if [ -z "$CUR_REL" ] && [ "${CUR_STACK:-none}" = none ]; then
+        row SKIP newer "the target runs NO stack yet — the FIRST deploy is a person's \`pol prod apply\` there (the agent only replaces images); after that this pipeline keeps it current"
+    elif [ -z "$CUR_REL" ]; then
+        row GO newer "the target's stack ${CUR_STACK} runs images without a release tag — $WANT would be its first release"
     elif [ "$CUR_REL" = "$WANT" ]; then
         row SKIP newer "the target already runs $WANT (stack ${CUR_STACK:-none}) — nothing to deploy"
     elif [ "$(printf '%s\n%s\n' "$CUR_REL" "$WANT" | sort -V | tail -1)" = "$WANT" ]; then

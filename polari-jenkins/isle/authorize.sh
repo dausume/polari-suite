@@ -42,10 +42,15 @@ source "$J/device.sh"
 # shellcheck source=../secrets.sh
 source "$J/secrets.sh"
 
-ALIAS=""
+ALIAS=""; FORCED=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --help|-h) sed -n '2,31p' "$0"; exit 0 ;;
+        # dep-1 (his ruling 2026-09-22): a DEPLOYMENT target gets the key RESTRICTED to one command —
+        # the deploy agent — so the pipeline's key can run nothing else there: no shell, no forwarding,
+        # no `pol prod apply`, no path to the vault. `--forced-command auto` asks the target where its
+        # agent is (pol prod agent --path) and writes that absolute path.
+        --forced-command) FORCED="${2:?--forced-command <absolute path|auto>}"; shift ;;
         -*) echo "authorize.sh: unknown argument '$1' (--help)" >&2; exit 2 ;;
         *)  [ -z "$ALIAS" ] || { echo "authorize.sh: one alias, not two" >&2; exit 2; }
             ALIAS="$1" ;;
@@ -194,12 +199,26 @@ fi
 say "host key verified against your own known_hosts ($SHARED key type(s) agree) — not blindly accepted"
 
 # --------------------------------- 4. the key onto the target, idempotently
+if [ "$FORCED" = auto ]; then
+    FORCED="$(ssh -o BatchMode=yes -o ConnectTimeout="$CI_SSH_TIMEOUT" "$ALIAS" "bash -lc 'pol prod agent --path'" 2>/dev/null | tail -1)"
+    case "$FORCED" in /*prod-agent.sh) say "the target's deploy agent is $FORCED" ;;
+        *) fail "the target did not name its deploy agent (pol prod agent --path over '$ALIAS' answered: '${FORCED:-nothing}') — is pol installed there?"; exit 4 ;; esac
+fi
+if [ -n "$FORCED" ]; then
+    # `restrict` (OpenSSH ≥ 7.2) = no pty, no port/agent/X11 forwarding, no user rc; command= is the ONLY thing run.
+    LINE="restrict,command=\"$FORCED\" $PUB"
+    say "the key will be RESTRICTED on $ALIAS to: $FORCED  (no shell, no forwarding — the deploy agent and nothing else)"
+else LINE="$PUB"; fi
 say "copying the pipeline user's PUBLIC key to $ALIAS over your own working alias…"
 RES="$(ssh -o BatchMode=yes -o ConnectTimeout="$CI_SSH_TIMEOUT" "$ALIAS" "
     umask 077
     mkdir -p ~/.ssh && touch ~/.ssh/authorized_keys && chmod 0600 ~/.ssh/authorized_keys
-    if grep -qxF '$PUB' ~/.ssh/authorized_keys; then echo already
-    else printf '%s\n' '$PUB' >> ~/.ssh/authorized_keys; echo added; fi
+    if grep -qxF '$LINE' ~/.ssh/authorized_keys; then echo already
+    else
+        # one line per key: an UNRESTRICTED copy of this same key is replaced, never kept beside the restricted one
+        grep -vF '$PUB' ~/.ssh/authorized_keys > ~/.ssh/authorized_keys.new || true
+        printf '%s\n' '$LINE' >> ~/.ssh/authorized_keys.new; mv ~/.ssh/authorized_keys.new ~/.ssh/authorized_keys; chmod 0600 ~/.ssh/authorized_keys; echo added
+    fi
     id -un" 2>&1)" || {
     fail "your own alias '$ALIAS' did not answer a BatchMode ssh: ${RES//$'\n'/ }"
     echo "  This verb copies THROUGH the path you already have. Fix that one first:" >&2

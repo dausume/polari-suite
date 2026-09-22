@@ -28,7 +28,7 @@ case "$cmd" in
     list)
         printf '%-14s %-12s %-6s %-8s %-5s %-24s %s\n' TARGET ALIAS ROUTE CHANNEL HOLD RUNS "LAST OUTCOME"
         for t in $(targets_list); do
-            cur="$(ssh -o BatchMode=yes -o ConnectTimeout=6 "$(target_field "$t" SSH_ALIAS)" 'pol prod current' 2>/dev/null | sed -n 's/^release=//p' | head -1)"
+            cur="$(ssh -o BatchMode=yes -o ConnectTimeout=6 "$(target_field "$t" SSH_ALIAS)" "pol prod agent current" 2>/dev/null | sed -n 's/^release=//p' | head -1)"
             printf '%-14s %-12s %-6s %-8s %-5s %-24s %s\n' "$t" "$(target_field "$t" SSH_ALIAS)" "$(target_field "$t" ROUTE)" "$(target_field "$t" CHANNEL)" \
                    "$(target_field "$t" HOLD)" "${cur:-(unreachable or none)}" "$(last_outcome "$t")"
         done
@@ -55,7 +55,8 @@ case "$cmd" in
     show)   target_exists "${1:?name}" || { echo "no such target"; exit 2; }; target_show "$1" ;;
     authorize)
         t="${1:?deploy authorize <name>}"; target_exists "$t" || { echo "no such target '$t'" >&2; exit 2; }
-        exec bash "$J/isle/authorize.sh" "$(target_field "$t" SSH_ALIAS)" ;;
+        # the key is RESTRICTED to the target's deploy agent (his ruling: the pipeline's ssh cannot touch production secrets)
+        exec bash "$J/isle/authorize.sh" "$(target_field "$t" SSH_ALIAS)" --forced-command auto ;;
     check)
         t="${1:?deploy check <name> [<version>]}"; v="${2:-$(newest_version)}"
         [ -n "$v" ] || { echo "no release in the pool to check against"; exit 2; }
