@@ -296,7 +296,17 @@ say "$CI_SSH_DIR/known_hosts: $ADDED line(s) added ($(wc -l < "$KH" | tr -d ' ')
 # --------------------------------------------------- 6. prove it, through the controller
 CTR="${CI_CONTROLLER_CONTAINER:-polari-jenkins}"
 if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CTR"; then
-    if out=$(docker exec "$CTR" ssh -o BatchMode=yes -o ConnectTimeout="$CI_SSH_TIMEOUT" "$ALIAS" true 2>&1); then
+    if [ -n "$FORCED" ]; then
+        # a RESTRICTED key answers only the agent: prove it answers, and prove it refuses everything else
+        if out=$(docker exec "$CTR" ssh -o BatchMode=yes -o ConnectTimeout="$CI_SSH_TIMEOUT" "$ALIAS" pol prod agent current 2>&1) && printf '%s' "$out" | grep -q '^agent='; then
+            say "PROVEN: the controller reaches $ALIAS as the pipeline user and the deploy agent answers ($(printf '%s\n' "$out" | sed -n 's/^stack=/stack /p'))"
+            if ref=$(docker exec "$CTR" ssh -o BatchMode=yes -o ConnectTimeout="$CI_SSH_TIMEOUT" "$ALIAS" true 2>&1); [ $? = 2 ] && printf '%s' "$ref" | grep -q REFUSED; then
+                say "PROVEN: the same key is REFUSED a shell command ('true' → $(printf '%s' "$ref" | head -1 | cut -c1-60)…) — it can run nothing but the agent"
+            else fail "the restriction did NOT hold: 'true' over the restricted key returned rc=$? — check authorized_keys on $ALIAS"; exit 4; fi
+        else
+            fail "the controller reaches $ALIAS but the deploy agent did not answer: ${out//$'\n'/ }"; exit 4
+        fi
+    elif out=$(docker exec "$CTR" ssh -o BatchMode=yes -o ConnectTimeout="$CI_SSH_TIMEOUT" "$ALIAS" true 2>&1); then
         say "PROVEN: the controller reaches $ALIAS as the pipeline user, with no prompt"
         if docker exec "$CTR" ssh -o BatchMode=yes -o ConnectTimeout="$CI_SSH_TIMEOUT" "$ALIAS" 'sudo -n true' >/dev/null 2>&1; then
             say "…and that login has passwordless sudo on the target (the isle stages need it)"
