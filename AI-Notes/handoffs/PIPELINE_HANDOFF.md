@@ -114,3 +114,40 @@ this is the one sanctioned path INTO it, automated and conditional.
 Slices: dep-0 the row + targets.env + `deploy authorize` + the conditions as a dry-run report; dep-1 the apply +
 verify + rollback on a HOME box first (pol-core running the lean profile again, `hold` off); dep-2 the job + the
 queue + the records + the cicd page; dep-3 the droplet, `hold` on, first apply by hand with `--now`, then the window.
+
+## 5. Addendum 2026-09-22 — the day's findings and what was built (read with §1–§4 above)
+
+**The release, as of tonight:** `main` = `test` = 04051ff (verdict passed). polari-release ran every ten
+minutes for a day and failed at `git tag -a` (no git identity for the pipeline user) → FIXED
+(`CI_TAGGER_NAME/EMAIL`, device.env; econ-core = his GitHub no-reply identity). Then #337 tagged and the PUSH
+was denied: `github/release_token` is a fine-grained PAT that READS the repo and cannot write — GitHub's UI
+shows a fine-grained token's grants nowhere. **His ruling: classic tokens.** `github/release_token` = a second
+classic PAT, scope `repo` only (owed: HIS mint + `sudo pol jenkins secrets put github/release_token`); the
+registry token stays (classic, `repo, write:packages` — works). Also found: `dausume/homebrew-polari` (the
+tap) does not exist — create it or drop `homebrew` from `CI_ROUTES`. `routes/token-check.sh` + doctor rows
+now PROVE both tokens (write-free `git push --dry-run`, headers, the tap looked up); docs + setup advisory
+lead with classic. The queue is HELD: `main FAILED 04051ff … waiting for a re-push or a manual run`.
+
+**Rule 4 (his, refined):** the ten-minute tick is a CHECK only; a run needs a confirmed change; a FAILED run
+covers its state and waits for a re-push (branch moves, or the same sha promoted again) or a manual run
+(`pol jenkins retry test|main` — new verb — or Build Now). No cooldown timer (he withdrew it). `quiet.sh`
+rule 4; both Jenkinsfiles pass the result to `quiet.sh done`.
+
+**The release's images must BE the tested images** (found by the deploy conditions on econ-core:
+`released != tested` — #337 rebuilt from the same sha and the ids differed; pol-reticulum was never
+isle-tested): `tested-images.sh` — polari-test KEEPS a passed verdict's images (docker save of exactly
+`isle.images`), polari-release LOADS them and tags `<name>:<version>`; no kept images = FAILURE under rule 4
+(promote test again, then main). The release's image list is now the verdict's.
+
+**To get the first automated release out (in order):** his classic `repo` token → `secrets put` → the tap
+(or drop homebrew) → isle-core back → `pol jenkins promote test` (polari-test keeps its images) → `pol
+jenkins promote main` (the marker re-arms the failed main) → release loads the tested images, tags, publishes
+→ `polari-deploy` ticks (no target qualifies until a box has a stack). Then: ghcr packages public + linked.
+
+**dep — production as the step after publish (plan §11.6a):** built and proven on econ-core; the apply is
+the DEPLOY AGENT under a restricted key (his ruling: the pipeline's ssh cannot touch production secrets;
+stash volumes, swap images smoothly). See §11.6a for the pieces, the proof and what is owed (the first real
+apply; targets.env from the DeployTarget rows; the isle route).
+
+**Machines:** isle-core was unreachable ALL DAY (no ARP, not on another LAN address, mDNS silent) — the isle
+stage and any end-to-end re-proof wait for it. econ-core = the pipeline device, up; pol-core = this box.

@@ -1034,6 +1034,40 @@ doctor tries.
 Order of operations for the first real release (still owed, blocks dep-3 only): his classic `repo` token →
 `secrets put` → `pol jenkins retry main` → GitHub release + ghcr → packages public.
 
+### 11.6a Status 2026-09-22 — dep-0/1/2 BUILT, proven on econ-core; his ruling reshaped the apply
+
+**His ruling (2026-09-22, from the road):** "the prod is a docker swarm deployment; the ssh used by jenkins does
+not touch any of the secrets for production and CANNOT; it is only doing a smooth replacement of the images
+while ensuring the data stored in volumes is safely stashed." So §11.4's `pol prod apply` over ssh is GONE.
+Built instead: the DEPLOY AGENT (`polari-cli/scripts/prod-agent.sh`, `pol prod agent`) — its own file, sources
+nothing of prod.sh, reads no answers/vault/certificate — with the verbs `current | stash <v> | update <v> |
+verify | rollback <v> | stash-list`, and `pol jenkins deploy authorize <name>` installs the pipeline user's key
+as `restrict,command="<agent's absolute path>"` (an unrestricted copy of the same key is replaced). `update`
+= per service whose image is `<registry>/<name>:<tag>`: `docker service update --image …:<version>
+--update-order start-first --update-parallelism 1 --update-failure-action rollback`, one at a time, converged
+before the next; nginx and the like are left alone. `stash` = every named volume of the stack tar'd read-only
+to `~/.polari-stash/<ts>-before-<v>/` (keeps 3); `pol prod restore <id>` is a PERSON's. The FIRST deploy of a
+box (no stack) is a person's `pol prod apply`; condition 1 says so.
+
+Built: `deploy/targets.sh` + `targets.env` (0644; nothing secret), `deploy/conditions.sh` (NINE conditions —
+§11.3's eight + `unfailed`, rule 4 for deploys), `deploy/apply.sh` (stash → update → verify → health-after →
+rollback by re-pin; applied/failed.json; `cicd-sync deploy`), `deploy/deploy.sh` (= `pol jenkins deploy …`),
+`Jenkinsfile.deploy` + the `polari-deploy` job (publish's post-success + `H/10`), doctor rows per target,
+`DeployTarget` + `DeployRecord` rows (cicd 11 classes, kind `deploy`, `/api/cicd/deploys`, page
+`cicd-deploys`), `pol prod current`. polari-jenkins selftest 862/862, cicd 225/225.
+
+Proven live on econ-core (target `self-proof`, alias `econ-self` → the device itself, the pattern kept):
+authorize PROVEN both ways (the agent answers; `true` is REFUSED), `check` prints every condition with its
+evidence, `--dry-run` renders the agent verbs, the doctor row reads the agent, `polari-deploy` #1/#2 tick
+NOT_BUILT with the reason. Found by that check and FIXED: the release rebuilt images whose ids differed from
+the tested ones (`released != tested`; and pol-reticulum was never isle-tested) → `tested-images.sh`: a passed
+test run KEEPS its images, the release LOADS them — never rebuilds.
+
+OWED: the first real apply (needs a released version + a box with a stack: dep-3 the droplet, HIS; or a home
+box after his `pol prod apply` there); `cicd-sync pull` rewriting targets.env from DeployTarget rows (today the
+file is the truth on the device); the isle route (`route=isle`); the end-to-end re-proof of the kept-images
+path (needs isle-core back for the isle stage).
+
 ### 11.7 Decisions (his)
 
 - **D1 the window** for the droplet (a nightly hour? `any`?) and the settle time.

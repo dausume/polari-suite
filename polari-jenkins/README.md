@@ -768,6 +768,29 @@ either the libvirt socket mounted into the controller (a posture change
 nobody has authorised) or a host-tier agent. The **ssh** target has no such
 problem — which is much of why ci-7 makes the device configurable.
 
+## dep — production as the step after publish (2026-09-22)
+
+`polari-deploy` (triggered by `polari-publish` on success; polled every ten minutes for a target whose
+window opened or whose hold was lifted) applies the published release to every DEPLOYMENT TARGET whose
+conditions all hold — over ssh as the pipeline user, through a key RESTRICTED to the target's deploy
+agent (`pol prod agent` = `polari-cli/scripts/prod-agent.sh`: stash the volumes · swap images with
+`docker service update`, start-first, one at a time · verify · rollback by re-pin). His ruling: the
+pipeline's ssh does not touch production secrets and CANNOT — the agent reads no answers, no vault, no
+certificate, and `restrict,command=` lets the key run nothing else. Pieces:
+
+    deploy/targets.sh + targets.env(.example)   the rows (chosen name · ssh ALIAS · route · profile · channel · window ·
+                                                HEALTH urls · disk floor · NEEDS routes · settle · hold) — 0644, nothing secret
+    deploy/conditions.sh <target> <version>     NINE conditions, each printed with its evidence; SKIP → skipped.json, exit 6
+    deploy/apply.sh <target> <version>          stash → update → verify → health-after; failure → rollback + failed.json (rule 4)
+    deploy/deploy.sh                            pol jenkins deploy list|add|remove|show|authorize|check|status|<name> --now|--dry-run
+    pipelines/Jenkinsfile.deploy                one stage per target; SKIP = NOT_BUILT; FAILURE only for an attempted deploy
+    tested-images.sh                            (found by the first live check) the release LOADS the images the test run
+                                                kept for a passed verdict — released == tested by construction, never a rebuild
+
+Proven live on econ-core (a `self-proof` target over the alias `econ-self`): the restricted key answers the
+agent and is REFUSED a shell; `check` reports every condition; the job ticks NOT_BUILT with the reason. The
+first real apply waits for a released version and a box with a stack (dep-3, the droplet, his call).
+
 ## ci-13 — what a test run keeps, and the prepared base
 
 - Test-built images are DISCARDED after the run (`test-wipe.sh --images-only` in `Jenkinsfile.test`'s post);

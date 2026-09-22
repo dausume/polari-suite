@@ -330,6 +330,52 @@ update`. A `dirty` or `failed` uninstall is a product test failure, not a
 pipeline bug, and it holds the release rule exactly the way a failed
 selftest would.
 
+## 6a. Production as the step after publish — deployment targets over ssh
+
+Once a release is out (the GitHub release and the registry), `polari-deploy` can
+put it on a machine that runs Polari — a **deployment target** — over ssh, as the
+pipeline user. Two rules bound it, and both are enforced rather than described:
+
+**The pipeline cannot touch the target's secrets.** The pipeline user's key is
+installed on the target restricted to ONE command, the deploy agent
+(`restrict,command="…/prod-agent.sh"` in `authorized_keys`): no shell, no
+forwarding, no `pol prod apply`, no path to the vault or the certificate. The
+agent reads what it needs from the running swarm and does four things:
+`stash` (every named volume of the stack, tar'd read-only, before anything
+moves), `update <version>` (`docker service update --image <registry>/<name>:<version>`,
+start-first, one service at a time, converged before the next — no
+interruption; swarm's own rollback if a service does not converge), `verify`
+(every service n/n and the local `/api/health`), `rollback <version>` (a re-pin
+of the previous tags). `docker service update --image` keeps every secret and
+config attached exactly as they are. The FIRST deploy of a box (no stack yet) is a
+person's `pol prod apply` there; after that the pipeline keeps it current.
+
+**Nothing deploys unless every condition holds**, and each is printed with its
+evidence (`pol jenkins deploy check <name>`): the target runs an OLDER release
+(read from the agent, never guessed) · the release has a passed verdict and
+released == tested by image id · the routes the target consumes published FOR
+REAL · inside the window · healthy before · disk above the floor · no other
+deploy in flight · `hold` off · not already failed on this target (rule 4: a
+failed deploy waits for a newer release or a person). Any one false → a
+recorded skip, nothing touched. A failure after the update → rollback by re-pin,
+`failed.json` with both verify outputs, and the stash stays on the target for a
+person's `pol prod restore <stash-id>`.
+
+```
+pol jenkins deploy add public-site SSH_ALIAS=<alias> HOLD=true HEALTH="https://…/ https://…/api/health"
+pol jenkins deploy authorize public-site      # the pipeline user's key, RESTRICTED to the agent, fingerprint-verified
+pol jenkins deploy check public-site          # every condition, with its evidence — nothing written
+pol jenkins deploy public-site --dry-run      # the exact agent verbs a run would send
+pol jenkins deploy public-site --now          # a PERSON's deploy: overrides hold + window, nothing else
+pol jenkins deploy list | status              # what runs where, since when, from which release
+```
+
+`SSH_ALIAS` is a Host entry in the pipeline user's ssh config, never an address;
+the target's name is chosen, never a hostname. `hold=true` is the default: a new
+target never deploys by itself until you say so. The targets are `DeployTarget`
+rows in the `cicd` app (fallback: `polari-jenkins/deploy/targets.env`); every
+deploy that touched a target is a `DeployRecord` row, on `/display/cicd-deploys`.
+
 ## 7. Known limits today
 
 Read plainly, because the pipeline is meant to say what is true rather
