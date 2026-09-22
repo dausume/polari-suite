@@ -41,6 +41,10 @@ pipeline {
             echo env.DEFER_WHY
             return
           }
+          // rule 4: a build a PERSON started (Build Now) is the manual run a failed pipeline waits for.
+          if (currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause')) {
+            sh "bash /var/polari-jenkins/quiet.sh rearm main 'started by hand in Jenkins' || true"
+          }
           // no Matcher in a local: it is not serializable and CPS persists locals
           // across every step boundary (it killed polari-test #4).
           def rc = sh(returnStatus: true,
@@ -341,6 +345,10 @@ PY'''
                          string(credentialsId: 'github_ssh_key', variable: 'GITHUB_SSH_KEY')]) {
           sh '''set -eu
             REPO=dausume/polari-suite
+            # the TAGGER: an annotated tag needs an identity and the pipeline user has none — releases #210–#268
+            # all died here ("unable to auto-detect email address"). A chosen name, never a person's.
+            export GIT_COMMITTER_NAME="${CI_TAGGER_NAME:-Polari pipeline}" GIT_COMMITTER_EMAIL="${CI_TAGGER_EMAIL:-polari-pipeline@noreply.invalid}"
+            export GIT_AUTHOR_NAME="$GIT_COMMITTER_NAME" GIT_AUTHOR_EMAIL="$GIT_COMMITTER_EMAIL"
             if [ -n "${GITHUB_TOKEN:-}" ]; then
               git tag -a "$POLARI_TAG" -m "Polari $POLARI_VERSION"
               git push "https://x-access-token:$GITHUB_TOKEN@github.com/$REPO.git" "refs/tags/$POLARI_TAG"
@@ -401,7 +409,10 @@ PY'''
         }
       }
       sh "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh turn-done release || true"
-      sh 'bash /var/polari-jenkins/quiet.sh done main "${POLARI_FULL_SHA:-}" || true'
+      // rule 4 (his ruling 2026-09-21): `done` carries HOW the run ended — a FAILURE covers the state it failed
+      // on, and the pipeline waits for a re-push or a manual run (releases #210–#269 failed at the same stage
+      // every ten minutes, rebuilding everything each time). A deferred tick claimed nothing and changes nothing.
+      script { sh "bash /var/polari-jenkins/quiet.sh done main \"\${POLARI_FULL_SHA:-}\" ${currentBuild.currentResult.toLowerCase()} || true" }
       script { sh "bash /var/polari-jenkins/cicd-sync.sh run release \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} \"\${POLARI_VERSION:-}\" \"release build — \$(bash /var/polari-jenkins/cache.sh report-show \"\$POOL/\${POLARI_VERSION:-none}/cache-report.json\" 2>/dev/null | head -1 || echo 'no cache report')\" || true" }
       sh 'bash /var/polari-jenkins/retention.sh prune || true'
       cleanWs()

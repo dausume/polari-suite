@@ -48,6 +48,18 @@
 #      yields while the other side has something pending, so a fast-re-queueing
 #      test branch cannot starve main.
 #
+#   4. A FAILURE IS AN ANSWER (his ruling 2026-09-21, after polari-release failed
+#      at the same stage every ten minutes for a day, rebuilding everything each
+#      time). The tick stays cheap and frequent — it is how a change is NOTICED —
+#      but a run needs a CONFIRMED change, and:
+#        · a run that FAILED covers the state it failed on, and the pipeline then
+#          WAITS ("if we fail a pipeline we wait until the next manual run or a
+#          re-push"): a RE-PUSH (the branch moves, or the same sha is promoted
+#          again — its promotion marker is newer than the failure) or a MANUAL RUN
+#          (`pol jenkins retry <branch>`, or Build Now in Jenkins). Nothing else
+#          re-arms it — not a tick, not a controller restart.
+#      An ABORTED run is neither: it proves nothing and leaves the work outstanding.
+#
 #   quiet.sh gate <branch>             the CHEAP pre-check: one ls-remote of the
 #                                      superproject, no checkout. exit 0 = worth
 #                                      checking out · 6 = nothing to do
@@ -55,7 +67,14 @@
 #                                      exit 0 quiet · 6 defer (and say why)
 #   quiet.sh saw <branch>              record the live sha set as pending (a poll)
 #   quiet.sh claim <branch> <sha>      a run started: pending=false, running=<sha>
-#   quiet.sh done <branch> <sha>       a run ended (for ANY reason)
+#   quiet.sh done <branch> <sha> [result]
+#                                      a run ended (for ANY reason). result =
+#                                      Jenkins' word (success|unstable|failure|
+#                                      aborted|not_built): a CLAIMED run that ended
+#                                      failure covers the state it failed on
+#   quiet.sh rearm <branch>|all [why]  a MANUAL run: the failed state is work again.
+#                                      Only a person's call reaches this (pol jenkins
+#                                      retry, Build Now) — nothing automatic does
 #   quiet.sh covered <branch> <sha>    …and it reached a VERDICT, so a tick will
 #                                      not rebuild that state. Only the verdict
 #                                      stage calls this: an aborted run must
@@ -271,6 +290,23 @@ do_check() {  # do_check <branch> [--super-only]
         exit 6
     fi
 
+    # 1c. IT FAILED HERE (rule 4). A failure is an answer about THIS state; the
+    # pipeline waits for a RE-PUSH or a MANUAL RUN. A moved branch is a different
+    # digest and falls through by itself; the same sha PROMOTED AGAIN is a re-push
+    # too, and the evidence is its promotion marker being newer than the failure.
+    local fkey=failed_digest; [ "$scope" = --super-only ] && fkey=failed_super
+    if [ -n "$(_queue_read "$branch" "$fkey")" ] && [ "$dg" = "$(_queue_read "$branch" "$fkey")" ]; then
+        local fmark="$POOL/promotions/$branch/$sup.json" fat; fat="$(_queue_read "$branch" failed_at 0)"
+        if [ -f "$fmark" ] && [ "$(stat -c %Y "$fmark" 2>/dev/null || echo 0)" -gt "${fat:-0}" ]; then
+            say "$branch: ${sup:0:12} was PROMOTED AGAIN after it failed — a re-push, so it is work again"
+            _queue_write "$branch" failed_sha='' failed_digest='' failed_super='' failed_at='' failed_iso='' failed_build=''
+        else
+            say "$branch: ${sup:0:12} FAILED at $(_queue_read "$branch" failed_iso '?') — not re-running it. The pipeline waits for"
+            say "  a re-push ($branch moves, or pol jenkins promote $branch again) or a manual run (pol jenkins retry $branch · Build Now in Jenkins)."
+            exit 6
+        fi
+    fi
+
     # THE WINDOW BELONGS TO THE SUPERPROJECT TIP, not to a scope. The gate reads
     # the superproject alone and the check reads the whole forest, so they record
     # different digests — and a digest left over from an EARLIER tip made the
@@ -374,9 +410,50 @@ do_claim() {
 # `done` marked the sha covered — after which every tick said "nothing to do" and
 # the sha was never tested at all. Only `covered` claims that, and only the
 # VERDICT stage calls it.
-do_done() {
-    _queue_write "$1" running='' last_run_sha="$2" "last_run_at=$(now)" "last_run_iso=$(date -Is)"
-    say "$1: run finished on ${2:0:12}"
+#
+# rule 4 rides on the same call, because `done` is the one place every ending
+# passes through. Only a CLAIMED run counts (the release job calls `done` on its
+# deferred ticks too, with nothing running), and only a FAILURE says something:
+# it covers the state it failed on. aborted/not_built change nothing; a success
+# is covered by its verdict/release record as before.
+do_done() {  # do_done <branch> <sha> [result]
+    local branch="$1" sha="$2" result running
+    result="$(printf '%s' "${3:-}" | tr 'A-Z' 'a-z')"
+    running="$(_queue_read "$branch" running)"
+    if [ -z "$running" ]; then
+        _queue_write "$branch" "last_tick_at=$(now)"
+        return 0
+    fi
+    _queue_write "$branch" running='' last_run_sha="$sha" "last_run_at=$(now)" "last_run_iso=$(date -Is)" \
+                 last_result="${result:-unknown}"
+    say "$branch: run finished on ${sha:0:12}${result:+ ($result)}"
+    if [ "$result" = failure ]; then
+        _queue_write "$branch" failed_sha="$sha" "failed_digest=$(_queue_read "$branch" claim_digest)" \
+                     "failed_super=$(_queue_read "$branch" claim_super)" "failed_at=$(now)" "failed_iso=$(date -Is)" \
+                     failed_build="${BUILD_TAG:-}" pending=false
+        say "$branch: ${sha:0:12} FAILED — the pipeline now WAITS for a re-push or a manual run; no tick re-runs it"
+        say "  (the branch moves · pol jenkins promote $branch again · pol jenkins retry $branch · Build Now in Jenkins)"
+    else
+        _queue_write "$branch" failed_sha='' failed_digest='' failed_super='' failed_at='' failed_iso='' failed_build=''
+    fi
+}
+
+# `rearm` — a MANUAL RUN: the failed state is work again. Only a person's call
+# reaches it — `pol jenkins retry <branch>`, or a build started by hand in Jenkins
+# (the pipelines read their own build cause).
+do_rearm() {  # do_rearm <branch>|all [why]
+    local which="$1" why b; shift
+    why="${*:-asked}"
+    for b in test main; do
+        [ "$which" = all ] || [ "$which" = "$b" ] || continue
+        if [ -n "$(_queue_read "$b" failed_sha)" ]; then
+            say "$b: the failure on $(_queue_read "$b" failed_sha | cut -c1-12) no longer covers it ($why) — it is work again"
+            _queue_write "$b" failed_sha='' failed_digest='' failed_super='' failed_at='' failed_iso='' failed_build='' \
+                         pending=true "since=$(now)" "since_iso=$(date -Is)"
+        else
+            say "$b: no failure on file — nothing to re-arm"
+        fi
+    done
 }
 
 # --------------------------------------------- the release rule, at the gate
@@ -513,11 +590,15 @@ do_queue() {
             # answer for it and is waiting for main to move or its verdict to change.
             elif [ -n "$covv" ] && [ "$covsha" = "$sup" ]; then
                 printf 'covered %s (refused: %s)' "${covsha:0:12}" "${covr:-$(_refusal_reason "$covv")}"
+            elif [ -n "$(_queue_read "$b" failed_sha)" ] && [ "$(_queue_read "$b" failed_sha)" = "$sup" ]; then
+                printf 'FAILED %s at %s — waiting for a re-push or a manual run (pol jenkins retry %s)' \
+                       "${sup:0:12}" "$(_queue_read "$b" failed_iso '?')" "$b"
             elif [ "$pend" = true ]; then printf 'pending %s since %s' "${sup:0:12}" "${since:-?}"
             else printf 'idle'; fi)"
         printf '       newest %s   last run %s\n' "${sup:0:12}" "${last:-never}"
     done
     printf '       one item deep, latest wins: a newer change REPLACES the pending item; nothing queues behind it\n'
+    printf '       a FAILED run is not re-run by a tick: it waits for a re-push or a manual run (pol jenkins retry)\n'
     printf '       quiet window %s min (CI_QUIET_MINUTES), max defer %s\n' "$QUIET_MINUTES" \
            "$([ "${MAX_DEFER_MINUTES:-0}" -gt 0 ] && echo "${MAX_DEFER_MINUTES} min" || echo 'unlimited (his default)')"
     local t; t="$([ -f "$TURN_FILE" ] && python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("last",""))' "$TURN_FILE" 2>/dev/null || true)"
@@ -589,7 +670,8 @@ case "${1:-queue}" in
     check)     do_check "${2:?branch}" ;;
     saw)       do_saw "${2:?branch}" ;;
     claim)     do_claim "${2:?branch}" "${3:-}" ;;
-    done)      do_done "${2:?branch}" "${3:-}" ;;
+    done)      do_done "${2:?branch}" "${3:-}" "${4:-}" ;;
+    rearm)     shift; do_rearm "${1:?branch|all}" "${@:2}" ;;
     covered)   do_covered "${2:?branch}" "${3:-}" ;;
     refused)   do_refused "${2:?branch}" "${3:?sha}" "${4:-none}" "${5:-}" ;;
     release-rule) do_release_rule "${2:?branch}" "${3:-}" ;;
@@ -597,6 +679,6 @@ case "${1:-queue}" in
     turn)      do_turn "${2:?job}" "${3:-}" ;;
     turn-done) do_turn_done "${2:?job}" ;;
     shas)      forest_shas "${2:?branch}" ;;
-    --help|-h) sed -n '2,50p' "$0" ;;
-    *) printf 'usage: quiet.sh gate|check|saw|claim|done|covered|refused|release-rule|queue|turn|turn-done|shas …\n' >&2; exit 2 ;;
+    --help|-h) sed -n '2,101p' "$0" ;;
+    *) printf 'usage: quiet.sh gate|check|saw|claim|done|rearm|covered|refused|release-rule|queue|turn|turn-done|shas …\n' >&2; exit 2 ;;
 esac

@@ -84,6 +84,10 @@ pipeline {
             echo env.DEFER_WHY
             return
           }
+          // rule 4: a build a PERSON started (Build Now) is the manual run a failed pipeline waits for.
+          if (currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause')) {
+            sh "bash /var/polari-jenkins/quiet.sh rearm test 'started by hand in Jenkins' || true"
+          }
           // NO REGEX MATCHER IN A LOCAL. A java.util.regex.Matcher is not
           // serializable, and CPS persists every local across a step boundary —
           // `def m = (out =~ /…/)` killed build #4 on the pipeline device with
@@ -303,7 +307,9 @@ pipeline {
           echo "DEFERRED: ${env.DEFER_WHY ?: 'the run did not proceed'}"
         } else {
           sh "POLARI_SUITE='${env.WORKSPACE}' bash /var/polari-jenkins/quiet.sh turn-done test || true"
-          sh "bash /var/polari-jenkins/quiet.sh done test '${env.TEST_SHA ?: ''}' || true"
+          // rule 4: the result travels — a FAILED run is not re-run by a tick; it waits for a re-push or a
+          // manual run (quiet.sh).
+          sh "bash /var/polari-jenkins/quiet.sh done test '${env.TEST_SHA ?: ''}' ${currentBuild.currentResult.toLowerCase()} || true"
           // ci-13 (his ruling): the images this TEST run built are discarded now — only a release keeps
           // images. The pool run dir (verdict, report, logs) stays; CI_KEEP_TEST_IMAGES=1 keeps the images.
           sh "if [ \"\${CI_KEEP_TEST_IMAGES:-0}\" = 1 ]; then echo 'CI_KEEP_TEST_IMAGES=1 — the test images are kept'; else bash /var/polari-jenkins/test-wipe.sh --images-only '${env.RUN_DIR ?: '/nonexistent'}' '${env.TEST_SHA ?: ''}' || true; fi"

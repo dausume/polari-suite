@@ -86,6 +86,9 @@ services:
       - CI_SELFTEST_IMAGE=${CI_SELFTEST_IMAGE:-prf-backend:staging}
       - CI_SELFTEST_TIMEOUT_S=${CI_SELFTEST_TIMEOUT_S:-300}
       - CI_BUILD_OFFLINE_MEDIUM=${CI_BUILD_OFFLINE_MEDIUM:-true}
+      # the release tag's tagger (an annotated tag needs an identity; the pipeline user has none)
+      - CI_TAGGER_NAME=${CI_TAGGER_NAME:-Polari pipeline}
+      - CI_TAGGER_EMAIL=${CI_TAGGER_EMAIL:-polari-pipeline@noreply.invalid}
       - CI_DEVICE_NAME=${CI_DEVICE_NAME:-pipeline}
       # ci-12: `docker -v` is resolved by the DAEMON, on the HOST. A scanner
       # running inside this container that mounts its own /var/polari-pool path

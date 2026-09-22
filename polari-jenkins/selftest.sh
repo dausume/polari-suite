@@ -1730,6 +1730,60 @@ has "  …and a refused build publishes nothing, not even a DRY route run" \
 eq "the recorded refusals are EXEMPT from retention (they are not a version that ages out)" "ok" \
    "$(grep -q 'KEEP_DIRS="${KEEP_DIRS:-$CACHE_NAME test promotions queue release}"' "$J/retention.sh" && echo ok || echo missing)"
 
+# ---- rule 4 (his ruling 2026-09-21): A FAILED PIPELINE WAITS
+# polari-release #210–#269 failed at the SAME stage every ten minutes for a day,
+# rebuilding the debs and images each time. His words: the ten-minute tick "was
+# just for checks", a run needs a confirmed change, and "if we fail a pipeline we
+# wait until the next manual run or a re-push".
+rm -rf "$QP/queue" "$QP/turn.json" "$QP/test" "$QP/release" "$QP/promotions"
+r() { ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T/nosuchcheckout" CI_QUIET_MINUTES=0 \
+        CI_SUITE_REMOTE="$CI_SUITE_REMOTE" FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" 2>&1 ) || true; }
+rrc(){ ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T/nosuchcheckout" CI_QUIET_MINUTES=0 \
+        CI_SUITE_REMOTE="$CI_SUITE_REMOTE" FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" >/dev/null 2>&1 ); echo "$?"; }
+qset(){ python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d[sys.argv[2]]=sys.argv[3]; json.dump(d,open(p,"w"))' "$QP/queue/$1.json" "$2" "$3"; }
+export FAKE_HEADS="main=fa11ed000001"
+eq "failed: a fresh tip with no history proceeds" "0" "$(rrc gate main)"
+r claim main fa11ed000001 >/dev/null
+OUT="$(r done main fa11ed000001 FAILURE)"
+has "failed: a FAILED run says the pipeline now WAITS" "WAITS for a re-push or a manual run" "$OUT"
+eq "  …and records the state it failed on" "fa11ed000001" "$(qfield main failed_sha)"
+eq "failed: the next tick does NOT re-run it (exit 6)" "6" "$(rrc gate main)"
+has "  …and says what it is waiting for" "pol jenkins retry main" "$(r gate main)"
+eq "  …and the tick after that, and the one after that" "6 6" "$(rrc gate main) $(rrc gate main)"
+has "queue: a failed branch reads FAILED, not pending and not idle" "FAILED fa11ed000001" "$(r queue main)"
+# a RE-PUSH of the same sha = its promotion marker is newer than the failure
+qset main failed_at 1000
+mkdir -p "$QP/promotions/main"; echo '{"repos": {"superproject": "fa11ed000001"}}' > "$QP/promotions/main/fa11ed000001.json"
+has "failed: the same sha PROMOTED AGAIN is a re-push — work again" "PROMOTED AGAIN" "$(r gate main)"
+eq "  …and the failure is off the file" "" "$(qfield main failed_sha)"
+rm -rf "$QP/promotions"
+# a moved branch is a re-push
+r claim main fa11ed000001 >/dev/null; r done main fa11ed000001 failure >/dev/null
+export FAKE_HEADS="main=fa11ed000002"
+eq "failed: main MOVED (a re-push) — the new tip is work" "0" "$(rrc gate main)"
+# a completed run: covered by its verdict as before; a success clears the failure
+r claim main fa11ed000002 >/dev/null; r done main fa11ed000002 SUCCESS >/dev/null
+eq "success: clears any failure on file" "" "$(qfield main failed_sha)"
+export FAKE_HEADS="main=fa11ed000003"
+r gate main >/dev/null; r claim main fa11ed000003 >/dev/null; r done main fa11ed000003 ABORTED >/dev/null
+eq "aborted: proves nothing — no failure recorded, the work is still outstanding" "0" "$(rrc gate main)"
+# a deferred tick (nothing claimed) must not record a failure
+r done main "" failure >/dev/null
+eq "a tick that claimed nothing changes nothing, whatever result it carries" "" "$(qfield main failed_sha)"
+# the MANUAL RUN
+r claim main fa11ed000003 >/dev/null; r done main fa11ed000003 failure >/dev/null
+eq "manual: before the retry the failed tip is held" "6" "$(rrc gate main)"
+has "manual: pol jenkins retry makes the failed state work again" "it is work again" "$(r rearm main by hand)"
+eq "  …so the next tick takes it" "0" "$(rrc gate main)"
+RELSRC="$(cat "$J/pipelines/Jenkinsfile.release")"; TESTSRC="$(cat "$J/pipelines/Jenkinsfile.test")"
+has "release: \`done\` carries the build result" 'quiet.sh done main \"\${POLARI_FULL_SHA:-}\" ${currentBuild.currentResult.toLowerCase()}' "$RELSRC"
+has "test: \`done\` carries the build result" "quiet.sh done test '\${env.TEST_SHA ?: ''}' \${currentBuild.currentResult.toLowerCase()}" "$TESTSRC"
+has "release: Build Now is a manual run" "quiet.sh rearm main" "$RELSRC"
+has "test: Build Now is a manual run" "quiet.sh rearm test" "$TESTSRC"
+has "release: the tag step carries a TAGGER identity (releases #210–#269 died without one)" 'GIT_COMMITTER_EMAIL="${CI_TAGGER_EMAIL:-' "$RELSRC"
+eq "  …and the default is a chosen name at a reserved domain, never a person" "ok" \
+   "$(grep -q 'CI_TAGGER_EMAIL:-polari-pipeline@noreply.invalid' "$J/docker-compose.yml" && echo ok || echo missing)"
+
 # ---- ci-12 addendum 7: SUITE MODE BUILDS ITS OWN CORE
 # isle-test #5 reached "the core — pulled from a release" on a SUITE device and
 # refused: "polari-cli/scripts/lib/providers.sh is not in this checkout". It was
