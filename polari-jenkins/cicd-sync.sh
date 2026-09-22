@@ -345,6 +345,24 @@ print(json.dumps({'kind': 'isle-test', 'device': dev, 'run': run, 'stage_index':
 PY
 }
 
+# dep-1 — A DEPLOY RECORD, mirrored in: what runs where, since when, from which
+# release, and how it went. The arithmetic happened in deploy/apply.sh; this
+# posts the file it wrote (applied.json | failed.json) as kind `deploy`.
+do_deploy() {  # deploy <applied.json|failed.json>
+    python3 - "$CICD_DEVICE_NAME" "$@" <<'PY' | post_kind
+import json, sys, datetime
+dev, path = sys.argv[1:3]
+try:
+    d = json.load(open(path))
+except Exception:
+    d = {}
+print(json.dumps({'kind': 'deploy', 'device': dev, 'target': d.get('target', ''), 'release': d.get('release', ''),
+                  'from_release': d.get('from_release', ''), 'result': d.get('result', ''),
+                  'failed_at': d.get('failed_at', ''), 'rollback': d.get('rollback', ''),
+                  'apply_seconds': d.get('apply_seconds', 0), 'at': d.get('at') or datetime.datetime.now().isoformat(timespec='seconds')}))
+PY
+}
+
 do_release() {  # release <version> <release.json>
     python3 - "$CICD_DEVICE_NAME" "$CI_MODE" "$CI_APP_NAME" "$CI_CORE_SOURCE" "$@" <<'PY' | post_kind
 import json, os, sys, datetime
@@ -428,6 +446,7 @@ case "${1:-status}" in
     run)          shift; do_run "$@" ;;
     isle-test)    shift; do_isle_test "$@" ;;
     release)      shift; do_release "$@" ;;
+    deploy)       shift; do_deploy "$@" ;;
     verdict)      shift; do_verdict "$@" ;;
     status)       do_status ;;
     --help|-h)    sed -n '2,30p' "$0" ;;

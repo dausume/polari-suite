@@ -309,6 +309,37 @@ else
     ok "secret names" "the two GitHub tokens use their ci-12 names: github/release_token (the release pool) and github/registry_token (the registry)"
 fi
 
+# ------------------------------------------------------- deployment targets
+# dep-0: every target gets rows that TRY — alias resolves, the pipeline user's
+# key is accepted, `pol` answers on the target, disk, health now. Run through
+# the controller when it is up (its ssh config is the pipeline user's), else here.
+sec "deployment targets — reached over ssh by the PIPELINE user (pol jenkins deploy)"
+TGT_ENV="$J/deploy/targets.env"
+if [ ! -f "$TGT_ENV" ] || ! grep -q '^DEPLOY_TARGETS="[^"]' "$TGT_ENV" 2>/dev/null; then
+    ok "deploy targets" "none configured — pol jenkins deploy add <name> (deploy/targets.env.example shows the fields)"
+else
+    _tprobe() {  # _tprobe <alias> → rows, from wherever the pipeline user's ssh config is
+        if [ "${CTR_UP:-0}" = 1 ]; then docker exec "$CTR" bash -c 'a="$1"; out=$(ssh -o BatchMode=yes -o ConnectTimeout=8 "$a" "pol prod current" 2>&1); echo "rc=$?"; printf "%s\n" "$out"' _ "$1"
+        else out=$(ssh -o BatchMode=yes -o ConnectTimeout=8 "$1" "pol prod current" 2>&1); echo "rc=$?"; printf '%s\n' "$out"; fi
+    }
+    CTR_UP=0; command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CTR" && CTR_UP=1
+    . "$J/deploy/targets.sh"
+    for t in $(targets_list); do
+        al="$(target_field "$t" SSH_ALIAS)"; hold="$(target_field "$t" HOLD)"
+        P="$(_tprobe "$al")"; rc="$(printf '%s\n' "$P" | head -1 | sed 's/rc=//')"; body="$(printf '%s\n' "$P" | tail -n +2)"
+        if [ "$rc" = 255 ]; then
+            warn "target $t" "the pipeline user cannot reach alias '$al' ($(printf '%s' "$body" | head -1))" \
+                 "pol jenkins deploy authorize $t (the pipeline user's key onto it; the alias must exist in the pipeline user's ssh config)"
+        elif ! printf '%s' "$body" | grep -q '^release='; then
+            warn "target $t" "reached '$al' but 'pol prod current' did not answer (rc=$rc: $(printf '%s' "$body" | head -1)) — is pol installed system-wide there?" \
+                 "on the target: sudo bash polari-cli/shells/install-cli.sh, then pol prod current"
+        else
+            rel="$(printf '%s\n' "$body" | sed -n 's/^release=//p')"; free="$(printf '%s\n' "$body" | sed -n 's/^free_gb=//p')"; st="$(printf '%s\n' "$body" | sed -n 's/^stack=//p')"
+            ok "target $t" "reachable as the pipeline user; runs ${rel:-no release yet} (stack ${st:-none}), ${free:-?} GB free; hold=$hold$([ "$hold" = true ] && echo ' — only a person deploys (pol jenkins deploy '"$t"' --now)')"
+        fi
+    done
+fi
+
 # --------------------------------------------------------------- docker
 sec "the docker socket — membership is root-equivalent"
 MEMBERS=$(getent group docker 2>/dev/null | cut -d: -f4 || true)

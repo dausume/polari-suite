@@ -116,6 +116,20 @@ pipelineJob('polari-publish') {
     definition { cps { script(pipe('Jenkinsfile.publish')); sandbox(true) } }
 }
 
+// dep-2 (plan §11): PRODUCTION AS THE STEP AFTER PUBLISH. One stage per deployment
+// target; deploy/conditions.sh says GO or SKIP with every condition's evidence;
+// GO → deploy/apply.sh over ssh as the pipeline user. Triggered by polari-publish
+// on success, and polled every ten minutes (a closed window or a lifted hold is
+// picked up without a new release). A SKIP is NOT_BUILT; FAILURE only when an
+// attempted deploy failed (then rule 4: it waits for a newer release or a person).
+pipelineJob('polari-deploy') {
+    description('dep-2: deploy the published release to every DEPLOYMENT TARGET whose conditions all hold (newer · tested · published for real · window · healthy · disk · idle · hold off · not failed) — over ssh as the pipeline user, `pol prod apply` + verify + health, rollback by re-pin. Triggered by polari-publish; also polls every 10 min for targets whose window or hold changed. pol jenkins deploy list|check|status.')
+    logRotator { numToKeep(50) }
+    parameters { stringParam('VERSION', '', 'the release to deploy (empty = the newest in the pool)') }
+    triggers { cron('H/10 * * * *') }
+    definition { cps { script(pipe('Jenkinsfile.deploy')); sandbox(true) } }
+}
+
 // ci-7: the throwaway-isle job. Preflight FIRST (the device must be clear and
 // have room), then per stage: up → install + test (ci-3) → uninstall → down →
 // leakcheck. ci-12: it is triggered by polari-test, and stays available as a

@@ -29,7 +29,7 @@ cp -r "$J/device.sh" "$J/secrets.sh" "$J/doctor.sh" "$J/retention.sh" "$J/mint-t
       "$J/scan" "$J/scan-tools.lock" \
       "$J/cache.sh" "$J/cache-manifest.py" "$J/cache-proxies.sh" "$J/build-images.sh" \
       "$J/cache" "$J/docker-compose.proxies.yml" \
-      "$J/setup" "$J/isle" "$J/routes" "$J/casc" "$J/docker-compose.yml" "$J/.env.example" "$J/device.env.example" \
+      "$J/setup" "$J/isle" "$J/routes" "$J/deploy" "$J/casc" "$J/docker-compose.yml" "$J/.env.example" "$J/device.env.example" \
       "$J/shell-verbs.json" "$DEV/"
 mkdir -p "$DEV/pool" "$DEV/secrets/github" "$DEV/secrets/registries" "$T/bin" "$T/inv"
 # the dialog helpers live in polari-cli; setup.sh looks for them beside the checkout
@@ -1731,7 +1731,7 @@ has "a refusal ends the build NOT_BUILT — the colour says whether it RAN" \
 has "  …and a refused build publishes nothing, not even a DRY route run" \
     "env.RELEASE_REFUSED != 'yes'" "$RELSRC"
 eq "the recorded refusals are EXEMPT from retention (they are not a version that ages out)" "ok" \
-   "$(grep -q 'KEEP_DIRS="${KEEP_DIRS:-$CACHE_NAME test promotions queue release}"' "$J/retention.sh" && echo ok || echo missing)"
+   "$(grep -q 'KEEP_DIRS="${KEEP_DIRS:-$CACHE_NAME test promotions queue release deploy}"' "$J/retention.sh" && echo ok || echo missing)"
 
 # ---- rule 4 (his ruling 2026-09-21): A FAILED PIPELINE WAITS
 # polari-release #210–#269 failed at the SAME stage every ten minutes for a day,
@@ -1808,6 +1808,155 @@ has "  …through the controller when it runs (that is where /run/secrets is rea
 has "setup: the release-token advice leads with the CLASSIC token, scope repo" "RECOMMENDED — a CLASSIC token" "$(cd "$DEV" && bash -c '. setup/steps/04-secrets.sh 2>/dev/null; . routes/destinations.sh; . secrets.sh 2>/dev/null; setup_secret_info github/release_token' 2>/dev/null || grep -h "RECOMMENDED — a CLASSIC token" setup/steps/04-secrets.sh)"
 has "  …and says the fine-grained UI shows grants nowhere" "shows a token's grants NOWHERE" "$(cat "$J/setup/steps/04-secrets.sh")"
 has "homebrew: the tap commit uses the release tagger identity, not a mailbox" 'user.email=${CI_TAGGER_EMAIL:-polari-pipeline@noreply.invalid}' "$(cat "$J/routes/homebrew.sh")"
+
+# ---- dep-0/1 (plan §11): DEPLOYMENT TARGETS — the rows, the nine conditions, the apply and the rollback
+# A fake ssh answers `pol prod current` and records every command; a fake curl answers the health urls.
+DP="$T/deploy"; rm -rf "$DP"; mkdir -p "$DP/bin" "$DP/pool" "$DP/target"
+cat > "$DP/bin/ssh" <<'SH'
+#!/bin/bash
+# the fake target: -o … <alias> <cmd>
+while [ $# -gt 0 ]; do case "$1" in -o) shift 2 ;; *) break ;; esac; done
+alias="$1"; shift; cmd="$*"
+[ "${FAKE_UP:-1}" = 1 ] || { echo "ssh: connect to host $alias port 22: No route to host" >&2; exit 255; }
+echo "$alias	$cmd" >> "$FAKE_LOG"
+case "$cmd" in
+  "pol prod current") printf 'release=%s\nstack=%s\nfree_gb=%s\n' "${FAKE_RELEASE:-}" "${FAKE_STACK:-none}" "${FAKE_FREE:-40}" ;;
+  *"pol prod apply --yes") touch "$FAKE_LOG.applied"; [ "${FAKE_APPLY_RC:-0}" = 0 ] && echo "stack deployed"; exit "${FAKE_APPLY_RC:-0}" ;;
+  "pol prod verify") echo "verify: ${FAKE_VERIFY_TEXT:-8/8}"; exit "${FAKE_VERIFY_RC:-0}" ;;
+  *) echo "fake ssh: unknown command $cmd" >&2; exit 1 ;;
+esac
+SH
+cat > "$DP/bin/curl" <<'SH'
+#!/bin/bash
+# after the fake apply ran, FAKE_HTTP_AFTER (when set) is the answer — "healthy before, not after"
+[ -n "${FAKE_HTTP_AFTER:-}" ] && [ -f "$FAKE_LOG.applied" ] && { printf '%s' "$FAKE_HTTP_AFTER"; exit 0; }
+printf '%s' "${FAKE_HTTP:-200}"
+SH
+chmod +x "$DP/bin/"*
+export FAKE_LOG="$DP/ssh.log"
+V=2026.09.30; DSHA=deadbeef0000cafe; mkdir -p "$DP/pool/$V/images" "$DP/pool/test/$DSHA"
+printf '{"components": {"superproject": {"sha": "%s"}}, "publishedTo": {"github-release": {"url": "https://example.invalid/r", "dryRun": false}, "ghcr": {"url": "ghcr.io/x", "dryRun": false}, "homebrew": {"url": "x", "dryRun": true}}}\n' "$DSHA" > "$DP/pool/$V/release.json"
+printf '{"sha": "%s", "verdict": "passed", "isle": {"images": {"prf-backend:ci": "sha256:aaa"}}}\n' "$DSHA" > "$DP/pool/test/$DSHA/verdict.json"
+printf 'sha256:aaa prf-backend:%s\n' "$V" > "$DP/pool/$V/images/DIGESTS.txt"
+d() { ( cd "$DEV" && env PATH="$DP/bin:$PATH" CI_DEPLOY_SSH="$DP/bin/ssh" CI_DEPLOY_CURL="$DP/bin/curl" POLARI_POOL="$DP/pool" \
+        CI_DEPLOY_TARGETS_ENV="$DP/targets.env" FAKE_LOG="$FAKE_LOG" bash deploy/"$@" 2>&1 ) || true; }
+drc(){ ( cd "$DEV" && env PATH="$DP/bin:$PATH" CI_DEPLOY_SSH="$DP/bin/ssh" CI_DEPLOY_CURL="$DP/bin/curl" POLARI_POOL="$DP/pool" \
+        CI_DEPLOY_TARGETS_ENV="$DP/targets.env" FAKE_LOG="$FAKE_LOG" bash deploy/"$@" >/dev/null 2>&1 ); echo "$?"; }
+# the rows
+OUT="$(d deploy.sh add public-site SSH_ALIAS=droplet HOLD=false HEALTH="https://example.invalid/ https://example.invalid/api/health" SETTLE_S=0 </dev/null)"
+has "deploy add: writes the target with its ssh ALIAS (never an address)" "SSH_ALIAS=droplet" "$OUT"
+eq "  …defaults fill what was not given (route swarm, channel release, needs github-release,ghcr)" "swarm release github-release,ghcr" \
+   "$( . "$DEV/deploy/targets.sh"; CI_DEPLOY_TARGETS_ENV="$DP/targets.env" TARGETS_ENV="$DP/targets.env"; echo "$(target_field public-site ROUTE) $(target_field public-site CHANNEL) $(target_field public-site NEEDS)")"
+has "  …the file is 0600 and names the next step (authorize)" "deploy authorize public-site" "$OUT"
+eq "  …mode 0600" "600" "$(stat -c %a "$DP/targets.env")"
+has "deploy add: a hostname-looking name is refused (names are chosen)" "never a hostname" "$(d deploy.sh add my.host.example SSH_ALIAS=x </dev/null)"
+hasnt "  …and nothing was written for it" "my.host" "$(cat "$DP/targets.env")"
+# the nine conditions, GO
+export FAKE_RELEASE=polari-v2026.09.12 FAKE_STACK=polari-lean FAKE_FREE=40 FAKE_HTTP=200
+OUT="$(d conditions.sh public-site $V)"
+has "conditions: 1 newer — READ from the target (pol prod current), not guessed" "the target runs polari-v2026.09.12; polari-v$V is newer" "$OUT"
+has "conditions: 2 tested — the release rule + released==tested by image id" "released == tested by image id" "$OUT"
+has "conditions: 3 published — for REAL to every route the target consumes" "github-release → https://example.invalid/r" "$OUT"
+has "conditions: 4 window any" "GO   window    any" "$OUT"
+has "conditions: 5 healthy before — every url 2xx" "every url answers 2xx" "$OUT"
+has "conditions: 6 disk above the floor" "40 GB free on the target (floor 4)" "$OUT"
+has "conditions: 7 idle" "no deploy of public-site in flight" "$OUT"
+has "conditions: 8 hold off" "GO   hold      off" "$OUT"
+has "conditions: 9 unfailed" "no earlier failure" "$OUT"
+has "  → GO" "→ GO" "$OUT"
+eq "  …exit 0" "0" "$(drc conditions.sh public-site $V)"
+[ ! -e "$DP/pool/deploy/public-site/$V/skipped.json" ] && ok "  …and a GO writes nothing" || bad "  …and a GO writes nothing" "no skipped.json" "present"
+# each SKIP, with its evidence, and the record
+export FAKE_RELEASE=polari-v$V
+has "skip: the target ALREADY runs this release" "already runs polari-v$V" "$(d conditions.sh public-site $V)"
+export FAKE_RELEASE=polari-v2026.10.01
+has "skip: the target runs something NEWER — never backwards by itself" "which is NEWER than polari-v$V" "$(d conditions.sh public-site $V)"
+export FAKE_RELEASE=polari-v2026.09.12
+eq "  …exit 6, and skipped.json is written naming the FIRST false condition" "newer" \
+   "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["first_false"]["condition"])' "$DP/pool/deploy/public-site/$V/skipped.json")"
+rm -rf "$DP/pool/deploy"
+export FAKE_UP=0
+has "skip: the target does not answer — cannot read it, so nothing is assumed" "cannot read the target" "$(d conditions.sh public-site $V)"
+export FAKE_UP=1
+python3 - "$DP/pool/$V/release.json" <<'PY'
+import json,sys; p=sys.argv[1]; m=json.load(open(p)); m['publishedTo']['ghcr']['dryRun']=True; json.dump(m,open(p,'w'))
+PY
+has "skip: a route that only RENDERED does not count as published" "ghcr: rendered only (dry run)" "$(d conditions.sh public-site $V)"
+python3 - "$DP/pool/$V/release.json" <<'PY'
+import json,sys; p=sys.argv[1]; m=json.load(open(p)); m['publishedTo']['ghcr']['dryRun']=False; json.dump(m,open(p,'w'))
+PY
+export FAKE_HTTP=503
+has "skip: not healthy BEFORE — an unhealthy target is a rescue, not an upgrade" "not healthy BEFORE the deploy" "$(d conditions.sh public-site $V)"
+export FAKE_HTTP=200 FAKE_FREE=2
+has "skip: disk under the floor" "only 2 GB free on the target (floor 4)" "$(d conditions.sh public-site $V)"
+export FAKE_FREE=40
+mkdir -p "$DP/pool/deploy/public-site/lock"; echo "x" > "$DP/pool/deploy/public-site/lock/what"
+has "skip: another deploy in flight (the lock)" "another deploy of public-site is in flight" "$(d conditions.sh public-site $V)"
+rm -rf "$DP/pool/deploy/public-site/lock"
+( . "$DEV/deploy/targets.sh"; TARGETS_ENV="$DP/targets.env" target_write public-site HOLD=true WINDOW="0-30 3 * * *" )
+OUT="$(d conditions.sh public-site $V)"
+has "skip: HOLD on — nothing deploys by itself; a person's --now is named" "pol jenkins deploy public-site --now" "$OUT"
+has "  …and a cron WINDOW is evaluated" "window" "$OUT"
+OUT="$(d conditions.sh public-site $V --now)"
+has "--now: a person overrides hold" "hold      overridden by --now" "$OUT"
+has "  …and the window" "window    overridden by --now" "$OUT"
+eq "  …and everything else still has to hold (GO here)" "0" "$(drc conditions.sh public-site $V --now)"
+( . "$DEV/deploy/targets.sh"; TARGETS_ENV="$DP/targets.env" target_write public-site HOLD=false WINDOW=any )
+rm -rf "$DP/pool/deploy"
+eq "--report: a SKIP is printed but NOTHING is written" "0" "$(export FAKE_FREE=1; d conditions.sh public-site $V --report >/dev/null; ls "$DP/pool/deploy" 2>/dev/null | wc -l | tr -d ' ')"
+# the apply: dry-run, success, failure + rollback, rule 4
+OUT="$(d apply.sh public-site $V --dry-run)"
+has "apply --dry-run: renders the ONE command a person would type on the target" "POL_PROD_IMAGE_TAG=$V POL_PROD_DEBS=release:polari-v$V POL_PROD_PROFILE=lean pol prod apply --yes" "$OUT"
+has "  …and the verify, the settle + health, and the rollback shape" "rollback = re-pin" "$OUT"
+[ ! -s "$FAKE_LOG" ] || ! grep -q "apply" "$FAKE_LOG" && ok "  …and sent NO apply over ssh" || bad "  …and sent NO apply over ssh" "no apply in the ssh log" "$(cat "$FAKE_LOG")"
+: > "$FAKE_LOG"
+OUT="$(d apply.sh public-site $V)"
+has "apply: the conditions run first" "→ GO" "$OUT"
+has "  …then the apply over ssh, as the pipeline user, non-interactive" "ssh droplet 'POL_PROD_IMAGE_REPO=" "$OUT"
+has "  …then pol prod verify" "pol prod verify" "$OUT"
+has "  …DEPLOYED, naming what it replaced" "DEPLOYED polari-v$V to public-site" "$OUT"
+eq "  …applied.json records from → to" "polari-v2026.09.12 polari-v$V applied" \
+   "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["from_release"], d["release"], d["result"])' "$DP/pool/deploy/public-site/$V/applied.json")"
+eq "  …the ssh log shows exactly: current (conditions), current (the rollback point), apply, verify" "4" "$(wc -l < "$FAKE_LOG" | tr -d ' ')"
+[ ! -d "$DP/pool/deploy/public-site/lock" ] && ok "  …and the lock is released" || bad "  …and the lock is released" "no lock" "lock dir present"
+rm -rf "$DP/pool/deploy" "$FAKE_LOG.applied"; : > "$FAKE_LOG"
+export FAKE_VERIFY_RC=1 FAKE_VERIFY_TEXT="2/8 FAIL"
+eq "apply: verify FAILS → exit 1" "1" "$(drc apply.sh public-site $V)"
+rm -rf "$DP/pool/deploy" "$FAKE_LOG.applied"
+OUT="$(d apply.sh public-site $V)"
+has "  …rollback = the same command with the PREVIOUS tag" "POL_PROD_IMAGE_TAG=2026.09.12 POL_PROD_DEBS=release:polari-v2026.09.12" "$OUT"
+has "  …FAILED at verify, rolled back" "FAILED at verify" "$OUT"
+eq "  …failed.json carries BOTH verify outputs and the rollback state" "verify 2/8 FAIL" \
+   "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["failed_at"], d["verify"].strip().split(": ")[-1])' "$DP/pool/deploy/public-site/$V/failed.json")"
+export FAKE_VERIFY_RC=0 FAKE_VERIFY_TEXT=8/8
+has "rule 4: after a failure the next tick SKIPS this version on this target" "already FAILED on public-site" "$(d conditions.sh public-site $V)"
+has "  …until a person's --now" "failed earlier, retried by --now" "$(d conditions.sh public-site $V --now)"
+export FAKE_APPLY_RC=1; rm -rf "$DP/pool/deploy" "$FAKE_LOG.applied"
+has "apply: the APPLY itself fails → rolled back, recorded" "FAILED at apply" "$(d apply.sh public-site $V)"
+export FAKE_APPLY_RC=0 FAKE_HTTP_AFTER=503; rm -rf "$DP/pool/deploy" "$FAKE_LOG.applied"
+has "apply: healthy before, NOT healthy after → rolled back" "NOT HEALTHY after the deploy" "$(d apply.sh public-site $V)"
+unset FAKE_HTTP_AFTER; rm -rf "$DP/pool/deploy" "$FAKE_LOG.applied"
+export FAKE_RELEASE=""
+OUT="$(d apply.sh public-site $V)"
+has "apply: a FIRST deploy (nothing runs yet) is allowed" "would be its first" "$OUT"
+export FAKE_VERIFY_RC=1; rm -rf "$DP/pool/deploy" "$FAKE_LOG.applied"
+has "  …and a failed FIRST deploy has nothing to roll back to — says a person is needed" "no previous release to roll back to" "$(d apply.sh public-site $V)"
+export FAKE_VERIFY_RC=0 FAKE_RELEASE=polari-v2026.09.12; rm -rf "$DP/pool/deploy" "$FAKE_LOG.applied"
+# status + the job
+d apply.sh public-site $V >/dev/null
+has "deploy status: what runs where, since when, from which release" "applied  polari-v$V" "$(d deploy.sh status)"
+has "deploy check: the report, nothing written" "→ GO" "$(d deploy.sh check public-site $V)"
+JD="$(cat "$J/pipelines/Jenkinsfile.deploy")"
+has "polari-deploy: one stage per target, conditions then apply" "conditions.sh '\${t}'" "$JD"
+has "  …a SKIP is NOT_BUILT, never red" "currentBuild.result = 'NOT_BUILT'" "$JD"
+has "  …never concurrent with a build" "lock(resource: 'polari-build')" "$JD"
+has "publish → deploy: production is the step AFTER the artifacts are out" "build job: 'polari-deploy'" "$(cat "$J/pipelines/Jenkinsfile.publish")"
+has "seed: polari-deploy is polled too (a closed window or a lifted hold needs no new release)" "pipelineJob('polari-deploy')" "$(cat "$J/jobs/seed.groovy")"
+has "compose: the deploy dir (and targets.env inside it) reaches the controller" "./deploy:/var/polari-jenkins/deploy:ro" "$(cat "$J/docker-compose.yml")"
+has "retention: pool/deploy is EXEMPT (records, not versions)" "queue release deploy" "$(cat "$J/retention.sh")"
+has "doctor: a row per target that TRIES the ssh path as the pipeline user" 'pol jenkins deploy authorize $t' "$(cat "$J/doctor.sh")"
+has "pol prod current: the target's own one-line reading of what it runs" "echo \"release=" "$(cat "$J/../polari-cli/scripts/prod.sh")"
+unset FAKE_RELEASE FAKE_STACK FAKE_FREE FAKE_HTTP FAKE_UP FAKE_VERIFY_RC FAKE_VERIFY_TEXT FAKE_APPLY_RC
 
 # ---- ci-12 addendum 7: SUITE MODE BUILDS ITS OWN CORE
 # isle-test #5 reached "the core — pulled from a release" on a SUITE device and

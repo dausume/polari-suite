@@ -20,3 +20,5 @@ SETUP_STATUS.md
 cosign.key
 !cosign.pub
 .controller-stamp
+# dep-0: the deployment targets (ssh aliases + chosen names — never in git)
+deploy/targets.env

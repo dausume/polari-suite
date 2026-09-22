@@ -132,6 +132,8 @@ services:
       # binds an INODE — `git pull` writes a new file, so a rename of this path
       # needs `pol jenkins restart` to take (the §76 gotcha).
       - ./report.py:/var/polari-jenkins/report.py:ro
+      # dep-0: the deployment targets (targets.env is inside — gitignored, read here by the pipeline user)
+      - ./deploy:/var/polari-jenkins/deploy:ro
       - ./jsonget.py:/var/polari-jenkins/jsonget.py:ro
       - ./pool.sh:/var/polari-jenkins/pool.sh:ro
       - ./scan:/var/polari-jenkins/scan:ro

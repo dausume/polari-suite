@@ -1,0 +1,70 @@
+// polari-deploy — dep-2 (plan §11): PRODUCTION AS THE STEP AFTER PUBLISH.
+//
+// One stage per deployment target (deploy/targets.env; the cicd app's DeployTarget rows when a core is
+// set). For each: deploy/conditions.sh decides GO or SKIP with every condition printed and its evidence;
+// GO → deploy/apply.sh over ssh as the pipeline user (apply → verify → health → rollback by re-pin on
+// failure). A SKIP is recorded (pool/deploy/<target>/<version>/skipped.json) and is NOT a red build: the
+// job is FAILURE only when a deploy that was attempted failed — and then rule 4 holds: that version is not
+// retried on that target until a newer release or a person's `pol jenkins deploy <target> --now`.
+//
+// Triggered by polari-publish on success (VERSION = what was just published) AND polled every ten
+// minutes with VERSION empty (= the newest release in the pool), so a target whose window was closed, or
+// whose hold was lifted later, is picked up without a new release. Never concurrent with a build: it takes
+// the polari-build lock, last.
+pipeline {
+  agent any
+  options { timestamps(); timeout(time: 120, unit: 'MINUTES'); disableConcurrentBuilds(); lock(resource: 'polari-build') }
+  environment { POOL = "${env.POLARI_POOL ?: '/var/polari-pool'}"; DEPLOY_DIR = '/var/polari-jenkins/deploy' }
+  stages {
+    stage('sync settings from Polari (non-fatal)') {
+      steps { sh 'bash /var/polari-jenkins/cicd-sync.sh pull || true' }
+    }
+    stage('which release, which targets') {
+      steps {
+        script {
+          env.VERSION = params.VERSION ?: sh(returnStdout: true, script: "ls -1 '${env.POOL}' 2>/dev/null | grep -E '^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}(\\.[0-9]+)?\$' | sort -V | tail -1").trim()
+          env.TARGETS = sh(returnStdout: true, script: "bash -c '. ${env.DEPLOY_DIR}/targets.sh; targets_list' 2>/dev/null | tr '\\n' ' '").trim()
+          if (!env.VERSION) { env.NOTHING = 'no release in the pool yet — nothing to deploy' }
+          else if (!env.TARGETS) { env.NOTHING = 'no deployment targets configured (pol jenkins deploy add <name>) — nothing to deploy' }
+          else { echo "release ${env.VERSION} → targets: ${env.TARGETS}" }
+          if (env.NOTHING) { echo env.NOTHING }
+        }
+      }
+    }
+    stage('targets') {
+      when { expression { !env.NOTHING } }
+      steps {
+        script {
+          def attempted = 0, failed = 0, deployed = 0
+          for (t in env.TARGETS.split(' ').findAll { it }) {
+            stage(t) {
+              // GO/SKIP first (writes skipped.json on SKIP) — the apply re-runs the same conditions, so
+              // a change between the two readings (a lock, a health blip) is caught twice, never missed.
+              def rc = sh(returnStatus: true, script: "bash ${env.DEPLOY_DIR}/conditions.sh '${t}' '${env.VERSION}'")
+              if (rc == 6) { echo "SKIP ${t} — recorded, not a failure"; return }
+              if (rc != 0) { error("conditions.sh could not evaluate ${t} (rc=${rc})") }
+              attempted++
+              def arc = sh(returnStatus: true, script: "bash ${env.DEPLOY_DIR}/apply.sh '${t}' '${env.VERSION}'")
+              if (arc == 0) { deployed++; echo "DEPLOYED polari-v${env.VERSION} to ${t}" }
+              else if (arc == 6) { echo "SKIP ${t} at apply time — recorded" }
+              else { failed++; echo "FAILED ${t} — see pool/deploy/${t}/${env.VERSION}/failed.json (rolled back where possible); not retried until a newer release or pol jenkins deploy ${t} --now" }
+            }
+          }
+          env.SUMMARY = "attempted ${attempted}, deployed ${deployed}, failed ${failed}"
+          echo env.SUMMARY
+          if (failed > 0) { currentBuild.result = 'FAILURE' }
+          else if (attempted == 0) { currentBuild.result = 'NOT_BUILT' }
+        }
+      }
+    }
+  }
+  post {
+    always {
+      script {
+        if (env.NOTHING) { currentBuild.result = 'NOT_BUILT' }
+        sh "bash /var/polari-jenkins/cicd-sync.sh run deploy \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} '${env.VERSION ?: ''}' 'deploy: ${env.SUMMARY ?: env.NOTHING ?: 'nothing'}' || true"
+      }
+      cleanWs()
+    }
+  }
+}

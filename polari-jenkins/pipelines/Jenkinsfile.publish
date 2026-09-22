@@ -46,5 +46,8 @@ pipeline {
       script { sh "bash /var/polari-jenkins/cicd-sync.sh run publish \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} \"\$VERSION\" 'routes rendered or published' || true" }
       sh 'bash /var/polari-jenkins/cicd-sync.sh release "$VERSION" "$POOL/$VERSION/release.json" || true'
     }
+    // dep-2: the artifacts are out → production is the NEXT step. polari-deploy reads release.json's
+    // publishedTo itself (a route that only rendered does not count), so triggering it here is safe.
+    success { build job: 'polari-deploy', wait: false, parameters: [string(name: 'VERSION', value: params.VERSION)] }
   }
 }

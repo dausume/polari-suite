@@ -19,7 +19,7 @@ STAMP="${CI_CONTROLLER_STAMP:-$J/.controller-stamp}"
 stamp_files() {
     ( cd "$J" && ls pipelines/Jenkinsfile.* jobs/*.groovy casc/*.yaml casc/*.txt \
         quiet.sh verdict.py test-wipe.sh selftests.sh cicd-sync.sh device.sh retention.sh scan/scan.sh \
-        report.py jsonget.py 2>/dev/null | sort )
+        report.py jsonget.py deploy/*.sh 2>/dev/null | sort )
 }
 stamp_hashes() { ( cd "$J" && stamp_files | xargs sha256sum 2>/dev/null ); }
 

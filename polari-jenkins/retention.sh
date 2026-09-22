@@ -26,7 +26,7 @@ CACHE_NAME="${CACHE_NAME:-cache}"
 # is the recorded answer to "why was this sha not released?", and deleting it
 # would lose the only durable trace of a refusal. All exempt here; `test/` is
 # bounded by its own keep count below, the other three are tiny.
-KEEP_DIRS="${KEEP_DIRS:-$CACHE_NAME test promotions queue release}"
+KEEP_DIRS="${KEEP_DIRS:-$CACHE_NAME test promotions queue release deploy}"
 TEST_KEEP="${TEST_KEEP:-5}"
 free_gb(){ df -BG --output=avail "$1" | tail -1 | tr -dc '0-9'; }
 case "${1:-}" in
