@@ -208,15 +208,22 @@ pipeline {
       // release the app was tested against and are never rebuilt or republished.
       when { expression { env.PROCEED == 'yes' && (env.CI_MODE ?: 'suite') != 'app' } }
       steps {
-        sh '''set -eu
-              bash /var/polari-jenkins/build-images.sh "$PWD" "$POOL/$POLARI_VERSION/cache-report.json"
-              mkdir -p "$POOL/$POLARI_VERSION/images"
-              for ref in prf-backend:staging prf-frontend:staging pol-reticulum:staging; do
-                docker tag "$ref" "${ref%%:*}:$POLARI_VERSION"
-                docker save -o "$POOL/$POLARI_VERSION/images/${ref%%:*}_$POLARI_VERSION.tar" "${ref%%:*}:$POLARI_VERSION"
-                docker image inspect --format "{{.Id}} ${ref%%:*}:$POLARI_VERSION" "$ref" >> "$POOL/$POLARI_VERSION/images/DIGESTS.txt"
-              done
-              bash /var/polari-jenkins/cache.sh report-show "$POOL/$POLARI_VERSION/cache-report.json" || true'''
+        // 2026-09-22: THE RELEASED IMAGES ARE THE TESTED IMAGES — loaded from what the test run kept for
+        // this sha, tagged <name>:<version>. Never rebuilt: #337 rebuilt from the same sha and the ids
+        // differed, so every route would have refused "released != tested" (and pol-reticulum was in the
+        // release although the isle never tested it). No kept images → the release says so and stops
+        // here honestly (NOT_BUILT), instead of building something the verdict does not cover.
+        script {
+          def rc = sh(returnStatus: true, script: 'bash /var/polari-jenkins/tested-images.sh load "$POLARI_FULL_SHA" "$POLARI_VERSION" "$POOL/$POLARI_VERSION/images"')
+          if (rc == 3) {
+            // a FAILURE, not a refusal: the verdict is fine, the pipeline lacks what it needs. Rule 4 then
+            // holds — it waits for a re-push (pol jenkins promote test → polari-test keeps its passed
+            // images → promote main) or a person's `pol jenkins retry main`. A refusal would re-arm on
+            // every tick, because the verdict it is keyed on still says passed.
+            error("no TESTED images are kept for ${env.POLARI_FULL_SHA} (pool/test/<sha>/images) — a release ships only what the isle tested, and never rebuilds it. " +
+                  "Promote to test again (polari-test now keeps a passed verdict's images), then promote main.")
+          } else if (rc != 0) { error("tested-images.sh load failed (rc=${rc})") }
+        }
       }
     }
     stage('images (app mode: none)') {

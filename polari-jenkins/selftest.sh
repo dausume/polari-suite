@@ -24,7 +24,7 @@ eq()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "$2" "$3"; }
 DEV="$T/dev"; mkdir -p "$DEV"
 cp -r "$J/device.sh" "$J/secrets.sh" "$J/doctor.sh" "$J/retention.sh" "$J/mint-tag.sh" "$J/setup.sh" \
       "$J/cicd-sync.sh" \
-      "$J/quiet.sh" "$J/promote.sh" "$J/verdict.py" "$J/report.py" "$J/test-wipe.sh" "$J/selftests.sh" "$J/pool.sh" \
+      "$J/quiet.sh" "$J/promote.sh" "$J/verdict.py" "$J/report.py" "$J/test-wipe.sh" "$J/selftests.sh" "$J/pool.sh" "$J/tested-images.sh" \
       "$J/jsonget.py" \
       "$J/scan" "$J/scan-tools.lock" \
       "$J/cache.sh" "$J/cache-manifest.py" "$J/cache-proxies.sh" "$J/build-images.sh" \
@@ -2022,6 +2022,49 @@ unset FAKE_SVC_RC
 has "pol prod: the agent is dispatched to its OWN file (no vault sourced on that path)" 'agent)   exec bash "$SCRIPT_DIR/prod-agent.sh"' "$(cat "$J/../polari-cli/scripts/prod.sh")"
 has "pol prod restore: a PERSON's restore of a stash (scale down, untar, scale up)" "do_restore()" "$(cat "$J/../polari-cli/scripts/prod.sh")"
 unset FAKE_RELEASE FAKE_STACK FAKE_FREE FAKE_HTTP FAKE_UP FAKE_VERIFY_RC FAKE_VERIFY_TEXT FAKE_APPLY_RC
+
+# ---- 2026-09-22: THE RELEASED IMAGES ARE THE TESTED IMAGES (tested-images.sh)
+# polari-release #337 rebuilt from the tested sha and got DIFFERENT image ids — every route would have
+# refused "released != tested" — and shipped pol-reticulum, which the isle never tested.
+TI="$T/ti"; rm -rf "$TI"; mkdir -p "$TI/bin" "$TI/pool/test/abc123" "$TI/out"
+cat > "$TI/bin/docker" <<'SH'
+#!/bin/bash
+echo "$*" >> "$FAKE_DOCKER_LOG"
+case "$1 $2" in
+  "image inspect") ref="${@: -1}"; case "$ref" in prf-backend:staging|sha256:aaa) echo sha256:aaa ;; prf-frontend:staging|sha256:bbb) echo sha256:bbb ;; *) exit 1 ;; esac ;;
+  "save -o") echo fake-tarball > "$3" ;;
+  "load -q") : ;;
+  *) : ;;
+esac
+SH
+chmod +x "$TI/bin/docker"; export FAKE_DOCKER_LOG="$TI/docker.log"
+ti() { ( env POLARI_POOL="$TI/pool" POLARI_DOCKER="$TI/bin/docker" bash "$DEV/tested-images.sh" "$@" 2>&1 ) || true; }
+tirc(){ ( env POLARI_POOL="$TI/pool" POLARI_DOCKER="$TI/bin/docker" bash "$DEV/tested-images.sh" "$@" >/dev/null 2>&1 ); echo "$?"; }
+printf '{"sha": "abc123", "verdict": "failed", "isle": {"images": {"prf-backend:staging": "sha256:aaa", "prf-frontend:staging": "sha256:bbb"}}}\n' > "$TI/pool/test/abc123/verdict.json"
+has "keep: a verdict that is not passed keeps NOTHING (ci-13: test images are discarded)" "not passed — the test images are discarded" "$(ti keep "$TI/pool/test/abc123")"
+[ ! -e "$TI/pool/test/abc123/images" ] && ok "  …no images dir" || bad "  …no images dir" "absent" "present"
+printf '{"sha": "abc123", "verdict": "passed", "isle": {"images": {"prf-backend:staging": "sha256:aaa", "prf-frontend:staging": "sha256:bbb"}}}\n' > "$TI/pool/test/abc123/verdict.json"
+OUT="$(ti keep "$TI/pool/test/abc123")"
+has "keep: a PASSED verdict's images are saved — exactly the ones the isle installed" "kept prf-backend:staging (sha256:aaa)" "$OUT"
+has "  …and the second" "kept prf-frontend:staging (sha256:bbb)" "$OUT"
+eq "  …DIGESTS.txt lists id + ref" "sha256:aaa prf-backend:staging" "$(head -1 "$TI/pool/test/abc123/images/DIGESTS.txt")"
+printf '{"sha": "abc123", "verdict": "passed", "isle": {"images": {"prf-backend:staging": "sha256:aaa", "prf-frontend:staging": "sha256:MOVED"}}}\n' > "$TI/pool/test/abc123/verdict.json"
+has "keep: an image whose id on the daemon differs from what the isle tested is NOT kept" "SKIP prf-frontend:staging: the image on this daemon is sha256:bbb, the isle tested sha256:MOVED" "$(ti keep "$TI/pool/test/abc123")"
+printf '{"sha": "abc123", "verdict": "passed", "isle": {"images": {"prf-backend:staging": "sha256:aaa", "prf-frontend:staging": "sha256:bbb"}}}\n' > "$TI/pool/test/abc123/verdict.json"
+ti keep "$TI/pool/test/abc123" >/dev/null; : > "$FAKE_DOCKER_LOG"
+OUT="$(ti load abc123 2026.09.30 "$TI/out")"
+has "load: the release LOADS the kept tarballs and tags them <name>:<version> — never rebuilds" "prf-backend:2026.09.30 IS the tested image sha256:aaa (loaded, not rebuilt)" "$OUT"
+has "  …released == tested by construction" "2 image(s): released == tested by construction" "$OUT"
+eq "  …the release DIGESTS carry the TESTED ids under the version tag" "sha256:aaa prf-backend:2026.09.30" "$(head -1 "$TI/out/DIGESTS.txt")"
+hasnt "  …and nothing was built" "build" "$(cat "$FAKE_DOCKER_LOG")"
+hasnt "  …pol-reticulum (never tested in the isle) is NOT in the release" "reticulum" "$(cat "$TI/out/DIGESTS.txt")"
+eq "load: NO kept images for the sha → exit 3 (the release must not rebuild and pretend)" "3" "$(tirc load nope 2026.09.30 "$TI/out2")"
+RELSRC="$(cat "$J/pipelines/Jenkinsfile.release")"; TESTSRC="$(cat "$J/pipelines/Jenkinsfile.test")"
+has "polari-test: keeps a passed verdict's images right after writing the verdict" 'tested-images.sh keep "$RUN_DIR"' "$TESTSRC"
+has "polari-release: LOADS the tested images instead of building" 'tested-images.sh load "$POLARI_FULL_SHA"' "$RELSRC"
+hasnt "  …the hard-coded three-image build is gone from the release" "pol-reticulum:staging; do" "$RELSRC"
+has "  …no kept images = a FAILURE under rule 4 (a refusal would re-arm every tick: the verdict still says passed)" "A refusal would re-arm on" "$RELSRC"
+has "compose: tested-images.sh reaches the controller" "./tested-images.sh:/var/polari-jenkins/tested-images.sh:ro" "$(cat "$J/docker-compose.yml")"
 
 # ---- ci-12 addendum 7: SUITE MODE BUILDS ITS OWN CORE
 # isle-test #5 reached "the core — pulled from a release" on a SUITE device and

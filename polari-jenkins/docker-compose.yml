@@ -128,6 +128,7 @@ services:
       - ./test-wipe.sh:/var/polari-jenkins/test-wipe.sh:ro
       - ./selftests.sh:/var/polari-jenkins/selftests.sh:ro
       - ./verdict.py:/var/polari-jenkins/verdict.py:ro
+      - ./tested-images.sh:/var/polari-jenkins/tested-images.sh:ro
       # ci-3: the one page a person reads before promoting. A FILE bind mount
       # binds an INODE — `git pull` writes a new file, so a rename of this path
       # needs `pol jenkins restart` to take (the §76 gotcha).

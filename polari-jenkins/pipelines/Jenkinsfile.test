@@ -275,7 +275,11 @@ pipeline {
           python3 /var/polari-jenkins/verdict.py build "$RUN_DIR" \
             --sha "$TEST_SHA" --branch test --built true \
             --run "$JOB_NAME#$BUILD_NUMBER" --device "${CI_DEVICE_NAME:-pipeline}"
-          cp "$RUN_DIR/verdict.json" verdict.json'''
+          cp "$RUN_DIR/verdict.json" verdict.json
+          # 2026-09-22: a PASSED verdict's images are the release candidate — kept (docker save) so the
+          # release LOADS the tested images instead of rebuilding different ones. Any other verdict keeps
+          # nothing (ci-13: test images are discarded).
+          bash /var/polari-jenkins/tested-images.sh keep "$RUN_DIR"'''
         // ci-3: ONE PAGE PER COMMIT, rendered from the run's own readings and
         // published as a release asset by routes/github-release.sh. It re-derives
         // nothing — the verdict line in it is quoted from the file above.
