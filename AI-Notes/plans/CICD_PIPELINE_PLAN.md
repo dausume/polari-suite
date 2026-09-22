@@ -915,3 +915,130 @@ pipeline: `polariRefs.selftest_refs` passes on the device and fails inside the
 installed isle, and `isle uninstall --everything` exits 0 while its own verify
 prints two `[✗]` rows. Both are owed; neither was papered over. That is ci-3
 working — the capability is done, and what remains on it is two bugs it found.
+
+## 11. dep — DEPLOYMENT TARGETS OVER SSH: production as the step after publish (his ask 2026-09-21/22; PLAN)
+
+_His words (2026-09-21): "a lightweight way for us to use ssh for a deployment location so that we can
+automate the process of doing updates conditionally to a deployment environment like our droplet." And
+(2026-09-22, from the road): "enabling us to SSH from the pipeline to deploy a production after we have
+confirmed the sending of the artifacts to everywhere it needs to be … another step after the artifacts
+being sent out when main comes back, where we actually do the production deployment as a step in the
+pipeline." Standing rules that bind this: nobody WORKS in the droplet (this is the one sanctioned path
+INTO it, automated and conditional); test on the home machines first; a failed pipeline waits for a
+re-push or a manual run (§10 rule 4); every condition evidence-bearing and printed; no real hostnames or
+addresses in tracked files; keep agents to a few._
+
+### 11.1 Where it sits in the chain
+
+    dev ─promote→ test ─[polari-test: verdict]─ promote→ main ─[polari-release: build, tag]─→
+        [polari-publish: github-release · ghcr · homebrew · apt-repo]  ─→  [polari-deploy: per target]
+
+`polari-deploy` is the FOURTH job. It is triggered by `polari-publish` in its `post { success }` (the same
+way release triggers publish), and it is ALSO polled (`H/10`, like release) so a target whose window was
+closed, or whose `hold` was lifted later, is picked up without a new release. It never runs while a build
+holds `polari-build` (it takes that lock last, like the rest), and it runs ONE target at a time.
+
+"Artifacts sent everywhere they need to be" is a READING, not an assumption: the deploy reads
+`pool/<version>/release.json` → `publishedTo` — the record every route writes (`routes/_lib.sh record`) —
+and requires the routes the target consumes (`github-release` for the debs, `ghcr` for the images) to be
+present with `dryRun: false`. A publish that rendered instead of pushing does not qualify.
+
+### 11.2 The `DeployTarget` — one row per place Polari runs
+
+A row in the `cicd` app (`objects/cicd/DeployTarget.py`, the tenth class — the selftest asserts the count,
+so it goes up to ten) with `polari-jenkins/deploy/targets.env` as the file fallback, exactly as
+`device.env` is for the device (settings rows are the source of truth; `cicd-sync.sh pull` rewrites the
+file). Fields, all of them value-shaped-free like the other rows:
+
+| field | meaning | droplet |
+|---|---|---|
+| `name` | chosen, never a hostname (rendered on a page) | `public-site` |
+| `ssh_alias` | a Host entry in the PIPELINE USER's `jenkins_home/.ssh/config` — never an address in a tracked file | `droplet` |
+| `route` | `swarm` = `pol prod apply` on the target · `isle` = the isle deb route (later) | `swarm` |
+| `profile` | the `pol prod` stack size, `lean` \| `full` | `lean` |
+| `channel` | `release` = only a published release with a `passed` verdict · `test` = the tip of test (a staging box) | `release` |
+| `window` | cron-shaped maintenance window or `any` | `0 3 * * *`-ish, his call (D1) |
+| `min_health` | the routes that must answer 200 before AND after (`site`, `api`, `auth`) | `site,api` |
+| `min_free_gb` | disk floor on the target before an apply | `4` |
+| `hold` | true = never auto-apply; a person runs `pol jenkins deploy <name> --now` | **true** until his say |
+| `current` | (derived, read back) the release the target runs, and since when | — |
+
+### 11.3 The conditions — every one printed, every one evidence-bearing
+
+`deploy/conditions.sh <target> <version>` answers GO or SKIP and writes the answer down either way:
+
+1. **there is a newer release than the target runs.** What the target runs is READ, never guessed:
+   `ssh <alias> pol prod status --json` (answers file: `POL_PROD_IMAGE_TAG`, `POL_PROD_DEBS=release:<tag>`,
+   `last_run`) — rel-2's `/api/release` is the better reading and is used when the core serves it, but the
+   plan does not wait for rel-2: `pol prod status` already knows what it applied.
+2. **that release has a `passed` test verdict** (`pool/test/<sha>/verdict.json`, via `release.json`'s
+   `testedAgainst`) and **tested == released** by image id (`DIGESTS.txt` — the same check the routes make).
+3. **it was published to the routes this target consumes**, for real (§11.1).
+4. **inside the window** (`window` cron matched against now; `any` passes).
+5. **the target is healthy before** — every `min_health` route answers; an unhealthy target is not
+   upgraded blind (that is a rescue, a person's job).
+6. **disk free ≥ `min_free_gb`** on the target (`df` over ssh).
+7. **no other deploy in flight** (the `polari-build` lock + `pool/deploy/<target>/lock`).
+8. **`hold` is off** — or the run is a `--now` by a person, which is the only thing that overrides it.
+
+Any condition false → `pool/deploy/<target>/<version>/skipped.json` `{condition, evidence, at}` and the job
+ends NOT_BUILT with the reason in the console. Nothing touches the target. A skip is not a failure.
+
+### 11.4 The apply — over ssh, as the pipeline user, non-interactive, and a rollback that is a re-pin
+
+`deploy/apply.sh <target> <version>`:
+
+    ssh <alias> 'POL_PROD_IMAGE_REPO=ghcr.io/<owner>/ POL_PROD_IMAGE_TAG=<version> POL_PROD_DEBS=release:polari-v<version> \
+                 pol prod apply --profile <profile> --yes'      # what a person would type, and nothing else
+    ssh <alias> 'pol prod verify'                                # the product's own proof
+    → health after: every min_health route 200 (with a settle time, CI_DEPLOY_SETTLE_S)
+
+- success → `pool/deploy/<target>/<version>/applied.json` (before/after release, timings, verify output) and a
+  `DeployRecord` row mirrored in (the eleventh class: target, release, from_release, result, at, evidence).
+- failure of verify or health → **rollback = re-pin the previous release** (`… POL_PROD_IMAGE_TAG=<previous>
+  POL_PROD_DEBS=release:<previous> pol prod apply --yes`, then verify again) and `failed.json` with BOTH verify
+  outputs. Releases are immutable, so "back" is the same command with the previous tag — no snapshots to keep.
+- a failed deploy is a FAILED pipeline under §10 rule 4: it is not retried by a tick. It waits for a re-push (a
+  newer release) or `pol jenkins deploy <name> --now`.
+- **nothing builds on the target.** It pulls images from ghcr and debs from the GitHub release. That is why
+  the ghcr packages must be public (his standing item) — or the target needs a registry login, which this plan
+  does not add.
+- the pipeline user's key is authorised on the target by `pol jenkins deploy authorize <name>` — the SAME
+  verb shape as `isle authorize` (`isle/authorize.sh`): fingerprint verified against the interactive user's
+  known_hosts, refuses otherwise. The droplet's sshd today accepts no key from pol-core (handoff §4) — adding
+  the first key there is HIS, once, by hand.
+
+### 11.5 `pol jenkins deploy …` — the verbs
+
+    pol jenkins deploy list                     every target: name · route · channel · hold · current release · last result
+    pol jenkins deploy add <name> …             write the row (or targets.env) — asks the fields above
+    pol jenkins deploy authorize <name>         the pipeline user's key onto the target (fingerprint-verified)
+    pol jenkins deploy check <name> [<version>] the conditions as a DRY-RUN REPORT — GO/SKIP per condition, evidence, nothing touched
+    pol jenkins deploy <name> --now             a person's deploy: overrides hold + window; still refuses on 2, 3, 5, 6, 7
+    pol jenkins deploy <name> --dry-run         the exact ssh commands it would run, rendered
+    pol jenkins deploy status [<name>]          what runs where, since when, from which release (the DeployRecord rows)
+
+The doctor gains rows per target: alias resolves · key accepted (`ssh -o BatchMode=yes … true`) · `pol` present
+on the target · `pol prod status` readable · disk · health now. PRESENT IS NOT ABLE applies here too: the
+doctor tries.
+
+### 11.6 Slices, and what is provable without the droplet
+
+| slice | builds | proof, on the home machines (his rule) |
+|---|---|---|
+| **dep-0** | `DeployTarget` row + `targets.env` + `deploy list/add/authorize/check` + `conditions.sh` + `skipped.json` + the doctor rows | selftest (fake ssh, fake pool); live: `check` against a `local` target on econ-core (alias `local` = run on the device itself, like `pol jenkins target local`) — every condition prints its evidence |
+| **dep-1** | `apply.sh`: apply + verify + health + rollback + `applied.json`/`failed.json`; `deploy <name> --now/--dry-run` | a lean stack on a HOME box that runs sshd: econ-core is the only candidate today (pol-core has no sshd, isle-core is down) — so dep-1's first live target is econ-core deploying to ITSELF over `local`, then to isle-core over ssh when it is back; rollback proven by deploying `polari-v2026.09.12`, then the new release, then forcing a verify failure |
+| **dep-2** | the `polari-deploy` job (triggered by publish + polled), the latest-wins queue per target, `DeployRecord` mirrored, the cicd page `/display/cicd-deploy` (a configured table — no new component) | the chain end to end on econ-core: promote → test → main → release → publish → deploy(local) |
+| **dep-3** | the droplet: `add public-site` with `hold=true`, `authorize` (after HIS first key), `check` (report only), first apply by `--now` with him watching, then the window and `hold=false` | HIS go at each of the four steps |
+
+Order of operations for the first real release (still owed, blocks dep-3 only): his classic `repo` token →
+`secrets put` → `pol jenkins retry main` → GitHub release + ghcr → packages public.
+
+### 11.7 Decisions (his)
+
+- **D1 the window** for the droplet (a nightly hour? `any`?) and the settle time.
+- **D2 `min_health`** routes for the droplet (site + api? auth too?).
+- **D3 rollback policy:** auto re-pin on a failed verify (planned) — or stop and page a person instead.
+- **D4 `channel=test` staging box:** is there to be one (a home box that always runs the tip of test)?
+- **D5 the droplet's first key** — added by hand once; after that only the pipeline user's key is used.
+- **D6 the isle route** (`route=isle`, the deb path) — later slice or never for the droplet.
