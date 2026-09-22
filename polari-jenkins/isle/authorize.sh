@@ -90,15 +90,31 @@ if [ -r "$CI_SSH_DIR" ] && [ -w "$CI_SSH_DIR" ]; then
     PRIV=""                               # ours already (a sandbox, or root)
 elif [ -r "$JH" ] && [ ! -e "$CI_SSH_DIR" ]; then
     PRIV=""                               # visibly absent: no root needed to know there is no key
+elif command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "${CI_CONTROLLER_CONTAINER:-polari-jenkins}"; then
+    PRIV="ctr"      # through the RUNNING controller, which IS the pipeline user — no root needed (dep-1)
 else
     PRIV="sudo"
 fi
-priv() { if [ -z "$PRIV" ]; then "$@"; else sudo "$@"; fi; }
+CTR="${CI_CONTROLLER_CONTAINER:-polari-jenkins}"
+# the controller knows jenkins_home as /var/jenkins_home; `install` becomes a cat-through with the mode kept
+ctr_priv() {
+    local args=() a mode="" dst src isdir=0 i
+    for a in "$@"; do args+=("${a/#$JH//var/jenkins_home}"); done
+    case "${args[0]}" in
+        install)
+            for ((i=1; i<${#args[@]}; i++)); do case "${args[$i]}" in -m) mode="${args[$((i+1))]}" ;; -d) isdir=1 ;; esac; done
+            dst="${args[$((${#args[@]}-1))]}"
+            if [ "$isdir" = 1 ]; then docker exec "$CTR" sh -c "mkdir -p '$dst' && chmod ${mode:-0700} '$dst'"
+            else src="${@: -2:1}"; docker exec -i "$CTR" sh -c "cat > '$dst' && chmod ${mode:-0600} '$dst'" < "$src"; fi ;;
+        *) docker exec "$CTR" "${args[@]}" ;;
+    esac
+}
+priv() { case "$PRIV" in "") "$@" ;; ctr) ctr_priv "$@" ;; *) sudo "$@" ;; esac; }
 
 # …and if it cannot elevate, SAY THAT. Without this check a sudo that simply
 # refuses looks exactly like a key that was never created, and the verb would
 # send a person to `init-device` for a key they already have.
-if [ -n "$PRIV" ] && ! sudo -n true 2>/dev/null && [ ! -t 0 ]; then
+if [ "$PRIV" = sudo ] && ! sudo -n true 2>/dev/null && [ ! -t 0 ]; then
     fail "$CI_SSH_DIR belongs to $CI_USER; reading the pipeline user's key needs root, this shell has no passwordless sudo, and there is no terminal to ask on."
     echo "  Run it at a terminal on that device (it asks for YOUR password once):" >&2
     echo "    pol jenkins isle authorize $ALIAS" >&2
