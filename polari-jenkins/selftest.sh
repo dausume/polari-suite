@@ -2019,7 +2019,7 @@ export FAKE_SVC_RC=1; : > "$FAKE_DOCKER_LOG"
 has "agent update: the first service that does not converge STOPS the rest" "did NOT converge" "$(ag update 2026.09.30)"
 eq "  …exactly one update was attempted" "1" "$(grep -c 'service update' "$FAKE_DOCKER_LOG")"
 unset FAKE_SVC_RC
-has "pol prod: the agent is dispatched to its OWN file (no vault sourced on that path)" 'agent)   shift; exec bash "$SCRIPT_DIR/prod-agent.sh"' "$(cat "$J/../polari-cli/scripts/prod.sh")"
+has "pol prod: the agent is dispatched to its OWN file (no vault sourced on that path)" 'agent)   exec bash "$SCRIPT_DIR/prod-agent.sh"' "$(cat "$J/../polari-cli/scripts/prod.sh")"
 has "pol prod restore: a PERSON's restore of a stash (scale down, untar, scale up)" "do_restore()" "$(cat "$J/../polari-cli/scripts/prod.sh")"
 unset FAKE_RELEASE FAKE_STACK FAKE_FREE FAKE_HTTP FAKE_UP FAKE_VERIFY_RC FAKE_VERIFY_TEXT FAKE_APPLY_RC
 
