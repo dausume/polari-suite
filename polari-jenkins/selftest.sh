@@ -2115,6 +2115,16 @@ eq "the TEST branch is not scheduled — tests run when quiet, whatever the hour
 has "compose: the controller carries CI_MAIN_RELEASE_AT and the device's TZ" "CI_MAIN_RELEASE_AT=\${CI_MAIN_RELEASE_AT:-midnight}" "$(cat "$J/docker-compose.yml")"
 has "pol jenkins up: exports the HOST's timezone to the controller (local midnight, not UTC's)" "timedatectl show -p Timezone" "$(cat "$J/../polari-cli/scripts/jenkins.sh")"
 
+# ---- 2026-09-23: THE PREPARED BASE IS CLEANED BEFORE IT IS FLATTENED (found live: polari-test #952)
+# A v1 bake carried the bake-time netplan (pinned to one MAC) and cloud-init's instance state; every guest
+# on it booted to a login prompt with no network. The key is versioned so a cached v1 base is never matched.
+TW="$(cat "$J/isle/throwaway.sh")"
+has "bake: cloud-init is CLEANED (network config, instance state, machine-id) before the disk is flattened" "cloud-init clean --logs --configs network --machine-id" "$TW"
+has "  …with a fallback that removes the MAC-pinned netplan by hand" "rm -f /etc/netplan/50-cloud-init.yaml" "$TW"
+has "  …and a clean that fails bakes NOTHING (a dirty template is worse than none)" "NO prepared base baked (a dirty template is worse than none)" "$TW"
+has "  …the clean happens BEFORE the shutdown that precedes the flatten" "cleaning cloud-init in the guest" "$(printf '%s' "$TW" | sed -n '/^bake_prepared()/,/shutting the guest down cleanly/p')"
+has "bake key: the bake FORMAT is part of the key (v2) — a v1 base is simply never matched again" "|v2" "$(printf '%s' "$TW" | grep '^prepared_key()')"
+
 # ---- ci-12 addendum 7: SUITE MODE BUILDS ITS OWN CORE
 # isle-test #5 reached "the core — pulled from a release" on a SUITE device and
 # refused: "polari-cli/scripts/lib/providers.sh is not in this checkout". It was

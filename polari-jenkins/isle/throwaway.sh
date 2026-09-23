@@ -293,7 +293,10 @@ guest_run_detached() {
 # down cleanly, and its disk is flattened into <cache>/cloud/prepared-<key>.qcow2; every later run overlays
 # THAT. The key changes when the cloud image or the package list does, so a stale bake is never reused.
 # `CI_ISLE_PREPARED=off` boots the bare cloud image every time (the slow, fully-from-scratch reading).
-prepared_key()  { printf '%s|%s' "$IMG_NAME" "${CI_ISLE_PREREQ_PKGS:-}" | sha256sum | cut -c1-16; }
+# `|v2`: the bake FORMAT is part of the key. v1 bakes (2026-09-20/21) were flattened without cleaning
+# cloud-init and carried the bake-time netplan (pinned to that boot's MAC) — every later guest booted to a
+# login prompt with no network (2026-09-23, polari-test #952). A cached v1 base is simply never matched again.
+prepared_key()  { printf '%s|%s|v2' "$IMG_NAME" "${CI_ISLE_PREREQ_PKGS:-}" | sha256sum | cut -c1-16; }
 prepared_path() { printf '%s/prepared-%s.qcow2' "$IMAGES" "$(prepared_key)"; }
 choose_base() {  # sets BASE_FOR_RUN
     BASE_FOR_RUN="$BASE"
@@ -322,6 +325,16 @@ bake_prepared() {  # the guest is up and pristine: install the prerequisites, sh
         left=\$(sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --dry-run ${CI_ISLE_PREREQ_PKGS:-} 2>/dev/null | grep -E '^Inst ' | awk '{print \$2}' | tr '\n' ' '); \
         [ -z \"\$left\" ] || { echo \"NOT INSTALLED: \$left\"; exit 1; }" < /dev/null \
         || { say "the prerequisites did not all install — NO prepared base baked (the run continues on the bare image; the install step will try again)"; return 0; }
+    # THE CLEAN BEFORE THE FLATTEN. A cloud image's first boot writes /etc/netplan/50-cloud-init.yaml with
+    # `match: macaddress: <this boot's MAC>` and records the instance under /var/lib/cloud — an image
+    # flattened with those in it is a clone that (a) configures NO interface on a guest with any other MAC
+    # and (b) tells cloud-init it already ran, so the per-run ssh key from the seed is never applied.
+    # `cloud-init clean` removes both; the machine-id is reset so each guest gets its own (DHCP client id).
+    say "cleaning cloud-init in the guest (network config, instance state, machine-id) so the base is a real template"
+    guest_ssh "sudo cloud-init clean --logs --configs network --machine-id 2>/dev/null \
+               || { sudo cloud-init clean --logs; sudo rm -f /etc/netplan/50-cloud-init.yaml /etc/netplan/90-*.yaml; sudo sh -c ': > /etc/machine-id'; }; \
+               sudo rm -f /var/lib/dbus/machine-id; ls /etc/netplan/ 2>/dev/null | tr '\n' ' '; echo '(netplan left above; cloud-init will regenerate on first boot)'" < /dev/null \
+        || { say "could not clean cloud-init in the guest — NO prepared base baked (a dirty template is worse than none)"; return 0; }
     say "shutting the guest down cleanly to flatten its disk"
     $VIRSH shutdown "$CI_ISLE_VM_NAME" >/dev/null 2>&1 || true
     until [ "$(state)" = "shut off" ]; do sleep 3; t=$((t + 3)); [ "$t" -lt 180 ] || { $VIRSH destroy "$CI_ISLE_VM_NAME" >/dev/null 2>&1 || true; break; }; done
