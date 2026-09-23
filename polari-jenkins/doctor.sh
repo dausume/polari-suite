@@ -26,6 +26,8 @@ J="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$J/device.sh"
 # shellcheck source=secrets.sh
 source "$J/secrets.sh"
+# shellcheck source=pool.sh
+source "$J/pool.sh"        # pool_read/pool_exists: through the controller when this shell cannot read the pool
 
 STRICT=0; JSON=0
 while [ $# -gt 0 ]; do
@@ -580,13 +582,15 @@ elif [ "$BR_MAIN" = "$BR_TEST" ]; then
 else
     ok "branch main" "origin/main ${BR_MAIN:0:12} — test is ahead; pol jenkins promote main when its verdict passes"
 fi
-VJ=""; [ -n "$BR_TEST" ] && VJ="$J/pool/test/$BR_TEST/verdict.json"
-if [ -z "$VJ" ] || [ ! -f "$VJ" ]; then
+# the pool is polari-ci's (750): read it THROUGH the controller (pool.sh), never as this shell —
+# a direct -f test said "no verdict recorded" on a device whose verdict was there (2026-09-23).
+VJT=""; [ -n "$BR_TEST" ] && VJT="$(pool_read "test/$BR_TEST/verdict.json" 2>/dev/null || true)"
+if [ -z "$VJT" ]; then
     warn "test verdict" "no verdict recorded for the tip of test${BR_TEST:+ (${BR_TEST:0:12})} — main may not be promoted" \
          "let polari-test run (it polls test every 5 min), then: pol jenkins test-status"
 else
-    VERD=$(python3 -c 'import json,sys
-d=json.load(open(sys.argv[1])); print("%s|%s" % (d.get("verdict","?"), (d.get("why") or "")[:110]))' "$VJ" 2>/dev/null || echo "unreadable|")
+    VERD=$(printf '%s' "$VJT" | python3 -c 'import json,sys
+d=json.load(sys.stdin); print("%s|%s" % (d.get("verdict","?"), (d.get("why") or "")[:110]))' 2>/dev/null || echo "unreadable|")
     IFS='|' read -r VV VWHY <<<"$VERD"
     case "$VV" in
         passed) ok "test verdict" "${BR_TEST:0:12} PASSED — pol jenkins promote main may proceed" ;;
@@ -608,7 +612,7 @@ ok "queue" "${QLINE:-both queues idle} (one item deep, latest wins — no backlo
 # ------------------------------------------ the isle results the verdict reads
 if [ -z "$BR_TEST" ]; then
     ok "isle-test results" "no test branch yet — the first pol jenkins promote test creates it"
-elif [ -f "$J/pool/test/$BR_TEST/isle-test/results.json" ]; then
+elif pool_exists "test/$BR_TEST/isle-test/results.json"; then
     ok "isle-test results" "the tip of test has isle results — the verdict can be computed from them"
 else
     warn "isle-test results" "the tip of test has no isle-test/results.json — the verdict will be 'partial' at best" \
