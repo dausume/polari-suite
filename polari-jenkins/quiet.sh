@@ -60,6 +60,23 @@
 #          re-arms it — not a tick, not a controller restart.
 #      An ABORTED run is neither: it proves nothing and leaves the work outstanding.
 #
+#   5. MAIN RELEASES ON A SCHEDULE (his ruling 2026-09-22): "revise the main push to
+#      be scheduled at midnight for the day that the change to main occurred, that
+#      way it occurs when there is least likely to be any traffic on the site" —
+#      "but make it configurable what the time is … daily at a particular time or
+#      weekly at a particular date-time with whatever happens to be the latest main
+#      push." A change to main is NOTICED at once (the tick, the marker) and RUN at
+#      the first scheduled slot after it landed, on whatever main is BY THEN (the
+#      run checks out the tip — latest wins). The build, the publish and the deploy
+#      step all fall in that slot. CI_MAIN_RELEASE_AT (next-slot.py):
+#          now              run as soon as quiet (no schedule)
+#          midnight         = 00:00 daily (the default)
+#          HH:MM            daily at that local time            e.g. 03:30
+#          <weekday> HH:MM  weekly, that day at that time       e.g. sun 02:00
+#      The clock is the device's TZ (pol jenkins up exports the host's). A person's
+#      manual run (pol jenkins retry main · Build Now) goes at once: the schedule
+#      holds ticks, not people.
+#
 #   quiet.sh gate <branch>             the CHEAP pre-check: one ls-remote of the
 #                                      superproject, no checkout. exit 0 = worth
 #                                      checking out · 6 = nothing to do
@@ -115,6 +132,9 @@ MAX_DEFER_MINUTES="${CI_MAX_DEFER_MINUTES:-0}"   # 0 = unlimited (his default: k
 # four-second miss into a run. It is a rounding allowance on the poll, not a
 # weakening of the window: nothing proceeds that has not been still for ~5 min.
 QUIET_GRACE_S="${CI_QUIET_GRACE_S:-30}"
+# rule 5: when a change to main may RUN — now | midnight | HH:MM (daily) | <weekday> HH:MM (weekly)
+MAIN_RELEASE_AT="${CI_MAIN_RELEASE_AT:-midnight}"
+next_slot() { python3 "$J/next-slot.py" "$MAIN_RELEASE_AT" "$1"; }   # → epoch | '' (now) | 'BAD <why>'
 TURN_MAX_WAIT_S="${CI_TURN_MAX_WAIT_S:-3600}"
 TURN_POLL_S="${CI_TURN_POLL_S:-20}"
 
@@ -347,6 +367,25 @@ do_check() {  # do_check <branch> [--super-only]
     fi
     age=$(( $(now) - since ))
 
+    # RULE 5 — MAIN WAITS FOR MIDNIGHT. `since` is when this tip was first seen
+    # (the quiet window's own clock); the run may start at the first local
+    # midnight after that. Checked BEFORE the marker and the quiet window, so a
+    # finished promotion is scheduled, not started. `release_now` is the one
+    # bypass, set by a MANUAL run (rearm) and cleared by the claim.
+    if [ "$branch" = main ] && [ "$(_queue_read main release_now false)" != true ]; then
+        local at; at="$(next_slot "$since")"
+        case "$at" in BAD*) say "main: CI_MAIN_RELEASE_AT='$MAIN_RELEASE_AT' is ${at#BAD } — treating it as 'now' (fix the knob)"; at="" ;; esac
+        if [ -n "$at" ] && [ "$(now)" -lt "$at" ]; then
+            local left=$(( at - $(now) ))
+            say "main: ${sup:0:12} landed $(date -d "@$since" '+%F %H:%M') — SCHEDULED for $(date -d "@$at" '+%a %F %H:%M %Z') (CI_MAIN_RELEASE_AT='$MAIN_RELEASE_AT': the quiet hour on the site), $(( left / 3600 ))h $(( (left % 3600) / 60 ))m to go."
+            say "  whatever main is by then is what runs (latest wins). A person may release it now: pol jenkins retry main (or Build Now in Jenkins)"
+            _queue_write main "scheduled_at=$at"
+            exit 6
+        fi
+        [ "$(_queue_read main scheduled_at 0)" = 0 ] || say "main: the scheduled slot has passed — releasing ${sup:0:12} now"
+        _queue_write main scheduled_at=0
+    fi
+
     # THE PROMOTION MARKER. A completed `pol jenkins promote` recorded the whole
     # sha set; if the live set still matches it, the promotion is finished and
     # waiting out the timer would only delay a run for nothing.
@@ -400,7 +439,7 @@ PY
 # readings and `check` compares whole-forest ones, and the two must not be
 # compared against each other.
 do_claim() {
-    _queue_write "$1" pending=false running="$2" "running_since=$(now)" \
+    _queue_write "$1" pending=false running="$2" "running_since=$(now)" release_now=false scheduled_at=0 \
                  "claim_digest=$(_queue_read "$1" digest)" "claim_super=$(_queue_read "$1" super_digest)"
     say "$1: run started on ${2:0:12} — pending cleared (a change from here on sets ONE new pending item)"
 }
@@ -453,6 +492,8 @@ do_rearm() {  # do_rearm <branch>|all [why]
         else
             say "$b: no failure on file — nothing to re-arm"
         fi
+        # rule 5: a MANUAL run does not wait for midnight
+        if [ "$b" = main ]; then _queue_write main release_now=true; say "main: a person asked — the next tick releases now, not at the scheduled slot"; fi
     done
 }
 
@@ -593,12 +634,15 @@ do_queue() {
             elif [ -n "$(_queue_read "$b" failed_sha)" ] && [ "$(_queue_read "$b" failed_sha)" = "$sup" ]; then
                 printf 'FAILED %s at %s — waiting for a re-push or a manual run (pol jenkins retry %s)' \
                        "${sup:0:12}" "$(_queue_read "$b" failed_iso '?')" "$b"
+            elif [ "$b" = main ] && [ "$(_queue_read main scheduled_at 0)" -gt "$(now)" ]; then
+                printf 'SCHEDULED %s for %s (CI_MAIN_RELEASE_AT=%s — the quiet hour; pol jenkins retry main releases it now)' "${sup:0:12}" "$(date -d "@$(_queue_read main scheduled_at 0)" '+%a %F %H:%M')" "$MAIN_RELEASE_AT"
             elif [ "$pend" = true ]; then printf 'pending %s since %s' "${sup:0:12}" "${since:-?}"
             else printf 'idle'; fi)"
         printf '       newest %s   last run %s\n' "${sup:0:12}" "${last:-never}"
     done
     printf '       one item deep, latest wins: a newer change REPLACES the pending item; nothing queues behind it\n'
     printf '       a FAILED run is not re-run by a tick: it waits for a re-push or a manual run (pol jenkins retry)\n'
+    printf '       main releases on a schedule: CI_MAIN_RELEASE_AT=%s (now | midnight | HH:MM daily | <weekday> HH:MM weekly) — the first slot after a change lands, on whatever main is by then\n' "$MAIN_RELEASE_AT"
     printf '       quiet window %s min (CI_QUIET_MINUTES), max defer %s\n' "$QUIET_MINUTES" \
            "$([ "${MAX_DEFER_MINUTES:-0}" -gt 0 ] && echo "${MAX_DEFER_MINUTES} min" || echo 'unlimited (his default)')"
     local t; t="$([ -f "$TURN_FILE" ] && python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("last",""))' "$TURN_FILE" 2>/dev/null || true)"

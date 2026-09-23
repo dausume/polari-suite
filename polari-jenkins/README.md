@@ -376,6 +376,11 @@ off and do the LAST one that came in for that queue."*
   `CI_MAX_DEFER_MINUTES=0`): a branch that keeps changing keeps getting put
   off, which is what he asked for. Setting `CI_MAX_DEFER_MINUTES` lets a run
   proceed anyway after that long, and the log calls it an override.
+- **Main runs on a schedule** (`CI_MAIN_RELEASE_AT=midnight` by default; `HH:MM` daily;
+  `<weekday> HH:MM` weekly; `now` = none — his ruling 2026-09-22, the quiet hour on the site):
+  a change to main is noticed at once and run at the first slot after it landed, on whatever
+  main is by then. `next-slot.py` is the arithmetic; the clock is the device's TZ (`pol jenkins
+  up` exports the host's). A manual run (`pol jenkins retry main`, Build Now) goes at once.
 - **Two queues, never concurrent, alternating.** `test` and `main` are separate
   jobs, so separate queues; both take the `polari-build` lockable resource, so
   they never run at once. The Lockable Resources plugin grants waiting builds

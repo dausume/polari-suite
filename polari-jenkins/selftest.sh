@@ -25,7 +25,7 @@ DEV="$T/dev"; mkdir -p "$DEV"
 cp -r "$J/device.sh" "$J/secrets.sh" "$J/doctor.sh" "$J/retention.sh" "$J/mint-tag.sh" "$J/setup.sh" \
       "$J/cicd-sync.sh" \
       "$J/quiet.sh" "$J/promote.sh" "$J/verdict.py" "$J/report.py" "$J/test-wipe.sh" "$J/selftests.sh" "$J/pool.sh" "$J/tested-images.sh" \
-      "$J/jsonget.py" \
+      "$J/jsonget.py" "$J/next-slot.py" \
       "$J/scan" "$J/scan-tools.lock" \
       "$J/cache.sh" "$J/cache-manifest.py" "$J/cache-proxies.sh" "$J/build-images.sh" \
       "$J/cache" "$J/docker-compose.proxies.yml" \
@@ -1523,6 +1523,8 @@ has "scan: with no usable docker daemon every tool SKIPS with a line…" "SKIPPE
 has "  …and the stage still exits 0 — a scan can never fail a build" "rc=0" "$OUT"
 
 # ---- the queue: ONE item deep, latest wins, and the quiet window
+# (rule 5 — main at midnight — is tested on its own below; every other queue case runs main "now")
+export CI_MAIN_RELEASE_AT=now
 QP="$T/qpool"; rm -rf "$QP"; mkdir -p "$QP"
 q() { ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T" CI_QUIET_MINUTES=5 \
         CI_QUIET_GRACE_S="${CI_QUIET_GRACE_S:-30}" FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" 2>&1 ) || true; }
@@ -2065,6 +2067,53 @@ has "polari-release: LOADS the tested images instead of building" 'tested-images
 hasnt "  …the hard-coded three-image build is gone from the release" "pol-reticulum:staging; do" "$RELSRC"
 has "  …no kept images = a FAILURE under rule 4 (a refusal would re-arm every tick: the verdict still says passed)" "A refusal would re-arm on" "$RELSRC"
 has "compose: tested-images.sh reaches the controller" "./tested-images.sh:/var/polari-jenkins/tested-images.sh:ro" "$(cat "$J/docker-compose.yml")"
+
+# ---- rule 5 (his ruling 2026-09-22): MAIN RELEASES AT MIDNIGHT — the quiet hour on the site
+# "revise the main push to be scheduled at midnight for the day that the change to main occurred"
+rm -rf "$QP/queue" "$QP/turn.json" "$QP/test" "$QP/release" "$QP/promotions"
+m5() { ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T/nosuchcheckout" CI_QUIET_MINUTES=0 CI_MAIN_RELEASE_AT="${AT:-midnight}" TZ=UTC \
+        CI_SUITE_REMOTE="$CI_SUITE_REMOTE" FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" 2>&1 ) || true; }
+m5rc(){ ( cd "$DEV" && env POLARI_POOL="$QP" POLARI_SUITE="$T/nosuchcheckout" CI_QUIET_MINUTES=0 CI_MAIN_RELEASE_AT="${AT:-midnight}" TZ=UTC \
+        CI_SUITE_REMOTE="$CI_SUITE_REMOTE" FAKE_HEADS="$FAKE_HEADS" bash quiet.sh "$@" >/dev/null 2>&1 ); echo "$?"; }
+export FAKE_HEADS="main=5c4edu1ed000"
+OUT="$(m5 gate main)"
+has "midnight: a change to main that landed TODAY is SCHEDULED, not run" "SCHEDULED for $(TZ=UTC date -d 'tomorrow' '+%a %F') 00:00" "$OUT"
+has "  …and names the manual way out" "pol jenkins retry main" "$OUT"
+eq "  …exit 6" "6" "$(m5rc gate main)"
+has "queue: shows it as SCHEDULED with the time" "SCHEDULED 5c4edu1ed000 for $(TZ=UTC date -d 'tomorrow' '+%a %F') 00:00" "$(m5 queue main)"
+mkdir -p "$QP/promotions/main"; echo '{"repos": {"superproject": "5c4edu1ed000"}}' > "$QP/promotions/main/5c4edu1ed000.json"
+eq "midnight: a finished PROMOTION is scheduled too, not started (the marker skips the quiet window, not the clock)" "6" "$(m5rc gate main)"
+python3 -c 'import json,sys,time; p=sys.argv[1]; d=json.load(open(p)); d["since"]=str(int(time.time())-90000); json.dump(d,open(p,"w"))' "$QP/queue/main.json"
+OUT="$(m5 gate main)"
+has "midnight: once the slot after it landed has passed, it runs" "the scheduled slot has passed — releasing" "$OUT"
+eq "  …exit 0" "0" "$(m5rc gate main)"
+rm -rf "$QP/queue" "$QP/promotions"
+m5 gate main >/dev/null
+has "manual: pol jenkins retry main releases NOW — the schedule holds ticks, not people" "the next tick releases now, not at the scheduled slot" "$(m5 rearm main by hand)"
+eq "  …and the next gate proceeds" "0" "$(m5rc gate main)"
+m5 claim main 5c4edu1ed000 >/dev/null
+eq "  …the claim clears the bypass (the NEXT change waits for the slot again)" "False" "$(qfield main release_now)"
+rm -rf "$QP/queue"
+eq "CI_MAIN_RELEASE_AT=now: no schedule — a change to main runs at once" "0" "$(AT=now m5rc gate main)"
+# the grammar (next-slot.py), pinned to a known instant: Tue 2026-09-22 10:00 UTC
+ns() { TZ=UTC python3 "$DEV/next-slot.py" "$1" 1790071200 | { read -r e; [ -z "$e" ] && echo now || case "$e" in BAD*) echo "$e" ;; *) TZ=UTC date -d "@$e" '+%a %F %H:%M' ;; esac; }; }
+eq "grammar: midnight = the next 00:00" "Wed 2026-09-23 00:00" "$(ns midnight)"
+eq "grammar: HH:MM later the same day is TODAY's slot" "Tue 2026-09-22 15:30" "$(ns 15:30)"
+eq "grammar: HH:MM already passed today is TOMORROW's" "Wed 2026-09-23 03:30" "$(ns 03:30)"
+eq "grammar: '<weekday> HH:MM' is the next such weekday" "Sun 2026-09-27 02:00" "$(ns 'sun 02:00')"
+eq "  …the weekday's full name works too" "Sun 2026-09-27 02:00" "$(ns 'sunday 02:00')"
+eq "  …today's weekday with the time already passed = a week away" "Tue 2026-09-29 09:00" "$(ns 'tue 09:00')"
+eq "  …today's weekday with the time still ahead = today" "Tue 2026-09-22 23:00" "$(ns 'tue 23:00')"
+eq "grammar: now = no schedule" "now" "$(ns now)"
+has "grammar: a typo is BAD, named" "BAD not now|midnight|HH:MM|<weekday> HH:MM" "$(ns 'tuesday-ish')"
+rm -rf "$QP/queue"
+OUT="$(AT="tuesday-ish" m5 gate main)"
+has "a BAD spec is treated as now and SAID (a typo must not silently hold releases forever)" "treating it as 'now'" "$OUT"
+eq "  …and the gate proceeds" "0" "$(AT="tuesday-ish" m5rc gate main)"
+export FAKE_HEADS="test=5c4edu1ed000"; rm -rf "$QP/queue"
+eq "the TEST branch is not scheduled — tests run when quiet, whatever the hour" "0" "$(m5rc gate test)"
+has "compose: the controller carries CI_MAIN_RELEASE_AT and the device's TZ" "CI_MAIN_RELEASE_AT=\${CI_MAIN_RELEASE_AT:-midnight}" "$(cat "$J/docker-compose.yml")"
+has "pol jenkins up: exports the HOST's timezone to the controller (local midnight, not UTC's)" "timedatectl show -p Timezone" "$(cat "$J/../polari-cli/scripts/jenkins.sh")"
 
 # ---- ci-12 addendum 7: SUITE MODE BUILDS ITS OWN CORE
 # isle-test #5 reached "the core — pulled from a release" on a SUITE device and

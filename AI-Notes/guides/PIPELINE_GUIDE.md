@@ -88,6 +88,23 @@ rather than queuing behind it, so no backlog can ever form. `test` and
 `main` are separate queues and never run at the same time; when both have
 work, they alternate (`pol jenkins queue` shows the last turn taken).
 
+**Main runs on a schedule — the quiet hour on the site.** A change to `main` is
+noticed at once but *run* at the first scheduled slot after it landed, on
+whatever `main` is by then: the build, the publish and the deploy step all fall
+in that slot. `CI_MAIN_RELEASE_AT` (in `polari-jenkins/.env`; the clock is the
+device's own time zone):
+
+| value | meaning |
+|---|---|
+| `midnight` | 00:00 daily — the default |
+| `HH:MM` | daily at that time, e.g. `03:30` |
+| `<weekday> HH:MM` | weekly, e.g. `sun 02:00` |
+| `now` | as soon as the forest is quiet — no schedule |
+
+`pol jenkins queue` shows `main SCHEDULED <sha> for <day date time>`. The
+schedule holds ticks, not people: `pol jenkins retry main` (or Build Now)
+releases at once. `test` is never scheduled — tests run whenever quiet.
+
 ## 3. Setup, CLI only
 
 From a fresh clone:

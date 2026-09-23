@@ -78,11 +78,16 @@ services:
       # the device's identity (the ci-10 leak tolerances set that precedent).
       #   CI_QUIET_MINUTES       how long the whole forest must stop moving before a run starts
       #   CI_MAX_DEFER_MINUTES   0 = unlimited; his default is to keep putting it off
+      #   CI_MAIN_RELEASE_AT     WHEN a change to main runs (his ruling 2026-09-22 — the quiet hour on the site):
+      #                          now | midnight (default) | HH:MM daily | <weekday> HH:MM weekly (e.g. "sun 02:00");
+      #                          the first slot after the change lands, on whatever main is by then. TZ = the device's clock
       #   CI_SELFTEST_IMAGE      the image the module selftests run in
       #   CI_SELFTEST_TIMEOUT_S  per suite
       #   CI_BUILD_OFFLINE_MEDIUM  the offline medium knob, now that the polled release job takes no parameters
       - CI_QUIET_MINUTES=${CI_QUIET_MINUTES:-5}
       - CI_MAX_DEFER_MINUTES=${CI_MAX_DEFER_MINUTES:-0}
+      - CI_MAIN_RELEASE_AT=${CI_MAIN_RELEASE_AT:-midnight}
+      - TZ=${TZ:-${CI_TZ:-UTC}}
       - CI_SELFTEST_IMAGE=${CI_SELFTEST_IMAGE:-prf-backend:staging}
       - CI_SELFTEST_TIMEOUT_S=${CI_SELFTEST_TIMEOUT_S:-300}
       - CI_BUILD_OFFLINE_MEDIUM=${CI_BUILD_OFFLINE_MEDIUM:-true}
@@ -136,6 +141,7 @@ services:
       # dep-0: the deployment targets (targets.env is inside — gitignored, read here by the pipeline user)
       - ./deploy:/var/polari-jenkins/deploy:ro
       - ./jsonget.py:/var/polari-jenkins/jsonget.py:ro
+      - ./next-slot.py:/var/polari-jenkins/next-slot.py:ro
       - ./pool.sh:/var/polari-jenkins/pool.sh:ro
       - ./scan:/var/polari-jenkins/scan:ro
       - ./scan-tools.lock:/var/polari-jenkins/scan-tools.lock:ro
