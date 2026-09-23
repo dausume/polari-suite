@@ -151,3 +151,26 @@ apply; targets.env from the DeployTarget rows; the isle route).
 
 **Machines:** isle-core was unreachable ALL DAY (no ARP, not on another LAN address, mDNS silent) — the isle
 stage and any end-to-end re-proof wait for it. econ-core = the pipeline device, up; pol-core = this box.
+
+## 6. 2026-09-23 — the main push is SHELVED (his call); back to development
+
+**His ruling (2026-09-23 morning):** "shelve the pushing to main, we are going to be switching back to
+development work for now." So: NO `pol jenkins promote main`, no release, no publish until he says otherwise.
+main stays at 04051ff; the main queue stays `FAILED … waiting for a re-push or a manual run` — which is exactly
+the resting state rule 4 gives it. Everything needed for the first automated release is in place when he
+returns to it: the classic `repo` release token (proven; expires 2026-10-23), the homebrew tap
+(`dausume/homebrew-polari`, proven pushable), the tested-images path, the midnight schedule
+(`CI_MAIN_RELEASE_AT`), and the deploy step behind `hold=true`.
+
+**What the morning fixed on the test side (all pushed, dev):** the prepared base is now cleaned before it is
+flattened (`cloud-init clean`; v2 key) — #952's guest had booted to a login prompt with NO network because the
+v1 bake carried a netplan pinned to the bake-time MAC; a fresh guest on the v2 base is up in 33 s. The guest
+runs at 4 GB (`CI_ISLE_VM_RAM_GB=4` on econ-core, set because his KDE session on isle-core leaves 5 GB
+available); whether 4 GB survives a full core-install is what polari-test on 62e4305 (promoted 12:3xZ) shows —
+read `pol jenkins test-status 62e43053` when it ends. The doctor now reads the pool through the controller
+(no more false "no verdict recorded").
+
+**To resume the release later, in order:** `pol jenkins test-status <tip of test>` must say passed →
+`pol jenkins promote main` (scheduled for the next local midnight; `pol jenkins retry main` releases at once)
+→ release loads the tested images, tags, publishes → `polari-deploy` ticks (no target qualifies until a box
+runs a stack and `hold` is lifted) → make the ghcr packages public.
