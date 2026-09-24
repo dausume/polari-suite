@@ -737,3 +737,20 @@ row. The tree's one remaining space is `plate-filled-cells` (σ as filled triang
 inside a wireframe): a renderer change and a person's call whether it is worth it — stated, not pretended.
 Proof: tensormath 58/58, tensortree 64/64, live boot **84/84**.
 
+### G.16 tt-10 — the created coupling EXECUTED: a mapping earns `simulated` evidence BUILT 2026-09-24 (same branch)
+
+tt-7 created the coupling row from the tree and left the mapping's evidence at `none` — "nothing has run through
+it". `POST /api/tensortree/mappings/{name}/prove` now runs it: for the ONE coupling the mapping names, on a
+target SimulationRun that pairs to a source run (default: the seeded `newtonian-pendulum-wind-run` →
+`wind-field-run`), the runner's OWN pre-pass functions are called in the runner's order — baseline = the bob's
+latest row (its position feeds the sampler's `target_fields`), lazy-pull the source run to cover t, take the
+latest source row ≤ t, evaluate the sampler, inject — and the result is recorded: source row (class, step, time),
+target row (position), sample, injected keys, what changed from the defaults. The mapping's `evidence_level`
+becomes `simulated` with an `evidence_ref` naming run, source run, row and values; `mapping_status` is NOT
+raised (consumption by a solution is not attributed — the keys are shared with the seeded coupling), said so.
+Honesty caught by the first run: at t = 0 the seeded gust field is calm by construction (a sinusoid), so the
+proof sampled a true zero; the door now defaults past t = 0 by one source step and says why. At t = 0.5 s on a
+real boot: wind run advanced to step 5, cell nearest the bob at (0.5, −0.87, 0) sampled, wind (5.08, −0.93,
+7.30) m/s injected as wind_vx/vy/vz. A mapping with no coupling row is a 422 that says to couple first.
+Proof: tensortree 64/64, live boot **87/87**.
+
