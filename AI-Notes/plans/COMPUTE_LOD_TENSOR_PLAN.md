@@ -723,3 +723,17 @@ the triangles themselves, not markers at centroids; the open question is whether
 per-instance polygon or a mesh channel is needed) — a tree keeps only real gaps.
 Proof: tensormath 56/56, tensortree 63/63, pendulum3d 9/9, live boot **83/83**.
 
+### G.15 tt-9 — the mesh SEEN as a wireframe; the open question answered BUILT 2026-09-24 (same branch)
+
+The `plate-geometry` space asked whether the 2-D shape library takes a per-instance polygon. Answer, from the
+code: no — `paintShape2D` resolves a `shapeRef` from the library; vertices per object would be a renderer
+change. So the triangles are seen the way the renderer already can: a `meshwire` 2-D binding kind
+(`emit_meshwire_2d`) fans a mesh row (`nodes_json` + the new `FEMFieldState.triangles_json`) into its EDGES,
+each once, on the connections channel (an optional `displacementCols` + the same stated `vectorScale` draws the
+deformed mesh instead). Binding `FEMFieldState-mesh-2d` in scene `plate-mechanics-2d`; node `plate-mesh`
+(x/y → position, edge → shape) RESOLVED. On a real boot the snapshot carries 108 distinct edges for 64 triangles
+on 45 nodes — exactly Euler's V + F − 1 for a simply connected disc, an independent consistency check on the
+row. The tree's one remaining space is `plate-filled-cells` (σ as filled triangles rather than a colour marker
+inside a wireframe): a renderer change and a person's call whether it is worth it — stated, not pretended.
+Proof: tensormath 58/58, tensortree 64/64, live boot **84/84**.
+
