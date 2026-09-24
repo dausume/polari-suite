@@ -440,3 +440,14 @@ ComputeMapping, CharacterizationMapping, CompilerArtifact), the eleven rungs + k
 tech tree seeded with the rung concepts, validators (one root, one parent, acyclic, local validity, typed
 unresolvedness), the discovery function with its policy row, configured pages, selftests with class counts.
 Estimated as one slice; nothing installed (no core, no toolchain) until lod-1.
+
+### G.1 tt-0 BUILT 2026-09-23 (branch `dev-tt-0` in suite / rf-node / framework; unmerged — his confirmation)
+
+Three modules in the standard shape, 18 row classes, 77 selftest checks + core guards + a real-boot probe
+(`tests/tensor_liveboot_probe.py`, 33/33: classes typed, eleven rungs + 70 kinds + the compute-lod tree + the
+default policy seeded, routes answer, CRUDE creates an uninterpreted tensor, three pages seeded). Proven in code:
+σ_ij = C_ijkl ε_kl by named contraction against the closed form; local validity (a resolved node below an
+unresolved space); discovery refuses before it scores, and a policy row change flips the ranking. Found and
+fixed on the way: dep-0/1's DeployTarget/DeployRecord were never in defClassList (could not type/persist).
+NEXT tt-1: a real Tensor over the waxprint thermal state (storage_kind=engine), a 3-node tree, bindings rendered
+in the 3D sim space, a TensorSelection from a panel action, discovery live. Merge tt-0 to dev on his word.
