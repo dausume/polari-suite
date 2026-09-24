@@ -512,3 +512,15 @@ a `kind=coupling` mapping as a `SimulationCouplingDefinition` (creation from a m
 is referenced, not created), the statistical/discrete boundary as mappings, and the σ-field visualization
 (the Angular side). Selftest 51/51; live boot 59/59. The branch `dev-tt-0` holds tt-0 · tt-1 · lod-1 · tt-2 ·
 tt-3 · tt-4.
+
+### G.7 lod-2 / Phase 5 (first rung down) BUILT 2026-09-23 (same branch `dev-tt-0`)
+
+The adder mapped onto SKY130 HD (a cited, pinned, never-committed Liberty; tt / 25 °C / 1.8 V): 96 cells (xnor2
++ maj3 ripple), 855.8 µm²; OpenSTA worst path 11.94 ns with load and slew named. lod-1's gaps close by name;
+the next (cells → devices via sky130_fd_pr SPICE, then layout with Magic/KLayout and DRC/LVS) is stated as
+partial. The walk from `c = a + b` now spans eight rungs. Selftest 54/54; live boot 60/60.
+`dev-tt-0` holds tt-0 · tt-1 · lod-1 · tt-2 · tt-3 · tt-4 · lod-2 — every ratified phase has its first slice.
+OWED across the arc: the σ-field visualization (Angular: a 2-D field binding or a sci-xy profile panel), a
+SimulationCouplingDefinition created FROM a kind=coupling mapping, the CNT cell library via a real
+characterization run (needs ngspice + a derived device), lod-3 (cells → transistors → layout), PyTorch (D5,
+deferred), and the merge of `dev-tt-0` into dev on his word.
