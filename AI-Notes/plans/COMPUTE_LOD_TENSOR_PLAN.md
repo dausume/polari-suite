@@ -916,3 +916,142 @@ ruling flips it or not; the row's `manufacturable_reason` records whichever.
 
 Order I would take them: browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c → lod-2c → lod-3e → lod-4b.
 
+## I. Mathematical proofs — the logic BETWEEN the parts of a TensorTree (revision of 2026-09-24, his ask)
+
+> "another thing I think we still need is mathematics proofs, we will need a library for that and need to be
+> able to incorporate it to form logic for describing our logic in between different parts of tensor trees"
+
+### I.1 What is missing today, precisely
+
+A TensorTree today carries three kinds of truth: rows that EXIST (a mapping between two nodes, with dims at both
+ends, a validity domain, a loss note), EVIDENCE that something RAN (a tool's output, a simulation, a bench —
+§F2's four levels), and STATUS (proposed | implemented | validated). What it does NOT carry is the reasoning
+that connects them: WHY a chain of mappings is legitimate, WHAT a mapping preserves or loses, WHETHER two routes
+through the tree agree, WHEN a validity domain actually covers the selection. Those are mathematical statements,
+and right now they live in prose (`loss_note`, `notes`) that nothing can check. Examples on the trees we have:
+
+- `eps→sigma` (σ = C:ε): C is symmetric in (i,j) and (k,l) → σ is symmetric whenever ε is. Stated nowhere.
+- `u→eps` then `eps→sigma` then `sigma→balance`: the composition is a linear map u ↦ ∂σ/∂x; on the plate its
+  weak form is what the FEM solve enforces. The chain is only prose.
+- `wind-grid→slice-z0` (a restriction) followed by any mapping out of the slice: valid only where the slice's
+  validity domain is inside the source's. Discovery filters dims ⊆ selection and the validity domain (§F3); it does
+  not check that domains COMPOSE along a chain.
+- `wind-grid→spectrum` (a decomposition with `reconstruction_error`): the claim "reconstruction error ≤ r on the
+  validity domain" is a number nobody proves.
+- lod-3 / lod-3b / lod-3c: "LEF area == Liberty area", "our tpHL is faster than the Liberty on every arc", "the
+  parasitics hypothesis is half rejected" — checked in selftests, but the logic (an equality, an inequality
+  over a set of arcs, a comparison of two deltas) is not a row anyone can re-run or contest.
+
+### I.2 The library — chosen for licence, reach, and honesty about what each can prove
+
+| tier | library | licence | what it proves | how it lands |
+|---|---|---|---|---|
+| 0 numeric witness | numpy (present) | BSD-3 | a statement holds ON THE ROWS WE HAVE (all arcs, all elements, a tolerance); never a theorem — a witness, evidence `measured` on the data | in-process |
+| 1 symbolic | **SymPy 1.13** (already pinned; `simulations/equation_evaluation.py` parses LaTeX with it) | BSD-3 | identities and simplifications over symbols: σ = C:ε symmetry, index contractions, linearity of a composition, closed-form areas/centroids, derivative/integral identities | in-process |
+| 2 decision procedure | **Z3 5.x** (`z3-solver`, MIT, pip; NOT installed yet) | MIT | validity of a quantified statement over reals/ints/bitvectors with a COUNTEREXAMPLE when false: domain inclusion along a chain, interval bounds (tolerances, reconstruction errors), "for all ε in the domain, the mapped σ stays in its domain", bit-exactness of the FPGA kernel's int64 arithmetic (tt-3) | in-process |
+| 3 formal | **Lean 4 + Mathlib** (Apache-2.0) | Apache-2.0 | theorems, machine-checked: the ones worth the cost (a tree-composition lemma, a conservation statement) — a `.lean` file per theorem, checked by `lean`, the certificate is the file + the toolchain pin | the tooling submodule `polari-eda-tools` gets a `lean` stage (or a sibling `polari-proof-tools`; D-pf-5) — Mathlib is GBs and slow to build; cached like the PDK, never in git |
+
+Rejected: Coq/Rocq (LGPL-2.1 — a tool, so usable, but Lean's Mathlib covers the analysis/linear algebra we need
+and the Apache licence is simpler); Isabelle (BSD, heavy, no advantage here); metamath (permissive, unusable to
+write by hand). The ladder is honest by construction: a claim's `proof_status` says WHICH tier established it,
+and a tier-0 witness is never called a proof.
+
+### I.3 Rows (new module `mathproofs`, D-pf-4) — one class per file, the standard shape
+
+- **`MathClaim`** — a statement ABOUT rows: `about_refs_json` (the TensorMapping / TensorNode / TensorOperator /
+  ComputeMapping / CharacterizationMapping names it speaks of), `kind` ∈ identity | inequality | domain-inclusion |
+  composition | conservation | symmetry | commutation | bound | well-typed, `statement_json` (the term language of
+  I.4), `statement_latex` (for people), `assumptions_json` (named, each a MathClaim or a plain hypothesis), `scope`
+  (the validity domain it claims over — a dict like a mapping's `validity_json`), `proof_status` ∈ conjectured |
+  witnessed | checked-symbolically | decided | proved | refuted | unprovable-here, `checker` ∈ numeric | sympy |
+  z3 | lean | human, `certificate_ref` (the artifact: a sympy script, a z3 model/counterexample, a .lean file +
+  toolchain sha, a human's signed note), `counterexample_json` (when refuted — the point that breaks it, kept),
+  `evidence_level` (as ruled: a proof is `analytical`; a witness is `measured` on the data it ran on),
+  `provenance`, `notes`.
+- **`ProofRun`** — one execution of a checker on a claim: checker + version, elapsed, verdict, output tail,
+  `ran_at`, the rows' state hash it ran against (so a changed row invalidates the run, never silently).
+- **`InferenceRule`** — the LOGIC BETWEEN PARTS, as data: a rule that GENERATES obligations from the tree's
+  structure. Seeded rules (I.5): chain-domain-inclusion, dims-compose, units-compose, evidence-monotone,
+  loss-accumulates, restriction-idempotent, decomposition-reconstructs, operator-linear. A rule has a
+  `pattern_json` (what structure it matches: two mappings sharing a node, a mapping of kind restriction, …), an
+  `obligation_template_json` (the claim it emits), and a `checker_default`.
+- **`ProofObligation`** — a claim the rules DEMANDED for a specific structure (a chain, a selection, a discovery
+  result), with `discharged_by` (a MathClaim name) or `open`. Discovery (§F3) gains a hard filter: a candidate
+  whose obligation is `refuted` is REFUSED with the counterexample; an `open` obligation is shown, not hidden,
+  and does not lower the score (D-pf-3).
+
+No new evidence level. A refuted claim never deletes anything: the mapping stays, marked, with the
+counterexample beside it — the tree keeps only real gaps, and a refutation is a real fact.
+
+### I.4 The statement language — small, typed, checkable by more than one tier
+
+JSON terms over the objects that exist, never free strings the checkers must parse:
+
+    {"forall": [{"var": "eps", "in": "domain:plate-strain"}],
+     "holds": {"eq": [{"apply": "eps→sigma", "to": "eps"}, {"contract": ["C", "eps"], "dims": [["k","l"],["k","l"]]}]}}
+    {"forall": [{"var": "x", "in": "validity:wind-grid→slice-z0"}], "holds": {"in": ["x", "validity:wind-grid→bob-drag"]}}
+    {"symmetric": {"apply": "eps→sigma", "to": "eps"}, "in": [["i","j"]], "given": {"symmetric": "eps"}}
+    {"le": [{"reconstruction_error": "wind-grid→spectrum"}, 0.05], "on": "validity:wind-grid→spectrum"}
+    {"eq": [{"sum": {"lef_area": "cells:sky130_fd_sc_hd rv32_add"}}, {"liberty_area": "cells:sky130_fd_sc_hd rv32_add"}], "tol": 0.01}
+
+Each tier lowers the same term: numeric substitutes rows and evaluates; sympy builds symbols and `simplify`s the
+difference to 0; z3 encodes reals/intervals and asks for a model of the negation; Lean gets a hand-written
+theorem that CITES the term (the term is the spec; the `.lean` is the proof — the bridge is a `statement_hash`
+both carry). What a tier cannot lower it REFUSES by name (`unprovable-here` with the reason), never a fake pass.
+LaTeX for people is derived from the term, not the other way round.
+
+### I.5 The obligations the current trees generate (what pf-1 would discharge)
+
+| structure | rule | claim | expected tier |
+|---|---|---|---|
+| plate: u→eps→sigma→balance | chain-domain-inclusion, dims-compose, units-compose | each link's target dims ⊆ next link's source dims; strain domain [0, 0.002] carried through; units 1 → Pa → N/m³ | z3 (intervals), sympy (units) |
+| eps→sigma | symmetry | σ symmetric given ε symmetric and C's minor symmetries | sympy (2×2×2×2 symbols) then Lean (the general statement) |
+| u→eps ∘ eps→sigma | operator-linear | the composition is linear in u | sympy |
+| sigma→balance | conservation | ∂σ_ij/∂x_j + f_i = 0 holds weakly on the FEM solve — a numeric witness on the rows (residual ≤ tol) and an OPEN formal obligation, stated | numeric (measured), Lean open |
+| wind-grid→slice-z0 | restriction-idempotent | restricting twice = restricting once | sympy |
+| wind-grid→spectrum | decomposition-reconstructs | reconstruction_error ≤ bound on its validity [0, 5] m/s; refuted OUTSIDE it — which is what discovery already refuses, now with the counterexample as a row | z3 |
+| lod-3 LEF vs Liberty area | identity with tolerance | Σ LEF = Liberty area within 0.01 µm² | numeric |
+| lod-3b/3c arcs | inequality over a finite set | tpHL_ours < tpHL_liberty for all arcs; extracted − schematic > 0 for all arcs | numeric, then z3 over the finite set |
+| tt-3 FPGA kernel | bound / bit-exactness | int64 σ accumulate never overflows for C in kPa, ε in nε within their domains | z3 bitvectors |
+| tt-4 scale tree | evidence-monotone | a mapping's evidence never exceeds its transfer's | numeric |
+
+### I.6 Where it plugs in (nothing new on screens beyond configured tables + one panel extension)
+
+- `tensortree_validate`: a fourth section `logic` = the obligations of the tree with their status; a node's
+  `why` can now say "chain obligation X open / refuted" beside the dims/binding reasons.
+- `tensortree_discover`: refuse on `refuted`, show `open` (D-pf-3).
+- `tensor-tree-panel` (tt-5): a mapping arc gets a small badge — ✓ proved/decided, ~ witnessed, ? open, ✗ refuted
+  (click → the claim, its certificate or counterexample). Rule of the panel unchanged: nothing new drawn, a badge.
+- `/api/mathproofs`: claims, obligations, rules; `POST /api/mathproofs/claims/{name}/check?tier=` runs one
+  checker and writes a ProofRun; `POST /api/tensortree/trees/{name}/obligations` (re)generates from the rules.
+- computelod: the lod cross-checks (area equality, arc inequalities, the parasitics verdict) become MathClaims
+  with numeric ProofRuns — the selftests then assert the CLAIM rows, not ad-hoc arithmetic.
+- The `TermProof` idea from scoring (re-runnable, accepted per scope) is echoed, not reused: a MathClaim is
+  re-runnable by construction; "acceptance" here is the checker's verdict, not a vote (D-pf-6).
+
+### I.7 Phases and decisions
+
+- **pf-0** the `mathproofs` module: four rows, the term language + a lowering to numeric and sympy, the eight
+  InferenceRules seeded, the validator's `logic` section, the API; z3 added to requirements (`z3-solver`, MIT);
+  selftest + probe. Size: like tt-0 (a day).
+- **pf-1** discharge I.5 on the existing trees: sympy proofs (symmetry, linearity, idempotence), z3 decisions
+  (domain chains, the spectrum bound, the FPGA int64 bound), numeric witnesses (balance residual, lod
+  equalities/inequalities); discovery refuses on refutation; the panel badges. Size: two days.
+- **pf-2** Lean 4 tier: the toolchain stage in the tooling submodule (Lean + a pinned Mathlib, cached), the
+  `statement_hash` bridge, the first two theorems (symmetry of σ = C:ε in general rank; a tree-composition lemma:
+  domains compose ⇒ the chain is valid on the intersection). Size: two–three days, mostly build time.
+- **pf-3** authoring: a claim written from a mapping's page (the row's own tab, per per-object-display rule),
+  the LaTeX rendered from the term, a "propose obligation" door from a discovery result.
+- **pf-4** proofs as knowledge: MathClaims as `TechNode`s in the compute-lod / tensor tech trees
+  (prerequisites: which lemmas a rung's reading rests on), so the learning layer (§F: LearningMapping ≠
+  ComputeMapping) can point at the mathematics a person needs.
+
+Decisions (his): **D-pf-1** tier order sympy + z3 first, Lean as pf-2 (recommended) or Lean first?
+**D-pf-2** the statement language is the JSON term language of I.4 (recommended: one spec, many checkers) or
+sympy/LaTeX strings? **D-pf-3** a refuted obligation REFUSES the mapping in discovery (recommended), an open one
+is shown and does not lower the score. **D-pf-4** a separate `mathproofs` module (recommended: tensortree,
+computelod and scoring all consume it) rather than rows inside tensortree. **D-pf-5** the Lean toolchain in
+`polari-eda-tools` (one "tools" submodule) or its own `polari-proof-tools` (recommended: its own — a different
+cadence, a multi-GB Mathlib cache, and a proof checker is not an EDA tool). **D-pf-6** verdicts are the checker's,
+not voted — but a `human` checker (a signed note) exists for what no tier can do, and is labelled as such.
+

@@ -1,7 +1,7 @@
 # Handoff — the Compute LOD + Tensor arc (2026-09-23/24): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
-ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next). Branch `dev-tt-0` in the suite, `polari-rf-node`,
+ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
 `polari-framework` AND `polari-platform-angular` — UNMERGED, per branch-per-confirmed-phase; merge on his word._
 
 ## The one-line map
@@ -116,7 +116,12 @@ fetch the PDK before re-running any lod-3c/3b/2/1 flow:
    polari-framework, polari-platform-angular, polari-rf-node (pointer + the new submodule), then the suite.
    `polari-cli/shells/push-all-dev.sh --with-isle` sweeps the forest once merged. Then `pol modules publish
    tensormath tensortree computelod mathshapes`.
-4. **Further lod work** — plan §H.3, a sized table; my order after the merge: lod-3d (the other adder cells
+4. **Mathematical proofs — plan §I (his ask, 2026-09-24; PLAN ONLY, nothing built):** a `mathproofs` module
+   (MathClaim / ProofRun / InferenceRule / ProofObligation), a JSON term language lowered to numeric → SymPy
+   (present) → Z3 (MIT, pip) → Lean 4 + Mathlib (Apache-2.0, a toolchain stage); obligations generated from the
+   tree's structure by seeded rules; discovery refuses on refutation; badges on the panel's arcs. Phases
+   pf-0..pf-4; decisions D-pf-1..6 his. Order: pf-0 right after the merge, before further lod work.
+5. **Further lod work** — plan §H.3, a sized table; my order after the merge: lod-3d (the other adder cells
    through DRC/PEX/LVS — small), lod-4c (Ion/Ioff for the sky130 row from the models we already run — small),
    lod-2c (CNT vs SKY130 at the same conditions), lod-3e (the whole adder placed-and-routed — needs OpenROAD in
    the image), lod-4b (the process as PSPP rows).
