@@ -17,10 +17,10 @@ ratified 2026-09-23; §G.1–G.7 are the build status). Branch `dev-tt-0` in the
 ## Prove it in ten minutes
 
     cd polari-rf-node/polari-framework
-    PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 55
+    PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 56
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 63
     PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 75
-    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 82/82 on a REAL boot
+    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 83/83 on a REAL boot
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json)   # the tensor-tree-panel type-checks (tt-5)
     # re-run the tool chains (docker; nothing installed on the host):
     docker build -t polari-computelod-tools:noble modules/computelod/custom/tools     # gcc-riscv64 13.2 · yosys 0.33 · verilator · iverilog · nextpnr-ice40 · icestorm
@@ -71,8 +71,8 @@ select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/vie
 ## Owed (in the order I would take them)
 
 1. ~~The σ-field visualization~~ ✅ tt-6 (plan §G.9): `FEMFieldState` row + 2-D `field` binding kind +
-   d3 `colorOverride`; the plate root RESOLVES on a real boot. Still open under it: u per node (2-D vector kind)
-   and true triangle cells.
+   d3 `colorOverride`; the plate root RESOLVES on a real boot. ✅ tt-8 (§G.14): u per node as a 2-D `vectorfield`
+   binding (connections, stated exaggeration) — the tree is resolved; only true triangle cells remain open.
 2. ~~A SimulationCouplingDefinition created FROM a `kind=coupling` TensorMapping~~ ✅ tt-7 (plan §G.10):
    `GET|POST /api/tensortree/mappings/{name}/couple`, derived from the nodes' tensors, refused by name.
 3. ~~The CNT cell library as a second Liberty~~ ✅ lod-2b (plan §G.11): `python3 -m computelod.custom.lod2_cnt run`

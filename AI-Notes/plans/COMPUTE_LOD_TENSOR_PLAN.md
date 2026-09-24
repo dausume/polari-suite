@@ -707,3 +707,19 @@ branch reaches transistors over a device this instance derived and characterized
 from here is stated in the rows' notes (DRC/LVS, corner simulation, process steps as rows, the metal stack,
 PyTorch by D5 when a workload asks for it).
 
+### G.14 tt-8 — u per node SEEN; the plate tree fully resolved BUILT 2026-09-24 (same branch)
+
+The displacement's honest gap from tt-6 closed without a renderer change: a 2-D `vectorfield` binding kind
+(`simSpace/compilers/field_projection_2d.emit_vectorfield_2d`, one branch in `compile_2d`) fans
+`FEMFieldState.nodes_json` into CONNECTIONS — node → node + k·u — on the channel the 2-D renderer already draws.
+The exaggeration k is an explicit knob of the binding (`vectorScale`), carried on every line's userData with
+the raw u and its unit, so the legend can say "u × 20 000" and the former unresolved space's question ("what
+exaggeration is honest to draw beside a colour field whose scale is true?") has its answer: the one that is
+written down. Binding `FEMFieldState-u-2d` (k = `PLATE_U_EXAGGERATION` = 20 000: |u| ≤ 1e-5 m on a 2 m plate →
+~0.2 m lines) in the same scene `plate-mechanics-2d`; node `plate-displacement` binds to it → RESOLVED. On a
+real boot the snapshot carries 45 lines: zero-length on the fixed left edge, longest on the pulled right edge —
+the physics reads correctly. The tree's one remaining unresolved space is now the GEOMETRY (`plate-geometry`:
+the triangles themselves, not markers at centroids; the open question is whether the 2-D shape library takes a
+per-instance polygon or a mesh channel is needed) — a tree keeps only real gaps.
+Proof: tensormath 56/56, tensortree 63/63, pendulum3d 9/9, live boot **83/83**.
+
