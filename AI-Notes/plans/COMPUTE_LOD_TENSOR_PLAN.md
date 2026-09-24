@@ -776,3 +776,37 @@ within 25 %. `GET /api/computelod/lod3/devices`. First slew-matching lesson reco
 Proof: computelod 81/81, live boot **88/88**. Still not done: DRC/LVS (Magic/netgen), extracted-parasitic
 netlists (`.pex`), the other arcs/cells.
 
+### G.18 lod-3c — the layout RUN: DRC · PEX · LVS through `polari-eda-tools`, its own submodule BUILT 2026-09-24
+
+His ruling: go ahead on DRC/LVS/extraction "so long as licenses are compatible", and the tooling "in their own
+sub-module". Both done.
+
+- **`polari-rf-node/polari-eda-tools`** (new repo `dausume/polari-eda-tools`, branch dev, submodule of
+  polari-rf-node): ONE image `polari-eda-tools:noble` (gcc-riscv64, yosys, verilator, iverilog, nextpnr/icestorm,
+  **magic 8.3.684 built from source at a pinned tag** — noble's package 8.3.105 is older than the sky130A tech
+  file requires and segfaults — netgen-lvs, ciel), `fetch-pdk.sh` (ciel enables sky130A with ONLY sc_hd + fd_pr at a
+  pinned open_pdks version 1689ac3f…, ~0.9 GB into `$POLARI_PDK_ROOT`, gitignored, never in the image), `flows/`
+  (`cell_check.tcl`: DRC + two extractions, LVS-flavoured and PEX; `lvs.sh`), and **`LICENSES.md`** — the audit
+  per component with where each licence was verified: magic = UC Berkeley permissive (+ Juniper permissive
+  parts); netgen = GNU GPL "any version" (Debian copyright, Files: *) → GPLv3-compatible, and only ever a separate
+  process; ciel/open_pdks/SkyWater = Apache-2.0; everything else ISC/GPL tools. The framework's in-tree
+  `computelod/custom/tools/Dockerfile` is retired (README pointer); the lod scripts read `POLARI_EDA_IMAGE`
+  (default `polari-eda-tools:noble`) and `POLARI_PDK_ROOT`; `fpga_kernel.py` likewise.
+- **lod-3c** `computelod/custom/lod3_layout.py run`, on the PDK's own `.mag` of `inv_1` and `nand2_1`:
+  - **DRC** (sky130A full rules): inv_1 3, nand2_1 4 — every one a standalone-cell CONTEXT rule (nwell.4, LU.2,
+    LU.3: taps and shared wells come from the row's tap cells). Classified as such, count kept, `real_rules = []`;
+    any other rule would be a real error and would stand.
+  - **PEX**: 14 (inv_1) and 23 (nand2_1) parasitic capacitors plus the source/drain junction areas the
+    schematic netlists never had.
+  - **LVS** (netgen vs the PDK's schematic netlist): "Circuits match uniquely", both cells.
+  - `lod3: devices → layout` → `measured` (DRC + LVS are the tools' own verdicts), validated; six
+    `lod3c: … (extracted)` characterizations beside lod-3b's schematic ones.
+- **The parasitics hypothesis, TESTED and half-REJECTED.** Re-timing on the extracted netlists moves every delay up
+  ~4–6 ps: tpHL mean −13.7 % → −9.7 % (closer to the Liberty), tpLH mean +6.8 % → +11.9 % (further). So parasitics
+  explain part of the fall gap and none of the rise gap; what remains is the vendor characterization setup
+  (input waveform shape, load/driver model, measurement details), which we do not have — stated in the report's
+  `verdict`, not tuned. Overall mean |Δ| 10.2 → 10.8 %.
+- Proof: computelod 87/87, tensormath 58/58, live boot **90/90**. Lessons: netgen guesses the format from the
+  suffix (`.ext.spice` is read as magic `.ext` — name it `_lvs.spice`); LVS on the devices-only extraction, PEX
+  on a second one.
+
