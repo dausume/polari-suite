@@ -18,9 +18,9 @@ ratified 2026-09-23; §G.1–G.7 are the build status). Branch `dev-tt-0` in the
 
     cd polari-rf-node/polari-framework
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 55
-    PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 54
+    PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 63
     PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 54
-    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 71/71 on a REAL boot
+    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 76/76 on a REAL boot
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json)   # the tensor-tree-panel type-checks (tt-5)
     # re-run the tool chains (docker; nothing installed on the host):
     docker build -t polari-computelod-tools:noble modules/computelod/custom/tools     # gcc-riscv64 13.2 · yosys 0.33 · verilator · iverilog · nextpnr-ice40 · icestorm
@@ -30,7 +30,7 @@ ratified 2026-09-23; §G.1–G.7 are the build status). Branch `dev-tt-0` in the
     # the FPGA kernel needs a manager (see the tensormath selftest's fpga block or the probe)
 
 Live surfaces: `/api/tensormath` (+ evaluate, operators/{name}, benchmark, fem/{case} [/materialise]), `/api/tensortree` (+ trees/{name}
-/graph /validate /view, select, discover, scale/{material} [/materialise]), `/api/computelod` (+ rungs/{name},
+/graph /validate /view, select, discover, scale/{material} [/materialise], mappings/{name}/couple), `/api/computelod` (+ rungs/{name},
 walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2); pages `/display/tensormath|tensortree|computelod`.
 
 ## What each slice proved (the honest parts are the point)
@@ -73,8 +73,8 @@ select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/vie
 1. ~~The σ-field visualization~~ ✅ tt-6 (plan §G.9): `FEMFieldState` row + 2-D `field` binding kind +
    d3 `colorOverride`; the plate root RESOLVES on a real boot. Still open under it: u per node (2-D vector kind)
    and true triangle cells.
-2. **A SimulationCouplingDefinition created FROM a `kind=coupling` TensorMapping** (today the wind mapping
-   references the existing coupling; creating one needs the sampler equation).
+2. ~~A SimulationCouplingDefinition created FROM a `kind=coupling` TensorMapping~~ ✅ tt-7 (plan §G.10):
+   `GET|POST /api/tensortree/mappings/{name}/couple`, derived from the nodes' tensors, refused by name.
 3. **The CNT cell library** as a second Liberty for lod-2 (needs ngspice + a derived device → `characterize_cells`).
 4. **lod-3**: cells → transistors (sky130_fd_pr SPICE) → layout (Magic/KLayout, DRC/LVS) → PSPP process rows.
 5. **PyTorch** as a third implementation (D5: deferred until a workload benefits).

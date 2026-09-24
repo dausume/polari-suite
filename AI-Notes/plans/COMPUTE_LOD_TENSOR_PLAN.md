@@ -591,3 +591,33 @@ wind tree uses, and dims → channel coherent with the binding by construction.
 - **Next slices stated, not built:** the triangles themselves (polygon cells sized in space units, not
   markers), a 2-D `vector` kind for u, `wind-spatial`'s `wind-turbulence` space likewise.
 
+### G.10 tt-7 — a SimulationCouplingDefinition created FROM a `kind=coupling` mapping BUILT 2026-09-23 (same branch)
+
+Owed item 2 closed (§F6: "kind=scale|coupling ALSO written as SimulationCouplingDefinition"). The tree is where
+a person declares that one node's values feed another node's step; the coupling row is what the runner
+executes; `tensortree/custom/tensortree_couple.py` derives the second from the first and refuses by name
+whatever it cannot derive:
+
+- source/target `class_name` + `simulation_ref` ← each node's Tensor (engine storage `matrixfield:<Class>:…` /
+  `simstate:<Class>:…`) → the class → its `simulation_definition_name` (a class that declares none is named in
+  `missing`; nothing is guessed);
+- `sampler_equation_ref` ← the body, else the mapping's `expression_ref` → TensorMathExpression.
+  `matrix_equation_ref` (the rank ≤ 2 delegation of §9 doing real work: `wind-sample-at-bob` delegates to the
+  saved no-code `field-sample-nearest`); once the instance holds MatrixEquationDefinitions the name must be one;
+- `config_json` ← operands = the source field as `source_field_json` + the target's position fields from its
+  dims on `position.x/y/z` (`[px, py, pz]`); inject = the mapping's `target_dims` in order as `sample_element`
+  0..n; defaults 0.0 (soft-degrade: inert until a run pairs to it).
+- Doors: `GET /api/tensortree/mappings/{name}/couple` = the dry run (row, `derived_from`, `missing`, notes);
+  `POST` creates (201), sets `mapping.coupling_ref`, moves `proposed → implemented`, and leaves
+  `evidence_level` untouched — nothing has RUN through it; a mapping only earns `simulated` when a
+  SimulationRun names the coupling in `coupled_run_refs_json` and steps. Refusals: kind ≠ coupling 422; already
+  coupled 409 naming the coupling (`force` to add another beside it); duplicate name 409.
+- Seeds that make it real: tensor `bob-state` (`simstate:NewtonianPendulumBobSimState:*:px,…,fwind_z`), tree
+  `bob-motion` with root `pendulum-bob` (px/py/pz → position, fwind → vector, the seeded wind-arrow binding →
+  RESOLVED), so the cross-tree mapping `wind-grid→bob-drag` now lands on a real node; the proposed mapping
+  `wind-grid→bob-wind` (expression `wind-sample-at-bob`, target dims wind_vx/vy/vz, no coupling row).
+- Page `tensortree` row 8: the SimulationCouplingDefinition rows (seeded or created).
+- Proof: tensortree 63/63 (refused twice by name, created once, 409 on repeat), tensormath 55/55, live boot
+  **76/76** (derived from the REAL classes on a real boot; the created row is a real SimulationCouplingDefinition
+  beside `wind-to-newtonian-pendulum`, same sims and sampler, its own inject keys).
+
