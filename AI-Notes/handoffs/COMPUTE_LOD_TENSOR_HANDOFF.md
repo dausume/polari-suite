@@ -22,8 +22,8 @@ ratified 2026-09-23; §G.1–G.16 are the build status). Branch `dev-tt-0` in th
     cd polari-rf-node/polari-framework
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 58
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 64
-    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 75
-    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 87/87 on a REAL boot
+    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 81
+    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 88/88 on a REAL boot
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json)   # the tensor-tree-panel type-checks (tt-5)
     # re-run the tool chains (docker; nothing installed on the host):
     docker build -t polari-computelod-tools:noble modules/computelod/custom/tools     # gcc-riscv64 13.2 · yosys 0.33 · verilator · iverilog · nextpnr-ice40 · icestorm
@@ -34,7 +34,7 @@ ratified 2026-09-23; §G.1–G.16 are the build status). Branch `dev-tt-0` in th
 
 Live surfaces: `/api/tensormath` (+ evaluate, operators/{name}, benchmark, fem/{case} [/materialise]), `/api/tensortree` (+ trees/{name}
 /graph /validate /view, select, discover, scale/{material} [/materialise], mappings/{name}/couple [/prove]), `/api/computelod` (+ rungs/{name},
-walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod4); pages `/display/tensormath|tensortree|computelod`.
+walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lod4); pages `/display/tensormath|tensortree|computelod`.
 
 ## What each slice proved (the honest parts are the point)
 
@@ -67,6 +67,8 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod4); pages `/d
   the Siemens route; the walk from `c = a + b` spans ALL ELEVEN rungs.
 - **tt-8** u per node SEEN (2-D `vectorfield`, stated exaggeration 20 000); 45 lines, zero on the fixed edge.
 - **tt-9** the mesh SEEN as a wireframe (`meshwire`; 108 edges = V + F − 1); filled cells = a renderer change, his call.
+- **lod-3b** the PDK's transistor models RUN by our ngspice for inv_1/nand2_1 and cross-checked against the Liberty
+  at the same slew/load: mean |Δ| 10.8 %, falls faster everywhere (schematic netlist vs extracted layout — stated).
 - **tt-10** the created coupling EXECUTED through the runner's own pre-pass → simulated evidence; t = 0 was a true
   zero (calm by construction) → default past it, stated.
 
@@ -100,7 +102,8 @@ select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/vie
    from a throwaway cwd; ngspice/OpenVAF live in `~/tools` on pol-core (the cntfet ladder finds them).
 4. ~~lod-3: cells → transistors → layout~~ ✅ first slice (plan §G.12): READ from the PDK's per-cell .spice/.lef
    (1050 transistors; LEF area == Liberty area) and the CNT cell library (1016; no layout). Still open under it:
-   DRC/LVS (Magic/netgen), sky130_fd_pr corner simulation.
+   DRC/LVS (Magic/netgen). ✅ lod-3b (§G.17): sky130_fd_pr tt models RUN here (inv_1, nand2_1) vs the Liberty —
+   mean |Δ| 10.8 %, falls faster (schematic vs extracted), reported not tuned.
    ✅ lod-4 first slice (plan §G.13): the `sky130` SiliconProcessNode row (sifet shape; manufacturable None →
    **D-lod4-1 his**) and fabrication → materials onto sifet's eg-si; the walk spans all eleven rungs.
 5. **PyTorch** as a third implementation (D5: deferred until a workload benefits).

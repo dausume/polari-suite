@@ -754,3 +754,25 @@ real boot: wind run advanced to step 5, cell nearest the bob at (0.5, −0.87, 0
 7.30) m/s injected as wind_vx/vy/vz. A mapping with no coupling row is a 422 that says to couple first.
 Proof: tensortree 64/64, live boot **87/87**.
 
+### G.17 lod-3b — devices → cells SIMULATED BY US, cross-checked against the Liberty BUILT 2026-09-24 (same branch)
+
+The transistor netlists lod-3 read are now RUN: `computelod/custom/lod3_devices.py run` — ngspice-46 on the PDK's
+own BSIM4 models (`sky130_fd_pr` tt: per device flavour the `mismatch.corner` + `tt.corner` + `tt.pm3` files,
+six files at a pinned commit f62031a1…, cached and cited by sha256, never committed — the whole model tree was
+NOT needed) — for `inv_1` A→Y and `nand2_1` A→Y, B→Y, at the Liberty's own point (tt, 25 °C, 1.8 V, 14.6 fF, 50 ps
+20–80 % slew, 50 %/50 % delay thresholds) and compared to the Liberty's tables bilinearly interpolated at the
+same point:
+
+    inv_1   A   tpHL  65.2 vs  77.2 ps (−15.6 %)   tpLH 130.0 vs 117.9 ps (+10.2 %)
+    nand2_1 A   tpHL  91.7 vs 106.4 ps (−13.8 %)   tpLH 132.5 vs 129.4 ps (+2.4 %)
+    nand2_1 B   tpHL  93.8 vs 106.4 ps (−11.8 %)   tpLH 139.4 vs 129.4 ps (+7.7 %)
+
+Mean |Δ| 10.8 %, max 20.8 %. The gap has a stated cause and a consistent sign: the `cells/*.spice` netlists are
+SCHEMATIC (devices with W/L, no wiring parasitics) while the foundry characterized the extracted layout — so our
+falls are faster on every arc. Reported, not tuned. Rows: six UPWARD `CharacterizationMapping`s devices →
+standard-cells, evidence `simulated`, the Liberty value and delta inside `conditions_json`, `validated` when
+within 25 %. `GET /api/computelod/lod3/devices`. First slew-matching lesson recorded: a 50 ps 0–100 % ramp is a 30 ps
+20–80 % slew, which made the first run 25 % fast until the convention was matched.
+Proof: computelod 81/81, live boot **88/88**. Still not done: DRC/LVS (Magic/netgen), extracted-parasitic
+netlists (`.pex`), the other arcs/cells.
+
