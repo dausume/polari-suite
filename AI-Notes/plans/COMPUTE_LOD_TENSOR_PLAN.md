@@ -463,3 +463,15 @@ space, and three mappings incl. the REAL coupling by reference and a proposed ca
 sim-space viewer. Live boot 42/42: the coupling ranks first, the calm-only hypothesis is refused on the gusty
 selection. NEXT: lod-1 (the teaching path C → GCC → RISC-V add → PicoRV32 → Yosys netlist) per the order
 1→2→4→…; then tt-2 (continuum mechanics on the FEM resolution).
+
+### G.3 lod-1 BUILT 2026-09-23 (same branch `dev-tt-0`)
+
+The teaching path RUN: `custom/lod1_chain.py` (tools on the PATH or the pinned image `modules/computelod/tools/
+Dockerfile` — noble's gcc-riscv64-unknown-elf 13.2, yosys 0.33, verilator 5.020, iverilog; nothing installed on
+a host), PicoRV32 vendored at one pinned commit (ISC). Result rows from the committed report: C `c = a + b` →
+`add a0,a0,a1` = 0x00b50533 (decoded, not copied) → PicoRV32 decode (:1068) + `alu_add_sub` (:1231) → `rv32_add.v`
+→ yosys 220 gates (the core: 8126) → iverilog: RTL and gate netlist agree on 4 vectors. Netlist → standard cells
+and the delay are left UNRESOLVED on purpose (lod-2 needs a Liberty). `GET /api/computelod/path?rung=&ref=` walks
+it; the page shows each step with its evidence. Ordering note: the compiler rung's row is what the compiler
+PRODUCED (the assembly), so the chain links ref-to-ref. NEXT (order 1→2→4→3): tt-2 continuum mechanics on the
+FEM resolution; then lod-2 (Liberty: cntfet/sifet cells or SKY130; OpenSTA delay with conditions).
