@@ -810,3 +810,38 @@ sub-module". Both done.
   suffix (`.ext.spice` is read as magic `.ext` — name it `_lvs.spice`); LVS on the devices-only extraction, PEX
   on a second one.
 
+### G.19 tt-11 — filled cells THROUGH THE SHAPE LIBRARY BUILT 2026-09-24 (same branch)
+
+His ruling on "filled cells": use math shapes — "we have our own library for that, it should be able to carry
+it". So no polygon bolted onto the renderer; the geometry is carried by `mathshapes` and the renderer learns one
+general thing:
+
+- **`mathshapes`**: a new primitive kind `polygon` (vertices in the xy plane, optional z/thickness): shoelace area
+  and area-weighted centroid, perimeter, even-odd point-in-polygon with on-edge inclusion; `primitive_properties`
+  returns the FACE area as the area (the quantity a 2-D field is defined on) and volume = area × thickness (0 for
+  a pure 2-D shape — stated, not invented). `custom/shape2d_bridge.py`: a polygon MathShapeDefinition → a
+  `Shape2DDefinition` (`source='svg'`, ONE `<polygon>` with points relative to the centroid, anchor center, and
+  the new field **`units='space'`**); fill/stroke are NOT in the svg — they are the object's style/colorOverride
+  (data), so one shape row serves any field painted on it.
+- **`Shape2DDefinition.units`** (`px` = a marker at pixel size, every shape before now | `space` = drawn in the
+  space's own units and scaled with the view, so it tiles the space). The d3 renderer honours it: a space-unit
+  svg is drawn through `pixelsPerUnit()` with the y flip of a math coordinate system, and the style is applied
+  to any element that carries no fill of its own. Nothing else in the renderer changed.
+- **`tensormath/custom/fem_shapes.py`**: every P1 triangle of a field row → a polygon MathShapeDefinition (vertices
+  from `nodes_json` + `triangles_json`, the field row's own area in the notes) + its 2-D shape, named
+  `<field>-el-<i>`; seeded from the SAME solve as the field row (lazy, 64 + 64 for the seed case; selftest proves
+  element 0's area == the field row's area column and centroid == the FEM centroid);
+  `POST /api/tensormath/fem/{case}/shapes` writes/refreshes them for a live row. tensormath now REQUIRES
+  mathshapes (manifest, FEATURE_REQUIRES, registry — the drift guard 23/23).
+- **The `field` binding** gained `shapeRefPattern` (`<field>-el-{i}`): each cell references ITS OWN shape and
+  carries no marker scale; without a pattern the rectangle marker + `cellSize` behave exactly as before.
+  `FEMFieldState-2d` uses it: the plate is tiled with its own triangles, each painted by σ_vm.
+- **The tree**: root `plate` gains `element → shape` (the eleventh channel's `shape` finally used);
+  `plate-filled-cells` is answered and gone — the plate tree has NO unresolved space left, which is allowed:
+  nothing is kept unresolved for show.
+- Lesson: `LazySeedRows` filled on iteration/len but not on indexing — fixed at the source (`__getitem__`).
+- Proof: mathshapes 24/24, tensormath 61/61, tensortree 64/64, lazy-import drift 23/23, Angular tsc clean, live
+  boot **94/94** (64 + 64 rows exist from seed; the math-shape API answers an element's area 1/32 m² and centroid;
+  the snapshot's 64 cells each reference their own space-unit shape; the shapes door refreshes without duplicating).
+  Unseen in a browser until the images rebuild — his pass.
+

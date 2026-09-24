@@ -20,10 +20,10 @@ ratified 2026-09-23; §G.1–G.16 are the build status). Branch `dev-tt-0` in th
 ## Prove it in ten minutes
 
     cd polari-rf-node/polari-framework
-    PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 58
+    PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 61
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 64
     PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 87
-    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 90/90 on a REAL boot
+    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 94/94 on a REAL boot
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json)   # the tensor-tree-panel type-checks (tt-5)
     # re-run the tool chains (docker; nothing installed on the host):
     (cd ../polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh)   # the toolchain SUBMODULE: gcc-riscv64 · yosys · verilator · iverilog · nextpnr/icestorm · magic (source) · netgen · ciel → sky130A (0.9 GB, cached)
@@ -32,7 +32,7 @@ ratified 2026-09-23; §G.1–G.16 are the build status). Branch `dev-tt-0` in th
     PYTHONPATH=.:modules python3 -m computelod.custom.lod2_silicon run            # SKY130 abc mapping + OpenSTA (Liberty cached in ~/.cache/polari-lod)
     # the FPGA kernel needs a manager (see the tensormath selftest's fpga block or the probe)
 
-Live surfaces: `/api/tensormath` (+ evaluate, operators/{name}, benchmark, fem/{case} [/materialise]), `/api/tensortree` (+ trees/{name}
+Live surfaces: `/api/tensormath` (+ evaluate, operators/{name}, benchmark, fem/{case} [/materialise | /shapes]), `/api/tensortree` (+ trees/{name}
 /graph /validate /view, select, discover, scale/{material} [/materialise], mappings/{name}/couple [/prove]), `/api/computelod` (+ rungs/{name},
 walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lod3/layout, lod4); pages `/display/tensormath|tensortree|computelod`.
 
@@ -71,6 +71,8 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
   at the same slew/load: mean |Δ| 10.8 %, falls faster everywhere (schematic netlist vs extracted layout — stated).
 - **lod-3c** the PDK's layout RUN through the new `polari-eda-tools` submodule: DRC (context rules only), PEX, LVS
   match; extraction fixes part of the fall gap and widens the rise gap — the parasitics hypothesis half-rejected.
+- **tt-11** filled cells THROUGH the shape library (his ruling): mathshapes `polygon` + a bridge to space-unit
+  Shape2DDefinitions; the renderer learned only `units='space'`; the plate is tiled with its own triangles.
 - **tt-10** the created coupling EXECUTED through the runner's own pre-pass → simulated evidence; t = 0 was a true
   zero (calm by construction) → default past it, stated.
 
@@ -96,7 +98,8 @@ select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/vie
 1. ~~The σ-field visualization~~ ✅ tt-6 (plan §G.9): `FEMFieldState` row + 2-D `field` binding kind +
    d3 `colorOverride`; the plate root RESOLVES on a real boot. ✅ tt-8 (§G.14): u per node as a 2-D `vectorfield`
    binding (connections, stated exaggeration). ✅ tt-9 (§G.15): the mesh as a wireframe (`meshwire` kind, 108 edges
-   = V + F − 1). Only FILLED cells remain open — a renderer change, his call.
+   = V + F − 1). ✅ tt-11 (§G.19): FILLED cells through the math-shape library (polygon primitive → Shape2DDefinition
+   in space units, per-cell shapeRef) — the plate tree has no unresolved space left.
 2. ~~A SimulationCouplingDefinition created FROM a `kind=coupling` TensorMapping~~ ✅ tt-7 (plan §G.10):
    `GET|POST /api/tensortree/mappings/{name}/couple`, derived from the nodes' tensors, refused by name.
    ✅ tt-10 (§G.16): `POST …/prove` executes it through the runner's own pre-pass → simulated evidence.
