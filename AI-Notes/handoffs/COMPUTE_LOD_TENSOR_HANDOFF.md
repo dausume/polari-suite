@@ -1,7 +1,7 @@
 # Handoff — the Compute LOD + Tensor arc (2026-09-23/24): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
-ratified 2026-09-23; §G.1–G.16 are the build status). Branch `dev-tt-0` in the suite, `polari-rf-node`,
+ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next). Branch `dev-tt-0` in the suite, `polari-rf-node`,
 `polari-framework` AND `polari-platform-angular` — UNMERGED, per branch-per-confirmed-phase; merge on his word._
 
 ## The one-line map
@@ -93,24 +93,44 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
 
-## Owed (in the order I would take them)
+## State at handoff (2026-09-24 evening)
 
-1. ~~The σ-field visualization~~ ✅ tt-6 (plan §G.9): `FEMFieldState` row + 2-D `field` binding kind +
-   d3 `colorOverride`; the plate root RESOLVES on a real boot. ✅ tt-8 (§G.14): u per node as a 2-D `vectorfield`
-   binding (connections, stated exaggeration). ✅ tt-9 (§G.15): the mesh as a wireframe (`meshwire` kind, 108 edges
-   = V + F − 1). ✅ tt-11 (§G.19): FILLED cells through the math-shape library (polygon primitive → Shape2DDefinition
-   in space units, per-cell shapeRef) — the plate tree has no unresolved space left.
-2. ~~A SimulationCouplingDefinition created FROM a `kind=coupling` TensorMapping~~ ✅ tt-7 (plan §G.10):
-   `GET|POST /api/tensortree/mappings/{name}/couple`, derived from the nodes' tensors, refused by name.
-   ✅ tt-10 (§G.16): `POST …/prove` executes it through the runner's own pre-pass → simulated evidence.
-3. ~~The CNT cell library as a second Liberty~~ ✅ lod-2b (plan §G.11): `python3 -m computelod.custom.lod2_cnt run`
-   from a throwaway cwd; ngspice/OpenVAF live in `~/tools` on pol-core (the cntfet ladder finds them).
-4. ~~lod-3: cells → transistors → layout~~ ✅ first slice (plan §G.12): READ from the PDK's per-cell .spice/.lef
-   (1050 transistors; LEF area == Liberty area) and the CNT cell library (1016; no layout). Still open under it:
-   ✅ lod-3c (§G.18): DRC/PEX/LVS via the `polari-eda-tools` submodule (licences audited in its LICENSES.md);
-   the parasitics hypothesis half-rejected. ✅ lod-3b (§G.17): sky130_fd_pr tt models RUN here (inv_1, nand2_1) vs the Liberty —
-   mean |Δ| 10.8 %, falls faster (schematic vs extracted), reported not tuned.
-   ✅ lod-4 first slice (plan §G.13): the `sky130` SiliconProcessNode row (sifet shape; manufacturable None →
-   **D-lod4-1 his**) and fabrication → materials onto sifet's eg-si; the walk spans all eleven rungs.
-5. **PyTorch** as a third implementation (D5: deferred until a workload benefits).
-6. **Merge `dev-tt-0` → dev** (his word), then `pol modules publish tensormath tensortree computelod`.
+Every item of the original owed list is closed except PyTorch (D5, deferred by ruling). Built and proven on a real
+boot (94/94): tt-0..11, lod-1, lod-2, lod-2b, lod-3, lod-3b, lod-3c, lod-4 — plan §G.1–G.19. The toolchain lives
+in its own submodule `polari-rf-node/polari-eda-tools` (image + pinned PDK fetcher + LICENSES.md); build it and
+fetch the PDK before re-running any lod-3c/3b/2/1 flow:
+
+    cd polari-rf-node/polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh
+    docker pull openroad/opensta
+
+## What is left, and who does it
+
+1. **The browser pass — his, or a session with Chrome attached.** Plan §H.1 is the procedure: rebuild the home
+   swarm from the `dev-tt-0` trees (admit the four modules first), open `/display/tensortree`, `/display/tensormath`,
+   `/display/computelod`, judge each panel against the listed expectations, file gaps. Nothing of this arc's
+   frontend has been seen yet: `tensor-tree-panel`, the plate scene (filled triangles, wireframe, displacement
+   lines), the `units=space` shapes.
+2. **D-lod4-1 — his ruling** (plan §H.2): is SKY130 manufacturable under the sifet ladder rule? Set the row's
+   `manufacturable` + `manufacturable_reason` accordingly (`computelod/custom/lod4_process.py: SKY130_NODE`).
+3. **Merge `dev-tt-0` → dev — his word.** Innermost-first: polari-eda-tools is already on its own `dev`;
+   polari-framework, polari-platform-angular, polari-rf-node (pointer + the new submodule), then the suite.
+   `polari-cli/shells/push-all-dev.sh --with-isle` sweeps the forest once merged. Then `pol modules publish
+   tensormath tensortree computelod mathshapes`.
+4. **Further lod work** — plan §H.3, a sized table; my order after the merge: lod-3d (the other adder cells
+   through DRC/PEX/LVS — small), lod-4c (Ion/Ioff for the sky130 row from the models we already run — small),
+   lod-2c (CNT vs SKY130 at the same conditions), lod-3e (the whole adder placed-and-routed — needs OpenROAD in
+   the image), lod-4b (the process as PSPP rows).
+
+## Gotchas a fresh session will hit (all in memory too)
+
+- Live-boot probe: run from a throwaway cwd or `rm -rf data` between runs (the sqlite DB is `./data/`).
+- A `pgrep -f <pattern>` waiter matches its own argv — use `pgrep -f "[l]od2_cnt run"` or a pidfile.
+- ngspice-46 + OpenVAF 23.5 are on pol-core under `~/tools` (not PATH); the cntfet ladder finds them.
+- sky130 slew convention is 20–80 %: a 50 ps 0–100 % ramp is a 30 ps slew (25 % fast).
+- netgen infers the netlist format from the suffix (`.ext.spice` is read as magic `.ext`): name it `_lvs.spice`.
+- noble's `magic` (8.3.105) segfaults on the sky130A tech (needs ≥ 8.3.411) — the image builds 8.3.684 from source.
+- A standard cell alone always fails nwell.4 / LU.2 / LU.3 (taps from the row) — classified, not hidden.
+- The snapshot route is `/api/simspace/{name}/snapshot`, payload wrapped `{success, data}`.
+- `LazySeedRows` fills on iteration, len AND indexing now; the seed loop iterates.
+- The 2-D shape library takes a `shapeRef`; per-instance geometry goes through mathshapes → `Shape2DDefinition
+  units='space'`, never a polygon on the object.

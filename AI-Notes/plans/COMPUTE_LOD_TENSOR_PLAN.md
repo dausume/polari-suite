@@ -845,3 +845,74 @@ general thing:
   the snapshot's 64 cells each reference their own space-unit shape; the shapes door refreshes without duplicating).
   Unseen in a browser until the images rebuild — his pass.
 
+## H. What comes next (written 2026-09-24 for a fresh session; nothing below is built)
+
+Everything in §G is on `dev-tt-0` (suite, polari-rf-node, polari-framework, polari-platform-angular, plus the
+new `polari-eda-tools` submodule of polari-rf-node), UNMERGED. Two things remain that only a person with a
+browser and the home machines can do, and one open ruling; after those, the lod work has natural next rungs.
+
+### H.1 The browser pass — the frontend of this arc has NEVER been seen
+
+Every Angular piece type-checks and every backend row/route is proven on a real boot (94/94), but no image has
+been rebuilt since tt-5, and pol-core has no stack up (purge #3). The pass is: rebuild → open three pages → judge
+each panel against what it must show → file what is wrong as `plate-…`/`tree-…` unresolved spaces or plain bugs.
+
+**Rebuild.** The dev route is the home swarm (memory `dev-swarm-prod-app-route`): `pol swarm init` on pol-core
+(it left the swarm), then `pol swarm deploy node` from the `dev-tt-0` working trees. POLARI_MODULES is DERIVED
+from ModuleAssignment rows — the three new modules + `mathshapes` must be admitted on the core first (`pol
+modules …` / a ModuleAssignment for `tensormath`, `tensortree`, `computelod`, `mathshapes`, and their requires:
+`simulations, simSpace, materialsScience, pspp, magnetics, techtree, microchip, cntfet, sifet, hwfpga`), or the
+pages 503 honestly. Remember the two-compose gotcha in memory `math-shapes` (deploy from the suite root). Cold
+seed takes minutes: the wind/pendulum states and now the FEM solve run at boot.
+
+**Page `/display/tensortree`** (rows in `tensortree_page.py`):
+- row 1 `tensor-tree-panel` opened on `wind-spatial`: three chips (wind-spatial, bob-motion, plate-mechanics) with
+  resolved/total counts; a top-down tree — `wind-grid` solid blue, `wind-slice-z0` solid, `wind-turbulence`
+  dashed with "unresolved · semantic"; three arcs from wind-grid: a green (measured?) no — `simulated` blue arc to
+  `pendulum-bob` labelled "coupling" (drawn to a stub "→ pendulum-bob (another tree)" ONLY if bob-motion's node is
+  not in this tree's view — it is another tree, so the stub is expected), a blue "restriction" arc to the slice,
+  a grey dashed "decomposition" arc to wind-turbulence. Click wind-grid: dims chips x → position.x, y, z, speed →
+  color [0–12 m/s], component → vector; the select form prefilled from the seeded `gust-corner` selection; press
+  discover → candidates `wind-grid→bob-drag` (score bar, simulated) then `wind-grid→slice-z0`; refused list holds
+  `wind-grid→spectrum` "validity"; click a candidate → the arc highlights. PASS = all of that; anything else = a
+  bug in the panel (`tensor-tree-panel.component.ts`), not in the rows (the rows are proven).
+- row 2 the wind scene (`newtonian-pendulum-viz`, unchanged since Milestone A) — arrows in a 4×4×4 grid.
+- row 3 the plate scene `plate-mechanics-2d`: a 2 m × 1 m plate tiled with 64 coloured TRIANGLES (blue → red over
+  0.8–1.1 MPa, nearly uniform yellow/orange with structure near the fixed left edge), the mesh edges as thin lines,
+  45 short displacement lines growing from left (zero) to right (longest). Hover a triangle: the tooltip must show
+  its σ_vm value (userData.scalar) — if the tooltip shows nothing, that is a viewer gap to file. Zoom: the
+  triangles must scale WITH the plate (units=space); the displacement lines too; if triangles stay pixel-sized the
+  `units` field did not reach the frontend (`shape-2d-library.service.ts` maps `raw.units`).
+- rows 4–8 the configured tables (nodes, dims, mappings, selections, policy, couplings): no raw JSON anywhere.
+**Page `/display/tensormath`**: the summary panel, tensors/expressions/implementations tables (two implementations
+for `stress-from-strain`: numpy measured on the node, fpga simulated), the FEM field table (one row), the plate
+scene again.
+**Page `/display/computelod`**: the ladder (eleven rungs), the mappings/characterizations tables — 14 mappings, 24
+characterizations, the walk from `c = a + b` through all eleven rungs (`GET /api/computelod/path?rung=c-source&
+ref=lod1/add.c: c = a + b`).
+**What "done" means**: a short list in this section (or a new unresolved space per gap) — the panel's rules of
+§11–§16 either read true on screen or they do not.
+
+### H.2 D-lod4-1 (his) — does SKY130 qualify as MANUFACTURABLE under the sifet ladder rule?
+
+`SiliconProcessNode sky130` (seeded by computelod, §G.13) carries `manufacturable = None` with the evidence
+named: SkyWater fabricates SKY130 as a production process; Google-sponsored open MPW shuttles (Efabless,
+2020–2023) accepted designs under this open PDK. The rule: True ONLY with evidence of an actually available open
+process (a foundry / MPW that accepts the rules); the ladder currently says "today: no rung qualifies". His
+ruling flips it or not; the row's `manufacturable_reason` records whichever.
+
+### H.3 Further lod work — the natural next rungs, with sizes
+
+| slice | what | needs | size |
+|---|---|---|---|
+| lod-3d | the OTHER arcs and cells the adder uses (xnor2_1, maj3_1, o21ai_0, xor2_1, isobufsrc) through lod-3b/3c | nothing new (eda-tools + PDK cached) | small: extend `ARCS` with the pin ties; ~20 arcs |
+| lod-3e | the whole ADDER extracted: `magic` on the mapped netlist is not a layout — needs place-and-route (OpenROAD flow: floorplan → place → CTS-less → route → PEX) then OpenSTA on the extracted design vs lod-2's 11.94 ns | OpenROAD in the eda-tools image (the openroad/opensta image has only sta; `openroad` apt is not in noble — build from source at a pinned tag, licence BSD-3) | medium-large; the first real "layout rung" number for the adder |
+| lod-4b | fabrication as ROWS: the SKY130 process steps (lithography, implants, gate, contacts, metals) as PSPP `ProcessingStage`/`MaterialProcessDefinition` rows cited from the PDK docs; the CNT branch's process rows (cntfet `cnt_process_basis`) mapped the same way | open_pdks docs; a decision on which PSPP classes carry a semiconductor process | medium; closes "fabrication → materials is entered, not exhausted" |
+| lod-4c | the sky130 node's key numbers from the PDK models RUN (Ion/Ioff per µm at 1.8 V from `sky130_fd_pr` tt, the way the sifet ladder holds them for FreePDK45) — then the row can carry `ion_ua_per_um` etc. with evidence `simulated` | lod-3b's decks, a DC sweep | small |
+| lod-2c | the CNT library at the SAME conditions as SKY130 (1.8 V, or SKY130 at 0.6 V) so the two Liberties are compared honestly; area for CNT cells from a stated layout model (or refused) | a characterization run | small–medium |
+| tt-12 | the tree panel showing the plate scene INSIDE the node detail (a resolved node's binding rendered where the node is clicked) — the "visualize" of the cycle without leaving the panel | Angular only | small |
+| tt-13 | discovery across trees: a selection on `plate` finding mappings in `bob-motion`/`wind-spatial` — today the hard filter is by dims only; a `units` filter (§F3) is stated in the plan and not implemented | tensortree only | small |
+| D5 | PyTorch as a third ComputeImplementation | his word (deferred) | — |
+
+Order I would take them: browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c → lod-2c → lod-3e → lod-4b.
+
