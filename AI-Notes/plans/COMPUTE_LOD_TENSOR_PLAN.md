@@ -621,3 +621,30 @@ whatever it cannot derive:
   **76/76** (derived from the REAL classes on a real boot; the created row is a real SimulationCouplingDefinition
   beside `wind-to-newtonian-pendulum`, same sims and sampler, its own inject keys).
 
+### G.11 lod-2b — the SECOND Liberty: our own CNT cell library BUILT 2026-09-23/24 (same branch)
+
+Owed item 3 closed — and the premise corrected: ngspice-46 and OpenVAF 23.5 ARE on pol-core, under `~/tools`
+where the cntfet engine ladder looks (only PATH lacked them); nothing was installed. `computelod/custom/
+lod2_cnt.py run` boots the server in-process, derives `cnt-aligned-s1` and its p partner `cnt-aligned-s1-p`
+(a real hole device, not the mirror card), characterizes twelve combinational cells (INV/BUF/NAND2/NOR2/NAND3/
+NOR3/XOR2/XNOR2/AOI21/OAI21/HA/FA, drive 1, the S5 sweep: ngspice transients through the OpenVAF-compiled VS
+model, 3 slews × 3 loads) → `polari_cnt_lib.lib` (110 kB, OURS, committed under `initialData/lod2/cnt/` with
+its sha256, the device, `derived_at` and the `CellCharacterizationRun` row as provenance; no failures; OpenSTA
+gate LIBERTY-ACCEPTED), then maps the SAME adder netlist onto it (yosys abc: 152 cells — XOR2×47, NAND2×31,
+XNOR2×16, AOI21/INV/OAI21×15, NOR2×13) and times it with OpenSTA at the library's own point: 0.6 V, 300 K, load
+41.7 aF (4× an INV input, the sweep's largest grid load), slew 1.02 ps (the grid's middle) — worst path
+`reg_op2[1] → alu_out[31]` **41.33 ps**, fastest 1.56 ps. Beside SKY130's 11.94 ns this is an INTRINSIC-grade
+number over a DERIVED device with standin parasitics and no layout — the report, the rows and the API say so;
+it is not a claim that CNT logic is 300× faster than a fabricated PDK's timing model.
+
+Rows are NEW names beside the SKY130 ones (nothing replaced): `lod2-cnt: netlist → CNT standard cells`
+(validated, simulated — a model of a model), `lod2-cnt: CNT standard cells → devices` (one-to-many, implemented,
+simulated: for THIS library the step is a real reference to the AlignedCNTFETDevice rows — the cells' SPICE is
+the derived VS card), and two delay characterizations in ns with the 0.6 V / 300 K conditions. What the library
+does NOT carry is listed (`not_carried`): cell area (→ `area_um2: None`, not 0), leakage beyond the ioff
+standin, setup/hold. `GET /api/computelod/lod2/cnt`. Seed merges by name → 10 mappings + 9
+characterizations; the two propagation-delay rows carry different conditions and do not collide.
+
+Proof: computelod 60/60, live boot **79/79**. Gotcha recorded: a `pgrep -f <pattern>` waiter matches its own
+command line — the background waiter spun for 12 h after the run had finished (23:35).
+
