@@ -20,7 +20,8 @@ ratified 2026-09-23; §G.1–G.7 are the build status). Branch `dev-tt-0` in the
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 49
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 51
     PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 54
-    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 60/60 on a REAL boot
+    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 67/67 on a REAL boot
+    (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json)   # the tensor-tree-panel type-checks (tt-5)
     # re-run the tool chains (docker; nothing installed on the host):
     docker build -t polari-computelod-tools:noble modules/computelod/custom/tools     # gcc-riscv64 13.2 · yosys 0.33 · verilator · iverilog · nextpnr-ice40 · icestorm
     docker pull openroad/opensta
@@ -29,7 +30,7 @@ ratified 2026-09-23; §G.1–G.7 are the build status). Branch `dev-tt-0` in the
     # the FPGA kernel needs a manager (see the tensormath selftest's fpga block or the probe)
 
 Live surfaces: `/api/tensormath` (+ evaluate, operators/{name}, benchmark), `/api/tensortree` (+ trees/{name}
-/graph /validate, select, discover, scale/{material} [/materialise]), `/api/computelod` (+ rungs/{name},
+/graph /validate /view, select, discover, scale/{material} [/materialise]), `/api/computelod` (+ rungs/{name},
 walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2); pages `/display/tensormath|tensortree|computelod`.
 
 ## What each slice proved (the honest parts are the point)
@@ -60,6 +61,12 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2); pages `/display/tensormath|tens
 - Evidence levels as ruled: a tool's own output = measured; a simulation / timing model = simulated; a cited
   line = analytical; latency derived from cycles/Fmax says DERIVED; a delay without conditions is refused.
 - pol-core: sudo prompts → tools live in docker images (the toolchain image; openroad/opensta); ngspice absent.
+
+## tt-5 (2026-09-23): the tree in the browser
+
+`tensor-tree-panel` (Angular, registered; d3 tree + evidence-coloured mapping arcs + dims→channel chips + the
+select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
+`tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
 
 ## Owed (in the order I would take them)
 

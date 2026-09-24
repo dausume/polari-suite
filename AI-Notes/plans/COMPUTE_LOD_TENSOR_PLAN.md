@@ -524,3 +524,36 @@ OWED across the arc: the σ-field visualization (Angular: a 2-D field binding or
 SimulationCouplingDefinition created FROM a kind=coupling mapping, the CNT cell library via a real
 characterization run (needs ngspice + a derived device), lod-3 (cells → transistors → layout), PyTorch (D5,
 deferred), and the merge of `dev-tt-0` into dev on his word.
+
+### G.8 tt-5 — TensorTree intuition in the browser BUILT 2026-09-23 (same branch `dev-tt-0`)
+
+His ruling: "we definitely want frontend visualizations that give intuition about tensorTrees." The Angular
+side is ONE registered panel, `tensor-tree-panel` (`components/dashboard/generic/tensor-tree-panel.component.ts`,
+registered in `generic-display-components.ts`), fed by ONE read the API gained for it —
+`GET /api/tensortree/trees/{name}/view` (tree meta · nodes with status/why/dims→channel+range+scale or the
+unresolved kind/known dims/open questions/candidates/hypotheses · structural edges · mappings with both statuses,
+evidence level, evidence_ref, loss note, validity · selections · validation · the eleven channels · the four
+evidence levels) — and ONE write that already existed (`POST /api/tensortree/select`). What it draws, each a rule
+of §11–§16 made visible:
+
+- the rooted STRUCTURE as a d3 tree (d3 is the existing node-graph home — techtree / msim views — no new chart
+  engine): resolved nodes solid blue, nodes that fail validation amber, unresolved spaces dashed with their kind
+  (semantic|structural|visualization|mapping|validation) — a tree may be incomplete and still be useful, so the
+  gaps are drawn, not hidden; a forest under construction hangs off a hidden root instead of failing;
+- MAPPINGS as arcs that may cross branches, coloured by evidence level (grey none · amber analytical · blue
+  simulated · green measured), dashed while only `proposed`; a mapping whose target lives in another tree is drawn
+  to a stub labelled with the target and "(another tree)";
+- a node's DIMENSIONS → CHANNELS as chips (x → position.x [range], T → color with its scale) — resolved means
+  every dimension has a channel, and an incoherent dimension is shown red with the validator's reason;
+- the cycle VISUALIZE → SELECT → DISCOVER → MAP: per-dimension lo/hi inputs prefilled from the node's ranges (or
+  the last selection on it) → `POST select` writes a TensorSelection row and returns the discovery → ranked
+  candidates with score bars, their evidence and loss note, the refused list with reasons (never scored) → click a
+  candidate to follow the mapping to its target node (highlighted arc);
+- a tree picker (chips from `GET /api/tensortree`, resolved/total per tree) and a legend.
+
+Page `tensortree` row 1 mounts it on `wind-spatial` (the sim-space viewer of the resolved root stays as row 2).
+Angular `tsc --noEmit -p tsconfig.app.json` clean; tensortree selftest 51/51; live boot 67/67 (six `/view`
+checks + the page mount). Not yet SEEN in a browser: that needs the staging images rebuilt (`pol swarm deploy`
+on the home stack) — his browser pass, like the earlier arcs. The σ-field visualization (owed 1) is unchanged:
+plate-mechanics still draws its root as unresolved for the stated reason, which is the point of the panel.
+
