@@ -501,3 +501,14 @@ two implementations, each with its own evidence level — the bridge of §F8, li
 NEXT (order …→7→5): Phase 7 multiscale integration (FEM/MD/DFT resolutions + PSPP ScaleTransferDefinition as
 `kind=scale` mappings executed as SimulationCouplingDefinitions), then Phase 5 open silicon (lod-2: Liberty +
 OpenSTA with conditions; the netlist → standard-cells mapping left unresolved by lod-1).
+
+### G.6 tt-4 / Phase 7 (first slice) BUILT 2026-09-23 (same branch `dev-tt-0`)
+
+The scale tree of a material as a READING (`GET /api/tensortree/scale/{material}`): nodes = its msci
+`MaterialScaleDefinition` levels (fidelity ladder attached), gaps = structural unresolved spaces, mappings = its
+pspp `ScaleTransferDefinition` rows as `kind=scale` by reference; `POST …/materialise` persists it as tree rows.
+Live on paraffin wax (L0→L1 thermal, L0→L4 quantum, both executed). Left for Phase 7's next slice: executing
+a `kind=coupling` mapping as a `SimulationCouplingDefinition` (creation from a mapping; today the wind coupling
+is referenced, not created), the statistical/discrete boundary as mappings, and the σ-field visualization
+(the Angular side). Selftest 51/51; live boot 59/59. The branch `dev-tt-0` holds tt-0 · tt-1 · lod-1 · tt-2 ·
+tt-3 · tt-4.
