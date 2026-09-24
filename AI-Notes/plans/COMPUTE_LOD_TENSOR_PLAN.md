@@ -323,3 +323,120 @@ described), then 3, then 6, 5, 7.
 5. For Phase 4: the smallest honest `c = a + b` chain — should the compiler rung show the LLVM IR row too, or is
    C → ISA enough for the first slice?
 6. Anything in the draft that this counter-plan drops that you believe is load-bearing.
+
+---
+
+## F. Round 2 (2026-09-23) — ChatGPT's answers to E1–E6, merged; the plan of record from here
+
+_ChatGPT accepted A/B/C and answered E1–E6; the Polari side accepts those answers with the notes below. D1–D7
+are now RECOMMENDED BY BOTH SIDES and await Dustin's ratification (§G)._
+
+### F1 — The ComputeLOD ladder (E1): eleven conceptual rungs; die/package hang off microarchitecture
+
+    SOFTWARE / FIRMWARE      1 C / Source · 2 Compiler · 3 ISA / Machine Instructions
+    HARDWARE ARCHITECTURE    4 Microarchitecture · 5 RTL
+    DIGITAL IMPLEMENTATION   6 Logic / Netlist · 7 Standard Cells · 8 Transistors / Devices
+    PHYSICAL IMPLEMENTATION  9 Layout · 10 Fabrication Process · 11 Materials
+
+`die` and `package` are NOT rungs of this ladder: they answer "how are physical artifacts assembled", not an
+abstraction transition. Rung 4 (and 6/7/8) carry `design_level_ref` into the microchip ladder
+(functional-block / subsystem / die / package stay authoritative there). Amends B1/B1a accordingly.
+
+**KIND vocabulary (initial; a KIND specializes within a rung and never creates a rung):**
+
+| rung | kinds |
+|---|---|
+| C | direct-firmware, freertos, zephyr, linux-kernel |
+| Compiler | frontend, optimizer, backend, assembler, linker |
+| ISA | base-isa, extension, privilege, vector, matrix-tensor, custom |
+| Microarchitecture | single-cycle, multicycle, in-order, pipelined, superscalar, out-of-order, vector, tensor-array, gpu-like, memory-controller |
+| RTL | datapath, control, register-map, bus-interface, accelerator, core |
+| Logic/netlist | combinational, sequential, arithmetic, memory, control, interconnect |
+| Standard cell | inverter, buffer, logic-gate, mux, sequential, arithmetic, clock, bitcell |
+| Device | mosfet, cnfet, diode, capacitor, resistor, interconnect-device |
+| Layout | cell-layout, block-layout, macro-layout, die-layout |
+| Fabrication | lithography, deposition, etch, doping, anneal, planarization, metallization, packaging-process |
+| Materials | semiconductor, conductor, dielectric, resist, dopant, substrate, packaging |
+
+Polari note: kinds are a `kind` column validated against a per-rung list seeded as rows (`ComputeKind`), so a
+new kind is a row, never a code change; the microchip subsystem kinds (cpu-core, npu-tensor-array, sim-engine…)
+remain the microchip ladder's and map onto rung-4 kinds by `design_level_ref`.
+
+### F2 — CharacterizationMapping columns (E2)
+
+Every non-theoretical characterization carries: `source_ref, target_ref, characteristic, method, conditions_json
+(voltage, temperature, load, process/corner — load-bearing), result, units, evidence_ref`, and TWO statuses:
+`mapping_status ∈ {proposed, implemented, validated}` and `evidence_level ∈ {none, analytical, simulated,
+measured}`. An OpenSTA/ngspice number is `simulated`, never `measured`; `measured` is reserved for fabricated
+hardware. The same two columns go on `ComputeMapping` and `TensorMapping` (amends B2/B6). First upward chain:
+device → cell timing/power → block → microarchitecture timing → instruction latency/throughput.
+
+### F3 — TensorMapping discovery (E3): hard filters, then a configured score
+
+Candidate only if required dimensions ⊆ selection dimensions, units/types compatible, and the selection lies
+inside the mapping's validity domain — an invalid mapping is never rescued by scoring. Rank survivors by
+`Score = 0.30·E + 0.25·D + 0.25·V + 0.10·C + 0.10·(1−U)` (E evidence quality, D dimension-match quality, V
+validity coverage, C contextual relevance, U normalized uncertainty), with the evidence map measured 1.00 /
+validated-simulation 0.85 / implemented 0.65 / analytical 0.40 / proposed 0.20. Weights and the evidence map
+are CONFIGURATION rows (`TensorDiscoveryPolicy`), not constants — the knobs rule. Implemented as one function
+with its own selftest.
+
+### F4 — Visual channel vocabulary (E4): small, with scales inside the channel
+
+`position.x, position.y, position.z, color, opacity, size, shape, orientation, vector, label, time`. No
+texture/glyph/surface-deformation in the first vocabulary. `shape` selects registered renderable geometry;
+`vector` is the proven arrow; `color` carries its scale: `{"field": "temperature", "channel": "color", "scale":
+{"kind": "continuous", "domain": [300, 900]}}`. This is the `SimSpaceBindingDefinition.binding_json` extension
+(B5). Coverage: A T→color; B u→vector, σ principal direction→orientation + magnitude→size/color; C influence→
+vector/size/color; D through charts (sci-xy-chart) not 3D.
+
+### F5 — The compiler rung in lod-1 (E5)
+
+C → Compiler → ISA stays the canonical path. LLVM IR is an artifact of ONE compiler implementation, so it is a
+`CompilerArtifact` row (`kind ∈ AST, IR, assembly, object`) attached to the Compiler rung only when a slice
+needs it. lod-1 uses GCC for PicoRV32 and shows: C `c = a + b` → GCC → RISC-V assembly `add …` → the encoded
+machine instruction `0x…` → PicoRV32 decode → register file → ALU → writeback. That is the teaching path.
+
+### F6 — Four protections during implementation (E6)
+
+1. **Local, not subtree, validity:** a TensorNode is valid by its own visual coherence; an unresolved space
+   below it does not invalidate it (the validator checks the node's own bindings only).
+2. **Typed unresolvedness:** `UnresolvedTensorSpace.unresolved_kind ∈ {semantic, structural, visualization,
+   mapping, validation}` (a column; subclasses later if ever) — different research tasks.
+3. **Information loss kept:** projection/decomposition mappings carry `reconstruction_error` (‖X−X̂‖/‖X‖) and
+   `error_method` next to the evidence columns.
+4. **Trees stay plural:** `Tensor ↔ TensorTree*` — spatial, scale, modal, decomposition, operator trees over the
+   same tensor; no canonical-tree column on Tensor.
+
+### F7 — Decisions D1–D7, both sides' recommendation
+
+- D1 one conceptual ladder referencing authoritative module objects — YES.
+- D2 no element-count threshold; storage by representation/persistence need (matrix | dataset | engine | claim).
+- D3 waxprint thermal first.
+- D4 PicoRV32 first; Ibex later as a second microarchitecture for the same ISA.
+- D5 PyTorch optional and deferred; numpy → FPGA proves the abstraction.
+- D6 Verilog-2001 generated RTL + SystemVerilog testbenches.
+- D7 a new `computelod` module; `microchip` stays authoritative for its ladder.
+- Phase order: **1 → 2 → 4 → 3 → 6 → 7 → 5** (Phase 5's physical-design toolchain only when a microchip
+  milestone needs it).
+
+### F8 — The bridge to protect
+
+    TensorOperator → ComputeImplementation → ComputeLOD
+
+A scientist clicking σ_ij = C_ijkl ε_kl moves sideways through its TensorTree (what it means) or downward
+through ComputeImplementation (how it becomes instructions, RTL, gates, transistors, materials). Both
+navigations are rows; the intersection is one row class.
+
+---
+
+## G. Ratification + first slice
+
+Dustin ratifies D1–D7 + the phase order in one line → **tt-0 (Phase 1, ontology)** starts on `dev-tt-0`:
+modules `tensormath` (Tensor, TensorDimension, TensorMathExpression, TensorOperator, ComputeImplementation,
+TensorDecomposition), `tensortree` (TensorTreeDefinition, TensorNode, UnresolvedTensorSpace, LocalizedDimension,
+TensorMapping, TensorSelection, TensorDiscoveryPolicy) and `computelod` (ComputeLOD, ComputeKind,
+ComputeMapping, CharacterizationMapping, CompilerArtifact), the eleven rungs + kinds seeded, the `compute-lod`
+tech tree seeded with the rung concepts, validators (one root, one parent, acyclic, local validity, typed
+unresolvedness), the discovery function with its policy row, configured pages, selftests with class counts.
+Estimated as one slice; nothing installed (no core, no toolchain) until lod-1.
