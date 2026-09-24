@@ -557,3 +557,37 @@ checks + the page mount). Not yet SEEN in a browser: that needs the staging imag
 on the home stack) — his browser pass, like the earlier arcs. The σ-field visualization (owed 1) is unchanged:
 plate-mechanics still draws its root as unresolved for the stated reason, which is the point of the panel.
 
+### G.9 tt-6 — the σ field SEEN: the plate root resolves BUILT 2026-09-23 (same branch `dev-tt-0`)
+
+Owed item 1 closed, by the route that keeps every rule: no new renderer, no raw JSON, the same viewer the
+wind tree uses, and dims → channel coherent with the binding by construction.
+
+- **The field as a row.** `tensormath` gained `FEMFieldState` (seventh class): `elements_json` = one matrix row
+  per element `[cx, cy, σ_vm, σ_xx, σ_yy, σ_xy, area]`, `nodes_json` = `[x, y, u_x, u_y]` per node, plus the
+  field's own σ range, u_max, the assumption and the cited material line E/ν came from. Built by
+  `custom/fem_field.py` from the engine's tensorField; the SEED row is solved at seed time with no manager (seed
+  case + seed material option; 64 elements, σ_vm 0.888–1.081 MPa under the 1 MPa pull, E = 200 GPa / ν = 0.29
+  literature-est) — if the engine cannot solve, the seed is empty and says why; `POST /api/tensormath/fem/{case}/
+  materialise` re-solves with the live rows (`GET …/fem/{case}` says whether it is drawable and why not).
+- **A 2-D `field` binding kind.** `simSpace/compilers/field_projection_2d.py` + one branch in `compile_2d`:
+  a matrix-valued row fans into one object per cell at its centroid with `colorOverride` = the binding's ramp at
+  the scalar column over the binding's domain (the raw value, unit and domain ride `userData` for the tooltip;
+  a non-numeric cell is grey and says `refused`). The 3-D twin (wind arrows) is unchanged. The object model had
+  carried `colorOverride` since mag-fv; the d3 renderer now honours it (`paintOne`) as three-renderer always did.
+- **Scene + binding** seeded by tensormath: `plate-mechanics-2d` binds `FEMFieldState`; `FEMFieldState-2d` is
+  `kind=field, matrixField=elements_json, scalarCol=2, color={domain: PLATE_SIGMA_DOMAIN=[0.8e6, 1.1e6] Pa,
+  ramp: stress}`. The tensortree dimension `plate.sigma` imports the SAME constant — one number, two readers.
+- **The tree, honestly.** Root `plate` = x/y → position, σ → color, `binding_ref FEMFieldState-2d` → RESOLVED on
+  a real boot. `u` moved to `plate-displacement` (x/y/u → vector) which stays UNRESOLVED for the stated reason
+  (2-D has no vector channel) with a typed visualization space under it carrying the two candidate bindings and
+  the open exaggeration question. The validator got stricter: when an instance holds any
+  SimSpaceBindingDefinition rows, a `binding_ref` must name one of them (a resolved node is one a viewer can
+  draw) — the selftest proves both directions.
+- **Pages.** `tensormath` rows 4–5 (field-state table; the plate scene), `tensortree` row 3 (the plate scene
+  beside the wind scene).
+- **Proof.** tensormath 55/55, tensortree 54/54, pendulum3d 9/9, wind coupling 30/30, live boot **71/71**
+  (root resolved; field from seed; materialise refreshes not duplicates; the snapshot of `plate-mechanics-2d`
+  = 64 cells with >3 distinct colours); Angular tsc clean. Unseen in a browser until the images rebuild.
+- **Next slices stated, not built:** the triangles themselves (polygon cells sized in space units, not
+  markers), a 2-D `vector` kind for u, `wind-spatial`'s `wind-turbulence` space likewise.
+
