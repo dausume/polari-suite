@@ -475,3 +475,16 @@ and the delay are left UNRESOLVED on purpose (lod-2 needs a Liberty). `GET /api/
 it; the page shows each step with its evidence. Ordering note: the compiler rung's row is what the compiler
 PRODUCED (the assembly), so the chain links ref-to-ref. NEXT (order 1→2→4→3): tt-2 continuum mechanics on the
 FEM resolution; then lod-2 (Liberty: cntfet/sifet cells or SKY130; OpenSTA delay with conditions).
+
+### G.4 tt-2 BUILT 2026-09-23 (same branch `dev-tt-0`)
+
+Validation B on the msci FEM resolution: `fem:<case>:<field>` engine storage solves an `FEMModelDefinition`
+(seeded `tt2-plate-tension`: electrical-steel plate, E/ν from the CITED magnetics material option, plane stress)
+and exposes u, ε, σ, C, centroids as tensors; σ_ij = C_ijkl ε_kl by named contraction equals the engine's σ to
+1e-9 — TensorMath and the FEM engine agree. The operator `stress-from-strain` has one numpy implementation whose
+latency is a per-call reading (no invented benchmark; lad-5 stores those). The `plate-mechanics` tree carries
+u→ε→σ→balance as mappings; its root is UNRESOLVED for the stated reason (an element field has no sim-space
+binding yet — a typed visualization space names the candidates). Live boot 52/52.
+NEXT (order …→6→7→5): tt-3 = the σ field's binding (a 2-D field binding over an FEM execution row, or a
+sci-xy-chart profile fed from evaluate — the first slice that touches the Angular side) and the tensor-hardware
+comparison (numpy vs the hwfpga kernel, lad-5 benchmark rows); lod-2 = Liberty + OpenSTA with conditions.
