@@ -676,3 +676,34 @@ The last owed rung-step, taken the honest way: not simulated, READ. `computelod/
   rows, which is lod-4's job.
 - Proof: computelod 70/70, live boot **80/80**.
 
+### G.13 lod-4 (first slice) — fabrication → materials: the ELEVENTH rung entered BUILT 2026-09-24 (same branch)
+
+`computelod/custom/lod4_process.py` — a reading, nothing fetched:
+
+- **layout → fabrication** RESOLVED by name onto a `SiliconProcessNode` row `sky130`, written in sifet's own
+  ladder shape and vocabularies (130 nm planar bulk, 1.8 V core, `l_min_um 0.15` READ from the lod-3 netlists,
+  5 metals from the PDK docs — each key number carries its source; Apache-2.0 verified on the files read →
+  `rights_class incorporable-open`; `fabrication_evidence measured-fabricated-device` — a foundry process). It
+  is seeded by computelod (skipped when sifet is absent) and NOT added to sifet's ratified prior nodes; on a
+  live boot sifet's own `ladder_report` simply shows it as the coarsest rung, the prior nodes unchanged.
+  **`manufacturable` is left None** (evidence-only) with the evidence named — SkyWater fabricates SKY130 and
+  Google-sponsored open MPW shuttles (Efabless, 2020–2023) accepted designs under this PDK — because the sifet
+  ladder's rule says "today: no rung qualifies" and flipping that is a person's ruling:
+  **D-lod4-1 (his): does SKY130 qualify as MANUFACTURABLE under the ladder rule (current shuttle availability
+  and terms to be verified)?**
+- **fabrication → materials** (one-to-many, implemented, analytical): the substrate is sifet's `SiliconGrade
+  eg-si` (9N–11N) reached by `RefinementRoute siemens-route` (mg-si → TCS → Czochralski; cited there [CEC12]).
+  The metal stack (Al / W plugs), gate oxide/poly and the dopants are NAMED as not modelled — the rung is
+  entered, not exhausted.
+- The CNT branch stays blocked at LAYOUT (lod-3), not at process: its process rows (cntfet `cnt_process_basis`:
+  alignment, placement, purification, contact, lithography, gate stack) are named so the gap is precise.
+- `GET /api/computelod/lod4` (report + the live process-node row). **The walk from `c = a + b` now spans all
+  eleven rungs** and ends at materials — the ladder's bottom, not a gap.
+- Proof: computelod 75/75, sifet ladder 31/31 (unchanged), live boot **82/82**.
+
+With G.13 every rung of the ratified ladder has at least one real reading on the SKY130 branch (C → compiler
+→ ISA → microarchitecture → RTL → netlist → cells → transistors → layout → process → silicon), and the CNT
+branch reaches transistors over a device this instance derived and characterized itself. What deepens each rung
+from here is stated in the rows' notes (DRC/LVS, corner simulation, process steps as rows, the metal stack,
+PyTorch by D5 when a workload asks for it).
+
