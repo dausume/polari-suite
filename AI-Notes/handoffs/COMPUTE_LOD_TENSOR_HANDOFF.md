@@ -19,8 +19,8 @@ ratified 2026-09-23; §G.1–G.7 are the build status). Branch `dev-tt-0` in the
     cd polari-rf-node/polari-framework
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 55
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 63
-    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 60
-    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 79/79 on a REAL boot
+    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 70
+    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 80/80 on a REAL boot
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json)   # the tensor-tree-panel type-checks (tt-5)
     # re-run the tool chains (docker; nothing installed on the host):
     docker build -t polari-computelod-tools:noble modules/computelod/custom/tools     # gcc-riscv64 13.2 · yosys 0.33 · verilator · iverilog · nextpnr-ice40 · icestorm
@@ -31,7 +31,7 @@ ratified 2026-09-23; §G.1–G.7 are the build status). Branch `dev-tt-0` in the
 
 Live surfaces: `/api/tensormath` (+ evaluate, operators/{name}, benchmark, fem/{case} [/materialise]), `/api/tensortree` (+ trees/{name}
 /graph /validate /view, select, discover, scale/{material} [/materialise], mappings/{name}/couple), `/api/computelod` (+ rungs/{name},
-walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt); pages `/display/tensormath|tensortree|computelod`.
+walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3); pages `/display/tensormath|tensortree|computelod`.
 
 ## What each slice proved (the honest parts are the point)
 
@@ -77,6 +77,9 @@ select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/vie
    `GET|POST /api/tensortree/mappings/{name}/couple`, derived from the nodes' tensors, refused by name.
 3. ~~The CNT cell library as a second Liberty~~ ✅ lod-2b (plan §G.11): `python3 -m computelod.custom.lod2_cnt run`
    from a throwaway cwd; ngspice/OpenVAF live in `~/tools` on pol-core (the cntfet ladder finds them).
-4. **lod-3**: cells → transistors (sky130_fd_pr SPICE) → layout (Magic/KLayout, DRC/LVS) → PSPP process rows.
+4. ~~lod-3: cells → transistors → layout~~ ✅ first slice (plan §G.12): READ from the PDK's per-cell .spice/.lef
+   (1050 transistors; LEF area == Liberty area) and the CNT cell library (1016; no layout). Still open under it:
+   DRC/LVS (Magic/netgen), sky130_fd_pr corner simulation, lod-4 = fabrication → materials via the microchip
+   ladder's process rows.
 5. **PyTorch** as a third implementation (D5: deferred until a workload benefits).
 6. **Merge `dev-tt-0` → dev** (his word), then `pol modules publish tensormath tensortree computelod`.

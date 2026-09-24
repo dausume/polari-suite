@@ -648,3 +648,31 @@ characterizations; the two propagation-delay rows carry different conditions and
 Proof: computelod 60/60, live boot **79/79**. Gotcha recorded: a `pgrep -f <pattern>` waiter matches its own
 command line — the background waiter spun for 12 h after the run had finished (23:35).
 
+### G.12 lod-3 (first slice) — cells → transistors → layout, READ from the artefacts BUILT 2026-09-24 (same branch)
+
+The last owed rung-step, taken the honest way: not simulated, READ. `computelod/custom/lod3_cells.py run`:
+
+- **SKY130.** For each of the seven cell types the mapped adder uses, the PDK's own `.spice` and `.lef` are
+  fetched from `google/skywater-pdk-libs-sky130_fd_sc_hd` at a PINNED commit (ac7fb61f…) into the cache and
+  cited per file by url + sha256 (never committed, as with the Liberty). The netlists are parsed down to every
+  transistor (model, W, L — the PDK's 1e-6 scale applied: `w=1e+06u` = 1.0 µm): xnor2_1 = 10 (5 pfet_01v8_hvt +
+  5 nfet_01v8), maj3_1 = 14, nand2/nor2 = 4, o21ai_0 = 6, isobufsrc = 6, xor2 = 10; every device L = 0.15 µm.
+  **The adder = 1050 transistors** (525 p-hvt + 525 n). The LEF `SIZE` of every mapped cell, summed over the
+  96 instances, is **855.82 µm² — identical to lod-2's Liberty area** (`yosys stat -liberty`): two independent
+  PDK sources agree, which is what turns `devices → layout` into `validated`. Evidence level `analytical`
+  throughout (cited files, no tool run).
+- **CNT.** Each cell → its device list in cntfet's `CELL_LIBRARY` (composites expanded), the SAME topology the
+  ngspice characterization netlisted: **1016 transistors** (508 p + 508 n) over `cnt-aligned-s1` + its derived
+  partner; evidence `simulated` (the device is a model). **No layout exists** → `lod3-cnt: devices → layout` is
+  `kind=unresolved`, stated.
+- **Rows** (seed merges by name): `lod2: standard cells → devices` RESOLVED (partial → one-to-many, analytical);
+  `lod3: devices → layout` (validated, the area cross-check in its notes); `lod3: layout → fabrication`
+  PARTIAL (the process rows behind sky130_fd_pr — lod-4); the CNT cells → devices row now carries its
+  transistor count; three characterizations (1050 / 1016 transistors, 855.82 µm² LEF area). `not_done` lists
+  DRC/LVS (Magic + netgen), transistor-level simulation with sky130_fd_pr corners, fabrication, CNT layout.
+- `GET /api/computelod/lod3` (summary without the per-device lists). **The walk from `c = a + b` now spans
+  TEN of the eleven rungs** — C → compiler → ISA → microarchitecture → RTL → netlist → cells → devices → layout →
+  fabrication (partial) — with the eleventh, materials, reachable only through the microchip ladder's process
+  rows, which is lod-4's job.
+- Proof: computelod 70/70, live boot **80/80**.
+
