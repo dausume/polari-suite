@@ -432,7 +432,7 @@ navigations are rows; the intersection is one row class.
 
 ## G. Ratification + first slice
 
-Dustin ratifies D1–D7 + the phase order in one line → **tt-0 (Phase 1, ontology)** starts on `dev-tt-0`:
+**RATIFIED by Dustin 2026-09-23** ("this all sounds good for all of the D decisions") → **tt-0 (Phase 1, ontology)** starts on `dev-tt-0`:
 modules `tensormath` (Tensor, TensorDimension, TensorMathExpression, TensorOperator, ComputeImplementation,
 TensorDecomposition), `tensortree` (TensorTreeDefinition, TensorNode, UnresolvedTensorSpace, LocalizedDimension,
 TensorMapping, TensorSelection, TensorDiscoveryPolicy) and `computelod` (ComputeLOD, ComputeKind,
