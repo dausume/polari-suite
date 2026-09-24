@@ -488,3 +488,16 @@ binding yet — a typed visualization space names the candidates). Live boot 52/
 NEXT (order …→6→7→5): tt-3 = the σ field's binding (a 2-D field binding over an FEM execution row, or a
 sci-xy-chart profile fed from evaluate — the first slice that touches the Angular side) and the tensor-hardware
 comparison (numpy vs the hwfpga kernel, lad-5 benchmark rows); lod-2 = Liberty + OpenSTA with conditions.
+
+### G.5 tt-3 / Phase 6 BUILT 2026-09-23 (same branch `dev-tt-0`)
+
+σ = C:ε on an open FPGA beside numpy: `tensormath/custom/fpga_kernel.py` (the pinned image gained nextpnr-ice40 +
+icestorm). The streaming form (16 multipliers) did not fit an HX8K — 49k LUT4 vs 7,680 — recorded as the lesson;
+the time-multiplexed kernel (one multiplier, 17 cycles/element, exact on all 64 real elements) behind a
+register-bus top fits: 4,185/7,680 LCs, Fmax 32.3 MHz → 0.53 µs/element (DERIVED, labelled). `POST
+/api/tensormath/benchmark` measures the numpy row here (1.64 µs/element on pol-core, median of 30). One operator,
+two implementations, each with its own evidence level — the bridge of §F8, live. PyTorch deferred (D5). Selftest
+49/49; live boot 55/55. The branch `dev-tt-0` holds tt-0 · tt-1 · lod-1 · tt-2 · tt-3.
+NEXT (order …→7→5): Phase 7 multiscale integration (FEM/MD/DFT resolutions + PSPP ScaleTransferDefinition as
+`kind=scale` mappings executed as SimulationCouplingDefinitions), then Phase 5 open silicon (lod-2: Liberty +
+OpenSTA with conditions; the netlist → standard-cells mapping left unresolved by lod-1).
