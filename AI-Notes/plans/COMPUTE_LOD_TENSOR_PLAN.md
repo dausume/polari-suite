@@ -451,3 +451,15 @@ unresolved space); discovery refuses before it scores, and a policy row change f
 fixed on the way: dep-0/1's DeployTarget/DeployRecord were never in defClassList (could not type/persist).
 NEXT tt-1: a real Tensor over the waxprint thermal state (storage_kind=engine), a 3-node tree, bindings rendered
 in the 3D sim space, a TensorSelection from a panel action, discovery live. Merge tt-0 to dev on his word.
+
+### G.2 tt-1 BUILT 2026-09-23 (same branch `dev-tt-0`)
+
+`storage_kind=engine` reads live simulation state (a grid field on one row, or a sim-state series); `wind-field` =
+the wind→pendulum coupling's 4×4×4 grid as a rank-4 tensor and `waxprint-series` as the rank-2 time series (D3's
+waxprint thermal field is per-step scalars, not spatial — stated, not papered over); the seeded tree `wind-spatial`
+with a RESOLVED root bound to the proven `WindFieldGridState-3d` binding, a resolved slice, a typed unresolved
+space, and three mappings incl. the REAL coupling by reference and a proposed calm-only decomposition;
+`POST /api/tensortree/select` creates the selection row and returns its discovery; the page hosts the existing
+sim-space viewer. Live boot 42/42: the coupling ranks first, the calm-only hypothesis is refused on the gusty
+selection. NEXT: lod-1 (the teaching path C → GCC → RISC-V add → PicoRV32 → Yosys netlist) per the order
+1→2→4→…; then tt-2 (continuum mechanics on the FEM resolution).
