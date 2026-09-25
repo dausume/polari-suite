@@ -1350,3 +1350,51 @@ The formal tier, as an engines worker, with the pins where D-pf-11 said and the 
 - Not done: the CI `proofs` stage (plan §I.9 — advisory; Lean on the theorems whose `.lean` changed); pf-3 authoring;
   pf-4 proofs as TechNodes; a topology instance row for a proof-engines worker (none seeded, as with eda-engines —
   `pol allocate` needs an instance to exist).
+
+### G.25 pf-3 — authoring doors + the pipeline's `proofs` stage BUILT 2026-09-25 (branch `dev-pf-3` off `dev-pf-2`)
+
+His steer while building: "we have multiple samples of how to make interfaces for latex/katex already through the
+app that use assistive ui panels that act as entry using the symbols as buttons and categorizing them" — so the claim
+editor IS that shape (latex-edit-dialog + equation-symbol-palette), with our vocabulary:
+
+- **The doors (`mathproofs/custom/authoring.py`, never a raw row insert)**: `POST /api/mathproofs/terms/preview`
+  {statement} → the term validated (errors by path), its LaTeX DERIVED here, the tier that would speak, its
+  statement_hash — the editor's live preview, one derivation, in the backend (D-pf-2 kept: LaTeX is never authored);
+  `POST /api/mathproofs/claims` {name, kind, about, statement, description, scope, budget_s, from} → validated
+  (kind ∈ the nine; the rows it speaks of must exist; 409 on a name that exists — claims are re-checked, not
+  re-written), stored with provenance "authored by a person (…) from …", CHECKED AT ONCE through its cheapest tier —
+  except a general (lean) statement, which is stored and told how to ask (plan §I.9); `POST
+  /api/mathproofs/obligations/propose` {mapping, selection, via?} — the discovery result's door: the candidate's
+  validity on THIS selection as a durable row (`subset(scope:<claim>, validity:<m>)`, the selection's ranges as the
+  claim's scope) under the rule name `proposed-from-discovery`, and, arriving `via` a link, the chain pair the rules
+  would demand (domains + dims); the interval tier decides at once, a refutation names the dim, the row goes stale
+  when the mapping's validity moves; idempotent by name. Every discovery candidate now CARRIES its door (`propose`:
+  method, path, body) through the soft seam; `select`/`discover` take `via`.
+- **The editor (Angular, `claim-edit-dialog`, beside `latex-edit-dialog` and sharing its stylesheet)**: name / kind /
+  about / description / budget; the term textarea; the palette — `equation-symbol-palette` generalised with an
+  `@Input() categories` and a `SymbolPaletteEntry.insert` (the button shows the glyph, e.g. ∀, and inserts the JSON
+  snippet; `filterPalette` searches the inserted text too; the LaTeX editors are unchanged) — fed the new
+  `models/proofs/ClaimTermPalette.ts`: Quantifiers (∀ over rows / over a domain, ∃) · Sets & domains (⊆, ∈, dims) ·
+  Comparisons (=, = ± ε, ≤ < ≥ >) · Logic (∧ ∨ ¬ ⇒, given, recorded) · Reading rows (ref, Σ max min #, + ·) ·
+  Templates (σ symmetry (n), composition linear, restriction idempotent, the chain theorem, MAC never overflows), each
+  with a tooltip and the proofs page as its docs link; the preview card renders the BACKEND's LaTeX (debounced
+  preview call) with the tier and the hash; Save = write + check, and the verdict card shows what the tier said
+  (with the counterexample when refuted) before the dialog closes.
+- **Where it opens**: the tensor-tree panel — `claim` on every mapping row (about prefilled with the mapping), and
+  `propose: valid on this selection` on every discovery candidate (one click through the door; the result inline;
+  the mappings' badges reload). The mathproofs page's claims table renders `statement_latex` through the new
+  `latex` column format of `class-rows-table` (the shared `katex-display`; no new component for that).
+- **The pipeline's `proofs` stage (plan §I.9, ADVISORY)**: `polari-framework/tests/proofs_stage.py` (boot the real
+  server in the built image; every claim through its cheapest tier; the Lean certificates only where the ladder
+  resolves — `PROOF_ENGINES_URL` named by the pipeline device — and only the `.lean` files whose sha256 differs from
+  their last recorded proof; JSON out; exit 0 always), `polari-jenkins/proofs.sh <out>` (`docker run --rm --network
+  host -u host-uid -v out:/out … tests/proofs_stage.py --out /out/results.json`, the scans' rule: recorded, never a
+  build failure), a stage in `Jenkinsfile.test` after the selftests, `verdict.py` (`proofs_summary`, a line in `show`)
+  and `report.py` (a "Proofs (ADVISORY)" section). Proven here against a freshly built backend image with the worker
+  named: 26 claims, Lean checked through the remote worker, the one red = the deliberately refuted seed, verdict
+  line + report section rendered; 122 s (the boot is most of it).
+- Proof: mathproofs **79/79**, tensortree 64/64, tsc clean + `ng build` clean, live boot **123/123** (preview; an
+  authored claim decided by z3 at once; 409/400 by name; the candidate's door; the proposal through it — three rows
+  decided; the aggregate now 30 claims / 1050 s worst case).
+- Not done: pf-4 (MathClaims as TechNodes); the mathproofs page has no "+ claim" of its own (the doors live on the
+  panel and the API); the discovery's `via` is only what a caller passes (the panel's follow does not yet pass it).

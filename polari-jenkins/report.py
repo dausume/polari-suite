@@ -115,6 +115,21 @@ def render(run_dir):
         a('    (no image ids recorded — no isle stage installed anything)')
     a('')
 
+    # ------------------------------------------------------------------- proofs
+    pf = v.get('proofs') or {}
+    a(BAR)
+    a('## Proofs (ADVISORY — a red verdict is recorded, not enforced; plan COMPUTE_LOD_TENSOR §I.9)')
+    a('')
+    if pf.get('ran'):
+        a('    by status  %s' % (' '.join('%s=%s' % kv for kv in sorted((pf.get('counts') or {}).items())) or 'no claims'))
+        a('    red        %s' % (', '.join(pf.get('red') or []) or 'none'))
+        ln = pf.get('lean') or {}
+        a('    lean       %s' % (('checked %d certificate(s), %d unchanged since their last proof' % (ln.get('checked', 0), ln.get('unchanged', 0))) if not ln.get('not_run') else 'not run: %s' % str(ln.get('not_run'))[:120]))
+        a('    budget     worst case %s s if every long-running tier used its budget; this run %s s' % (pf.get('worst_case_s'), pf.get('elapsed_s')))
+    else:
+        a('    not run (no backend image on this device, or the stage could not start)')
+    a('')
+
     # ------------------------------------------------------------------- scans
     a(BAR)
     a('## Scans (ADVISORY — no finding changed the verdict)')

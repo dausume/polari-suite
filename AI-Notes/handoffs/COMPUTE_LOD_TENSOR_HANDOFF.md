@@ -1,4 +1,4 @@
-# Handoff — the Compute LOD + Tensor arc (2026-09-23/25, after pf-2): what is built, how to prove it, what is owed
+# Handoff — the Compute LOD + Tensor arc (2026-09-23/25, after pf-3): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
 ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
@@ -23,8 +23,10 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 61
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 64
     PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 91 (the lod cross-checks as claim rows, pf-1)
-    PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 70 (pf-0 + pf-1 z3 + pf-2 lean)
-    rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 116/116 on a REAL boot (branch dev-pf-2) — from the framework dir, data/ cleared
+    PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 79 (pf-0 + pf-1 z3 + pf-2 lean + pf-3 doors)
+    rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 123/123 on a REAL boot (branch dev-pf-3) — from the framework dir, data/ cleared
+    (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json && npx ng build --configuration development)   # the claim editor + panel doors compile
+    CI_SELFTEST_IMAGE=<built image> PROOF_ENGINES_URL=http://localhost:9810 bash ../../polari-jenkins/proofs.sh /tmp/proofs   # the pipeline's proofs stage, by hand
     pip install --user z3-solver==5.1.0.0      # once, on a glibc host (the image takes z3 from apk — see G.23)
     (cd ../polari-proof-tools && docker build -t polari-proof-tools:noble .)    # the Lean tier: 11 GB once (Mathlib's cache); then the probe proves the 3 theorems via the local image
     (cd .. && docker compose -p proof-engines -f docker-compose.proof-engines.yml up -d)   # …or as the WORKER; PROOF_ENGINES_URL=http://localhost:9810 makes the probe use it
@@ -98,7 +100,13 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
 
-## State at handoff (2026-09-25, after pf-2)
+## State at handoff (2026-09-25, after pf-3)
+
+pf-3 on `dev-pf-3` (framework + angular + suite/polari-jenkins): the doors, the editor, the panel buttons, the
+proofs stage — plan §G.25. Merge order now `dev-tt-0 → dev-pf-0 → dev-pf-1 → dev-pf-2 → dev-pf-3` (angular:
+`dev-tt-0 → dev-pf-0 → dev-pf-3`).
+
+## State at 2026-09-25, after pf-2
 
 pf-1 on `dev-pf-1` (the z3 tier, boot-time obligations, the knob, the lod claims asserted in computelod, the Alpine
 z3 route; budget 25 s — plan §G.23) and pf-2 on `dev-pf-2` (the Lean tier through the new `polari-proof-tools`
@@ -114,15 +122,17 @@ fetch the PDK before re-running any lod-3c/3b/2/1 flow:
     cd polari-rf-node/polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh
     docker pull openroad/opensta
 
-## What is left, and who does it (order as of 2026-09-25, after pf-2)
+## What is left, and who does it (order as of 2026-09-25, after pf-3)
 
 Branches: `dev-tt-0` (tt-0..11, lod-1..4 incl. 2b/3b/3c, the engines seam), `dev-pf-0` on top (pf-0, the
 vocabulary correction), `dev-pf-1` (pf-1: the z3 tier, boot-time obligations, the knob, the lod claims in
 computelod's selftest, the Alpine z3 route; budget 25 s), `dev-pf-2` (pf-2: the Lean tier — NEW submodule
 `polari-rf-node/polari-proof-tools` on its own `dev`, the ladder, three theorems proved live) — in the suite,
 polari-rf-node, polari-framework (no Angular change since dev-pf-0: the angular branch stays dev-pf-0); the
-submodules `polari-eda-tools` and `polari-proof-tools` are on their own `dev`. All pushed, none merged. Live boot
-on dev-pf-2: **116/116** (both engine modes).
+submodules `polari-eda-tools` and `polari-proof-tools` are on their own `dev`; `dev-pf-3` (pf-3: the authoring doors,
+the claim editor in the palette shape, the pipeline's `proofs` stage) in the suite (incl. polari-jenkins), rf-node,
+framework AND angular (the angular branch is `dev-pf-3` off `dev-pf-0` — pf-1/pf-2 had no Angular change). All
+pushed, none merged. Live boot on dev-pf-3: **123/123**.
 
 1. ~~pf-1~~ **BUILT 2026-09-25** — plan §G.23. Everything in the former item landed: `custom/z3tier.py` (continuum
    forall/exists with the model as the counterexample; `subset` re-derived and agreeing with the interval tier;
@@ -138,7 +148,11 @@ on dev-pf-2: **116/116** (both engine modes).
    bridge; proved only when lean accepts AND the hash matches), the three D-pf-10 theorems PROVED live through the
    local image and through the worker (2.3–3.9 s each). Not done: the CI `proofs` stage; a topology instance for
    the worker. The former item's text follows for reference:
-   **pf-2 — Lean 4 through `polari-proof-tools` (as planned).** A NEW repo `dausume/polari-proof-tools`, submodule of
+   **pf-2 — Lean 4 through `polari-proof-tools` (as planned).**
+   ~~pf-3~~ **BUILT 2026-09-25** — plan §G.25: the three doors (`terms/preview`, `POST claims`, `obligations/
+   propose`), the claim editor in the app's LaTeX-palette shape with the term language as the categories (his
+   steer), the panel's `claim` / `propose` buttons, the `latex` table column, and the pipeline's ADVISORY `proofs`
+   stage (proofs_stage.py, proofs.sh, Jenkinsfile.test, verdict/report). Not done: pf-4 (claims as TechNodes). A NEW repo `dausume/polari-proof-tools`, submodule of
    polari-rf-node beside polari-eda-tools, in the SAME shape (Dockerfile: elan + ONE pinned Lean release +
    Mathlib at ONE pinned commit with oleans cached in the image; `lean-toolchain` + `lake-manifest.json`
    committed — D-pf-11; `proof_engines_service.py` = an engines WORKER: `/capability` + `/check`; `theorems/`
@@ -164,7 +178,7 @@ on dev-pf-2: **116/116** (both engine modes).
     (cd polari-rf-node/polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh)
     cd polari-rf-node/polari-framework && PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py   # 60
     rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 110/110 (from the framework dir; data/ is gitignored and empty)
-    # then: his browser pass / D-lod4-1 / the merge word (items 3–5), or pf-3 authoring on dev-pf-3 off dev-pf-2
+    # then: his browser pass / D-lod4-1 / the merge word (items 3–5), or pf-4 (claims as TechNodes) on dev-pf-4 off dev-pf-3
 
 ## Gotchas a fresh session will hit (all in memory too)
 

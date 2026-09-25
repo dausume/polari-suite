@@ -66,6 +66,15 @@ def scan_summary(run_dir):
             'advisory': 'scans never gate — these counts are recorded, not enforced'}
 
 
+def proofs_summary(run_dir):
+    doc = _load(os.path.join(run_dir, 'proofs', 'results.json'))
+    return {'ran': bool(doc.get('ran')), 'counts': doc.get('counts') or {}, 'red': [r.get('claim') for r in (doc.get('red') or [])],
+            'lean': {'checked': len((doc.get('lean') or {}).get('checked') or []), 'unchanged': len((doc.get('lean') or {}).get('skipped_unchanged') or []),
+                     'not_run': (doc.get('lean') or {}).get('not_run')},
+            'worst_case_s': (doc.get('aggregate') or {}).get('worst_case_s'), 'elapsed_s': doc.get('elapsed_s'),
+            'advisory': 'proofs never gate — a red verdict is recorded, not enforced (plan §I.9)'}
+
+
 def isle_summary(run_dir):
     doc = _load(os.path.join(run_dir, 'isle-test', 'results.json'))
     if not doc:
@@ -175,13 +184,14 @@ def build(args):
     run_dir = args.run_dir
     selftests = selftest_summary(run_dir)
     scans = scan_summary(run_dir)
+    proofs = proofs_summary(run_dir)
     isle = isle_summary(run_dir)
     built = str(args.built).lower() in ('1', 'true', 'yes')
     verdict, why = decide(built, selftests, isle)
     doc = {
         'sha': args.sha, 'branch': args.branch, 'device': args.device, 'run': args.run,
         'built': built,
-        'scans': scans, 'selftests': selftests, 'isle': isle,
+        'scans': scans, 'proofs': proofs, 'selftests': selftests, 'isle': isle,
         'verdict': verdict, 'why': why,
         'decided_by': 'pipeline',
         # ci-3: the one page a person reads. report.py renders it beside this file.
@@ -215,6 +225,12 @@ def show(doc):
     sc = (doc.get('scans') or {}).get('totals') or {}
     print('  scans      %s   (ADVISORY — no finding changes this verdict)'
           % (' '.join('%s=%s' % (k, v) for k, v in sorted(sc.items()) if v) or 'nothing found'))
+    pf = doc.get('proofs') or {}
+    print('  proofs     %s   (ADVISORY — a red verdict changes nothing here)'
+          % (('%s; red: %s; lean %s' % (' '.join('%s=%s' % kv for kv in sorted((pf.get('counts') or {}).items())) or 'no claims',
+                                        ', '.join(pf.get('red') or []) or 'none',
+                                        ('checked %d, unchanged %d' % ((pf.get('lean') or {}).get('checked', 0), (pf.get('lean') or {}).get('unchanged', 0))) if not (pf.get('lean') or {}).get('not_run') else 'not run'))
+             if pf.get('ran') else 'not run'))
     for row in (isle.get('stage_rows') or []):
         tto = row.get('time_to_online')
         print('    stage %-2s %-18s install=%s (%s)  verify=%s  suites=%s/%s  uninstall=%s'

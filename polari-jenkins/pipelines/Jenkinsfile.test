@@ -250,6 +250,22 @@ pipeline {
       }
     }
 
+    // ------------------------------------------- 5a'. the proofs (ADVISORY, plan COMPUTE_LOD_TENSOR §I.9)
+    // Every MathClaim through its cheapest tier in the image just built; the
+    // Lean certificates only where this device resolves a checker and only the
+    // files that changed. A red verdict is recorded for the report, never a
+    // build failure — the scans' rule, until he says otherwise.
+    stage('proofs (ADVISORY — a red verdict is recorded, not enforced)') {
+      when { expression { env.PROCEED == 'yes' } }
+      steps {
+        catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+          sh '''set +e
+            bash /var/polari-jenkins/proofs.sh "$RUN_DIR/proofs"
+            exit 0'''
+        }
+      }
+    }
+
     // ------------------------------------------- 5b. the tests that DO need an isle
     // The stage loop is polari-isle-test's, unchanged and not copied: it is the
     // one implementation of preflight → up → install+test (ci-3) → uninstall →
