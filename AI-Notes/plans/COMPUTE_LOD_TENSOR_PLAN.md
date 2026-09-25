@@ -1424,3 +1424,79 @@ editor IS that shape (latex-edit-dialog + equation-symbol-palette), with our voc
 - The proofs arc pf-0..pf-4 is now built. Left on the arc: his browser pass (§H.1 — now also the claim editor, the
   panel's `claim`/`propose` doors, the `latex` column, the tensor-proofs tree in the techtree display), D-lod4-1, the
   merge word; then §H.3 further lod.
+
+### H.1 RESULTS — the browser pass RUN 2026-09-25 (Chrome via the extension; the node stack on the home swarm)
+
+Bring-up (from a stripped checkout): `pol swarm init` (needs `LOCAL_IP` on pol-core), `pol security setup dev` +
+`POLARI_ROTATE_KC=no pol security node-setup staging`, `pol swarm render node` with `POLARI_MODULES` exported (the core
+is down: nothing to derive from), the images built, the stack deployed from `.generated/stack-node-nofs.yml` — the
+file store REMOVED because **`minio/minio` no longer exists on Docker Hub** (the whole repository; quay too) so
+`prf-file-store` cannot build anywhere — his decision (SeaweedFS / RustFS Apache-2.0; Garage AGPL); the backend's
+`ca/root_ca.crt` bind = the proxy CA (`install -D prf-proxy/certs/ca/prf-ca.crt ca/root_ca.crt`); the proxy's
+file-store upstreams pointed at loopback for the pass (nginx refuses to start on an unresolvable upstream). Chrome
+trusts the dev CA through the user NSS store (`certutil -A -n "Polari Dev CA (staging pass)"`) — Chrome only reads
+it at start. Display pages need no login.
+
+**What read TRUE on screen** (every row of §H.1 that is not listed below as a gap):
+- `/display/tensortree`: three chips with counts (2/2 · 1/1 · 3/4); wind-grid solid, slice solid, turbulence dashed
+  "unresolved · semantic"; the three arcs (blue restriction ✓, coupling to the "→ pendulum-bob (another tree)" stub,
+  grey dashed decomposition ∅); click wind-grid → tensor/binding, dims → channels (x/y/z → position, speed → color
+  0–12 m/s, component → vector), the gust-corner selection prefilled; discover → ranked candidates with score bars,
+  "not defined on this selection" list with the reason; **the `propose` door** → `valid-on-selection: decided` inline;
+  the mappings list with badges and **the `claim` door** → the editor in the palette shape: about prefilled, the
+  palette buttons render their glyphs and INSERT the term snippets (tooltip says what it inserts), the preview renders
+  the backend-derived LaTeX with `TIER: Z3` and the hash, "Write the claim and check it" → `holds (z3) → decided`
+  shown before closing (claim `pass-slice-z-within-band` now exists on that instance). Plate tree: root resolved
+  4 dims, u and mesh resolved, ε unresolved (no localized dims — as seeded). The plate scene: 2 m × 1 m, 64 coloured
+  triangles (green at the fixed edge, one red corner cell, yellow elsewhere), mesh edges, displacement lines growing
+  to the right; hover = a tooltip. Tables: nodes, spaces, dims, mappings, selections, policy — configured, no JSON walls.
+- `/display/mathproofs`: the claims table with the **LaTeX column rendered** (KaTeX), statuses/checkers/evidence;
+  `/display/tensormath`: tensors, dims, expressions, operators, the TWO implementations, the FEM field row, the plate
+  scene; `/display/computelod`: the eleven rungs, the walk from `c = a + b` through all eleven, mappings and
+  characterizations; `/tech-tree`: the `tensor-proofs` tree listed and drawn (ten nodes).
+
+**Gaps found and FIXED in the same pass** (all on `dev-pf-3`, re-verified after the rebuild — see below):
+1. Panel: the dim chips and the SELECT form were keyed by the tensor dimension's name (`wind-field.wind-speed` →
+   `wind-speed`; `tt2-sigma`, `xy`, `triangles`) instead of the LocalizedDimension's own short name (`speed`, `x`,
+   `y`, `sigma`, `element`) — so discovery from the form could not see `speed` and the drag coupling read as
+   "not defined on this selection". Rows were right; `shortDim(d.name)` now.
+2. Badge: a template-less rule's `unprovable-here` (units-compose) outranked seven positive results on the plate's
+   operator arcs — all showed `?`. New state **`gap` ◐** = every checkable obligation ok, the rest named gaps.
+3. Summary panels on four module pages said "'a,b,c' is not in this payload": `_sapi(pick='by_status,aggregate,
+   tiers')` — the structured panel took `pick` as ONE dot-path. It now takes a comma list as a subset of keys.
+4. Derived LaTeX rendered names as math italics (`wind − grid → spectrum`, `rv32_addlayoutarea`): `to_latex` wraps
+   row / set / dim names in `\text{}` (→, σ, ε mapped).
+5. The plate tooltip showed id + position only: it now shows the cell's field value first (`σ_vm = … Pa`, the colour
+   domain) — the backend already carried `userData.scalar/unit/field/domain`.
+6. Login was broken in staging: the proxy cert's SAN lacked `auth.prf.<ip>.nip.io` → the browser's check-sso fetch
+   failed TLS (`[AuthSession] check-sso redirect could not start`). `staging-setup.sh` SAN lists carry it now; cert
+   regenerated under the same CA.
+7. The wind scene carried "Class WaxPrintSimState / MoldFillSimState bound (3D) but has no instances" — other
+   modules' defaultVisible 3-D bindings; `compile_3d` warns only for classes THIS scene binds.
+8. The `tensor-proofs` tree evaluated its claims as MODULES ("module sigma-symmetry… has no ModuleAssignment", 20 false
+   gaps, 0 %): the techtree gained a **`proof` segment kind** (done ⇔ the MathClaim is settled — holds, or refuted with
+   a counterexample — read through mathproofs' status by a soft seam), the knowledge seeds use it, the payload's
+   colours carry it (green).
+9. Node labels truncated at 24 chars in 150-px boxes → 200 px, 32 chars with an ellipsis. Verdict-card title contrast.
+10. The seed-field gotcha, met live: the first boot's rows (the `theory` segments, the old `\mathrm` LaTeX) survived the
+    image roll because the core seed pass is insert-by-name. DERIVED data now converges on every boot in
+    `mathproofs/custom/boot.py`: the knowledge tree's techtree rows go through `upsert_seed_pairs`, and every claim's
+    `statement_latex` is re-derived from its term (never authored, so overwriting is the truth).
+
+**Re-verified in the browser after the rebuild:** the select form keyed by `speed` and discovery from the panel ranking
+`wind-grid→bob-drag` first (0.86, validated) as §H.1 expected; the plate arcs ◐ (`gap`) through `/view`; the summary
+panels rendering Tiers / BY STATUS / AGGREGATE; the LaTeX column with names as text (`validity:wind-grid→bob-drag`);
+the plate tooltip `von Mises = 1.00e+6 Pa (colour 8.00e+5–1.10e+6 Pa)`; the wind scene without the foreign-class
+warnings; the `tensor-proofs` tree at **63 %** with `Proof` segments (fixed point 3/3, two sources 5/5, …) and exactly
+three gaps, each naming its door (the two Lean theorems → `?tier=lean`, the decomposition's undetermined claim); the
+auth host verifying under the CA (check-sso no longer fails). Not exercised: a login (the realm allows
+self-registration, but entering credentials is not mine to do).
+
+**Gaps left as they are (named):** the 2-D viewer has no wheel zoom (the page scrolls), so the units=space scaling
+test could not be made from the browser (the triangles ARE drawn in space units — they sit on the axes' metres);
+wind arrows are absent at t = 0 (calm by construction, the tt-10 finding — playback not exercised); the renderer
+stalls for seconds on pages with a 3-D scene AND on the KaTeX-heavy mathproofs table (captures time out until it
+settles) — a viewer performance note; the TensorNode table's `status` column reads `unresolved` for nodes the
+validator resolves — the validator computes status per read and does not write it back (a small honesty gap to
+decide: persist, or drop the column from the table). Proof after the fixes: mathproofs 83/83, techtree 75/75,
+tensortree 64/64, tsc clean, live boot 126/126 (re-run after the last change — see the commit).

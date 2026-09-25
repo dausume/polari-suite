@@ -100,6 +100,12 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
 
+## State at handoff (2026-09-25 evening, after the browser pass)
+
+The node stack is UP on pol-core's single-node swarm (`polari-node`, five services, no file store — minio is gone
+upstream, his decision) from `.generated/stack-node-nofs.yml`; Chrome's NSS store trusts the dev CA ("Polari Dev CA
+(staging pass)"). The pass and its fixes: plan §H.1 RESULTS. Everything below still holds.
+
 ## State at handoff (2026-09-25, after pf-3)
 
 pf-3 on `dev-pf-3` (framework + angular + suite/polari-jenkins): the doors, the editor, the panel buttons, the
@@ -164,7 +170,13 @@ pushed, none merged. Live boot on dev-pf-3: **123/123**.
    (PROOF_ENGINES_URL → local → topology provider `mathproofs.engines` → refusal) — NEVER a device assumption;
    the `statement_hash` bridge; the first two theorems (D-pf-10): σ = C:ε symmetry in general rank; the
    tree-composition lemma; restriction idempotence as the toolchain smoke test.
-3. **His: the browser pass** (plan §H.1 — nothing of this arc's frontend has been seen: the tree panel with its
+3. ~~His: the browser pass~~ **RUN 2026-09-25 by me with Chrome attached** (plan §H.1 RESULTS): every §H.1 row read
+   true except nine gaps, all FIXED the same day on `dev-pf-3` (dim keys, the ◐ gap badge, the summary panels' CSV
+   pick, `\text{}` names in the LaTeX, the tooltip's field value, the auth-host SAN, the scene warnings, the techtree
+   `proof` segment kind, label widths) + the boot pass converging derived rows. Left for him to LOOK at (not judge
+   again): the pages as they stand on the home swarm (`pol swarm ps node`; https://prf.<LOCAL_IP>.nip.io/display/
+   tensortree|mathproofs|tensormath|computelod, /tech-tree). The original text follows:
+   **His: the browser pass** (plan §H.1 — nothing of this arc's frontend has been seen: the tree panel with its
    proof badges, the plate scene with filled triangles / wireframe / displacement lines, the space-unit shapes; since
    pf-3: the claim editor (palette + backend-derived LaTeX preview) from a mapping row's `claim`, a candidate's
    `propose`, the mathproofs page's rendered LaTeX column, the `tensor-proofs` tree in the techtree display).
@@ -201,6 +213,18 @@ pushed, none merged. Live boot on dev-pf-3: **123/123**.
   of a bumped submodule pointer is where the pipeline's `proofs` stage (not built) would re-check them.
 - `gh repo create --source .` from the snap gh says "not a git repository" here — create bare, then add the
   remote and push (done that way for polari-proof-tools).
+- 🔴 **`minio/minio` is GONE from Docker Hub (found 2026-09-25 bringing the node stack up for the browser pass):**
+  `pol-file-store/Dockerfile` is `FROM minio/minio:latest`; the Hub API answers "object not found" for the whole
+  repository (and quay.io/minio/minio too), so `prf-file-store` cannot build anywhere — the same class of upstream
+  death as bitnami/redis (memory). For the pass the stack was deployed from `.generated/stack-node-nofs.yml` (the
+  rendered node stack minus the file-store service; a throwaway). HIS decision: the replacement (candidates with
+  GPLv3-compatible licences: SeaweedFS Apache-2.0, RustFS Apache-2.0 S3-compatible, Garage AGPL-3.0; or pin a MinIO
+  release built from source under its AGPL) — a licence-gate row + a `pol-file-store` rewrite, not a one-liner.
+- Bring-up from a stripped checkout (this pass): `pol security setup dev` + `POLARI_ROTATE_KC=no pol security
+  node-setup staging` create `.generated/.env.staging`; `LOCAL_IP` must be set on pol-core (two IPv6 addresses on
+  the wifi interface make `docker swarm init` refuse to pick one); `POLARI_MODULES` must be exported (the core is
+  down, so the rows cannot be derived) — the probe's list is the arc's list; the realm allows self-registration, so a
+  throwaway user can be made at the login page.
 - A `pgrep -f <pattern>` waiter matches its own argv — use `pgrep -f "[l]od2_cnt run"` or a pidfile.
 - ngspice-46 + OpenVAF 23.5 are on pol-core under `~/tools` (not PATH); the cntfet ladder finds them.
 - sky130 slew convention is 20–80 %: a 50 ps 0–100 % ramp is a 30 ps slew (25 % fast).
