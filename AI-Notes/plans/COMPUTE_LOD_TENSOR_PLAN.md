@@ -1223,3 +1223,27 @@ Proofs as rows, in the standard module shape, wired through the whole checklist:
 - Not yet: obligations are generated on a person's POST (not at boot) — the panel shows `–` until then; pf-1
   (z3, the lod claims as rows in computelod's selftests, discovery on refuted through the whole cycle), pf-2 (Lean).
 
+### G.22 The vocabulary correction — inapplicable · undetermined · refuted (his, 2026-09-25)
+
+> "maybe saying refuses is the wrong way to talk about it. You are saying it is not defined within that state
+> space, using the word refuse would seem you are implying it is falsified, but it is just that the model is
+> shifting with state space differences"
+
+Three different things had one word. Now each has its own, in the rows, the API and the panel:
+
+- **inapplicable** — a mapping is NOT DEFINED on the selection's state space (it needs dims the selection lacks;
+  the selection lies outside its validity domain). The model shifts with the state; nothing is falsified.
+  Discovery reports these under `inapplicable` with a `kind` (`dims-not-in-selection` | `outside-validity`); the
+  panel lists them as "not defined on this selection".
+- **undetermined** — a claim cannot be evaluated because a premise fails or a value it needs was never recorded:
+  the model is silent there. New verdict / `proof_status` `undetermined`; term-language `{"given": <premise>,
+  "holds": t}` (three-valued) and `{"recorded": ref}`. The decomposition rule now reads: GIVEN a recorded
+  reconstruction error (its `error_method` names how), it is within the bound; with none recorded the obligation
+  is undetermined — so `wind-grid→spectrum` (a tt-1 hypothesis mapping, never computed) carries ∅, not ✗.
+- **refuted** — a genuine counterexample exists (on the rows, or over symbols). Only this is falsification, and
+  only this sets a mapping aside in discovery (`refuted`, with the counterexample).
+The pre-existing `refused` key in discovery results is kept as the union of the first two-and-third lists for
+readers, each entry saying which it is. Badges: ✓ ok · ? open · ∅ undetermined · ✗ refuted · – none.
+Proof: mathproofs 42/42 (a decomposition with a recorded error is witnessed; the same rule with none is
+undetermined; the two discovery lists differ), tensortree 64/64, live boot **104/104**, tsc clean.
+
