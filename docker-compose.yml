@@ -34,7 +34,6 @@
 #
 #   File Storage:
 #     - MinIO S3 API:  http://localhost:9000
-#     - MinIO Console: http://localhost:9001
 #
 # ==============================================================================
 
@@ -76,7 +75,6 @@ services:
     restart: always
     ports:
       - "9000:9000"   # S3 API
-      - "9001:9001"   # the filer's file browser (was the MinIO console)
     networks:
       - polari-network
     env_file:

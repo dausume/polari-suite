@@ -13,7 +13,7 @@
 #
 # ACCESS:
 #   API:     http://localhost:9000   (S3-compatible)
-#   Browser: http://localhost:9001   (the filer's file browser)
+#   Browser: http://127.0.0.1:9001   (the filer's file browser — loopback only; the store has no login on it)
 #
 # ==============================================================================
 
@@ -27,7 +27,7 @@ services:
     restart: always
     ports:
       - "9000:9000"   # S3 API
-      - "9001:9001"   # filer file browser
+      - "127.0.0.1:9001:9001"   # the filer's browser page — loopback only (no login of its own)
     env_file:
       - ./minio.env
     volumes:

@@ -18,7 +18,6 @@
 #   - PSC API:       https://api.psc.example.com
 #   - PRF Frontend:  https://prf.example.com
 #   - PRF API:       https://api.prf.example.com
-#   - MinIO Console: https://files.example.com
 #   - MinIO S3 API:  https://s3.example.com
 #
 # MEMORY BUDGET (4GB total):
@@ -94,9 +93,8 @@ services:
     env_file:
       - ./.generated/.env.prod
     environment:
-      # kept for the clients that read them (presigned public URLs); the store itself does not need them
+      # kept for the clients that read it (presigned public URLs); the store itself does not need it
       - MINIO_SERVER_URL=https://s3.${PROD_DOMAIN}
-      - MINIO_BROWSER_REDIRECT_URL=https://files.${PROD_DOMAIN}
     volumes:
       - pol_file_store_data:/data
     healthcheck:

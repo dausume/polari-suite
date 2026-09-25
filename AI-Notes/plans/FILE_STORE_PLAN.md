@@ -36,8 +36,13 @@ same class of upstream death as bitnami/redis (memory). Three candidates were ch
 - Licence gate: `AI-Notes/evaluations/FILE_STORE_LICENSE_GATE.md`.
 
 ## Not done / his
-- The filer UI on :9001 has no login (MinIO's console had one): behind the proxy's `files.` host as before; a posture
-  decision for prod (drop the `files.` host, or front it with the proxy's auth).
+- ~~The filer UI on :9001 has no login~~ CLOSED 2026-09-25 (his question "so it cannot connect to keycloak and is not
+  secure?"): the filer's browser page has no login of its own and cannot be put behind Keycloak, so it is NOT
+  published any more — the `files.` host is gone from every proxy template (and the SANs), :9001 is not mapped to the
+  LAN (the PoC binds it to loopback), and the store is reached ONLY through the S3 API (:9000 — root keys, or temporary
+  keys minted from a Keycloak token). Inside the docker network the filer stays reachable for the suite's own tooling
+  (`pol shell publish`), the same trust the other service-to-service ports have. Verified live: `files.` host → 503
+  (no such vhost), `s3.` → 403 without keys, :9001 from the LAN → refused.
 - The `MINIO_*` names stay as the compatibility contract; a rename to `FILE_STORE_*` across setup scripts, compose
   files, the backend and PSC is a separate, mechanical arc if wanted.
 - Frontend use of the STS door (a browser exchanging the user's token for temporary keys) is not built — today the
