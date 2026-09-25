@@ -1398,3 +1398,29 @@ editor IS that shape (latex-edit-dialog + equation-symbol-palette), with our voc
   decided; the aggregate now 30 claims / 1050 s worst case).
 - Not done: pf-4 (MathClaims as TechNodes); the mathproofs page has no "+ claim" of its own (the doors live on the
   panel and the API); the discovery's `via` is only what a caller passes (the panel's follow does not yet pass it).
+
+### G.26 pf-4 — proofs as KNOWLEDGE BUILT 2026-09-25 (on `dev-pf-3`)
+
+- **`mathproofs/custom/knowledge.py`**: the `tensor-proofs` tech tree (techtree rows, seeded only when techtree is
+  present — exactly as computelod's concept tree): ten TechNodes = the ideas the tensor trees and the compute ladder
+  rest on — a witness is not a proof (the vocabulary root) · named-dimension contraction · minor symmetries of the
+  stiffness · linear links compose · validity domains as boxes · pairwise inclusion makes a chain valid · restriction
+  is idempotent · a decomposition must say what it loses · fixed-point arithmetic and overflow · two independent
+  sources agreeing is evidence. Edges = recommended learning order; each node CITES the MathClaims that establish it
+  (`cross_refs` relation `proved-by`, incl. the boot-generated obligations by their deterministic names), the rules it
+  underwrites, and the compute-lod rungs / tensortree mappings it rests on; a `theory` TechSegmentAssignment per cited
+  claim. Nothing is copied: the claims stay the truth.
+- **`GET /api/mathproofs/knowledge`** = the tree joined LIVE: per node the cited claims with their current status, and
+  `established` only while every cited claim is SETTLED — it holds (witnessed / decided / checked-symbolically /
+  proved, not stale) or it is refuted by a counterexample (a refutation is knowledge too: "the converse fails at speed
+  6" is a fact a person learns; listed under `refutations`); open / undetermined / unprovable-here / stale claims show
+  on the node they belong to with the reason. `by_rung` = what rtl / microarchitecture / standard-cells / devices /
+  layout rest on, each with its flag — the door the learning layer (§F, LearningMapping ≠ ComputeMapping) points at.
+- Live after boot: fixed point, two-sources-agree, linear composition, interval domains (with its refutation)
+  ESTABLISHED at once; minor symmetries and chain composition become established only once a person asked the lean
+  tier (proven in the probe: they flip when the ladder resolves); the decomposition node stays NOT established because
+  its claim is undetermined — and says so.
+- Proof: mathproofs 83/83, live boot **126/126**.
+- The proofs arc pf-0..pf-4 is now built. Left on the arc: his browser pass (§H.1 — now also the claim editor, the
+  panel's `claim`/`propose` doors, the `latex` column, the tensor-proofs tree in the techtree display), D-lod4-1, the
+  merge word; then §H.3 further lod.

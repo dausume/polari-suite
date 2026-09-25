@@ -1,4 +1,4 @@
-# Handoff — the Compute LOD + Tensor arc (2026-09-23/25, after pf-3): what is built, how to prove it, what is owed
+# Handoff — the Compute LOD + Tensor arc (2026-09-23/25, after pf-4): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
 ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
@@ -23,8 +23,8 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 61
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 64
     PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 91 (the lod cross-checks as claim rows, pf-1)
-    PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 79 (pf-0 + pf-1 z3 + pf-2 lean + pf-3 doors)
-    rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 123/123 on a REAL boot (branch dev-pf-3) — from the framework dir, data/ cleared
+    PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 83 (pf-0 + pf-1 z3 + pf-2 lean + pf-3 doors + pf-4 knowledge)
+    rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 126/126 on a REAL boot (branch dev-pf-3) — from the framework dir, data/ cleared
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json && npx ng build --configuration development)   # the claim editor + panel doors compile
     CI_SELFTEST_IMAGE=<built image> PROOF_ENGINES_URL=http://localhost:9810 bash ../../polari-jenkins/proofs.sh /tmp/proofs   # the pipeline's proofs stage, by hand
     pip install --user z3-solver==5.1.0.0      # once, on a glibc host (the image takes z3 from apk — see G.23)
@@ -152,7 +152,10 @@ pushed, none merged. Live boot on dev-pf-3: **123/123**.
    ~~pf-3~~ **BUILT 2026-09-25** — plan §G.25: the three doors (`terms/preview`, `POST claims`, `obligations/
    propose`), the claim editor in the app's LaTeX-palette shape with the term language as the categories (his
    steer), the panel's `claim` / `propose` buttons, the `latex` table column, and the pipeline's ADVISORY `proofs`
-   stage (proofs_stage.py, proofs.sh, Jenkinsfile.test, verdict/report). Not done: pf-4 (claims as TechNodes). A NEW repo `dausume/polari-proof-tools`, submodule of
+   stage (proofs_stage.py, proofs.sh, Jenkinsfile.test, verdict/report).
+   ~~pf-4~~ **BUILT 2026-09-25** (same branch) — plan §G.26: the `tensor-proofs` tech tree (ten TechNodes citing the
+   claims), `GET /api/mathproofs/knowledge` joined live (established = every cited claim settled; a refutation counts
+   as knowledge). **The proofs arc pf-0..4 is complete**; what remains on the whole arc is his (items 3–5) and §H.3. A NEW repo `dausume/polari-proof-tools`, submodule of
    polari-rf-node beside polari-eda-tools, in the SAME shape (Dockerfile: elan + ONE pinned Lean release +
    Mathlib at ONE pinned commit with oleans cached in the image; `lean-toolchain` + `lake-manifest.json`
    committed — D-pf-11; `proof_engines_service.py` = an engines WORKER: `/capability` + `/check`; `theorems/`
@@ -162,7 +165,9 @@ pushed, none merged. Live boot on dev-pf-3: **123/123**.
    the `statement_hash` bridge; the first two theorems (D-pf-10): σ = C:ε symmetry in general rank; the
    tree-composition lemma; restriction idempotence as the toolchain smoke test.
 3. **His: the browser pass** (plan §H.1 — nothing of this arc's frontend has been seen: the tree panel with its
-   proof badges, the plate scene with filled triangles / wireframe / displacement lines, the space-unit shapes).
+   proof badges, the plate scene with filled triangles / wireframe / displacement lines, the space-unit shapes; since
+   pf-3: the claim editor (palette + backend-derived LaTeX preview) from a mapping row's `claim`, a candidate's
+   `propose`, the mathproofs page's rendered LaTeX column, the `tensor-proofs` tree in the techtree display).
 4. **His: D-lod4-1** — is SKY130 manufacturable under the sifet ladder rule? (`lod4_process.py: SKY130_NODE`).
 5. **His: the merge word** — `dev-tt-0` → dev first, then `dev-pf-0`; innermost-first (eda-tools already on
    its dev; framework, angular, rf-node with the submodule pointer, suite); `push-all-dev.sh --with-isle`;
@@ -178,7 +183,7 @@ pushed, none merged. Live boot on dev-pf-3: **123/123**.
     (cd polari-rf-node/polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh)
     cd polari-rf-node/polari-framework && PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py   # 60
     rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 110/110 (from the framework dir; data/ is gitignored and empty)
-    # then: his browser pass / D-lod4-1 / the merge word (items 3–5), or pf-4 (claims as TechNodes) on dev-pf-4 off dev-pf-3
+    # then: his browser pass / D-lod4-1 / the merge word (items 3–5); §H.3 further lod after the merge
 
 ## Gotchas a fresh session will hit (all in memory too)
 
