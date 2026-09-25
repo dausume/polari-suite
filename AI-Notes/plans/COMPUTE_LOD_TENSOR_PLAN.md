@@ -1300,3 +1300,6 @@ The decision procedure, in the same term language, honest about what it decides 
   resolution is cwd-relative, so a bare `/tmp/tt` cannot boot; the handoff's gotcha is corrected).
 - Not done: `exists`/`forall` nesting; relative tolerances over a continuum; the units/evidence rules are still
   template-less by name; Lean (pf-2).
+- **D-pf-9 amended (his, 2026-09-25): the default budget is 25 s** ("set the budget to 25s then since the highest was
+  19s") — `MathClaim.budget_s` default, the seeds, the checker's fallback; the aggregate's worst case is now 125 s for the
+  five z3 claims. Still a per-claim knob; still `undecided`, never refuted, on a timeout.
