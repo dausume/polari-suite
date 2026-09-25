@@ -23,7 +23,8 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 61
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 64
     PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 87
-    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 95/95 on a REAL boot
+    PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 39 (pf-0)
+    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 103/103 on a REAL boot (branch dev-pf-0)
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json)   # the tensor-tree-panel type-checks (tt-5)
     # re-run the tool chains (docker; nothing installed on the host):
     (cd ../polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh)   # the toolchain SUBMODULE + engines WORKER: gcc-riscv64 · yosys · verilator · iverilog · nextpnr/icestorm · OpenSTA · magic (source) · netgen · ciel → sky130A (0.9 GB, cached)
@@ -117,7 +118,9 @@ fetch the PDK before re-running any lod-3c/3b/2/1 flow:
    polari-framework, polari-platform-angular, polari-rf-node (pointer + the new submodule), then the suite.
    `polari-cli/shells/push-all-dev.sh --with-isle` sweeps the forest once merged. Then `pol modules publish
    tensormath tensortree computelod mathshapes`.
-4. **Mathematical proofs — plan §I (his ask, 2026-09-24; PLAN ONLY, nothing built):** a `mathproofs` module
+4. **Mathematical proofs — plan §I:** ✅ pf-0 BUILT on `dev-pf-0` (§G.21: the `mathproofs` module, three tiers,
+   eight rules, the soft seam, badges on the panel; live boot 103/103). Next pf-1 (z3) and pf-2 (Lean via the
+   `polari-proof-tools` engines worker). Originally: a `mathproofs` module
    (MathClaim / ProofRun / InferenceRule / ProofObligation), a JSON term language lowered to numeric → SymPy
    (present) → Z3 (MIT, pip) → Lean 4 + Mathlib (Apache-2.0, a toolchain stage); obligations generated from the
    tree's structure by seeded rules; discovery refuses on refutation; badges on the panel's arcs. Phases

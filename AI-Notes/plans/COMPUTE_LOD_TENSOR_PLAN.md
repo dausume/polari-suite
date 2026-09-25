@@ -1175,3 +1175,51 @@ dev/prod split for Lean. Both corrected:
 Nothing else gates pf-0. Branch discipline: `dev-pf-0` off `dev-tt-0` (it needs the tensortree rows, which are
 not on dev yet); merged after `dev-tt-0`, in order. Still his and independent: D-lod4-1.
 
+### G.21 pf-0 — the `mathproofs` module BUILT 2026-09-24/25 (branch `dev-pf-0` off `dev-tt-0`)
+
+Proofs as rows, in the standard module shape, wired through the whole checklist:
+
+- **Rows**: `MathClaim` (kind; the JSON term; derived LaTeX; `proof_status` by the vocabulary conjectured |
+  witnessed | checked-symbolically | decided | proved | refuted | unprovable-here; `checker`; `certificate_ref`;
+  the counterexample kept; `evidence_level` analytical for a proof/decision, measured for a witness; `statement_hash`
+  — the bridge to a .lean certificate; `budget_s` = 10, a knob, D-pf-9), `ProofRun` (checker + version, verdict,
+  detail, elapsed, `rows_state_hash` → a changed row makes the run STALE, shown as `<status> (stale)`),
+  `InferenceRule` (pattern `chain[:k1,k2]` | `mapping:<kind>[:<op>]` | `node`; a term template with {m1} {m2}
+  {node}; the checker expected), `ProofObligation` (what a rule demanded of a structure; discharged_by a claim).
+- **The term language v0** (`custom/terms.py`): refs with a key path into json fields, sum/max/min/count over
+  filtered row sets (`=` exact, `~` substring), add/mul, eq with rel/abs tolerance, le/lt/ge/gt, and/or/not/
+  implies, finite `forall` over rows (the first failing row IS the counterexample), `subset` over interval sets
+  (validity:/domain:/scope:), `dims_subset`, and `symbolic` templates. `validate` refuses malformed terms;
+  `canonical`/`statement_hash`; LaTeX derived, never authored.
+- **Tiers**: numeric witness (`custom/numeric.py`, measured on these rows — never a proof), interval decision
+  (exact set arithmetic — decided), SymPy (`custom/symbolic.py`: `symmetry-of-contraction` for any n over free
+  symbols, `linear-composition`, `restriction-idempotent` — checked-symbolically). Anything a tier cannot lower →
+  `unprovable-here` by name (the continuum `forall` is the z3 tier, pf-1; lean pf-2). `custom/checkers.py`: the
+  status vocabulary, a weaker tier never overwrites a stronger verdict, refuted always wins and keeps the
+  counterexample; proofs NEVER touch `mapping_status` / `evidence_level` (D-pf-8, proven in the probe).
+- **The eight rules** (`custom/rules.py`, seeded): chain-domain-inclusion, dims-compose (source dims ⊆ the previous
+  target dims), units-compose (template-less: per-dim units do not exist — an open gap by name), evidence-monotone
+  (template-less, same honesty), restriction-idempotent, decomposition-reconstructs (an UNRECORDED reconstruction
+  error is refused, never passed vacuously), operator-linear (chain:operator,operator), operator-symmetry
+  (mapping:operator:contract). `generate(tree)` is idempotent by name and runs the cheap tiers at once.
+- **On the real trees** (live boot): plate-mechanics → 4 decided (domains + dims compose along u→ε→σ→balance),
+  3 checked-symbolically (linearity ×2, σ-symmetry), 2 unprovable-here (units); wind-spatial → the proposed
+  `wind-grid→spectrum` decomposition **REFUTED** (reconstruction_error 0.0: it never said what it loses) and the
+  restriction idempotent; bob-motion → nothing to demand. Five standalone claims: LEF == Liberty area witnessed
+  (855.82 = 855.82), every tpHL faster than the Liberty witnessed, extraction slows every arc witnessed, σ = C:ε
+  symmetric in 2-D and 3-D checked-symbolically (12 / 42 free symbols).
+- **The soft seam** (`tensortree/custom/tensortree_logic.py`, D-pf-4): tensortree never imports mathproofs at top
+  level; the validator gains a `logic` section, discovery refuses a candidate whose obligation is refuted (with
+  the counterexample) and shows open ones, `/view` mappings carry `logic` (badge + obligations); without the
+  module every reader says `available: False` and why.
+- **Visible on the mappings** (his ask on D-pf-8): the panel draws ✓ / ? / ✗ on the arc (title = the obligations
+  and counterexamples) and in the mapping list; the `mathproofs` page has the claims / obligations / rules / runs
+  tables and the summary with the **aggregate time reading** (D-pf-9: what the latest runs cost, and the worst
+  case = the sum of budgets of the long-running claims) — `GET /api/mathproofs/aggregate`.
+- **API**: `/api/mathproofs` · `claims/{name}` · `POST claims/{name}/check?tier=` · `rules` · `obligations?tree=|
+  mapping=` · `POST|GET trees/{name}/obligations` · `aggregate`. Manifest declares `lean` as an ENGINE (resolved
+  through the engines ladder when pf-2 lands — no device assumption), sympy as the library; z3 is a pip dep for pf-1.
+- Proof: mathproofs 39/39, tensortree 64/64, lazy-import drift 23/23, tsc clean, live boot **103/103**.
+- Not yet: obligations are generated on a person's POST (not at boot) — the panel shows `–` until then; pf-1
+  (z3, the lod claims as rows in computelod's selftests, discovery on refuted through the whole cycle), pf-2 (Lean).
+
