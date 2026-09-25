@@ -120,7 +120,9 @@ fetch the PDK before re-running any lod-3c/3b/2/1 flow:
    (MathClaim / ProofRun / InferenceRule / ProofObligation), a JSON term language lowered to numeric → SymPy
    (present) → Z3 (MIT, pip) → Lean 4 + Mathlib (Apache-2.0, a toolchain stage); obligations generated from the
    tree's structure by seeded rules; discovery refuses on refutation; badges on the panel's arcs. Phases
-   pf-0..pf-4; decisions D-pf-1..6 his. Order: pf-0 right after the merge, before further lod work.
+   pf-0..pf-4. ✅ D-pf-1..6 RATIFIED 2026-09-24 (`polari-proof-tools` = its own submodule of polari-rf-node,
+   §I.8); §I.9 refinements; §I.10 = the small decisions still open (D-pf-7..11, recommendations given).
+   Order: pf-0 right after the merge, before further lod work.
 5. **Further lod work** — plan §H.3, a sized table; my order after the merge: lod-3d (the other adder cells
    through DRC/PEX/LVS — small), lod-4c (Ion/Ioff for the sky130 row from the models we already run — small),
    lod-2c (CNT vs SKY130 at the same conditions), lod-3e (the whole adder placed-and-routed — needs OpenROAD in

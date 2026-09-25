@@ -1055,3 +1055,74 @@ computelod and scoring all consume it) rather than rows inside tensortree. **D-p
 cadence, a multi-GB Mathlib cache, and a proof checker is not an EDA tool). **D-pf-6** verdicts are the checker's,
 not voted — but a `human` checker (a signed note) exists for what no tier can do, and is labelled as such.
 
+### I.8 RATIFIED 2026-09-24 — D-pf-1..6 as recommended; `polari-proof-tools` is its own submodule
+
+- D-pf-1 tiers in order: numeric → SymPy → Z3 in pf-0/pf-1; Lean 4 as pf-2.
+- D-pf-2 the JSON term language of I.4 is THE statement (one spec, many checkers); LaTeX is derived from it.
+- D-pf-3 a refuted obligation REFUSES the mapping in discovery (with the counterexample); an open one is shown and
+  does not change the score.
+- D-pf-4 a separate module `mathproofs`. Dependency direction, so nothing cycles: `mathproofs` requires NOTHING
+  of the tensor/compute modules (claims name rows by class + name as strings and read them through the manager);
+  `tensortree` and `computelod` SOFT-depend on it (guarded import: without mathproofs the validator's `logic`
+  section says "no proof module" and discovery skips the refusal filter, stated in the response).
+- D-pf-5 the Lean toolchain lives in **`polari-rf-node/polari-proof-tools`** (new repo `dausume/polari-proof-tools`,
+  a sibling of `polari-eda-tools`, same discipline):
+  - `Dockerfile` — ubuntu:24.04 + `elan` installing ONE pinned Lean 4 release (`lean-toolchain` file in the
+    repo = the pin) + a `lakefile` depending on Mathlib at ONE pinned commit; `lake exe cache get` at build so
+    the image carries Mathlib's compiled oleans (several GB — the image is big and that is the honest cost; it
+    is never pulled by production, D-pf-7). `z3` is NOT here: it is a pip dependency of the framework
+    (`z3-solver`, MIT) because it runs in-process at tiers 0–2.
+  - `flows/check.sh <file.lean>` — runs `lake env lean` on one theorem file and prints the verdict line the
+    framework parses (`POLARI_PROOF ok|error <hash>`), plus the toolchain + Mathlib pins so the ProofRun cites
+    them.
+  - `theorems/` — the `.lean` files the framework's MathClaims cite by `certificate_ref` (path + sha256 +
+    `statement_hash`). They are SOURCE, committed here, small. Each file's docstring carries the term statement
+    it proves, verbatim, so the bridge is readable by a person.
+  - `LICENSES.md` — Lean 4 (Apache-2.0), Mathlib (Apache-2.0), elan (MIT/Apache-2.0), the Ubuntu base; the
+    same "every tool is a separate process, nothing linked or vendored" ledger as the EDA one.
+  - Knobs the framework reads: `POLARI_PROOF_IMAGE` (default `polari-proof-tools:noble`), `POLARI_PROOF_THEOREMS`
+    (default the submodule's `theorems/`). `fetch-` nothing: the pins are in the image.
+- D-pf-6 verdicts are the checker's; a `human` checker exists (a signed note), labelled as such, and it can only
+  be written by a user the claim's OWNER permits (the owner-defined-permissions rule — per-instance, opt-in).
+
+### I.9 Refinements that follow from the ratification
+
+- **pf-0 detail.** Rows as I.3. Term language v0 operators: `forall`/`exists` (over `domain:<node>` |
+  `validity:<mapping>` | a finite set `rows:<Class>:<filter>`), `eq` (with `tol` abs/rel, default rel 1e-9),
+  `le`/`lt`/`ge`/`gt`, `in`, `and`/`or`/`not`/`implies`, `apply` (a mapping/operator to a term), `contract`
+  (named-dim contraction — the tensormath op), `symmetric`/`antisymmetric` (in dim pairs), `sum`/`max`/`min`
+  over a finite set, `reconstruction_error`/`lef_area`/`liberty_area`/… as READERS of row fields (each reader
+  names the class + field it reads — no hidden lookups). Lowering: numeric (numpy over rows), sympy (symbols
+  per dim index; `simplify(lhs − rhs) == 0`); z3 arrives in pf-1 (reals for domains/bounds, bitvectors for the
+  FPGA kernel). Anything a tier cannot lower → `unprovable-here` naming the operator.
+- **Staleness.** A ProofRun stores `rows_state_hash` over the rows the claim names; the validator marks a run
+  `stale` when the hash differs and shows the claim as `open (stale)` — never as still proved.
+- **Certificates travel, checkers do not (D-pf-7 below).** Tiers 0–2 run in-process anywhere (numpy/sympy/z3
+  are pip). Lean runs only where the proof-tools image is present (dev, the pipeline device); production reads
+  the ProofRun rows and the certificate files, never runs Lean.
+- **Budgets.** Automatic re-checks on row change: tier 0–1 always (milliseconds); z3 with a per-claim time
+  budget (default 10 s) that self-disarms on timeout and records `undecided (budget)`; Lean never automatically
+  — a person (or the pipeline) runs it. Mirrors the tracing-budget rule.
+- **computelod's cross-checks become claims in pf-1** (LEF == Liberty area; the arc inequalities; the parasitics
+  verdict as two inequalities over the arc set) and the selftests assert the claim rows.
+- **The pipeline (ci)** gets a `proofs` stage after `selftests`: tiers 0–2 on every claim, Lean on the theorems
+  whose `.lean` changed — advisory (a red verdict is reported, not a build failure) until he says otherwise.
+
+### I.10 Decisions still open (small; recommendations given)
+
+- **D-pf-7 — where Lean runs.** Recommended: dev + the pipeline device only; production never pulls the proof
+  image; certificates + ProofRun rows are what ships. (Above assumes this.)
+- **D-pf-8 — proofs and `mapping_status`.** Recommended: proofs NEVER change a mapping's `mapping_status` or
+  `evidence_level` (those are about running); the validator's `logic` section and the panel badge are the
+  proof's own surface. Alternative: a `logic_status` column on TensorMapping — one more column, rejected unless
+  the badge proves insufficient.
+- **D-pf-9 — the z3 budget default** (10 s per claim, recommended) and whether a budget timeout counts as
+  `undecided` (recommended) or `refuted` (no — absence of a decision is not a counterexample).
+- **D-pf-10 — the first two Lean theorems** for pf-2. Recommended: (a) σ = C:ε symmetry in general rank from
+  C's minor symmetries; (b) the tree-composition lemma: if each link's validity domain contains the next link's
+  source domain, the chain is valid on the intersection. Alternative (c): restriction idempotence — trivial, a
+  good smoke test but not worth a theorem.
+- **D-pf-11 — the Lean/Mathlib pins**: chosen at pf-2 build time (latest stable Lean 4 release + the Mathlib
+  commit that builds with it that week), recorded in `lean-toolchain` + `lake-manifest.json` in the submodule.
+  Only the POLICY needs his word: track stable releases, bump deliberately, never float.
+
