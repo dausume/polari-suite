@@ -105,32 +105,49 @@ fetch the PDK before re-running any lod-3c/3b/2/1 flow:
     cd polari-rf-node/polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh
     docker pull openroad/opensta
 
-## What is left, and who does it
+## What is left, and who does it (order as of 2026-09-25, after pf-0 + the vocabulary correction)
 
-1. **The browser pass — his, or a session with Chrome attached.** Plan §H.1 is the procedure: rebuild the home
-   swarm from the `dev-tt-0` trees (admit the four modules first), open `/display/tensortree`, `/display/tensormath`,
-   `/display/computelod`, judge each panel against the listed expectations, file gaps. Nothing of this arc's
-   frontend has been seen yet: `tensor-tree-panel`, the plate scene (filled triangles, wireframe, displacement
-   lines), the `units=space` shapes.
-2. **D-lod4-1 — his ruling** (plan §H.2): is SKY130 manufacturable under the sifet ladder rule? Set the row's
-   `manufacturable` + `manufacturable_reason` accordingly (`computelod/custom/lod4_process.py: SKY130_NODE`).
-3. **Merge `dev-tt-0` → dev — his word.** Innermost-first: polari-eda-tools is already on its own `dev`;
-   polari-framework, polari-platform-angular, polari-rf-node (pointer + the new submodule), then the suite.
-   `polari-cli/shells/push-all-dev.sh --with-isle` sweeps the forest once merged. Then `pol modules publish
-   tensormath tensortree computelod mathshapes`.
-4. **Mathematical proofs — plan §I:** ✅ pf-0 BUILT on `dev-pf-0` (§G.21: the `mathproofs` module, three tiers,
-   eight rules, the soft seam, badges on the panel; live boot 103/103). Next pf-1 (z3) and pf-2 (Lean via the
-   `polari-proof-tools` engines worker). Originally: a `mathproofs` module
-   (MathClaim / ProofRun / InferenceRule / ProofObligation), a JSON term language lowered to numeric → SymPy
-   (present) → Z3 (MIT, pip) → Lean 4 + Mathlib (Apache-2.0, a toolchain stage); obligations generated from the
-   tree's structure by seeded rules; discovery refuses on refutation; badges on the panel's arcs. Phases
-   pf-0..pf-4. ✅ D-pf-1..6 RATIFIED 2026-09-24 (`polari-proof-tools` = its own submodule of polari-rf-node,
-   §I.8); §I.9 refinements; §I.10 = the small decisions still open (D-pf-7..11, recommendations given).
-   Order: pf-0 right after the merge, before further lod work.
-5. **Further lod work** — plan §H.3, a sized table; my order after the merge: lod-3d (the other adder cells
-   through DRC/PEX/LVS — small), lod-4c (Ion/Ioff for the sky130 row from the models we already run — small),
-   lod-2c (CNT vs SKY130 at the same conditions), lod-3e (the whole adder placed-and-routed — needs OpenROAD in
-   the image), lod-4b (the process as PSPP rows).
+Branches: `dev-tt-0` (tt-0..11, lod-1..4 incl. 2b/3b/3c, the engines seam) and `dev-pf-0` on top of it (pf-0,
+the vocabulary correction) — in the suite, polari-rf-node, polari-framework, polari-platform-angular; the
+submodule `polari-eda-tools` is on its own `dev`. All pushed, none merged. Live boot on dev-pf-0: **104/104**
+(`tests/tensor_liveboot_probe.py`, run from a throwaway cwd).
+
+1. **pf-1 — the Z3 tier (next build; nothing gates it).** `z3-solver` (MIT) into requirements; `custom/z3tier.py`
+   lowering the term language over reals (validity/domain/scope interval sets as constraints; `forall` over a
+   continuum with a model of the negation as the counterexample) and bitvectors (the tt-3 kernel's int64
+   accumulate never overflows for C in kPa, ε in nε within their domains); the per-claim `budget_s` honoured,
+   timeout → `undecided (budget)` (D-pf-9, never refuted); the decomposition bound moved from the placeholder
+   0.05 onto a policy knob; the lod cross-checks (LEF == Liberty area, the arc inequalities, the parasitics
+   verdict as two inequalities) asserted as MathClaim rows in computelod's selftest; obligations of the seeded
+   trees generated AT BOOT (a seed-time hook that runs `rules.generate` for each seeded TensorTreeDefinition) so
+   the panel's badges exist without a POST; `/api/mathproofs/aggregate` then has a non-zero worst case to show.
+2. **pf-2 — Lean 4 through `polari-proof-tools`.** A NEW repo `dausume/polari-proof-tools`, submodule of
+   polari-rf-node beside polari-eda-tools, in the SAME shape (Dockerfile: elan + ONE pinned Lean release +
+   Mathlib at ONE pinned commit with oleans cached in the image; `lean-toolchain` + `lake-manifest.json`
+   committed — D-pf-11; `proof_engines_service.py` = an engines WORKER: `/capability` + `/check`; `theorems/`
+   committed sources; LICENSES.md), `docker-compose.proof-engines.yml`; the framework resolves `lean` through
+   `mathproofs/custom/proof_engines.py` = the engines ladder exactly as `computelod.custom.eda_engines`
+   (PROOF_ENGINES_URL → local → topology provider `mathproofs.engines` → refusal) — NEVER a device assumption;
+   the `statement_hash` bridge; the first two theorems (D-pf-10): σ = C:ε symmetry in general rank; the
+   tree-composition lemma; restriction idempotence as the toolchain smoke test.
+3. **His: the browser pass** (plan §H.1 — nothing of this arc's frontend has been seen: the tree panel with its
+   proof badges, the plate scene with filled triangles / wireframe / displacement lines, the space-unit shapes).
+4. **His: D-lod4-1** — is SKY130 manufacturable under the sifet ladder rule? (`lod4_process.py: SKY130_NODE`).
+5. **His: the merge word** — `dev-tt-0` → dev first, then `dev-pf-0`; innermost-first (eda-tools already on
+   its dev; framework, angular, rf-node with the submodule pointer, suite); `push-all-dev.sh --with-isle`;
+   then `pol modules publish tensormath tensortree computelod mathshapes mathproofs`.
+6. **Further lod after the merge** (plan §H.3, sized): lod-3d the other adder cells through DRC/PEX/LVS;
+   lod-4c Ion/Ioff for the sky130 row from the models already run; lod-2c CNT vs SKY130 at the same conditions;
+   lod-3e the whole adder placed-and-routed (OpenROAD into the eda-tools image, BSD-3); lod-4b the process as
+   PSPP rows; tt-12/13 (panel: a node's scene inside its detail; cross-tree discovery with a units filter).
+
+## Where a fresh session starts
+
+    cat AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md          # §G.1–G.22 what is built, §H next, §I proofs
+    (cd polari-rf-node/polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh)
+    cd polari-rf-node/polari-framework && PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py   # 42
+    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 104/104
+    # then pf-1 as above, on dev-pf-0 (or dev-pf-1 off it — branch-per-confirmed-phase)
 
 ## Gotchas a fresh session will hit (all in memory too)
 
