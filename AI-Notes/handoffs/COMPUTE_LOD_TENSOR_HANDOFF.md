@@ -100,10 +100,23 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
 
+## State at handoff (2026-09-25 night, after the file-store detour — THIS arc is untouched by it)
+
+A detour happened after the browser pass: minio was gone upstream, so the store became SeaweedFS (fs-1, his call
+D-fs-1) and, because its UI had no login, the store is now browsed THROUGH Polari as the signed-in person (fs-2).
+That work lives on `dev-fs-1` — stacked on top of `dev-pf-3` in the framework, angular, rf-node and the suite, plus
+polari-cli and the PSC backend — and is documented in `AI-Notes/plans/FILE_STORE_PLAN.md`, not here. What it changes
+for THIS arc: (a) the node stack on pol-core's swarm now has SIX services including `prf-file-store` (rendered by
+`pol swarm render node`, not the old `stack-node-nofs.yml`); (b) the merge word now ends one branch later:
+`dev-tt-0 → dev-pf-0 → dev-pf-1 → dev-pf-2 → dev-pf-3 → dev-fs-1` (angular: `dev-tt-0 → dev-pf-0 → dev-pf-3 →
+dev-fs-1`; polari-cli and PSC backend: `dev-fs-1` alone), innermost-first as before. Nothing in items 3–6 below moved:
+the next steps on this arc are still HIS — look at the pages (item 3), D-lod4-1 (item 4), the merge word (item 5) —
+and §H.3 further lod comes after the merge. A fresh session on this arc starts at "Where a fresh session starts".
+
 ## State at handoff (2026-09-25 evening, after the browser pass)
 
-The node stack is UP on pol-core's single-node swarm (`polari-node`, five services, no file store — minio is gone
-upstream, his decision) from `.generated/stack-node-nofs.yml`; Chrome's NSS store trusts the dev CA ("Polari Dev CA
+The node stack is UP on pol-core's single-node swarm (`polari-node`; at that moment five services and no file store
+— superseded above) from `.generated/stack-node-nofs.yml`; Chrome's NSS store trusts the dev CA ("Polari Dev CA
 (staging pass)"). The pass and its fixes: plan §H.1 RESULTS. Everything below still holds.
 
 ## State at handoff (2026-09-25, after pf-3)
