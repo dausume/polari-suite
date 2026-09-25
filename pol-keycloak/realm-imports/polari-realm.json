@@ -31,7 +31,6 @@
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": false,
-
   "roles": {
     "realm": [
       {
@@ -94,9 +93,15 @@
         "description": "${role_default-roles}",
         "composite": true,
         "composites": {
-          "realm": ["offline_access", "uma_authorization"],
+          "realm": [
+            "offline_access",
+            "uma_authorization"
+          ],
           "client": {
-            "account": ["manage-account", "view-profile"]
+            "account": [
+              "manage-account",
+              "view-profile"
+            ]
           }
         },
         "clientRole": false,
@@ -106,7 +111,6 @@
     ],
     "client": {}
   },
-
   "groups": [
     {
       "id": "b3a7c100-3000-4000-a000-000000000001",
@@ -114,9 +118,15 @@
       "path": "/Polari Administrators",
       "subGroups": [],
       "attributes": {
-        "polari-group-type": ["Administrative"]
+        "polari-group-type": [
+          "Administrative"
+        ]
       },
-      "realmRoles": ["polari-admin", "polari-developer", "polari-user"],
+      "realmRoles": [
+        "polari-admin",
+        "polari-developer",
+        "polari-user"
+      ],
       "clientRoles": {}
     },
     {
@@ -125,9 +135,14 @@
       "path": "/Polari Developers",
       "subGroups": [],
       "attributes": {
-        "polari-group-type": ["Developer"]
+        "polari-group-type": [
+          "Developer"
+        ]
       },
-      "realmRoles": ["polari-developer", "polari-user"],
+      "realmRoles": [
+        "polari-developer",
+        "polari-user"
+      ],
       "clientRoles": {}
     },
     {
@@ -136,9 +151,13 @@
       "path": "/Polari Users",
       "subGroups": [],
       "attributes": {
-        "polari-group-type": ["End-User"]
+        "polari-group-type": [
+          "End-User"
+        ]
       },
-      "realmRoles": ["polari-user"],
+      "realmRoles": [
+        "polari-user"
+      ],
       "clientRoles": {}
     },
     {
@@ -147,13 +166,16 @@
       "path": "/Polari Viewers",
       "subGroups": [],
       "attributes": {
-        "polari-group-type": ["Read-Only"]
+        "polari-group-type": [
+          "Read-Only"
+        ]
       },
-      "realmRoles": ["polari-viewer"],
+      "realmRoles": [
+        "polari-viewer"
+      ],
       "clientRoles": {}
     }
   ],
-
   "defaultRole": {
     "id": "b3a7c100-2000-4000-a000-000000000020",
     "name": "default-roles-polari",
@@ -162,9 +184,9 @@
     "clientRole": false,
     "containerId": "b3a7c100-1111-4000-a000-000000000001"
   },
-
-  "requiredCredentials": ["password"],
-
+  "requiredCredentials": [
+    "password"
+  ],
   "clients": [
     {
       "id": "b3a7c100-4000-4000-a000-000000000001",
@@ -182,7 +204,9 @@
         "http://localhost:4200/*",
         "http://localhost:4200/"
       ],
-      "webOrigins": ["*"],
+      "webOrigins": [
+        "*"
+      ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -220,6 +244,35 @@
         "phone",
         "offline_access",
         "microprofile-jwt"
+      ],
+      "protocolMappers": [
+        {
+          "name": "realm-roles-top-level",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "file-store-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "polari-file-store",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
       ]
     },
     {
@@ -235,7 +288,9 @@
         "polari://oauth/callback",
         "http://127.0.0.1:41300/callback"
       ],
-      "webOrigins": ["+"],
+      "webOrigins": [
+        "+"
+      ],
       "notBefore": 0,
       "bearerOnly": false,
       "consentRequired": false,
@@ -273,6 +328,35 @@
         "phone",
         "offline_access",
         "microprofile-jwt"
+      ],
+      "protocolMappers": [
+        {
+          "name": "realm-roles-top-level",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "file-store-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "polari-file-store",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
       ]
     },
     {
@@ -322,10 +406,50 @@
         "phone",
         "offline_access",
         "microprofile-jwt"
+      ],
+      "protocolMappers": [
+        {
+          "name": "realm-roles-top-level",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "file-store-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "polari-file-store",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
       ]
+    },
+    {
+      "clientId": "polari-file-store",
+      "name": "Polari file store (SeaweedFS S3 — STS audience)",
+      "description": "The audience the file store STS door requires on realm tokens (prf-file-store, D-fs-1); not a login client.",
+      "enabled": true,
+      "bearerOnly": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect"
     }
   ],
-
   "internationalizationEnabled": false,
   "supportedLocales": [],
   "browserSecurityHeaders": {
@@ -340,10 +464,11 @@
   },
   "smtpServer": {},
   "eventsEnabled": false,
-  "eventsListeners": ["jboss-logging"],
+  "eventsListeners": [
+    "jboss-logging"
+  ],
   "enabledEventTypes": [],
   "adminEventsEnabled": false,
   "adminEventsDetailsEnabled": false,
-
   "adminPermissionsEnabled": true
 }

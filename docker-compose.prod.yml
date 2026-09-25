@@ -27,7 +27,7 @@
 #   - psc-backend:         768MB (Spring Boot)
 #   - pol-mariadb:         512MB (Database)
 #   - prf-backend:         384MB (Python)
-#   - pol-file-store:      256MB (MinIO S3 storage)
+#   - pol-file-store:      256MB (SeaweedFS S3 file store)
 #   - psc-redis:           128MB (Cache)
 #   - psc-frontend:         64MB (nginx static)
 #   - prf-frontend:         64MB (nginx static)
@@ -81,10 +81,10 @@ services:
       --tmp-table-size=16M
       --max-heap-table-size=16M
 
-  # MinIO S3-compatible Object Storage - shared file store
+  # The shared file store — SeaweedFS S3 (D-fs-1; one definition: polari-rf-node/prf-file-store)
   pol-file-store:
     build:
-      context: ./pol-file-store
+      context: ./polari-rf-node/prf-file-store
       dockerfile: Dockerfile
     container_name: pol-file-store
     image: ${POLARI_IMAGE_REPO:-}pol-file-store:${POLARI_IMAGE_TAG:-prod}
@@ -94,13 +94,13 @@ services:
     env_file:
       - ./.generated/.env.prod
     environment:
-      # Tell MinIO its external URLs so presigned URLs and console redirects work
+      # kept for the clients that read them (presigned public URLs); the store itself does not need them
       - MINIO_SERVER_URL=https://s3.${PROD_DOMAIN}
       - MINIO_BROWSER_REDIRECT_URL=https://files.${PROD_DOMAIN}
     volumes:
       - pol_file_store_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "sh", "-c", "curl -s -o /dev/null http://localhost:9000/ && curl -sf http://localhost:9333/cluster/status >/dev/null"]
       start_period: 10s
       interval: 10s
       timeout: 5s

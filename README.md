@@ -121,7 +121,7 @@ must be committed after committing inside the submodule (innermost-first).
   `eqalpha/keydb` (the old `bitnami/redis` base was removed from Docker Hub and
   broke every build). Same Redis protocol, same ACL users, same Spring config.
 - **PSC backend test stack is self-contained.** `docker-compose-test.yml`
-  carries its own MariaDB, KeyDB, and MinIO (startup blocks until MinIO
+  carries its own MariaDB, KeyDB, and S3 file store (SeaweedFS; startup blocks until it
   responds), and the `test` profile stubs Keycloak (JWKS is fetched lazily, so
   no live Keycloak is needed). To test against a real realm, set
   `KEYCLOAK_JWKS_URI` / `KEYCLOAK_ADMIN_URL`.

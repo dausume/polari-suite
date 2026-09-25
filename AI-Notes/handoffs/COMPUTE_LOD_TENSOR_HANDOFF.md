@@ -220,6 +220,7 @@ pushed, none merged. Live boot on dev-pf-3: **123/123**.
   rendered node stack minus the file-store service; a throwaway). HIS decision: the replacement (candidates with
   GPLv3-compatible licences: SeaweedFS Apache-2.0, RustFS Apache-2.0 S3-compatible, Garage AGPL-3.0; or pin a MinIO
   release built from source under its AGPL) — a licence-gate row + a `pol-file-store` rewrite, not a one-liner.
+  → DECIDED + BUILT the same day: SeaweedFS (D-fs-1) — `AI-Notes/plans/FILE_STORE_PLAN.md`, branch `dev-fs-1`.
 - Bring-up from a stripped checkout (this pass): `pol security setup dev` + `POLARI_ROTATE_KC=no pol security
   node-setup staging` create `.generated/.env.staging`; `LOCAL_IP` must be set on pol-core (two IPv6 addresses on
   the wifi interface make `docker swarm init` refuse to pick one); `POLARI_MODULES` must be exported (the core is
