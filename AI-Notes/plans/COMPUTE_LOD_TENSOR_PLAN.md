@@ -1247,3 +1247,56 @@ readers, each entry saying which it is. Badges: ✓ ok · ? open · ∅ undeterm
 Proof: mathproofs 42/42 (a decomposition with a recorded error is witnessed; the same rule with none is
 undetermined; the two discovery lists differ), tensortree 64/64, live boot **104/104**, tsc clean.
 
+
+### G.23 pf-1 — the Z3 tier BUILT 2026-09-25 (branch `dev-pf-1` off `dev-pf-0`)
+
+The decision procedure, in the same term language, honest about what it decides and what it costs:
+
+- **`mathproofs/custom/z3tier.py`** — `forall`/`exists` over a CONTINUUM (`validity:` / `domain:` / `scope:` interval
+  sets: one real per constrained dim, the box as constraints, `holds` over reals with `{"ref": "x", "path": ["<dim>"]}`
+  the point's coordinate and the new `{"in": ["x", <set>]}` membership); a `forall` is decided by asking for a MODEL OF
+  ITS NEGATION — unsat → `decided`, sat → `refuted` with the model as the counterexample (a real point of the domain);
+  `subset` is re-derived as ∀x∈A: x∈B, a second independent procedure that agrees with the interval tier on every pair
+  (selftest + live). `given` premises are row facts (numeric tier) → `undetermined` when false. What it will not lower
+  it refuses by name: a closed statement over row values (that is the numeric WITNESS — calling it decided would dress
+  data up as a theorem), a relative tolerance over a continuum, symbolic templates, nested quantifiers (v1).
+- **The tt-3 kernel's fixed-point contract as a decision** — `{"bitvector": {"template": "mac-no-overflow", …}}`:
+  `products` signed products of `operand_bits` operands accumulated one at a time in `acc_bits` — EVERY PREFIX SUM
+  within the signed range (a total that fits is not enough: the accumulator is sequential). Bounds are numeric TERMS
+  read from rows (ε in nε = eps→sigma's validity 0.002 × 1e9 = 2·10⁶; C = the int32 port), never typed twice. Finding
+  while building: the bit-blasted encoding (QF_BV, four 64-bit multipliers) needs ~19 s on pol-core — beyond the 10 s
+  budget, i.e. honestly `undecided` — while the operands ARE integers, so unbounded integers with the ranges as
+  constraints (QF_NIA) lose nothing and decide in 0.7 s; `encoding: "int"` is the default, `"bv"` stays selectable.
+  Decided: 4 × int32·int32 in int64 never overflow (9.07 bits of headroom stated); refuted with full-range operands
+  (the model names the operands, the prefix sums and the first step that overflows).
+- **Budget (D-pf-9)** — each claim's `budget_s` → the solver's timeout; `unknown` → the ProofRun says `undecided`
+  (budget) and the claim's status is UNTOUCHED (stays `conjectured`, no certificate). The selftest forces it through a
+  seam (`_check`); the real 19 s case above is the live instance of it.
+- **The knob (D-pf-9's "placeholder 0.05")** — `InferenceRule.params_json` (new field; the module has never been
+  deployed, so its own schema is free): `decomposition-reconstructs` carries `{"bound": 0.05, …}`, its template reads it
+  BY REF (`InferenceRule:decomposition-reconstructs.params_json.bound`) and the rule row joins the claim's `about_refs`
+  — turning the knob makes every obligation under it STALE and re-generation re-checks (0.01 → the 0.03 decomposition is
+  refuted); a policy change is never a silent re-verdict. Shown as a column of the rules table.
+- **At boot (`custom/boot.py`, called from polariServer after the seed pass)** — every seeded tree's obligations
+  generated; every never-run claim checked once through its cheapest tier (z3 inside its budget). Live: three trees,
+  12 claims, 2.7 s. The panel's badges and the validator's `logic` section exist without a POST; the pass is bounded by
+  the aggregate's worst case — now non-zero: 50 s (4 seeded z3 claims + the chain obligation a person asked z3 to
+  re-derive, 10 s each) against 0.78 s actually spent.
+- **The lod cross-checks are claim rows in computelod's selftest** — LEF == Liberty area (855.82 = 855.82), every tpHL
+  faster than the Liberty, extraction slows every arc, and the parasitics verdict as TWO inequalities over the extracted
+  arcs (`lod3c-extraction-narrows-every-fall-gap`: delta_pct > schematic_delta_pct, both < 0, on all three;
+  `lod3c-extraction-widens-every-rise-gap`: both > 0, on all three) — asserted through `mathproofs.checkers.check` on
+  the seeded characterization rows, plus a perturbed LEF row → stale → refuted with both numbers kept. Seven new
+  seeded claims in all (the two above; C in kPa fits int32 for the cited electrical steel — E·10³ ≤ (2³¹−1)(1−ν²),
+  a numeric witness on the material row; ε in nε fits int32 over the validity domain — z3; the int64 accumulate — z3;
+  spectrum range ⊆ drag-coupling range — z3 decided; the converse — z3 REFUTED by the model speed = 6 m/s).
+- **Alpine** — PyPI's `z3-solver` has no musl wheel; the framework image is `python:3.12-alpine`. Both Dockerfiles take
+  the binding from apk (`py3-z3`, pure python, copied into the venv) and `libz3` from apk `z3` (16 MB, soname linked +
+  `Z3_LIBRARY_PATH`); a glibc host pip-installs `z3-solver==5.1.0.0`. The image carries Alpine's 4.16.0, the host 5.1.0
+  — the ProofRun records which; `requirements.txt` says why it is not pinned there.
+- ProofRun names now carry microseconds (two runs in one second were one name → a false `(stale)`).
+- Proof: mathproofs **60/60**, computelod **91/91** (+4), tensortree 64/64, tensormath 61/61, lazy-import drift 23/23,
+  manifests valid, live boot **110/110** (from the framework dir with `data/` cleared — the probe's source-path
+  resolution is cwd-relative, so a bare `/tmp/tt` cannot boot; the handoff's gotcha is corrected).
+- Not done: `exists`/`forall` nesting; relative tolerances over a continuum; the units/evidence rules are still
+  template-less by name; Lean (pf-2).

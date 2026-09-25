@@ -1,4 +1,4 @@
-# Handoff — the Compute LOD + Tensor arc (2026-09-23/24): what is built, how to prove it, what is owed
+# Handoff — the Compute LOD + Tensor arc (2026-09-23/25): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
 ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
@@ -22,9 +22,10 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     cd polari-rf-node/polari-framework
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 61
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 64
-    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 87
-    PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 39 (pf-0)
-    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 103/103 on a REAL boot (branch dev-pf-0)
+    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 91 (the lod cross-checks as claim rows, pf-1)
+    PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 60 (pf-0 + pf-1 z3)
+    rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 110/110 on a REAL boot (branch dev-pf-1) — from the framework dir, data/ cleared
+    pip install --user z3-solver==5.1.0.0      # once, on a glibc host (the image takes z3 from apk — see G.23)
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json)   # the tensor-tree-panel type-checks (tt-5)
     # re-run the tool chains (docker; nothing installed on the host):
     (cd ../polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh)   # the toolchain SUBMODULE + engines WORKER: gcc-riscv64 · yosys · verilator · iverilog · nextpnr/icestorm · OpenSTA · magic (source) · netgen · ciel → sky130A (0.9 GB, cached)
@@ -95,7 +96,12 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
 
-## State at handoff (2026-09-24 evening)
+## State at handoff (2026-09-25, after pf-1)
+
+pf-1 added on `dev-pf-1`: the z3 tier, boot-time obligations, the knob, the lod claims asserted in computelod,
+the Alpine z3 route (plan §G.23). Everything below from the 2026-09-24 state still holds.
+
+## State at 2026-09-24 evening
 
 Every item of the original owed list is closed except PyTorch (D5, deferred by ruling). Built and proven on a real
 boot (94/94): tt-0..11, lod-1, lod-2, lod-2b, lod-3, lod-3b, lod-3c, lod-4 — plan §G.1–G.19. The toolchain lives
@@ -105,23 +111,24 @@ fetch the PDK before re-running any lod-3c/3b/2/1 flow:
     cd polari-rf-node/polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh
     docker pull openroad/opensta
 
-## What is left, and who does it (order as of 2026-09-25, after pf-0 + the vocabulary correction)
+## What is left, and who does it (order as of 2026-09-25, after pf-1)
 
-Branches: `dev-tt-0` (tt-0..11, lod-1..4 incl. 2b/3b/3c, the engines seam) and `dev-pf-0` on top of it (pf-0,
-the vocabulary correction) — in the suite, polari-rf-node, polari-framework, polari-platform-angular; the
-submodule `polari-eda-tools` is on its own `dev`. All pushed, none merged. Live boot on dev-pf-0: **104/104**
-(`tests/tensor_liveboot_probe.py`, run from a throwaway cwd).
+Branches: `dev-tt-0` (tt-0..11, lod-1..4 incl. 2b/3b/3c, the engines seam), `dev-pf-0` on top (pf-0, the
+vocabulary correction), `dev-pf-1` on top of that (pf-1: the z3 tier, boot-time obligations, the knob, the lod
+claims in computelod's selftest, the Alpine z3 route) — in the suite, polari-rf-node, polari-framework (dev-pf-1
+has no Angular change: the angular branch stays dev-pf-0); the submodule `polari-eda-tools` is on its own `dev`.
+All pushed, none merged. Live boot on dev-pf-1: **110/110**.
 
-1. **pf-1 — the Z3 tier (next build; nothing gates it).** `z3-solver` (MIT) into requirements; `custom/z3tier.py`
-   lowering the term language over reals (validity/domain/scope interval sets as constraints; `forall` over a
-   continuum with a model of the negation as the counterexample) and bitvectors (the tt-3 kernel's int64
-   accumulate never overflows for C in kPa, ε in nε within their domains); the per-claim `budget_s` honoured,
-   timeout → `undecided (budget)` (D-pf-9, never refuted); the decomposition bound moved from the placeholder
-   0.05 onto a policy knob; the lod cross-checks (LEF == Liberty area, the arc inequalities, the parasitics
-   verdict as two inequalities) asserted as MathClaim rows in computelod's selftest; obligations of the seeded
-   trees generated AT BOOT (a seed-time hook that runs `rules.generate` for each seeded TensorTreeDefinition) so
-   the panel's badges exist without a POST; `/api/mathproofs/aggregate` then has a non-zero worst case to show.
-2. **pf-2 — Lean 4 through `polari-proof-tools`.** A NEW repo `dausume/polari-proof-tools`, submodule of
+1. ~~pf-1~~ **BUILT 2026-09-25** — plan §G.23. Everything in the former item landed: `custom/z3tier.py` (continuum
+   forall/exists with the model as the counterexample; `subset` re-derived and agreeing with the interval tier;
+   the tt-3 kernel's int64 MAC decided over exact integers — the bit-blasted encoding needs 19 s, over the budget,
+   so `encoding: "int"` is the default and `"bv"` selectable), `budget_s` → `undecided` with the claim untouched,
+   the decomposition bound as `InferenceRule.params_json.bound` read by ref (a knob change = stale, never a silent
+   re-verdict), boot-time generation of every tree's obligations + one check of every never-run claim
+   (`custom/boot.py`, 2.7 s live), seven new seeded claims (one REFUTED by a model: speed = 6 m/s), the five lod
+   cross-checks asserted as claim rows in computelod's selftest, the aggregate's worst case now 50 s vs 0.78 s spent.
+   z3 in the image comes from apk (no musl wheel) — both Dockerfiles changed; an image build proves it (see below).
+2. **pf-2 — Lean 4 through `polari-proof-tools` (next build; nothing gates it).** A NEW repo `dausume/polari-proof-tools`, submodule of
    polari-rf-node beside polari-eda-tools, in the SAME shape (Dockerfile: elan + ONE pinned Lean release +
    Mathlib at ONE pinned commit with oleans cached in the image; `lean-toolchain` + `lake-manifest.json`
    committed — D-pf-11; `proof_engines_service.py` = an engines WORKER: `/capability` + `/check`; `theorems/`
@@ -145,13 +152,18 @@ submodule `polari-eda-tools` is on its own `dev`. All pushed, none merged. Live 
 
     cat AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md          # §G.1–G.22 what is built, §H next, §I proofs
     (cd polari-rf-node/polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh)
-    cd polari-rf-node/polari-framework && PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py   # 42
-    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 104/104
-    # then pf-1 as above, on dev-pf-0 (or dev-pf-1 off it — branch-per-confirmed-phase)
+    cd polari-rf-node/polari-framework && PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py   # 60
+    rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 110/110 (from the framework dir; data/ is gitignored and empty)
+    # then pf-2 as above, on dev-pf-2 off dev-pf-1 (branch-per-confirmed-phase)
 
 ## Gotchas a fresh session will hit (all in memory too)
 
-- Live-boot probe: run from a throwaway cwd or `rm -rf data` between runs (the sqlite DB is `./data/`).
+- Live-boot probe: run FROM THE FRAMEWORK DIR with `rm -rf data` first (the sqlite DB is `./data/`, gitignored).
+  A bare throwaway cwd (`/tmp/tt`) does NOT boot: polyTyping resolves class source paths relative to the cwd
+  (`/tmp/tt/polariApiServer` → IndexError in getCreateMethod) — found 2026-09-25, the older note was wrong.
+- z3 on the host: `pip install --user z3-solver==5.1.0.0` (not in requirements.txt — no musl wheel; the image
+  takes apk `py3-z3` + `z3`, Alpine's 4.16.0; the ProofRun records the version it ran with).
+- z3 encodings: bit-blasted 64-bit MACs (QF_BV) take ~19 s here; exact integers (QF_NIA) 0.7 s — prefer `int`.
 - A `pgrep -f <pattern>` waiter matches its own argv — use `pgrep -f "[l]od2_cnt run"` or a pidfile.
 - ngspice-46 + OpenVAF 23.5 are on pol-core under `~/tools` (not PATH); the cntfet ladder finds them.
 - sky130 slew convention is 20–80 %: a 50 ps 0–100 % ramp is a 30 ps slew (25 % fast).
