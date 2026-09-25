@@ -1162,3 +1162,16 @@ dev/prod split for Lean. Both corrected:
   14/23 caps, tpHL 67.76 / 95.81 / 98.96 ps). computelod 87/87, tensormath 61/61, manifests valid, live boot
   **95/95**.
 
+### I.11 RATIFIED 2026-09-24 — D-pf-8..11 as recommended ("decisions wise")
+
+- D-pf-8 proofs never change `mapping_status` / `evidence_level`; the validator's `logic` section + the panel badge
+  are their surface.
+- D-pf-9 Z3 budget 10 s per claim (a knob), self-disarming; timeout = `undecided (budget)`, never `refuted`.
+- D-pf-10 first theorems: (a) σ = C:ε symmetry in general rank; (b) the tree-composition lemma; (c) restriction
+  idempotence as the toolchain smoke test only.
+- D-pf-11 pins: `lean-toolchain` + `lake-manifest.json` committed in `polari-proof-tools`; track stable, bump
+  deliberately with the theorems re-checked in the same commit; never float.
+
+Nothing else gates pf-0. Branch discipline: `dev-pf-0` off `dev-tt-0` (it needs the tensortree rows, which are
+not on dev yet); merged after `dev-tt-0`, in order. Still his and independent: D-lod4-1.
+
