@@ -1097,9 +1097,10 @@ not voted — but a `human` checker (a signed note) exists for what no tier can 
   FPGA kernel). Anything a tier cannot lower → `unprovable-here` naming the operator.
 - **Staleness.** A ProofRun stores `rows_state_hash` over the rows the claim names; the validator marks a run
   `stale` when the hash differs and shows the claim as `open (stale)` — never as still proved.
-- **Certificates travel, checkers do not (D-pf-7 below).** Tiers 0–2 run in-process anywhere (numpy/sympy/z3
-  are pip). Lean runs only where the proof-tools image is present (dev, the pipeline device); production reads
-  the ProofRun rows and the certificate files, never runs Lean.
+- **Engines through the ladder (corrected 2026-09-24).** Tiers 0–2 are pip libraries and run in-process. Tier 3
+  (Lean) is an ENGINE the module declares in its manifest and the topology places: `polari-proof-tools` serves
+  `/capability` + `/check`, `mathproofs/custom/proof_engines.py` resolves it exactly as `computelod.custom.
+  eda_engines` does. ProofRun rows and certificates are rows/files and travel as such.
 - **Budgets.** Automatic re-checks on row change: tier 0–1 always (milliseconds); z3 with a per-claim time
   budget (default 10 s) that self-disarms on timeout and records `undecided (budget)`; Lean never automatically
   — a person (or the pipeline) runs it. Mirrors the tracing-budget rule.
@@ -1110,8 +1111,12 @@ not voted — but a `human` checker (a signed note) exists for what no tier can 
 
 ### I.10 Decisions still open (small; recommendations given)
 
-- **D-pf-7 — where Lean runs.** Recommended: dev + the pipeline device only; production never pulls the proof
-  image; certificates + ProofRun rows are what ships. (Above assumes this.)
+- ~~D-pf-7 — where Lean runs~~ WITHDRAWN 2026-09-24 (his correction): a module's engines are placed by the
+  topology like everything else — `mathproofs` declares `requires.engines` (`lean`), `polari-proof-tools` is an
+  engines WORKER (`/capability` + `/check`), the framework resolves through the standard ladder (knob →
+  local → topology provider `mathproofs.engines` → refusal), and `pol allocate mathproofs.engines <instance>`
+  decides the device. No dev/prod split is assumed anywhere; certificates travelling as rows is still true, but
+  it is a property of rows, not a placement rule.
 - **D-pf-8 — proofs and `mapping_status`.** Recommended: proofs NEVER change a mapping's `mapping_status` or
   `evidence_level` (those are about running); the validator's `logic` section and the panel badge are the
   proof's own surface. Alternative: a `logic_status` column on TensorMapping — one more column, rejected unless
@@ -1125,4 +1130,35 @@ not voted — but a `human` checker (a signed note) exists for what no tier can 
 - **D-pf-11 — the Lean/Mathlib pins**: chosen at pf-2 build time (latest stable Lean 4 release + the Mathlib
   commit that builds with it that week), recorded in `lean-toolchain` + `lake-manifest.json` in the submodule.
   Only the POLICY needs his word: track stable releases, bump deliberately, never float.
+
+### G.20 The engines SEAM — a correction of my own assumption BUILT 2026-09-24
+
+His challenge: "it is a module, it should be able to run on any device we want it to … I hope you did not make
+the assumption that was not the case and built things circumventing or duplicating that." I had, in two places:
+every lod flow (lod-1/2/2b/3c) and the FPGA kernel ran `docker run polari-eda-tools:noble …` on the LOCAL machine
+directly, with no `requires.engines`, no ladder, no worker, no `pol allocate`; and plan §I's D-pf-7 hard-coded a
+dev/prod split for Lean. Both corrected:
+
+- **`computelod/custom/eda_engines.py`** — the Polari engines ladder, per engine, exactly as `cntfet.cnt_remote`
+  and `materialsScience.engines.remote`: `EDA_ENGINES_URL` (always, or refusal — a declared worker never silently
+  degrades) → a local binary → the pinned image on THIS device (a way of having the binary, not a worker) → the
+  topology's LIVE provider for `computelod.engines` (`pol allocate computelod.engines <instance>`) → a refusal
+  naming both knobs. `placement()` answers before any dispatch; `GET /api/computelod/engines` serves it.
+  Execution is ARGV ONLY (engine + args; the flows' `| grep` / `> log` pipelines are Python now); the PDK is
+  `/pdk/…` to the engine (a local binary gets the real root translated). ngspice goes through cntfet's existing
+  ladder (`find_ngspice` / `run_ngspice`), with absolute `.include`s inlined when the worker is remote (it takes
+  netlist text only).
+- **`polari-eda-tools` is an engines WORKER**: `eda_engines_service.py` (`GET /capability` per engine + the PDK,
+  `GET /system-info`, `POST /run {engine, args, files, files_b64, env, timeout}` → returncode/stdout/stderr/files;
+  a whitelist of binaries, no shell; args are basenames in the job or the image's own read-only data
+  (`/pdk/…`, `/usr/share/…`)), the image's default command on :9800; `polari-rf-node/docker-compose.eda-engines.yml`
+  deploys it like cnt-engines. OpenSTA joined the image (the openroad/opensta binary copied; GPL-3 tool, ledger
+  row) so ONE image = every engine.
+- **Manifests** now declare `requires.engines` for computelod (riscv-gcc, yosys, iverilog, sta, magic, netgen,
+  ngspice) and tensormath (yosys, nextpnr-ice40, iverilog), in the hwdigital/materials_science shape.
+- **Proof**: lod-1, lod-2 and lod-3c re-run through the ladder in BOTH modes — local image, and a live worker with
+  `EDA_ENGINES_URL` set (every engine `remote`, the worker's own PDK) — give IDENTICAL numbers to the committed
+  reports (0x00b50533 / 220 / 8126 / PASS 4/4; 96 cells 855.82 µm² 11.9394 ns; DRC 3/4 context, LVS match,
+  14/23 caps, tpHL 67.76 / 95.81 / 98.96 ps). computelod 87/87, tensormath 61/61, manifests valid, live boot
+  **95/95**.
 

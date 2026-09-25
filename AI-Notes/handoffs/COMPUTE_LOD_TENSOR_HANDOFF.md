@@ -23,10 +23,11 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 61
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 64
     PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 87
-    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 94/94 on a REAL boot
+    mkdir -p /tmp/tt && cd /tmp/tt && rm -rf data && PYTHONPATH=<fw>:<fw>/modules python3 <fw>/tests/tensor_liveboot_probe.py   # 95/95 on a REAL boot
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json)   # the tensor-tree-panel type-checks (tt-5)
     # re-run the tool chains (docker; nothing installed on the host):
-    (cd ../polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh)   # the toolchain SUBMODULE: gcc-riscv64 · yosys · verilator · iverilog · nextpnr/icestorm · magic (source) · netgen · ciel → sky130A (0.9 GB, cached)
+    (cd ../polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh)   # the toolchain SUBMODULE + engines WORKER: gcc-riscv64 · yosys · verilator · iverilog · nextpnr/icestorm · OpenSTA · magic (source) · netgen · ciel → sky130A (0.9 GB, cached)
+    # engines resolve through the Polari ladder (computelod/custom/eda_engines.py): EDA_ENGINES_URL → local binary → local image → `pol allocate computelod.engines <instance>` → refusal; GET /api/computelod/engines shows the placement
     docker pull openroad/opensta
     PYTHONPATH=.:modules python3 -m computelod.custom.lod1_chain run              # c=a+b → gcc → add → picorv32 → yosys → iverilog
     PYTHONPATH=.:modules python3 -m computelod.custom.lod2_silicon run            # SKY130 abc mapping + OpenSTA (Liberty cached in ~/.cache/polari-lod)
@@ -141,3 +142,6 @@ fetch the PDK before re-running any lod-3c/3b/2/1 flow:
 - `LazySeedRows` fills on iteration, len AND indexing now; the seed loop iterates.
 - The 2-D shape library takes a `shapeRef`; per-instance geometry goes through mathshapes → `Shape2DDefinition
   units='space'`, never a polygon on the object.
+- NEVER `docker run <tool image>` from a module directly: declare `requires.engines`, resolve through the engines
+  ladder (a worker + knob + topology provider), argv only. A remote ngspice worker takes netlist text only —
+  inline absolute `.include`s.
