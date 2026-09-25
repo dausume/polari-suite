@@ -1303,3 +1303,50 @@ The decision procedure, in the same term language, honest about what it decides 
 - **D-pf-9 amended (his, 2026-09-25): the default budget is 25 s** ("set the budget to 25s then since the highest was
   19s") — `MathClaim.budget_s` default, the seeds, the checker's fallback; the aggregate's worst case is now 125 s for the
   five z3 claims. Still a per-claim knob; still `undecided`, never refuted, on a timeout.
+
+### G.24 pf-2 — the Lean 4 tier BUILT 2026-09-25 (branch `dev-pf-2` off `dev-pf-1`; NEW submodule `polari-rf-node/polari-proof-tools`)
+
+The formal tier, as an engines worker, with the pins where D-pf-11 said and the bridge D-pf-2 implied:
+
+- **`dausume/polari-proof-tools`** (public, default `dev`, submodule of polari-rf-node beside polari-eda-tools, same
+  discipline): `Dockerfile` (ubuntu:24.04 + elan installing exactly `lean-toolchain`; Mathlib at the manifest's commit;
+  its compiled oleans via `lake exe cache get` through a BuildKit cache mount; `lake build PolariProofs` at build — the
+  image does not exist unless every committed certificate checks), **pins** `lean-toolchain` = `leanprover/lean4:v4.34.1`
+  (stable, released 2026-09-24) and `lake-manifest.json` with Mathlib `d13f23b723b8a846827a245b89c10fc7d3f11612` (tag
+  v4.34.1) + its eight transitive packages, `flows/check.sh` (`lake env lean <file>` → `POLARI_PROOF ok|error <hash>` +
+  `POLARI_PINS`), `proof_engines_service.py` (:9810 — `GET /capability` with pins + the theorem files and the hashes
+  they cite, `GET /system-info`, `POST /check {file | source+name, statement_hash, timeout}` → verdict, file sha256,
+  `hash_matches`, pins, elapsed), `LICENSES.md` (Lean/Mathlib/elan Apache-2.0, all tools as separate processes),
+  `docker-compose.proof-engines.yml` in rf-node. Measured: image **11.0 GB**; a check 8.3 s cold via `docker run`,
+  **2.3–3.9 s** through the warm worker.
+- **The theorems (D-pf-10)**, each file's header citing the JSON term verbatim and its `statement_hash`:
+  `SigmaSymmetry.lean` — `sigma_symm`: σ_ij = Σ_kl C_ijkl ε_kl is symmetric for EVERY n over any commutative
+  semiring given C's FIRST minor symmetry alone (the proof states the exact hypothesis it uses — less than the LaTeX
+  reading assumes; ε's symmetry is not needed for this direction); `ChainComposition.lean` — `chain_subset_of_le`,
+  `chain_valid_on_last`, `chain_inter_eq_last`: pairwise V_{i+1} ⊆ V_i along a chain gives V_n ⊆ V_i for all i ≤ n and
+  ⋂_{i≤n} V_i = V_n — the reason the `chain-domain-inclusion` rule's PAIRWISE obligations suffice, over any type α;
+  `RestrictionIdempotent.lean` — the smoke test over any index type. Lean's own corrections while building: imports
+  before the doc block; `Set.subset_iInter₂` (not `subset_biInter`); `Mathlib.Data.Set.Lattice` is deprecated in
+  favour of `.Indexed`; `Mathlib.Logic.Basic` no longer exists (the tactic import `Mathlib.Tactic.SplitIfs` is what
+  was needed); `Fintype (Fin n)` comes with `Mathlib.Algebra.BigOperators.Fin`.
+- **The framework**: `mathproofs/custom/proof_engines.py` = the engines ladder EXACTLY as `computelod.custom.
+  eda_engines` (PROOF_ENGINES_URL always-or-refusal → local project `POLARI_PROOF_PROJECT` + lake → local image
+  `polari-proof-tools:noble` → topology provider `mathproofs.engines`, `pol allocate mathproofs.engines <instance>`
+  (generic, no CLI change) → refusal naming both knobs); `GET /api/mathproofs/engines` = the placement.
+  `custom/lean_tier.py`: template → committed file (`symmetry-of-contraction n=any`, `chain-domains-compose links=any`,
+  `restriction-idempotent`), `proved` ONLY when lean accepted the file AND `hash_matches`; a proof of a different
+  statement → `unprovable-here` by name; lean rejecting → `error` (a proof failed — nothing is said of the statement,
+  never `refuted`); timeout → `undecided`; the ProofRun's `checker_version` = the Lean toolchain + Mathlib commit +
+  where it ran. The term language: `symbolic` args `"any"` name the general statement (sympy names it as the lean
+  tier's and steps aside); new template `chain-domains-compose`. `auto_tier` → `lean` for the general statements;
+  **boot never runs lean** (plan §I.9) — such claims are listed as awaiting a person / the pipeline.
+- **Seeds**: `sigma-symmetry-general-rank`, `chain-domains-compose-lemma`, `restriction-idempotent-theorem`
+  (budget 300 s: Mathlib's imports load before the check). Aggregate worst case now 1025 s (5 z3 × 25 + 3 lean × 300).
+- **Proof**: mathproofs **70/70** (the ladder refusing with both knobs named; the worker faked for the four verdicts;
+  the REAL smoke check through the local image, 3.0 s); tensortree 64/64, computelod 91/91, tensormath 61/61, drift
+  23/23; live boot **116/116 in BOTH modes** — the local image, and the worker over `PROOF_ENGINES_URL` — all three
+  theorems PROVED with the pins on the run; two real negatives through the worker: a proof of another statement →
+  `hash_matches: false` (not counted), `theorem bad : 1 = 2 := rfl` → `error`.
+- Not done: the CI `proofs` stage (plan §I.9 — advisory; Lean on the theorems whose `.lean` changed); pf-3 authoring;
+  pf-4 proofs as TechNodes; a topology instance row for a proof-engines worker (none seeded, as with eda-engines —
+  `pol allocate` needs an instance to exist).
