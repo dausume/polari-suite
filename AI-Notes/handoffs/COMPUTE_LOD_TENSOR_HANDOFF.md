@@ -1,4 +1,4 @@
-# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after lod-3e): what is built, how to prove it, what is owed
+# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after lod-4b — the lod half of §H.3 complete): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
 ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
@@ -26,6 +26,7 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     PYTHONPATH=.:modules python3 -m computelod.custom.lod4_devices run          # lod-4c: two DC decks, seconds
     PYTHONPATH=.:modules python3 -m computelod.custom.lod2_compare run          # lod-2c: six twins at the CNT point + own FO4 (~10 min; the 0.6 V decks are long)
     docker pull openroad/orfs:26Q3-651-gbc334a4aa && PYTHONPATH=.:modules python3 -m computelod.custom.lod3_pnr run   # lod-3e: the adder placed + routed, both variants (~1 min)
+    PYTHONPATH=.:modules python3 -m computelod.custom.lod4_steps run             # lod-4b: a reading (nothing fetched); the PSPP rows seed at boot
     PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 83 (pf-0 + pf-1 z3 + pf-2 lean + pf-3 doors + pf-4 knowledge)
     rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 126/126 on a REAL boot (branch dev-pf-3) — from the framework dir, data/ cleared
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json && npx ng build --configuration development)   # the claim editor + panel doors compile
@@ -102,6 +103,17 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 `tensor-tree-panel` (Angular, registered; d3 tree + evidence-coloured mapping arcs + dims→channel chips + the
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
+
+## State at handoff (2026-09-26, after lod-4b; branch `dev-lod-4b` off `dev-lod-3e`; FIVE stacked UNMERGED branches)
+
+lod-4b BUILT (plan §G.31): `computelod/custom/lod4_steps.py run` — the fabrication route as PSPP rows: 8 SKY130 wafer-state
+stages from the PDK's documented 26-layer stack (quoted, cited, read 2026-09-26) + 8 textbook unit processes (Plummer/Deal/
+Griffin; the recipe named as absent on every row), the CNT route's 6 + 6 by reference to cntfet's cnt_process rows; `lod4:
+fabrication → materials` replaced by name, `lod4b-cnt: …` added (proposed). The PSPP rows ride computelod's seed pairs
+(guarded on pspp). `GET /api/computelod/lod4/steps`. **The lod half of §H.3 is complete** (lod-3d, 4c, 2c, 3e, 4b — all
+2026-09-26). Merge word for FIVE branches is his, innermost-first per repo: `dev-lod-3d` → `dev-lod-4c` → `dev-lod-2c` →
+`dev-lod-3e` → `dev-lod-4b` (framework → rf-node → suite; eda-tools dev already pushed). Remaining on §H.3: tt-12 (the plate
+scene inside the node detail — Angular) and tt-13 (cross-tree discovery with a `units` filter — tensortree), both small.
 
 ## State at handoff (2026-09-26, after lod-3e; branch `dev-lod-3e` off `dev-lod-2c`; FOUR stacked UNMERGED branches)
 

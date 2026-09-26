@@ -921,14 +921,14 @@ standing vendor route is verified (not verified here).
 |---|---|---|---|
 | ~~lod-3d~~ | **BUILT 2026-09-26 (§G.27, branch `dev-lod-3d`)** — all eight cells of the adder through lod-3b/3c: 21 arcs; the two-cell rise-gap verdict did NOT generalize (refuted claim kept, conditional restatement added) | — | done |
 | ~~lod-3e~~ | **BUILT 2026-09-26 (§G.30, branch `dev-lod-3e` off dev-lod-2c)** — the whole adder placed and routed with OpenROAD-flow-scripts in its PUBLISHED image (pinned tag + digest; no source build needed), parasitics extracted, timed with and without the wires: the wires cost 2.3–2.4 % | — | done |
-| lod-4b | fabrication as ROWS: the SKY130 process steps (lithography, implants, gate, contacts, metals) as PSPP `ProcessingStage`/`MaterialProcessDefinition` rows cited from the PDK docs; the CNT branch's process rows (cntfet `cnt_process_basis`) mapped the same way | open_pdks docs; a decision on which PSPP classes carry a semiconductor process | medium; closes "fabrication → materials is entered, not exhausted" |
+| ~~lod-4b~~ | **BUILT 2026-09-26 (§G.31, branch `dev-lod-4b` off dev-lod-3e)** — 8 SKY130 wafer-state stages from the PDK's documented layer stack + 8 textbook unit processes (the recipe named as absent), the CNT route's 6 + 6 by reference to cntfet; `fabrication → materials` replaced by name. The PSPP classes the concept tree already named were used (the only decision: taken as the routine one) | — | done |
 | ~~lod-4c~~ | **BUILT 2026-09-26 (§G.28, branch `dev-lod-4c` off dev-lod-3d)** — Ion / Ioff / Vt / DIBL / SS per flavour from DC sweeps on the PDK models; the sky130 row carries them in sifet's key names, evidence `simulated` | — | done |
 | ~~lod-2c~~ | **BUILT 2026-09-26 (§G.29, branch `dev-lod-2c` off dev-lod-4c)** — six twin cells at the CNT point (SKY130 simulated at 0.6 V) and at each library's own FO4; CNT area REFUSED (no layout, no rules) | — | done |
 | tt-12 | the tree panel showing the plate scene INSIDE the node detail (a resolved node's binding rendered where the node is clicked) — the "visualize" of the cycle without leaving the panel | Angular only | small |
 | tt-13 | discovery across trees: a selection on `plate` finding mappings in `bob-motion`/`wind-spatial` — today the hard filter is by dims only; a `units` filter (§F3) is stated in the plan and not implemented | tensortree only | small |
 | D5 | PyTorch as a third ComputeImplementation | his word (deferred) | — |
 
-Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c → lod-2c → lod-3e~~ (all done by 2026-09-26) → lod-4b → tt-12/13.
+Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c → lod-2c → lod-3e → lod-4b~~ (all done by 2026-09-26) → tt-12/13 (Angular / tensortree, small) — the lod half of §H.3 is complete.
 
 ## I. Mathematical proofs — the logic BETWEEN the parts of a TensorTree (revision of 2026-09-24, his ask)
 
@@ -1600,6 +1600,47 @@ build was not needed: OpenROAD publishes its flow image (`openroad/orfs`, update
   routed design's power (the flow reports an estimate under default activity — not a row until the activity is stated);
   the eda-tools WORKER carrying ORFS (a device that wants the flow pulls the image; a worker built FROM the ORFS image is
   the natural next step); walking the ladder past `layout` with the routed design (lod-4b, process rows).
+
+### G.31 lod-4b — fabrication as ROWS BUILT 2026-09-26 (branch `dev-lod-4b` off `dev-lod-3e`; framework + rf-node + suite)
+
+The last lod slice of §H.3. lod-4 had entered fabrication → materials by reference (sky130 → eg-si) and named the rest as
+not modelled. `computelod/custom/lod4_steps.py run` (a reading — nothing fetched at run time; the citations are in the
+report) writes the route down in PSPP's own vocabulary, the two classes the concept tree already named for the rung
+(`ProcessingStage`, `MaterialProcessDefinition` — the "decision on which PSPP classes" was taken as the routine one), and
+is exact about what each row rests on:
+
+- **What the PDK publishes, and what it does not.** The docs give the LAYER STACK — every drawing layer with its purpose
+  (dnwell, nwell, diff, tap, poly, nsdm/psdm, rpm, hvtp, lvtn, hvi, npc, licon1, li1, mcon, met1–met5, via–via4, nsm, pad —
+  26 layers, quoted verbatim from `rules/layers.html`, read 2026-09-26), the design rules, the device models, and the
+  README's stack description ("1 level of local interconnect · 5 levels of metal · …", quoted). They do NOT give
+  SkyWater's recipe: temperatures, doses, gas chemistries, which isolation (LOCOS/STI), which metals (Al/Cu), plugs and
+  barriers. Every SKY130 row says so (`NOT_HERE`).
+- **8 SKY130 ProcessingStage rows** (family `silicon-cmos-sky130`), a chain of wafer states the documented layers imply:
+  eg-si wafer → wells → active (isolation) → gate stack (two oxides: 1.8 V core and `hvi` 5 V; Vt implants hvtp/lvtn — the
+  stack lod-4c's models describe: toxe 4.148 nm, vth0 0.519 V) → source/drain (+ the rpm resistor implant) → contacts +
+  local interconnect → five metals + vias → passivated die. Each names its PDK layers (quoted), the materials it ADDS (Si,
+  SiO2, poly-Si, B/P/As, Si3N4, W plugs, Al/Cu, TiN — NAMES, not material rows: those would need their own sources) and the
+  unit processes it takes; every documented layer sits on exactly one stage (asserted).
+- **8 SKY130 MaterialProcessDefinition rows**, all declared TRANSFORMATIVE (PSPP invariant I2 — declared, never inferred):
+  photolithography (patterning), ion implantation (doping), thermal oxidation (film-growth, conventional heating), CVD
+  deposition, plasma etch (removal, rf), metallization, CMP (planarization), anneal (heating). These are the textbook CMOS
+  operations the layers require, cited to Plummer, Deal & Griffin, "Silicon VLSI Technology" (Prentice Hall 2000) —
+  evidence `analytical`; `parameter_schema_json` says the recipe parameters are the foundry's, none published.
+- **The CNT branch mapped the same way, by reference**: 6 stages (purified s-SWCNT solution → aligned film → placed channel
+  → contacts → gate stack → patterned device) and 6 unit processes (family `aligned-cnt`), each naming the cntfet
+  `cnt_process` row that carries its parameters, source and confidence (s1-target-purification [HIL19] …, the rest
+  "engineering prior — TUNABLE") — the numbers stay on cntfet's rows; the PSPP rows say where they are. The branch's gap
+  remains LAYOUT (lod-3), not process.
+- **Mappings**: `lod4: fabrication → materials` REPLACED by name (the route as rows, the stack's materials named in the
+  target, the recipe as `loss_note`); `lod4b-cnt: fabrication → materials` ADDED with status `proposed` (no line has made
+  these devices here; the cntfet rows say TUNABLE). 17 ComputeMappings on a boot.
+- **Seeding**: the PSPP rows ride computelod's seed pairs (guarded on pspp; prefixes sky130-/cnt- never collide with pspp's
+  own seeds; description/notes/provenance converge onto an instance that already holds them). `GET /api/computelod/
+  lod4/steps` returns the report and the LIVE rows from pspp's tables. Explain flows `lod4b` / `lod4b-cnt`.
+- Proof: computelod 132/132, live boot **133/133** (17 ComputeMappings; 14 + 14 PSPP rows live).
+- Not done / honest limits: the materials as ROWS (a materials-science source per film; a slice of its own); the process
+  as MaterialState transitions with executions (PSPP's execution machinery — the definitions are there, no execution rows:
+  nothing was run); the CNT branch's stages are as unmeasured as cntfet's priors.
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 
