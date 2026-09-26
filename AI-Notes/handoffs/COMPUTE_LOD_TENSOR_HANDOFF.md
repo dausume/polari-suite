@@ -100,6 +100,26 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
 
+## State at handoff (2026-09-25 late night, after bp-2 — his second browser pass, from a phone)
+
+He looked at the pages from his phone and gave seven asks (plan §H.4 has his words and what each became). All
+seven were BUILT the same night on `dev-bp-2` (framework, angular, rf-node, suite — stacked on `dev-fs-1`) and
+seen live on the home swarm: the tensortree page is ONE tree at a time (the tree panel's chip sets a page SCOPE
+through a `setScope` display event; `{scope:…}` placeholders in the configured panels follow it — tables, titles,
+the ONE sim-space viewer), tables wrap / clamp / render JSON as key-value lines / link references, every page
+opens "In plain words" (a `plain_words` attribute on 23 classes through `GET /api/plain`), `/object/:class/:name`
+is the generic detail view of any row (interconnect chips + the record), the mathproofs page closes with the 13
+cited sources behind the proof tiers (`ProofMethodReference`, 12 verified through Crossref), panel errors are
+human ("Sign in to see this." + a button), and a Login/Register that cannot reach the realm now says so with the
+host to open. Two gotchas fixed on the way, both worth knowing: (1) a module's page seed was NEVER re-applied to
+an instance whose DB held the first copy — the seeder now upserts a changed page (POLARI_SEED_PAGES_UPSERT=no keeps
+the old skip); (2) a new row class needs FOUR registrations — the module's `*_CLASSES` list, its manifest's
+`objects` + `classes` + `imports`, the core `feature_imports.py` import tuple, AND the explicit class list in
+`polariServer.py` (~line 1300) — miss the last two and boot prints "not in objectTypingDict, skipping".
+Merge word now ends `… → dev-fs-1 → dev-bp-2` (angular the same; polari-cli / PSC backend stop at dev-fs-1).
+Left for HIM: look again from the phone (the same links), D-lod4-1, the merge word. Screenshots from the
+extension time out on the pages with a 3-D viewer (renderer busy) — read the page text instead.
+
 ## State at handoff (2026-09-25 night, after the file-store detour — THIS arc is untouched by it)
 
 A detour happened after the browser pass: minio was gone upstream, so the store became SeaweedFS (fs-1, his call
