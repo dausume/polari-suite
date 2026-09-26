@@ -920,7 +920,7 @@ standing vendor route is verified (not verified here).
 | slice | what | needs | size |
 |---|---|---|---|
 | ~~lod-3d~~ | **BUILT 2026-09-26 (§G.27, branch `dev-lod-3d`)** — all eight cells of the adder through lod-3b/3c: 21 arcs; the two-cell rise-gap verdict did NOT generalize (refuted claim kept, conditional restatement added) | — | done |
-| lod-3e | the whole ADDER extracted: `magic` on the mapped netlist is not a layout — needs place-and-route (OpenROAD flow: floorplan → place → CTS-less → route → PEX) then OpenSTA on the extracted design vs lod-2's 11.94 ns | OpenROAD in the eda-tools image (the openroad/opensta image has only sta; `openroad` apt is not in noble — build from source at a pinned tag, licence BSD-3) | medium-large; the first real "layout rung" number for the adder |
+| ~~lod-3e~~ | **BUILT 2026-09-26 (§G.30, branch `dev-lod-3e` off dev-lod-2c)** — the whole adder placed and routed with OpenROAD-flow-scripts in its PUBLISHED image (pinned tag + digest; no source build needed), parasitics extracted, timed with and without the wires: the wires cost 2.3–2.4 % | — | done |
 | lod-4b | fabrication as ROWS: the SKY130 process steps (lithography, implants, gate, contacts, metals) as PSPP `ProcessingStage`/`MaterialProcessDefinition` rows cited from the PDK docs; the CNT branch's process rows (cntfet `cnt_process_basis`) mapped the same way | open_pdks docs; a decision on which PSPP classes carry a semiconductor process | medium; closes "fabrication → materials is entered, not exhausted" |
 | ~~lod-4c~~ | **BUILT 2026-09-26 (§G.28, branch `dev-lod-4c` off dev-lod-3d)** — Ion / Ioff / Vt / DIBL / SS per flavour from DC sweeps on the PDK models; the sky130 row carries them in sifet's key names, evidence `simulated` | — | done |
 | ~~lod-2c~~ | **BUILT 2026-09-26 (§G.29, branch `dev-lod-2c` off dev-lod-4c)** — six twin cells at the CNT point (SKY130 simulated at 0.6 V) and at each library's own FO4; CNT area REFUSED (no layout, no rules) | — | done |
@@ -928,7 +928,7 @@ standing vendor route is verified (not verified here).
 | tt-13 | discovery across trees: a selection on `plate` finding mappings in `bob-motion`/`wind-spatial` — today the hard filter is by dims only; a `units` filter (§F3) is stated in the plan and not implemented | tensortree only | small |
 | D5 | PyTorch as a third ComputeImplementation | his word (deferred) | — |
 
-Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c → lod-2c~~ (all done by 2026-09-26) → lod-3e → lod-4b.
+Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c → lod-2c → lod-3e~~ (all done by 2026-09-26) → lod-4b → tt-12/13.
 
 ## I. Mathematical proofs — the logic BETWEEN the parts of a TensorTree (revision of 2026-09-24, his ask)
 
@@ -1551,6 +1551,55 @@ side under one set of conditions, twice, and refuses what cannot be compared:
 - Not done: SKY130 extracted netlists at 0.6 V (lod-3c's PEX at 1.8 V moved delays 5–15 %); the regular-Vt / lvt SKY130
   flavours, which WOULD work at 0.6 V (a different library, sky130_fd_sc_lp/ls — a fetch and a re-run); the CNT library at
   a higher Vdd (its device is derived for 0.6 V — a re-derivation, not a knob).
+
+### G.30 lod-3e — the WHOLE adder placed and routed BUILT 2026-09-26 (branch `dev-lod-3e` off `dev-lod-2c`; framework + rf-node + suite; eda-tools LICENSES)
+
+The layout rung entered for the whole design, not a cell at a time. Sized "medium-large" for an OpenROAD source build; the
+build was not needed: OpenROAD publishes its flow image (`openroad/orfs`, updated daily; pinned here at tag
+`26Q3-651-gbc334a4aa`, digest recorded in the report), Ubuntu 22.04-based, 4.6 GB, carrying OpenROAD (BSD-3), ORFS
+(BSD-3), yosys (ISC), the sky130hd platform files (Apache-2.0) and two GPL tools we never invoke — audited in
+`polari-eda-tools/LICENSES.md` as a SECOND engine image, used as published, never rebuilt.
+
+- **Engines seam** (`eda_engines.py`): engines `orfs` (= `make` inside the ORFS image, its tools first on the PATH — what
+  its env.sh does) and `openroad`; ORFS_ENGINES resolve ONLY through the pinned image or a worker that carries it — the
+  host's `make` and the eda-tools image's `make` are refused by construction (a resolve rung that would have "found" the
+  wrong binary); `POLARI_ORFS_IMAGE` knob; `orfs_image_digest()`; placement lists `ladder_orfs`. The eda-tools worker's
+  capability does not claim it (its table has no `orfs`), so remotely it refuses honestly.
+- **`computelod/custom/lod3_pnr.py run`**: lod-2's OWN mapped netlist (rv32_add_sky130.v, 96 cells, 855.82 µm², sha256)
+  in; OUR cached Liberty handed to the flow as LIB_FILES (byte-identical to lod-2's timing model; the LEF/GDS are the
+  image's platform copy); a virtual 10 ns clock SDC (combinational design — the I/O paths must be constrained for the
+  flow to report them; no setup violation is asked for). Two variants, because a physical flow does not leave a netlist
+  alone: `as-flow` (ORFS defaults) and `cells-kept` (every switchable repair off: SKIP_CTS_REPAIR_TIMING,
+  SKIP_INCREMENTAL_REPAIR, SKIP_LAST_GASP, DONT_BUFFER_PORTS, SKIP_GATE_CLONING, SKIP_PIN_SWAP, SKIP_BUFFER_REMOVAL).
+  Knobs stated with why: CORE_UTILIZATION 20 % (40 % failed placement at 108 % once the flow had buffered and resized),
+  LEC_CHECK 0 (the image's equivalence checker dies with an illegal instruction on this CPU).
+- **What the flow did** (counted, not hidden — the census of the routed netlist against the input): in BOTH variants it
+  resized the carry chain maj3_1 → maj3_2 (29 cells) and a few others (the floorplan-stage repair_design is not
+  switchable — said so); as-flow buffered every port and repaired hold: 146 buffers/delay cells, 292 std cells, 50 taps,
+  332 fill, 3002 µm wire, 1186 vias, core utilization 57 %; cells-kept: 17 buffers, 163 std cells, 1680 µm wire.
+  Router DRC 0 on both (its own count; magic's full-rule DRC of the merged GDS is NOT run — the cell-level lod-3c check
+  stands for the cells). The flow's own setup check: as-flow met, cells-kept MISSED the 10 ns clock by 0.06 ns (10.06 ns)
+  — exactly what the repairs the other variant runs would have fixed.
+- **Timing under lod-2's exact conditions** (OpenSTA, 1.8 V / 14.6 fF / 50 ps), the routed netlist WITH its SPEF and the
+  same netlist WITHOUT it: as-flow 9.8057 vs 9.5826 ns → **the wires cost 0.223 ns, 2.3 %**; cells-kept 10.0593 vs
+  9.8213 → 0.238 ns, 2.4 %. One subtraction, the netlist held fixed. Both routed numbers beat lod-2's 11.94 ns netlist
+  ONLY because the flow resized the carry chain — stated on the row (`vs_lod2_note`); that difference is sizing + wires,
+  never called the wire cost.
+- **Rows**: two ComputeMappings `lod3e: adder cells → placed-and-routed layout (<variant>)` (standard-cells → layout,
+  MEASURED — the router's DRC and the flow's metrics are tool output; validated; `loss_note` counts the resizing and
+  buffers); twelve upward characterizations (per variant: routed delay with parasitics · wire delay cost · core area — a
+  knob's consequence, status `implemented`, said so · wirelength · routing DRC violations · instances after P&R). One
+  MathClaim `lod3e-wires-add-delay-on-the-routed-adder` (with > without, both variants) WITNESSED; cited by the
+  two-sources knowledge node. `GET /api/computelod/lod3/pnr`. Plain words for wire_delay / wirelength / drc_violations.
+- **Committed (ours, ~0.5 MB per variant)**: 6_final.v, 6_final.spef, 6_final.def, 6_report.json, 6_finish.rpt,
+  5_route_drc.rpt, synth_stat.txt, our two OpenSTA logs, config.mk, constraint.sdc, the placement image. NOT committed:
+  the GDS/ODB (they merge the PDK's cell layouts) and the 680 kB routing image (regenerable).
+- Proof: computelod 124/124, mathproofs 83/83 (19 seeded claims), live boot **131/131** (16 ComputeMappings, 142
+  CharacterizationMappings).
+- Not done: magic DRC/LVS of the routed GDS (the merged GDS holds PDK cells — run, not committed; a flow away); the
+  routed design's power (the flow reports an estimate under default activity — not a row until the activity is stated);
+  the eda-tools WORKER carrying ORFS (a device that wants the flow pulls the image; a worker built FROM the ORFS image is
+  the natural next step); walking the ladder past `layout` with the routed design (lod-4b, process rows).
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 

@@ -1,4 +1,4 @@
-# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after lod-2c): what is built, how to prove it, what is owed
+# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after lod-3e): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
 ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
@@ -25,6 +25,7 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 106 (lod-3d: 8 cells · 21 arcs; lod-4c: Ion/Ioff/Vt; the lod cross-checks as claim rows, pf-1)
     PYTHONPATH=.:modules python3 -m computelod.custom.lod4_devices run          # lod-4c: two DC decks, seconds
     PYTHONPATH=.:modules python3 -m computelod.custom.lod2_compare run          # lod-2c: six twins at the CNT point + own FO4 (~10 min; the 0.6 V decks are long)
+    docker pull openroad/orfs:26Q3-651-gbc334a4aa && PYTHONPATH=.:modules python3 -m computelod.custom.lod3_pnr run   # lod-3e: the adder placed + routed, both variants (~1 min)
     PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 83 (pf-0 + pf-1 z3 + pf-2 lean + pf-3 doors + pf-4 knowledge)
     rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 126/126 on a REAL boot (branch dev-pf-3) — from the framework dir, data/ cleared
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json && npx ng build --configuration development)   # the claim editor + panel doors compile
@@ -101,6 +102,17 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 `tensor-tree-panel` (Angular, registered; d3 tree + evidence-coloured mapping arcs + dims→channel chips + the
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
+
+## State at handoff (2026-09-26, after lod-3e; branch `dev-lod-3e` off `dev-lod-2c`; FOUR stacked UNMERGED branches)
+
+lod-3e BUILT (plan §G.30): `computelod/custom/lod3_pnr.py run` — the whole adder (lod-2's own 96-cell netlist) placed and
+routed by OpenROAD-flow-scripts in its PUBLISHED image (pinned `openroad/orfs:26Q3-651-gbc334a4aa` + digest; `docker pull` it
+first — 4.6 GB; no source build), two variants (as-flow / cells-kept), router DRC 0, parasitics extracted, timed under lod-2's
+conditions with and without the SPEF: **the wires cost 2.3–2.4 %**; the flow's resizing of the carry chain is counted on
+every row (that, not the wires, is why 9.8/10.06 ns beat lod-2's 11.94). Engines `orfs`/`openroad` in the ladder resolve ONLY
+via that image or a worker. eda-tools LICENSES.md gained the image's audit (committed on its dev). Merge word for FOUR
+branches is his, innermost-first per repo: `dev-lod-3d` → `dev-lod-4c` → `dev-lod-2c` → `dev-lod-3e` (framework → rf-node →
+suite; eda-tools dev already pushed). §H.3 continues lod-4b (process as PSPP rows) → tt-12/13.
 
 ## State at handoff (2026-09-26, after lod-2c; branch `dev-lod-2c` off `dev-lod-4c`; three stacked UNMERGED branches)
 
