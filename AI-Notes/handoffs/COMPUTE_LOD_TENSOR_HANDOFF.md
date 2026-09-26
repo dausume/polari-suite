@@ -1,4 +1,4 @@
-# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after lod-4b — the lod half of §H.3 complete): what is built, how to prove it, what is owed
+# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after tt-12/13 — §H.3 COMPLETE): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
 ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
@@ -27,6 +27,8 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     PYTHONPATH=.:modules python3 -m computelod.custom.lod2_compare run          # lod-2c: six twins at the CNT point + own FO4 (~10 min; the 0.6 V decks are long)
     docker pull openroad/orfs:26Q3-651-gbc334a4aa && PYTHONPATH=.:modules python3 -m computelod.custom.lod3_pnr run   # lod-3e: the adder placed + routed, both variants (~1 min)
     PYTHONPATH=.:modules python3 -m computelod.custom.lod4_steps run             # lod-4b: a reading (nothing fetched); the PSPP rows seed at boot
+    PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # tt-13: cross-tree discovery + the units filter
+    (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json)    # tt-12: the scene inside the node detail compiles
     PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 83 (pf-0 + pf-1 z3 + pf-2 lean + pf-3 doors + pf-4 knowledge)
     rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 126/126 on a REAL boot (branch dev-pf-3) — from the framework dir, data/ cleared
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json && npx ng build --configuration development)   # the claim editor + panel doors compile
@@ -103,6 +105,17 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 `tensor-tree-panel` (Angular, registered; d3 tree + evidence-coloured mapping arcs + dims→channel chips + the
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
+
+## State at handoff (2026-09-26, after tt-12/13; branch `dev-tt-12` off `dev-lod-4b`; SIX stacked UNMERGED branches — §H.3 COMPLETE)
+
+tt-12 + tt-13 BUILT (plan §G.32): the tree panel renders the clicked node's scene inside its detail (the existing
+`sim-space-viewer`, opened on a click; angular branch `dev-tt-12` off dev, tsc clean, UNSEEN until the images rebuild) and
+discovery works ACROSS trees with the §F3 units filter as a hard one (`node_dim_units`; `cross_tree` candidates with a lower
+context term; `units-incompatible` / `units-unknown` inapplicables that say which side). **Every row of §H.3 is built**; D5
+(PyTorch) stays his word. Merge word for SIX branches is his, innermost-first per repo: framework `dev-lod-3d` → `dev-lod-4c`
+→ `dev-lod-2c` → `dev-lod-3e` → `dev-lod-4b` → `dev-tt-12`; angular `dev-tt-12` alone; rf-node + suite the same six names;
+eda-tools dev already pushed. Then the image rebuild + his browser pass (the scene-in-detail, the cross-tree pill, the
+routed adder's rows and the PSPP process rows on the pages) and `pol modules publish` once the four module repos exist.
 
 ## State at handoff (2026-09-26, after lod-4b; branch `dev-lod-4b` off `dev-lod-3e`; FIVE stacked UNMERGED branches)
 

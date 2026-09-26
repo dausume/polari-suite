@@ -924,11 +924,11 @@ standing vendor route is verified (not verified here).
 | ~~lod-4b~~ | **BUILT 2026-09-26 (§G.31, branch `dev-lod-4b` off dev-lod-3e)** — 8 SKY130 wafer-state stages from the PDK's documented layer stack + 8 textbook unit processes (the recipe named as absent), the CNT route's 6 + 6 by reference to cntfet; `fabrication → materials` replaced by name. The PSPP classes the concept tree already named were used (the only decision: taken as the routine one) | — | done |
 | ~~lod-4c~~ | **BUILT 2026-09-26 (§G.28, branch `dev-lod-4c` off dev-lod-3d)** — Ion / Ioff / Vt / DIBL / SS per flavour from DC sweeps on the PDK models; the sky130 row carries them in sifet's key names, evidence `simulated` | — | done |
 | ~~lod-2c~~ | **BUILT 2026-09-26 (§G.29, branch `dev-lod-2c` off dev-lod-4c)** — six twin cells at the CNT point (SKY130 simulated at 0.6 V) and at each library's own FO4; CNT area REFUSED (no layout, no rules) | — | done |
-| tt-12 | the tree panel showing the plate scene INSIDE the node detail (a resolved node's binding rendered where the node is clicked) — the "visualize" of the cycle without leaving the panel | Angular only | small |
-| tt-13 | discovery across trees: a selection on `plate` finding mappings in `bob-motion`/`wind-spatial` — today the hard filter is by dims only; a `units` filter (§F3) is stated in the plan and not implemented | tensortree only | small |
+| ~~tt-12~~ | **BUILT 2026-09-26 (§G.32, branch `dev-tt-12`)** — the node's scene rendered inside its detail on a click (`sim-space-viewer` hosted by the panel, the node's `sim_space`); unseen in a browser until the images rebuild | — | done |
+| ~~tt-13~~ | **BUILT 2026-09-26 (§G.32, branch `dev-tt-12`)** — discovery across trees with the §F3 units filter as a HARD one: same dim name + same unit → a `cross_tree` candidate (lower context term); a different unit or an unrecorded unit → inapplicable, saying which | — | done |
 | D5 | PyTorch as a third ComputeImplementation | his word (deferred) | — |
 
-Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c → lod-2c → lod-3e → lod-4b~~ (all done by 2026-09-26) → tt-12/13 (Angular / tensortree, small) — the lod half of §H.3 is complete.
+Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c → lod-2c → lod-3e → lod-4b → tt-12/13~~ — **§H.3 is complete (2026-09-26)**; D5 (PyTorch) stays his word.
 
 ## I. Mathematical proofs — the logic BETWEEN the parts of a TensorTree (revision of 2026-09-24, his ask)
 
@@ -1641,6 +1641,33 @@ is exact about what each row rests on:
 - Not done / honest limits: the materials as ROWS (a materials-science source per film; a slice of its own); the process
   as MaterialState transitions with executions (PSPP's execution machinery — the definitions are there, no execution rows:
   nothing was run); the CNT branch's stages are as unmeasured as cntfet's priors.
+
+### G.32 tt-12 + tt-13 — the scene inside the node detail; discovery across trees with the units filter BUILT 2026-09-26 (branch `dev-tt-12` off `dev-lod-4b`; framework + angular + rf-node + suite)
+
+The two small non-lod rows of §H.3, closing the table.
+
+- **tt-12 (Angular only)** — `tensor-tree-panel` hosts the existing `sim-space-viewer` (never a new renderer) inside the
+  selected node's detail: a `scene` row shows the node's `sim_space` (the tree view already carried it per node since bp-2a)
+  with a "show the scene here" door; a click renders `<sim-space-viewer [simSpaceName]=node.sim_space hideRunPanel
+  clickNavigates=false>` in a 340 px host — a WebGL scene is heavy, so it opens on a click and stays open across node picks
+  (the input changes, the scene follows). The page's ONE configured viewer still follows the tree SCOPE (his bp-2 rule);
+  this one follows the clicked node — the "visualize" step of select → discover → follow without leaving the panel. A node
+  with a binding but no `sim_space` says so instead of guessing a scene. Cross-tree candidates (tt-13) show a `cross-tree ·
+  written for <node>` pill whose tooltip is the why. tsc clean; UNSEEN in a browser until the images rebuild (his pass).
+- **tt-13 (tensortree only)** — `tensortree_discover.discover` gained the §F3 units filter and, with it, discovery ACROSS
+  trees: a mapping written for ANOTHER node is a candidate on this selection when every dim it needs exists here by name AND
+  by unit. `node_dim_units(manager, node)` reads a node's units through its LocalizedDimensions → the tensor's
+  TensorDimension rows or `dimensions_json` (`''` when nothing is recorded). The filter is HARD and honest three ways: same
+  name, different unit → `inapplicable` kind `units-incompatible` ("x is m here, mm there"); no unit recorded on either side →
+  `inapplicable` kind `units-unknown` naming the silent side — compatibility is never assumed; dims not all present → simply
+  not a candidate (no refusal row per foreign mapping). Survivors pass the same validity and obligation filters, score with
+  the configured policy and a LOWER context term (C = 0.25 — a mapping written for another node, said so in `terms`), and
+  carry `cross_tree`, `source_node`, `units` and `why_here`; the answer adds `cross_tree_candidates` and `units_here`.
+  Own-node candidates are unchanged (their tensor is the selection's). Proof: tensortree selftest (a second tree with a
+  matching node, a mm node and a unit-less node — one candidate, two inapplicables with the right words), live boot 134/134.
+- Not done: a units CONVERSION (m ↔ mm) — the filter refuses, it does not convert (a conversion would be a mapping of its
+  own, with evidence); the seeded trees share no cross-tree candidates today (plate has no z; the wind mappings need it) —
+  the door is open, the data has not walked through it yet.
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 
