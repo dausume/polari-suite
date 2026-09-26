@@ -907,8 +907,13 @@ ruling flips it or not; the row's `manufacturable_reason` records whichever.
 WERE fabricated; a third party — a shuttle or the foundry — might take a request; no standing open door verified;
 manufacturable stays None), `unproven`, `not-available`} (`sifet.objects.si_ladder._shared.MANUFACTURABILITY`, a
 field on `SiliconProcessNode`, asserted consistent with the bool in `_node`). sky130 = `proven-on-request`; every
-sifet rung = `unproven`. The bool's rule is unchanged ("today: no rung qualifies"). Built the same day on dev
-(sifet ladder selftest 32/32, computelod 92/92).
+sifet rung = `unproven`. Built the same day on dev (sifet ladder selftest 32/32, computelod 92/92).
+
+**Refined the same day (his): "available should be if it is available through a third party closed source vendor,
+open should be only if a fully open source option and route exists."** → `open` = a fully open-source option AND
+route (no rung today; asserted); `available` = a third-party closed-source vendor takes orders (the reason must name
+the vendor; asserted); the bool `manufacturable` = open OR available. sky130 stays `proven-on-request` until a
+standing vendor route is verified (not verified here).
 
 ### H.3 Further lod work — the natural next rungs, with sizes
 
