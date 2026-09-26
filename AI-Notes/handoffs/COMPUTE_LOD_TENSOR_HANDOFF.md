@@ -1,4 +1,4 @@
-# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after tt-12/13 — §H.3 COMPLETE): what is built, how to prove it, what is owed
+# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after the reproducibility pass + D5): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
 ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
@@ -29,6 +29,8 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     PYTHONPATH=.:modules python3 -m computelod.custom.lod4_steps run             # lod-4b: a reading (nothing fetched); the PSPP rows seed at boot
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # tt-13: cross-tree discovery + the units filter
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json)    # tt-12: the scene inside the node detail compiles
+    PYTHONPATH=.:modules python3 -m computelod.custom.repro check                # every report's reproduction block complete
+    (cd .. && docker compose -p torch-engines -f docker-compose.torch-engines.yml up -d --build)   # D5 worker; then TORCH_ENGINES_URL=http://localhost:9820 for the probe's measured benchmark
     PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 83 (pf-0 + pf-1 z3 + pf-2 lean + pf-3 doors + pf-4 knowledge)
     rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 126/126 on a REAL boot (branch dev-pf-3) — from the framework dir, data/ cleared
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json && npx ng build --configuration development)   # the claim editor + panel doors compile
@@ -105,6 +107,20 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 `tensor-tree-panel` (Angular, registered; d3 tree + evidence-coloured mapping arcs + dims→channel chips + the
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
+
+## State at handoff (2026-09-26 evening, after the reproducibility pass (`dev-repro`) and D5 (`dev-d5`); EIGHT stacked UNMERGED branches)
+
+🔑 **His rule (2026-09-26): every committed result carries the initial conditions and seeds that produced it.** Built as
+`computelod/custom/repro.py` + a `reproduction` block on all 12 flow reports (inputs by sha256, tool versions through the
+ladder + image ids, knobs, committed decks under `initialData/*/decks/`, seeds or `deterministic` with why); re-runs
+reproduced lod-1/2/2c/3e/4c exactly; two findings fixed/stated (the `.save` deck change moved two arcs by 0.01 ps; magic
+reuses stale .ext files — the flow now starts clean). Plan §G.33. `python3 -m computelod.custom.repro check`.
+**D5 (his word) BUILT** — plan §G.34: torch as an engine (`tensormath/custom/torch_engine.py` ladder), the worker
+`polari-rf-node/torch-engines` (pinned `torch==2.14.0+cpu`, :9820, compose file; running on pol-core as `prf-torch-engines`),
+the third row `stress-from-strain/torch` benchmarked MEASURED through the worker; `GET /api/tensormath/engines`. Merge word
+for EIGHT branches is his, innermost-first per repo: framework `dev-lod-3d` → `dev-lod-4c` → `dev-lod-2c` → `dev-lod-3e` →
+`dev-lod-4b` → `dev-tt-12` → `dev-repro` → `dev-d5`; angular `dev-tt-12`; rf-node + suite the same eight names. Then the image
+rebuild + his browser pass. New flows in ANY module must attach a reproduction block (the rule is standing).
 
 ## State at handoff (2026-09-26, after tt-12/13; branch `dev-tt-12` off `dev-lod-4b`; SIX stacked UNMERGED branches — §H.3 COMPLETE)
 

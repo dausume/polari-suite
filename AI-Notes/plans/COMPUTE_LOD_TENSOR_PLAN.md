@@ -926,7 +926,7 @@ standing vendor route is verified (not verified here).
 | ~~lod-2c~~ | **BUILT 2026-09-26 (§G.29, branch `dev-lod-2c` off dev-lod-4c)** — six twin cells at the CNT point (SKY130 simulated at 0.6 V) and at each library's own FO4; CNT area REFUSED (no layout, no rules) | — | done |
 | ~~tt-12~~ | **BUILT 2026-09-26 (§G.32, branch `dev-tt-12`)** — the node's scene rendered inside its detail on a click (`sim-space-viewer` hosted by the panel, the node's `sim_space`); unseen in a browser until the images rebuild | — | done |
 | ~~tt-13~~ | **BUILT 2026-09-26 (§G.32, branch `dev-tt-12`)** — discovery across trees with the §F3 units filter as a HARD one: same dim name + same unit → a `cross_tree` candidate (lower context term); a different unit or an unrecorded unit → inapplicable, saying which | — | done |
-| D5 | PyTorch as a third ComputeImplementation | his word (deferred) | — |
+| ~~D5~~ | **BUILT 2026-09-26 (§G.34, branch `dev-d5`; his word: "let us move on to D5")** — PyTorch as the third ComputeImplementation, resolved through the engines ladder (a torch-engines WORKER, pinned CPU wheel; never assumed on a device); benchmarked MEASURED through the worker | — | done |
 
 Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c → lod-2c → lod-3e → lod-4b → tt-12/13~~ — **§H.3 is complete (2026-09-26)**; D5 (PyTorch) stays his word.
 
@@ -1668,6 +1668,66 @@ The two small non-lod rows of §H.3, closing the table.
 - Not done: a units CONVERSION (m ↔ mm) — the filter refuses, it does not convert (a conversion would be a mapping of its
   own, with evidence); the seeded trees share no cross-tree candidates today (plate has no z; the wind mappings need it) —
   the door is open, the data has not walked through it yet.
+
+### G.33 The REPRODUCIBILITY pass — his rule 2026-09-26 (branch `dev-repro` off `dev-tt-12`; framework + rf-node + suite)
+
+**His words:** "the main thing we should focus on keeping is the initial conditions and seeds used so it is reproducible, in
+addition to the results." Saved as a standing rule (memory `reproducible-initial-conditions`). What it became:
+
+- **`computelod/custom/repro.py`** — ONE shape for every committed report, `reproduction`: `inputs` (every file read, by
+  sha256; a cached PDK/Liberty file by url + sha256), `tools` (the version line of every engine THROUGH the engines ladder —
+  the binary that ran, wherever it ran — plus the ids / registry digests of the pinned images), `knobs`, `conditions`,
+  `generated_files` (the decks, configs, Tcl and netlists the flow WROTE, copied beside the report and hashed — the exact
+  text the tool consumed), `seeds` ({name: value} for every random element, or `deterministic: true` with WHY), `recorded_at`,
+  `host`, `how_to_rerun`; `attached_after_the_fact` marks a block computed from committed artefacts for a flow not re-run.
+  `complete()` checks a block; `check` walks every report; the explainer's "how to reproduce" points at the block.
+- **Every flow attaches it in `run()`** — lod-1, lod-2, lod-3, lod-3b/3d (21 decks now committed under
+  `initialData/lod3/decks/lod3b`), lod-3c (its re-timing decks; the PEX netlists they include stay out of git — PDK-derived —
+  and are cited by sha256), lod-4, lod-4b, lod-4c (decks), lod-2c (the 0.6 V and FO4 decks), lod-3e (config.mk, SDC, DEF,
+  SPEF, netlist hashed; the three ORFS seed knobs GPL_RANDOM_SEED / GRT_SEED / OR_SEED recorded explicitly as the defaults
+  this run used — a seed is never implicit). Two reports not re-run got theirs `attached_after_the_fact`: lod-2b (the CNT
+  characterization of 2026-09-24: the Liberty it wrote is committed and hashed; no Monte Carlo — stated) and the tensormath
+  FPGA kernel (needs a live manager; nextpnr's default seed 1 named as THE seed).
+- **Re-running as the test**: lod-1, lod-2, lod-4c, lod-2c and lod-3e reproduced their previous numbers exactly (lod-1's
+  and lod-2's generated files byte-identical; lod-3e's DEF and netlist identical, the SPEF differing in its *DATE line only).
+  Two findings: (1) lod-3b/3d — adding `.save v(a_in) v(y)` to the decks (to survive oomd beside other jobs) moved TWO of 42
+  arc delays by 0.01 ps (ngspice's adaptive timestep sees a different deck): the committed decks are now the ones to
+  reproduce, said so; (2) lod-3c — the extracted netlists hashed differently between the morning and the afternoon run while
+  every device/capacitor count and every timing agreed to 0.01 ps: magic's `extract` REUSES an .ext newer than the .mag, and
+  the work dir still held 2026-09-24's; immediate repeats from a clean dir are byte-identical (checked twice on inv_1), so
+  the flow now starts every cell from a clean extraction. Both are exactly what the rule is for.
+- **Selftests**: computelod asserts every committed report's block is complete (12 reports), the 21 decks exist and are
+  hashed, lod-3e's seeds are explicit, lod-2b's block says it was attached after the fact; tensormath asserts the FPGA block.
+- Proof: computelod 138/138, tensormath 68/68, live boot 137/137. `python3 -m computelod.custom.repro check`.
+
+### G.34 D5 — PyTorch as the THIRD ComputeImplementation BUILT 2026-09-26 (branch `dev-d5` off `dev-repro`; framework + rf-node + suite; his word)
+
+The bridge of §F8 gains its third row: the SAME operator (σ = C:ε, `stress-from-strain`) beside numpy einsum and the FPGA MAC.
+Built the Polari way — the module never assumes a device (his 2026-09-24 rule), so torch is an ENGINE:
+
+- **`tensormath/custom/torch_engine.py`** — the ladder: `TORCH_ENGINES_URL` → that worker, always (unreachable = refusal);
+  `import torch` in the framework process; the topology provider `tensormath.engines` (`pol allocate tensormath.engines
+  <instance>`); refusal naming both knobs. `evaluate()` runs `torch.einsum` on the SAME operands and the SAME contraction spec
+  the numpy path derives, compares to numpy (the reference; `error_vs_numpy` = max relative), records how/where/version/
+  device/threads; `torch.use_deterministic_algorithms(True)` on both rungs. `placement()` → `GET /api/tensormath/engines`.
+- **The worker `polari-rf-node/torch-engines`** (python:3.12-slim-bookworm + `torch==2.14.0+cpu` from the PyTorch CPU index,
+  1.0 GB image; `/capability`, `/system-info`, `/evaluate` — einsum ONLY, operand size capped; `docker-compose.torch-engines.yml`
+  :9820 on `polari-link`; LICENSES.md: PyTorch BSD-3-Clause). The framework image is Alpine/musl and has no torch wheel — as
+  with z3 — so the worker IS the normal way on the node stack. In polari-rf-node directly (not a submodule): splitting it
+  into its own repo like eda-tools / proof-tools is his call.
+- **Row + benchmark**: `stress-from-strain/torch` seeded with NO number (evidence none, latency 0; target_ref names the
+  knob and worker); `POST /api/tensormath/benchmark {"implementation": "stress-from-strain/torch"}` runs it where the ladder
+  resolves — the row becomes MEASURED with latency/throughput/error and an evidence_ref recording torch's version, device,
+  threads, engine placement, n, repeats, median/min/max (the reproduction record of that number); with no engine anywhere
+  it is a 422 naming both knobs and the row stays evidence none. Manifest `requires.engines` gains `torch` (optional, knob,
+  worker named).
+- **Proof**: tensormath 68/68 (a stand-in torch exercises the local rung and the comparison without torch installed; the
+  refusal wording; a declared-but-unreachable worker refuses); live boot 137/137 in BOTH modes — with the worker declared
+  (benchmark MEASURED through it: torch 2.14.0+cpu, 4 threads, error vs numpy < 1e-9) and without (422). The worker runs
+  on pol-core now (`prf-torch-engines`, compose project `torch-engines`).
+- Not done: a topology ModuleAssignment row for `tensormath.engines` (the provider rung is code-complete, no instance
+  assigned); GPU (a torch device is a knob of the worker, none here); torch for the non-contraction operations (reduce /
+  norm / permute stay numpy — stated by the refusal).
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 
