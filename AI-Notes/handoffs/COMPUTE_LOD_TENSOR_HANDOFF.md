@@ -100,6 +100,16 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
 
+## MERGED 2026-09-26 (his word: "Merging to dev on origin should be good")
+
+Every branch of this arc fast-forwarded onto `dev` and pushed: framework, angular, rf-node, suite (`dev-bp-2`),
+polari-cli and the PSC backend (`dev-fs-1`); eda-tools / proof-tools were already on their own dev. dev == origin/dev
+everywhere. main is NOT promoted (the 2026-09-23 shelving stands). He also said the pages "look good enough for
+now" after his revision notes (bp-2 / bp-3). Remaining on this arc: D-lod4-1 (explained to him 2026-09-26: whether
+the sky130 SiliconProcessNode may be marked manufacturable — the rule wants evidence of an open process that
+actually accepts designs; the seeded row names SkyWater's production process and the 2020–2023 open MPW shuttles),
+then §H.3 further lod.
+
 ## State at handoff (2026-09-25 late night, after bp-2 — his second browser pass, from a phone)
 
 He looked at the pages from his phone and gave seven asks (plan §H.4 has his words and what each became). All
