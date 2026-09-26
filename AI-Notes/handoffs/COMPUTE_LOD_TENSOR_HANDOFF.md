@@ -108,6 +108,32 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
 
+## State at handoff (2026-09-26 night — MERGED TO DEV, images rolled, browser pass run)
+
+His word: "yes it should be it's own module, you can merge and then continue work." Done: `polari-torch-tools` is its own
+public repo + submodule of polari-rf-node (beside eda-tools / proof-tools); the eight stacked branches were fast-forwarded
+onto `dev` and pushed in framework / angular / rf-node / suite (main NOT promoted); backend + frontend images rebuilt from
+dev (`pol node build backend frontend --env staging`) and rolled (`docker service update --force --image …`; the backend
+also got `--env-add TORCH_ENGINES_URL=http://192.168.0.210:9820` — the knob now also lives in the compose sources). SEEN
+in Chrome on the home swarm: the tensortree page (plain words, trees, the panel; the wind root's detail with the tt-12
+`scene` door → the pendulum scene rendering INSIDE the detail; discover → 3 candidates, the spectrum inapplicable, no
+cross-tree ones — expected), the computelod page (ladder, the walk, lod-3e / lod-4b / lod-4c / lod-2c rows live), the
+tensormath page (three implementations; the torch row MEASURED through the stack's benchmark POST via the worker:
+92 µs / 64 elements, error 1e-16, torch 2.14.0+cpu remote). Stack-side: `/api/explain` shows the reproduction pointer;
+`/api/computelod/lod4/steps` 14 + 14 live rows; `/api/tensormath/engines` resolves remote.
+🔑 GAP FOUND + FIXED: `lod4: fabrication → materials` on the live instance still carried its lod-4 text — a seed row
+replaced BY NAME never reaches an instance whose DB already holds the row (the seeder converges only the fields a seed
+names in `_converge`). The lod rows are flow output, so `computelod_seed._flow_owned` now marks every field but the name
+as converging for ComputeMapping / CharacterizationMapping / CompilerArtifact / ComputeLOD; a rebuild + roll converged
+them (the log lines `Converged ComputeMapping 'lod4: fabrication → materials' …`). RULE for any module whose seed rows
+are flow-derived: converge them, or a replaced row is only ever seen on a fresh instance.
+Rebuilt + rolled: 15 rows converged on the live instance. The five lod claims those rows underlie showed `witnessed (stale)` —
+by design the boot pass never re-decides a claim that has a verdict (plan §I.9: staleness is shown; a person or the pipeline
+re-checks) — so they were re-checked through `POST /api/mathproofs/claims/{name}/check`: four witnessed again, and
+`lod3c-extraction-widens-every-rise-gap` REFUTED on the live rows with its counterexample (`lod3c: xor2_1 A→X (B=0) tpLH
+(extracted)`, schematic delta −9.0 < 0) — the live instance now says what the code says. Gotcha: `docker service logs
+polari-node_backend` hung for hours in a pipeline; read the task container with `docker logs <polari-node_backend.1.…>`.
+
 ## State at handoff (2026-09-26 evening, after the reproducibility pass (`dev-repro`) and D5 (`dev-d5`); EIGHT stacked UNMERGED branches)
 
 🔑 **His rule (2026-09-26): every committed result carries the initial conditions and seeds that produced it.** Built as
