@@ -901,6 +901,15 @@ named: SkyWater fabricates SKY130 as a production process; Google-sponsored open
 process (a foundry / MPW that accepts the rules); the ladder currently says "today: no rung qualifies". His
 ruling flips it or not; the row's `manufacturable_reason` records whichever.
 
+**RULED 2026-09-26 (his): "Maybe another category? Historically proven, might be able to request manufacturing by
+3rd party? Or a more abbreviated way of saying that."** → a third answer, as a vocabulary beside the bool:
+`manufacturability` ∈ {`open` (manufacturable True — no rung yet), `proven-on-request` (designs under the open PDK
+WERE fabricated; a third party — a shuttle or the foundry — might take a request; no standing open door verified;
+manufacturable stays None), `unproven`, `not-available`} (`sifet.objects.si_ladder._shared.MANUFACTURABILITY`, a
+field on `SiliconProcessNode`, asserted consistent with the bool in `_node`). sky130 = `proven-on-request`; every
+sifet rung = `unproven`. The bool's rule is unchanged ("today: no rung qualifies"). Built the same day on dev
+(sifet ladder selftest 32/32, computelod 92/92).
+
 ### H.3 Further lod work — the natural next rungs, with sizes
 
 | slice | what | needs | size |
