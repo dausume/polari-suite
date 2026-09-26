@@ -1,4 +1,4 @@
-# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after lod-3d): what is built, how to prove it, what is owed
+# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after lod-4c): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
 ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
@@ -22,7 +22,8 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     cd polari-rf-node/polari-framework
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 61
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 64
-    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 100 (lod-3d: 8 cells · 21 arcs; the lod cross-checks as claim rows, pf-1)
+    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 106 (lod-3d: 8 cells · 21 arcs; lod-4c: Ion/Ioff/Vt; the lod cross-checks as claim rows, pf-1)
+    PYTHONPATH=.:modules python3 -m computelod.custom.lod4_devices run          # lod-4c: two DC decks, seconds
     PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 83 (pf-0 + pf-1 z3 + pf-2 lean + pf-3 doors + pf-4 knowledge)
     rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 126/126 on a REAL boot (branch dev-pf-3) — from the framework dir, data/ cleared
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json && npx ng build --configuration development)   # the claim editor + panel doors compile
@@ -99,6 +100,15 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 `tensor-tree-panel` (Angular, registered; d3 tree + evidence-coloured mapping arcs + dims→channel chips + the
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
+
+## State at handoff (2026-09-26, after lod-4c; branch `dev-lod-4c` off `dev-lod-3d`, both UNMERGED)
+
+lod-4c BUILT (plan §G.28): `computelod/custom/lod4_devices.py run` — Ion / Ioff / Vt / DIBL / SS for nfet_01v8 and
+pfet_01v8_hvt from DC sweeps on the PDK's tt BSIM4 cards (W = 1 µm, L = 0.15 µm, sifet's constant-current Vt), ten
+`lod4c:` characterizations fabrication → devices (simulated, implemented), the sky130 row's `key_numbers_json` gaining the
+numbers in sifet's key names (converged onto existing rows), `GET /api/computelod/lod4/devices`. Proof: computelod
+106/106, live boot 128/128. Merge word for BOTH branches is his: `dev-lod-3d` then `dev-lod-4c` (framework → rf-node →
+suite). §H.3 continues lod-2c → lod-3e → lod-4b → tt-12/13.
 
 ## State at handoff (2026-09-26, after lod-3d — the first §H.3 slice; branch `dev-lod-3d`, UNMERGED)
 

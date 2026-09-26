@@ -922,13 +922,13 @@ standing vendor route is verified (not verified here).
 | ~~lod-3d~~ | **BUILT 2026-09-26 (§G.27, branch `dev-lod-3d`)** — all eight cells of the adder through lod-3b/3c: 21 arcs; the two-cell rise-gap verdict did NOT generalize (refuted claim kept, conditional restatement added) | — | done |
 | lod-3e | the whole ADDER extracted: `magic` on the mapped netlist is not a layout — needs place-and-route (OpenROAD flow: floorplan → place → CTS-less → route → PEX) then OpenSTA on the extracted design vs lod-2's 11.94 ns | OpenROAD in the eda-tools image (the openroad/opensta image has only sta; `openroad` apt is not in noble — build from source at a pinned tag, licence BSD-3) | medium-large; the first real "layout rung" number for the adder |
 | lod-4b | fabrication as ROWS: the SKY130 process steps (lithography, implants, gate, contacts, metals) as PSPP `ProcessingStage`/`MaterialProcessDefinition` rows cited from the PDK docs; the CNT branch's process rows (cntfet `cnt_process_basis`) mapped the same way | open_pdks docs; a decision on which PSPP classes carry a semiconductor process | medium; closes "fabrication → materials is entered, not exhausted" |
-| lod-4c | the sky130 node's key numbers from the PDK models RUN (Ion/Ioff per µm at 1.8 V from `sky130_fd_pr` tt, the way the sifet ladder holds them for FreePDK45) — then the row can carry `ion_ua_per_um` etc. with evidence `simulated` | lod-3b's decks, a DC sweep | small |
+| ~~lod-4c~~ | **BUILT 2026-09-26 (§G.28, branch `dev-lod-4c` off dev-lod-3d)** — Ion / Ioff / Vt / DIBL / SS per flavour from DC sweeps on the PDK models; the sky130 row carries them in sifet's key names, evidence `simulated` | — | done |
 | lod-2c | the CNT library at the SAME conditions as SKY130 (1.8 V, or SKY130 at 0.6 V) so the two Liberties are compared honestly; area for CNT cells from a stated layout model (or refused) | a characterization run | small–medium |
 | tt-12 | the tree panel showing the plate scene INSIDE the node detail (a resolved node's binding rendered where the node is clicked) — the "visualize" of the cycle without leaving the panel | Angular only | small |
 | tt-13 | discovery across trees: a selection on `plate` finding mappings in `bob-motion`/`wind-spatial` — today the hard filter is by dims only; a `units` filter (§F3) is stated in the plan and not implemented | tensortree only | small |
 | D5 | PyTorch as a third ComputeImplementation | his word (deferred) | — |
 
-Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d~~ (all done by 2026-09-26) → lod-4c → lod-2c → lod-3e → lod-4b.
+Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c~~ (all done by 2026-09-26) → lod-2c → lod-3e → lod-4b.
 
 ## I. Mathematical proofs — the logic BETWEEN the parts of a TensorTree (revision of 2026-09-24, his ask)
 
@@ -1484,6 +1484,33 @@ and cached PDK, the same Liberty.
 - Proof: computelod 100/100 (was 92), mathproofs 83/83, live boot **126/126** (96 CharacterizationMappings — 12 + 42
   schematic + 42 extracted; 16 seeded claims). Committed: the two reports + 16 magic/LVS logs; nothing from the PDK.
 - Not done / next on §H.3: lod-4c (Ion/Ioff from the models already run — small), lod-2c, lod-3e, lod-4b, tt-12/13.
+
+### G.28 lod-4c — the process node's OWN numbers RUN BUILT 2026-09-26 (branch `dev-lod-4c` off `dev-lod-3d`; framework + rf-node + suite)
+
+The sky130 SiliconProcessNode row (lod-4) carried only what was READ (L, Vdd, metals). sifet's ladder holds Ion / Ioff / Vt
+per rung from documentation (FreePDK45 v1.4); for sky130 the PDK's own BSIM4 cards are on this box (lod-3b), so the numbers
+are SIMULATED here, at stated conditions, by sifet's own definitions (`metric_spec`: constant-current Vt = 100 nA × W).
+
+- **`computelod/custom/lod4_devices.py run`**: one DC deck per flavour (nfet_01v8, pfet_01v8_hvt — the two the cells use;
+  W = 1 µm, L = 0.15 µm, tt, 25 °C; the p device swept with mirrored biases), two sweeps each (Vds = Vdd and 50 mV),
+  `wrdata` → metrics in Python: Ion = Id(Vgs = Vds = Vdd)/W, Ioff = Id(Vgs = 0, Vds = Vdd)/W, Vt_lin / Vt_sat at the
+  100 nA × W crossing, DIBL = ΔVt/ΔVds, SS = the shallowest decade between 10× and 1000× Ioff (conservative; stated).
+  ngspice through the cntfet engines ladder as before; models cited by sha256, never committed; curves kept decimated.
+- **Numbers (tt, 1.8 V)**: nfet_01v8 Ion 502.5 µA/µm · Ioff 2.0 pA/µm · Vt_sat 0.516 V (the card's vth0 is 0.519 — a
+  sanity anchor, not a tuning) · Vt_lin 0.603 V · DIBL 49.6 mV/V · SS 92 mV/dec; pfet_01v8_hvt Ion 148.3 µA/µm · Ioff
+  2.6 pA/µm · Vt_sat 0.641 V · DIBL 64.6 mV/V · SS 97.7 mV/dec. Beside them, FreePDK45's documented VTG numbers (975.5 /
+  10 nA/µm at 1.0 V, 45 nm) FOR THE READING: a 130 nm low-leakage process gives about half the on-current and three to
+  four orders of magnitude less leakage — a different rung, not a ranking.
+- **Rows**: ten upward CharacterizationMappings fabrication → devices (`lod4c: nfet_01v8 on current` …; characteristics
+  on_current / off_current / threshold_voltage / dibl / subthreshold_swing, plain words added to the explainer), evidence
+  `simulated`, status `implemented` (a model of the process, not a die); the FreePDK45 value rides in conditions where
+  sifet holds one. The sky130 row's `key_numbers_json` GAINS the numbers in sifet's key names + {value, unit, source, note}
+  shape (`ion_ua_per_um`, `ioff_na_per_um`, `vt_v`, `dibl_mv_per_v`, `ss_mv_per_dec`, `pmos_*`) — the ladder now reads
+  sky130 like its other rungs — and the seed's `_converge` carries `key_numbers_json` onto an instance that already holds
+  the row. `GET /api/computelod/lod4/devices`; `/lod4` returns the row's key numbers.
+- Proof: computelod 106/106, sifet ladder unchanged, live boot **128/128** (106 CharacterizationMappings).
+- Not done: the regular-Vt pfet_01v8 and the lvt flavours (not used by the cells), corner/temperature spread (ss/ff),
+  Monte-Carlo mismatch, gate capacitance / fT — each a sweep away, none needed for the adder's story.
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 
