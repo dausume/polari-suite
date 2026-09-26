@@ -117,7 +117,10 @@ the old skip); (2) a new row class needs FOUR registrations — the module's `*_
 `objects` + `classes` + `imports`, the core `feature_imports.py` import tuple, AND the explicit class list in
 `polariServer.py` (~line 1300) — miss the last two and boot prints "not in objectTypingDict, skipping".
 Merge word now ends `… → dev-fs-1 → dev-bp-2` (angular the same; polari-cli / PSC backend stop at dev-fs-1).
-Left for HIM: look again from the phone (the same links), D-lod4-1, the merge word. Screenshots from the
+bp-3 the same night (plan §H.5): every row EXPLAINED — `GET /api/explain?class=&name=` (module explainers in
+`<module>/custom/explain.py`, generic field-comment fallback) and the object page opens with it: in one sentence, what
+was done, with what, result, trust, evidence, how to reproduce (commands). Left for HIM: look again from the phone (the
+same links; open any row's name to read its explanation), D-lod4-1, the merge word. Screenshots from the
 extension time out on the pages with a 3-D viewer (renderer busy) — read the page text instead.
 
 ## State at handoff (2026-09-25 night, after the file-store detour — THIS arc is untouched by it)

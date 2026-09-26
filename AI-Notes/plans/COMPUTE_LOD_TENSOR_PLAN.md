@@ -1477,6 +1477,26 @@ His words, and what each became (built the same evening; verification below once
    is print-only, Lakatos read from Cambridge Core); `proves` names the tier / vocabulary word. A "Sources" table
    closes the mathproofs page (url as a link).
 
+### H.5 bp-3 — every row explained (his ask 2026-09-25 night, same evening): "source ref and other refs and conditions
+don't really make coherent sense to me … Per row we likely need a human explainable row and an understanding of what
+was done and how to duplicate it"
+
+Built the same night on `dev-bp-2`:
+- **One door, `GET /api/explain?class=&name=`** (`polariApiServer/explainAPI.py`): for one row — `in one sentence`,
+  `what was done`, `inputs` (the things it was done to / under, conditions in words), `result`, `how to reproduce`
+  (the exact commands / API calls), `evidence`, `how far to trust it` (the evidence level in words), `related`.
+- **A module explains its own rows**: `<module>/custom/explain.py` exports `EXPLAINERS = {Class: fn(manager, row)}`.
+  Written for computelod (CharacterizationMapping — the flow by name prefix lod1 / lod2 / lod2-cnt / lod3 / lod3b /
+  lod3-cnt / lod3c → `python3 -m computelod.custom.<flow> run`, the report file, the API walk; ComputeMapping),
+  mathproofs (MathClaim, ProofRun, ProofObligation, ProofMethodReference — the vocabulary word spelled out and
+  `POST /api/mathproofs/claims/{name}/check?tier=`), tensortree (TensorMapping, TensorNode). Every other class gets
+  the GENERIC account: each field as a sentence labelled by the comment the class source carries beside it
+  (`self.method = method  # OpenSTA | ngspice | …`) — so no bare column name ever explains itself.
+- **The object page shows it first**: /object/:class/:name opens with the sentence, then What was done · With what ·
+  Result · How far to trust it · Evidence · How to reproduce it (a code block), then the connected objects and the
+  record. Every `name` column on the computelod and tensormath tables now links there too (formats `name:ref:<Class>`,
+  rungs as `ref:ComputeLOD`).
+
 ### H.1 RESULTS — the browser pass RUN 2026-09-25 (Chrome via the extension; the node stack on the home swarm)
 
 Bring-up (from a stripped checkout): `pol swarm init` (needs `LOCAL_IP` on pol-core), `pol security setup dev` +
