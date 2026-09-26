@@ -1425,6 +1425,58 @@ editor IS that shape (latex-edit-dialog + equation-symbol-palette), with our voc
   panel's `claim`/`propose` doors, the `latex` column, the tensor-proofs tree in the techtree display), D-lod4-1, the
   merge word; then §H.3 further lod.
 
+### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
+
+His words, and what each became (built the same evening; verification below once the images are rolled):
+
+1. **"tensortree seems to be showing all simspaces and all rows in all tables … that selection should propagate to
+   all of the configured tables via configuration … ideally using a configuration and no-code events for frontend"**
+   → a page SCOPE set by frontend display events. The tree panel gained `scopeKey`; picking a tree dispatches
+   `setScope` {key: 'tree', value, facets: {nodes, sim_space}} on the existing DisplayEventsService; the display
+   page keeps a scope map and re-substitutes every `{scope:tree}` / `{scope:tree.nodes}` / `{scope:tree.sim_space}`
+   placeholder in the configured items' inputs and titles (the same pass that substitutes `{object}`), re-rendering
+   the page; a repeat of the current scope is ignored (no loop when the re-created panel re-announces). The
+   tensortree page seed is now written in those placeholders: nodes / unresolved filter `tree`, dims / mappings /
+   selections filter by the tree's node SET (`class-rows-table` treats a csv `filterValue` as membership), the ONE
+   sim-space viewer shows `{scope:tree.sim_space}` (the view now carries each node's `sim_space` from
+   `global_params_json`); policy and couplings stay global and say so. No page code, no new component.
+2. **"the login and register buttons do not seem to be triggering"** — from the desktop the button redirects to the
+   realm (seen in Chrome); the phone symptom is the realm's dev certificate not being trusted there, so the OIDC
+   client's discovery fetch fails BEFORE any redirect and the failure went to the console only. Now `login()` /
+   `register()` return false on that failure and the header shows a snackbar naming the realm host, why, and an
+   "Open it" action (accept the certificate once, retry).
+3. **"the failing to retrieve files error is not particularly user friendly"** → `friendly-error.ts`: one wording
+   for every panel (401 "Sign in to see this." with a Sign in button; 403; 404; 503; unreachable; 5xx), the
+   technical detail in the tooltip. Used by `api-structured-panel`, `class-rows-table`, the object page.
+4. **"many fields are not fully readable, I would like to enable wrapping … configured tables … either wrapped or
+   enabled wrapping or allows clicking on to expand"** → `class-rows-table` cells wrap; a long cell is clamped to
+   three lines with a more/less toggle; headers read as words (`about refs`, not `about_refs_json`).
+5. **"for a number of things you are directly showing json. We should define these as one kind of object or
+   another … references to names of mapping or other critical objects, we should be able to click on them and see
+   object detail views … auto-defining generic detail views"** → (a) `*_json` columns render as key/value lines
+   (lists as values, objects as pairs) — never a JSON string; (b) column formats `ref:<Class>` (a name column) and
+   `refs` (a list of "Class:name") render LINKS; (c) `/object/:class/:name` — the GENERIC detail view of any row,
+   auto-defined from the row: the class in plain words, the row's interconnects as chips (every "Class:name",
+   every `*_refs_json`, the well-known name columns), the record through `structured-payload-panel` with JSON
+   fields parsed, a link to the class page where a configured instance display refines it. The tensortree and
+   mathproofs seeds carry the formats (nodes, mappings, claims, obligations, rules, runs).
+6. **"description sections that are toward the average person in most of these kinds of objects"** → the words
+   live ON the class: a `plain_words` attribute on 23 classes (tensortree 7, mathproofs 5, tensormath 7,
+   computelod 5); one core door `GET /api/plain?classes=…` reads them (docstring first paragraph as the flagged
+   fallback); each of the four pages opens with an "In plain words" `api-structured-panel` on that door; the object
+   page shows its class's paragraph.
+7. **"find academic sources establishing proof types are valid if we can and cite them using our currently existing
+   citation methods"** → `ProofMethodReference` (mathproofs): the suite's existing citation shape (EvidenceItem's
+   fields — kind, title, parties, ref, date, url, proves, citation_key, verified, verified_via), 13 rows: Dijkstra
+   1972 and QuickCheck 2000 (a witness is not a proof), Moore–Kearfott–Cloud 2009 (interval arithmetic is exact set
+   arithmetic), Meurer 2017 + Richardson 1968 (symbolic checking and its undecidability limit), de Moura–Bjørner
+   2008 + Kroening–Strichman 2016 (SMT decides; a model is a counterexample; bit-vectors), de Moura 2015 / de
+   Moura–Ullrich 2021 / mathlib 2020 / Barendregt–Wiedijk 2005 (machine-checked proof, the de Bruijn criterion),
+   Kleene 1952 (three-valued logic = undetermined), Lakatos 1976 (refutation by counterexample). `verified=True`
+   only where the DOI resolved through Crossref on 2026-09-25 and title/authors/venue read back (11 of 13; Kleene
+   is print-only, Lakatos read from Cambridge Core); `proves` names the tier / vocabulary word. A "Sources" table
+   closes the mathproofs page (url as a link).
+
 ### H.1 RESULTS — the browser pass RUN 2026-09-25 (Chrome via the extension; the node stack on the home swarm)
 
 Bring-up (from a stripped checkout): `pol swarm init` (needs `LOCAL_IP` on pol-core), `pol security setup dev` +
