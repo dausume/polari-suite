@@ -1710,11 +1710,10 @@ Built the Polari way — the module never assumes a device (his 2026-09-24 rule)
   <instance>`); refusal naming both knobs. `evaluate()` runs `torch.einsum` on the SAME operands and the SAME contraction spec
   the numpy path derives, compares to numpy (the reference; `error_vs_numpy` = max relative), records how/where/version/
   device/threads; `torch.use_deterministic_algorithms(True)` on both rungs. `placement()` → `GET /api/tensormath/engines`.
-- **The worker `polari-rf-node/torch-engines`** (python:3.12-slim-bookworm + `torch==2.14.0+cpu` from the PyTorch CPU index,
+- **The worker — its own submodule `polari-rf-node/polari-torch-tools` (his word 2026-09-26: "it should be its own module"; public repo dausume/polari-torch-tools, default branch dev)** (python:3.12-slim-bookworm + `torch==2.14.0+cpu` from the PyTorch CPU index,
   1.0 GB image; `/capability`, `/system-info`, `/evaluate` — einsum ONLY, operand size capped; `docker-compose.torch-engines.yml`
-  :9820 on `polari-link`; LICENSES.md: PyTorch BSD-3-Clause). The framework image is Alpine/musl and has no torch wheel — as
-  with z3 — so the worker IS the normal way on the node stack. In polari-rf-node directly (not a submodule): splitting it
-  into its own repo like eda-tools / proof-tools is his call.
+  :9820 on `polari-link`; LICENSES.md: PyTorch BSD-3-Clause; image `polari-torch-tools:bookworm`). The framework image is Alpine/musl and has no torch wheel — as
+  with z3 — so the worker IS the normal way on the node stack. The same shape as eda-tools / proof-tools.
 - **Row + benchmark**: `stress-from-strain/torch` seeded with NO number (evidence none, latency 0; target_ref names the
   knob and worker); `POST /api/tensormath/benchmark {"implementation": "stress-from-strain/torch"}` runs it where the ladder
   resolves — the row becomes MEASURED with latency/throughput/error and an evidence_ref recording torch's version, device,

@@ -116,7 +116,7 @@ ladder + image ids, knobs, committed decks under `initialData/*/decks/`, seeds o
 reproduced lod-1/2/2c/3e/4c exactly; two findings fixed/stated (the `.save` deck change moved two arcs by 0.01 ps; magic
 reuses stale .ext files — the flow now starts clean). Plan §G.33. `python3 -m computelod.custom.repro check`.
 **D5 (his word) BUILT** — plan §G.34: torch as an engine (`tensormath/custom/torch_engine.py` ladder), the worker
-`polari-rf-node/torch-engines` (pinned `torch==2.14.0+cpu`, :9820, compose file; running on pol-core as `prf-torch-engines`),
+submodule `polari-rf-node/polari-torch-tools` (pinned `torch==2.14.0+cpu`, :9820, compose file; running on pol-core as `prf-torch-engines`),
 the third row `stress-from-strain/torch` benchmarked MEASURED through the worker; `GET /api/tensormath/engines`. Merge word
 for EIGHT branches is his, innermost-first per repo: framework `dev-lod-3d` → `dev-lod-4c` → `dev-lod-2c` → `dev-lod-3e` →
 `dev-lod-4b` → `dev-tt-12` → `dev-repro` → `dev-d5`; angular `dev-tt-12`; rf-node + suite the same eight names. Then the image
