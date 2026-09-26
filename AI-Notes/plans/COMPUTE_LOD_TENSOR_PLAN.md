@@ -923,12 +923,12 @@ standing vendor route is verified (not verified here).
 | lod-3e | the whole ADDER extracted: `magic` on the mapped netlist is not a layout — needs place-and-route (OpenROAD flow: floorplan → place → CTS-less → route → PEX) then OpenSTA on the extracted design vs lod-2's 11.94 ns | OpenROAD in the eda-tools image (the openroad/opensta image has only sta; `openroad` apt is not in noble — build from source at a pinned tag, licence BSD-3) | medium-large; the first real "layout rung" number for the adder |
 | lod-4b | fabrication as ROWS: the SKY130 process steps (lithography, implants, gate, contacts, metals) as PSPP `ProcessingStage`/`MaterialProcessDefinition` rows cited from the PDK docs; the CNT branch's process rows (cntfet `cnt_process_basis`) mapped the same way | open_pdks docs; a decision on which PSPP classes carry a semiconductor process | medium; closes "fabrication → materials is entered, not exhausted" |
 | ~~lod-4c~~ | **BUILT 2026-09-26 (§G.28, branch `dev-lod-4c` off dev-lod-3d)** — Ion / Ioff / Vt / DIBL / SS per flavour from DC sweeps on the PDK models; the sky130 row carries them in sifet's key names, evidence `simulated` | — | done |
-| lod-2c | the CNT library at the SAME conditions as SKY130 (1.8 V, or SKY130 at 0.6 V) so the two Liberties are compared honestly; area for CNT cells from a stated layout model (or refused) | a characterization run | small–medium |
+| ~~lod-2c~~ | **BUILT 2026-09-26 (§G.29, branch `dev-lod-2c` off dev-lod-4c)** — six twin cells at the CNT point (SKY130 simulated at 0.6 V) and at each library's own FO4; CNT area REFUSED (no layout, no rules) | — | done |
 | tt-12 | the tree panel showing the plate scene INSIDE the node detail (a resolved node's binding rendered where the node is clicked) — the "visualize" of the cycle without leaving the panel | Angular only | small |
 | tt-13 | discovery across trees: a selection on `plate` finding mappings in `bob-motion`/`wind-spatial` — today the hard filter is by dims only; a `units` filter (§F3) is stated in the plan and not implemented | tensortree only | small |
 | D5 | PyTorch as a third ComputeImplementation | his word (deferred) | — |
 
-Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c~~ (all done by 2026-09-26) → lod-2c → lod-3e → lod-4b.
+Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c → lod-2c~~ (all done by 2026-09-26) → lod-3e → lod-4b.
 
 ## I. Mathematical proofs — the logic BETWEEN the parts of a TensorTree (revision of 2026-09-24, his ask)
 
@@ -1511,6 +1511,46 @@ are SIMULATED here, at stated conditions, by sifet's own definitions (`metric_sp
 - Proof: computelod 106/106, sifet ladder unchanged, live boot **128/128** (106 CharacterizationMappings).
 - Not done: the regular-Vt pfet_01v8 and the lvt flavours (not used by the cells), corner/temperature spread (ss/ff),
   Monte-Carlo mismatch, gate capacitance / fT — each a sweep away, none needed for the adder's story.
+
+### G.29 lod-2c — the two Liberties compared at the SAME conditions BUILT 2026-09-26 (branch `dev-lod-2c` off `dev-lod-4c`)
+
+lod-2 (SKY130: 11.94 ns at 1.8 V / 14.6 fF / 50 ps) and lod-2b (CNT: 41.33 ps at 0.6 V / 41.65 aF / 1.02 ps) were two
+numbers under two sets of conditions, never comparable. `computelod/custom/lod2_compare.py run` puts six TWIN cells (same
+Boolean function: inv_1↔INVX1, nand2_1↔NAND2X1, nor2_1↔NOR2X1, xor2_1↔XOR2X1, xnor2_1↔XNOR2X1, o21ai_0↔OAI21X1) side by
+side under one set of conditions, twice, and refuses what cannot be compared:
+
+- **view `cnt-point`** — both at the CNT library's characterized point (0.6 V · 300 K · 41.654 aF · 1.0178 ps): the CNT
+  number is an exact grid point of its Liberty; the SKY130 number is SIMULATED (the lod-3b/3d decks with the conditions
+  overridden: an 801 ns window, 2 ps steps — there is no 0.6 V SKY130 Liberty to cross-check). Result: every SKY130 twin
+  finished, at 19 ns (inv_1) to 179 ns (xor2_1) — four to five orders slower than the CNT cells, because the hvt p device
+  (Vt_sat 0.64 V, lod-4c) is in subthreshold at |Vgs| = 0.6 V. That IS the reading: 0.6 V is not the regime those cells
+  were built for; the comparison at the CNT point says so and nothing more.
+- **view `own-fo4`** — each library at its OWN nominal Vdd, loaded by four of its own inverter inputs (SKY130 4 × 2.302 fF
+  = 9.208 fF; CNT 4 × 10.4 aF = 41.65 aF), driven by the slew its own FO4 inverter produces, iterated twice from a start
+  value with every iteration kept (SKY130 50 → 64.0 → 65.1 ps; CNT 1.02 → 1.21 → 1.25 ps). Result: SKY130 inv_1 101 ps vs
+  CNT INVX1 1.17 ps; across the six twins the ratio is 58 (nand2) to 135 (o21ai), all one direction. Stated on every row:
+  the CNT side is intrinsic-grade (standin parasitics, no layout), the SKY130 side a schematic netlist of a fabricated
+  process — a comparison of what each library carries, not a ranking of technologies.
+- **view `sky130-liberty-point`** — the SKY130 Liberty at its own point, READ (bilinear), kept beside for the reading.
+- **Area REFUSED for the CNT cells**: no layout and no design rules for the aligned-CNT process exist in this instance
+  (lod-3's `devices → layout` is UNRESOLVED on that branch); an area from a "layout model" would be an invention. The
+  SKY130 areas are the Liberty's.
+- **Liberty reading** is generic now (`timing_groups` / `read_point` / `units`): both libraries' units normalised to ps and
+  fF, `when`-conditioned groups (the CNT XOR2X1 has four), a point outside the characterized grid is REFUSED, never
+  extrapolated (checked: the CNT INVX1 at SKY130's 14.6 fF / 50 ps refuses). The lod-3b deck takes a `cond` override
+  (voltage, temperature, load, slew, window) and now `.save`s only the two waveforms it measures (a 400k-point 0.6 V deck was
+  KILLED by systemd-oomd while three heavy jobs ran beside it — empty output, no measures; the flow retries once and says
+  so; one xor2_1 arc's transition measure is non-monotonic in that regime and is marked unavailable while its delays stand).
+- **Rows**: 24 upward CharacterizationMappings devices → standard-cells (`lod2c: sky130 inv_1 FO4`, `lod2c: cnt INVX1
+  @cnt-point`, …), each the cell's WORST arc (tpHL/tpLH worst and mean in conditions), its twin, the view and the ratio;
+  evidence `simulated`, status `implemented`. Two MathClaims (mathproofs, cited by the two-sources knowledge node):
+  `lod2c-cnt-twin-faster-at-own-fo4` (a conjunction of six inequalities over named rows) and
+  `lod2c-sky130-twin-slower-at-the-cnt-point` (> 1000× on all six) — WITNESSED at boot, worded as statements about the
+  rows and the regime, never about technologies. `GET /api/computelod/lod2/compare` (per-arc detail stays in the file).
+- Proof: computelod 115/115, mathproofs 83/83 (18 seeded claims), live boot **129/129** (130 CharacterizationMappings).
+- Not done: SKY130 extracted netlists at 0.6 V (lod-3c's PEX at 1.8 V moved delays 5–15 %); the regular-Vt / lvt SKY130
+  flavours, which WOULD work at 0.6 V (a different library, sky130_fd_sc_lp/ls — a fetch and a re-run); the CNT library at
+  a higher Vdd (its device is derived for 0.6 V — a re-derivation, not a knob).
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 

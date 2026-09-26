@@ -1,4 +1,4 @@
-# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after lod-4c): what is built, how to prove it, what is owed
+# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after lod-2c): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
 ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
@@ -24,6 +24,7 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 64
     PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 106 (lod-3d: 8 cells · 21 arcs; lod-4c: Ion/Ioff/Vt; the lod cross-checks as claim rows, pf-1)
     PYTHONPATH=.:modules python3 -m computelod.custom.lod4_devices run          # lod-4c: two DC decks, seconds
+    PYTHONPATH=.:modules python3 -m computelod.custom.lod2_compare run          # lod-2c: six twins at the CNT point + own FO4 (~10 min; the 0.6 V decks are long)
     PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 83 (pf-0 + pf-1 z3 + pf-2 lean + pf-3 doors + pf-4 knowledge)
     rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 126/126 on a REAL boot (branch dev-pf-3) — from the framework dir, data/ cleared
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json && npx ng build --configuration development)   # the claim editor + panel doors compile
@@ -100,6 +101,16 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 `tensor-tree-panel` (Angular, registered; d3 tree + evidence-coloured mapping arcs + dims→channel chips + the
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
+
+## State at handoff (2026-09-26, after lod-2c; branch `dev-lod-2c` off `dev-lod-4c`; three stacked UNMERGED branches)
+
+lod-2c BUILT (plan §G.29): `computelod/custom/lod2_compare.py run` — six twin cells of the two Liberties at the CNT point
+(SKY130 SIMULATED at 0.6 V: 19–179 ns, hvt p in subthreshold — stated) and at each library's own FO4 (SKY130 inv 101 ps vs
+CNT 1.17 ps; ratios 58–135, the CNT side named intrinsic-grade on every row); CNT area REFUSED; 24 `lod2c:` rows; two
+witnessed MathClaims; `GET /api/computelod/lod2/compare`. The Liberty reader is generic (units normalised, `when` groups,
+outside-the-grid refused). Merge word for the THREE branches is his, innermost-first per repo: `dev-lod-3d` → `dev-lod-4c`
+→ `dev-lod-2c` (framework → rf-node → suite). §H.3 continues lod-3e (OpenROAD into the eda-tools image — medium-large) →
+lod-4b → tt-12/13.
 
 ## State at handoff (2026-09-26, after lod-4c; branch `dev-lod-4c` off `dev-lod-3d`, both UNMERGED)
 
