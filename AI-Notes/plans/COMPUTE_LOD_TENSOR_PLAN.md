@@ -919,7 +919,7 @@ standing vendor route is verified (not verified here).
 
 | slice | what | needs | size |
 |---|---|---|---|
-| lod-3d | the OTHER arcs and cells the adder uses (xnor2_1, maj3_1, o21ai_0, xor2_1, isobufsrc) through lod-3b/3c | nothing new (eda-tools + PDK cached) | small: extend `ARCS` with the pin ties; ~20 arcs |
+| ~~lod-3d~~ | **BUILT 2026-09-26 (§G.27, branch `dev-lod-3d`)** — all eight cells of the adder through lod-3b/3c: 21 arcs; the two-cell rise-gap verdict did NOT generalize (refuted claim kept, conditional restatement added) | — | done |
 | lod-3e | the whole ADDER extracted: `magic` on the mapped netlist is not a layout — needs place-and-route (OpenROAD flow: floorplan → place → CTS-less → route → PEX) then OpenSTA on the extracted design vs lod-2's 11.94 ns | OpenROAD in the eda-tools image (the openroad/opensta image has only sta; `openroad` apt is not in noble — build from source at a pinned tag, licence BSD-3) | medium-large; the first real "layout rung" number for the adder |
 | lod-4b | fabrication as ROWS: the SKY130 process steps (lithography, implants, gate, contacts, metals) as PSPP `ProcessingStage`/`MaterialProcessDefinition` rows cited from the PDK docs; the CNT branch's process rows (cntfet `cnt_process_basis`) mapped the same way | open_pdks docs; a decision on which PSPP classes carry a semiconductor process | medium; closes "fabrication → materials is entered, not exhausted" |
 | lod-4c | the sky130 node's key numbers from the PDK models RUN (Ion/Ioff per µm at 1.8 V from `sky130_fd_pr` tt, the way the sifet ladder holds them for FreePDK45) — then the row can carry `ion_ua_per_um` etc. with evidence `simulated` | lod-3b's decks, a DC sweep | small |
@@ -928,7 +928,7 @@ standing vendor route is verified (not verified here).
 | tt-13 | discovery across trees: a selection on `plate` finding mappings in `bob-motion`/`wind-spatial` — today the hard filter is by dims only; a `units` filter (§F3) is stated in the plan and not implemented | tensortree only | small |
 | D5 | PyTorch as a third ComputeImplementation | his word (deferred) | — |
 
-Order I would take them: browser pass (H.1) → D-lod4-1 → merge → lod-3d → lod-4c → lod-2c → lod-3e → lod-4b.
+Order I would take them: ~~browser pass (H.1) → D-lod4-1 → merge → lod-3d~~ (all done by 2026-09-26) → lod-4c → lod-2c → lod-3e → lod-4b.
 
 ## I. Mathematical proofs — the logic BETWEEN the parts of a TensorTree (revision of 2026-09-24, his ask)
 
@@ -1438,6 +1438,52 @@ editor IS that shape (latex-edit-dialog + equation-symbol-palette), with our voc
 - The proofs arc pf-0..pf-4 is now built. Left on the arc: his browser pass (§H.1 — now also the claim editor, the
   panel's `claim`/`propose` doors, the `latex` column, the tensor-proofs tree in the techtree display), D-lod4-1, the
   merge word; then §H.3 further lod.
+
+### G.27 lod-3d — EVERY cell of the adder through devices → layout BUILT 2026-09-26 (branch `dev-lod-3d` off `dev`, framework + rf-node + suite)
+
+The first §H.3 slice after the merge. lod-3b/3c had proved two cells (inv_1, nand2_1; three arcs); the adder uses eight.
+Nothing new was installed: the same ngspice (`~/tools`, through the cntfet engines ladder), the same eda-tools image
+and cached PDK, the same Liberty.
+
+- **The arc table** (`lod3_devices.ARCS`, 8 cells · 21 arcs): per cell its output pin and Liberty `function`; per arc
+  the input pin, the OTHER pins' tie values that sensitise it, and whether it inverts (= the Liberty group's
+  `timing_sense`). A non-unate input (xor2_1, xnor2_1) gets one arc per tie — `A→X (B=0)` positive-unate, `A→X (B=1)`
+  negative-unate — so each of the four xor/xnor arcs is compared with ITS Liberty group; maj3_1 with two pins tied
+  opposite (B=1, C=0 for A); o21ai_0 (A1: A2=0, B1=1 …); lpflow_isobufsrc_1 (A with SLEEP=0; SLEEP with A=1, inverting).
+- **Three honesty fixes on the way** (each would have silently produced wrong numbers on the new cells): the Liberty
+  group is now chosen by (`related_pin`, `timing_sense`) over the WHOLE cell block — a non-unate pin asked without a
+  sense is refused, the old code took the first `related_pin` match inside a fixed 60 kB slice (maj3_1's block is
+  27 kB and the internal_power groups also say related_pin); the deck's `Xdut` line is ordered by NAME from the
+  netlist's own `.subckt` (the PDK's schematic AND magic's extracted netlist), not by an assumed position; tpHL/tpLH
+  are measured from the input edge the arc's unateness implies (a non-inverting arc's tpHL starts at the input FALL).
+- **Row names** carry the tie between the arrow and the delay kind — `lod3: xor2_1 A→X (B=0) tpHL`,
+  `lod3c: … (extracted)` — so `name~tpHL` / `name~tpHL (extracted)` quantifiers still select every row; the two lod-3b
+  names are unchanged. Conditions gained `ties`, `timing_sense`, `function`.
+- **Numbers (schematic netlist vs the Liberty, same slew/load, 21 arcs)**: every tpHL FASTER than the Liberty (21/21 —
+  lod-3b's reading holds); mean |Δ| 14.4 %, max 39.8 % (maj3_1 C tpHL: the deepest internal nodes, the most missing
+  parasitics); 4 tpHL rows beyond 25 % are `implemented`, not validated (maj3_1 ×3, xnor2_1 B (A=1) at −27.9 %).
+- **Layout (magic DRC · PEX · netgen LVS on all eight `.mag`)**: DRC counts 3–10 per cell, EVERY rule a context rule
+  (nwell.4 / LU.2 / LU.3 — three kinds on every cell, zero real rules); LVS "Circuits match uniquely" on all eight;
+  PEX capacitors 14 (inv_1) … 58 (maj3_1), device counts == lod-3's per-cell transistor counts (a cross-check
+  between magic's extraction and the PDK netlists lod-3 read).
+- **The parasitics verdict, corrected by the wider data**: extraction brings tpHL closer to the Liberty on 21/21 arcs
+  (mean −20.2 % → −11.3 %: ALL of the fall gap is parasitics-shaped) but tpLH closer on only 11/21 (mean −7.1 % →
+  +1.1 %): where the schematic was already SLOWER than the Liberty on the rise (inv, nand2, nor2, isobufsrc SLEEP)
+  extraction widens that gap; where it was FASTER (xor2, xnor2, maj3, o21ai, isobufsrc A) it moves toward and
+  sometimes past it. Mean |Δ| over the 42 delay numbers 15.0 % → 8.9 %; every extracted row within 25 % (worst
+  −23.3 %). The verdict sentence is now COMPUTED from per-arc counts (`closer_after_extraction`), never fixed text;
+  it still rejects "parasitics are the sole cause" and names the vendor setup as what remains.
+- **Claims (mathproofs)**: the two-cell statement `lod3c-extraction-widens-every-rise-gap` is now REFUTED by the numeric
+  tier with a real xor2_1 row as the counterexample — kept, as his vocabulary requires (a refutation is knowledge);
+  its restatement `lod3c-extraction-widens-the-rise-gap-where-already-slow` (an `implies`: schematic_delta > 0 ⇒
+  delta > schematic_delta) is WITNESSED on all 21; the other four lod claims hold on 21 arcs and their `about_refs`
+  name every row. mathproofs holds the 21 arcs as a LITERAL (`LOD3_ARCS`, it must not import computelod — D-pf-4);
+  computelod's selftest asserts it equals its own `arcs_of` table. The knowledge node "two independent sources
+  agreeing is evidence" cites the new claim and says a refuted two-cell statement is knowledge too.
+- **Explain**: the `--cells` hint for lod-3b rows now names the cell (it used to print `sky130_fd_pr`).
+- Proof: computelod 100/100 (was 92), mathproofs 83/83, live boot **126/126** (96 CharacterizationMappings — 12 + 42
+  schematic + 42 extracted; 16 seeded claims). Committed: the two reports + 16 magic/LVS logs; nothing from the PDK.
+- Not done / next on §H.3: lod-4c (Ion/Ioff from the models already run — small), lod-2c, lod-3e, lod-4b, tt-12/13.
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 

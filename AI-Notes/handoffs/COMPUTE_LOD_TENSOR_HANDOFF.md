@@ -1,4 +1,4 @@
-# Handoff — the Compute LOD + Tensor arc (2026-09-23/25, after pf-4): what is built, how to prove it, what is owed
+# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after lod-3d): what is built, how to prove it, what is owed
 
 _Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
 ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
@@ -22,7 +22,7 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     cd polari-rf-node/polari-framework
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 61
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 64
-    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 91 (the lod cross-checks as claim rows, pf-1)
+    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 100 (lod-3d: 8 cells · 21 arcs; the lod cross-checks as claim rows, pf-1)
     PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 83 (pf-0 + pf-1 z3 + pf-2 lean + pf-3 doors + pf-4 knowledge)
     rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 126/126 on a REAL boot (branch dev-pf-3) — from the framework dir, data/ cleared
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json && npx ng build --configuration development)   # the claim editor + panel doors compile
@@ -99,6 +99,23 @@ walk/{rung}/{ref}, path?rung=&ref=, lod1, lod2, lod2/cnt, lod3, lod3/devices, lo
 `tensor-tree-panel` (Angular, registered; d3 tree + evidence-coloured mapping arcs + dims→channel chips + the
 select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/view`; mounted as row 1 of the
 `tensortree` page on `wind-spatial`. Plan §G.8. UNSEEN in a browser until the staging images rebuild — his pass.
+
+## State at handoff (2026-09-26, after lod-3d — the first §H.3 slice; branch `dev-lod-3d`, UNMERGED)
+
+lod-3d BUILT on `dev-lod-3d` (framework; rf-node + suite carry the pointer) off the merged `dev`: every cell of the adder
+(8 cells, 21 arcs) through the lod-3b schematic run and the lod-3c DRC/PEX/LVS + extracted re-timing — plan §G.27. What
+a fresh session must know: (1) the two-cell parasitics verdict did NOT generalize — extraction narrows every fall gap
+(21/21) but the rise gap only where the schematic was already slower than the Liberty (11/21 closer); the seeded claim
+`lod3c-extraction-widens-every-rise-gap` is now REFUTED at boot with an xor2_1 row as the counterexample and KEPT, and
+`lod3c-extraction-widens-the-rise-gap-where-already-slow` (an `implies`) is the statement that holds; (2) the Liberty
+group is picked by (related_pin, timing_sense) — a non-unate pin without a sense is refused; decks order pins by the
+netlist's `.subckt` names; (3) mathproofs holds the 21 arcs as the literal `LOD3_ARCS` (asserted equal to computelod's
+`arcs_of` in computelod's selftest); (4) counts moved: computelod 100 checks, live boot 126/126 with 96
+CharacterizationMappings and 16 seeded claims (aggregate 31). Also this session: political-scorecard-node's `dev` was
+one commit behind the suite's pin (`dev-fs-1`) — fast-forwarded and pushed. Left: HIS merge word for `dev-lod-3d`
+(framework → rf-node → suite, innermost-first; `pol modules publish computelod mathproofs` after the repos exist — open
+item 1 below); then §H.3 in order lod-4c → lod-2c → lod-3e → lod-4b → tt-12/13. Open items unchanged: the four new
+modules have no polari-module-* repos (his call); sky130 → `available` needs a verified vendor route.
 
 ## MERGED 2026-09-26 (his word: "Merging to dev on origin should be good")
 
@@ -241,7 +258,8 @@ pushed, none merged. Live boot on dev-pf-3: **123/123**.
     (cd polari-rf-node/polari-eda-tools && docker build -t polari-eda-tools:noble . && ./fetch-pdk.sh)
     cd polari-rf-node/polari-framework && PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py   # 60
     rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 110/110 (from the framework dir; data/ is gitignored and empty)
-    # then: his browser pass / D-lod4-1 / the merge word (items 3–5); §H.3 further lod after the merge
+    PYTHONPATH=.:modules python3 -m computelod.custom.lod3_devices run && PYTHONPATH=.:modules python3 -m computelod.custom.lod3_layout run   # lod-3b/3c/3d: 21 arcs, 8 cells (~10 min; ngspice from ~/tools, magic/netgen via the image)
+    # then: his merge word for dev-lod-3d; §H.3 continues lod-4c → lod-2c → lod-3e → lod-4b
 
 ## Gotchas a fresh session will hit (all in memory too)
 
