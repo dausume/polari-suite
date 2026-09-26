@@ -105,10 +105,10 @@ select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/vie
 Every branch of this arc fast-forwarded onto `dev` and pushed: framework, angular, rf-node, suite (`dev-bp-2`),
 polari-cli and the PSC backend (`dev-fs-1`); eda-tools / proof-tools were already on their own dev. dev == origin/dev
 everywhere. main is NOT promoted (the 2026-09-23 shelving stands). He also said the pages "look good enough for
-now" after his revision notes (bp-2 / bp-3). Remaining on this arc: D-lod4-1 (explained to him 2026-09-26: whether
-the sky130 SiliconProcessNode may be marked manufacturable — the rule wants evidence of an open process that
-actually accepts designs; the seeded row names SkyWater's production process and the 2020–2023 open MPW shuttles),
-then §H.3 further lod.
+now" after his revision notes (bp-2 / bp-3). D-lod4-1 RULED the same day (his: "Maybe another category? Historically proven, might be able to request
+manufacturing by 3rd party?") → `manufacturability` vocabulary beside the bool: open | proven-on-request | unproven |
+not-available; sky130 = proven-on-request, bool stays None (plan §H.2). Landed on existing instances through the
+seeder's new `_converge` marker (code-owned fields follow the seed). Remaining on this arc: §H.3 further lod only.
 
 ## State at handoff (2026-09-25 late night, after bp-2 — his second browser pass, from a phone)
 
