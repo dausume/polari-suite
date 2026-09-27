@@ -138,8 +138,27 @@ the stable source; and `pol jenkins publish <version> [routes]` so a person neve
   (or `retry main`) releases; a failed publish route is re-run by hand for now (API; the `publish` verb is owed).
 - **Still his after the first release:** link the ghcr packages to the repo (they are public already).
 - **⚠ SUPERSEDED 2026-09-27 evening by his ruling (plan §11.8): the pipeline STOPS at publish. Deployment = `pol prod
-  update` run BY A PERSON ON THE DEVICE, pulling from the registered locations without interrupting services (upd-0,
-  building); `isle update` is the isle twin (Isle-Mesh's). The pipeline-driven deploy below is PARKED IN PLACE.**
+  update` run BY A PERSON ON THE DEVICE, pulling from the registered locations without interrupting services;
+  `isle update` is the isle twin (asked of Isle-Mesh in `NOTES-FROM-POL-CORE.md`). The pipeline-driven deploy below
+  is PARKED IN PLACE (no cron, publish no longer triggers it; Build Now only).**
+- **✅ upd-0 BUILT 2026-09-27 (cli 3d97bbc, suite 5515315; opus agent, Fable review):** `pol prod update [<v>|latest]
+  [--source] [--dry-run] [--yes] [--no-stash] [--no-checkout] [--history]` + `pol prod sources list|add|remove`
+  (`polari-cli/scripts/prod-update.sh`, `lib/prod-sources.sh`): resolve on the registered locations (GitHub now; the
+  forge later — a Forgejo/Gitea lookup is already in the sources lib), the release rule ON the device (verdict passed
+  + `publishedTo.ghcr` real, no override), current vs target per service via the agent, downgrade needs the version
+  + `--yes`, disk floor (3 × image sizes from the registry, else 5 GB), stash → rolling start-first update → verify
+  (retries) → automatic rollback (agent re-pin, or `docker service rollback` when the previous tag is not a plain
+  version, e.g. the droplet's `polari-v2026.09.12-core`) → checkout to the tag LAST from an exec'd temp helper →
+  record under `.generated/updates/` (+ `pol prod status` "last update"). ~60 selftest checks (959/959).
+  Guide: `PROD_SERVER_GUIDE.md` "Updating a running server".
+- **Found by building it, fixed:** the GitHub copy of `release.json` was uploaded by the FIRST route, before ghcr
+  wrote its entry → the device would have refused every release. `routes/record.sh` re-uploads it in publish's
+  post/always; re-run for 2026.09.27 in progress.
+- **The droplet's first update, HIS, at the device:** its checkout predates the verb — once:
+  `git -C /opt/polari fetch --tags && git -C /opt/polari checkout polari-v2026.09.27 && git -C /opt/polari submodule
+  update --init`; then `pol prod update --dry-run` (reads every condition, touches nothing) and `pol prod update`.
+  Expect the services to move from `polari-v2026.09.12-core` to the tested `2026.09.27` images with the core module
+  set at runtime (D8); rollback there is per-service `docker service rollback` since the old tag is not a plain version.
 - **The droplet deploy (dep-3, plan §11.7 D1–D6 — ALL STILL OPEN, his):** D5 = his key on the droplet once, then
   `pol jenkins deploy authorize <name>` installs the pipeline key restricted to the deploy agent; D1 window,
   D2 min_health routes, D3 rollback policy, D4 a `channel=test` home box or not, D6 the isle route. The row stays
