@@ -34,7 +34,9 @@ m = json.load(open(p)); m.setdefault('publishedTo', {})[route] = {'url': url, 'a
 json.dump(m, open(p, 'w'), indent=1)
 PY
 }
-route_in_ci_routes(){ case ",$(echo "$CI_ROUTES" | tr -d ' ')," in *",$ROUTE,"*) return 0 ;; esac; return 1; }
+# ROUTE_GATE: a helper step that is not a route of its own (routes/record.sh) arms exactly when the route it serves
+# is armed — found 2026-09-27: gated by its own name, the record step was DRY on every run and corrected nothing.
+route_in_ci_routes(){ case ",$(echo "$CI_ROUTES" | tr -d ' ')," in *",${ROUTE_GATE:-$ROUTE},"*) return 0 ;; esac; return 1; }
 
 # ---------------------------------------------------------------------------
 # THE RELEASE RULE — ci-12 SHAPE (his rulings 2026-09-19).

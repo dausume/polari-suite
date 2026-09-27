@@ -188,6 +188,13 @@ armrun() { ( cd "$DEV/routes" && env -u GITHUB_TOKEN VERSION=1 POOL_DIR="$T/pool
              bash -c 'source ./_lib.sh; ROUTE=github-release; arm GITHUB_TOKEN:github/release_token; echo "resolved=$DRY_RUN"' 2>&1 ) || true; }
 has "auto + secret + in CI_ROUTES → ARMED"        "ARMED"                    "$(armrun CI_ROUTES=github-release GITHUB_TOKEN=x)"
 has "  …and DRY_RUN resolves to 0"                "resolved=0"               "$(armrun CI_ROUTES=github-release GITHUB_TOKEN=x)"
+# routes/record.sh is not a route: it arms exactly when github-release does (ROUTE_GATE) — publish #5 showed it DRY
+# "(not in CI_ROUTES)" under its own name, correcting nothing
+mkdir -p "$T/gh-bin"; printf '#!/bin/bash\necho "gh $*" >> "$T/gh.log"; exit 0\n' > "$T/gh-bin/gh"; chmod +x "$T/gh-bin/gh"; : > "$T/gh.log"
+OUT="$( cd "$DEV/routes" && env PATH="$T/gh-bin:$PATH" T="$T" VERSION=1 POOL_DIR="$T/pool" POLARI_POOL="$VPOOL" CI_ROUTES=github-release GITHUB_TOKEN=x DRY_RUN=auto bash ./record.sh 2>&1 || true )"
+has "record: armed when github-release is armed (ROUTE_GATE), under its own name in the log" "[record] gh release upload polari-v1" "$OUT"
+has "  …and the upload really ran, with --clobber"   "release upload polari-v1 -R dausume/polari-suite $T/pool/release.json --clobber" "$(cat "$T/gh.log")"
+has "  …while a run without github-release in CI_ROUTES stays DRY" "DRY (not in CI_ROUTES)" "$( cd "$DEV/routes" && env PATH="$T/gh-bin:$PATH" VERSION=1 POOL_DIR="$T/pool" POLARI_POOL="$VPOOL" CI_ROUTES=ghcr GITHUB_TOKEN=x DRY_RUN=auto bash ./record.sh 2>&1 || true )"
 has "auto + secret absent → DRY, naming it"       "DRY (secret github/release_token absent)" "$(armrun CI_ROUTES=github-release)"
 has "auto + not in CI_ROUTES → DRY, saying so"    "DRY (not in CI_ROUTES)"   "$(armrun CI_ROUTES=ghcr GITHUB_TOKEN=x)"
 has "  …a secret alone never arms a route"        "resolved=1"               "$(armrun CI_ROUTES=ghcr GITHUB_TOKEN=x)"

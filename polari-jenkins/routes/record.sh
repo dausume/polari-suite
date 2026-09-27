@@ -6,6 +6,7 @@
 # the device-side update; this step runs after the routes stage, whatever the routes did, and clobbers the asset.
 # Not a route: it publishes nothing new, it corrects the record of what was published.
 source "$(dirname "$0")/_lib.sh"
+ROUTE_GATE=github-release   # armed exactly when the github-release route is (publish #5: gated as "record" it was always DRY)
 arm GITHUB_TOKEN:github/release_token
 export GH_TOKEN="$GITHUB_TOKEN"
 TAG="polari-v$VERSION"; REPO="$(dest_release_repo)"
