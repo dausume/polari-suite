@@ -117,7 +117,17 @@ No new ledger (one was started and removed). Every later slice states its cost a
 
 **§H.6 RATIFIED (his: "we should certainly do all of that") — building in order: ✅ tt-14 (§G.35, branch `dev-tt-14`: the plate finds the
 wind slice's projection across trees; the unit resolver follows `<tensor>.<dim>` references) → ✅ lod-3f (§G.37, branch `dev-lod-3f`: magic full-deck DRC 0 + netgen LVS match on both routed variants, against OpenROAD's
-power-connected netlist) → ✅ eng-1 (§G.38, branch `dev-eng-1`: `prf-orfs-engines` worker built FROM the pinned ORFS image, its own knob `ORFS_ENGINES_URL` + provider module `computelod.pnr`, the `{work}` argv token; lod-3e and lod-3f reproduced byte-identical through it) → lod-4d.**
+power-connected netlist) → ✅ eng-1 (§G.38, branch `dev-eng-1`: `prf-orfs-engines` worker built FROM the pinned ORFS image, its own knob `ORFS_ENGINES_URL` + provider module `computelod.pnr`, the `{work}` argv token; lod-3e and lod-3f reproduced byte-identical through it) → ✅ lod-4d (§G.39, branch `dev-lod-4d`: 11 materials as the materials basis' own rows, 66 property rows every one cited or derived from two PDK files, candidates kept as candidates; the stages and the lod-4 mapping point at rows). §H.6 COMPLETE.**
+
+**lod-4d BUILT (plan §G.39)** — `computelod/custom/lod4_materials.py run` parses the sc_hd technology LEF + magic sky130A.tech (sha256 in
+the report; PDK content never committed), derives metal/poly/li resistivities, sheet resistances, via resistances and the SiO2 thickness
+under met1 (cross-checked 3 % against magic's height), cites Sze & Ng / CRC for the constants, and seeds MaterialsScienceMaterial +
+MaterialScaleDefinition rows (`<name>@L0-sky130`) into the materials basis' tables. `GET /api/computelod/lod4/materials`.
+
+    PYTHONPATH=.:modules python3 -m computelod.custom.lod4_materials run     # 27 ms; needs the PDK on this device
+    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py   # 157
+    rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 146 (ORFS_ENGINES_URL optional: +1 measure check)
+
 
 **eng-1 BUILT (plan §G.38)** — `polari-eda-tools/Dockerfile.orfs` → `prf-orfs-engines:staging` (4.69 GB = the pinned `openroad/orfs` +
 ~50 MB of service), `polari-rf-node/docker-compose.orfs-engines.yml` (:9801, running on pol-core). Ladder for `orfs`/`openroad`:

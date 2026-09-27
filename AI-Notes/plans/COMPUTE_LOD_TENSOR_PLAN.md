@@ -1747,7 +1747,7 @@ assumes a device (the engines ladder).
 verified by a person (SkyWater direct or a paid shuttle taking orders); only then `available` under his definition, and the
 bool follows.
 
-**Optional slice 1 — materials as ROWS (`lod-4d`, medium; a research task per material).**
+**Optional slice 1 — materials as ROWS (`lod-4d`, medium; a research task per material). ✅ BUILT 2026-09-27 early — §G.39.**
 - Today the eight SKY130 stages NAME what they add (Si, SiO2, poly-Si, B/P/As, Si3N4, W plugs, Al or Cu, TiN — strings on the
   `ProcessingStage` rows, §G.31) and `lod4: fabrication → materials` points at sifet's eg-si row plus those names.
 - The slice: one materials-science row per material (the module's own material class, family `semiconductor-process`), each
@@ -1923,6 +1923,52 @@ declared) is where a device asks whether it fits. Only a device the topology ass
   running copy predates res-2 until its next build. No topology assignment row is created (`pol allocate` is his).
 - Proof: computelod 149/149 (+5 eng-1 checks), resources measure 15/15, profiles 30/31 (the pre-existing scan failure),
   live boot with the knob set (see commit). §H.6 slice 3 ✅; next lod-4d.
+
+### G.39 lod-4d — the stack's MATERIALS AS ROWS BUILT 2026-09-27 early (branch `dev-lod-4d` off `dev-eng-1`; §H.6 slice 1 — the last of the four)
+
+**Cost stated first (rc-1):** nothing runs but a parse of two PDK text files (27 ms, 18 MB process); no engine, no image; a
+32 kB report. Fits anywhere the framework boots.
+
+- **The rows**: the materials rung's OWN classes (`MaterialsScienceMaterial` identities + one `MaterialScaleDefinition` at
+  scale 0 per material — the materials basis' home; never a second database). `silicon` already existed and only gains its
+  scale row; ten identities are new, tagged `semiconductor-process` / `sky130` (+ `candidate`): silicon-dioxide-thermal,
+  silicon-nitride, polysilicon-doped, dopant-boron / -phosphorus / -arsenic, aluminium, copper, tungsten, titanium-nitride.
+  Category `elemental`. Seeded through computelod's seed pairs into the basis' tables, merged by name (`_converge` on the
+  code-owned text), guarded on the basis being present. `GET /api/computelod/lod4/materials`.
+- **Every number derived or cited** (66 property rows: 28 cited, 34 derived, 3 inferences, 1 not-modelled):
+  - *cited*: Sze & Ng 2007 appendices (Si εr 11.9, Eg 1.12 eV, ρ_i 3.2×10⁵ Ω·cm, n_i, density; SiO2 εr 3.9, Eg 9 eV,
+    E_bd ~10 MV/cm, ρ 10¹⁴–10¹⁶; Si3N4 εr 7.5 …; B/P/As ionization energies 0.045/0.045/0.054 eV); CRC 97th for the pure
+    metals' resistivity, density, melting point (Al 2.65, Cu 1.68, W 5.28 µΩ·cm at 20 °C).
+  - *derived, at run time, from the PDK's own files* (cited by path + sha256, never committed): the sc_hd technology LEF
+    (`RESISTANCE RPERSQ`, `THICKNESS`, `CAPACITANCE CPERSQDIST` per routing layer; via `RESISTANCE` per cut) and magic's
+    sky130A.tech (`height`, `resist`). Metal effective resistivity = Ω/□ × thickness: met1/2 4.375, met3/4 3.76, met5 3.42
+    µΩ·cm; li1 128 µΩ·cm; poly 48.2 Ω/□ × 0.18 µm = 8.7×10⁻⁴ Ω·cm (+ the resistor flavours 319.8 / 2000 Ω/□); diffusion and
+    well sheet resistances (n+ 120, p+ 197, nwell 950, pwell 4400 Ω/□) on the dopant rows; per-cut via resistances (mcon
+    9.30 … via4 0.38 Ω) on the plug row. 🔑 A cross-check BETWEEN the two files: ε0·3.9 / C_area(met1) = 1.34 µm of SiO2
+    under met1 vs magic's met1 bottom height 1.376 µm — 3 % — evidence the inter-layer dielectric is SiO2-class, stated as
+    evidence. Each derived value carries its formula in `derivation`.
+  - *inference* (marked, `asserted_by_pdk: false`): the PDK names implant LAYERS and metal LAYERS, never species or metals.
+    Boron / phosphorus / arsenic, W plugs, Al-with-barrier, TiN-class li are the generation's set (Plummer 2000) — kept as
+    CANDIDATES with the PDK's own numbers as evidence: the metals' effective resistivity sits 1.3–1.7× bulk Al and 2–2.6×
+    bulk Cu (a barrier-clad Al film reads 1.3–1.7×, a Cu damascene film ~1.1–1.3×), so the aluminium row says the evidence
+    favours it and the copper row says it weighs against — neither asserted; li1's 128 µΩ·cm is a refractory-nitride film
+    figure, far from any Al/Cu/W film.
+  - *not modelled*, said so: the MiM capacitor dielectric (the PDK draws `capm`, names nothing), photoresist (a consumable),
+    TiN bulk resistivity (film-dependent, no single value adopted).
+- **The stages point at rows**: every string a SKY130 stage named in lod-4b resolves (`resolve_named`) to row names or to
+  the explicit not-modelled reason — none unresolved (selftest); stage descriptions read `Materials added (lod-4d rows):
+  P and/or As dopant (n-well) → rows dopant-phosphorus, dopant-arsenic …`. The lod-4 `fabrication → materials` mapping's
+  `target_ref` LISTS the rows (asserted + candidates + the sifet eg-si grade) — the walk from `c = a + b` now ends on objects a
+  person can open (`/object` pages of the basis).
+- **Reproducible**: `materials_report.json` carries the block — both PDK files by sha256 + ciel version, the literature by
+  ISBN, the knobs (εr 3.9 for the thickness derivation; the bulk resistivities), deterministic yes; `run` recomputes every
+  derived number from the files.
+- Fixed on the way: the technology-LEF parser first took the `LAYER x ;` lines inside VIA blocks as layer definitions and
+  reset the layers — a definition is `LAYER x` without `;` (selftest pins met1 = 4.375).
+- Proof: computelod 157/157 (+8), mathproofs 83/83, live boot 146/146 (`/api/computelod/lod4/materials`: 11 + 11 rows on a
+  real boot). **§H.6's four slices are all built** (tt-14 → lod-3f → eng-1 → lod-4d); what remains of the arc is his: the
+  merge word for the stack dev-tt-14 → dev-rc-1 → dev-lod-3f → dev-eng-1 → dev-lod-4d, main, the four module repos, topology
+  rows for the workers, D-lod4-1, the sky130 vendor fact.
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 
