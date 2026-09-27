@@ -1069,6 +1069,51 @@ box after his `pol prod apply` there); `cicd-sync pull` rewriting targets.env fr
 file is the truth on the device); the isle route (`route=isle`); the end-to-end re-proof of the kept-images
 path (needs isle-core back for the isle stage).
 
+### 11.6b dep-3 as a RUNBOOK — bring the manually deployed droplet under the agent, then let the pipeline update it (his framing 2026-09-27)
+
+*"everything should already live locally, we define exactly how a production plan goes, the only things that vary are
+the automated secrets and what was chosen on the particular deployment. What we need is the capability to 'somehow
+update' a deployment that has already been done once manually, so the deployment itself already exists as a process.
+… a way to set it up so that it can be updated via ssh, and then making ourselves able to do those updates via a
+pipeline."* Not a setup arc: the bring-up is `get-polari.sh → pol prod bootstrap → guide → apply` and was done once
+(2026-09-12). This is the FIRST UPDATE of that box and the wiring for every later one.
+
+**Facts found 2026-09-27 that shape the steps:**
+1. The droplet's checkout (`/opt/polari`) is the 2026-09-12 state: it has NO `pol prod agent`, no `pol prod current`
+   (both arrived with dep-1 on 2026-09-22). The agent updates images, never the checkout — so the first update is a
+   person's, and "who updates the checkout afterwards" is a decision (D7 below).
+2. The pipeline's release publishes ONE image per service (`prf-backend:2026.09.27` = the all-modules image the test
+   ran, 1.03 GB); it builds no `-core` variant. The droplet runs `polari-v2026.09.12-core`. Since released == tested is
+   by image id, the droplet moves to the tested all-modules image and keeps its CORE module set at runtime
+   (POLARI_MODULES from its ModuleAssignment rows; lazy boot loads only what is assigned). The `-core` image is an
+   optimisation for later (D8) — it would have to be tested as its own image id to be releasable.
+3. The conditions read "what the target runs" from `pol prod agent current` — its version string on the old checkout is
+   `polari-v2026.09.12-core`, the release's is `2026.09.27`: `deploy check` must show the comparison parses both (fix
+   `conditions.sh` if it does not) BEFORE any `--now`.
+
+**The steps (each one printed with its evidence; a person at every step marked HIS):**
+| # | step | who / where |
+|---|---|---|
+| 0 | HIS key: the droplet accepts an ssh key from pol-core (once; the DO console or his existing access) | HIS |
+| 1 | `pol prod stash-first`: on the droplet as him — stash every stack volume (`~/.polari-stash/`) BEFORE anything else (the agent's `stash` verb does not exist there yet → `pol prod` of the OLD checkout has no stash either; use the documented tar of the named volumes, or copy the agent script over first and run `stash` from it) | HIS, over ssh from pol-core, one scripted step `pol prod droplet prepare <alias>` that does 1–3 and prints each result |
+| 2 | move `/opt/polari` to the release tag: `git fetch --tags && git checkout polari-v2026.09.27 && git submodule update --init` (blobless clone; top-level submodules); `pol` now has `prod agent`, `prod current` | same step |
+| 3 | `pol prod current` on the droplet — the first honest reading (release, image tag/repo, profile, domain, disk, swarm) | same step |
+| 4 | on econ-core: `pol jenkins deploy add public-site --route swarm --channel release --profile lean --hold` (a chosen name, never the hostname) and `pol jenkins deploy authorize public-site` — installs the pipeline user's key on the droplet RESTRICTED to the agent (`restrict,command="…prod-agent.sh"`); proof: the agent answers, `true` is REFUSED | me, with his ssh for the install |
+| 5 | `pol jenkins deploy check public-site 2026.09.27` — the nine conditions as a report: newer (reads step 3), tested + released == tested, published to ghcr for real, window, health before (D2 routes), disk floor, idle, hold (ON → SKIP, expected), unfailed | me |
+| 6 | `pol jenkins deploy public-site --dry-run` — the exact agent verbs it would run (stash → update per service, start-first, one at a time, rollback on failure → verify → health after) | me |
+| 7 | **`pol jenkins deploy public-site --now`** — the first real apply, HIM watching; `applied.json` + a `DeployRecord` row; on failure the automatic re-pin to the previous image tag + `failed.json` with both verify outputs; a person's `pol prod restore <stash>` exists if volumes are ever the problem | HIS go, me driving |
+| 8 | `pol prod verify` from the droplet + the four public routes from outside; `/api/release` (rel-2) shows 2026.09.27 | me |
+| 9 | D1 window + D2 health + D3 rollback recorded on the row → `hold=false` → the `polari-deploy` job's tick owns updates from the next release on; every tick prints its conditions | HIS word |
+
+**Proof on the home machines first (his rule):** steps 1–8 rehearsed on a home box that runs a lean stack from the
+2026-09-12 release the same way the droplet does — econ-core's `self-proof` target already proved authorize/check/
+dry-run; the rehearsal adds a REAL `--now` from `polari-v2026.09.12` images to `2026.09.27` there, including a forced
+verify failure → rollback, before the droplet sees step 7.
+
+**Owed for this runbook (small):** `pol prod droplet prepare <alias>` (steps 1–3 scripted, idempotent, evidence per
+step) or its equivalent documented as three commands; `conditions.sh` version parsing across `polari-vX-core` /
+`X`; rel-2 `/api/release` served by the core (the handoff lists it — check it is live in 2026.09.27).
+
 ### 11.7 Decisions (his)
 
 - **D1 the window** for the droplet (a nightly hour? `any`?) and the settle time.
@@ -1081,6 +1126,13 @@ path (needs isle-core back for the isle stage).
   isle installs on their premises) and a Reticulum server, which must be an isle to serve over Reticulum. Design it
   as its own target class (`route=isle`: the deb path + the isle's own app store, applied by the same deploy agent
   pattern) when that route is being built; the droplet stays a swarm target. D1–D5 remain open.
+- **D7 who updates the droplet's CHECKOUT after the first time?** The agent swaps images only. Recommendation: a sixth
+  agent verb `self-update <tag>` that checks out a RELEASE TAG only (verified against the release's `release.json`
+  sha), run by the deploy job AFTER a successful image update — otherwise a stale agent can never gain a verb, and a
+  person would have to ssh in for every release. Alternative: keep it a person's step.
+- **D8 the `-core` image variant.** Recommendation: not now — the droplet runs the tested all-modules image with its
+  core assignment at runtime; if the small VM's disk/RAM says otherwise, the release builds AND the test runs the
+  `-core` image as its own tested id (a second image set in `tested-images.sh`).
 
 ## 12. frg — a SELF-HOSTED FORGE paired with the pipeline (his ask 2026-09-27; PROPOSED)
 
