@@ -23,6 +23,13 @@ class Pol < Formula
   end
 end
 RB
-run git -C "$WORK/tap" -c "user.name=${CI_TAGGER_NAME:-Polari pipeline}" -c "user.email=${CI_TAGGER_EMAIL:-polari-pipeline@noreply.invalid}" commit -qam "pol $VERSION"   # the same identity as the release tag 
+# `commit -a` stages only TRACKED files — the first release (polari-v2026.09.27, publish #1) wrote a NEW Formula/pol.rb,
+# committed nothing and failed. Stage explicitly; a re-run of the same version finds nothing to commit and just pushes.
+run git -C "$WORK/tap" add -A Formula
+if [ "$DRY_RUN" = 1 ] || ! git -C "$WORK/tap" diff --cached --quiet; then
+    run git -C "$WORK/tap" -c "user.name=${CI_TAGGER_NAME:-Polari pipeline}" -c "user.email=${CI_TAGGER_EMAIL:-polari-pipeline@noreply.invalid}" commit -qm "pol $VERSION"   # the same identity as the release tag
+else
+    echo "[homebrew] Formula/pol.rb already at $VERSION in the tap — nothing to commit"
+fi
 run git -C "$WORK/tap" push -q
 record "https://github.com/$TAP"

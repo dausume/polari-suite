@@ -28,10 +28,14 @@ pipeline {
             stage(r) {
               if (['dockerhub','npm','pypi','launchpad','snap'].contains(r)) { error("route '${r}' is PARKED — it needs an outside account/review (routes/later/README.md)") }
               if (!creds.containsKey(r)) { error("unknown route '${r}' — see routes/") }
-              withCredentials(creds[r]) {
-                withEnv(["DRY_RUN=${params.DRY_RUN}", "CI_ROUTES=${env.CI_ROUTES ?: 'github-release,ghcr,homebrew,apt-repo'}",
-                         "VERSION=${params.VERSION}", "POOL_DIR=${env.POOL}/${params.VERSION}"]) {
-                  sh "bash '${env.ROUTES_DIR}/${r}.sh'"
+              // One route's failure must not skip the routes after it (publish #1: homebrew died, apt-repo never
+              // rendered). Each route is idempotent and records its own result; the BUILD still ends FAILURE.
+              catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                withCredentials(creds[r]) {
+                  withEnv(["DRY_RUN=${params.DRY_RUN}", "CI_ROUTES=${env.CI_ROUTES ?: 'github-release,ghcr,homebrew,apt-repo'}",
+                           "VERSION=${params.VERSION}", "POOL_DIR=${env.POOL}/${params.VERSION}"]) {
+                    sh "bash '${env.ROUTES_DIR}/${r}.sh'"
+                  }
                 }
               }
             }

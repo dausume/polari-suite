@@ -80,6 +80,35 @@ exists only inside the controller, so the HOST daemon created it root-owned. Fix
 pipeline-script change only: it reaches econ-core by `git pull` + `pol jenkins up` (the stamp), and does NOT need a
 new test verdict — `promote main` promotes from origin/test = 50d956c regardless.
 
+## 3c. His `promote main` + `retry main` (~07:40 EDT)
+
+main ← test = 50d956c on every repo (framework c74ecbf→2a9a507, rf-node 7fb63a6→70d3b40, scorecard-backend
+e0b28fd→dd0cbdb, suite c40fffc→50d956c; the rest already equal); GitHub bypassed its PR rule for his account as
+before. `retry main` printed "the next tick releases now, not at the scheduled slot". Release run being watched
+(the tested-images load, the tag, the three armed routes, release.json testedAgainst, the report asset, then the
+deploy tick). _Result: §3d._
+
+## 3d. ✅ THE FIRST AUTOMATED RELEASE — `polari-v2026.09.27` (polari-release #1074, 09:43–09:46 EDT, 3 min 7 s)
+
+(The retry marker re-keyed to 50d956c at 09:39 EDT, ~2 h after his commands' wall clock as pasted — the tick that
+picked it up was #1074; the earlier #1073 at 09:33 still saw c40fffc.)
+
+| rule | evidence |
+|---|---|
+| released == tested | `[tested-images] prf-backend:2026.09.27 IS the tested image sha256:086166c8… (loaded, not rebuilt)`, same for prf-frontend `96e987a2…`; "2 image(s): released == tested by construction" |
+| the tag | `polari-v2026.09.27` → 50d956c, pushed |
+| github-release | REAL: `https://github.com/dausume/polari-suite/releases/tag/polari-v2026.09.27`, 11 assets: 6 debs, `TEST_REPORT.md`, `SCAN_SUMMARY.md`, `verdict.json`, `SHA256SUMS`, `release.json` |
+| ghcr | REAL: `prf-backend` + `prf-frontend` `:2026.09.27` + `:latest`, digests = the tested ones; both packages already **public**; pushed UNSIGNED (`cosign_key` absent — a later secret) |
+| release.json | `tested_against.sha` = 50d956c, `verdict: passed`, the two images, the report path; `publishedTo` = github-release + ghcr (`dryRun: false`) |
+| polari-deploy | #720 NOT_BUILT: `SKIP hold — HOLD is on for self-proof` (correct) |
+
+**polari-publish #1 FAILED on homebrew** (66 s): `git commit -qam` on a NEW, untracked `Formula/pol.rb` committed
+nothing → non-zero → the tap unchanged AND apt-repo never even rendered (no isolation between routes). Fixed on suite
+dev: `homebrew.sh` stages `Formula` explicitly and skips an empty commit on a re-run; `Jenkinsfile.publish` wraps each
+route in `catchError` (the build still ends FAILURE). To finish the release: pull + `pol jenkins up` on econ-core,
+then re-run `polari-publish` with `VERSION=2026.09.27 ROUTES=homebrew,apt-repo` (github-release/ghcr are idempotent
+anyway: "already exists — idempotent skip").
+
 ## 4. What happens next, and who does it
 
 - **Verdict `passed` on 50d956c** → his `pol jenkins promote main` (from econ-core or pol-core, both hold his gh identity) → main = 50d956c qualifies. The release fires at the scheduled midnight tick, or at once
