@@ -1081,3 +1081,66 @@ path (needs isle-core back for the isle stage).
   isle installs on their premises) and a Reticulum server, which must be an isle to serve over Reticulum. Design it
   as its own target class (`route=isle`: the deb path + the isle's own app store, applied by the same deploy agent
   pattern) when that route is being built; the droplet stays a swarm target. D1–D5 remain open.
+
+## 12. frg — a SELF-HOSTED FORGE paired with the pipeline (his ask 2026-09-27; PROPOSED)
+
+*"pair a localized git as a project to go with the jenkins deployments so we can ensure we have a self-hosted route
+for repositories."* Today every piece of the pipeline that talks to a forge is GitHub-specific: the poll, the promotion
+identity (`gh auth`), the release token, the three armed routes (GitHub Releases, ghcr, the Homebrew tap) and the
+`release:<tag>` provider that app mode pulls a core from. If GitHub is gone, the pipeline cannot read, promote, release
+or publish. The forge is the missing self-hosted half.
+
+### 12.1 The choice (recommendation; his word)
+
+**Forgejo** (the community fork of Gitea; GPL-3.0-or-later since v9 — inside our licence gate; MIT parts older).
+One container, sqlite or our MariaDB, ~150 MB RSS idle (to be MEASURED per the cost rule before it is admitted). It
+carries, in the same process, everything the GitHub routes use today: git over https/ssh, releases with assets, a
+**package registry with container, Debian (apt), generic, npm and PyPI formats**, pull/push **mirrors** of GitHub
+repositories, tokens with scopes, and webhooks (we keep polling). GitLab CE is the heavy alternative (4 GB+) and
+Gitea proper is the same software without the community governance; both refused for now.
+
+### 12.2 Shape
+
+- **A project of its own:** `polari-forge` (an isle app — it serves people, it needs no host-tier powers; Jenkins
+  stays host-tier because it builds isles). `polari-app.json` with the security stanza, its own volume, a
+  `requires.engines` of none; admitted like any app; a `pol forge` verb family for the CLI-side chores below.
+  Runs beside the pipeline device or on any isle — the pairing is a URL + token in `device.env`, not co-location.
+- **The repositories:** every repo of the forest (10 today + the module repos + the tool repos) exists on the forge.
+  Two modes, HIS decision D-frg-1: **mirror** (GitHub primary; the forge pull-mirrors every N minutes; the pipeline
+  may read from either) or **primary** (the forge is the origin; GitHub is a push mirror the forge maintains).
+  Either way `push-all-dev.sh` learns a second remote (`CI_FORGE_REMOTE`) and pushes both, innermost-first.
+- **The pipeline reads from it:** `CI_FORGE=github|forgejo` + `CI_FORGE_URL`; the poll, the tip checkout, the forest
+  check, `promote test|main` (a forge token as the promotion identity — the setup step asks the provider, as the
+  2026-09-20 note already wanted), `providers.sh release:<tag>` resolving on the forge.
+- **Routes (the self-hosted publication route, plan §5 tier 1 alongside GitHub):** `forgejo-release` (release +
+  assets, same files as GitHub), `forgejo-registry` (containers: `forge/<owner>/prf-backend:<v>` — the ghcr twin),
+  `forgejo-apt` (the Debian package registry: **this replaces reprepro + rsync for the apt route and removes the
+  signing-key blocker** — the forge signs its apt repository with its own key; the KC rotation stops gating it),
+  `forgejo-generic` (the offline medium, the ISO later). All under `DRY_RUN=auto` by secret presence, all
+  idempotent, all recording into `release.json publishedTo`. `CI_ROUTES` names them; GitHub routes stay.
+- **Downloads page + `pol prod`:** install commands per route already come from `ReleasePublication` rows; a
+  forge-hosted release is one more row; `pol prod apply --release <tag>` gains a `--from forge|github` (default:
+  the first that answers).
+- **Isle + Reticulum later:** an isle carries its own forge for the local-business route (§11.7 D6) and the
+  Reticulum server serves releases over Reticulum from it — nothing in this section assumes the internet.
+
+### 12.3 Slices
+
+| slice | builds | proof (home machines) |
+|---|---|---|
+| frg-0 | the `polari-forge` app (Forgejo pinned by digest, volume, security stanza, cost MEASURED), `pol forge up/status/token`, admitted on a home box | app up, first repo pushed by hand, RSS/CPU/disk recorded |
+| frg-1 | the forest on the forge: mirror or primary per D-frg-1; `push-all-dev.sh --remote both`; `pol forge sync` | every repo present, tips equal to GitHub's, a dev push lands on both |
+| frg-2 | the pipeline reads the forge: `CI_FORGE`, the poll/checkout/forest check/promotion identity/`release:<tag>` provider; `pol jenkins setup` asks the provider | `promote test` against the forge, a full polari-test run, verdict recorded |
+| frg-3 | the four forge routes + doctor/token-check rows + DRY rendering | a release published to the forge for real on a home box; `forgejo-apt` installs a deb on isle-core with `apt` from the forge — the apt route live WITHOUT the GitHub signing key |
+| frg-4 | the isle-side forge (an isle app on the local-business / Reticulum isle) + the release served from it | later, with §11.7 D6 |
+
+### 12.4 Decisions (his)
+
+- **D-frg-1** mirror (GitHub primary) or primary (forge is origin, GitHub the mirror)? Recommendation: **mirror first**
+  (nothing changes for anyone; the pipeline proves it can read/promote/publish against the forge), primary later
+  when the local-business route needs it.
+- **D-frg-2** where it lives: the pipeline device (econ-core, 7.5 GB — measured first) or pol-core beside staging?
+  Recommendation: pol-core (the research core has the disk; the pipeline device stays lean for builds + the guest).
+- **D-frg-3** Forgejo (recommended) vs Gitea.
+- **D-frg-4** does `forgejo-apt` REPLACE the reprepro/rsync apt route or sit beside it? Recommendation: replace — one
+  apt route, self-hosted, signed by the forge; the public site fronts it (or redirects to it).
