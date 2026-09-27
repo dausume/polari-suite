@@ -1101,8 +1101,16 @@ Gitea proper is the same software without the community governance; both refused
 
 ### 12.2 Shape
 
-- **A project of its own:** `polari-forge` (an isle app — it serves people, it needs no host-tier powers; Jenkins
-  stays host-tier because it builds isles). `polari-app.json` with the security stanza, its own volume, a
+- **A project of its own — the CAPABILITY, never the CONTENT (his rule 2026-09-27):** `polari-forge` holds the setup
+  and the mechanisms only: the app definition, the pinned image, compose/topology, the security stanza, the `pol forge`
+  verbs, the storage meter, retention, the mirror/route configuration templates and their tests. The forge's DATA —
+  the repositories it hosts, their git history, packages, release assets, its database, sessions, keys — lives in the
+  app's volume(s) and is NEVER part of the project: a forge whose repository contained the repositories it hosts is
+  recursive. The project's `.gitignore` excludes every data path (`data/`, `repositories/`, `packages/`, `db/`,
+  `*.sqlite*`, `ssh/`, `log/`, `custom/conf/app.ini` with secrets — a rendered `app.ini` comes from a committed
+  template + the vault), and a selftest proves the tree is clean after a live run. That is what lets the project be
+  committed, maintained, and itself mirrored on the forge it defines. (An isle app — it serves people, it needs no
+  host-tier powers; Jenkins stays host-tier because it builds isles.) `polari-app.json` with the security stanza, its own volume, a
   `requires.engines` of none; admitted like any app; a `pol forge` verb family for the CLI-side chores below.
   Runs beside the pipeline device or on any isle — the pairing is a URL + token in `device.env`, not co-location.
 - **The repositories:** every repo of the forest (10 today + the module repos + the tool repos) exists on the forge.
@@ -1178,6 +1186,6 @@ subtree-split cache is a developer-box artefact of `push-all-dev.sh` and never r
   push stays GitHub until the local-business route needs otherwise.)
 - **D-frg-2** where it lives: the pipeline device (econ-core, 7.5 GB — measured first) or pol-core beside staging?
   Recommendation: pol-core (the research core has the disk; the pipeline device stays lean for builds + the guest).
-- **D-frg-3** Forgejo (recommended) vs Gitea.
+- **D-frg-3** ✅ RULED 2026-09-27: **Forgejo** ("forgejo yes").
 - **D-frg-4** does `forgejo-apt` REPLACE the reprepro/rsync apt route or sit beside it? Recommendation: replace — one
   apt route, self-hosted, signed by the forge; the public site fronts it (or redirects to it).
