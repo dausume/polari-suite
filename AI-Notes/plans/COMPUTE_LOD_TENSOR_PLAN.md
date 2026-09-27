@@ -1796,6 +1796,9 @@ Order if all four are taken: 4 (an afternoon, exercises what exists) → 2 (inde
 **RATIFIED 2026-09-26 night (his: "we should certainly do all of that") — all four slices go ahead in that order, each on its own
 branch off dev; his calls above stay his.**
 
+**Inserted before slices 2–4 (his rule the same night): rc-1 — resource cost tracking, ADHERING to topology's existing
+model (§G.36). Every later slice states its cost against the profiles before it is built.**
+
 ### G.35 tt-14 — real data through the cross-tree door BUILT 2026-09-26 night (branch `dev-tt-14` off `dev`; §H.6 slice 4)
 
 - **What walking the door exposed first**: the plate's `x` and `y` LocalizedDimensions localize `tt2-centroids.xy` — a
@@ -1812,6 +1815,48 @@ branch off dev; his calls above stay his.**
   anything but metres, and inventing a millimetre node to show a refusal would be a prop. It appears the day a real
   millimetre-scale tree arrives (the FEM mesh is in metres by choice).
 - Proof: tensortree selftest, live boot (see commit).
+
+### G.36 rc-1 — resource cost, ADHERING to topology's tracking BUILT 2026-09-26 night (branch `dev-rc-1` off `dev-tt-14`)
+
+**His words:** "we want to ensure we are tracking how much all of these engines and modules are costing resource wise both
+independently and collectively when tracing the resource costs of their dependencies … the goal is to make it feasible to
+run this on as cheap of devices as possible even if it takes a long time" — and then: "there should already be things for
+tracking all this in topology … i was not telling you to build something new just adhere to it." Both saved as a standing
+rule (memory `resource-cost-tracking`). A parallel ledger was started and REMOVED the same hour; what stayed is adherence:
+
+- **The workers are provider kinds of the SAME registry**: `PROVIDER_PORTS` gains prf-eda-engines :9800, prf-proof-engines
+  :9810, prf-torch-engines :9820; `ENGINE_MODULES` maps the ladders' provider modules (`computelod.engines`, `mathproofs.engines`,
+  `tensormath.engines`, `cntfet.engines`) to them — so `pol allocate`, the admission advisor, `/api/topology/fit` and
+  `/api/resources/measure` see them exactly as msci and cad.
+- **The workers speak res-2 / res-3**: `/capability` carries the `resources` block (ramMb, minThreads, threadCeiling,
+  cpuBenefit, imageMb, fidelity declared) and `/system-info` the `process` block (residentMb, peakMb from /proc/self/status)
+  in eda-engines, proof-engines and torch-engines (the torch image rebuilt and running with them; eda/proof take theirs at
+  their next image build — until then the existing code says "worker image predates res-2", which is true).
+- **Profiles in the ONE seed** (`resources/profile_seed.py`): prf-eda-engines (2.56 GB image + 0.93 GB PDK on the host),
+  openroad-orfs (4.64 GB, no worker yet — §H.6 eng-1), prf-proof-engines (11 GB), prf-torch-engines (1.01 GB), prf-cnt-engines,
+  and tensormath / tensortree / computelod / mathproofs — declared floors, image sizes read from the device that built them,
+  the measured boot stated where a module's share cannot honestly be apportioned (the whole backend with the arc's 18
+  modules: 371 MB peak, 95 CPU-s, 116 s wall on pol-core, `/usr/bin/time -v` on the live-boot probe).
+- **Every flow's cost is measured and kept** (the reproducibility rule extended): `resources/custom/cost_meter.py` — a
+  `Meter` (rusage: wall, CPU self + children, peak RSS) around each flow's `run()`, and `docker_run_metered` in the engines
+  ladder: a container is not a child process, so its cgroup v2 `memory.peak` / `cpu.stat` are polled while it runs (and the
+  workers report rusage of the child they ran) — the block `reproduction.cost` now lists host and engine peaks apart, the
+  images used with their sizes, and the worst ONE process (the flows run engines one at a time).
+- **The bridge into res-3**: `profile_measure.flow_cost_peak(subject)` reads those blocks; `measure_subject` takes the largest
+  engine peak of a worker's image as a measurement UNDER LOAD (an idle worker's `/system-info` shows resident memory only),
+  so `POST /api/resources/measure {subject: prf-eda-engines}` flips the floor to measured from the flows that actually ran.
+- **Feasibility is asked where it already lives**: `GET /api/topology/fit?modules=computelod,…&node=<observed machine>` —
+  the advisor sums the profiles' floors against the node's observed RAM/disk/threads. No hypothetical device class was added:
+  his three machines are the device classes; a cheaper one becomes a `PolariNodeMachine` row when it exists and is observed.
+- **What the numbers already say** (pol-core, 4 cores, 15 GB): the host side of every flow is 27–44 MB; the boot 371 MB; the
+  images together ~21 GB, of which proof-tools is 11 GB and is needed only for the lean tier; the disk was 93 % full before a
+  retired image and 13 GB of build cache were removed (80 % after). Staging — one image pulled, run, removed — is how a
+  32 GB device would run the ladder; the fit endpoint says so per machine once its images are profiled.
+- Pre-existing failures found on dev while running the resources selftests (NOT introduced here, attributed against an
+  untouched worktree): `profiles_selftest` "real tree: resources module scan sees its own classes" (the scanner does not
+  look under objects/ since the sap-2 split) and `node_resources_selftest` KeyError 'lightweight' (its fixture indexes rows
+  by name). Left as found, named.
+- Proof: measure 15/15 (+2), admission 23/23, profiles 30/31 (+2, the one pre-existing), live boot (see commit).
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 

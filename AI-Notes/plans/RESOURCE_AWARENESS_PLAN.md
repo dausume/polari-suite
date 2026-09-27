@@ -415,3 +415,13 @@ topology returns a coherent verdict.
   unknown vs observed), file-size-decomposition. Branch-per-phase, local
   commits only (nothing pushed; repos PUBLIC). Update a
   `resource-awareness` memory entry as each phase lands.
+
+## Addendum 2026-09-26 — rc-1: the compute arc's workers join the model (his rule: adhere, no new system)
+
+The compute arc (COMPUTE_LOD_TENSOR_PLAN §G.36) added its workers to THIS model rather than a ledger of its own: PROVIDER_PORTS
+(prf-eda-engines 9800, prf-proof-engines 9810, prf-torch-engines 9820), ENGINE_MODULES (computelod.engines, mathproofs.engines,
+tensormath.engines, cntfet.engines), declared profiles in profile_seed.py with image sizes read from the device, the res-2
+`resources` block and res-3 `process` block on the workers, and `profile_measure.flow_cost_peak` — a measurement UNDER LOAD from
+the flows' `reproduction.cost` blocks (cgroup memory.peak of each engine container, rusage of the host) that `measure_subject`
+prefers over an idle worker's resident RSS. Feasibility stays `/api/topology/fit` against observed machines. Two pre-existing
+selftest failures were found and left named (profiles scan under objects/; node_resources fixture key).

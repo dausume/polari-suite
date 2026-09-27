@@ -110,6 +110,11 @@ select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/vie
 
 ## State at handoff (2026-09-26 night — MERGED TO DEV, images rolled, browser pass run)
 
+**rc-1 (his rule, same night — plan §G.36, branch `dev-rc-1`): resource cost tracking by ADHERING to topology's resources model —
+the arc's workers are provider kinds with profiles and the res-2/res-3 blocks, every flow's `reproduction.cost` is measured
+(cgroup peaks of the engine containers), `measure_subject` takes the flows' peaks as load measurements, feasibility = `/api/topology/fit`.
+No new ledger (one was started and removed). Every later slice states its cost against the profiles first.**
+
 **§H.6 RATIFIED (his: "we should certainly do all of that") — building in order: ✅ tt-14 (§G.35, branch `dev-tt-14`: the plate finds the
 wind slice's projection across trees; the unit resolver follows `<tensor>.<dim>` references) → lod-3f → eng-1 → lod-4d.**
 
