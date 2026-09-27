@@ -153,7 +153,9 @@ the stable source; and `pol jenkins publish <version> [routes]` so a person neve
   Guide: `PROD_SERVER_GUIDE.md` "Updating a running server".
 - **Found by building it, fixed:** the GitHub copy of `release.json` was uploaded by the FIRST route, before ghcr
   wrote its entry → the device would have refused every release. `routes/record.sh` re-uploads it in publish's
-  post/always; re-run for 2026.09.27 in progress.
+  post/always (armed with the github-release route via `ROUTE_GATE` — its first version was DRY under its own name).
+  ✅ publish #6 (18:58Z) re-uploaded it: GitHub's release.json now says github-release/ghcr/homebrew real, apt-repo dry,
+  verdict passed — `pol prod update` on any device accepts `polari-v2026.09.27`.
 - **The droplet's first update, HIS, at the device:** its checkout predates the verb — once:
   `git -C /opt/polari fetch --tags && git -C /opt/polari checkout polari-v2026.09.27 && git -C /opt/polari submodule
   update --init`; then `pol prod update --dry-run` (reads every condition, touches nothing) and `pol prod update`.
