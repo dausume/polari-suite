@@ -109,6 +109,14 @@ route in `catchError` (the build still ends FAILURE). To finish the release: pul
 then re-run `polari-publish` with `VERSION=2026.09.27 ROUTES=homebrew,apt-repo` (github-release/ghcr are idempotent
 anyway: "already exists — idempotent skip").
 
+**publish #2 (13:57Z, homebrew,apt-repo) FAILED at `verify pool`:** `./release.json: FAILED` — the routes write their
+`publishedTo` entry INTO release.json after `SHA256SUMS` was frozen at mint time, so the first successful route breaks
+every later publish of the same version. Rule fixed on dev: the manifest covers the immutable artifacts and never
+release.json (the living record, published beside it); publish verifies the manifest minus that line, so the existing
+2026.09.27 pool re-publishes. (The GitHub-release assets `SHA256SUMS` + `release.json` for 2026.09.27 agree with each
+other — both were uploaded before the mutation.) No `pol jenkins` verb triggers a job by hand — the re-run used the
+Jenkins API through the controller with a crumb + cookie jar (a `pol jenkins publish <version> [routes]` verb is owed).
+
 ## 4. What happens next, and who does it
 
 - **Verdict `passed` on 50d956c** → his `pol jenkins promote main` (from econ-core or pol-core, both hold his gh identity) → main = 50d956c qualifies. The release fires at the scheduled midnight tick, or at once
