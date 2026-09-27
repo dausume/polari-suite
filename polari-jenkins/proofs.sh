@@ -42,12 +42,17 @@ ENV=()
 [ -n "${PROOF_ENGINES_URL:-}" ] && ENV+=(-e "PROOF_ENGINES_URL=$PROOF_ENGINES_URL")
 say "image $IMAGE · lean worker: ${PROOF_ENGINES_URL:-none named, the ladder decides} · timeout ${TMO}s"
 rc=0
-# the boot talks on stdout, so the results go to a file on a mounted volume — written as the HOST uid (never a
-# root-owned artifact on the device), the sqlite DB in a throwaway /tmp HOME
-OUT_ABS="$(cd "$OUT" && pwd)"
-timeout "$TMO" "$DOCKER" run --rm --network host -u "$(id -u):$(id -g)" -e HOME=/tmp "${ENV[@]}" -v "$OUT_ABS:/out" \
-    --entrypoint python3 "$IMAGE" tests/proofs_stage.py --out /out/results.json "${ARGS[@]}" \
+# the boot talks on stdout, so the results go to a file INSIDE the container and are copied out afterwards.
+# No bind mount (selftests.sh's rule): this script runs inside the controller, whose paths the HOST docker
+# daemon cannot see — a `-v "$OUT:/out"` made the daemon create a root-owned dir on the host and the stage
+# died on `PermissionError: /out/results.json` (polari-test #2084). The sqlite DB lives in a throwaway /tmp HOME.
+NAME="polari-ci-proofs-$$"
+"$DOCKER" rm -f "$NAME" >/dev/null 2>&1 || true
+timeout "$TMO" "$DOCKER" run --name "$NAME" --network host -u "$(id -u):$(id -g)" -e HOME=/tmp "${ENV[@]}" \
+    --entrypoint python3 "$IMAGE" tests/proofs_stage.py --out /tmp/results.json "${ARGS[@]}" \
     > "$OUT/proofs.log" 2>&1 || rc=$?
+"$DOCKER" cp "$NAME:/tmp/results.json" "$OUT/results.json" >/dev/null 2>&1 || say "no results.json came out of the container (rc=$rc)"
+"$DOCKER" rm -f "$NAME" >/dev/null 2>&1 || true
 if [ "$rc" != 0 ] || ! python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$OUT/results.json" 2>/dev/null; then
     say "the stage did not complete (rc=$rc) — recorded, not thrown"
     printf '{"image": "%s", "ran": false, "why": "proofs_stage.py rc=%s", "claims": {}, "counts": {}, "red": []}\n' "$IMAGE" "$rc" > "$OUT/results.json"

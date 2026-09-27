@@ -56,9 +56,33 @@ apt-repo is DRY for real (no signing key yet). The doctor's `DRY (secret absent)
 Next: fix the three suites on dev → commit innermost-first → `pol jenkins promote test` again from econ-core → a
 `passed` verdict → then §4.
 
+## 3a. The second run — test = 50d956c (framework 2a9a507, rf-node 70d3b40), promoted ~07:1x EDT
+
+The fixes (§3 table) + the proofs mount are on dev and pushed; econ-core pulled, `pol jenkins up` recreated the
+controller (mount + stamp), `promote test` again. **Consequence for the release gate:** main is still c40fffc, whose
+verdict is FAILED and stays so — a `passed` 50d956c does NOT release by itself. Main must move to 50d956c by
+`pol jenkins promote main` (HIS word each time, as always) or his own push; only then does the scheduled tick (or
+`pol jenkins retry main`) publish. _Result of the second run: §3b._
+
+## 3b. The verdict for 50d956c — PASSED WITH WARNINGS (polari-test #2084, 06:51–07:24 EDT, 33.7 min)
+
+`89 suite(s): 89 pass` on the device AND inside the isle; isle stage: guest up, install 544 s to online, verify 8/8,
+leak check clean (RAM +30 MB); uninstall `dirty` (warn, same footprint as before); scans advisory unchanged
+(5 critical / 155 high). `pol jenkins promote status`: `test 50d956c verdict=passed · main c40fffc verdict=failed ·
+dev 50d956c`. **The release now waits on ONE thing: his `pol jenkins promote main`** (main ← test = 50d956c); then
+the midnight tick publishes, or `pol jenkins retry main` at once.
+
+**Proofs stage, first real execution:** it RAN (33 claims: 9 decided, 9 witnessed, 7 checked-symbolically, 2 refuted
+= the two known red claims, 3 unprovable-here, 2 conjectured, 1 undetermined; lean not run — no worker on the
+device; 104 s) and then died writing `/out/results.json` (PermissionError): `proofs.sh` bind-mounted a path that
+exists only inside the controller, so the HOST daemon created it root-owned. Fixed on suite dev after the run
+(no bind mount — write inside the container, `docker cp` out, like selftests.sh never mounting). The fix is a
+pipeline-script change only: it reaches econ-core by `git pull` + `pol jenkins up` (the stamp), and does NOT need a
+new test verdict — `promote main` promotes from origin/test = 50d956c regardless.
+
 ## 4. What happens next, and who does it
 
-- **Verdict `passed`** → main (already c40fffc) qualifies. The release fires at the scheduled midnight tick, or at once
+- **Verdict `passed` on 50d956c** → his `pol jenkins promote main` (from econ-core or pol-core, both hold his gh identity) → main = 50d956c qualifies. The release fires at the scheduled midnight tick, or at once
   with `pol jenkins retry main` — **HIS word either way** (the routes are ARMED for real: GitHub release, ghcr,
   homebrew; apt-repo stays DRY until the signing key after the Keycloak rotation). It loads the KEPT tested images,
   tags `polari-vYYYY.MM.DD[.N]`, publishes, attaches `TEST_REPORT.md`.
@@ -77,5 +101,9 @@ Next: fix the three suites on dev → commit innermost-first → `pol jenkins pr
 - The doctor run as the desktop user prints the routes as `DRY (secret absent)` because `/etc/polari-jenkins/secrets`
   is root:polari-ci 0640 — _whether the CONTROLLER sees them (what arms a route) is being verified; see §3._
 - The wired port on econ-core still has no IPv4; builds pull over Wi-Fi.
+- **Owed (found while conforming):** `moduleService.manifests generate` does NOT preserve a hand-authored
+  `requires.engines` list (computelod's seven engine entries would be wiped; `_preserve_hand_set` never learned the
+  key and `module_requirements.ENGINE_MAP` has no computelod row) — the manifests were hand-patched instead. Fix
+  `_preserve_hand_set` (or source the engines from the map) before anyone runs `generate` on computelod.
 - The nested `Isle-Mesh/isle-manager-app` submodule (ssh URL) fails `submodule update` on econ-core — host key not
   known to that user; harmless to the pipeline (top-level submodules only), fix = `ssh-keyscan` or an https URL.
