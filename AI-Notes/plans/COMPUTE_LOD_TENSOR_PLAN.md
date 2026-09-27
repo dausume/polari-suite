@@ -1770,7 +1770,7 @@ bool follows.
   says clean" and "an independent checker says clean".
 - Honesty: if magic reports rules the router does not know (antenna, density), they are REPORTED as such, not tuned away.
 
-**Optional slice 3 — a worker that carries the OpenROAD flow (`eng-1`, medium; an image, no framework logic).**
+**Optional slice 3 — a worker that carries the OpenROAD flow (`eng-1`, medium; an image, no framework logic). ✅ BUILT 2026-09-27 early — §G.38 (one framework change after all: the `{work}` token and a `computelod.pnr` provider module).**
 - Today `orfs` / `openroad` resolve only where the pinned `openroad/orfs` image has been pulled (this box); the eda-tools
   worker's capability honestly lacks them, so a remote device refuses.
 - The slice: a second worker image `polari-eda-tools` can build FROM `openroad/orfs:<pinned tag>` (Ubuntu 22.04 base): copy
@@ -1833,7 +1833,7 @@ rule (memory `resource-cost-tracking`). A parallel ledger was started and REMOVE
   in eda-engines, proof-engines and torch-engines (the torch image rebuilt and running with them; eda/proof take theirs at
   their next image build — until then the existing code says "worker image predates res-2", which is true).
 - **Profiles in the ONE seed** (`resources/profile_seed.py`): prf-eda-engines (2.56 GB image + 0.93 GB PDK on the host),
-  openroad-orfs (4.64 GB, no worker yet — §H.6 eng-1), prf-proof-engines (11 GB), prf-torch-engines (1.01 GB), prf-cnt-engines,
+  prf-orfs-engines (4.69 GB; the flow worker since eng-1 §G.38 — was `openroad-orfs, no worker yet`), prf-proof-engines (11 GB), prf-torch-engines (1.01 GB), prf-cnt-engines,
   and tensormath / tensortree / computelod / mathproofs — declared floors, image sizes read from the device that built them,
   the measured boot stated where a module's share cannot honestly be apportioned (the whole backend with the arc's 18
   modules: 371 MB peak, 95 CPU-s, 116 s wall on pol-core, `/usr/bin/time -v` on the live-boot probe).
@@ -1880,6 +1880,49 @@ from lod3_pnr's work dir and never enter git. Fits wherever lod-3c did.
   validated. `GET /api/computelod/lod3/drc-lvs`. 146 CharacterizationMappings on a boot.
 - Proof: computelod (see commit), live boot (see commit). Not done: antenna / density rules are part of magic's deck and
   reported 0 here; a foundry sign-off deck (KLayout's) is not run.
+
+### G.38 eng-1 — the OpenROAD flow as a WORKER BUILT 2026-09-27 early (branch `dev-eng-1` off `dev-lod-3f`; §H.6 slice 3)
+
+**Cost stated first (rc-1):** one image, `prf-orfs-engines:staging` = the pinned `openroad/orfs:26Q3-651-gbc334a4aa` (4.64 GB,
+used as published, never rebuilt) + falcon/gunicorn/psutil + the eda-engines service (~50 MB on top; 4.69 GB on disk, read
+by `docker image inspect`). Running idle: 26 MB resident (its `/system-info`). The adder flow through it: **526 MB peak, 67.4
+CPU-s** (the worker's rusage of `make`) — the same 527 MB / 68 CPU-s the local-image run measured through the cgroup poller.
+`mem_limit: 3000m` in its compose file is the cap; the topology's profile row (`prf-orfs-engines`, engine, image 4690 MB,
+declared) is where a device asks whether it fits. Only a device the topology assigns pulls it — nothing implicit.
+
+- **What it is**: `polari-eda-tools/Dockerfile.orfs` — the SAME `eda_engines_service.py` with `WORKER_KIND=orfs`: engines
+  `orfs` (= `make` on `/OpenROAD-flow-scripts/flow`, claimed ONLY where that Makefile exists — the toolchain worker's `make`
+  and the host's never count) and `openroad` (the flow's PATH), `/capability` with a res-2 `resources` block for this kind
+  (ramMb 1500, threadCeiling 4, imageMb 4690, declared), `/system-info` with the res-3 `process` block, per-call `cost`, files
+  round-trip up to `WORKER_MAX_MB` (256 here — a routed adder's work tree is 45 MB and ALL of it comes back: results, logs,
+  reports, the merged GDS and ODB lod-3f needs). `docker-compose.orfs-engines.yml` (prf-orfs-engines, :9801, polari-link).
+- **The one contract change**: an argv may carry the token **`{work}`** = "the job's own directory": the local-image rung
+  substitutes `/w`, the local-binary rung the real path, the worker its temp job dir. The flow needs absolute `DESIGN_CONFIG`
+  / `WORK_HOME`; lod3_pnr's `config.mk` now names its inputs `$(dir $(DESIGN_CONFIG))<file>` instead of `/w/<file>`, so one
+  config runs unchanged in the image, on the worker, or on a bare flow tree. The worker's argv guard accepts `{work}/…`, the
+  flow tree (only where it exists) and `/pdk/…`, `/usr/share/…` as before.
+- **Its own rung in the ladder** (`eda_engines.py`): `ORFS_ENGINES_URL` knob → the pinned local image → topology provider
+  **`computelod.pnr`** (a NEW provider module, distinct from the toolchain's `computelod.engines`: a device may carry the 2.6 GB
+  toolchain and not the 4.7 GB flow, or the reverse) → refusal naming knob, image and `pol allocate computelod.pnr <instance>`.
+  A declared worker never degrades: knob set + unreachable = refusal (selftest). `PROVIDER_PORTS['prf-orfs-engines'] = 9801`,
+  `ENGINE_MODULES['computelod.pnr'] = 'prf-orfs-engines'`; the rc-1 profile subject `openroad-orfs` is renamed to the worker
+  kind `prf-orfs-engines` (there is a worker now; the profile says what serves it). Compose knob `ORFS_ENGINES_URL` in
+  staging-nip and pol-services beside `TORCH_ENGINES_URL`.
+- **Proof that WHERE does not change WHAT**: lod-3e re-run with `ORFS_ENGINES_URL=http://localhost:9801` into a fresh work
+  dir — `summary` byte-identical to the committed local-image run (as-flow 9.8057 ns / 146 buffers / 3002 µm; cells-kept
+  10.0593 ns / 17 / 1680; 0 route DRC both); the only diffs in the committed artefacts are the SPEF `*DATE` line and the
+  config's path form. Then lod-3f re-run on the worker's returned GDS/ODB (`--pnr-work`, the `openroad` power-netlist call
+  also going to the worker): DRC 0 / LVS "Circuits match uniquely" both, identical summary. The committed lod-3e report now
+  says `orfs: remote via knob ORFS_ENGINES_URL` — the numbers did not move.
+- **Fixed on the way**: a lod-3e re-run used to `rmtree` each variant's artefact dir and so erased lod-3f's `drc_lvs_*` logs
+  beside it; it now replaces only its own names. `lod3_drc run --pnr-work <dir>` checks a flow run kept elsewhere.
+- **Honesty**: the worker's per-call `peak_rss_mb` is rusage's "largest child so far in the worker's life" (stated in the
+  block's `source`) — after the flow ran, a later small `openroad` call reports 526 MB too; the cgroup poller on the local
+  rung has no such carry-over. `pull_mb_images` is 0 on the remote rung: the image lives on the worker's device, whose
+  capability states its 4690 MB. The eda-tools worker image (`polari-eda-tools:noble`) is NOT rebuilt by this slice; its
+  running copy predates res-2 until its next build. No topology assignment row is created (`pol allocate` is his).
+- Proof: computelod 149/149 (+5 eng-1 checks), resources measure 15/15, profiles 30/31 (the pre-existing scan failure),
+  live boot with the knob set (see commit). §H.6 slice 3 ✅; next lod-4d.
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 

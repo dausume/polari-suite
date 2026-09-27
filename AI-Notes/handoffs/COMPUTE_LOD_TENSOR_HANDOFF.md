@@ -117,7 +117,22 @@ No new ledger (one was started and removed). Every later slice states its cost a
 
 **§H.6 RATIFIED (his: "we should certainly do all of that") — building in order: ✅ tt-14 (§G.35, branch `dev-tt-14`: the plate finds the
 wind slice's projection across trees; the unit resolver follows `<tensor>.<dim>` references) → ✅ lod-3f (§G.37, branch `dev-lod-3f`: magic full-deck DRC 0 + netgen LVS match on both routed variants, against OpenROAD's
-power-connected netlist) → eng-1 → lod-4d.**
+power-connected netlist) → ✅ eng-1 (§G.38, branch `dev-eng-1`: `prf-orfs-engines` worker built FROM the pinned ORFS image, its own knob `ORFS_ENGINES_URL` + provider module `computelod.pnr`, the `{work}` argv token; lod-3e and lod-3f reproduced byte-identical through it) → lod-4d.**
+
+**eng-1 BUILT (plan §G.38)** — `polari-eda-tools/Dockerfile.orfs` → `prf-orfs-engines:staging` (4.69 GB = the pinned `openroad/orfs` +
+~50 MB of service), `polari-rf-node/docker-compose.orfs-engines.yml` (:9801, running on pol-core). Ladder for `orfs`/`openroad`:
+`ORFS_ENGINES_URL` → local pinned image → topology provider `computelod.pnr` → refusal. Cost through the worker: 526 MB peak /
+67.4 CPU-s for the adder flow (= the local run). The lod-3e report on disk now says its flow ran REMOTE via the knob; numbers unchanged.
+
+    docker compose -p orfs-engines -f docker-compose.orfs-engines.yml up -d --build            # from polari-rf-node
+    ORFS_ENGINES_URL=http://localhost:9801 PYTHONPATH=.:modules python3 -m computelod.custom.lod3_pnr run --work /tmp/polari-lod3e-remote
+    ORFS_ENGINES_URL=http://localhost:9801 PYTHONPATH=.:modules python3 -m computelod.custom.lod3_drc run --work /tmp/polari-lod3f-remote --pnr-work /tmp/polari-lod3e-remote
+    ORFS_ENGINES_URL=http://localhost:9801 PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # measures the worker through /api/resources/measure
+
+His calls after eng-1: a topology assignment for the flow worker (`pol allocate computelod.pnr <instance>`); the ORFS_ENGINES_URL
+env on the swarm backend if he wants the live stack to use it (`docker service update --env-add …`, as TORCH was); the merge of the
+stacked branches dev-tt-14 → dev-rc-1 → dev-lod-3f → dev-eng-1 onto dev (innermost-first: eda-tools dev is already the worker's
+branch; framework, rf-node, suite carry dev-eng-1); main NOT promoted. Then lod-4d (§H.6 slice 1).
 
 **What remains is plan §H.6** (his: "that all sounds good as a plan"): his calls (main, the four module repos, a topology row
 for the torch worker), the sky130 vendor fact, and four optional slices — lod-4d materials as rows, lod-3f DRC/LVS of the
