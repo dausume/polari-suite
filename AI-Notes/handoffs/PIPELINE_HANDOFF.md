@@ -180,6 +180,8 @@ runs a stack and `hold` is lifted) → make the ghcr packages public.
 **His words (2026-09-27):** the compute-LOD/tensor arc is tabled and "we are going to want … to go back to trying to do
 the main deployment to prod on jenkins since we need to wrap that up to free the other two devices for work." A dedicated
 handoff for that work is to be written when it starts; until then THIS section is the pointer.
+**Started 2026-09-27 06:02 EDT → the dedicated handoff is `PROD_RELEASE_HANDOFF.md`** (test promoted to c40fffc from
+econ-core after a pull + `pol jenkins up`; the verdict and the release/deploy steps are tracked there).
 
 **Read, in this order, before touching anything:**
 1. This file §5 (what dep-0/1/2 built and proved on econ-core) and §6 (the resume order for the release).

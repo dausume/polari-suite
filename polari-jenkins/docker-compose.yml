@@ -134,6 +134,9 @@ services:
       - ./selftests.sh:/var/polari-jenkins/selftests.sh:ro
       - ./verdict.py:/var/polari-jenkins/verdict.py:ro
       - ./tested-images.sh:/var/polari-jenkins/tested-images.sh:ro
+      # pf-3: the proofs stage (ADVISORY; plan COMPUTE_LOD_TENSOR §I.9) — runs the
+      # framework's own tests/proofs_stage.py inside the freshly built backend image.
+      - ./proofs.sh:/var/polari-jenkins/proofs.sh:ro
       # ci-3: the one page a person reads before promoting. A FILE bind mount
       # binds an INODE — `git pull` writes a new file, so a rename of this path
       # needs `pol jenkins restart` to take (the §76 gotcha).

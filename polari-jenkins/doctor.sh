@@ -241,7 +241,7 @@ if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$_CC"; then
     ok "controller scripts" "the controller is down — it re-binds every script when it next starts"
 else
     STALE=""
-    for f in quiet.sh verdict.py test-wipe.sh selftests.sh cicd-sync.sh device.sh retention.sh scan/scan.sh; do
+    for f in quiet.sh verdict.py test-wipe.sh selftests.sh cicd-sync.sh device.sh retention.sh scan/scan.sh proofs.sh; do
         [ -f "$J/$f" ] || continue
         # `|| true` on BOTH: a failing command inside $( ) aborts this script
         # under strict mode and truncates the doctor's output mid-section — the

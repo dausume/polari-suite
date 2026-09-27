@@ -1,0 +1,81 @@
+# Handoff — the first automated release + the first droplet deploy (started 2026-09-27)
+
+_The dedicated handoff `PIPELINE_HANDOFF.md` §7 promised. Read that file's §5–§7 first (what the pipeline is, the
+dep design, the rules); this file only tracks THIS run to production. Rules that bind: only what was TESTED is
+released (verdict per sha, released == tested by image id); main promotion and the first apply of any box are a
+PERSON's; the pipeline's ssh never touches production secrets (the deploy agent under a restricted key); few
+agents, non-Fable for readings and scripted checks; no real identifiers in tracked files._
+
+## 1. Where it starts from (2026-09-27, 06:00 EDT)
+
+| fact | value |
+|---|---|
+| `dev == main` | c40fffc (suite), by his DIRECT push on 2026-09-27 — not through the pipeline, so main had NO verdict |
+| `test` before today | 62e4305, verdict `passed` WITH WARNINGS (uninstall dirty, `CI_UNINSTALL_GATE=warn`) on 2026-09-23 |
+| pipeline device | econ-core: Jenkins up (docker compose, loopback :8080), checkout was at 62e4305 → pulled to c40fffc, `pol jenkins up` re-stamped (25 pipeline files; the tip added the ADVISORY proofs stage: `Jenkinsfile.test`, `proofs.sh`, `report.py`, `verdict.py`) |
+| isle target | isle-core reachable again (idle, 1.5 GB free); the pipeline user reaches it with its own key |
+| tokens | release token classic `repo`, expires **2026-10-23**, can push suite + tap; registry token classic `repo, write:packages`, expires 2026-12-19; `dausume/homebrew-polari` exists |
+| device knobs | `CI_ISLE_VM_RAM_GB=4`, `CI_BUILD_OFFLINE_MEDIUM=false`, `CI_MAIN_RELEASE_AT` unset (= midnight), `CI_UNINSTALL_GATE` unset (= warn) |
+| main queue | SCHEDULED c40fffc for the next local midnight — the gate reads `pool/test/<sha>/verdict.json` for main's OWN sha, so it refuses (NOT_BUILT) until c40fffc has a `passed` verdict |
+
+## 2. What was done today (in order)
+
+1. 06:02 EDT — `pol jenkins promote test` from econ-core: all repos ff'd test ← dev (framework 61c03cf→c74ecbf,
+   angular eff10dc→cc01202, rf-node 4a69384→7fb63a6, cli 433269e→b9c003e, scorecard-backend e0b28fd→dd0cbdb,
+   scorecard-node 751f135→93383d8, suite 62e4305→c40fffc; app-shell, Isle-Mesh, scorecard-frontend already equal).
+   Promotion marker written → the next 10-minute tick starts `polari-test` on c40fffc without the quiet window.
+2. Watching the run (a Sonnet watcher; 60–75 min expected: wipe → debs → images → scans → proofs → 89 selftests →
+   isle stage on isle-core → verdict). Result: _pending — see §3 when filled._
+
+## 3. The verdict for c40fffc — FAILED (polari-test #2079, 06:06–06:32 EDT, 26.6 min)
+
+`why: module selftests failed on the device: core (3 of 89 suites)` — the SAME three fail inside the isle, so it is
+code, not environment. All three are the tt/lod + proofs arc merged 2026-09-26/27 without the core suite being run:
+
+| suite | finding | fix (on dev) |
+|---|---|---|
+| `accessControl.selftest_cause_context` 40/41 | thread-start site UNLISTED: `modules/resources/custom/cost_meter.py` (the rc-1 cost sampler) | list it in `KNOWN_THREAD_SITES` with its cause |
+| `polariApiServer.selftest_outbound` 60/61 | raw `urlopen` fallbacks bypass `outbound.py`: `computelod/custom/eda_engines.py:96`, `mathproofs/custom/proof_engines.py:73`, `tensormath/custom/torch_engine.py:76` | drop the `except ImportError` fallback (outbound is core) |
+| `moduleService.selftest_manifests` 7/8 | `computelod` manifest lacks `custom/explain.py`, `custom/repro.py`; `mathproofs` lacks `custom/explain.py`, `custom/sources.py` + table drift | `moduleService.manifests conform` for both |
+
+Everything else was green: debs + images built (prf-frontend from Dockerfile.prod), isle stage on isle-core — guest up
+45 s, install 515 s to online, verify 8/8, 86/89 suites inside the isle, leak check clean; uninstall `dirty` (warn);
+scans advisory 5 critical / 155 high (the 9 gitleaks highs = Isle-Mesh test-fixture keys; the critical = maplibre-gl
+CVE-2026-85061).
+
+**Pipeline bug found by the run:** the ADVISORY proofs stage never ran — `bash: /var/polari-jenkins/proofs.sh: No
+such file or directory`: the script was added to the checkout but never bind-mounted into the controller
+(`polari-jenkins/docker-compose.yml`), and the controller stamp only hashes files already mounted. Fix = the mount
+(+ the stamp list if hard-coded); the stage's `catchError` hid it as "not run".
+
+**Secrets question settled:** the controller runs the routes as `polari-ci` (uid 999), which reads
+`/run/secrets/github/{release_token,registry_token}` → github-release, ghcr, homebrew are ARMED at release time;
+apt-repo is DRY for real (no signing key yet). The doctor's `DRY (secret absent)` rows are the desktop user's view only.
+
+**The midnight tick:** main = c40fffc with a FAILED verdict → the release gate refuses (NOT_BUILT), nothing publishes.
+Next: fix the three suites on dev → commit innermost-first → `pol jenkins promote test` again from econ-core → a
+`passed` verdict → then §4.
+
+## 4. What happens next, and who does it
+
+- **Verdict `passed`** → main (already c40fffc) qualifies. The release fires at the scheduled midnight tick, or at once
+  with `pol jenkins retry main` — **HIS word either way** (the routes are ARMED for real: GitHub release, ghcr,
+  homebrew; apt-repo stays DRY until the signing key after the Keycloak rotation). It loads the KEPT tested images,
+  tags `polari-vYYYY.MM.DD[.N]`, publishes, attaches `TEST_REPORT.md`.
+- **Verdict `failed`** → fix on dev, `promote test` again; main moves only by his push or `promote main`.
+- **After the first release (his):** make the three ghcr packages PUBLIC and link them to the repo, or `pol prod` on
+  the droplet cannot pull.
+- **The droplet deploy (dep-3, plan §11.7 D1–D6 — ALL STILL OPEN, his):** D5 = his key on the droplet once, then
+  `pol jenkins deploy authorize <name>` installs the pipeline key restricted to the deploy agent; D1 window,
+  D2 min_health routes, D3 rollback policy, D4 a `channel=test` home box or not, D6 the isle route. The row stays
+  `hold=true`; the first apply is `pol jenkins deploy <name> --now` with him watching.
+
+## 5. Known warnings carried into this release (not gates)
+
+- The isle uninstall footprint (`/usr/share/isle-mesh`, `/etc/polari`, 5 images) — isle-core's; `PIPELINE_HANDOFF` §2.
+- Advisory scans (last: 5 critical / 156 high) and the advisory proofs stage — recorded in the report only.
+- The doctor run as the desktop user prints the routes as `DRY (secret absent)` because `/etc/polari-jenkins/secrets`
+  is root:polari-ci 0640 — _whether the CONTROLLER sees them (what arms a route) is being verified; see §3._
+- The wired port on econ-core still has no IPv4; builds pull over Wi-Fi.
+- The nested `Isle-Mesh/isle-manager-app` submodule (ssh URL) fails `submodule update` on econ-core — host key not
+  known to that user; harmless to the pipeline (top-level submodules only), fix = `ssh-keyscan` or an https URL.
