@@ -110,6 +110,9 @@ select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/vie
 
 ## State at handoff (2026-09-26 night — MERGED TO DEV, images rolled, browser pass run)
 
+**§H.6 RATIFIED (his: "we should certainly do all of that") — building in order: ✅ tt-14 (§G.35, branch `dev-tt-14`: the plate finds the
+wind slice's projection across trees; the unit resolver follows `<tensor>.<dim>` references) → lod-3f → eng-1 → lod-4d.**
+
 **What remains is plan §H.6** (his: "that all sounds good as a plan"): his calls (main, the four module repos, a topology row
 for the torch worker), the sky130 vendor fact, and four optional slices — lod-4d materials as rows, lod-3f DRC/LVS of the
 routed adder, eng-1 a worker carrying the OpenROAD flow, tt-14 real cross-tree data. A fresh session on this arc starts there.

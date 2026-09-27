@@ -1780,7 +1780,7 @@ bool follows.
   like ngspice and lean are placed today; the framework's `resolve('orfs')` remote rung is already written.
 - Honesty: 4.6 GB per device that wants it — the topology says who; nothing is pulled implicitly.
 
-**Optional slice 4 — walk the cross-tree door with REAL data (`tt-14`, small; data, not code).**
+**Optional slice 4 — walk the cross-tree door with REAL data (`tt-14`, small; data, not code). ✅ BUILT 2026-09-26 night — §G.35.**
 - Today tt-13's units filter and cross-tree candidates are proven on a fixture; the seeded trees never cross: the wind mappings
   need x, y, z (the plate has x, y), and the wind tree has no foreign mapping to find.
 - The slice: a mapping written for a node that shares dims AND units with another tree — e.g. a 2-D field operation
@@ -1792,6 +1792,26 @@ bool follows.
 
 Order if all four are taken: 4 (an afternoon, exercises what exists) → 2 (independent check of lod-3e) → 3 (moves the flow)
 → 1 (the research task). None is a prerequisite for another.
+
+**RATIFIED 2026-09-26 night (his: "we should certainly do all of that") — all four slices go ahead in that order, each on its own
+branch off dev; his calls above stay his.**
+
+### G.35 tt-14 — real data through the cross-tree door BUILT 2026-09-26 night (branch `dev-tt-14` off `dev`; §H.6 slice 4)
+
+- **What walking the door exposed first**: the plate's `x` and `y` LocalizedDimensions localize `tt2-centroids.xy` — a
+  dimension of ANOTHER tensor than the node's own (`tt2-sigma` has n, i, j) — and the wind nodes' `wind-field.x` is
+  tensor-qualified too; tt-13's resolver looked only in the node's tensor, so the plate's units came back unknown and the door
+  would have refused honestly for the wrong reason. `node_dim_units` now resolves `<tensor>.<dim>` through THAT tensor
+  (selftest: a node whose x localizes `centroids-other.xy` reads mm).
+- **The data**: one mapping WRITTEN FOR the wind slice that needs only x, y — `slice-z0→speed-map` (projection, |w| per
+  (x, y) cell of the z = 0 layer, `expression_ref` the existing `wind-speed` norm, evidence simulated, provenance tt-14).
+- **Seen on a real boot (probe)**: a selection on the PLATE (x 0–2 m, y 0–1 m) lists it as a `cross_tree` candidate — source
+  node wind-slice-z0, units {x: m, y: m}, C = 0.25, a why_here — while the wind grid's mappings that need z are simply not
+  candidates. The page shows the `cross-tree · written for wind-slice-z0` pill (tt-12's panel) once the images roll.
+- **Not done, on purpose**: the `units-incompatible` refusal stays selftest-only — no seeded node carries a length in
+  anything but metres, and inventing a millimetre node to show a refusal would be a prop. It appears the day a real
+  millimetre-scale tree arrives (the FEM mesh is in metres by choice).
+- Proof: tensortree selftest, live boot (see commit).
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 
