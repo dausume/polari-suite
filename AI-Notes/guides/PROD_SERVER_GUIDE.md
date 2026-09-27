@@ -182,6 +182,24 @@ pol prod down          remove the stack; the data volume stays
 
 The status board says plainly when the certificate is not yet publicly trusted, and what to run.
 
+## Updating a running server
+
+The pipeline only builds and publishes a release. Updating is something you do on the server, with one command. It pulls from the registered locations (`pol prod sources list`: GitHub today, and later a self-hosted forge you add with `pol prod sources add`). No service is stopped.
+
+```
+pol prod update --dry-run      what would change: the release, its test verdict, each service's old → new image, disk
+pol prod update                stash the volumes, swap the images one at a time (start-first), verify, move the checkout to the tag
+pol prod restore <id>          only if ever needed: put back the data stash the update printed
+```
+
+The update refuses a release that was not tested and passed, or whose images were never really pushed. There is no flag to override that. If verification fails, it rolls back to the previous version by itself and exits 4. `pol prod update --history` lists past updates, and `pol prod status` shows the last one. The update never touches secrets, answers, configs or the stack file; changing those is `pol prod apply`.
+
+One-time: a checkout older than this verb does not have `pol prod update` yet. Move it by hand once:
+
+```
+git -C /opt/polari fetch --tags && git -C /opt/polari checkout polari-v2026.09.27 && git -C /opt/polari submodule update --init
+```
+
 ## What is still yours
 
 - Point DNS at the server before choosing the provider certificate.

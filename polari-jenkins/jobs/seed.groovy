@@ -123,10 +123,10 @@ pipelineJob('polari-publish') {
 // picked up without a new release). A SKIP is NOT_BUILT; FAILURE only when an
 // attempted deploy failed (then rule 4: it waits for a newer release or a person).
 pipelineJob('polari-deploy') {
-    description('dep-2: deploy the published release to every DEPLOYMENT TARGET whose conditions all hold (newer · tested · published for real · window · healthy · disk · idle · hold off · not failed) — over ssh as the pipeline user, `pol prod apply` + verify + health, rollback by re-pin. Triggered by polari-publish; also polls every 10 min for targets whose window or hold changed. pol jenkins deploy list|check|status.')
+    description('dep-2, PARKED IN PLACE (his ruling 2026-09-27: the pipeline stops at publish — deployment is `pol prod update` run by a person ON the device from the registered locations; nothing of the pipeline ssh\'s into production). Kept as a manual tool: no cron, not triggered by polari-publish; Build Now runs the conditions per DEPLOYMENT TARGET (deploy/targets.env) and the deploy agent over ssh exactly as before. pol jenkins deploy list|check|status.')
     logRotator { numToKeep(50) }
     parameters { stringParam('VERSION', '', 'the release to deploy (empty = the newest in the pool)') }
-    triggers { cron('H/10 * * * *') }
+    // no triggers: parked (plan §11.8) — a person's Build Now only
     definition { cps { script(pipe('Jenkinsfile.deploy')); sandbox(true) } }
 }
 

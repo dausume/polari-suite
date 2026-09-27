@@ -1966,7 +1966,9 @@ JD="$(cat "$J/pipelines/Jenkinsfile.deploy")"
 has "polari-deploy: one stage per target, conditions then apply" "conditions.sh '\${t}'" "$JD"
 has "  …a SKIP is NOT_BUILT, never red" "currentBuild.result = 'NOT_BUILT'" "$JD"
 has "  …never concurrent with a build" "lock(resource: 'polari-build')" "$JD"
-has "publish → deploy: production is the step AFTER the artifacts are out" "build job: 'polari-deploy'" "$(cat "$J/pipelines/Jenkinsfile.publish")"
+has "publish: THE PIPELINE STOPS HERE (his ruling 2026-09-27) — deployment is a person's pol prod update on the device" "THE PIPELINE STOPS HERE" "$(cat "$J/pipelines/Jenkinsfile.publish")"
+eq "  …publish no longer triggers polari-deploy" "0" "$(grep -c "build job: 'polari-deploy'" "$J/pipelines/Jenkinsfile.publish" || true)"
+eq "  …and the seed gives polari-deploy no trigger (parked in place; Build Now only)" "0" "$(awk "/pipelineJob\\('polari-deploy'\\)/,/^}/" "$J/jobs/seed.groovy" | grep -c "cron(" || true)"
 has "seed: polari-deploy is polled too (a closed window or a lifted hold needs no new release)" "pipelineJob('polari-deploy')" "$(cat "$J/jobs/seed.groovy")"
 has "compose: the deploy dir (and targets.env inside it) reaches the controller" "./deploy:/var/polari-jenkins/deploy:ro" "$(cat "$J/docker-compose.yml")"
 has "retention: pool/deploy is EXEMPT (records, not versions)" "queue release deploy" "$(cat "$J/retention.sh")"
@@ -1981,8 +1983,12 @@ mkdir -p "$DP/agent/bin"; cat > "$DP/agent/bin/docker" <<'SH'
 echo "$*" >> "$FAKE_DOCKER_LOG"
 case "$1 $2" in
   "stack ls") echo polari-lean ;;
-  "service ls") printf 'polari-lean_prf-backend\tghcr.io/o/prf-backend:%s@sha256:abc\t1/1\npolari-lean_pol-proxy\tnginx:1.27-alpine\t1/1\npolari-lean_prf-frontend\tghcr.io/o/prf-frontend:%s\t1/1\n' "${FAKE_TAG:-2026.09.12}" "${FAKE_TAG:-2026.09.12}" ;;
-  "service update") exit "${FAKE_SVC_RC:-0}" ;;
+  "service ls") L=$(printf 'polari-lean_prf-backend\tghcr.io/o/prf-backend:%s@sha256:abc\t1/1\npolari-lean_pol-proxy\tnginx:1.27-alpine\t1/1\npolari-lean_prf-frontend\tghcr.io/o/prf-frontend:%s\t1/1\n' "${FAKE_TAG:-2026.09.12}" "${FAKE_TAG:-2026.09.12}")
+                # FAKE_STATE (pol prod update's tests): the swarm remembers what `service update --image` set
+                if [ -n "${FAKE_STATE:-}" ] && [ -f "$FAKE_STATE" ]; then while read -r n i; do L=$(printf '%s\n' "$L" | awk -F'\t' -v n="$n" -v i="$i" 'BEGIN{OFS="\t"} $1==n{$2=i} {print}'); done < "$FAKE_STATE"; fi
+                printf '%s\n' "$L" ;;
+  "service update") if [ "${FAKE_SVC_RC:-0}" = 0 ] && [ -n "${FAKE_STATE:-}" ]; then img=""; a=("$@"); for ((k=0; k<${#a[@]}; k++)); do [ "${a[k]}" = --image ] && img="${a[k+1]}"; done; echo "${a[-1]} $img" >> "$FAKE_STATE"; fi
+                    exit "${FAKE_SVC_RC:-0}" ;;
   "service inspect") echo "2026-09-12T10:00:00Z" ;;
   "volume ls") printf 'polari-lean_data\npolari-lean_db\n' ;;
   "run --rm") shift; d=""; while [ $# -gt 0 ]; do case "$1" in -v) case "$2" in *:/s) d="${2%:/s}";; esac; shift 2;; *) break;; esac; done; f=$(echo "$*" | grep -o '/s/[^ ]*'); touch "$d/${f#/s/}"; exit 0 ;;
@@ -2032,6 +2038,126 @@ eq "  …exactly one update was attempted" "1" "$(grep -c 'service update' "$FAK
 unset FAKE_SVC_RC
 has "pol prod: the agent is dispatched to its OWN file (no vault sourced on that path)" 'agent)   exec bash "$SCRIPT_DIR/prod-agent.sh"' "$(cat "$J/../polari-cli/scripts/prod.sh")"
 has "pol prod restore: a PERSON's restore of a stash (scale down, untar, scale up)" "do_restore()" "$(cat "$J/../polari-cli/scripts/prod.sh")"
+
+# ---- dep-3 (his ruling 2026-09-27): `pol prod update` — the DEVICE-SIDE update a PERSON runs; the pipeline only
+# generates and publishes. The same fake docker, plus a fake curl serving a release list + release.json from files.
+PU="$J/../polari-cli/scripts/prod-update.sh"; PUD="$DP/pu"; rm -rf "$PUD"; mkdir -p "$PUD/fix"
+NOSHIM="${PATH#"$T/bin:"}"   # the real git (the tree's git shim answers for other tests)
+( export PATH="$NOSHIM"; git init -q "$PUD/origin" && cd "$PUD/origin" && touch setup-polari-security.sh && git add . \
+  && git -c user.name=t -c user.email=t@t commit -qm release && git tag polari-v2026.09.27 && echo later > later \
+  && git add later && git -c user.name=t -c user.email=t@t commit -qm later && git clone -q "$PUD/origin" "$PUD/suite" ) >/dev/null 2>&1
+cat > "$DP/agent/bin/curl" <<'SH'
+#!/bin/bash
+url=""; out=""; w=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; -w) w="$2"; shift 2 ;; -H|--max-time|-m) shift 2 ;; -*) shift ;; *) url="$1"; shift ;; esac; done
+echo "$url" >> "$FAKE_CURL_LOG"
+emit() { if [ -n "$out" ] && [ "$out" != /dev/null ]; then cat > "$out"; else cat; fi; }
+case "$url" in
+  "https://api.github.com/repos/dausume/polari-suite/releases?"*) emit < "$FAKE_FIX/releases.json" ;;
+  https://api.github.com/repos/dausume/polari-suite/releases/tags/*)
+      python3 -c 'import json,sys; r=[x for x in json.load(open(sys.argv[1])) if x["tag_name"]==sys.argv[2]]; print(json.dumps(r[0])) if r else sys.exit(22)' "$FAKE_FIX/releases.json" "${url##*/}" > "$FAKE_FIX/.one" || exit 22; emit < "$FAKE_FIX/.one" ;;
+  */release.json) emit < "$FAKE_FIX/release.json" ;;
+  https://127.0.0.1/api/health) c="${FAKE_HEALTH:-200}"; [ -n "$w" ] && { printf '%s' "$c"; exit 0; }
+      case "$c" in 2*) echo '{"phase": "ready", "onlineCount": 3, "moduleCount": 3}' | emit ;; *) exit 22 ;; esac ;;
+  *) exit 22 ;;   # the registry (no size) and anything else: no answer
+esac
+SH
+chmod +x "$DP/agent/bin/curl"
+DL=https://github.com/dausume/polari-suite/releases/download
+cat > "$PUD/fix/releases.json" <<EOF
+[{"tag_name": "polari-v2026.09.30", "draft": true, "assets": [{"name": "release.json", "browser_download_url": "$DL/polari-v2026.09.30/release.json"}]},
+ {"tag_name": "polari-v2026.09.27", "draft": false, "assets": [{"name": "polari-core.deb", "browser_download_url": "$DL/polari-v2026.09.27/polari-core.deb"}, {"name": "release.json", "browser_download_url": "$DL/polari-v2026.09.27/release.json"}]},
+ {"tag_name": "polari-v2026.09.12", "draft": false, "assets": [{"name": "polari-core.deb", "browser_download_url": "$DL/polari-v2026.09.12/polari-core.deb"}]}]
+EOF
+relj() { printf '{"polari": "2026.09.27", "tested_against": {"sha": "abc123", "verdict": "%s", "images": {"prf-backend:staging": "sha256:aaa", "prf-frontend:staging": "sha256:bbb"}, "report": "/var/polari-pool/test/abc123/TEST_REPORT.md"}, "publishedTo": {"github-release": {"url": "x", "dryRun": false}, "ghcr": {"url": "https://github.com/dausume?tab=packages", "dryRun": %s}}}\n' "$1" "$2" > "$PUD/fix/release.json"; }
+export FAKE_FIX="$PUD/fix" FAKE_CURL_LOG="$PUD/curl.log"
+pu()  { ( cd "$DP/agent" && env PATH="$DP/agent/bin:$NOSHIM" POLARI_DOCKER="$DP/agent/bin/docker" POLARI_STASH_DIR="$DP/agent/stash" HOME="$DP/agent" \
+          POL_SUITE_ROOT="$PUD/suite" POL_PROD_UPDATE_MIN_GB=0 POL_PROD_UPDATE_VERIFY_TRIES=1 bash "$PU" "$@" 2>&1 ) || true; }
+purc(){ ( cd "$DP/agent" && env PATH="$DP/agent/bin:$NOSHIM" POLARI_DOCKER="$DP/agent/bin/docker" POLARI_STASH_DIR="$DP/agent/stash" HOME="$DP/agent" \
+          POL_SUITE_ROOT="$PUD/suite" POL_PROD_UPDATE_MIN_GB=0 POL_PROD_UPDATE_VERIFY_TRIES=1 bash "$PU" "$@" >/dev/null 2>&1 ); echo "$?"; }
+# sources: the registered locations (default = the official list), add / remove / never empty
+has "pol prod sources: the default is the official release source" "dausume/polari-suite" "$(pu sources list)"
+has "  …said to be the default while nothing is registered" "official default" "$(pu sources list)"
+has "sources add: a self-hosted forge (a list, not a hard-coded host)" "forge  dausume/polari-suite" "$(pu sources add https://forge.home.arpa/dausume/polari-suite)"
+has "  …kept in .generated/prod-sources.env, in order" "SOURCE=github:dausume/polari-suite" "$(cat "$PUD/suite/.generated/prod-sources.env")"
+has "  …an owner/repo is a GitHub location" "github:someone/fork" "$(pu sources add someone/fork; cat "$PUD/suite/.generated/prod-sources.env")"
+has "sources remove" "removed: github:someone/fork" "$(pu sources remove someone/fork)"
+pu sources remove https://forge.home.arpa/dausume/polari-suite >/dev/null
+has "  …the last location cannot be removed" "is the only registered location" "$(pu sources remove dausume/polari-suite)"
+eq "  …a bad location is a usage error (2)" "2" "$(purc sources add 'not a repo')"
+rm -f "$PUD/suite/.generated/prod-sources.env"
+# resolve latest + dry run: the newest non-draft release carrying release.json; the verbs printed, nothing touched
+relj passed false; : > "$FAKE_DOCKER_LOG"; export FAKE_STATE="$PUD/state"; rm -f "$FAKE_STATE"
+OUT="$(pu update --dry-run)"
+has "pol prod update: latest = the newest release carrying release.json (the draft is skipped)" "polari-v2026.09.27 from github:dausume/polari-suite" "$OUT"
+has "  …the tested sha printed" "sha abc123" "$OUT"
+has "  …the verdict and the tested image ids" "tested image  prf-backend:staging sha256:aaa" "$OUT"
+has "  …per service old → new" "polari-lean_prf-backend  ghcr.io/o/prf-backend:2026.09.12 → ghcr.io/o/prf-backend:2026.09.27" "$OUT"
+has "  …the proxy (not ours) is left alone" "polari-lean_pol-proxy  nginx:1.27-alpine  (left alone" "$OUT"
+has "  …the disk reading (no registry size → the floor)" "the registry gave no size" "$OUT"
+has "dry run: prints the exact agent verbs" "prod-agent.sh stash 2026.09.27" "$OUT"
+has "  …update" "prod-agent.sh update 2026.09.27" "$OUT"
+has "  …the rollback it would use" "prod-agent.sh rollback 2026.09.12" "$OUT"
+hasnt "  …and touches nothing (no service update, no stash)" "service update" "$(cat "$FAKE_DOCKER_LOG")"
+hasnt "  …no volume archived" "busybox" "$(cat "$FAKE_DOCKER_LOG")"
+[ ! -d "$PUD/suite/.generated/updates" ] && ok "  …no record written" || bad "  …no record written" "absent" "present"
+has "a version may be given as polari-v<date>" "polari-v2026.09.27 from" "$(pu update polari-v2026.09.27 --dry-run)"
+eq "  …an unknown version is exit 1 (no location has it)" "1" "$(purc update 2026.01.01 --dry-run)"
+eq "  …a non-version is a usage error" "2" "$(purc update 'x;rm')"
+# the release rule on the device too — no override
+relj failed false; : > "$FAKE_DOCKER_LOG"
+has "refused: verdict failed (the release rule, on the device)" "REFUSED: polari-v2026.09.27 was not tested and passed (verdict 'failed')" "$(pu update --yes)"
+eq "  …exit 3" "3" "$(purc update --yes)"
+relj passed true
+has "refused: publishedTo.ghcr.dryRun true (the images never really existed)" "images were never really pushed" "$(pu update --yes)"
+eq "  …exit 3" "3" "$(purc update --yes)"
+hasnt "  …neither refusal touched the swarm" "service update" "$(cat "$FAKE_DOCKER_LOG")"
+relj passed false
+# already at / downgrade
+has "already at the target: nothing to do" "already at polari-v2026.09.27" "$(FAKE_TAG=2026.09.27 pu update --yes)"
+eq "  …exit 0" "0" "$(FAKE_TAG=2026.09.27 purc update --yes)"
+has "a downgrade is refused without an explicit version AND --yes" "is a DOWNGRADE" "$(FAKE_TAG=2026.09.30 pu update 2026.09.27)"
+eq "  …latest --yes is still refused (not explicit)" "3" "$(FAKE_TAG=2026.09.30 purc update latest --yes)"
+has "  …explicit version + --yes goes ahead (dry run shows it)" "would run" "$(FAKE_TAG=2026.09.30 pu update 2026.09.27 --yes --dry-run)"
+eq "unattended without --yes: refused as usage, nothing changed" "2" "$(purc update --no-checkout </dev/null)"
+# a forced verify failure → rollback to the previous version, exit 4
+: > "$FAKE_DOCKER_LOG"; rm -f "$FAKE_STATE"
+OUT="$(FAKE_HEALTH=500 pu update --yes --no-checkout)"
+eq "verify failure: exit 4" "4" "$(rm -f "$FAKE_STATE"; FAKE_HEALTH=500 purc update --yes --no-checkout)"
+has "  …rolled back to the previous version through the agent" "prod-agent.sh rollback 2026.09.12" "$OUT"
+has "  …the re-pin reached the swarm" "--image ghcr.io/o/prf-backend:2026.09.12" "$(cat "$FAKE_DOCKER_LOG")"
+has "  …both verify outputs printed" "verify after the rollback:" "$OUT"
+has "  …the stash is named as the data undo" "pol prod restore " "$OUT"
+has "  …recorded as verify-failed-rolled-back" '"result": "verify-failed-rolled-back"' "$(cat "$PUD"/suite/.generated/updates/*.json)"
+# the full run: stash, then one service update per versioned service, then verify, record, checkout
+: > "$FAKE_DOCKER_LOG"; rm -f "$FAKE_STATE"
+OUT="$(pu update --yes)"
+has "full run: the stash id + the person's undo" "(undo, if ever needed: pol prod restore " "$OUT"
+eq "  …the stash comes BEFORE the first service update" "busybox" "$(grep -m1 -o 'busybox\|service update' "$FAKE_DOCKER_LOG")"
+eq "  …one start-first update per versioned service, to the release tag" "2" "$(grep 'service update' "$FAKE_DOCKER_LOG" | grep -c -- '--image ghcr.io/o/prf-[a-z]*:2026.09.27 --update-order start-first')"
+hasnt "  …the proxy never touched" "nginx" "$(grep 'service update' "$FAKE_DOCKER_LOG")"
+has "  …verified (converged + health through the proxy)" "verify     ok" "$OUT"
+has "  …health reading" "ready — 3 / 3 modules online" "$OUT"
+has "  …cert fingerprint reported unchanged" "unchanged (none)" "$OUT"
+REC="$(ls -1 "$PUD"/suite/.generated/updates/*-2026.09.27.json | tail -1)"
+eq "record: from/to/source/sha/verdict/result" "polari-v2026.09.12 2026.09.27 github:dausume/polari-suite abc123 passed ok 2" \
+   "$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d["from"], d["to"], d["source"], d["sha"], d["verdict"], d["result"], len(d["services"]))' "$REC")"
+eq "checkout: moved to the release tag AFTER the images, from the exec'd helper" "$(PATH="$NOSHIM" git -C "$PUD/origin" rev-parse polari-v2026.09.27)" "$(PATH="$NOSHIM" git -C "$PUD/suite" rev-parse HEAD)"
+eq "  …the helper wrote its result into the record" "ok: polari-v2026.09.27" "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["checkout"])' "$REC")"
+has "--history lists the updates" "verify-failed-rolled-back" "$(pu update --history)"
+has "  …including the good one" " ok " "$(pu update --history)"
+has "idempotent: a second run finds it already there" "already at polari-v2026.09.27" "$(pu update --yes)"
+# a missing tag on the checkout's origin: said, skipped, images already updated
+rm -f "$FAKE_STATE"; PATH="$NOSHIM" git -C "$PUD/suite" tag -d polari-v2026.09.27 >/dev/null 2>&1; PATH="$NOSHIM" git -C "$PUD/origin" tag -d polari-v2026.09.27 >/dev/null 2>&1
+has "checkout: the tag missing on origin is said and skipped" "the images ARE updated; the CLI stays at its version" "$(pu update --yes)"
+# pol prod: dispatch, help, status line; and the verb never touches secrets/answers/stack
+PS="$J/../polari-cli/scripts/prod.sh"
+has "pol prod help: the update verb" "pol prod update [<version>|latest]" "$(POL_SUITE_ROOT="$PUD/suite" bash "$PS" help 2>&1)"
+has "pol prod help: the sources verb" "pol prod sources [list|add <owner/repo>|remove <owner/repo>]" "$(POL_SUITE_ROOT="$PUD/suite" bash "$PS" help 2>&1)"
+has "pol prod sources dispatches to prod-update.sh" "official default" "$(cd "$DP/agent" && PATH="$DP/agent/bin:$NOSHIM" POL_SUITE_ROOT="$PUD/suite" bash "$PS" sources list 2>&1)"
+has "pol prod status gains the last-update line" 'echo "  last update  $(prod_update_last)"' "$(cat "$PS")"
+hasnt "prod-update: never writes answers, vault, configs or the stack" "save_answers\|vault_\|stack deploy\|write_configs\|render_stack" "$(grep -v '^ *#' "$PU")"
+unset FAKE_STATE FAKE_FIX FAKE_CURL_LOG
 unset FAKE_RELEASE FAKE_STACK FAKE_FREE FAKE_HTTP FAKE_UP FAKE_VERIFY_RC FAKE_VERIFY_TEXT FAKE_APPLY_RC
 
 # ---- 2026-09-22: THE RELEASED IMAGES ARE THE TESTED IMAGES (tested-images.sh)
@@ -2217,6 +2343,14 @@ has "the github-release route pushes to the repo the catalogue names" "$RREPO" "
 has "the ghcr route pushes to the registry the catalogue names" "$RREG" "$(cat_ 'secrets_destination github/registry_token')"
 has "  …and the route script itself reads that constant, not a literal" "dest_release_repo" "$(cat "$J/routes/github-release.sh")"
 has "  …ghcr too" "dest_registry_ns" "$(cat "$J/routes/ghcr.sh")"
+# the living record re-uploaded LAST (found 2026-09-27: the github-release route uploads release.json BEFORE ghcr
+# writes its publishedTo entry — a device's pol prod update would refuse every release as "never really pushed")
+RP="$DP/record-pool"; mkdir -p "$RP"
+printf '{"polari": "2026.09.27", "components": {"superproject": {"sha": "abc"}}, "publishedTo": {"github-release": {"url": "u", "dryRun": false}, "ghcr": {"url": "ghcr.io/x", "dryRun": false}}}\n' > "$RP/release.json"
+OUT="$(cd "$J/routes" && DRY_RUN=1 VERSION=2026.09.27 POOL_DIR="$RP" GITHUB_TOKEN= bash ./record.sh 2>&1)"
+has "record: re-uploads release.json to the GitHub release with --clobber" "gh release upload polari-v2026.09.27 -R dausume/polari-suite $RP/release.json --clobber" "$OUT"
+has "  …after printing what publishedTo says now" "ghcr=real, github-release=real" "$OUT"
+has "  …and Jenkinsfile.publish runs it in post/always, after every route" "record.sh'" "$(cat "$J/pipelines/Jenkinsfile.publish")"
 has "  …and homebrew" "dest_homebrew_tap" "$(cat "$J/routes/homebrew.sh")"
 eq "  …so no ROUTE hard-codes the upstream owner any more (only destinations.sh knows it)" "" \
    "$(grep -l 'dausume' "$J"/routes/*.sh 2>/dev/null | grep -v destinations.sh || true)"

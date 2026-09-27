@@ -46,12 +46,23 @@ pipeline {
   }
   post {
     always {
+      // the living record, re-uploaded AFTER every route wrote its publishedTo entry (routes/record.sh says why);
+      // a device's `pol prod update` reads the copy beside the assets. Runs whatever the routes did; never fatal.
+      script {
+        catchError(buildResult: currentBuild.currentResult, stageResult: 'FAILURE') {
+          withCredentials([string(credentialsId: 'release_token', variable: 'GITHUB_TOKEN')]) {
+            withEnv(["DRY_RUN=${params.DRY_RUN}", "VERSION=${params.VERSION}", "POOL_DIR=${env.POOL}/${params.VERSION}"]) {
+              sh "bash '${env.ROUTES_DIR}/record.sh'"
+            }
+          }
+        }
+      }
       sh 'echo "publish run: VERSION=$VERSION DRY_RUN=$DRY_RUN ROUTES=$ROUTES CI_ROUTES=${CI_ROUTES:-unset}"'
       script { sh "bash /var/polari-jenkins/cicd-sync.sh run publish \"\$BUILD_NUMBER\" ${currentBuild.currentResult.toLowerCase()} \"\$VERSION\" 'routes rendered or published' || true" }
       sh 'bash /var/polari-jenkins/cicd-sync.sh release "$VERSION" "$POOL/$VERSION/release.json" || true'
     }
-    // dep-2: the artifacts are out → production is the NEXT step. polari-deploy reads release.json's
-    // publishedTo itself (a route that only rendered does not count), so triggering it here is safe.
-    success { build job: 'polari-deploy', wait: false, parameters: [string(name: 'VERSION', value: params.VERSION)] }
+    // THE PIPELINE STOPS HERE (his ruling 2026-09-27, plan §11.8): the assets are generated and made available on the
+    // registered locations; deployment is a PERSON's `pol prod update` on the device (or `isle update` on an isle),
+    // pulling from those locations without interrupting services. polari-deploy is parked in place (manual only).
   }
 }
