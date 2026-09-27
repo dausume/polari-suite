@@ -1981,7 +1981,7 @@ mkdir -p "$DP/agent/bin"; cat > "$DP/agent/bin/docker" <<'SH'
 echo "$*" >> "$FAKE_DOCKER_LOG"
 case "$1 $2" in
   "stack ls") echo polari-lean ;;
-  "service ls") printf 'polari-lean_prf-backend\tghcr.io/o/prf-backend:2026.09.12@sha256:abc\t1/1\npolari-lean_pol-proxy\tnginx:1.27-alpine\t1/1\npolari-lean_prf-frontend\tghcr.io/o/prf-frontend:2026.09.12\t1/1\n' ;;
+  "service ls") printf 'polari-lean_prf-backend\tghcr.io/o/prf-backend:%s@sha256:abc\t1/1\npolari-lean_pol-proxy\tnginx:1.27-alpine\t1/1\npolari-lean_prf-frontend\tghcr.io/o/prf-frontend:%s\t1/1\n' "${FAKE_TAG:-2026.09.12}" "${FAKE_TAG:-2026.09.12}" ;;
   "service update") exit "${FAKE_SVC_RC:-0}" ;;
   "service inspect") echo "2026-09-12T10:00:00Z" ;;
   "volume ls") printf 'polari-lean_data\npolari-lean_db\n' ;;
@@ -2003,6 +2003,15 @@ has "agent current: the release is READ from the running backend service's image
 has "  …the stack" "stack=polari-lean" "$OUT"
 has "  …and the agent's own path (what authorize writes into the forced command)" "agent=$(readlink -f "$AG")" "$OUT"
 eq "agent --path: the absolute path" "$(readlink -f "$AG")" "$(ag --path)"
+# the droplet's tag form (a person's `pol prod apply --release`, 2026-09-12): polari-v<date>[-core] — found 2026-09-27
+# that the agent treated it as "not a versioned image of ours" and would have left every service alone
+OUT="$(FAKE_TAG=polari-v2026.09.12-core ag current)"
+has "agent current: a polari-v<date>-core tag (the droplet's first deploy) reads as that release" "release=polari-v2026.09.12" "$OUT"
+: > "$FAKE_DOCKER_LOG"
+OUT="$(FAKE_TAG=polari-v2026.09.12-core ag update 2026.09.27)"
+has "agent update: a polari-v<date>-core image IS ours — it is replaced by the release tag" "--image ghcr.io/o/prf-backend:2026.09.27" "$(cat "$FAKE_DOCKER_LOG")"
+eq "  …and no service of ours is left alone" "0" "$(printf '%s\n' "$OUT" | grep -c 'leave  prf-' || true)"
+: > "$FAKE_DOCKER_LOG"
 : > "$FAKE_DOCKER_LOG"
 OUT="$(ag stash 2026.09.30)"
 has "agent stash: every named volume of the stack, read-only, ONE archive each" "stashed polari-lean_db" "$OUT"

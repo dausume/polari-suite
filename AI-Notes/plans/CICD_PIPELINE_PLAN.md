@@ -1087,9 +1087,12 @@ pipeline."* Not a setup arc: the bring-up is `get-polari.sh → pol prod bootstr
    by image id, the droplet moves to the tested all-modules image and keeps its CORE module set at runtime
    (POLARI_MODULES from its ModuleAssignment rows; lazy boot loads only what is assigned). The `-core` image is an
    optimisation for later (D8) — it would have to be tested as its own image id to be releasable.
-3. The conditions read "what the target runs" from `pol prod agent current` — its version string on the old checkout is
-   `polari-v2026.09.12-core`, the release's is `2026.09.27`: `deploy check` must show the comparison parses both (fix
-   `conditions.sh` if it does not) BEFORE any `--now`.
+3. FOUND + FIXED 2026-09-27: the agent's `our_image` accepted only `YYYY.MM.DD*|lean|prod|staging` tags — the droplet's
+   `polari-v2026.09.12-core` images would have been LEFT ALONE by `update` ("not a versioned image of ours"), and
+   `current` reported no release for them (the condition would have read "first release", a GO for the wrong reason).
+   Now `polari-vYYYY.MM.DD[-core]` is ours and `current` reports `release=polari-v2026.09.12` for it, so condition 1
+   compares honestly (`sort -V`). `/api/release` (rel-2) is NOT served by the core yet — `pol prod current`/the agent
+   reading is the truth, as the conditions already assume.
 
 **The steps (each one printed with its evidence; a person at every step marked HIS):**
 | # | step | who / where |
