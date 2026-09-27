@@ -174,3 +174,47 @@ read `pol jenkins test-status 62e43053` when it ends. The doctor now reads the p
 `pol jenkins promote main` (scheduled for the next local midnight; `pol jenkins retry main` releases at once)
 → release loads the tested images, tags, publishes → `polari-deploy` ticks (no target qualifies until a box
 runs a stack and `hold` is lifted) → make the ghcr packages public.
+
+## 7. 2026-09-27 — this work is the NEXT PRIORITY again (his call); the tt/lod arc is tabled
+
+**His words (2026-09-27):** the compute-LOD/tensor arc is tabled and "we are going to want … to go back to trying to do
+the main deployment to prod on jenkins since we need to wrap that up to free the other two devices for work." A dedicated
+handoff for that work is to be written when it starts; until then THIS section is the pointer.
+
+**Read, in this order, before touching anything:**
+1. This file §5 (what dep-0/1/2 built and proved on econ-core) and §6 (the resume order for the release).
+2. `AI-Notes/plans/CICD_PIPELINE_PLAN.md` §11 (deploy targets over ssh; §11.6a status; §11.7 his decisions D1–D6) and the
+   plan's earlier ci-7 pipeline-device sections.
+3. `AI-Notes/plans/PRODUCTION_DEPLOY_PLAN.md` — swarm = production, `pol prod` guide/apply/verify/profiles/vault; the first
+   live deploy of polari-systems.org (2026-09-12, lean, LE cert) is the reference for what the droplet runs.
+4. `AI-Notes/plans/SCANNING_AND_RELEASE_AUTOMATION_PLAN.md` — releases on merges to main (the job mints the tag; DRY_RUN off
+   per secret); advisory scanners; D1–D7 his. The audit POST door is UNAUTHENTICATED (known, unfixed).
+5. `AI-Notes/handoffs/SECURITY_ARC_HANDOFF.md` — the hardening posture the prod stack must keep (sec-1a allow-list template,
+   warn-only apply on the home swarm is the next step there); `AI-Notes/handoffs/ISLE_ONBOARDING_HANDOFF.md` and
+   `FRESH_INSTALL_DEBUG_HANDOFF.md` only if the isle test guest on econ-core misbehaves again.
+6. `AI-Notes/handoffs/COMPUTE_LOD_TENSOR_HANDOFF.md` first section — the arc just tabled: what is on `main` now and why.
+
+**Two facts that changed since §6 was written (read them as constraints on the resume order):**
+- `main == dev` again as of 2026-09-27 by DIRECT push on his word (framework c74ecbf, angular cc01202, rf-node 7fb63a6, suite;
+  the tool repos eda-tools/proof-tools/torch-tools have only `dev`). It was NOT `pol jenkins promote main`, so main is far
+  ahead of what the pipeline last tested: the first pipeline step is a full `polari-test` run on the current tip (then
+  `pol jenkins test-status <tip>` must say passed) before any release can satisfy "released == tested". Expect the test to
+  exercise the whole tt/lod arc's modules (18 in POLARI_MODULES) — the heavy engine images (eda 2.6 GB, orfs 4.7 GB, proof
+  11 GB, torch 1 GB) are WORKERS, not part of the prod stack; prod stays lean.
+- Home staging now carries four engine workers as topology rows (`topologies/staging-a.topology.yml`, 9/9 edges) — a staging
+  fact only; the prod topology is the droplet's lean stack and does not gain them.
+
+**Still his before the release can go (unchanged from §5/§6):** mint the classic `repo` release token and `sudo pol jenkins
+secrets put` it (the proven one expires 2026-10-23); bootstrap econ-core as the pipeline device (`init-device`, secrets); the
+droplet's first deploy is a PERSON's with `hold=true` then `--now` with him watching (D1–D6 in plan §11.7); the Keycloak
+rotation (`pol security rotate staging` with him) that the public-site arc lists as its blocker; make the ghcr packages public
+after the first release.
+
+**What "free the other two devices" means here:** econ-core is the pipeline device (Jenkins + the 4 GB isle test guest) and
+isle-core carries the isle test target + the cnt-engines worker. Wrapping the release + first droplet deploy returns both to
+Odoo / isle work; the pipeline device itself stays occupied while Jenkins lives on econ-core — moving Jenkins is a separate
+decision, not assumed.
+
+**Working rule for the next session (his, 2026-09-27):** few agents, and NON-Fable ones (sonnet/haiku/opus) wherever the work
+allows — the doctor readings, test-status polling, log reading and scripted checks go to a Sonnet agent with a precise brief;
+the promote / release / deploy decisions, merges and this handoff stay with Fable and him.
