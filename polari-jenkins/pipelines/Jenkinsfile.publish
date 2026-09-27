@@ -12,7 +12,7 @@ pipeline {
       steps { sh 'bash /var/polari-jenkins/cicd-sync.sh pull || true; bash /var/polari-jenkins/cicd-sync.sh run publish "$BUILD_NUMBER" running "$VERSION" "publish routes" || true' }
     }
     stage('verify pool') {
-      steps { sh 'test -n "$VERSION" || { echo "VERSION required"; exit 1; }; test -f "$POOL/$VERSION/release.json" || { echo "no pool/$VERSION/release.json — run polari-release first"; exit 1; }; cd "$POOL/$VERSION" && sha256sum --quiet -c SHA256SUMS && echo "pool $VERSION verified"' }
+      steps { sh 'test -n "$VERSION" || { echo "VERSION required"; exit 1; }; test -f "$POOL/$VERSION/release.json" || { echo "no pool/$VERSION/release.json — run polari-release first"; exit 1; }; cd "$POOL/$VERSION" && grep -v " \\./release\\.json$" SHA256SUMS | sha256sum --quiet -c - && echo "pool $VERSION verified (release.json is the living record — outside the manifest)"' }
     }
     stage('routes') {
       steps {

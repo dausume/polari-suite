@@ -292,7 +292,10 @@ PY'''
     }
     stage('checksums') {
       when { expression { env.PROCEED == 'yes' } }
-      steps { sh 'cd "$POOL/$POLARI_VERSION" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && wc -l SHA256SUMS' }
+      // release.json is the LIVING record — every route writes its publishedTo entry into it AFTER this manifest
+      // is frozen (publish #2 of 2026.09.27 failed its own pool verify on exactly that). The manifest covers the
+      // immutable artifacts; release.json is published beside it, never under it.
+      steps { sh 'cd "$POOL/$POLARI_VERSION" && find . -type f ! -name SHA256SUMS ! -name release.json -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && wc -l SHA256SUMS' }
     }
 
     // ---------------------------------------------------------------------
