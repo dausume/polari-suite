@@ -110,6 +110,10 @@ select → discover → follow cycle) over `GET /api/tensortree/trees/{name}/vie
 
 ## State at handoff (2026-09-26 night — MERGED TO DEV, images rolled, browser pass run)
 
+**What remains is plan §H.6** (his: "that all sounds good as a plan"): his calls (main, the four module repos, a topology row
+for the torch worker), the sky130 vendor fact, and four optional slices — lod-4d materials as rows, lod-3f DRC/LVS of the
+routed adder, eng-1 a worker carrying the OpenROAD flow, tt-14 real cross-tree data. A fresh session on this arc starts there.
+
 His word: "yes it should be it's own module, you can merge and then continue work." Done: `polari-torch-tools` is its own
 public repo + submodule of polari-rf-node (beside eda-tools / proof-tools); the eight stacked branches were fast-forwarded
 onto `dev` and pushed in framework / angular / rf-node / suite (main NOT promoted); backend + frontend images rebuilt from

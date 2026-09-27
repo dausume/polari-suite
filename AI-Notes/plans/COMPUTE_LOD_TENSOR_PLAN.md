@@ -1728,6 +1728,71 @@ Built the Polari way — the module never assumes a device (his 2026-09-24 rule)
   assigned); GPU (a torch device is a knob of the worker, none here); torch for the non-contraction operations (reduce /
   norm / permute stay numpy — stated by the refusal).
 
+### H.6 Follow-ons after §H.3 (written 2026-09-26 night; his: "that all sounds good as a plan") — nothing below changes a committed number
+
+Every row of §H.3, the reproducibility pass and D5 are merged to dev and rolled on the home swarm (§G.27–G.34). What is left
+is of three kinds: decisions that are his, one fact that must come from outside, and four optional slices, each turning a
+NAMED gap into rows, adding an independent check, or moving a capability onto another machine. Each slice is its own branch
+off dev (branch-per-confirmed-phase), attaches a `reproduction` block to whatever it commits (his rule §G.33), and never
+assumes a device (the engines ladder).
+
+**His calls (not work until he says):**
+- Promote `main` (shelved 2026-09-23; dev is far ahead).
+- Create the four module repos (`polari-module-tensormath|tensortree|computelod|mathproofs`) so `pol modules publish` works
+  for them; only the torch worker was ruled "its own module".
+- A topology assignment for the torch worker (`pol allocate tensormath.engines <instance>`); today the backend reaches it
+  through the `TORCH_ENGINES_URL` knob only (set on the rolled service and in the compose sources).
+
+**Blocked on an outside fact:** sky130 stays `manufacturability = proven-on-request` until a standing vendor route is
+verified by a person (SkyWater direct or a paid shuttle taking orders); only then `available` under his definition, and the
+bool follows.
+
+**Optional slice 1 — materials as ROWS (`lod-4d`, medium; a research task per material).**
+- Today the eight SKY130 stages NAME what they add (Si, SiO2, poly-Si, B/P/As, Si3N4, W plugs, Al or Cu, TiN — strings on the
+  `ProcessingStage` rows, §G.31) and `lod4: fabrication → materials` points at sifet's eg-si row plus those names.
+- The slice: one materials-science row per material (the module's own material class, family `semiconductor-process`), each
+  with ITS source for the properties a chip cares about — resistivity (metals, plugs, poly), dielectric constant and breakdown
+  field (SiO2, Si3N4), the dopant's role and activation in silicon (B, P, As), density where a mass balance needs it — cited
+  per number (derive-or-cite), evidence `analytical`; the stages' `materials named` become references to the rows; the
+  mapping's target_ref lists rows, not names; the walk from `c = a + b` then ENDS on objects a person can open.
+- Honesty: what the PDK does not say stays unsaid (WHICH metal, WHICH isolation) — a row for Al and a row for Cu, the stage
+  naming both as candidates, never one asserted. Proof: the walk's last step opens rows; a selftest that every named
+  material resolves to a row or is explicitly "not modelled".
+
+**Optional slice 2 — DRC + LVS of the ROUTED adder (`lod-3f`, small–medium; runs, never committed).**
+- Today: the router's own DRC count is 0 (lod-3e) and every CELL passed magic's full-rule deck alone (lod-3c), but magic's
+  full deck has never been run on the merged adder layout, and no layout-versus-schematic of the routed design exists.
+- The slice: from the flow's work dir (the GDS/ODB hold PDK cells and never enter git), `magic` reads `6_1_merged.gds` and
+  runs `drc check` with the sky130A rules (the context rules of a lone cell no longer apply — taps and wells are in the row
+  now, so a clean result means CLEAN), then `netgen lvs` of the extracted routed layout against `6_final.v` (with the fill and
+  tap cells handled as the PDK's LVS setup expects). Both through the engines ladder. Committed: the counts, the rule names if
+  any, the LVS verdict, the GDS's sha256, a `reproduction` block — never the layout. It closes the gap between "the router
+  says clean" and "an independent checker says clean".
+- Honesty: if magic reports rules the router does not know (antenna, density), they are REPORTED as such, not tuned away.
+
+**Optional slice 3 — a worker that carries the OpenROAD flow (`eng-1`, medium; an image, no framework logic).**
+- Today `orfs` / `openroad` resolve only where the pinned `openroad/orfs` image has been pulled (this box); the eda-tools
+  worker's capability honestly lacks them, so a remote device refuses.
+- The slice: a second worker image `polari-eda-tools` can build FROM `openroad/orfs:<pinned tag>` (Ubuntu 22.04 base): copy
+  `eda_engines_service.py`, add `orfs`/`openroad` to its ENGINES with the flow's PATH, keep the argv-only contract, mount the
+  work dir as the flow's WORK_HOME; `docker-compose.eda-engines.yml` gains a profile or a second service on its own port;
+  `LICENSES.md` already audits the image (§G.30). Then `pol allocate computelod.engines <instance>` places the whole P&R flow
+  like ngspice and lean are placed today; the framework's `resolve('orfs')` remote rung is already written.
+- Honesty: 4.6 GB per device that wants it — the topology says who; nothing is pulled implicitly.
+
+**Optional slice 4 — walk the cross-tree door with REAL data (`tt-14`, small; data, not code).**
+- Today tt-13's units filter and cross-tree candidates are proven on a fixture; the seeded trees never cross: the wind mappings
+  need x, y, z (the plate has x, y), and the wind tree has no foreign mapping to find.
+- The slice: a mapping written for a node that shares dims AND units with another tree — e.g. a 2-D field operation
+  (`restriction` or `projection` over x, y in metres) seeded on a wind SLICE node, which the plate's x, y (metres) can take —
+  so a plate selection lists it as `cross_tree · written for wind-slice-z0` with the lower context term, and a person judges
+  whether C = 0.25 ranks it sensibly (a policy knob, changeable in the row). Plus one seeded pair with a unit mismatch on
+  purpose (a millimetre node) so the `units-incompatible` refusal is SEEN on a page, not only in a selftest.
+- Honesty: a conversion (m ↔ mm) stays refused; converting would be a mapping of its own with evidence.
+
+Order if all four are taken: 4 (an afternoon, exercises what exists) → 2 (independent check of lod-3e) → 3 (moves the flow)
+→ 1 (the research task). None is a prerequisite for another.
+
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 
 His words, and what each became (built the same evening; verification below once the images are rolled):
