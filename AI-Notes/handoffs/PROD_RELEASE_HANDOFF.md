@@ -117,6 +117,13 @@ release.json (the living record, published beside it); publish verifies the mani
 other — both were uploaded before the mutation.) No `pol jenkins` verb triggers a job by hand — the re-run used the
 Jenkins API through the controller with a crumb + cookie jar (a `pol jenkins publish <version> [routes]` verb is owed).
 
+**publish #3 (14:04Z):** `verify pool` PASSED with the new rule; apt-repo rendered DRY correctly (names the three absent
+signing/deploy secrets; six `reprepro includedeb` + the rsync line); homebrew staged + committed `pol 2026.09.27` and
+then the PUSH failed: `fatal: could not read Username for 'https://github.com'` — `gh repo clone` authenticates via gh,
+a plain `git push` in the controller has no credential helper. Fixed on dev: the tap push uses the token-in-URL form
+the release job already uses for the tag (never echoed; Jenkins masks it). Lesson: the homebrew route had never
+been exercised past its dry-run rendering — each of its three real steps failed once (stage, commit, push).
+
 ## 4. What happens next, and who does it
 
 - **Verdict `passed` on 50d956c** → his `pol jenkins promote main` (from econ-core or pol-core, both hold his gh identity) → main = 50d956c qualifies. The release fires at the scheduled midnight tick, or at once

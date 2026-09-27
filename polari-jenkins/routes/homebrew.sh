@@ -31,5 +31,14 @@ if [ "$DRY_RUN" = 1 ] || ! git -C "$WORK/tap" diff --cached --quiet; then
 else
     echo "[homebrew] Formula/pol.rb already at $VERSION in the tap — nothing to commit"
 fi
-run git -C "$WORK/tap" push -q
+# `gh repo clone` authenticates through gh, but a plain `git push` in the controller has no credential helper
+# (publish #3: "could not read Username for 'https://github.com'"). Push exactly as the release job pushes its tag:
+# the token in the URL, which is never echoed (Jenkins masks it as well).
+BR="$(git -C "$WORK/tap" rev-parse --abbrev-ref HEAD)"
+if [ "$DRY_RUN" = 1 ]; then
+    echo "[dry-run:$ROUTE] git push https://x-access-token:<github/release_token>@github.com/$TAP.git HEAD:refs/heads/$BR"
+else
+    echo "[$ROUTE] git push $TAP $BR (with the release token; url not echoed)"
+    git -C "$WORK/tap" push -q "https://x-access-token:$GITHUB_TOKEN@github.com/$TAP.git" "HEAD:refs/heads/$BR"
+fi
 record "https://github.com/$TAP"
