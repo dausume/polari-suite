@@ -1759,7 +1759,7 @@ bool follows.
   naming both as candidates, never one asserted. Proof: the walk's last step opens rows; a selftest that every named
   material resolves to a row or is explicitly "not modelled".
 
-**Optional slice 2 — DRC + LVS of the ROUTED adder (`lod-3f`, small–medium; runs, never committed).**
+**Optional slice 2 — DRC + LVS of the ROUTED adder (`lod-3f`, small–medium; runs, never committed). ✅ BUILT 2026-09-26 night — §G.37.**
 - Today: the router's own DRC count is 0 (lod-3e) and every CELL passed magic's full-rule deck alone (lod-3c), but magic's
   full deck has never been run on the merged adder layout, and no layout-versus-schematic of the routed design exists.
 - The slice: from the flow's work dir (the GDS/ODB hold PDK cells and never enter git), `magic` reads `6_1_merged.gds` and
@@ -1857,6 +1857,29 @@ rule (memory `resource-cost-tracking`). A parallel ledger was started and REMOVE
   look under objects/ since the sap-2 split) and `node_resources_selftest` KeyError 'lightweight' (its fixture indexes rows
   by name). Left as found, named.
 - Proof: measure 15/15 (+2), admission 23/23, profiles 30/31 (+2, the one pre-existing), live boot (see commit).
+
+### G.37 lod-3f — the routed adder checked INDEPENDENTLY BUILT 2026-09-26 night (branch `dev-lod-3f` off `dev-rc-1`; §H.6 slice 2)
+
+**Cost stated first (rc-1):** magic + netgen from the profiled eda-tools image on a 0.3 MB GDS (measured after: magic 85 MB
+peak, 5.5 CPU-s; netgen 4 MB) and one `openroad` call in the ORFS image to write the power-connected netlist; the GDS/ODB come
+from lod3_pnr's work dir and never enter git. Fits wherever lod-3c did.
+
+- **DRC**: `polari-eda-tools/flows/design_check.tcl` — magic reads OpenROAD's `6_1_merged.gds` (the PDK's cells + our
+  placement and routing), runs the sky130A full deck on the WHOLE design. No context rule is excused: taps and wells are in
+  the rows now. Result: **0 violations on both variants** — an independent confirmation of the router's own count, by a
+  different tool with a different rule deck.
+- **LVS**: magic extracts hierarchically (cells as subcircuits); netgen compares to the routed netlist with the standard
+  cells as black boxes on both sides (their transistor-level LVS is lod-3c's) — this checks the WIRING: every instance, net
+  and pin. First attempt against `6_final.v` did NOT match: instances 242 = 242 but nets 308 vs 1274 — the routed Verilog
+  carries no power pins while every extracted cell does, so netgen invented one dummy net per unconnected power pin (966).
+  The honest fix is the netlist OpenROAD itself writes WITH power (`write_verilog -include_pwr_gnd` from `6_final.odb`, run
+  through the `openroad` engine), and fill / tap / decap cells the netlist never names ignored BY NAME (`design_lvs.tcl`,
+  the list recorded in the report). Result: **Circuits match uniquely** on both variants — as-flow 242 devices / 308 nets,
+  cells-kept 113 / 179 — the drawn layout IS the routed circuit, power included.
+- Rows: four upward characterizations (per variant: `drc_violations` 0, `lvs_match` 1), MEASURED (the tools' own verdicts),
+  validated. `GET /api/computelod/lod3/drc-lvs`. 146 CharacterizationMappings on a boot.
+- Proof: computelod (see commit), live boot (see commit). Not done: antenna / density rules are part of magic's deck and
+  reported 0 here; a foundry sign-off deck (KLayout's) is not run.
 
 ### H.4 bp-2 — his second browser pass, from a phone (2026-09-25 evening): seven asks, one branch `dev-bp-2`
 

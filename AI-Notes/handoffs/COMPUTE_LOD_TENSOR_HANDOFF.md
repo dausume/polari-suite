@@ -116,7 +116,8 @@ the arc's workers are provider kinds with profiles and the res-2/res-3 blocks, e
 No new ledger (one was started and removed). Every later slice states its cost against the profiles first.**
 
 **§H.6 RATIFIED (his: "we should certainly do all of that") — building in order: ✅ tt-14 (§G.35, branch `dev-tt-14`: the plate finds the
-wind slice's projection across trees; the unit resolver follows `<tensor>.<dim>` references) → lod-3f → eng-1 → lod-4d.**
+wind slice's projection across trees; the unit resolver follows `<tensor>.<dim>` references) → ✅ lod-3f (§G.37, branch `dev-lod-3f`: magic full-deck DRC 0 + netgen LVS match on both routed variants, against OpenROAD's
+power-connected netlist) → eng-1 → lod-4d.**
 
 **What remains is plan §H.6** (his: "that all sounds good as a plan"): his calls (main, the four module repos, a topology row
 for the torch worker), the sky130 vendor fact, and four optional slices — lod-4d materials as rows, lod-3f DRC/LVS of the
