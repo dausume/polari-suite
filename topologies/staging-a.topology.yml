@@ -19,47 +19,97 @@ machines:
 - name: econ-core
   ssh_alias: econ-core
   arch: x86_64
-  mem_gb: 0.0
-  roles_json: '["engines","remote-worker","business-ops","economics"]'
-  swarm_role: worker
+  mem_gb: 7.5
+  roles_json: '["engines", "remote-worker", "business-ops", "economics"]'
+  swarm_role: none
   repo_dir: ~/polari-suite
   source: nodes.yml
-  notes: "BUSINESS-OPS/ECONOMICS core (renamed from lightweight 2026-07-27) \u2014\
-    \ Odoo host per ODOO_INTEGRATION_PLAN"
+  notes: "N95 4-core / 7.5G; suspend disabled 2026-07-08 \u2014 safe headless target.\
+    \ Business-ops/economics core; Odoo + odoo-postgres land here (ODOO_INTEGRATION_PLAN.md)."
 - name: isle-core
   ssh_alias: isle-core
   arch: x86_64
   mem_gb: 7.6
   roles_json: '["engines", "remote-worker", "node"]'
-  swarm_role: none
+  swarm_role: worker
   repo_dir: ~/polari-suite
   source: nodes.yml
-  notes: "ISLE-MESH/infra/hardware-integration core \u2014 science engines; runs its\
-    \ own Claude (Isle-Mesh project)"
-- name: pol-core
+  notes: 6-core i5 / 7.6G; also runs the Isle-Mesh project. system_info_url -> the
+    cad-engines service pinned here.
+- name: staging-a
   ssh_alias: ''
   arch: x86_64
   mem_gb: 15.51
-  roles_json: '["node","research-core"]'
+  roles_json: '["core", "suite", "swarm-manager"]'
   swarm_role: manager
   repo_dir: ~/Desktop/polari-suite
-  source: nodes.yml
-  notes: "RESEARCH/Polari core (renamed from staging-a 2026-07-27) \u2014 node stack\
-    \ lives here"
+  source: manual
+  notes: "Local staging host (192.168.0.210) \u2014 combined compose suite + single-node\
+    \ swarm (polari-engines stack) + twin/dask compose projects."
 instances:
-- name: engines
+- name: cnt-engines
   kind: worker
-  service_kinds_json: '["prf-msci-engines"]'
+  service_kinds_json: '["prf-cnt-engines"]'
   replicas: 1
   env_tier: staging
   machine_name: isle-core
   placement_constraint: ''
   db_backend: sqlite
+  cache_backend: null
+  blob_backend: null
+  image_tag: staging
+  orchestration_target: swarm
+  topology_name: staging-a
+  notes: "The polari-cnt-engines swarm stack (:9700) \u2014 the cntfet module's compute\
+    \ (OSDI equivalence, cell characterization, D11, F3 NEGF) on a worker node; `pol\
+    \ swarm deploy cnt-engines`."
+- name: eda-engines
+  kind: worker
+  service_kinds_json: '["prf-eda-engines"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: staging-a
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: ''
+  blob_backend: ''
+  image_tag: staging
+  orchestration_target: compose
+  topology_name: staging-a
+  notes: "The polari-eda-tools worker (:9800) \u2014 magic / netgen / OpenSTA / yosys\
+    \ / iverilog / riscv-gcc for computelod lod-1..3c; `docker compose -p eda-engines\
+    \ -f docker-compose.eda-engines.yml up -d` from polari-rf-node; holds the PDK\
+    \ volume (never in git). Cost: image 2.56 GB (rc-1 profile prf-eda-engines)."
+- name: engines
+  kind: worker
+  service_kinds_json: '["prf-msci-engines"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: staging-a
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: null
+  blob_backend: null
   image_tag: staging
   orchestration_target: swarm
   topology_name: staging-a
   notes: "The polari-engines swarm stack (:9500) \u2014 FEM/DFT compute workers, deployed\
     \ via `pol swarm deploy engines` (single-node swarm today)."
+- name: livekit
+  kind: worker
+  service_kinds_json: '["pol-livekit"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: staging-a
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: null
+  blob_backend: null
+  image_tag: v1.9.12
+  orchestration_target: compose
+  topology_name: staging-a
+  notes: LiveKit media server (:7880 signalling, 50000-50049/udp media), `pol compose
+    livekit up`; LAN-only 2026, family-sized 4-8 (LIVEKIT_COLLABORATION_PLAN.md v2).
 - name: odoo
   kind: custom
   service_kinds_json: '["odoo"]'
@@ -68,6 +118,8 @@ instances:
   machine_name: econ-core
   placement_constraint: ''
   db_backend: postgres
+  cache_backend: null
+  blob_backend: null
   image_tag: staging
   orchestration_target: compose
   topology_name: staging-a
@@ -82,20 +134,41 @@ instances:
   machine_name: econ-core
   placement_constraint: ''
   db_backend: postgres
+  cache_backend: null
+  blob_backend: null
   image_tag: staging
   orchestration_target: compose
   topology_name: staging-a
   notes: "PostgreSQL 16 for Odoo \u2014 the suite's FIRST postgres (Odoo requires\
     \ it). Volumes odoo-db-data + odoo-filestore; credential volume-baked at first\
     \ init (drift rescue: pol-odoo/README.md); movers = od-6."
+- name: orfs-engines
+  kind: worker
+  service_kinds_json: '["prf-orfs-engines"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: staging-a
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: ''
+  blob_backend: ''
+  image_tag: staging
+  orchestration_target: compose
+  topology_name: staging-a
+  notes: "The OpenROAD-flow-scripts worker (:9801, eng-1) built FROM the pinned openroad/orfs\
+    \ image \u2014 the whole place-and-route flow for computelod lod-3e/3f; `docker\
+    \ compose -p orfs-engines -f docker-compose.orfs-engines.yml up -d`. Cost: image\
+    \ 4.69 GB, the adder flow 527 MB peak / 68 CPU-s (measured)."
 - name: prf-a
   kind: prf
   service_kinds_json: '["prf-backend", "prf-frontend"]'
   replicas: 1
   env_tier: staging
-  machine_name: pol-core
-  placement_constraint: node.labels.polari.machine == pol-core
+  machine_name: staging-a
+  placement_constraint: ''
   db_backend: sqlite
+  cache_backend: null
+  blob_backend: null
   image_tag: staging
   orchestration_target: compose
   topology_name: staging-a
@@ -107,9 +180,11 @@ instances:
   service_kinds_json: '["prf-backend-b", "prf-frontend-b", "prf-keydb-b"]'
   replicas: 1
   env_tier: staging
-  machine_name: pol-core
-  placement_constraint: node.labels.polari.machine == pol-core
+  machine_name: staging-a
+  placement_constraint: ''
   db_backend: sqlite
+  cache_backend: null
+  blob_backend: null
   image_tag: staging
   orchestration_target: compose
   topology_name: staging-a
@@ -120,40 +195,94 @@ instances:
   service_kinds_json: '["prf-dask"]'
   replicas: 1
   env_tier: staging
-  machine_name: pol-core
-  placement_constraint: node.labels.polari.machine == pol-core
+  machine_name: staging-a
+  placement_constraint: ''
   db_backend: sqlite
+  cache_backend: null
+  blob_backend: null
   image_tag: staging
   orchestration_target: compose
   topology_name: staging-a
   notes: Dask parallel-search workers (6x speedup proven; cross-instance 5/5 split
     proven).
+- name: proof-engines
+  kind: worker
+  service_kinds_json: '["prf-proof-engines"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: staging-a
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: ''
+  blob_backend: ''
+  image_tag: staging
+  orchestration_target: compose
+  topology_name: staging-a
+  notes: "The polari-proof-tools worker (:9810, pf-2) \u2014 Lean 4 + Mathlib pinned,\
+    \ the mathproofs lean tier; `docker compose -p proof-engines -f docker-compose.proof-engines.yml\
+    \ up -d`. Cost: image 11 GB (rc-1 profile prf-proof-engines)."
 - name: psc-a
   kind: psc
   service_kinds_json: '["psc-backend", "psc-frontend", "psc-redis"]'
   replicas: 1
   env_tier: staging
-  machine_name: pol-core
-  placement_constraint: node.labels.polari.machine == pol-core
+  machine_name: staging-a
+  placement_constraint: ''
   db_backend: mariadb
+  cache_backend: null
+  blob_backend: null
   image_tag: staging
   orchestration_target: compose
   topology_name: staging-a
   notes: Political Scorecard instance (backend/frontend/redis); its mariadb/keycloak/minio
     live on shared-infra.
+- name: reticulum
+  kind: worker
+  service_kinds_json: '["pol-reticulum"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: staging-a
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: null
+  blob_backend: null
+  image_tag: staging
+  orchestration_target: compose
+  topology_name: staging-a
+  notes: Reticulum mesh sidecar (:4242 RNS TCP bearer, :4285 status), `pol compose
+    reticulum up`; the backend's rns_remote ladder resolves this instance for 'reticulum.mesh'
+    (RETICULUM_TRANSPORT_PLAN.md).
 - name: shared-infra
   kind: infra
   service_kinds_json: '["pol-mariadb", "pol-keycloak", "pol-file-store", "pol-proxy"]'
   replicas: 1
   env_tier: staging
-  machine_name: pol-core
-  placement_constraint: node.labels.polari.machine == pol-core
+  machine_name: staging-a
+  placement_constraint: ''
   db_backend: mariadb
+  cache_backend: null
+  blob_backend: null
   image_tag: staging
   orchestration_target: compose
   topology_name: staging-a
   notes: 'The combined suite''s shared infrastructure: mariadb + keycloak + minio
     + the TLS-terminating nginx proxy.'
+- name: torch-engines
+  kind: worker
+  service_kinds_json: '["prf-torch-engines"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: staging-a
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: ''
+  blob_backend: ''
+  image_tag: staging
+  orchestration_target: compose
+  topology_name: staging-a
+  notes: "The polari-torch-tools worker (:9820, D5) \u2014 torch CPU for tensormath's\
+    \ third ComputeImplementation; `docker compose -p torch-engines -f docker-compose.torch-engines.yml\
+    \ up -d`. Cost: image 1.01 GB (rc-1 profile prf-torch-engines)."
 assignments:
 - name: aquaponics@prf-a
   module_name: aquaponics
@@ -161,30 +290,51 @@ assignments:
   state: enabled
   topology_name: staging-a
   notes: Self-watering pot sim (aqp-1..6).
-- name: bizops@prf-a
-  module_name: bizops
+- name: cntfet.engines@cnt-engines
+  module_name: cntfet.engines
+  instance_name: cnt-engines
+  state: enabled
+  topology_name: staging-a
+  notes: "dist-1: the cntfet engine capability (ngspice/OpenVAF/OpenSTA/kwant) on\
+    \ the cnt-engines worker \u2014 the provider cnt_remote resolves when CNTFET_ENGINES_URL\
+    \ is unset and no local binary exists."
+- name: collab.media@livekit
+  module_name: collab.media
+  instance_name: livekit
+  state: enabled
+  topology_name: staging-a
+  notes: "Media-server capability on the livekit worker (mtg-1) \u2014 what the LIVEKIT_URL-unset\
+    \ ladder resolves."
+- name: collab@prf-a
+  module_name: collab
   instance_name: prf-a
   state: enabled
   topology_name: staging-a
-  notes: created via /api/topology/assign
-- name: composition@prf-a
-  module_name: composition
+  notes: 'Collaboration sessions (mtg-2): session rows + KC-verified LiveKit token
+    minting.'
+- name: computelod.engines@eda-engines
+  module_name: computelod.engines
+  instance_name: eda-engines
+  state: enabled
+  topology_name: staging-a
+  notes: "The EDA toolchain capability (magic/netgen/sta/yosys/\u2026) on the eda-engines\
+    \ worker \u2014 resolved by computelod/custom/eda_engines.py when EDA_ENGINES_URL\
+    \ is unset and no local binary/image exists."
+- name: computelod.pnr@orfs-engines
+  module_name: computelod.pnr
+  instance_name: orfs-engines
+  state: enabled
+  topology_name: staging-a
+  notes: "eng-1: the OpenROAD flow capability (orfs/openroad) on the orfs-engines\
+    \ worker \u2014 resolved when ORFS_ENGINES_URL is unset and the pinned image is\
+    \ not local."
+- name: computelod@prf-a
+  module_name: computelod
   instance_name: prf-a
   state: enabled
   topology_name: staging-a
-  notes: created via /api/topology/assign
-- name: gears@prf-a
-  module_name: gears
-  instance_name: prf-a
-  state: enabled
-  topology_name: staging-a
-  notes: created via /api/topology/assign
-- name: magnetics@prf-a
-  module_name: magnetics
-  instance_name: prf-a
-  state: enabled
-  topology_name: staging-a
-  notes: created via /api/topology/assign
+  notes: "The compute levels-of-detail module (tt/lod arc) \u2014 runs on the swarm\
+    \ backend (POLARI_MODULES carries it); its engines are delegated below."
 - name: materialsScience.dft@engines
   module_name: materialsScience.dft
   instance_name: engines
@@ -210,42 +360,33 @@ assignments:
   state: enabled
   topology_name: staging-a
   notes: Materials basis + engine-model layer (msci-0..24).
-- name: mathshapes@prf-a
-  module_name: mathshapes
+- name: mathproofs.engines@proof-engines
+  module_name: mathproofs.engines
+  instance_name: proof-engines
+  state: enabled
+  topology_name: staging-a
+  notes: "pf-2: the Lean tier on the proof-engines worker \u2014 resolved when PROOF_ENGINES_URL\
+    \ is unset."
+- name: mathproofs@prf-a
+  module_name: mathproofs
   instance_name: prf-a
   state: enabled
   topology_name: staging-a
-  notes: created via /api/topology/assign
-- name: meshassets@prf-a
-  module_name: meshassets
+  notes: Mathematical proofs (pf arc) on the swarm backend; the lean tier is delegated
+    to proof-engines.
+- name: reticulum.mesh@reticulum
+  module_name: reticulum.mesh
+  instance_name: reticulum
+  state: enabled
+  topology_name: staging-a
+  notes: "Mesh-sidecar capability on the reticulum worker (ret-2) \u2014 what the\
+    \ RETICULUM_URL-unset ladder resolves."
+- name: reticulum@prf-a
+  module_name: reticulum
   instance_name: prf-a
   state: enabled
   topology_name: staging-a
-  notes: created via /api/topology/assign
-- name: motors@prf-a
-  module_name: motors
-  instance_name: prf-a
-  state: enabled
-  topology_name: staging-a
-  notes: created via /api/topology/assign
-- name: odooconnect@prf-a
-  module_name: odooconnect
-  instance_name: prf-a
-  state: enabled
-  topology_name: staging-a
-  notes: created via /api/topology/assign
-- name: polariapps@prf-a
-  module_name: polariapps
-  instance_name: prf-a
-  state: enabled
-  topology_name: staging-a
-  notes: created via /api/topology/assign
-- name: pspp@prf-a
-  module_name: pspp
-  instance_name: prf-a
-  state: enabled
-  topology_name: staging-a
-  notes: created via /api/topology/assign
+  notes: Reticulum mesh rows + capability/.arch/inbound seam (ret-1).
 - name: scorecard@psc-a
   module_name: scorecard
   instance_name: psc-a
@@ -264,25 +405,58 @@ assignments:
   state: enabled
   topology_name: staging-a
   notes: Multi-scale simulation framework.
-- name: supplychain@prf-a
-  module_name: supplychain
+- name: tensormath.engines@torch-engines
+  module_name: tensormath.engines
+  instance_name: torch-engines
+  state: enabled
+  topology_name: staging-a
+  notes: "D5: the torch engine on the torch-engines worker \u2014 resolved when TORCH_ENGINES_URL\
+    \ is unset and torch is not importable."
+- name: tensormath@prf-a
+  module_name: tensormath
   instance_name: prf-a
   state: enabled
   topology_name: staging-a
-  notes: created via /api/topology/assign
-- name: techtree@prf-a
-  module_name: techtree
-  instance_name: prf-a
-  state: enabled
-  topology_name: staging-a
-  notes: created via /api/topology/assign
-- name: waxprint@prf-a
-  module_name: waxprint
-  instance_name: prf-a
-  state: enabled
-  topology_name: staging-a
-  notes: created via /api/topology/assign
+  notes: Tensor math (tt arc) on the swarm backend; the torch implementation is delegated
+    to torch-engines.
 edges:
+- name: cntfet@prf-a->cntfet.engines
+  module_name: cntfet
+  consumer_instance_name: prf-a
+  depends_on_module: cntfet.engines
+  provider_instance_name: cnt-engines
+  status: resolved
+  topology_name: staging-a
+  notes: "dist-1: cntfet compute delegation \u2014 CNTFET_ENGINES_URL knob wins, else\
+    \ this edge (live providers only), else local ~/tools binaries, else refusal."
+- name: collab@prf-a->collab.media
+  module_name: collab
+  consumer_instance_name: prf-a
+  depends_on_module: collab.media
+  provider_instance_name: livekit
+  status: resolved
+  topology_name: staging-a
+  notes: "Meeting media delegation (mtg-2) \u2014 LIVEKIT_URL seam, registry-resolved\
+    \ like the msci/cad edges; media itself is direct UDP, only signalling/tokens\
+    \ ride this."
+- name: computelod@prf-a->computelod.engines
+  module_name: computelod
+  consumer_instance_name: prf-a
+  depends_on_module: computelod.engines
+  provider_instance_name: eda-engines
+  status: resolved
+  topology_name: staging-a
+  notes: EDA_ENGINES_URL knob wins, else this edge (live providers only), else local
+    binary / image, else refusal.
+- name: computelod@prf-a->computelod.pnr
+  module_name: computelod
+  consumer_instance_name: prf-a
+  depends_on_module: computelod.pnr
+  provider_instance_name: orfs-engines
+  status: resolved
+  topology_name: staging-a
+  notes: ORFS_ENGINES_URL knob wins, else the pinned local image, else this edge (live
+    only), else refusal.
 - name: materialsScience.multiscale@prf-a->materialsScience.dft
   module_name: materialsScience.multiscale
   consumer_instance_name: prf-a
@@ -300,6 +474,33 @@ edges:
   topology_name: staging-a
   notes: "Multiscale FEM delegation \u2014 MSCI_ENGINES_URL seam today, registry-resolved\
     \ routing in top-7."
+- name: mathproofs@prf-a->mathproofs.engines
+  module_name: mathproofs
+  consumer_instance_name: prf-a
+  depends_on_module: mathproofs.engines
+  provider_instance_name: proof-engines
+  status: resolved
+  topology_name: staging-a
+  notes: PROOF_ENGINES_URL knob wins, else this edge (live only), else the lean tier
+    is refused (never proved at boot).
+- name: reticulum@prf-a->reticulum.mesh
+  module_name: reticulum
+  consumer_instance_name: prf-a
+  depends_on_module: reticulum.mesh
+  provider_instance_name: reticulum
+  status: resolved
+  topology_name: staging-a
+  notes: "Mesh delegation (ret-2) \u2014 RETICULUM_URL seam, registry-resolved like\
+    \ the livekit edge; the sidecar holds the RNS stack, the backend holds the rows."
+- name: tensormath@prf-a->tensormath.engines
+  module_name: tensormath
+  consumer_instance_name: prf-a
+  depends_on_module: tensormath.engines
+  provider_instance_name: torch-engines
+  status: resolved
+  topology_name: staging-a
+  notes: TORCH_ENGINES_URL knob wins, else import torch, else this edge (live only),
+    else refusal.
 connections:
 - name: odoo->odoo-postgres:db-credentials
   interconnect_key: db-credentials

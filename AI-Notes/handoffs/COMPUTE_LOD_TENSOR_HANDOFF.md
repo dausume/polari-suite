@@ -119,6 +119,20 @@ No new ledger (one was started and removed). Every later slice states its cost a
 wind slice's projection across trees; the unit resolver follows `<tensor>.<dim>` references) → ✅ lod-3f (§G.37, branch `dev-lod-3f`: magic full-deck DRC 0 + netgen LVS match on both routed variants, against OpenROAD's
 power-connected netlist) → ✅ eng-1 (§G.38, branch `dev-eng-1`: `prf-orfs-engines` worker built FROM the pinned ORFS image, its own knob `ORFS_ENGINES_URL` + provider module `computelod.pnr`, the `{work}` argv token; lod-3e and lod-3f reproduced byte-identical through it) → ✅ lod-4d (§G.39, branch `dev-lod-4d`: 11 materials as the materials basis' own rows, 66 property rows every one cited or derived from two PDK files, candidates kept as candidates; the stages and the lod-4 mapping point at rows). §H.6 COMPLETE.**
 
+**DEPLOYED + MERGED + MAIN 2026-09-27 (his: "yes do all of that and use the worker and topology assignment and engine all at once")** —
+the stack dev-tt-14 → … → dev-lod-4d fast-forwarded onto `dev` (framework c74ecbf, rf-node 7fb63a6, suite) and `main == dev` again in
+framework / angular / rf-node / scorecard / cli / suite (direct push; the three tool repos have only `dev`). The swarm backend was
+rebuilt from dev and rolled with `ORFS_ENGINES_URL=http://<LOCAL_IP>:9801` (beside TORCH_ENGINES_URL); `/api/computelod/engines` on the
+live stack shows the flow ladder, `/api/computelod/lod4/materials` 11 + 11 rows. The four workers run on pol-core (eda :9800 and proof
+:9810 started from their EXISTING images — they predate res-2, so `/api/resources/measure` reads eda/orfs/torch as measured and says
+"nothing measurable" for proof until its image is rebuilt). Topology rows ADDED (topologies/staging-a.topology.yml, pushed to the core):
+instances eda-engines / orfs-engines / proof-engines / torch-engines (kind worker, service kinds = PROVIDER_PORTS, machine staging-a),
+assignments computelod / tensormath / mathproofs @ prf-a + computelod.engines@eda-engines, computelod.pnr@orfs-engines,
+mathproofs.engines@proof-engines, tensormath.engines@torch-engines, and the four dependency edges — `pol topology resolve`: 9/9 edges
+[OK]. `/api/topology/fit?modules=computelod,tensormath,mathproofs&node=staging-a` answers feasible "no" on THREADS (freeThreads 0 — the
+advisor's thread accounting for the local machine; RAM 17 %, disk 0.2 %) — reported as the advisor says it, not tuned. Still his: D-lod4-1,
+the sky130 vendor fact, the four module repos, rebuilding the eda/proof images (blocks + res-2).
+
 **lod-4d BUILT (plan §G.39)** — `computelod/custom/lod4_materials.py run` parses the sc_hd technology LEF + magic sky130A.tech (sha256 in
 the report; PDK content never committed), derives metal/poly/li resistivities, sheet resistances, via resistances and the SiO2 thickness
 under met1 (cross-checked 3 % against magic's height), cites Sze & Ng / CRC for the constants, and seeds MaterialsScienceMaterial +
