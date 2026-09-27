@@ -124,15 +124,19 @@ a plain `git push` in the controller has no credential helper. Fixed on dev: the
 the release job already uses for the tag (never echoed; Jenkins masks it). Lesson: the homebrew route had never
 been exercised past its dry-run rendering — each of its three real steps failed once (stage, commit, push).
 
+**✅ publish #4 (14:11Z, 12 s) SUCCESS — the release is COMPLETE on every armed route:** homebrew tap commit `7131680
+pol 2026.09.27`, `Formula/pol.rb` url = the tag tarball (resolves 200), sha256 recorded; apt-repo DRY (three secrets
+absent); `publishedTo` = github-release + ghcr + homebrew real, apt-repo dryRun. Owed, small: the formula hashes
+GitHub's on-the-fly archive tarball (GitHub has changed that compression before) — a release-asset tarball would be
+the stable source; and `pol jenkins publish <version> [routes]` so a person never needs the API by hand.
+
 ## 4. What happens next, and who does it
 
-- **Verdict `passed` on 50d956c** → his `pol jenkins promote main` (from econ-core or pol-core, both hold his gh identity) → main = 50d956c qualifies. The release fires at the scheduled midnight tick, or at once
-  with `pol jenkins retry main` — **HIS word either way** (the routes are ARMED for real: GitHub release, ghcr,
-  homebrew; apt-repo stays DRY until the signing key after the Keycloak rotation). It loads the KEPT tested images,
-  tags `polari-vYYYY.MM.DD[.N]`, publishes, attaches `TEST_REPORT.md`.
-- **Verdict `failed`** → fix on dev, `promote test` again; main moves only by his push or `promote main`.
-- **After the first release (his):** make the three ghcr packages PUBLIC and link them to the repo, or `pol prod` on
-  the droplet cannot pull.
+- ✅ DONE 2026-09-27: test passed → his `promote main` + `retry main` → `polari-v2026.09.27` on GitHub Releases, ghcr
+  (both packages already public) and the homebrew tap; apt-repo waits for the signing key after the Keycloak rotation.
+- **The next cycle is routine:** dev → `pol jenkins promote test` → `passed` → his `promote main` → the midnight tick
+  (or `retry main`) releases; a failed publish route is re-run by hand for now (API; the `publish` verb is owed).
+- **Still his after the first release:** link the ghcr packages to the repo (they are public already).
 - **The droplet deploy (dep-3, plan §11.7 D1–D6 — ALL STILL OPEN, his):** D5 = his key on the droplet once, then
   `pol jenkins deploy authorize <name>` installs the pipeline key restricted to the deploy agent; D1 window,
   D2 min_health routes, D3 rollback policy, D4 a `channel=test` home box or not, D6 the isle route. The row stays
