@@ -1,8 +1,51 @@
-# Handoff — the Compute LOD + Tensor arc (2026-09-23/26, after the reproducibility pass + D5): what is built, how to prove it, what is owed
+# Handoff — the Compute LOD + Tensor arc (2026-09-23 → 2026-09-27): what is built, how to prove it, what is owed
 
-_Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (three rounds with ChatGPT, relayed by Dustin; D1–D7
-ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; §I is the proofs revision). Branch `dev-tt-0` in the suite, `polari-rf-node`,
-`polari-framework` AND `polari-platform-angular` — UNMERGED, per branch-per-confirmed-phase; merge on his word._
+_Plan of record: `AI-Notes/plans/COMPUTE_LOD_TENSOR_PLAN.md` (D1–D7 ratified 2026-09-23; §G.1–G.39 are the build status — the
+latest are §G.35 tt-14, §G.36 rc-1, §G.37 lod-3f, §G.38 eng-1, §G.39 lod-4d; §H what came next (§H.3 + §H.6 both COMPLETE); §I the
+proofs revision, pf-0..4 complete). **Everything is MERGED to `dev` and `main == dev` (2026-09-27, his word) in framework / angular /
+rf-node / scorecard / cli / suite; the tool repos eda-tools / proof-tools / torch-tools have only `dev`. No unmerged branch of this arc
+exists.** Start a fresh session HERE, then §"State at handoff (2026-09-27)". Live stack = the swarm on pol-core, rebuilt from dev._
+
+## State at handoff (2026-09-27 early — §H.6 COMPLETE, merged, main promoted, deployed; the one to read first)
+
+**Built since the 2026-09-26 night state (each its own branch off dev, all now IN dev):** tt-14 (§G.35, real cross-tree data),
+rc-1 (§G.36, resource cost ADHERING to topology's `resources` model — no new ledger), lod-3f (§G.37, independent DRC/LVS of the routed
+adder), eng-1 (§G.38, the OpenROAD flow as the `prf-orfs-engines` worker :9801 — knob `ORFS_ENGINES_URL`, provider module
+`computelod.pnr`, the `{work}` argv token; lod-3e/3f byte-identical through it), lod-4d (§G.39, the stack's materials as the
+materials basis' own rows — 66 property rows all cited or derived from two PDK files; candidates kept as candidates).
+
+**Deployed (2026-09-27):** backend image rebuilt from dev and rolled with `ORFS_ENGINES_URL=http://<LOCAL_IP>:9801` (beside
+`TORCH_ENGINES_URL` :9820). Four workers UP on pol-core: eda :9800 and proof :9810 from their EXISTING images (they predate the
+res-2/res-3 blocks — `/api/resources/measure` says "nothing measurable" for proof until its 11 GB image is rebuilt; eda/orfs/torch
+read as measured), orfs :9801 and torch :9820 current. Topology rows ADDED and committed (`topologies/staging-a.topology.yml`,
+pushed to the core with `pol topology push`): instances eda-engines / orfs-engines / proof-engines / torch-engines (kind worker,
+`service_kinds_json` = the PROVIDER_PORTS kinds, machine staging-a, target compose), assignments computelod / tensormath /
+mathproofs @ prf-a and computelod.engines@eda-engines, computelod.pnr@orfs-engines, mathproofs.engines@proof-engines,
+tensormath.engines@torch-engines, four dependency edges — `pol topology resolve`: **9/9 edges [OK]**.
+`/api/topology/fit?modules=computelod,tensormath,mathproofs&node=staging-a` answers feasible **"no" on threads** (freeThreads 0;
+RAM 17 %, disk 0.2 %) — the advisor's thread accounting for the local machine, reported as it says it, NOT tuned; a finding for him.
+
+**Proof numbers at this state:** computelod selftest 157/157, mathproofs 83/83, tensormath 61, tensortree 64, resources measure
+15/15 (profiles 30/31 — the pre-existing "scan sees its own classes" failure, dev's), live boot 146/146 (`rm -rf data &&
+PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py` from the framework dir; +1 check with `ORFS_ENGINES_URL` set).
+
+**Still his (nothing is owed by the arc itself):** D-lod4-1 (is SKY130 manufacturable — the `manufacturable` field stays None
+with its reason), the sky130 vendor fact (WHICH metal / isolation — the rows hold candidates + the PDK's numbers as evidence),
+the four module repos for `pol modules publish`, rebuilding the eda/proof worker images so they carry the res-2/res-3 blocks
+(`docker compose -p eda-engines -f docker-compose.eda-engines.yml up -d --build` — 2.6 GB from scratch, the build cache was pruned;
+proof-tools 11 GB), and whether the admission advisor's thread accounting should count workers' declared threads the way it does.
+
+**His rules from this arc's last days (all in memory, see MEMORY.md):** reproducible initial conditions on every committed result
+(`computelod.custom.repro`); resource cost tracked by ADHERING to topology's resources model (profiles, `/api/resources/measure`,
+`/api/topology/fit`; never a second ledger); modules never assume a device (engines ladder: knob → local → topology provider →
+refusal; a declared worker never degrades); **agents: few, and NON-Fable (sonnet/haiku/opus) wherever the work allows — Fable keeps
+judgement, review, merges, memory (2026-09-27)**; never PDK content in git (cite by path + sha256); no real identifiers in tracked
+files (the topology file carries the LAN address only as the machine note it already had).
+
+**How a fresh session resumes:** `git -C polari-rf-node/polari-framework status` clean on `dev`; read plan §G.35–G.39 for the
+latest slices; run the ten-minute proof below; the workers' compose files are `polari-rf-node/docker-compose.{eda,orfs,proof,torch}-engines.yml`;
+`pol topology graph` shows the nine edges; the swarm backend is `polari-node_backend` (`docker service update --force --image
+prf-backend:staging polari-node_backend` after `pol node build backend --env staging`).
 
 ## The one-line map
 
@@ -22,7 +65,7 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     cd polari-rf-node/polari-framework
     PYTHONPATH=.:modules python3 modules/tensormath/tensormath_selftest.py      # 61
     PYTHONPATH=.:modules python3 modules/tensortree/tensortree_selftest.py      # 64
-    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 106 (lod-3d: 8 cells · 21 arcs; lod-4c: Ion/Ioff/Vt; the lod cross-checks as claim rows, pf-1)
+    PYTHONPATH=.:modules python3 modules/computelod/computelod_selftest.py      # 157 (lod-3d/3e/3f/4b/4c/4d, eng-1 ladder, repro + cost blocks, the lod cross-checks as claim rows)
     PYTHONPATH=.:modules python3 -m computelod.custom.lod4_devices run          # lod-4c: two DC decks, seconds
     PYTHONPATH=.:modules python3 -m computelod.custom.lod2_compare run          # lod-2c: six twins at the CNT point + own FO4 (~10 min; the 0.6 V decks are long)
     docker pull openroad/orfs:26Q3-651-gbc334a4aa && PYTHONPATH=.:modules python3 -m computelod.custom.lod3_pnr run   # lod-3e: the adder placed + routed, both variants (~1 min)
@@ -32,7 +75,9 @@ ratified 2026-09-23; §G.1–G.19 are the build status; §H is what comes next; 
     PYTHONPATH=.:modules python3 -m computelod.custom.repro check                # every report's reproduction block complete
     (cd .. && docker compose -p torch-engines -f docker-compose.torch-engines.yml up -d --build)   # D5 worker; then TORCH_ENGINES_URL=http://localhost:9820 for the probe's measured benchmark
     PYTHONPATH=.:modules python3 modules/mathproofs/mathproofs_selftest.py      # 83 (pf-0 + pf-1 z3 + pf-2 lean + pf-3 doors + pf-4 knowledge)
-    rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 126/126 on a REAL boot (branch dev-pf-3) — from the framework dir, data/ cleared
+    rm -rf data && PYTHONPATH=.:modules python3 tests/tensor_liveboot_probe.py   # 146/146 on a REAL boot (dev, 2026-09-27) — from the framework dir, data/ cleared
+    (cd .. && docker compose -p orfs-engines -f docker-compose.orfs-engines.yml up -d)   # eng-1 worker (FROM the pinned openroad/orfs image); ORFS_ENGINES_URL=http://localhost:9801 sends the P&R flow to it
+    PYTHONPATH=.:modules python3 -m computelod.custom.lod4_materials run          # lod-4d: parses the PDK's tlef + magic tech (27 ms), 11 materials, every number cited or derived
     (cd polari-platform-angular && npx tsc --noEmit -p tsconfig.app.json && npx ng build --configuration development)   # the claim editor + panel doors compile
     CI_SELFTEST_IMAGE=<built image> PROOF_ENGINES_URL=http://localhost:9810 bash ../../polari-jenkins/proofs.sh /tmp/proofs   # the pipeline's proofs stage, by hand
     pip install --user z3-solver==5.1.0.0      # once, on a glibc host (the image takes z3 from apk — see G.23)
