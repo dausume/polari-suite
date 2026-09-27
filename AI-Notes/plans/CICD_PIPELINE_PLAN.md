@@ -1134,11 +1134,48 @@ Gitea proper is the same software without the community governance; both refused
 | frg-3 | the four forge routes + doctor/token-check rows + DRY rendering | a release published to the forge for real on a home box; `forgejo-apt` installs a deb on isle-core with `apt` from the forge — the apt route live WITHOUT the GitHub signing key |
 | frg-4 | the isle-side forge (an isle app on the local-business / Reticulum isle) + the release served from it | later, with §11.7 D6 |
 
+### 12.3a His ruling 2026-09-27 — a DUAL route, exercised now, feasible by measurement
+
+*"a dual route where we have both eventually … available on github as the online availability route, and internally
+for the guaranteed self-sustainability. We do not need that to work immediately but the mechanisms we need to test and
+exercise to ensure it works on both routes and that we have a polari app for handling it. And that way we can diagnose
+how much storage space we need for it to be feasible. … we likely want to be able to just have the most recent records
+and assets, not necessarily the massive data occupied by keeping all commits."*
+
+So: **D-frg-1 is answered — BOTH, always** (GitHub = online availability; the forge = self-sustainability), neither
+optional in the long run; every mechanism (mirror, promote, release, registry, apt) is built to run against BOTH and
+is TESTED on both from the start, even while the forge half serves nobody yet. The `polari-forge` app is the handler,
+and it carries a **storage meter** (the cost rule): what the forge occupies per repo, per release, per image, so
+feasibility per device class is a reading.
+
+**The measurement that answers "is a full git trace too much?" — NO. History is the small part; assets and images are
+the big part** (pol-core, 2026-09-27):
+
+| what | size |
+|---|---|
+| packed git history, polari-framework (919 commits) | 11.6 MiB |
+| packed git history, polari-platform-angular (351 commits) | 0.7 MiB |
+| packed git history, superproject (1233 commits) | 3.9 MiB |
+| whole forest `.git` on disk | 759 MB — of which **582 MB is the framework's `subtree-cache`** (the module-repo publishing split cache, local only, never mirrored) + 48 MB framework objects (35 MB loose, packable) |
+| working tree of the suite, no `.git` | 4.2 GB |
+| ONE release's GitHub assets (6 debs + report + sums) | 143 MB |
+| ONE release's core images (prf-backend 1.03 GB + prf-frontend 87 MB) | ~1.1 GB |
+| the engine WORKER images (eda 2.56 GB, orfs 4.64 GB, proof ~11 GB, torch ~1 GB) — not released today | ~19 GB if they ever were |
+
+Packed, the full history of the whole forest is on the order of **30–50 MB** — keeping every commit costs less than
+one release's debs. **Rule: the forge keeps FULL history** (that is what makes it self-sustaining: a shallow mirror
+cannot rebuild, bisect or verify a tag) and applies **retention to the heavy artefacts instead**: releases (keep the
+last K, default 3, plus every release a DeployTarget currently runs — never delete what a box is pinned to), container
+tags likewise, the apt repository's older versions by the same K. The existing `polari-jenkins/retention.sh` (pool)
+is the model; the forge app gets `pol forge retention <K>` + a dry-run listing, and the storage meter reports before
+and after. Loose-object growth is a maintenance job, not a design constraint (`git gc` on the forge's schedule); the
+subtree-split cache is a developer-box artefact of `push-all-dev.sh` and never reaches a forge.
+
 ### 12.4 Decisions (his)
 
-- **D-frg-1** mirror (GitHub primary) or primary (forge is origin, GitHub the mirror)? Recommendation: **mirror first**
-  (nothing changes for anyone; the pipeline proves it can read/promote/publish against the forge), primary later
-  when the local-business route needs it.
+- **D-frg-1** ✅ RULED 2026-09-27: **both routes, always** — GitHub for online availability, the forge for
+  self-sustainability; built and tested against both from the start. (Which is `origin` for a developer's day-to-day
+  push stays GitHub until the local-business route needs otherwise.)
 - **D-frg-2** where it lives: the pipeline device (econ-core, 7.5 GB — measured first) or pol-core beside staging?
   Recommendation: pol-core (the research core has the disk; the pipeline device stays lean for builds + the guest).
 - **D-frg-3** Forgejo (recommended) vs Gitea.
