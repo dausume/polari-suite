@@ -1075,4 +1075,8 @@ path (needs isle-core back for the isle stage).
 - **D3 rollback policy:** auto re-pin on a failed verify (planned) — or stop and page a person instead.
 - **D4 `channel=test` staging box:** is there to be one (a home box that always runs the tip of test)?
 - **D5 the droplet's first key** — added by hand once; after that only the pipeline user's key is used.
-- **D6 the isle route** (`route=isle`, the deb path) — later slice or never for the droplet.
+- **D6 the isle route** (`route=isle`, the deb path) — ✅ HIS RULING 2026-09-27: a LATER slice, not for the droplet.
+  The isle route is for the deployments that are foundationally isles: local businesses (our own route, primarily
+  isle installs on their premises) and a Reticulum server, which must be an isle to serve over Reticulum. Design it
+  as its own target class (`route=isle`: the deb path + the isle's own app store, applied by the same deploy agent
+  pattern) when that route is being built; the droplet stays a swarm target. D1–D5 remain open.
