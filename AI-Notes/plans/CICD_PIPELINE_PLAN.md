@@ -1117,6 +1117,37 @@ verify failure → rollback, before the droplet sees step 7.
 step) or its equivalent documented as three commands; `conditions.sh` version parsing across `polari-vX-core` /
 `X`; rel-2 `/api/release` served by the core (the handoff lists it — check it is live in 2026.09.27).
 
+### 11.8 ✅ HIS RULING 2026-09-27 (evening) — the pipeline STOPS at publish; deployment is a command ON the device
+
+*"I prefer being able to just go into the device and execute a command to perform the update, let us just ensure that
+command exists and not make the pipeline handle anything besides the assets being generated and made available. The
+deployment for droplets and isles is that we make scripts and cli tools for actively updating using the registered
+locations to pull from without interrupting services."*
+
+**Consequences (supersede §11.6b's pipeline-driven steps 3–9 and D1–D5, D7):**
+- The pipeline's job ends at `polari-publish`: assets on the registered locations (GitHub release + ghcr + tap today;
+  the forge later). `polari-deploy`, the `DeployTarget` conditions, `deploy authorize` and the restricted key are
+  PARKED IN PLACE (built, tested, not scheduled: `CI_DEPLOY=off` default; the job's cron removed from the seed).
+  Nothing of the pipeline ssh's into production. `DeployRecord` rows become what a device reports about ITSELF, if it
+  chooses to (a later, optional mirror).
+- **`pol prod update [<version>|latest] [--source …] [--dry-run]`** on the device = the deployment: resolve the release
+  from the REGISTERED locations (`pol prod sources`, a list — GitHub now, the forge later = the dual route), enforce the
+  release rule locally (`release.json`: verdict passed, images really published), current vs target per service,
+  stash, rolling start-first one-at-a-time image update (the agent's logic reused as the library), verify, automatic
+  re-pin on a failed verify, THEN move the checkout to the release tag (last, from a copied helper), record it.
+  Never touches secrets/answers/configs (that stays `pol prod apply`). upd-0, BUILDING 2026-09-27 (opus agent).
+- **Isles:** `isle update` = the twin on the deb route (apt from the registered apt source, image load, rolling
+  container restart) — Isle-Mesh's, owed to isle-core's contract channel; the forge's Debian registry (§12) is its
+  registered location later.
+- **The droplet's first update:** one hand step (its checkout predates the verb): `git fetch --tags && git checkout
+  polari-v<tag> && git submodule update --init` in `/opt/polari`, then `pol prod update` from then on. HIS, at the
+  device, when he chooses. §11.6b's stash-first advice still holds for that first time (the verb stashes by itself
+  afterwards).
+- Window / health routes / rollback policy (old D1–D3) are now PARAMETERS of the command with defaults (no window —
+  a person chose the moment; health = the status board's routes; rollback = automatic re-pin), not decisions.
+- D8 (the `-core` image variant) stands as a later optimisation; the device runs the tested image with its runtime
+  module set.
+
 ### 11.7 Decisions (his)
 
 - **D1 the window** for the droplet (a nightly hour? `any`?) and the settle time.

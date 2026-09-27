@@ -137,6 +137,9 @@ the stable source; and `pol jenkins publish <version> [routes]` so a person neve
 - **The next cycle is routine:** dev → `pol jenkins promote test` → `passed` → his `promote main` → the midnight tick
   (or `retry main`) releases; a failed publish route is re-run by hand for now (API; the `publish` verb is owed).
 - **Still his after the first release:** link the ghcr packages to the repo (they are public already).
+- **⚠ SUPERSEDED 2026-09-27 evening by his ruling (plan §11.8): the pipeline STOPS at publish. Deployment = `pol prod
+  update` run BY A PERSON ON THE DEVICE, pulling from the registered locations without interrupting services (upd-0,
+  building); `isle update` is the isle twin (Isle-Mesh's). The pipeline-driven deploy below is PARKED IN PLACE.**
 - **The droplet deploy (dep-3, plan §11.7 D1–D6 — ALL STILL OPEN, his):** D5 = his key on the droplet once, then
   `pol jenkins deploy authorize <name>` installs the pipeline key restricted to the deploy agent; D1 window,
   D2 min_health routes, D3 rollback policy, D4 a `channel=test` home box or not, D6 the isle route. The row stays
