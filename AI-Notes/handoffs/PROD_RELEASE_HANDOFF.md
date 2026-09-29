@@ -162,7 +162,11 @@ the stable source; and `pol jenkins publish <version> [routes]` so a person neve
   /opt/polari/polari-cli fetch origin dev && git -C /opt/polari/polari-cli checkout 3d97bbc`; then `pol prod update
   --dry-run` (reads every condition, touches nothing) and `pol prod update`. (2026-09-28 00:xx: he did the tag
   checkout on the droplet; `pol prod update` → "unknown verb" — exactly this; the CLI step given.) The next release
-  carries the verb.
+  carries the verb. His dry run then showed the release wanting to move `pol-hub` to a `2026.09.27` tag that does
+  not exist (the release carries prf-backend + prf-frontend only; the lean stack also runs pol-hub, built outside the
+  pipeline) → fixed on the CLI: only the release's images move, the agent takes the list. **OWED (pipeline):** the
+  release must carry EVERY image the prod stacks run — add `pol-hub` (and whatever `pol prod` stack files reference)
+  to `build-images.sh` / the tested set; until then the hub stays at its 2026-09-12 image after an update.
   Expect the services to move from `polari-v2026.09.12-core` to the tested `2026.09.27` images with the core module
   set at runtime (D8); rollback there is per-service `docker service rollback` since the old tag is not a plain version.
 - **The droplet deploy (dep-3, plan §11.7 D1–D6 — ALL STILL OPEN, his):** D5 = his key on the droplet once, then

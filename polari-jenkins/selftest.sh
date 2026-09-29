@@ -1990,7 +1990,7 @@ mkdir -p "$DP/agent/bin"; cat > "$DP/agent/bin/docker" <<'SH'
 echo "$*" >> "$FAKE_DOCKER_LOG"
 case "$1 $2" in
   "stack ls") echo polari-lean ;;
-  "service ls") L=$(printf 'polari-lean_prf-backend\tghcr.io/o/prf-backend:%s@sha256:abc\t1/1\npolari-lean_pol-proxy\tnginx:1.27-alpine\t1/1\npolari-lean_prf-frontend\tghcr.io/o/prf-frontend:%s\t1/1\n' "${FAKE_TAG:-2026.09.12}" "${FAKE_TAG:-2026.09.12}")
+  "service ls") L=$(printf 'polari-lean_prf-backend\tghcr.io/o/prf-backend:%s@sha256:abc\t1/1\npolari-lean_pol-proxy\tnginx:1.27-alpine\t1/1\npolari-lean_prf-frontend\tghcr.io/o/prf-frontend:%s\t1/1\npolari-lean_pol-hub\tghcr.io/o/pol-hub:%s\t1/1\n' "${FAKE_TAG:-2026.09.12}" "${FAKE_TAG:-2026.09.12}" "${FAKE_TAG:-2026.09.12}")
                 # FAKE_STATE (pol prod update's tests): the swarm remembers what `service update --image` set
                 if [ -n "${FAKE_STATE:-}" ] && [ -f "$FAKE_STATE" ]; then while read -r n i; do L=$(printf '%s\n' "$L" | awk -F'\t' -v n="$n" -v i="$i" 'BEGIN{OFS="\t"} $1==n{$2=i} {print}'); done < "$FAKE_STATE"; fi
                 printf '%s\n' "$L" ;;
@@ -2025,6 +2025,14 @@ OUT="$(FAKE_TAG=polari-v2026.09.12-core ag update 2026.09.27)"
 has "agent update: a polari-v<date>-core image IS ours — it is replaced by the release tag" "--image ghcr.io/o/prf-backend:2026.09.27" "$(cat "$FAKE_DOCKER_LOG")"
 eq "  …and no service of ours is left alone" "0" "$(printf '%s\n' "$OUT" | grep -c 'leave  prf-' || true)"
 : > "$FAKE_DOCKER_LOG"
+# update <version> [image-name…]: only the named images move (a release carries a fixed set; the droplet's lean stack
+# also runs pol-hub, which 2026.09.27 could not update — found 2026-09-28 on its first dry run)
+OUT="$(ag update 2026.09.27 prf-backend prf-frontend)"
+has "agent update with image names: an image the release does not carry is LEFT, and says why" "leave  polari-lean_pol-hub (ghcr.io/o/pol-hub:2026.09.12 — not an image this release carries)" "$OUT"
+eq "  …the named ones move" "2" "$(grep 'service update' "$FAKE_DOCKER_LOG" | grep -c -- '--image ghcr.io/o/prf-' || true)"
+hasnt "  …pol-hub is never pointed at a tag that does not exist" "pol-hub:2026.09.27" "$(cat "$FAKE_DOCKER_LOG")"
+has "  …a bad image name is refused" "REFUSED: 'x;rm' is not an image name" "$(ag update 2026.09.27 'x;rm')"
+: > "$FAKE_DOCKER_LOG"
 : > "$FAKE_DOCKER_LOG"
 OUT="$(ag stash 2026.09.30)"
 has "agent stash: every named volume of the stack, read-only, ONE archive each" "stashed polari-lean_db" "$OUT"
@@ -2036,7 +2044,7 @@ has "agent update: our versioned images move, one service at a time" "update pol
 has "  …nginx (not a versioned image of ours) is LEFT alone" "leave  polari-lean_pol-proxy" "$OUT"
 has "  …start-first, converged before the next, swarm's own rollback on failure" "start-first --update-parallelism 1" "$(grep 'service update' "$FAKE_DOCKER_LOG" | head -1)"
 has "  …--update-failure-action rollback" "update-failure-action rollback" "$(grep 'service update' "$FAKE_DOCKER_LOG" | head -1)"
-eq "  …two services updated, the proxy never touched" "2" "$(grep -c 'service update' "$FAKE_DOCKER_LOG")"
+eq "  …three versioned services updated (backend, frontend, hub — no name list = every image of ours), the proxy never touched" "3" "$(grep -c 'service update' "$FAKE_DOCKER_LOG")"
 hasnt "agent: NEVER reads the answers, the vault or a certificate" "prod-answers\|vault\|fullchain" "$(cat "$AG")"
 hasnt "  …and never sources prod.sh" "prod.sh" "$(grep -v '^#' "$AG")"
 export FAKE_SVC_RC=1; : > "$FAKE_DOCKER_LOG"
@@ -2140,6 +2148,9 @@ has "  …recorded as verify-failed-rolled-back" '"result": "verify-failed-rolle
 : > "$FAKE_DOCKER_LOG"; rm -f "$FAKE_STATE"
 OUT="$(pu update --yes)"
 has "full run: the stash id + the person's undo" "(undo, if ever needed: pol prod restore " "$OUT"
+has "  …a service whose image the release does not carry is left alone and named (pol-hub)" "polari-lean_pol-hub  ghcr.io/o/pol-hub:2026.09.12  (left alone — polari-v2026.09.27 carries no pol-hub image: prf-backend prf-frontend" "$OUT"
+has "  …the agent is told exactly which images move" "prod-agent.sh update 2026.09.27 prf-backend prf-frontend" "$OUT"
+hasnt "  …so pol-hub is never pointed at a missing tag" "pol-hub:2026.09.27" "$(cat "$FAKE_DOCKER_LOG")"
 eq "  …the stash comes BEFORE the first service update" "busybox" "$(grep -m1 -o 'busybox\|service update' "$FAKE_DOCKER_LOG")"
 eq "  …one start-first update per versioned service, to the release tag" "2" "$(grep 'service update' "$FAKE_DOCKER_LOG" | grep -c -- '--image ghcr.io/o/prf-[a-z]*:2026.09.27 --update-order start-first')"
 hasnt "  …the proxy never touched" "nginx" "$(grep 'service update' "$FAKE_DOCKER_LOG")"
