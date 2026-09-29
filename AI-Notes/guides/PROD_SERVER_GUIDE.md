@@ -194,11 +194,18 @@ pol prod restore <id>          only if ever needed: put back the data stash the 
 
 The update refuses a release that was not tested and passed, or whose images were never really pushed. There is no flag to override that. If verification fails, it rolls back to the previous version by itself and exits 4. `pol prod update --history` lists past updates, and `pol prod status` shows the last one. The update never touches secrets, answers, configs or the stack file; changing those is `pol prod apply`.
 
-One-time: a checkout older than this verb does not have `pol prod update` yet. Move it by hand once:
+One-time: a checkout older than this verb does not have `pol prod update` yet (the verb landed after
+`polari-v2026.09.27` was released, so that tag's CLI does not carry it — the next release does). Move the checkout to
+the release tag, then the CLI submodule forward to a commit that has the verb, by hand once:
 
 ```
 git -C /opt/polari fetch --tags && git -C /opt/polari checkout polari-v2026.09.27 && git -C /opt/polari submodule update --init
+git -C /opt/polari/polari-cli fetch origin dev && git -C /opt/polari/polari-cli checkout 3d97bbc
+pol prod update --dry-run
 ```
+
+From the next release on, the tag itself carries the verb and only the first line is ever needed again (or none:
+`pol prod update` moves the checkout for you).
 
 ## What is still yours
 

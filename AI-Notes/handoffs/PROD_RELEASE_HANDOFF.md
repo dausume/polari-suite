@@ -158,7 +158,11 @@ the stable source; and `pol jenkins publish <version> [routes]` so a person neve
   verdict passed — `pol prod update` on any device accepts `polari-v2026.09.27`.
 - **The droplet's first update, HIS, at the device:** its checkout predates the verb — once:
   `git -C /opt/polari fetch --tags && git -C /opt/polari checkout polari-v2026.09.27 && git -C /opt/polari submodule
-  update --init`; then `pol prod update --dry-run` (reads every condition, touches nothing) and `pol prod update`.
+  update --init`, AND — because the tag's CLI (b9c003e) predates the verb (built after the release) — `git -C
+  /opt/polari/polari-cli fetch origin dev && git -C /opt/polari/polari-cli checkout 3d97bbc`; then `pol prod update
+  --dry-run` (reads every condition, touches nothing) and `pol prod update`. (2026-09-28 00:xx: he did the tag
+  checkout on the droplet; `pol prod update` → "unknown verb" — exactly this; the CLI step given.) The next release
+  carries the verb.
   Expect the services to move from `polari-v2026.09.12-core` to the tested `2026.09.27` images with the core module
   set at runtime (D8); rollback there is per-service `docker service rollback` since the old tag is not a plain version.
 - **The droplet deploy (dep-3, plan §11.7 D1–D6 — ALL STILL OPEN, his):** D5 = his key on the droplet once, then
