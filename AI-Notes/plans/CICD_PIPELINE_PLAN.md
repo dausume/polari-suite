@@ -1265,6 +1265,24 @@ is the model; the forge app gets `pol forge retention <K>` + a dry-run listing, 
 and after. Loose-object growth is a maintenance job, not a design constraint (`git gc` on the forge's schedule); the
 subtree-split cache is a developer-box artefact of `push-all-dev.sh` and never reaches a forge.
 
+### 12.3b Forgejo's cost, MEASURED 2026-09-30 on pol-core (the cost rule; a throwaway container, torn down)
+
+| what | measured |
+|---|---|
+| image | `codeberg.org/forgejo/forgejo:11` @ `sha256:946243edbab116d5bb78b73ea68af6f3d69229ba1b1ed958dd82c3481167f3e0`, 169 MB on disk |
+| boot | API answers in ~4 s (sqlite) |
+| idle | 94 MiB RSS, CPU ≈ 0.1 %, 2.3 MB data |
+| pull-mirroring the whole forest (13 public repos, one API call each) | 0.5–2.8 s per repo; 51 MB of git in total (Isle-Mesh 21, framework 16, suite 5, angular 4.5, the rest < 1.5 each) |
+| peak during mirroring + one Debian-registry round trip | 183 MiB sampled at 5 s; cgroup `memory.peak` 455 MiB (the true spike: package signing + index rebuild) |
+| steady after load | 96 MiB RSS, 54 MB data (92 KB of packages) |
+| Debian registry | upload 201; `repository.key` = the forge's own PGP key; `dists/stable/Release` + `binary-all/Packages` list the deb with its sha256 — an apt client needs nothing else |
+
+**Reading for the 2 GB droplet (lean stack + ~1 GB free):** steady ≈ 100 MiB + the artefacts on disk (a release ≈ 143 MB
+of debs; images stay on ghcr / the forge's container registry when that route comes); the 455 MiB spike is the
+constraint — it must not coincide with a backend boot on the same VM. FEASIBLE by the numbers with a memory limit
+(`mem_limit` 512 MiB, Forgejo's own `[cron]`/`[indexer]` trimmed, the repo indexer off) and the package retention of
+§12.3a; NOT a reason to upsize the droplet yet. Re-measure with the real prod profile before `hold` is lifted there.
+
 ### 12.4 Decisions (his)
 
 - **D-frg-1** ✅ RULED 2026-09-27: **both routes, always** — GitHub for online availability, the forge for
