@@ -130,6 +130,28 @@ absent); `publishedTo` = github-release + ghcr + homebrew real, apt-repo dryRun.
 GitHub's on-the-fly archive tarball (GitHub has changed that compression before) — a release-asset tarball would be
 the stable source; and `pol jenkins publish <version> [routes]` so a person never needs the API by hand.
 
+## 3e. ✅ THE FIRST DEVICE-SIDE UPDATE — the droplet, 2026-09-30 12:16–12:18 UTC, 111 s, no service stopped
+
+His hands, `pol prod update --yes` on the droplet (CLI moved by hand to ab9a952 first): resolve `polari-v2026.09.27`
+from GitHub → verdict passed (tested image ids printed) → ghcr published → current `polari-v2026.09.12-core` stack
+`polari-lean` → pol-hub LEFT (the release carries no hub image), proxy left (nginx) → disk 50 GB vs 2 GB floor
+(365 MB of images, sizes from the registry) → stash `20260930-121627-before-2026.09.27` (19 MB) → backend converged
+start-first on `:2026.09.27`, then the frontend → verify: 4 services 1/1, `/api/health` 200 with the Host header →
+health `online — 4 / 4 modules online` → cert unchanged → record `20260930T121818Z-2026.09.27.json` → checkout
+"already at the tag" (the superproject was; the CLI submodule sits ahead by hand). From outside afterwards: the apex,
+prf and api routes all 200, health `online 4/4`.
+
+**Two attempts before it:** (1) 2026-09-29 02:05 — `verify-failed-rolled-back` after 281 s: the verify window was
+60 s and the backend takes minutes to boot after an image change → window now 10 min with progress lines, and the
+agent's local probe sends the answered API name as Host (CLI ab9a952). (2) The dry run of 2026-09-28 wanted to move
+pol-hub to a tag that does not exist → only the release's images move (CLI fb947b7). Also fixed after this run: the
+update step streams the agent's lines (it was silent for the whole step); already-at wins over the clean-tree check.
+
+**Owed from this run:** the release must carry `pol-hub` (every image the prod stacks run) — until then the hub
+stays on its 2026-09-12 image; the droplet's `/opt/polari/polari-cli` sits at a dev sha ahead of the tag until the
+next release's tag carries the verb (then `pol prod update` moves the whole checkout by itself); a `pol prod update`
+that also refreshes the CLI submodule to the tag's pointer when it is ahead by hand (small); the pending kernel reboot.
+
 ## 4. What happens next, and who does it
 
 - ✅ DONE 2026-09-27: test passed → his `promote main` + `retry main` → `polari-v2026.09.27` on GitHub Releases, ghcr
