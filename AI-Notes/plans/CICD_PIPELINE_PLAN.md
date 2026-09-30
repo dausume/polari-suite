@@ -1270,8 +1270,22 @@ subtree-split cache is a developer-box artefact of `push-all-dev.sh` and never r
 - **D-frg-1** ✅ RULED 2026-09-27: **both routes, always** — GitHub for online availability, the forge for
   self-sustainability; built and tested against both from the start. (Which is `origin` for a developer's day-to-day
   push stays GitHub until the local-business route needs otherwise.)
-- **D-frg-2** where it lives: the pipeline device (econ-core, 7.5 GB — measured first) or pol-core beside staging?
+- **D-frg-2** ✅ RULED 2026-09-30: **on PRODUCTION** — the forge is part of what polari-systems.org serves, so "the average
+  person goes through us": apt sources, releases, images and the downloads page point at OUR forge by default; GitHub
+  stays the secondary, online-availability route (mirror) for those who want it. Consequences: (a) the forge joins the
+  prod profiles (`distribution-server` first — the server is a distribution point, no demos — then the public site's
+  profile) as a `pol prod` service with its own volume/bucket; (b) FEASIBILITY FIRST on the 2 GB droplet: Forgejo's
+  idle + mirror-load RSS/CPU/disk measured on pol-core before it is enabled there (an upsized droplet is a decision,
+  not an assumption); (c) PUBLIC POSTURE: registration off, anonymous read only, org-owned repos, tokens scoped, no
+  open issues/PRs unless he wants them, rate limits at the proxy, the hardening rings warn-only first — a public forge
+  is attack surface and gets the security arc's treatment before it faces the web; (d) `pol prod update` and `isle
+  update` read the forge first, GitHub second (the registered-sources order).
   Recommendation: pol-core (the research core has the disk; the pipeline device stays lean for builds + the guest).
 - **D-frg-3** ✅ RULED 2026-09-27: **Forgejo** ("forgejo yes").
-- **D-frg-4** does `forgejo-apt` REPLACE the reprepro/rsync apt route or sit beside it? Recommendation: replace — one
-  apt route, self-hosted, signed by the forge; the public site fronts it (or redirects to it).
+- **D-frg-4** ✅ RULED 2026-09-30: **the forge REPLACES the reprepro apt route** ("if that was all that package was
+  doing … it can be replaced by forge since it both encompasses and has more functionality"). The `apt-repo` route,
+  its `signing/*` + `ssh/distribution_host_key` secrets and `dest_apt_*` go; `forgejo-apt` publishes the SAME debs
+  from the SAME release pool (byte-identical, same sha256) and the forge signs its own indexes. People still `apt
+  install polari-complete` — one sources line + the forge's key, which the downloads page and the deb installers
+  carry. Storage: the forge's package/attachment blobs may live in the SeaweedFS S3 bucket beside the file store — a
+  placement inside the forge project. GitHub Releases keep the debs too (the secondary route).
