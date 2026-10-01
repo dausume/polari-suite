@@ -5,7 +5,10 @@
 #   ${PROD_DOMAIN}, www.   the hub (site + documentation) + /downloads
 #   prf.${PROD_DOMAIN}     the Polari frontend
 #   api.prf.${PROD_DOMAIN} the Polari backend (HTTP + STOMP websocket)
-#   apt.${PROD_DOMAIN}     the apt repository tree (static)
+#   apt.${PROD_DOMAIN}     the apt repository tree (static) — or, with the forge on (POL_PROD_FORGE=on,
+#                          frg-2), a rewrite onto the forge's Debian registry
+#   forge.${PROD_DOMAIN}   the forge (Forgejo) — ONLY with the forge on; `pol proxy template lean
+#                          --forge on` places its block at the FORGE_SERVER_BLOCK marker, otherwise dropped
 #   auth.${PROD_DOMAIN}    Keycloak — ONLY when logins are on (POL_PROD_AUTH=keycloak with
 #                          POL_PROD_PROFILE=lean); `pol proxy template lean --auth keycloak`
 #                          substitutes the server block below, otherwise the marker is dropped
@@ -50,7 +53,7 @@ http {
     # ---- HTTP: ACME webroot, then redirect ---------------------------------
     server {
         listen 80;
-        server_name ${PROD_DOMAIN} www.${PROD_DOMAIN} prf.${PROD_DOMAIN} api.prf.${PROD_DOMAIN} apt.${PROD_DOMAIN} auth.${PROD_DOMAIN};
+        server_name ${PROD_DOMAIN} www.${PROD_DOMAIN} prf.${PROD_DOMAIN} api.prf.${PROD_DOMAIN} apt.${PROD_DOMAIN} auth.${PROD_DOMAIN} forge.${PROD_DOMAIN};
         location /.well-known/acme-challenge/ {
             root /var/www/certbot;
             default_type text/plain;
@@ -143,6 +146,8 @@ http {
     }
 
 ${AUTH_SERVER_BLOCK}
+    # >>> APT_STATIC — the static apt tree (forge off). `pol proxy template … --forge on` deletes
+    # this block and places the forge's apt. rewrite at the FORGE_SERVER_BLOCK marker below (frg-2)
     # ---- the apt repository --------------------------------------------------
     # deb [signed-by=/usr/share/keyrings/polari.gpg] https://apt.${PROD_DOMAIN} stable main
     server {
@@ -157,4 +162,6 @@ ${AUTH_SERVER_BLOCK}
         location = /health { add_header Content-Type application/json; return 200 '{"status":"ok","service":"apt"}'; }
         location / { try_files $uri $uri/ =404; }
     }
+    # <<< APT_STATIC
+${FORGE_SERVER_BLOCK}
 }

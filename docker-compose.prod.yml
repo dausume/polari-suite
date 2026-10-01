@@ -499,6 +499,47 @@ services:
           memory: 512M
           cpus: '0.25'
 
+  # ---------------------------------------------------------------- the forge (frg-2)
+  # THE SELF-HOSTED FORGE (Forgejo — polari-forge/): git mirrors, releases and the apt
+  # repository people install from (apt.<domain> is a pol-proxy rewrite onto its Debian
+  # registry). Behind the compose profile "forge" — the logins/odoo two-key gate: `docker
+  # compose config` keeps it only when the profile is selected AND stackify.py drops it unless
+  # `--with-profile forge`; `pol prod` does both when POL_PROD_FORGE=on.
+  #   image   THE pin, read by pol prod from polari-forge/compose/forge.yml into the env file
+  #           (POLARI_FORGE_IMAGE) — one pin, never a second copy here
+  #   ports   NONE: a swarm publish ignores the host IP (ingress = every interface); pol-proxy
+  #           reaches forge:3000 over the overlay. ssh clone is NOT exposed in this slice.
+  #   data    the named volume polari_forge_data (capability, never content: nothing of the
+  #           forge's repos/packages/database/keys is in any repo). app.ini is COPIED into it
+  #           by pol prod before deploy (never mounted: the image rewrites it in place).
+  #   env     USER_UID/USER_GID only (.generated/forge/container.env) — the secrets stay in the
+  #           vault + the seeded app.ini, never in the container environment
+  #   memory  512M (measured: idle 94 MiB, peak 455 MiB while signing; repo indexer off)
+  forge:
+    image: ${POLARI_FORGE_IMAGE:-polari-forge-image-unset}
+    profiles: ["forge"]
+    networks: [polari-network]
+    env_file:
+      - ${POL_SUITE_ROOT:-.}/.generated/forge/container.env
+    volumes:
+      - polari_forge_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:3000/api/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: ["node.role == manager"]
+      resources:
+        limits:
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+
 # ============================================
 # VOLUMES
 # ============================================
@@ -512,6 +553,8 @@ volumes:
   # subjects from day one (ODOO_INTEGRATION_PLAN.md od-6).
   odoo-db-data:
   odoo-filestore:
+  polari_forge_data:   # the forge's content (profile "forge"); a FIXED name so a stack rename never orphans it
+    name: polari_forge_data
 
 # ============================================
 # NETWORKS

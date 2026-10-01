@@ -119,9 +119,18 @@ If a DigitalOcean cloud firewall is attached to the droplet it must allow inboun
 
 ## Domain, subdomains, and what is yours versus external
 
-One thing is external: the primary domain, registered somewhere, with its DNS managed at the registrar, DigitalOcean or Cloudflare. Everything else is a subdomain Polari defines, and a subdomain exists only because a component you enabled needs it: `prf` and `api.prf` always, `auth`, `psc`, `api.psc`, `files` and `s3` with logins, `odoo` with Odoo, `apt` once installers are handed out, and `www` only if you ask for it. It is a hostname convention, not a protocol, and most sites just redirect it to the apex. Enable a component later and its name appears; Polari re-renders the proxy and re-issues the certificate to cover exactly the enabled names. Nothing about subdomains is configured at your DNS host.
+One thing is external: the primary domain, registered somewhere, with its DNS managed at the registrar, DigitalOcean or Cloudflare. Everything else is a subdomain Polari defines, and a subdomain exists only because a component you enabled needs it: `prf` and `api.prf` always, `auth`, `psc`, `api.psc`, `files` and `s3` with logins, `odoo` with Odoo, `forge` and `apt` with the forge (or `apt` alone, as the old static tree, once installers are handed out without it), and `www` only if you ask for it. It is a hostname convention, not a protocol, and most sites just redirect it to the apex. Enable a component later and its name appears; Polari re-renders the proxy and re-issues the certificate to cover exactly the enabled names. Nothing about subdomains is configured at your DNS host.
 
 The internet still needs a DNS record to find each name. That is one A record for the primary domain, and then either one wildcard record, `*.yourdomain` pointing at the exposure address, which covers every subdomain now and later, or one A record per subdomain. The guide's Names step shows each name with the component that enables it, whether it resolves here, and what external record it needs, and it detects a wildcard.
+
+## The forge: git mirrors, releases and the apt repository (frg-2)
+
+Answer **yes** to "Host the forge (git mirrors, releases, the apt repository people install from) on this server?" (asked right after the logins; `POL_PROD_FORGE=on`; the `distribution-server` and `public-server` profiles answer yes) and the server runs Forgejo as one more stack service: 512 MiB, its content in the named volume `polari_forge_data`, no port of its own (the proxy reaches it inside the stack), registration off and anonymous read. Its secrets are generated once into the vault (`[forge]`, `sudo pol security vault show`), the admin user and token are made on the first apply, and apply ends with a **re-measure** line: the forge's memory reading and a WARN if this machine has less than 1 GiB available (2 × the forge's limit) — read it before telling anyone the addresses. People then add `deb [signed-by=/etc/apt/keyrings/polari-forge.asc] https://apt.<domain> stable main` with the key from `https://apt.<domain>/repository.key` (`pol forge apt-source` prints both lines). Git is https only for now (no ssh clone). `pol forge status|posture|meter` work against the service; `pol forge up/down` refuse there (`pol prod apply` / `pol prod down` own it). Details: `polari-forge/README.md`, "On production".
+
+| name | what it is | enabled by |
+|---|---|---|
+| `forge.<domain>` | the forge (Forgejo): the web pages, the API, git over https, uploads up to 1 GiB | forge = on |
+| `apt.<domain>` | the apt repository — served BY the forge's Debian registry (read-only rewrite onto `/api/packages/<owner>/debian/`) | forge = on |
 
 ## Profiles: not answering everything every time
 

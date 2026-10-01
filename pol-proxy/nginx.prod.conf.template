@@ -106,6 +106,8 @@ http {
         }
     }
 
+    # >>> APT_STATIC — the static apt tree (forge off). `pol proxy template … --forge on` deletes
+    # this block and places the forge's apt. rewrite at the FORGE_SERVER_BLOCK marker below (frg-2)
     # apt repository - apt.${PROD_DOMAIN}
     # Static: the reprepro tree the Jenkins apt-repo route publishes
     # (dists/, pool/, the public signing key) mounted at /srv/apt.
@@ -123,6 +125,8 @@ http {
         location = /health { add_header Content-Type application/json; return 200 '{"status":"ok","service":"apt"}'; }
         location / { try_files $uri $uri/ =404; }
     }
+    # <<< APT_STATIC
+${FORGE_SERVER_BLOCK}
 
     # Keycloak Auth - auth.${PROD_DOMAIN}
     server {

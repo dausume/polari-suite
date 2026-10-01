@@ -45,6 +45,10 @@ fixed:
   - { name: pol-mariadb,    profile: worker,  image: pol-mariadb, writable: ["/var/lib/mysql", "/run/mysqld", "/tmp"], network: [isle], capabilities: [CHOWN, SETUID, SETGID, DAC_READ_SEARCH], ports: [3306] }
   - { name: pol-file-store, profile: worker,  image: pol-file-store, writable: ["/data", "/tmp"], network: [isle], capabilities: [], ports: [9000, 9001] }
   - { name: psc-redis,      profile: worker,  image: psc-redis, writable: ["/data"], network: [isle], capabilities: [], ports: [6379] }
+  # frg-2: the forge (POL_PROD_FORGE=on, compose profile "forge"). Rootful image: its entrypoint re-numbers the git user and drops
+  # to it under s6 (CHOWN/SETUID/SETGID); internet for the weekly GitHub pull-mirror fetch; no published port (pol-proxy → :3000).
+  # In the docker-default UNION either way (warn-only, complain mode) — `pol prod harden report --rules` shows what enforcing would break.
+  - { name: forge,        profile: worker,  image: forgejo, writable: ["/data", "/tmp", "/run"], network: [isle, internet], capabilities: [CHOWN, SETUID, SETGID], ports: [3000], why_network: "internet: pull-mirrors fetch from GitHub (weekly)" }
 
 host:
   sysctl: true

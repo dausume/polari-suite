@@ -11,7 +11,8 @@
 # ONE Polari backend on sqlite with the floor module set (app definitions, the
 # store/downloads, the isle catalog, terms). No MinIO, scorecard or Odoo.
 # TWO MORE, behind the `logins` profile (2026-09-17): pol-keycloak and its own
-# pol-kc-mariadb — real sign-in without the full stack. Everything a
+# pol-kc-mariadb — real sign-in without the full stack. ONE MORE behind the
+# `forge` profile (frg-2, POL_PROD_FORGE=on): the self-hosted forge. Everything a
 # node needs travels as a docker config/secret; the three host-path binds
 # (platform debs, apt tree, ACME webroot) live on the manager, where the
 # proxy/backend are pinned — a one-node droplet or the home swarm's manager.
@@ -253,6 +254,47 @@ services:
         reservations: { memory: 384M }
       restart_policy: { condition: any, delay: 15s }
 
+  # ---------------------------------------------------------------- the forge (frg-2)
+  # THE SELF-HOSTED FORGE (Forgejo — polari-forge/): git mirrors, releases and the apt
+  # repository people install from (apt.<domain> is a pol-proxy rewrite onto its Debian
+  # registry). Behind the compose profile "forge" — the logins/odoo two-key gate: `docker
+  # compose config` keeps it only when the profile is selected AND stackify.py drops it unless
+  # `--with-profile forge`; `pol prod` does both when POL_PROD_FORGE=on.
+  #   image   THE pin, read by pol prod from polari-forge/compose/forge.yml into the env file
+  #           (POLARI_FORGE_IMAGE) — one pin, never a second copy here
+  #   ports   NONE: a swarm publish ignores the host IP (ingress = every interface); pol-proxy
+  #           reaches forge:3000 over the overlay. ssh clone is NOT exposed in this slice.
+  #   data    the named volume polari_forge_data (capability, never content: nothing of the
+  #           forge's repos/packages/database/keys is in any repo). app.ini is COPIED into it
+  #           by pol prod before deploy (never mounted: the image rewrites it in place).
+  #   env     USER_UID/USER_GID only (.generated/forge/container.env) — the secrets stay in the
+  #           vault + the seeded app.ini, never in the container environment
+  #   memory  512M (measured: idle 94 MiB, peak 455 MiB while signing; repo indexer off)
+  forge:
+    image: ${POLARI_FORGE_IMAGE:-polari-forge-image-unset}
+    profiles: ["forge"]
+    networks: [polari-lean]
+    env_file:
+      - ${POL_SUITE_ROOT:-.}/.generated/forge/container.env
+    volumes:
+      - polari_forge_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:3000/api/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: ["node.role == manager"]
+      resources:
+        limits:
+          memory: 512M
+      restart_policy:
+        condition: on-failure
+
 configs:
   keycloak_lean_conf:
     file: ${POL_SUITE_ROOT:-.}/pol-keycloak/environments/keycloak-lean.conf
@@ -272,6 +314,8 @@ secrets:
 volumes:
   prf_lean_data:
   kc_lean_db:     # Keycloak's own database (the `logins` profile); unused when logins are off
+  polari_forge_data:   # the forge's content (profile "forge"); a FIXED name so a stack rename never orphans it
+    name: polari_forge_data
 
 networks:
   polari-lean:

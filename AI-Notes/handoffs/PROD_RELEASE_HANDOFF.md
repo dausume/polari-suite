@@ -162,6 +162,27 @@ droplet, no published ports, vault-held secrets, the 512 MiB limit; RE-MEASURE t
 read the forge first). The pipeline device's checkout needs `git submodule update --init polari-forge` after its
 next pull (the doctor now expects six submodules).
 
+## 3g. ✅ frg-1 + frg-2 + frg-3 BUILT 2026-09-30/10-01 (his go: "all 3 frg sections sounded good")
+
+- frg-1: the HOME forge on pol-core holds the whole forest (13 weekly pull-mirrors, 51 MB git, 14.5 s); hold levels
+  `primary|mirror|link` per `forest.txt` line; `pol forge links|mirror --drop|--sync`. It also carries the real release
+  `polari-v2026.09.27` (6 assets) + 2 of its debs in its Debian registry, from the frg-3 proof.
+- frg-2: `POL_PROD_FORGE=on` (+`_OWNER`, default `dausume` — where the mirrors/packages live) → `forge.<D>` + `apt.<D>`
+  (GET-only rewrite onto the forge's Debian registry: the apt line stays `deb https://apt.<D> stable main`), the forge
+  stack service (one image pin read from `polari-forge/compose/forge.yml`, no published ports, 512M, app.ini seeded into
+  `polari_forge_data` before `stack deploy`), five secrets ONCE into the vault `[forge]`, admin token to the vault,
+  status/verify rows, the re-measure line after apply (WARN under 1024 MiB free); `pol forge` reaches a swarm forge by
+  `docker exec curl` on the task. Profiles distribution-server/public-server = on. prod selftest 112/112, forge 218/218.
+- frg-3: the four forge routes replace `apt-repo` (removed with its three secrets); devices read the forge first.
+
+**HIS, on the droplet, when he chooses (the capability is complete):** `pol prod guide` answers the new forge step (or
+`POL_PROD_FORGE=on` in the answers) → `pol prod apply` → the re-measure line is the go/no-go before `forge.<D>` and
+`apt.<D>` are announced; mint the forge publish token (Settings → Applications; scopes write:package,
+write:repository, read:user) → `sudo pol jenkins secrets put forge/publish_token` on econ-core; `pol forge mirror
+--forest` on the droplet (or let the pipeline's first release create the release repo path — the route refuses until
+the repo exists). Owed small: the Textual guide drops unknown answer keys (incl. the forge answer) — whiptail path
+asks it today; `POL_PROD_FORGE_OWNER` rename to an org is a decision; ssh clone not exposed (https only).
+
 ## 4. What happens next, and who does it
 
 - ✅ DONE 2026-09-27: test passed → his `promote main` + `retry main` → `polari-v2026.09.27` on GitHub Releases, ghcr
