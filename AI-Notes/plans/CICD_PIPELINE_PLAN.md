@@ -1283,6 +1283,18 @@ constraint — it must not coincide with a backend boot on the same VM. FEASIBLE
 (`mem_limit` 512 MiB, Forgejo's own `[cron]`/`[indexer]` trimmed, the repo indexer off) and the package retention of
 §12.3a; NOT a reason to upsize the droplet yet. Re-measure with the real prod profile before `hold` is lifted there.
 
+### 12.3c Hold levels + the weekly check (his, 2026-09-30)
+
+- **Mirror = a FULL local copy** (Forgejo clones and re-fetches; read-only on the forge side) — that is what makes the
+  route self-sustaining; "refer people to GitHub" is a third level. Hold levels per item, for frg-1: `primary` (held
+  here, GitHub = push mirror) · `mirror` (held, read-only, re-fetched — the DEFAULT for the forest: 51 MB of git) ·
+  `link` (not held; a pointer to GitHub) — a `hold=` value per `forest.txt` line, `mirror --forest` honours it, the
+  meter reports held vs linked. Packages/images: retention (newest K + keep.txt), older ones live on GitHub only.
+- **The re-fetch check is WEEKLY** ("should not be done often at all, maybe once per week") — `[mirror]
+  DEFAULT_INTERVAL = 168h`, migrate body `168h`; `pol forge mirror --sync <repo>|--forest` asks for a fetch right now
+  (after a release) so the self-hosted route is not a week behind when it matters. A fetch moves only deltas, so the
+  interval governs staleness, not cost.
+
 ### 12.4 Decisions (his)
 
 - **D-frg-1** ✅ RULED 2026-09-27: **both routes, always** — GitHub for online availability, the forge for
