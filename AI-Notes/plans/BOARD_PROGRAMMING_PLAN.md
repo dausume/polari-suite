@@ -4,7 +4,10 @@
 sources, reviewed and shaped by Fable; the seam, the rule and the decisions are the design. His ask: he owns the Arduino Starter Kit
 (UNO R3 + its parts) and a BeagleV-Fire and wants both as ways to program boards FROM Polari. **THE RULE (his,
 2026-10-01): only boards programmable over USB or USB-C are admitted. JTAG-only and SD-card-only flows are out.** USB keeps
-a board reachable from Polari with nothing but a cable. The rule becomes a selftest (brd-0).
+a board reachable from Polari with nothing but a cable. The rule becomes a selftest (brd-0). **Refined the same day (his
+D-brd-6 answer): "adapters can be fine so long as we are able to use usb or usb-c" — the HOST side must be USB/USB-C; a
+USB adapter or programmer (USB-UART, a USB SWD/JTAG probe, a USB ISP dongle) in between is allowed. So the rule reads:
+reachable from the Polari host over USB, directly or through a USB adapter that Polari knows (§2a adapters).**
 **RULE 2 (his, 2026-10-01): microcontroller and hardware work is written in C, Verilog or SystemVerilog ONLY** — "to
 simplify what we need to support". No C++ (so no Arduino core/sketches), no MicroPython/Rust on the MCU side, no VHDL on
 the hardware side. Host-side code is a different layer (memory `language-layering`: web stack primary; Java — JavaFX apps
@@ -251,30 +254,53 @@ Project list from https://github.com/cristianocclemente/arduino-projects-book an
 (https://www.deanza.edu/engineering/documents/arduino_projects_book.pdf). Direct maps onto `SimRigState`: 02/08/09 (LED,
 uptime, motor PWM), 03 (temperature), 14 (the serial seam). New fields or classes are generated headers, not hand C.
 
-## 7. Decisions (his; recommendations in bold)
+## 7. Decisions — ✅ ALL RULED 2026-10-01 (his words in quotes)
 
-- **D-brd-1 toolchain delivery.** Option one is a worker image `prf-board-engines` (avr-gcc + avr-libc + avrdude + simavr
-  pinned; later picotool/esptool/dfu-util — C toolchains only, RULE 2) resolved by the ladder (knob `BOARD_ENGINES_URL`, provider module
-  `board.engines`). Option two is host apt. **Recommend the worker**, so pol-core installs nothing. Flashing still
-  resolves on `BoardInstance.host` with the device mapped (§2).
-- **D-brd-2 Libero.** The choices:
-  - (a) allow it as a proprietary ENGINE in its own worker (`prf-libero-engines`, never embedded, never in our images'
-    redistribution, licence daemon + MAC recorded, the Silver licence is HIS account);
-  - (b) BeagleBoard's GitLab CI builds our fork's gateware;
-  - (c) no FPGA half until an open flow exists (there is none today).
-  **Recommend (a) with the licence row in `LICENSES.md`**, with (b) as the zero-install fallback. Whether Libero's EULA
-  permits containerised use is **unverified** and must be read before brd-2b.
-- **D-brd-3 what runs ON the Fire.** **Recommend the bridge only first**, then measure RSS/CPU, then decide on the full
-  framework.
-- **D-brd-4 the next USB boards to admit.** The candidates are RP2040/Pico (UF2 mass storage), ESP32 (esptool) and
-  STM32 (DFU). **Recommend RP2040**: UF2 is drag-and-drop over USB, the tools are open, and it is the Communication tier
-  (RP2040 + iCE40) of the hardware architecture.
-- **D-brd-5 the kit's parts as `electrodevice` rows.** **Recommend yes, lazily**: one per project as the ladder reaches it.
-- **D-brd-6 (new, from §4a) the Fire reflash.** The HSS `usbdmsc` step needs the UART header. **Recommend keeping
-  "Fire = shipped image + updates and gateware over USB-C" inside the rule, with reflash as a documented RECOVERY verb
-  that names the USB-UART adapter as outside the rule.** The alternative is to drop the Fire from the arc.
-- **D-brd-7 module home.** **Recommend a new `board` module** (rows, CLI, templates, `requires.engines`). It reuses
-  `hwmap`'s scanner and `grpcbridge`'s header rather than growing `hwmap`.
+- **D-brd-1 toolchain delivery → ENGINES, chosen dynamically per device kind** ("Using engines dynamically per the kind of
+  device we need to be using seems like it would make the most sense. for 1 and 2"). The engines ladder resolves the
+  toolchain + flasher for the `BoardDefinition.programmer` kind (worker image by default, local binary when present);
+  flashing resolves on the host that holds the USB port.
+- **D-brd-2 Libero → the same: an ENGINE, resolved dynamically when a PolarFire device kind needs it** (proprietary, in
+  its own worker, never embedded, licence recorded; BeagleBoard's GitLab CI as the zero-install fallback). EULA
+  container terms to be read before brd-2b.
+- **D-brd-3 what runs on the Fire → "decide based on circumstances"** — not fixed; the bridge-first measurement remains
+  the default path and the full framework is a per-deployment choice.
+- **D-brd-4 the next board → "Hazard is ideal"**: the Raspberry Pi Pico 2 (RP2350 / Hazard3), UF2 over USB.
+- **D-brd-5 the kit's parts as rows → "yes"** (lazily, per project of the book).
+- **D-brd-6 the Fire reflash → adapters are allowed**: the HSS mass-storage reflash through a USB-UART adapter is INSIDE
+  the refined rule; it is a documented verb, not a recovery exception.
+- **D-brd-7 module home → "new module and/or expanding on what already exists and splitting things apart into more
+  sensible chunks"**: a `board` module for the new rows + verbs, and the pieces that already exist (hwmap detection,
+  the bridge's C header generator, the renode twin) split where they have grown too large (file-size rule) rather than
+  copied.
+- **His framing of the whole chunk: "Our concern for this chunk of functionality is hardware oriented manipulation."**
+
+### 7a. The Firmware Installer App (his, 2026-10-01) — the person-facing half
+
+*"We should have a generalized Firmware Installer App most likely, that can install various usb and usb-c devices with
+Polari compatible firmware. We should also identify usb and usb-c converters we can use to flash things that do not
+inherently have usb or usb-c with polari as well."*
+
+- **A Polari app, configured pages only** ([[no-raw-json-on-screens]] rule): plug a device in → it is detected (hwmap:
+  VID:PID, by-id) and matched to a `BoardDefinition` — or to an **adapter** (§2a) and, through it, to the target it
+  programs → the app shows the firmware builds available for it (the generated per-class firmware, the class list it
+  carries, size vs the board's limits, the build's sha and engine digests) → DRY-RUN shows the exact flasher command →
+  install needs the device present + an explicit confirm → the result (verify read-back, `BoardInstance.firmware_sha`,
+  the bridge attaching, the first rows arriving) is on the same page.
+- **Engines per device kind** (D-brd-1/2): `programmer` kind → engine: `avrdude-optiboot` → avrdude; `esptool` → esptool;
+  `uf2` → a mass-storage copy (picotool optional); `dfu` → dfu-util; `swd`/`jtag` via a USB probe → OpenOCD / probe-rs
+  (licence check) ; `wch-isp` → wchisp; `hss-usbdmsc` → the USB-UART console step + `dd`; `libero-gateware` →
+  `change-gateware.sh` over the USB network. Each is a `ProgrammerKind` row naming its engine, its DRY-RUN rendering,
+  and the adapter it needs (if any).
+- **Adapters are first-class rows** (`AdapterDefinition`): USB-UART bridges (CP2102, CH340, FTDI FT232), USB
+  SWD/JTAG probes (Raspberry Pi Debug Probe — CMSIS-DAP, open hardware; Black Magic Probe — open; ST-LINK; WCH-LinkE;
+  J-Link EDU — licence terms), USB ISP dongles; each with VID:PID, what it can program (`targets`), the engine that
+  drives it, openness and origin. Detection of an adapter alone yields "adapter present, no target identified" — the
+  app then asks which target is wired to it (a person's answer, recorded on the `BoardInstance`).
+- **"Polari-compatible firmware"** = firmware generated around the per-class packet header (§0 step 2) so the bridge
+  can attach; the app refuses to install firmware whose header contract hash does not match a class the server knows.
+- Slice **brd-fi** (after brd-1 proves the UNO by CLI): the app's pages over the same rows + the adapter rows; the first
+  adapter proven = a USB-UART (the CP2102 already on pol-core) driving the Fire's HSS step or an ESP32's bootloader.
 
 ## 8. Cost + licences
 
@@ -325,7 +351,8 @@ Consequences:
 | brd-2 | Fire: USB-C network detect, `pol board deploy fire` (bridge as systemd unit), recovery `flash --image` documented | the Fire's bridge pushes a row over 192.168.7.2; a PUT round-trips | D-brd-3, D-brd-6 |
 | brd-2b | Fire gateware: regblock into the cape design, Libero engine (or BB CI), `change-gateware.sh` from Linux, UIO access | hwsim-led pattern lit on real fabric from a `LedMatrix4x4State` row, read back | D-brd-2 |
 | brd-3 | twins in CI: simavr (same UNO artifact) + Renode `beaglev-fire` (+ Verilated regblock); worker images measured | n/a (twin parity: same rows as brd-1/brd-2 hardware runs) | cost rows |
-| brd-4 | kit parts as `electrodevice` rows + the 15-project ladder, one project per step | each project's twin field moves on his breadboard | D-brd-5 |
+| brd-4 | kit parts as `electrodevice` rows + the 15-project ladder, one project per step | each project's twin field moves on his breadboard | D-brd-5 ✅ |
+| brd-fi | the Firmware Installer App (§7a): pages over Board/Instance/FirmwareBuild + `ProgrammerKind` + `AdapterDefinition` rows; engines per device kind; adapters detected and asked about; refuses non-Polari firmware | plug in the UNO → page shows it → DRY-RUN → install → the row arrives; then the CP2102 adapter → an ESP32 or the Fire's HSS step | after brd-1 |
 
 Not in scope: JTAG/SWD probes, SD-card boot flows, the BLCNC safety board, RP2040/ESP32/STM32 admission (D-brd-4 opens a
 follow-on slice).
