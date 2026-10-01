@@ -1,6 +1,7 @@
 # Board programming (brd arc): program REAL boards over USB / USB-C from Polari — the Arduino UNO R3 (his Starter Kit) first, the BeagleV-Fire second; a board and its twin are interchangeable behind the same bridge seam
 
-**Date:** 2026-10-01 · **Status: PLAN (brd-0 not started). No code changed.** His ask: he owns the Arduino Starter Kit
+**Date:** 2026-10-01 · **Status: PLAN (brd-0 not started). No code changed.** Drafted by an opus agent from verified
+sources, reviewed and shaped by Fable; the seam, the rule and the decisions are the design. His ask: he owns the Arduino Starter Kit
 (UNO R3 + its parts) and a BeagleV-Fire and wants both as ways to program boards FROM Polari. **THE RULE (his,
 2026-10-01): only boards programmable over USB or USB-C are admitted. JTAG-only and SD-card-only flows are out.** USB keeps
 a board reachable from Polari with nothing but a cable. The rule becomes a selftest (brd-0).
@@ -76,7 +77,9 @@ the field and corrupt the wire. brd-1 therefore needs a c_twin AVR mode: softwar
   (BoardInstance), `flash_log`, and a repro block (memory `reproducible-initial-conditions`).
 - **Detection** is `pol board detect`, which runs `hwmap.custom.scanner` on the host and matches `usb_devices()` VID:PID
   plus `serial_ports()` names against `BoardDefinition.usb_ids`. It upserts `BoardInstance` and pushes the result like
-  `pol hwmap scan --push`. A device with no matching definition is listed as "unadmitted", never guessed.
+  `pol hwmap scan --push`. A device with no matching definition is listed as "unadmitted", never guessed. pol-core today shows exactly one such device, a
+  Silicon Labs CP2102 USB-to-UART bridge (`/dev/serial/by-id/usb-Silicon_Labs_CP2102_…`), the classic USB-serial chip of
+  ESP32 and many other dev boards: `detect` will name it unadmitted until a definition (D-brd-4) admits its board.
 - **The rule as a selftest**: every `BoardDefinition` must name a USB `programmer` and a USB `transport`. A row whose only
   route is JTAG or SD fails `brd_selftest` with a named refusal.
 - **Build vs flash placement (important).** Compiling can run on ANY device (engine worker). Flashing and attaching must run
