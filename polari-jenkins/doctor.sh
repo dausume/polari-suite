@@ -60,10 +60,10 @@ echo "device: $(device_target_name)   user: $ME   secrets posture: $(secrets_mod
 sec "the checkout and the CLI"
 SUITE="$(cd "$J/.." && pwd)"
 MISSING_SUB=""
-for s in polari-cli polari-rf-node political-scorecard-node polari-app-shell Isle-Mesh; do
+for s in polari-cli polari-rf-node political-scorecard-node polari-app-shell Isle-Mesh polari-forge; do
     [ -d "$SUITE/$s" ] && [ -n "$(ls -A "$SUITE/$s" 2>/dev/null)" ] || MISSING_SUB="$MISSING_SUB $s"
 done
-[ -z "$MISSING_SUB" ] && ok "submodules" "all five populated (polari-cli, polari-rf-node, political-scorecard-node, polari-app-shell, Isle-Mesh)" \
+[ -z "$MISSING_SUB" ] && ok "submodules" "all six populated (polari-cli, polari-rf-node, political-scorecard-node, polari-app-shell, Isle-Mesh, polari-forge)" \
     || warn "submodules" "not populated:$MISSING_SUB" "git -C $SUITE submodule update --init --recursive (or ./bootstrap-dev.sh)"
 if command -v pol >/dev/null 2>&1; then
     POL_PATH="$(command -v pol)"
