@@ -291,11 +291,36 @@ uptime, motor PWM), 03 (temperature), 14 (the serial seam). New fields or classe
 
 Nothing NC appears anywhere. Libero is the one proprietary piece, and it is quarantined as an engine.
 
+## 8a. HIS RULING 2026-10-01 — track all, simulate few; the UNO first; the rest are ROADS marked to-do
+
+*"I think we should track the devices and what they are useful for, but I am unsure how large these devices would end up
+being in terms of object size for simulating. So I do not want to say just load all of them. We should pick a few key
+ones we can simulate to start practicing. The Uno is the first thing to address since we have one on hand. The rest we
+want to record as roads and mark as to do until done. Eventually we will want to make our own boards but for now we
+will be simulating the boards of others and taking info from their data sheets to be able to do our own work."*
+
+Consequences:
+- **The register (`AI-Notes/designs/HARDWARE_CAPABILITY_REGISTER.md`) tracks EVERY device and its uses as rows** —
+  `BoardDefinition` + `DevelopmentResource` — but a row is NOT a simulation. A device gets a twin only when it is picked.
+- **A `Road` per device:** every tracked device is a road node with `status = todo | in-progress | done` and the steps
+  (datasheet facts captured → BoardDefinition complete → twin → firmware template → flashed on real hardware →
+  measured). The roads hang on the tech tree the suite already has (the ComputeLOD tree pattern), one node per device,
+  so the picture "what is done, what is a road" is a configured display, never a list in a doc.
+- **The first simulated device is the UNO** (on hand): simavr twin, the plain-C route (§3), footprint MEASURED — of the
+  firmware AND of the simulation OBJECTS (rows per device: pins, registers, peripherals, timers; bytes of state per
+  simulated cycle). That measurement is the yardstick for admitting the next device: a `BoardSimCost` row per twin
+  (object count, state bytes, cycles/s on the device class) before another is loaded.
+- **Datasheet facts as rows with provenance:** every number taken from a vendor datasheet (pin map, register address,
+  memory map, electrical limit, timing) is a `DatasheetFact` row citing the document, revision, page/table — the
+  derive-or-cite rule — so our own boards later inherit facts with their sources, and a wrong number is traceable.
+- **Our own boards later:** the same rows describe them; nothing in the model distinguishes "theirs" from "ours" except
+  `BoardDefinition.designer`. Until then we simulate others' boards from their datasheets.
+
 ## 9. Slices
 
 | Slice | What | Proof on real hardware | Gate |
 |---|---|---|---|
-| brd-0 | `board` module: Board/Instance/FirmwareBuild rows, UNO + Fire `BoardDefinition` seeds, `pol board detect` via `hwmap.scanner`, the USB rule as a selftest, the c_twin AVR mode (double conversion) | `pol board detect` on pol-core lists his UNO as a `BoardInstance` with by-id path | D-brd-7 |
+| brd-0 | `board` module: Board/Instance/FirmwareBuild rows + `Road`, `DatasheetFact`, `BoardSimCost`; `BoardDefinition` seeds for EVERY register device (roads = todo; only the UNO `simulated=true`), `pol board detect` via `hwmap.scanner`, the USB rule + the C/Verilog/SV rule as selftests, the c_twin AVR mode (double conversion) | `pol board detect` on pol-core lists his UNO as a `BoardInstance` with by-id path | D-brd-7 |
 | brd-1 | UNO end to end in PLAIN C (avr-libc, no Arduino core): gen → build (worker, avr-gcc) → flash (DRY-RUN then `--yes`) → monitor; sizes measured | TMP36 value in the `SimRigState` row; REST PUT lights/dims the LED; `status='commanded'` echoed | D-brd-1 |
 | brd-2 | Fire: USB-C network detect, `pol board deploy fire` (bridge as systemd unit), recovery `flash --image` documented | the Fire's bridge pushes a row over 192.168.7.2; a PUT round-trips | D-brd-3, D-brd-6 |
 | brd-2b | Fire gateware: regblock into the cape design, Libero engine (or BB CI), `change-gateware.sh` from Linux, UIO access | hwsim-led pattern lit on real fabric from a `LedMatrix4x4State` row, read back | D-brd-2 |
