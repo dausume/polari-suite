@@ -152,6 +152,16 @@ stays on its 2026-09-12 image; the droplet's `/opt/polari/polari-cli` sits at a 
 next release's tag carries the verb (then `pol prod update` moves the whole checkout by itself); a `pol prod update`
 that also refreshes the CLI submodule to the tag's pointer when it is ahead by hand (small); the pending kernel reboot.
 
+## 3f. ✅ frg-0 BUILT 2026-09-30 — the forge project exists (plan §12; all four forge decisions ruled)
+
+`polari-forge` is a new submodule (its own public repo), capability only; `pol forge up|status|mirror|meter|retention|
+posture|apt-source|selftest`; proven live here and torn down. NEXT in the forge arc: frg-1 (the forest mirrored on the
+box he chooses — `pol forge mirror --forest`), frg-2 (the forge as a `pol prod` service behind pol-proxy on the
+droplet, no published ports, vault-held secrets, the 512 MiB limit; RE-MEASURE there before it faces the web), frg-3
+(the pipeline routes `forgejo-release/-registry/-apt/-generic` replacing `apt-repo`; `pol prod update`/`isle update`
+read the forge first). The pipeline device's checkout needs `git submodule update --init polari-forge` after its
+next pull (the doctor now expects six submodules).
+
 ## 4. What happens next, and who does it
 
 - ✅ DONE 2026-09-27: test passed → his `promote main` + `retry main` → `polari-v2026.09.27` on GitHub Releases, ghcr
