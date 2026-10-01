@@ -5,13 +5,14 @@ sources, reviewed and shaped by Fable; the seam, the rule and the decisions are 
 (UNO R3 + its parts) and a BeagleV-Fire and wants both as ways to program boards FROM Polari. **THE RULE (his,
 2026-10-01): only boards programmable over USB or USB-C are admitted. JTAG-only and SD-card-only flows are out.** USB keeps
 a board reachable from Polari with nothing but a cable. The rule becomes a selftest (brd-0).
-**RULE 2 (his, 2026-10-01): microcontroller and hardware work is written in C or Verilog ONLY** — "to simplify what we
-need to support". No C++ (so no Arduino core/sketches), no MicroPython/Rust on the MCU side, no VHDL/SystemVerilog on
-the hardware side (testbenches in Verilog too; the existing self-checking bench in `hwfpga` is converted when touched).
-Host-side code (the Java bridge, the Python framework) is unaffected. What exists already complies: the Renode twin
-firmware is plain C, the generated headers are C, the register block is Verilog. Rule 2 is the second brd-0 selftest:
-a `BoardDefinition.toolchain_engines` may name only C compilers / Verilog tools, and a generated project contains only
-`.c/.h/.v` (+ Makefile/linker script).
+**RULE 2 (his, 2026-10-01): microcontroller and hardware work is written in C, Verilog or SystemVerilog ONLY** — "to
+simplify what we need to support". No C++ (so no Arduino core/sketches), no MicroPython/Rust on the MCU side, no VHDL on
+the hardware side. Host-side code is a different layer (memory `language-layering`: web stack primary; Java — JavaFX apps
+when a window is needed — as the bridge to the kernel and hardware virtualization; C for peripherals/FPGAs/hardware).
+What exists already complies: the Renode twin firmware is plain C, the generated headers are C, the register block is
+Verilog and its self-checking bench SystemVerilog. Rule 2 is the second brd-0 selftest: a
+`BoardDefinition.toolchain_engines` may name only C compilers / Verilog-SystemVerilog tools, and a generated project
+contains only `.c/.h/.v/.sv` (+ Makefile/linker script).
 
 Companions: `HARDWARE_SIMULATION_PLAN.md` (hwsim-1/3/led: the Renode twin and the register block this arc puts on silicon),
 `GRPC_BRIDGE_PLAN.md` (grpc-j3: the C twin), memory `polari-hardware-architecture.md` (the layered stack and tiers).
