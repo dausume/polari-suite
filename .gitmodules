@@ -14,3 +14,7 @@
 	path = Isle-Mesh
 	url = https://github.com/dausume/Isle-Mesh.git
 	branch = dev
+[submodule "polari-forge"]
+	path = polari-forge
+	url = https://github.com/dausume/polari-forge.git
+	branch = dev
