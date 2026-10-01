@@ -431,6 +431,6 @@ PY'''
     // named in CI_ROUTES (device.env). Nothing is armed by being triggered.
     // ci-12: and the routes re-read pool/test/<sha>/verdict.json themselves (routes/_lib.sh), so triggering
     // publish on an untested build is safe — every route renders and says why.
-    success { script { if (env.PROCEED == 'yes' && env.RELEASE_REFUSED != 'yes') { build job: 'polari-publish', wait: false, parameters: [string(name: 'VERSION', value: env.POLARI_VERSION), string(name: 'DRY_RUN', value: 'auto'), string(name: 'ROUTES', value: env.CI_ROUTES ?: 'github-release,ghcr,homebrew,apt-repo')] } } }
+    success { script { if (env.PROCEED == 'yes' && env.RELEASE_REFUSED != 'yes') { build job: 'polari-publish', wait: false, parameters: [string(name: 'VERSION', value: env.POLARI_VERSION), string(name: 'DRY_RUN', value: 'auto'), string(name: 'ROUTES', value: env.CI_ROUTES ?: 'github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic')] } } }
   }
 }

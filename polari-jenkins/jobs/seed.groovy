@@ -111,7 +111,7 @@ pipelineJob('polari-publish') {
         stringParam('VERSION', '', 'polari version under pool/ (e.g. 2026.09.07-dev+7d6db81)')
         // ci-7 (C): auto = publish for real only where the secret is present AND the route is in CI_ROUTES
         choiceParam('DRY_RUN', ['auto', 'true', 'false'], 'auto (default): armed per route by secret + CI_ROUTES · true: render only · false: force a real push')
-        stringParam('ROUTES', 'github-release,ghcr,homebrew,apt-repo', 'comma list of ACTIVE routes (parked: routes/later/)')
+        stringParam('ROUTES', 'github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic', 'comma list of ACTIVE routes (parked: routes/later/)')
     }
     definition { cps { script(pipe('Jenkinsfile.publish')); sandbox(true) } }
 }

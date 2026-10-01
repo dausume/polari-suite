@@ -15,7 +15,9 @@ set -eu
 # shellcheck source=destinations.sh
 . "$(dirname "${BASH_SOURCE[0]}")/destinations.sh"
 DRY_RUN="${DRY_RUN:-auto}"
-CI_ROUTES="${CI_ROUTES:-github-release,ghcr,homebrew,apt-repo}"
+# frg-3: DUAL ROUTE always — GitHub (online availability) and the forge (self-sustaining, production's default).
+CI_ROUTES_DEFAULT="github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic"
+CI_ROUTES="${CI_ROUTES:-$CI_ROUTES_DEFAULT}"
 : "${VERSION:?VERSION required}"; : "${POOL_DIR:?POOL_DIR required}"
 ROUTE="$(basename "${BASH_SOURCE[1]:-$0}" .sh)"
 run(){ if [ "$DRY_RUN" = 1 ]; then echo "[dry-run:$ROUTE] $*"; else echo "[$ROUTE] $*"; "$@"; fi; }
@@ -224,6 +226,20 @@ release_excluded(){ # release_excluded <dir> — what is held back, and why
                                 case "$passed" in *" $app "*) ;; *) echo "$base (untested or failed in the isle test)" ;; esac ;;
         esac
     done
+}
+release_notes(){ # release_notes <file> — the ONE body both release pools carry (github-release, forgejo-release)
+    local excl
+    { echo "# Polari $VERSION"; echo
+      echo "Tested in a throwaway isle: $(tested_apps | sed 's/^$/core only/')"
+      excl="$(release_excluded "$POOL_DIR/debs" || true)"
+      [ -n "$excl" ] && { echo; echo "**not released: untested/failed**"; printf '%s\n' "$excl" | sed 's/^/- /'; } || true
+      echo; echo '```json'; cat "$POOL_DIR/release.json"; echo '```'; } > "$1"
+}
+offline_assets(){ # the offline medium's PUBLISHABLE files: the chunk set and/or an ISO (flat names), when the pool has them
+    local d="$POOL_DIR/offline" f
+    [ -d "$d" ] || return 0
+    for f in "$d"/*.iso "$d"/*.img "$d"/chunks/*; do [ -f "$f" ] && echo "$f"; done
+    return 0
 }
 arm(){ # arm VAR:area/name … — the FIRST line of every route: resolve DRY_RUN=auto and say why
     local spec var path missing="" state why excluded

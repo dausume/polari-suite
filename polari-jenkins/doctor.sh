@@ -285,9 +285,9 @@ ok "routes parked" "$SECRETS_PARKED_ROUTES (routes/later/ — they need an outsi
 # (/run/secrets) when it is running, else this shell (sudo in the system posture).
 CTR="${CI_CONTROLLER_CONTAINER:-polari-jenkins}"
 if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$CTR"; then
-    TOKROWS="$(docker exec -e CI_ROUTES="$CI_ROUTES" -e CI_MODE="${CI_MODE:-suite}" -e CI_ROUTE_TARGET="${CI_ROUTE_TARGET:-}" "$CTR" bash /var/polari-jenkins/routes/token-check.sh 2>/dev/null || true)"
+    TOKROWS="$(docker exec -e CI_ROUTES="$CI_ROUTES" -e FORGE_URL="${FORGE_URL:-}" -e CI_MODE="${CI_MODE:-suite}" -e CI_ROUTE_TARGET="${CI_ROUTE_TARGET:-}" "$CTR" bash /var/polari-jenkins/routes/token-check.sh 2>/dev/null || true)"
 else
-    TOKROWS="$(CI_ROUTES="$CI_ROUTES" bash "$J/routes/token-check.sh" 2>/dev/null || true)"
+    TOKROWS="$(CI_ROUTES="$CI_ROUTES" FORGE_URL="${FORGE_URL:-}" bash "$J/routes/token-check.sh" 2>/dev/null || true)"
 fi
 if [ -n "$TOKROWS" ]; then
     while IFS=$'\t' read -r st key msg fix; do

@@ -76,11 +76,12 @@ secrets_route_requires() { # secrets_route_requires <route> → area/name…
         github-release) echo "github/release_token" ;;
         homebrew)       echo "github/release_token" ;;
         ghcr)           echo "github/registry_token" ;;
-        apt-repo)       echo "signing/apt_signing_gpg signing/apt_signing_keyid ssh/distribution_host_key" ;;
+        # frg-3: the four forge routes share ONE token (Forgejo: write:repository + write:package + read:user)
+        forgejo-release|forgejo-registry|forgejo-apt|forgejo-generic) echo "forge/publish_token" ;;
         *)              return 1 ;;
     esac
 }
-SECRETS_ACTIVE_ROUTES="github-release ghcr homebrew apt-repo"
+SECRETS_ACTIVE_ROUTES="github-release ghcr homebrew forgejo-release forgejo-registry forgejo-apt forgejo-generic"
 SECRETS_PARKED_ROUTES="dockerhub npm pypi launchpad snap"
 
 # ------------------------------------------------------- BACKWARD COMPATIBILITY

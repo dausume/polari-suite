@@ -16,7 +16,7 @@ CI_ISLE_TARGET CI_ISLE_SSH_HOST CI_ISLE_SSH_USER CI_ISLE_VM_NAME CI_ISLE_VM_RAM_
 CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_POOL CI_ISLE_IMAGE_URL CI_BUILD_OFFLINE_MEDIUM CI_TAGGER_NAME CI_TAGGER_EMAIL \
 CI_MIN_FREE_GB CI_MIN_RAM_HEADROOM_GB CI_EXECUTORS CI_ROUTES CI_ISLE_STAGES \
 CI_CACHE CI_CACHE_DIR CI_CACHE_MAX_GB CI_CACHE_PROXIES CI_ROUTE_TARGET \
-CI_CORE_URL CI_DEVICE_NAME"
+CI_CORE_URL CI_DEVICE_NAME FORGE_URL"
 
 # Where the module manifests live (modules/<name>/polari-app.json) — the
 # catalogue CI_ISLE_STAGES is validated against. Overridable for tests.
@@ -88,7 +88,7 @@ device_load() {
     # other. Four is one per job that can be in flight (dev-build, test, release,
     # isle-test) — raising it does NOT let two builds compile at once.
     : "${CI_EXECUTORS:=4}"
-    : "${CI_ROUTES:=github-release,ghcr,homebrew,apt-repo}"
+    : "${CI_ROUTES:=github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic}"
     : "${CI_ISLE_STAGES:=core}"
     # ci-9 (his ask 2026-09-19): "the jenkins pipeline should try and use offline artifacts for building
     # where possible". The cache is an OPTIMISATION, never a precondition — an empty cache still builds.
@@ -100,6 +100,9 @@ device_load() {
     # decide); in app mode it is the developer's OWN owner/namespace, and a route pointed at the upstream
     # owner is a validation FAIL — a fork is never republished under an upstream name.
     : "${CI_ROUTE_TARGET:=}"
+    # frg-3: the self-hosted forge the four forgejo-* routes publish to (routes/destinations.sh dest_forge_url).
+    # Production's public forge by default; a home/test forge is a URL here (no trailing slash needed).
+    : "${FORGE_URL:=https://forge.polari-systems.org}"
     # ci-8: the Polari core that holds the SETTINGS for this device. Empty = no sync; the file below is
     # then the only truth there is, which is exactly the fallback posture cicd-sync.sh degrades to.
     : "${CI_CORE_URL:=}"
@@ -268,13 +271,13 @@ device_validate() {
     local bad=""
     local r; for r in ${CI_ROUTES//,/ }; do
         case "$r" in
-            github-release|ghcr|homebrew|apt-repo) ;;
+            github-release|ghcr|homebrew|forgejo-release|forgejo-registry|forgejo-apt|forgejo-generic) ;;
             dockerhub|npm|pypi|launchpad|snap) bad="$bad $r(PARKED)" ;;
             *) bad="$bad $r(unknown)" ;;
         esac
     done
     [ -z "$bad" ] && _row CI_ROUTES "$CI_ROUTES" OK "routes that may publish for real" \
-        || _row CI_ROUTES "$CI_ROUTES" FAIL "not publishable:$bad → ACTIVE routes are github-release,ghcr,homebrew,apt-repo"
+        || _row CI_ROUTES "$CI_ROUTES" FAIL "not publishable:$bad → ACTIVE routes are github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic"
 
     if [ "${CI_EXECUTORS:-4}" -lt 4 ] 2>/dev/null; then
         _row CI_EXECUTORS "$CI_EXECUTORS" WARN \

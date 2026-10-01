@@ -285,8 +285,8 @@ do_push_secrets() {
 import json, sys, datetime
 dev = sys.argv[1]
 needs = {"github/github_token": ["github-release", "homebrew"], "registries/ghcr_token": ["ghcr"],
-         "signing/apt_signing_gpg": ["apt-repo"], "signing/apt_signing_keyid": ["apt-repo"],
-         "ssh/distribution_host_key": ["apt-repo"]}
+         "github/release_token": ["github-release", "homebrew"], "github/registry_token": ["ghcr"],
+         "forge/publish_token": ["forgejo-release", "forgejo-registry", "forgejo-apt", "forgejo-generic"]}
 items = []
 for line in sys.stdin:
     if not line.strip():

@@ -484,17 +484,41 @@ polari-jenkins/
 ├── casc/plugins.txt          the plugin set
 ├── jobs/seed.groovy          Job DSL: polari-dev-build, polari-release, polari-publish, polari-isle-test
 ├── pipelines/Jenkinsfile.*   the four declarative pipelines (dev-build, release, publish, isle-test)
-├── routes/<route>.sh         ACTIVE routes: github-release, apt-repo, ghcr, homebrew — each `arm`s itself (ARMED / DRY)
+├── routes/<route>.sh         ACTIVE routes: github-release, ghcr, homebrew + the forge twins forgejo-release, forgejo-registry,
+│                             forgejo-apt, forgejo-generic — each `arm`s itself (ARMED / DRY); routes/_forge.sh = their shared calls
 ├── routes/later/             PARKED routes needing an outside account/review (dockerhub, npm, pypi, launchpad, snap)
 ├── pool/                     build output on the host (gitignored): pool/<polari-version>/…
 └── secrets/                  AUTH MATERIAL — gitignored except README + *.example
     ├── admin/                jenkins_admin_password
     ├── github/               release_token (the release pool + the homebrew tap), registry_token (the container registry), github_ssh_key (optional)
     ├── registries/           (dockerhub_* = parked)
-    ├── signing/              apt_signing_gpg (armored private key), apt_signing_keyid, cosign_key, cosign_password
-    ├── packaging/            (parked routes) npm_token, pypi_token, snapcraft_login, launchpad_ssh_key — not declared to Jenkins today
-    └── ssh/                  distribution_host_key (deploy key for the apt/downloads VM)
+    ├── forge/                publish_token (ONE token for the four forgejo-* routes)
+    ├── signing/              cosign_key, cosign_password
+    └── packaging/            (parked routes) npm_token, pypi_token, snapcraft_login, launchpad_ssh_key — not declared to Jenkins today
 ```
+### The publish routes — DUAL ROUTE (frg-3, his rulings 2026-09-27/30)
+
+Every release goes to GitHub (online availability) **and** to the self-hosted forge (Forgejo — self-sustaining and,
+on production, **the default** people pull from). The pipeline stops at publish; devices pull with `pol prod update`
+(and `isle update`) from their registered locations, **forge first, GitHub second**. The forge's Debian registry
+**replaced** the old self-run apt route: the same tested debs from the same pool, byte-identical, with apt indexes
+the forge signs itself.
+
+| route | publishes | where (`routes/destinations.sh`) | secret |
+|---|---|---|---|
+| `github-release` | release `polari-v<V>`: tested debs, SHA256SUMS, release.json, TEST_REPORT/SCAN_SUMMARY/verdict | `github.com/<owner>/polari-suite/releases` | `github/release_token` |
+| `ghcr` | the TESTED images `:<V>` + `:latest` (cosign when a key is present) | `ghcr.io/<owner>` | `github/registry_token` |
+| `homebrew` | the `pol` formula | `github.com/<owner>/homebrew-polari` | `github/release_token` |
+| `forgejo-release` | the same release + the same assets (clobber); refuses when the repo is not on the forge (`pol forge mirror --forest`); a mirror lacking the sha gets ONE mirror-sync | `$FORGE_URL/<owner>/polari-suite/releases` | `forge/publish_token` |
+| `forgejo-registry` | the same tested images, never rebuilt | `<forge host>/<owner>` | `forge/publish_token` |
+| `forgejo-apt` | every tested deb → the Debian registry (409 = already there); then asserts each package+version is LISTED in `dists/stable/main/binary-<arch>/Packages` | `$FORGE_URL/api/packages/<owner>/debian` (`stable main`) | `forge/publish_token` |
+| `forgejo-generic` | the offline medium's chunks / ISO when the pool has them ("nothing to upload" otherwise) | `$FORGE_URL/api/packages/<owner>/generic/polari-offline/<V>` | `forge/publish_token` |
+
+`record.sh` (not a route) re-uploads the final `release.json` to **both** releases after every route ran — each half
+armed exactly when its route is. Default `CI_ROUTES=github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic`;
+`FORGE_URL` (device.env) defaults to the public forge. People add the forge's apt source with
+`pol forge apt-source <owner>` (the key at `…/debian/repository.key`, the line `deb [signed-by=…] …/debian stable main`).
+
 **The names say what the token is FOR, and every listing says where it GOES**
 (ci-12, his ask). `github/release_token` creates the release, uploads its
 assets, pushes the version tag and bumps the homebrew tap — a **classic** PAT
@@ -502,9 +526,11 @@ with the `repo` scope (recommended; a fine-grained one with Contents: Read and
 write on both repos also works, but GitHub shows a fine-grained token's grants
 nowhere and the first real release died on one that could only read);
 `github/registry_token` is the classic PAT that writes packages — a fine-grained
-token cannot. **The doctor proves both** (`routes/token-check.sh`: a write-free
-`git push --dry-run`, the token's own headers, a lookup of the tap) — PRESENT is
-not ABLE. `pol jenkins secrets status`, the
+token cannot; `forge/publish_token` is the forge's (Settings → Applications →
+Generate New Token: `write:package`, `write:repository`, `read:user`). **The doctor
+proves all three** (`routes/token-check.sh`: a write-free `git push --dry-run`, the
+token's own headers, a lookup of the tap; for the forge `GET /api/v1/user` and
+`permissions.push` on `<owner>/polari-suite`) — PRESENT is not ABLE. `pol jenkins secrets status`, the
 doctor's route rows and the setup all print
 `name — destination — routes — present/absent`, and the **destination is
 rendered from `routes/destinations.sh`** — the very constants the route scripts

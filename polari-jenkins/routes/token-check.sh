@@ -1,5 +1,5 @@
 #!/bin/bash
-# polari-jenkins/routes/token-check.sh — WHAT THE TWO GITHUB TOKENS CAN ACTUALLY DO.
+# polari-jenkins/routes/token-check.sh — WHAT THE PUBLISH TOKENS CAN ACTUALLY DO (the two GitHub ones + the forge's).
 #
 # Found live 2026-09-22: github/release_token was a fine-grained PAT that READ the
 # repo fine and could not push — GitHub's fine-grained UI does not show what a
@@ -20,7 +20,7 @@ J="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$J/routes/destinations.sh"
 SECRETS="${TOKEN_CHECK_SECRETS_DIR:-}"
 for d in "$SECRETS" /run/secrets "$J/secrets" /etc/polari-jenkins/secrets; do
-    [ -n "$d" ] && [ -d "$d/github" ] && { SECRETS="$d"; break; }
+    [ -n "$d" ] && { [ -d "$d/github" ] || [ -d "$d/forge" ]; } && { SECRETS="$d"; break; }
 done
 API="${GITHUB_API:-https://api.github.com}"
 TEXT=0; [ "${1:-}" = --text ] && TEXT=1
@@ -82,7 +82,7 @@ else
                    "the token lacks write on this repo. Classic: tick the 'repo' scope. Fine-grained: Repository access must include $RREPO AND Permissions → Contents = Read and write (the UI shows none of this afterwards — re-run pol jenkins doctor to prove it). Then sudo pol jenkins secrets put github/release_token" ;;
             *) row WARN "release token → $RREPO" "the push probe could not reach GitHub: $MSG" "run the doctor again when the device is online" ;;
         esac
-        INLIST=0; case ",${CI_ROUTES:-github-release,ghcr,homebrew,apt-repo}," in *,homebrew,*) INLIST=1 ;; esac
+        INLIST=0; case ",${CI_ROUTES:-github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic}," in *,homebrew,*) INLIST=1 ;; esac
         if [ "$INLIST" = 1 ]; then
             CODE="$(repo_exists "$REL" "$TAP")"
             if [ "$CODE" = 200 ]; then
@@ -125,4 +125,42 @@ else
             row OK "registry token" "classic, scopes: $SCOPES${EXP:+, expires $EXP} — can write packages$EXTRA"
         fi
     fi
+fi
+
+# ------------------------------------------------------------ forge publish token (frg-3)
+# ONE token arms the four forgejo-* routes. Proven write-free, the way the forge itself answers: GET /api/v1/user
+# (is the token accepted, and whose is it — the registry login needs that user) and GET the release repository
+# (does it exist on the forge — else `pol forge mirror --forest` — and may this user write it: permissions.push).
+# The token travels in a header read from a process substitution, never on argv.
+FORGE="$(dest_forge_url)"; FREPO="$(dest_forge_release_repo)"
+forge_get() {  # forge_get <token> <path> → body on stdout, HTTP code on the last line
+    curl -s -m 15 -H @<(printf 'Authorization: token %s\n' "$1") -w '\n%{http_code}' "$FORGE$2" 2>/dev/null || printf '\n000'
+}
+FTOK="$(readtok forge/publish_token || true)"
+if [ -z "$FTOK" ]; then
+    row WARN "forge token" "forge/publish_token is absent (or not readable from here) — the forgejo-release, forgejo-registry, forgejo-apt and forgejo-generic routes stay DRY" \
+        "on the forge ($FORGE): Settings → Applications → Generate New Token, scopes write:package + write:repository + read:user; then printf '%s' '<token>' | sudo pol jenkins secrets put forge/publish_token"
+else
+    OUT="$(forge_get "$FTOK" /api/v1/user)"; CODE="${OUT##*$'\n'}"; BODY="${OUT%$'\n'*}"
+    case "$CODE" in
+        200)
+            FUSER="$(printf '%s' "$BODY" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("login",""))' 2>/dev/null)"
+            row OK "forge token" "accepted by $FORGE as user ${FUSER:-?} — the registry login will use it"
+            OUT="$(forge_get "$FTOK" "/api/v1/repos/$FREPO")"; CODE="${OUT##*$'\n'}"; BODY="${OUT%$'\n'*}"
+            case "$CODE" in
+                200)
+                    PUSH="$(printf '%s' "$BODY" | python3 -c 'import json,sys; d=json.load(sys.stdin); print("%s %s" % (bool((d.get("permissions") or {}).get("push")), "mirror" if d.get("mirror") else "primary"))' 2>/dev/null)"
+                    case "$PUSH" in
+                        True*) row OK "forge token → $FREPO" "may write ($(printf '%s' "$PUSH" | cut -d' ' -f2), permissions.push) — the forgejo-release route will work; the package routes need the token's write:package scope" ;;
+                        *)     row WARN "forge token → $FREPO" "${FUSER:-the token owner} may NOT write $FREPO on the forge (permissions.push is false) — the forgejo-release route would be refused" \
+                                   "make ${FUSER:-that user} an owner of the $(dest_forge_owner) org on the forge (or a collaborator with write on $FREPO), and mint the token with write:repository + write:package" ;;
+                    esac ;;
+                404) row WARN "forge token → $FREPO" "$FREPO does not exist on $FORGE — the forgejo-release route refuses until it does" \
+                         "mirror the forest first: pol forge mirror --forest (or pol forge mirror $FREPO)" ;;
+                *)   row WARN "forge token → $FREPO" "the forge answered HTTP $CODE for the repository — nothing proven" "run the doctor again when the forge is up" ;;
+            esac ;;
+        401|403) row WARN "forge token" "$FORGE REFUSED forge/publish_token (HTTP $CODE) — expired, revoked or without read:user" \
+                     "mint a new one on the forge (Settings → Applications → Generate New Token: write:package + write:repository + read:user); sudo pol jenkins secrets put forge/publish_token" ;;
+        *) row WARN "forge token" "the forge ($FORGE) did not answer (HTTP $CODE) — nothing proven" "run the doctor again when the device can reach the forge (FORGE_URL in device.env)" ;;
+    esac
 fi

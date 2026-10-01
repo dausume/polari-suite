@@ -334,11 +334,14 @@ has "  …and that the doctor PROVES it"               "pol jenkins doctor"     
 has "the REGISTRY token says CLASSIC + write:packages"       "write:packages"                  "$(sinfo github/registry_token 5)"
 has "cosign is generated, not fetched"               "cosign generate-key-pair"        "$(sinfo signing/cosign_key 5)"
 has "  …with a fallback for a host without cosign"   "ghcr.io/sigstore/cosign"         "$(sinfo signing/cosign_key 5)"
-has "the apt key uses an .invalid address"           "apt@polari.invalid"              "$(sinfo signing/apt_signing_gpg 5)"
-eq "  …and the apt route is marked BLOCKED"          "1"                               "$(sinfo signing/apt_signing_gpg 2)"
-eq "  …so is the distribution host key"              "1"                               "$(sinfo ssh/distribution_host_key 2)"
+# frg-3: the forge token replaced the old apt route's three secrets (signing key, key id, rsync key)
+has "the FORGE token names the forge's own Applications page" "forge.polari-systems.org/user/settings/applications" "$(sinfo forge/publish_token 4)"
+has "  …the click path"                                "Settings → Applications → Generate New Token" "$(sinfo forge/publish_token 5)"
+has "  …and the three scopes"                          "write:package (the registry, apt, generic), write:repository (the release and its assets) and read:user" "$(sinfo forge/publish_token 5)"
+eq "  …it is not BLOCKED (a paste, armed like the GitHub tokens)" "paste 0" "$(sinfo forge/publish_token 1-2 | tr '\t' ' ')"
+eq "the retired apt secrets have no entry any more"  "" "$(sinfo signing/apt_signing_gpg 1)$(sinfo signing/apt_signing_keyid 1)$(sinfo ssh/distribution_host_key 1)"
 has "the deploy key names the Deploy keys page"      "settings/keys"                   "$(sinfo github/github_ssh_key 4)"
-hasnt "no secret VALUE can appear in the table"      "-----BEGIN"                      "$(sinfo signing/cosign_key 5)$(sinfo signing/apt_signing_gpg 5)"
+hasnt "no secret VALUE can appear in the table"      "-----BEGIN"                      "$(sinfo signing/cosign_key 5)$(sinfo forge/publish_token 5)"
 
 # 5c. --report with no terminal: read-only, complete, and it writes the status file
 dev_env CI_ISLE_TARGET=local CI_ISLE_STAGES=core
@@ -2068,6 +2071,12 @@ while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; -w) w="$2"; shift 2
 echo "$url" >> "$FAKE_CURL_LOG"
 emit() { if [ -n "$out" ] && [ "$out" != /dev/null ]; then cat > "$out"; else cat; fi; }
 case "$url" in
+  # frg-3: the forge (asked FIRST by default). FAKE_FORGE=up answers; otherwise no answer at all (curl's 000 → exit 7)
+  "https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases?"*)
+      [ "${FAKE_FORGE:-down}" = up ] || exit 7; emit < "$FAKE_FIX/forge-releases.json" ;;
+  https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases/tags/*)
+      [ "${FAKE_FORGE:-down}" = up ] || exit 7
+      python3 -c 'import json,sys; r=[x for x in json.load(open(sys.argv[1])) if x["tag_name"]==sys.argv[2]]; print(json.dumps(r[0])) if r else sys.exit(22)' "$FAKE_FIX/forge-releases.json" "${url##*/}" > "$FAKE_FIX/.one" || exit 22; emit < "$FAKE_FIX/.one" ;;
   "https://api.github.com/repos/dausume/polari-suite/releases?"*) emit < "$FAKE_FIX/releases.json" ;;
   https://api.github.com/repos/dausume/polari-suite/releases/tags/*)
       python3 -c 'import json,sys; r=[x for x in json.load(open(sys.argv[1])) if x["tag_name"]==sys.argv[2]]; print(json.dumps(r[0])) if r else sys.exit(22)' "$FAKE_FIX/releases.json" "${url##*/}" > "$FAKE_FIX/.one" || exit 22; emit < "$FAKE_FIX/.one" ;;
@@ -2084,6 +2093,10 @@ cat > "$PUD/fix/releases.json" <<EOF
  {"tag_name": "polari-v2026.09.27", "draft": false, "assets": [{"name": "polari-core.deb", "browser_download_url": "$DL/polari-v2026.09.27/polari-core.deb"}, {"name": "release.json", "browser_download_url": "$DL/polari-v2026.09.27/release.json"}]},
  {"tag_name": "polari-v2026.09.12", "draft": false, "assets": [{"name": "polari-core.deb", "browser_download_url": "$DL/polari-v2026.09.12/polari-core.deb"}]}]
 EOF
+FDL=https://forge.polari-systems.org/dausume/polari-suite/releases/download
+cat > "$PUD/fix/forge-releases.json" <<EOF
+[{"tag_name": "polari-v2026.09.27", "draft": false, "assets": [{"name": "polari-core.deb", "browser_download_url": "$FDL/polari-v2026.09.27/polari-core.deb"}, {"name": "release.json", "browser_download_url": "$FDL/polari-v2026.09.27/release.json"}]}]
+EOF
 relj() { printf '{"polari": "2026.09.27", "tested_against": {"sha": "abc123", "verdict": "%s", "images": {"prf-backend:staging": "sha256:aaa", "prf-frontend:staging": "sha256:bbb"}, "report": "/var/polari-pool/test/abc123/TEST_REPORT.md"}, "publishedTo": {"github-release": {"url": "x", "dryRun": false}, "ghcr": {"url": "https://github.com/dausume?tab=packages", "dryRun": %s}}}\n' "$1" "$2" > "$PUD/fix/release.json"; }
 export FAKE_FIX="$PUD/fix" FAKE_CURL_LOG="$PUD/curl.log"
 pu()  { ( cd "$DP/agent" && env PATH="$DP/agent/bin:$NOSHIM" POLARI_DOCKER="$DP/agent/bin/docker" POLARI_STASH_DIR="$DP/agent/stash" HOME="$DP/agent" \
@@ -2098,9 +2111,26 @@ has "  …kept in .generated/prod-sources.env, in order" "SOURCE=github:dausume/
 has "  …an owner/repo is a GitHub location" "github:someone/fork" "$(pu sources add someone/fork; cat "$PUD/suite/.generated/prod-sources.env")"
 has "sources remove" "removed: github:someone/fork" "$(pu sources remove someone/fork)"
 pu sources remove https://forge.home.arpa/dausume/polari-suite >/dev/null
+pu sources remove https://forge.polari-systems.org/dausume/polari-suite >/dev/null   # frg-3: the default list is forge + GitHub
 has "  …the last location cannot be removed" "is the only registered location" "$(pu sources remove dausume/polari-suite)"
 eq "  …a bad location is a usage error (2)" "2" "$(purc sources add 'not a repo')"
 rm -f "$PUD/suite/.generated/prod-sources.env"
+# frg-3 (his ruling): devices read THE FORGE FIRST (production's default), GitHub second — the default list, no setup
+has "default locations: 1. the forge" "1. forge  dausume/polari-suite" "$(pu sources list)"
+has "  …2. GitHub" "2. github dausume/polari-suite" "$(pu sources list)"
+has "  …the forge's address is the public forge by default" "https://forge.polari-systems.org" "$(pu sources list)"
+has "  …POL_FORGE_URL is the knob" "https://forge.home.arpa" "$(POL_FORGE_URL=https://forge.home.arpa/ pu sources list)"
+relj passed false; : > "$FAKE_CURL_LOG"
+OUT="$(FAKE_FORGE=up pu update --dry-run)"
+has "forge answers → the release is resolved ON THE FORGE (Forgejo /api/v1 releases, assets by name)" "polari-v2026.09.27 from forge:dausume/polari-suite" "$OUT"
+has "  …asked through its releases API" "https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases?limit=15" "$(cat "$FAKE_CURL_LOG")"
+has "  …release.json fetched from the forge's asset" "$FDL/polari-v2026.09.27/release.json" "$(cat "$FAKE_CURL_LOG")"
+hasnt "  …GitHub never asked" "api.github.com" "$(cat "$FAKE_CURL_LOG")"
+has "  …a version on the forge too (releases/tags)" "polari-v2026.09.27 from forge:dausume/polari-suite" "$(FAKE_FORGE=up pu update 2026.09.27 --dry-run)"
+: > "$FAKE_CURL_LOG"; OUT="$(pu update --dry-run)"
+has "forge down (no answer) → the next location, said" "forge dausume/polari-suite — no answer, or no release carrying release.json (next location)" "$OUT"
+has "  …and GitHub is used" "polari-v2026.09.27 from github:dausume/polari-suite" "$OUT"
+has "  …the forge WAS asked first" "https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases?limit=15" "$(head -1 "$FAKE_CURL_LOG")"
 # resolve latest + dry run: the newest non-draft release carrying release.json; the verbs printed, nothing touched
 relj passed false; : > "$FAKE_DOCKER_LOG"; export FAKE_STATE="$PUD/state"; rm -f "$FAKE_STATE"
 OUT="$(pu update --dry-run)"
@@ -2751,6 +2781,184 @@ has "  …and its fix is the rebuild, not authorize" \
 
 eq "the allowlist carries isle-authorize, privileged, with an anchored alias regex" "ok" \
    "$(jq_ "$(cat "$J/shell-verbs.json")" 'v=d["verbs"].get("isle-authorize") or {}; p=(v.get("params") or {}).get("alias",""); print("ok" if v.get("privileged") and v.get("why_privileged") and p.startswith("^") and p.endswith("$") else v)')"
+
+# ---- frg-3 (his rulings 2026-09-27/30): THE PIPELINE PUBLISHES TO THE FORGE — DUAL ROUTE, the forge's Debian
+# registry REPLACES the old apt route. A fake curl plays the forge (Forgejo's /api/v1 + /api/packages) and logs
+# every call; a fake docker logs the registry push. No network, no real publish.
+echo "-- frg-3: the four forge routes (DRY renderings, the apt proof, the refusals), record.sh's two copies, the token probe"
+FJ="$T/frg3"; rm -rf "$FJ"; mkdir -p "$FJ/bin" "$FJ/pool/debs" "$FJ/pool/images" "$FJ/vp/test/f0r6e" "$FJ/state"
+FV=2026.09.30
+printf '{"polari": "%s", "components": {"superproject": {"sha": "f0r6e"}}, "publishedTo": {}}\n' "$FV" > "$FJ/pool/release.json"
+for d in polari-core_${FV}_amd64 polari-isle_${FV}_all; do printf 'not a real deb\n' > "$FJ/pool/debs/$d.deb"; done
+printf 'sums\n' > "$FJ/pool/SHA256SUMS"; printf 'tar\n' > "$FJ/pool/images/prf-backend_$FV.tar"
+printf '{"sha": "f0r6e", "verdict": "passed", "why": "", "isle": {"passed": [], "images": {}}}\n' > "$FJ/vp/test/f0r6e/verdict.json"
+printf 'Package: polari-core\nVersion: %s\nArchitecture: amd64\n\nPackage: polari-isle\nVersion: %s\nArchitecture: all\n' "$FV" "$FV" > "$FJ/packages.all"
+printf 'Package: polari-core\nVersion: %s\nArchitecture: amd64\n' "$FV" > "$FJ/packages.core-only"
+cat > "$FJ/bin/curl" <<'SH'
+#!/bin/bash
+# the fake FORGE: -X METHOD … URL; -o body file; -w format; logs "METHOD URL [upload]" to $FJ_LOG
+m=GET; out=""; w=""; url=""; up=""
+while [ $# -gt 0 ]; do case "$1" in
+    -X) m="$2"; shift 2 ;; -o) out="$2"; shift 2 ;; -w) w="$2"; shift 2 ;;
+    --upload-file|-T) up="$2"; shift 2 ;; -F) up="${2#attachment=@}"; shift 2 ;;
+    --data-binary) up="$2"; shift 2 ;; -H|-m|--max-time) shift 2 ;; -*) shift ;; *) url="$1"; shift ;;
+esac; done
+echo "$m $url${up:+ <$up>}" >> "$FJ_LOG"
+code=200; body='{}'
+R=https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite
+case "$m $url" in
+  "GET https://forge.polari-systems.org/api/v1/user") code="${FJ_USER:-200}"; body='{"login": "polari-publisher"}' ;;
+  "GET $R")                     code="${FJ_REPO:-200}"; body="{\"mirror\": true, \"permissions\": {\"push\": ${FJ_PUSH:-true}}}" ;;
+  "GET $R/git/commits/"*)       code="${FJ_SHA:-200}"; [ -f "$FJ_STATE/synced" ] && [ "${FJ_SHA_AFTER_SYNC:-404}" = 200 ] && code=200 ;;
+  "POST $R/mirror-sync")        touch "$FJ_STATE/synced" ;;
+  "GET $R/releases/tags/"*)     code="${FJ_REL:-404}"; body='{"id": 7}' ;;
+  "POST $R/releases")           code=201; body='{"id": 42}' ;;
+  "GET $R/releases/"*"/assets") body='[{"id": 9, "name": "release.json"}]' ;;
+  "DELETE $R/releases/"*)       code=204 ;;
+  "POST $R/releases/"*"/assets?name="*) code=201 ;;
+  "PUT https://forge.polari-systems.org/api/packages/dausume/debian/pool/stable/main/upload")
+                                code=201; case "$up" in *"${FJ_DUP:-nomatch}"*) code=409 ;; esac ;;
+  "GET https://forge.polari-systems.org/api/packages/dausume/debian/dists/stable/main/binary-"*"/Packages")
+                                body="$(cat "$FJ_PACKAGES")" ;;
+  "PUT https://forge.polari-systems.org/api/packages/dausume/generic/"*) code=201 ;;
+  *) code=404 ;;
+esac
+if [ -n "$out" ]; then printf '%s' "$body" > "$out"; else printf '%s' "$body"; fi
+[ -n "$w" ] && printf '%b' "${w//%\{http_code\}/$code}"
+exit 0
+SH
+printf '#!/bin/bash\necho "docker $*" >> "$FJ_DOCKER_LOG"; cat >/dev/null 2>&1 <&0 || true; exit 0\n' > "$FJ/bin/docker"
+printf '#!/bin/bash\necho "gh $*" >> "$FJ_GH_LOG"; exit 0\n' > "$FJ/bin/gh"
+chmod +x "$FJ/bin/"*
+export FJ_LOG="$FJ/curl.log" FJ_STATE="$FJ/state" FJ_DOCKER_LOG="$FJ/docker.log" FJ_GH_LOG="$FJ/gh.log" FJ_PACKAGES="$FJ/packages.all"
+froute() {  # froute <route> [ENV=…] — run a route against the fake forge, from the sandbox copy of routes/
+    local r="$1"; shift
+    ( cd "$DEV/routes" && env -u CI_ROUTES -u FORGE_URL -u FORGE_TOKEN PATH="$FJ/bin:$PATH" VERSION="$FV" POOL_DIR="$FJ/pool" POLARI_POOL="$FJ/vp" FORGE_SYNC_WAIT=0 FORGE_SYNC_STEP=1 \
+        "$@" bash "./$r.sh" 2>&1 ); echo "rc=$?"
+}
+fclean() { : > "$FJ_LOG"; : > "$FJ_DOCKER_LOG"; : > "$FJ_GH_LOG"; rm -f "$FJ_STATE/synced"; }
+
+# DRY renderings — the exact lines a real run prints, the token never among them
+fclean; OUT="$(froute forgejo-release DRY_RUN=true FORGE_TOKEN=sekrit-value)"
+has "forgejo-release DRY: the create call, token shown as a placeholder" \
+    "[dry-run:forgejo-release] curl -X POST -H 'Authorization: token <forge/publish_token>' -H Content-Type: application/json --data-binary @" "$OUT"
+has "  …to the forge's release API of <owner>/polari-suite" " https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases" "$OUT"
+has "  …every asset github-release uploads, by name" "-F attachment=@$FJ/pool/debs/polari-core_${FV}_amd64.deb https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases/<release id>/assets?name=polari-core_${FV}_amd64.deb" "$OUT"
+has "  …SHA256SUMS and release.json too" "assets?name=release.json" "$OUT"
+has "  …with clobber semantics said" "(clobber: an existing asset named SHA256SUMS is DELETEd first" "$OUT"
+hasnt "  …and the token value never printed" "sekrit-value" "$OUT"
+eq "  …a dry run talks to nobody" "" "$(cat "$FJ_LOG")"
+OUT="$(froute forgejo-registry DRY_RUN=true FORGE_TOKEN=sekrit-value)"
+has "forgejo-registry DRY: docker login to the forge host as the token's user" "docker login forge.polari-systems.org -u '<the token's user>' --password-stdin" "$OUT"
+has "  …the TESTED tarball loaded, never rebuilt" "[dry-run:forgejo-registry] docker load -i $FJ/pool/images/prf-backend_$FV.tar" "$OUT"
+has "  …tagged + pushed under <forge host>/<owner>" "docker push forge.polari-systems.org/dausume/prf-backend:$FV" "$OUT"
+has "  …and :latest" "docker push forge.polari-systems.org/dausume/prf-backend:latest" "$OUT"
+hasnt "  …no build anywhere" "docker build" "$OUT"
+OUT="$(froute forgejo-apt DRY_RUN=true)"
+has "forgejo-apt DRY: one PUT per deb to the Debian registry's upload door" \
+    "[dry-run:forgejo-apt] curl -X PUT -H 'Authorization: token <forge/publish_token>' --upload-file $FJ/pool/debs/polari-isle_${FV}_all.deb https://forge.polari-systems.org/api/packages/dausume/debian/pool/stable/main/upload" "$OUT"
+has "  …then the Packages index read (the apt proof)" "https://forge.polari-systems.org/api/packages/dausume/debian/dists/stable/main/binary-amd64/Packages" "$OUT"
+has "  …an 'all' deb looked for in binary-all too" "binary-all/Packages" "$OUT"
+has "  …and what will be asserted" "assert each of 2 package(s) is listed: polari-core=$FV polari-isle=$FV" "$OUT"
+OUT="$(froute forgejo-generic DRY_RUN=true)"
+has "forgejo-generic DRY with no offline medium: says nothing to upload" "[dry-run:forgejo-generic] nothing to upload" "$OUT"
+mkdir -p "$FJ/pool/offline/chunks"; printf 'c\n' > "$FJ/pool/offline/chunks/medium.part01"
+OUT="$(froute forgejo-generic DRY_RUN=true)"
+has "  …with a chunk: one PUT into the generic registry, package polari-offline/<version>" \
+    "[dry-run:forgejo-generic] curl -X PUT -H 'Authorization: token <forge/publish_token>' --upload-file $FJ/pool/offline/chunks/medium.part01 https://forge.polari-systems.org/api/packages/dausume/generic/polari-offline/$FV/medium.part01" "$OUT"
+rm -rf "$FJ/pool/offline"
+has "all four arm on ONE secret, forge/publish_token" "DRY (secret forge/publish_token absent)" "$(froute forgejo-apt)"
+has "FORGE_URL is the knob" "https://forge.home.arpa/api/packages/dausume/debian/pool/stable/main/upload" "$(froute forgejo-apt DRY_RUN=true FORGE_URL=https://forge.home.arpa/)"
+
+# ARMED against the fake forge
+fclean; OUT="$(froute forgejo-release FORGE_TOKEN=x FJ_REPO=404)"
+has "forgejo-release: the repo absent on the forge → REFUSED, naming the mirror step" "mirror the forest first (pol forge mirror --forest)" "$OUT"
+has "  …exit 3" "rc=3" "$OUT"
+hasnt "  …nothing created" "POST " "$(cat "$FJ_LOG")"
+fclean; OUT="$(froute forgejo-release FORGE_TOKEN=x FJ_SHA=404 FJ_SHA_AFTER_SYNC=200)"
+has "forgejo-release ARMED: a mirror lacking the sha gets ONE mirror-sync" "POST https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/mirror-sync" "$(cat "$FJ_LOG")"
+eq "  …exactly one" "1" "$(grep -c 'mirror-sync' "$FJ_LOG")"
+has "  …then the release is created at the sha" "POST https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases <" "$(cat "$FJ_LOG")"
+has "  …an existing asset of the same name is deleted first (clobber)" "DELETE https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases/42/assets/9" "$(cat "$FJ_LOG")"
+has "  …and every asset uploaded to release 42" "POST https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases/42/assets?name=polari-isle_${FV}_all.deb <$FJ/pool/debs/polari-isle_${FV}_all.deb>" "$(cat "$FJ_LOG")"
+has "  …exit 0" "rc=0" "$OUT"
+eq "  …recorded REAL in release.json → publishedTo" "https://forge.polari-systems.org/dausume/polari-suite/releases/tag/polari-v$FV False" \
+   "$(python3 -c 'import json,sys; e=json.load(open(sys.argv[1]))["publishedTo"]["forgejo-release"]; print(e["url"], e["dryRun"])' "$FJ/pool/release.json")"
+fclean; OUT="$(froute forgejo-release FORGE_TOKEN=x FJ_SHA=404 FJ_SHA_AFTER_SYNC=404)"
+has "forgejo-release: the sha still absent after the sync → REFUSED honestly" "is not on https://forge.polari-systems.org/dausume/polari-suite (asked for a mirror-sync; still absent" "$OUT"
+has "  …exit 3" "rc=3" "$OUT"
+fclean; OUT="$(froute forgejo-release FORGE_TOKEN=x FJ_REL=200)"
+has "forgejo-release: an existing release → idempotent skip of the create" "already exists on the forge (id 7) — idempotent skip of the create" "$OUT"
+hasnt "  …no second create" "POST https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases <" "$(cat "$FJ_LOG")"
+has "  …the assets re-checked on release 7" "releases/7/assets?name=release.json" "$(cat "$FJ_LOG")"
+fclean; OUT="$(froute forgejo-apt FORGE_TOKEN=x FJ_DUP=polari-core)"
+has "forgejo-apt ARMED: a 409 is 'already there' and counts as done" "polari-core_${FV}_amd64.deb is already in the registry (same name + version) — counts as done" "$OUT"
+has "  …the apt proof passes when every package+version is listed" "apt proof: all 2 package(s) are listed in the forge's Packages index" "$OUT"
+has "  …exit 0" "rc=0" "$OUT"
+fclean; OUT="$(froute forgejo-apt FORGE_TOKEN=x FJ_PACKAGES="$FJ/packages.core-only")"
+has "forgejo-apt: a package missing from the index FAILS the route" "FAILED: the apt index does not list:" "$OUT"
+has "  …naming it" "polari-isle=$FV (all)" "$OUT"
+has "  …exit 1" "rc=1" "$OUT"
+fclean; OUT="$(froute forgejo-registry FORGE_TOKEN=x)"
+has "forgejo-registry ARMED: login as the token's user (read from /api/v1/user)" "docker login forge.polari-systems.org -u polari-publisher --password-stdin" "$(cat "$FJ_DOCKER_LOG")"
+has "  …pushes the tested image" "docker push forge.polari-systems.org/dausume/prf-backend:$FV" "$(cat "$FJ_DOCKER_LOG")"
+has "  …a token the forge refuses → REFUSED" "REFUSED: the forge did not accept forge/publish_token" "$(froute forgejo-registry FORGE_TOKEN=x FJ_USER=401)"
+
+# record.sh: BOTH copies of the corrected release.json
+fclean; OUT="$(froute record GITHUB_TOKEN=x FORGE_TOKEN=x FJ_REL=200)"
+has "record: the GitHub copy re-uploaded" "gh release upload polari-v$FV -R dausume/polari-suite $FJ/pool/release.json --clobber" "$(cat "$FJ_GH_LOG")"
+has "  …AND the forge copy (clobber: delete, then post)" "DELETE https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases/7/assets/9" "$(cat "$FJ_LOG")"
+has "  …" "POST https://forge.polari-systems.org/api/v1/repos/dausume/polari-suite/releases/7/assets?name=release.json <$FJ/pool/release.json>" "$(cat "$FJ_LOG")"
+has "  …the forge half arms with forgejo-release (ROUTE_GATE): out of CI_ROUTES it stays DRY" "DRY (not in CI_ROUTES)" "$(froute record GITHUB_TOKEN=x FORGE_TOKEN=x CI_ROUTES=github-release)"
+fclean; OUT="$(froute record GITHUB_TOKEN=x FORGE_TOKEN=x FJ_REL=404)"
+has "  …no forge release → nothing to correct there, not a failure" "no forge release polari-v$FV" "$OUT"
+has "  …exit 0" "rc=0" "$OUT"
+has "Jenkinsfile.publish hands record.sh the forge token too" "string(credentialsId: 'forge_publish_token', variable: 'FORGE_TOKEN')]) {" "$(cat "$J/pipelines/Jenkinsfile.publish")"
+
+# the token probe: GET /api/v1/user + permissions.push on <owner>/polari-suite, never the token
+FTK="$FJ/tok"; mkdir -p "$FTK/forge"; printf 'forge-sekrit' > "$FTK/forge/publish_token"
+ftc() { ( cd "$DEV" && env -u FORGE_URL PATH="$FJ/bin:$PATH" TOKEN_CHECK_SECRETS_DIR="$FTK" GITHUB_API="http://127.0.0.1:9/unreachable" "$@" bash routes/token-check.sh 2>&1 ) || true; }
+OUT="$(ftc)"
+has "token probe: the forge accepts the token, and says whose it is" "accepted by https://forge.polari-systems.org as user polari-publisher" "$OUT"
+has "  …and that it may write <owner>/polari-suite (permissions.push)" "forge token → dausume/polari-suite	may write (mirror, permissions.push)" "$OUT"
+hasnt "  …the token never printed" "forge-sekrit" "$OUT"
+has "token probe: push false → WARN" "may NOT write dausume/polari-suite on the forge" "$(ftc FJ_PUSH=false)"
+has "token probe: the repo absent → WARN naming the mirror step" "mirror the forest first: pol forge mirror --forest" "$(ftc FJ_REPO=404)"
+has "token probe: a refused token → WARN" "REFUSED forge/publish_token (HTTP 401)" "$(ftc FJ_USER=401)"
+rm -f "$FTK/forge/publish_token"
+has "token probe: absent → WARN naming the four routes + where to mint it" "the forgejo-release, forgejo-registry, forgejo-apt and forgejo-generic routes stay DRY" "$(ftc)"
+
+# the catalogue, the doctor rows, the defaults — and the old apt route gone everywhere
+has "catalogue: forge/publish_token names its four destinations" "forge release pool: https://forge.polari-systems.org/dausume/polari-suite/releases" "$(cat_ 'secrets_catalog_line forge/publish_token')"
+has "  …and its routes" "routes: forgejo-release, forgejo-registry, forgejo-apt, forgejo-generic" "$(cat_ 'secrets_catalog_line forge/publish_token')"
+has "  …the apt line people add is the forge's" "forge apt repository: https://forge.polari-systems.org/api/packages/dausume/debian (stable main" "$(cat_ 'secrets_destination forge/publish_token')"
+has "  …app mode: the developer's forge namespace" "forge.polari-systems.org/some-developer" "$(CI_MODE=app CI_ROUTE_TARGET=some-developer cat_ 'secrets_destination forge/publish_token')"
+DOC="$(doc)"
+for r in forgejo-release forgejo-registry forgejo-apt forgejo-generic; do
+    has "doctor: a route row for $r" "route $r" "$DOC"
+done
+has "  …naming the forge apt destination" "would go to: forge apt repository" "$DOC"
+has "  …and the token row" "forge/publish_token is absent" "$DOC"
+NEWR="github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic"
+for F in routes/_lib.sh docker-compose.yml device.env.example device.sh pipelines/Jenkinsfile.publish pipelines/Jenkinsfile.release jobs/seed.groovy; do
+    has "CI_ROUTES default is the dual route in $F" "$NEWR" "$(cat "$J/$F")"
+done
+OLDR="apt""-repo"
+# the device's own device.env is the operator's (gitignored) — the doctor's CI_ROUTES row flags a stale name there
+eq "the old apt route is gone from polari-jenkins (no file mentions it)" "" "$(grep -rl --exclude=device.env --exclude-dir=pool --exclude-dir=jenkins_home "$OLDR" "$J" 2>/dev/null || true)"
+eq "  …and from the pipeline guide" "" "$(grep -l "$OLDR\|repre""pro\|apt_sign""ing" "$J/../AI-Notes/guides/PIPELINE_GUIDE.md" 2>/dev/null || true)"
+eq "  …its script is deleted" "absent" "$([ -e "$J/routes/$OLDR.sh" ] && echo present || echo absent)"
+hasnt "  …casc declares no apt signing / distribution credential" "apt_sign""ing" "$(cat "$J/casc/jenkins.yaml")"
+has "casc declares the forge token as forge_publish_token from \${publish_token}" 'id: forge_publish_token' "$(cat "$J/casc/jenkins.yaml")"
+has "  …" 'secret: "${publish_token:-}"' "$(cat "$J/casc/jenkins.yaml")"
+for r in forgejo-release forgejo-registry forgejo-apt forgejo-generic; do
+    has "Jenkinsfile.publish: $r on forge_publish_token" "'$r':" "$(grep "forge_publish_token" "$J/pipelines/Jenkinsfile.publish")"
+done
+dev_env CI_ISLE_TARGET=local CI_ROUTES="$NEWR"
+hasnt "device validation: the dual-route default is publishable" "not publishable" "$(doc)"
+dev_env CI_ISLE_TARGET=local CI_ROUTES="github-release,$OLDR"
+has "  …the retired route name is unknown now" "$OLDR(unknown)" "$(doc)"
+dev_env CI_ISLE_TARGET=local
 
 echo
 TOTAL=$((PASS+FAIL))

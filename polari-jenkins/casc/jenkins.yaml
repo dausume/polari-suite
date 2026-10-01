@@ -55,10 +55,10 @@ credentials:
           - string: { scope: GLOBAL, id: release_token,       description: "GitHub RELEASE token — release pool: github.com/<owner>/polari-suite/releases + the pol formula in <owner>/homebrew-polari", secret: "${release_token:-${github_token:-}}" }
           - string: { scope: GLOBAL, id: github_ssh_key,      description: "GitHub deploy key — the version tag only (an alternative to the release token)", secret: "${github_ssh_key:-}" }
           - string: { scope: GLOBAL, id: registry_token,      description: "GitHub REGISTRY token — registry: ghcr.io/<owner> (prf-backend, prf-frontend, pol-reticulum)", secret: "${registry_token:-${ghcr_token:-}}" }
-          - string: { scope: GLOBAL, id: apt_signing_gpg,     description: "apt repo signing key (armored)",  secret: "${apt_signing_gpg:-}" }
-          - string: { scope: GLOBAL, id: apt_signing_keyid,   description: "apt repo signing key id",         secret: "${apt_signing_keyid:-}" }
+          # frg-3: ONE forge token for the four forgejo-* routes. The file is forge/publish_token, flattened to
+          # ${publish_token}; the id carries the area so a listing says which publish token it is.
+          - string: { scope: GLOBAL, id: forge_publish_token, description: "FORGE publish token — the forge's release pool <owner>/polari-suite, its container registry, its Debian registry (apt) and generic registry (offline medium)", secret: "${publish_token:-}" }
           - string: { scope: GLOBAL, id: cosign_key,          description: "cosign private key",              secret: "${cosign_key:-}" }
           - string: { scope: GLOBAL, id: cosign_password,     description: "cosign key password",             secret: "${cosign_password:-}" }
-          - string: { scope: GLOBAL, id: distribution_host_key, description: "deploy key: distribution VM",  secret: "${distribution_host_key:-}" }
 jobs:
   - file: /var/polari-jenkins/jobs/seed.groovy

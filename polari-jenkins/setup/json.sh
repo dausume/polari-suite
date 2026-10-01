@@ -185,7 +185,7 @@ json_action_step() {
     case "$1" in
         clone-app)                         printf role ;;
         install-cli|submodules)            printf checkout ;;
-        generate-cosign|generate-gpg|generate-ssh-github|generate-ssh-apt) printf secrets ;;
+        generate-cosign|generate-ssh-github) printf secrets ;;
         preflight)                         printf isle ;;
         write-env)                         printf stages ;;
         doctor|sync-push|cache-status)     printf summary ;;
@@ -219,10 +219,10 @@ json_run_action() {   # json_run_action <id> → 0 ok / non-zero exit code
             bash "$J/cache.sh" status >>"$JSON_RUNLOG" 2>&1 || rc=$? ;;
         write-env)
             echo "device.env written from the answers given with this call" >>"$JSON_RUNLOG" ;;
-        generate-cosign|generate-gpg|generate-ssh-github|generate-ssh-apt)
+        generate-cosign|generate-ssh-github)
             json_run_keygen "$id" >>"$JSON_RUNLOG" 2>&1 || rc=$? ;;
         *)
-            echo "no such action '$id' — ids: clone-app install-cli submodules generate-cosign generate-gpg generate-ssh-github generate-ssh-apt preflight write-env doctor sync-push cache-status" >>"$JSON_RUNLOG"
+            echo "no such action '$id' — ids: clone-app install-cli submodules generate-cosign generate-ssh-github preflight write-env doctor sync-push cache-status" >>"$JSON_RUNLOG"
             rc=2 ;;
     esac
     JSON_CONSENT=0
@@ -248,9 +248,7 @@ json_run_keygen() {
     echo "posture: REPO ($(secrets_dir)) — generated material is written there, readable by every process of $(id -un). init-device moves it to the system posture."
     case "$id" in
         generate-cosign)     _secret_generate_cosign ;;
-        generate-gpg)        _secret_generate_gpg ;;
         generate-ssh-github) _secret_generate_ssh github/github_ssh_key polari-ci ;;
-        generate-ssh-apt)    _secret_generate_ssh ssh/distribution_host_key polari-ci-apt ;;
     esac
 }
 

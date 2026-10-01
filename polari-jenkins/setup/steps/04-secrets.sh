@@ -4,7 +4,7 @@
 #   · outside authority (a GitHub token) — no script can fetch it. The
 #     step prints the URL and the exact scopes, then takes the value
 #     pasted in (hidden) and stores it through `pol jenkins secrets put`.
-#   · generated here (cosign, gpg, ssh) — the step offers to generate it
+#   · generated here (cosign, ssh) — the step offers to generate it
 #     and store both halves itself.
 # No value is ever printed, echoed or logged. Which routes are ARMED is
 # the doctor's reading (secrets.sh's route table), not a second copy.
@@ -24,17 +24,17 @@ fi
 
 # ------------------------------------------------------- where to get it
 # kind | blocked | what it is for | where | how
-# kind: paste (outside authority) · cosign · gpg · ssh · auto
+# kind: paste (outside authority) · cosign · ssh · auto
 setup_secret_info() {
     case "$1" in
     github/release_token) printf '%s\t%s\t%s\t%s\t%s\n' paste 0 \
         "the RELEASE token — $(secrets_destination github/release_token). It creates the release, uploads its assets and pushes the version tag." \
         "https://github.com/settings/tokens/new" \
-        "RECOMMENDED — a CLASSIC token: GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token. Scopes: 'repo' and NOTHING else (it is a SECOND token — keep it apart from the registry one). Set an expiry and note it. THE TIGHTER OPTION — a fine-grained token (Fine-grained tokens → Generate new token): Repository access = ONLY $(dest_release_repo) and $(dest_homebrew_tap); Permissions → Repository → Contents = Read and write (Metadata: Read is added by itself); NO account permissions. ⚠ GitHub's fine-grained UI shows a token's grants NOWHERE afterwards and there is no API to ask — the first real release (2026-09-22) died on one that could read the repo and not push. Whichever kind: after 'secrets put', run pol jenkins doctor — it PROVES the token can push with a write-free 'git push --dry-run' and says exactly what is missing. EXAMPLES, documentation only — the routes are GitHub today: GitLab → User Settings → Access Tokens, scopes api + write_registry; Gitea → Settings → Applications → Generate token, scopes write:repository + write:package." ;;
+        "RECOMMENDED — a CLASSIC token: GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token. Scopes: 'repo' and NOTHING else (it is a SECOND token — keep it apart from the registry one). Set an expiry and note it. THE TIGHTER OPTION — a fine-grained token (Fine-grained tokens → Generate new token): Repository access = ONLY $(dest_release_repo) and $(dest_homebrew_tap); Permissions → Repository → Contents = Read and write (Metadata: Read is added by itself); NO account permissions. ⚠ GitHub's fine-grained UI shows a token's grants NOWHERE afterwards and there is no API to ask — the first real release (2026-09-22) died on one that could read the repo and not push. Whichever kind: after 'secrets put', run pol jenkins doctor — it PROVES the token can push with a write-free 'git push --dry-run' and says exactly what is missing. EXAMPLE, documentation only: GitLab → User Settings → Access Tokens, scopes api + write_registry. (The self-hosted forge has its OWN token: forge/publish_token.)" ;;
     github/registry_token) printf '%s\t%s\t%s\t%s\t%s\n' paste 0 \
         "the REGISTRY token — $(secrets_destination github/registry_token)." \
         "https://github.com/settings/tokens/new" \
-        "GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token. It MUST be classic: a fine-grained token cannot write packages. Scopes: write:packages and read:packages. Add delete:packages only if you ever need to remove a bad tag. EXAMPLES, documentation only — the routes are GitHub today: GitLab → User Settings → Access Tokens, scope write_registry; Gitea → Settings → Applications → Generate token, scope write:package." ;;
+        "GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token. It MUST be classic: a fine-grained token cannot write packages. Scopes: write:packages and read:packages. Add delete:packages only if you ever need to remove a bad tag. EXAMPLE, documentation only: GitLab → User Settings → Access Tokens, scope write_registry. (The forge's registry uses forge/publish_token.)" ;;
     signing/cosign_key) printf '%s\t%s\t%s\t%s\t%s\n' cosign 0 \
         "signs the release images and the checksums so a downloader can verify them" \
         "nothing to fetch — generated here; cosign is in the controller image, standalone binaries at https://github.com/sigstore/cosign/releases" \
@@ -43,18 +43,10 @@ setup_secret_info() {
         "the passphrase of the cosign private key (generated with it)" \
         "nothing to fetch — generated here alongside cosign_key" \
         "generated as a random 24-character string when the key pair is made; cosign generate-key-pair reads it from COSIGN_PASSWORD" ;;
-    signing/apt_signing_gpg) printf '%s\t%s\t%s\t%s\t%s\n' gpg 1 \
-        "signs the apt repository's Release file so apt will trust the downloads host" \
-        "nothing to fetch — generated here" \
-        "gpg --quick-generate-key \"Polari apt signing <apt@polari.invalid>\" ed25519 sign 2y   then   gpg --armor --export-secret-keys <keyid>   (an .invalid address on purpose — never a real one)" ;;
-    signing/apt_signing_keyid) printf '%s\t%s\t%s\t%s\t%s\n' gpg 1 \
-        "the fingerprint of that apt signing key (what apt pins)" \
-        "nothing to fetch — printed by gpg when the key is made" \
-        "gpg --list-secret-keys --with-colons apt@polari.invalid | awk -F: '/^fpr/{print \$10; exit}'" ;;
-    ssh/distribution_host_key) printf '%s\t%s\t%s\t%s\t%s\n' ssh 1 \
-        "the rsync key the apt route uses to push the repository to the downloads host" \
-        "generated here; its PUBLIC half goes into that host's ~/.ssh/authorized_keys" \
-        "ssh-keygen -t ed25519 -C polari-ci-apt -f ./polari-apt -N \"\"  — the private half is the secret, the .pub goes on the distribution host" ;;
+    forge/publish_token) printf '%s\t%s\t%s\t%s\t%s\n' paste 0 \
+        "the FORGE publish token — $(secrets_destination forge/publish_token). ONE token for the four forge routes (frg-3: the forge is the self-sustaining copy and production's default; GitHub stays the online one)." \
+        "$(dest_forge_url)/user/settings/applications" \
+        "On the forge: Settings → Applications → Generate New Token. Scopes: write:package (the registry, apt, generic), write:repository (the release and its assets) and read:user (the doctor and the registry login read who the token is) — nothing else. The token's user must be able to WRITE $(dest_forge_release_repo) on the forge (an owner/admin of the $(dest_forge_owner) org, or a collaborator with write); the repository itself comes from pol forge mirror --forest. After 'secrets put', pol jenkins doctor PROVES it: GET /api/v1/user with the token, then permissions.push on $(dest_forge_release_repo)." ;;
     github/github_ssh_key) printf '%s\t%s\t%s\t%s\t%s\n' ssh 0 \
         "OPTIONAL alternative to the RELEASE token, for the tag push only (a deploy key)" \
         "https://github.com/$(dest_release_repo)/settings/keys → Add deploy key → Allow write access" \
@@ -68,7 +60,9 @@ setup_secret_info() {
 }
 _si() { setup_secret_info "$1" | cut -f"$2"; }
 
-SETUP_BLOCKED_NOTE="BLOCKED until the Keycloak rotation (CICD_PIPELINE_PLAN §5.4): the apt/downloads route may not be armed before it. Generate the material if you like — the route stays DRY."
+# A secret whose info row says blocked=1 may not be armed yet; none is today (frg-3 retired the apt route's
+# signing key + rsync key — the forge signs its own apt indexes). The mechanism stays for the next one.
+SETUP_BLOCKED_NOTE="BLOCKED: its route may not be armed yet. Generate the material if you like — the route stays DRY."
 
 # Not required by any ACTIVE route today: signing is strongly recommended
 # but nothing refuses without it, and the deploy key is an alternative to
@@ -174,31 +168,6 @@ Method: $([ "$how" = host ] && echo 'the cosign on this host' || echo 'docker ru
     doctor_refresh; return "$rc"
 }
 
-_secret_generate_gpg() {
-    local keyid rc=0
-    where "$(_si signing/apt_signing_gpg 4)"
-    howto "$(_si signing/apt_signing_gpg 5)"
-    check MISS "$SETUP_BLOCKED_NOTE"
-    command -v gpg >/dev/null 2>&1 || { check MISS "gpg is not installed — sudo apt-get install -y gnupg"; return 1; }
-    ask "apt signing key" "Generate the apt repository signing key now?
-
-  gpg --quick-generate-key \"Polari apt signing <apt@polari.invalid>\" ed25519 sign 2y
-
-The address is deliberately .invalid — no real e-mail ever goes into this material. The armored private key goes to signing/apt_signing_gpg and its fingerprint to signing/apt_signing_keyid.
-
-⚠ $SETUP_BLOCKED_NOTE" no || { check MISS "apt signing key skipped (the route is blocked anyway)"; return 1; }
-    gpg --batch --passphrase '' --quick-generate-key "Polari apt signing <apt@polari.invalid>" ed25519 sign 2y >/dev/null 2>&1 || rc=1
-    keyid="$(gpg --list-secret-keys --with-colons apt@polari.invalid 2>/dev/null | awk -F: '/^fpr/{print $10; exit}')"
-    if [ "$rc" = 0 ] && [ -n "$keyid" ]; then
-        gpg --armor --export-secret-keys "$keyid" | setup_put_secret signing/apt_signing_gpg || rc=1
-        printf '%s' "$keyid" | setup_put_secret signing/apt_signing_keyid || rc=1
-        check OK "apt signing key $keyid stored (the apt route stays DRY until the rotation)"
-    else
-        check BAD "gpg key generation failed"; rc=1
-    fi
-    doctor_refresh; return "$rc"
-}
-
 _secret_generate_ssh() {   # <area/name> <comment>
     local rel="$1" cmt="$2" tmp rc=0 blocked
     blocked="$(_si "$rel" 2)"
@@ -259,12 +228,6 @@ A route publishes for real only when BOTH its secret is present AND it is named 
                     "$(secrets_have "$s" && echo 1 || echo 0)" \
                     'made locally; the PUBLIC half is written to polari-jenkins/cosign.pub. Refused while the SYSTEM posture is in force — writing there needs an elevation an unattended call cannot answer.' \
                     'action=generate-cosign' ;;
-            gpg)
-                [ "$s" = signing/apt_signing_gpg ] || continue
-                json_action generate-gpg 'Generate the apt signing key' 0 setup-run \
-                    "$(secrets_have "$s" && echo 1 || echo 0)" \
-                    "$SETUP_BLOCKED_NOTE Refused while the SYSTEM posture is in force." \
-                    'action=generate-gpg' ;;
             ssh)
                 case "$s" in
                     github/github_ssh_key)
@@ -272,11 +235,6 @@ A route publishes for real only when BOTH its secret is present AND it is named 
                             "$(secrets_have "$s" && echo 1 || echo 0)" \
                             'the PRIVATE half is stored; the public half is printed for you to paste. Refused while the SYSTEM posture is in force.' \
                             'action=generate-ssh-github' ;;
-                    ssh/distribution_host_key)
-                        json_action generate-ssh-apt 'Generate the apt distribution key' 0 setup-run \
-                            "$(secrets_have "$s" && echo 1 || echo 0)" \
-                            "$SETUP_BLOCKED_NOTE Refused while the SYSTEM posture is in force." \
-                            'action=generate-ssh-apt' ;;
                 esac ;;
         esac
     done
@@ -316,10 +274,8 @@ It installs nothing, opens no port, and touches no deployment. Re-running it is 
         case "$kind" in
             paste)  _secret_offer_paste "$s" || true ;;
             cosign) [ "$s" = signing/cosign_key ] && { _secret_generate_cosign || true; } || check OK "(made with the key pair above)" ;;
-            gpg)    [ "$s" = signing/apt_signing_gpg ] && { _secret_generate_gpg || true; } || check OK "(made with the key above)" ;;
             ssh)    case "$s" in
                         github/github_ssh_key)      _secret_generate_ssh "$s" polari-ci || true ;;
-                        ssh/distribution_host_key)  _secret_generate_ssh "$s" polari-ci-apt || true ;;
                     esac ;;
             auto)   check OK "generated by pol jenkins up and printed once" ;;
         esac

@@ -176,7 +176,7 @@ WARN into a non-zero exit, for use as a gate.
 
 ## 4. Tokens
 
-Two secrets, named for what they unlock and documented by exactly where
+Three secrets, named for what they unlock and documented by exactly where
 they go (`polari-jenkins/secrets/README.md`, `routes/destinations.sh`):
 
 ### `github/release_token`
@@ -232,6 +232,26 @@ be made public and linked to its repository once, by hand, in the
 package's own settings — after that, every later push to the same package
 stays public.
 
+### `forge/publish_token`
+
+One token for the four forge routes (`forgejo-release`, `forgejo-registry`,
+`forgejo-apt`, `forgejo-generic`). It is minted **on the forge**, not on
+GitHub:
+
+- Forge → **Settings → Applications → Generate New Token**.
+- Scopes: **`write:package`** (container registry, Debian registry, generic
+  registry), **`write:repository`** (the release and its assets) and
+  **`read:user`** (who the token is — the registry login and the doctor read
+  it). Nothing else.
+- The token's user must be able to write `<owner>/polari-suite` on the forge
+  (an owner of the `<owner>` org there, or a collaborator with write). The
+  repository itself comes from `pol forge mirror --forest`; the release route
+  refuses until it exists.
+
+The doctor proves it write-free: `GET /api/v1/user` with the token, then
+`permissions.push` on `<owner>/polari-suite`. Where the forge is: `FORGE_URL`
+in `device.env` (default: the public forge).
+
 ### Storing a token
 
 The value never travels as a shell argument or lands in history:
@@ -250,18 +270,33 @@ A missing secret never breaks anything — the route it belongs to simply
 stays `DRY (secret <name> absent)`, and `pol jenkins doctor` shows the
 same line before anything runs.
 
+### The forge — the second home of every release
+
+Every release is published twice (his ruling: **dual route, always**).
+GitHub is the online copy; the self-hosted forge (Forgejo) is the
+self-sustaining one and, on production, **the default** people pull from.
+The forge carries the same release and assets, the same tested images in its
+container registry, the offline medium in its generic registry — and the
+same debs in its **Debian registry**, which replaced the old self-run apt
+repository (the forge signs its own apt indexes; there is no apt key of ours
+to hold). To install from it, a person adds the forge's key and one apt line
+(`pol forge apt-source <owner>` prints both with the forge's address):
+
+```
+sudo curl -fsSL https://<forge>/api/packages/<owner>/debian/repository.key -o /etc/apt/keyrings/polari-forge.asc
+echo "deb [signed-by=/etc/apt/keyrings/polari-forge.asc] https://<forge>/api/packages/<owner>/debian stable main" \
+  | sudo tee /etc/apt/sources.list.d/polari-forge.list
+sudo apt update
+```
+
+GitHub remains the alternative: the release page carries the same debs, and
+a device's `pol prod update` asks the forge first and falls through to GitHub
+when the forge does not answer (`pol prod sources` lists the order).
+
 ### Documentation only — other providers
 
-The publish routes built today are GitHub's; the two below are recorded
-here for reference only, in case a self-hosted forge becomes a route
-later. Gitea/Forgejo is the light, self-hostable choice; GitLab CE is the
-heavier one.
-
 **GitLab** — User Settings → Access Tokens. Scopes: `api` and
-`write_registry`.
-
-**Gitea / Forgejo** — Settings → Applications → Generate New Token.
-Scopes: `write:repository` and `write:package`.
+`write_registry`. Recorded for reference only; no route uses it.
 
 ## 5. Setup, the app route
 
@@ -311,7 +346,8 @@ pol jenkins promote main         # only works if that verdict says `passed`
 
 A `main` release mints a `polari-vYYYY.MM.DD[.N]` tag, builds the release
 artifacts, writes `release.json` and `SHA256SUMS`, and then walks the
-publish routes — each one reading the test verdict itself, so triggering
+publish routes (default `CI_ROUTES=github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic`
+— GitHub and the forge, side by side) — each one reading the test verdict itself, so triggering
 `polari-publish` by hand on an untested build is safe by construction. An
 app whose isle stage did not pass is simply left out of the release
 assets, named as "not released: untested/failed" in both the job log and

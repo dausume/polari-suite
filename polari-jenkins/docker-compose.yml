@@ -33,7 +33,8 @@ services:
       # ci-7: the pipeline device configuration reaches the jobs (and casc's
       # numExecutors) as environment; `pol jenkins up` exports it from device.env.
       - CI_EXECUTORS=${CI_EXECUTORS:-4}
-      - CI_ROUTES=${CI_ROUTES:-github-release,ghcr,homebrew,apt-repo}
+      - CI_ROUTES=${CI_ROUTES:-github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic}
+      - FORGE_URL=${FORGE_URL:-https://forge.polari-systems.org}   # frg-3: where the forgejo-* routes publish
       - CI_ISLE_TARGET=${CI_ISLE_TARGET:-local}
       - CI_ISLE_SSH_HOST=${CI_ISLE_SSH_HOST:-}
       - CI_ISLE_SSH_USER=${CI_ISLE_SSH_USER:-}

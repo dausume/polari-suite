@@ -20,19 +20,23 @@ pipeline {
           def routes = params.ROUTES.split(',').collect { it.trim() }.findAll { it }
           def creds = [
             'github-release': [string(credentialsId: 'release_token', variable: 'GITHUB_TOKEN')],
-            'apt-repo':       [string(credentialsId: 'apt_signing_gpg', variable: 'APT_SIGNING_GPG'), string(credentialsId: 'apt_signing_keyid', variable: 'APT_SIGNING_KEYID'), string(credentialsId: 'distribution_host_key', variable: 'DISTRIBUTION_HOST_KEY')],
             'ghcr':           [string(credentialsId: 'registry_token', variable: 'GHCR_TOKEN'), string(credentialsId: 'cosign_key', variable: 'COSIGN_KEY'), string(credentialsId: 'cosign_password', variable: 'COSIGN_PASSWORD')],
             'homebrew':       [string(credentialsId: 'release_token', variable: 'GITHUB_TOKEN')],
+            // frg-3 — DUAL ROUTE: the forge twins, all on ONE token (forge/publish_token → forge_publish_token)
+            'forgejo-release':  [string(credentialsId: 'forge_publish_token', variable: 'FORGE_TOKEN')],
+            'forgejo-registry': [string(credentialsId: 'forge_publish_token', variable: 'FORGE_TOKEN'), string(credentialsId: 'cosign_key', variable: 'COSIGN_KEY'), string(credentialsId: 'cosign_password', variable: 'COSIGN_PASSWORD')],
+            'forgejo-apt':      [string(credentialsId: 'forge_publish_token', variable: 'FORGE_TOKEN')],
+            'forgejo-generic':  [string(credentialsId: 'forge_publish_token', variable: 'FORGE_TOKEN')],
           ]
           for (r in routes) {
             stage(r) {
               if (['dockerhub','npm','pypi','launchpad','snap'].contains(r)) { error("route '${r}' is PARKED — it needs an outside account/review (routes/later/README.md)") }
               if (!creds.containsKey(r)) { error("unknown route '${r}' — see routes/") }
-              // One route's failure must not skip the routes after it (publish #1: homebrew died, apt-repo never
-              // rendered). Each route is idempotent and records its own result; the BUILD still ends FAILURE.
+              // One route's failure must not skip the routes after it (publish #1: homebrew died, the route after it
+              // never rendered). Each route is idempotent and records its own result; the BUILD still ends FAILURE.
               catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
                 withCredentials(creds[r]) {
-                  withEnv(["DRY_RUN=${params.DRY_RUN}", "CI_ROUTES=${env.CI_ROUTES ?: 'github-release,ghcr,homebrew,apt-repo'}",
+                  withEnv(["DRY_RUN=${params.DRY_RUN}", "CI_ROUTES=${env.CI_ROUTES ?: 'github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic'}",
                            "VERSION=${params.VERSION}", "POOL_DIR=${env.POOL}/${params.VERSION}"]) {
                     sh "bash '${env.ROUTES_DIR}/${r}.sh'"
                   }
@@ -50,8 +54,10 @@ pipeline {
       // a device's `pol prod update` reads the copy beside the assets. Runs whatever the routes did; never fatal.
       script {
         catchError(buildResult: currentBuild.currentResult, stageResult: 'FAILURE') {
-          withCredentials([string(credentialsId: 'release_token', variable: 'GITHUB_TOKEN')]) {
-            withEnv(["DRY_RUN=${params.DRY_RUN}", "VERSION=${params.VERSION}", "POOL_DIR=${env.POOL}/${params.VERSION}"]) {
+          // both copies: the GitHub release's (armed with github-release) and the forge release's (armed with forgejo-release)
+          withCredentials([string(credentialsId: 'release_token', variable: 'GITHUB_TOKEN'), string(credentialsId: 'forge_publish_token', variable: 'FORGE_TOKEN')]) {
+            withEnv(["DRY_RUN=${params.DRY_RUN}", "CI_ROUTES=${env.CI_ROUTES ?: 'github-release,ghcr,homebrew,forgejo-release,forgejo-registry,forgejo-apt,forgejo-generic'}",
+                     "VERSION=${params.VERSION}", "POOL_DIR=${env.POOL}/${params.VERSION}"]) {
               sh "bash '${env.ROUTES_DIR}/record.sh'"
             }
           }

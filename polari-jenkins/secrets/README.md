@@ -69,10 +69,11 @@ and `pol jenkins doctor` shows the same table before anything runs.
 | github/ | github_ssh_key | optional alternative for the tag push |
 | github/ | **registry_token** | routes/ghcr.sh. A CLASSIC PAT (a fine-grained one cannot write packages): scopes `write:packages` + `read:packages`. Destination: the container registry — `bash polari-jenkins/routes/destinations.sh`. The pre-ci-12 name `registries/ghcr_token` still works. |
 | registries/ | dockerhub_user, dockerhub_token | routes/later/dockerhub.sh (PARKED) |
-| signing/ | apt_signing_gpg, apt_signing_keyid | routes/apt-repo.sh (armored private key + its key id) |
+| forge/ | **publish_token** | the four forge routes — routes/forgejo-release.sh, forgejo-registry.sh, forgejo-apt.sh, forgejo-generic.sh — and record.sh's forge half. A Forgejo access token minted ON THE FORGE: Settings → Applications → Generate New Token, scopes `write:package` (registry, apt, generic), `write:repository` (the release + its assets) and `read:user` (who the token is: the doctor + the registry login). Its user must be able to write `<owner>/polari-suite` on the forge. The doctor proves it: `GET /api/v1/user`, then `permissions.push` on that repository. Destination: `bash polari-jenkins/routes/destinations.sh`. Jenkins credential id `forge_publish_token` (the file flattens to `${publish_token}`). |
 | signing/ | cosign_key, cosign_password | image signing in ghcr.sh / dockerhub.sh |
 | packaging/ | npm_token, pypi_token, snapcraft_login, launchpad_ssh_key | routes/later/* (PARKED — not declared to Jenkins) |
-| ssh/ | distribution_host_key | routes/apt-repo.sh rsync to the distribution VM |
 
-⛔ The apt route's secrets wait for the Keycloak rotation before that host
-faces the web (`routes/apt-repo.sh:2`).
+frg-3 retired the old apt route's secrets (its signing key, key id and rsync
+deploy key): the forge's Debian registry signs its own indexes, so there is
+no apt key of ours to hold. A device that still has those files can delete
+them — nothing reads them.
