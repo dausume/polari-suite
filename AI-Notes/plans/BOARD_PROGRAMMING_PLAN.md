@@ -5,6 +5,13 @@ sources, reviewed and shaped by Fable; the seam, the rule and the decisions are 
 (UNO R3 + its parts) and a BeagleV-Fire and wants both as ways to program boards FROM Polari. **THE RULE (his,
 2026-10-01): only boards programmable over USB or USB-C are admitted. JTAG-only and SD-card-only flows are out.** USB keeps
 a board reachable from Polari with nothing but a cable. The rule becomes a selftest (brd-0).
+**RULE 2 (his, 2026-10-01): microcontroller and hardware work is written in C or Verilog ONLY** — "to simplify what we
+need to support". No C++ (so no Arduino core/sketches), no MicroPython/Rust on the MCU side, no VHDL/SystemVerilog on
+the hardware side (testbenches in Verilog too; the existing self-checking bench in `hwfpga` is converted when touched).
+Host-side code (the Java bridge, the Python framework) is unaffected. What exists already complies: the Renode twin
+firmware is plain C, the generated headers are C, the register block is Verilog. Rule 2 is the second brd-0 selftest:
+a `BoardDefinition.toolchain_engines` may name only C compilers / Verilog tools, and a generated project contains only
+`.c/.h/.v` (+ Makefile/linker script).
 
 Companions: `HARDWARE_SIMULATION_PLAN.md` (hwsim-1/3/led: the Renode twin and the register block this arc puts on silicon),
 `GRPC_BRIDGE_PLAN.md` (grpc-j3: the C twin), memory `polari-hardware-architecture.md` (the layered stack and tiers).
@@ -102,22 +109,22 @@ Verified board facts:
 The flow:
 1. `pol board detect` finds the UNO (2341:0043 on an R3; the by-id name `usb-Arduino…_0043_<serial>-if00` is typical,
    **unverified on his board**).
-2. `pol board gen uno --class SimRigState` renders a sketch: `#include "simrigstate_packets.h"` (AVR mode), plus
-   `Serial.begin(115200)` and a 10 Hz loop that:
-   - sets `uptime_ms = millis()`;
+2. `pol board gen uno --class SimRigState` renders a plain-C avr-libc project (RULE 2: no Arduino core, no sketch):
+   `main.c` + `Makefile` + the generated `simrigstate_packets.h` (AVR mode); USART0 at 115200 8N1 (UBRR0 = 8 at 16 MHz),
+   ADC on channel 0 (AVcc reference), Timer0/Timer1 PWM, a 1 ms tick from Timer2 for `uptime_ms`; a 10 Hz loop that:
+   - sets `uptime_ms` from the tick;
    - reads the kit's TMP36 on A0, with `temp_c = (mV − 500)/10` (10 mV/°C, 500 mV offset per the TMP36 datasheet,
      **URL not fetched**; the kit's project 03 uses this sensor);
-   - writes `led_on` → a digital pin (LED + 220 Ω) and `pwm_duty` → `analogWrite` on a PWM pin (3/5/6/9/10/11; 6 PWM
-     pins per the Arduino docs above);
+   - writes `led_on` → PORTB5 (the on-board LED, D13) or any pin with the kit's LED + 220 Ω, and `pwm_duty` → OCR0A/OCR1A
+     on a PWM pin (D5/D6 Timer0, D9/D10 Timer1, D3/D11 Timer2);
    - echoes `status` ('boot' → 'ok' → 'commanded').
    These are the same fields and semantics as the Renode firmware, so the existing `renode-rig` bridge config works
    with `serialDevice` swapped.
-3. `pol board build` runs `arduino-cli compile --fqbn arduino:avr:uno`. arduino-cli is GPL-3.0
-   (https://github.com/arduino/arduino-cli) and wraps avr-gcc. It records size and sha in a `FirmwareBuild` row and
-   refuses past `maximum_size`/`maximum_data_size`.
+3. `pol board build` runs `avr-gcc -mmcu=atmega328p -DF_CPU=16000000UL -Os` + `avr-objcopy -O ihex` straight (GPL,
+   avr-libc; no arduino-cli — RULE 2 makes it unnecessary). `avr-size` fills `FirmwareBuild.size_text/data/bss`; the build
+   refuses past 32256 B flash / 2048 B RAM (the `boards.txt` limits still apply; Optiboot stays as the USB flash route).
 4. `pol board flash` runs avrdude (GPL-2.0, https://github.com/avrdudes/avrdude) as
-   `avrdude -p atmega328p -c arduino -P <by-id> -b 115200 -D -U flash:w:<hex>:i`. arduino-cli upload issues the
-   equivalent. DRY-RUN (the default) prints the exact argv. The real run needs the device present AND `--yes`, then
+   `avrdude -p atmega328p -c arduino -P <by-id> -b 115200 -D -U flash:w:<hex>:i`. DRY-RUN (the default) prints the exact argv. The real run needs the device present AND `--yes`, then
    verifies (avrdude's read-back) and stamps `BoardInstance.firmware_sha`.
 5. `pol board monitor` points a bridge at the port (POST `/api/grpc/bridges` `{source: serial, serialDevice: <by-id>}`).
    The DTR reset means the first ~1–2 s after open belong to Optiboot (the length is **unverified**; the bridge already
@@ -127,12 +134,12 @@ The flow:
 PUT `led_on=true` lights the LED and a PUT of `pwm_duty` dims it, and the next frame echoes `status='commanded'`.
 
 **Footprint estimate (to be MEASURED by `FirmwareBuild.size_*`, per the cost rule):**
-- Flash: the Arduino core plus HardwareSerial is about 1.5–2 KB. The header's encode/decode, which leans on 64-bit
+- Flash: no Arduino core (RULE 2) — the avr-libc startup + our USART/ADC/PWM code is well under 1 KB. The header's encode/decode, which leans on 64-bit
   integer shifts that avr-gcc expands into library calls, is about 1.5–3 KB. Bitwise CRC32 is about 0.1–0.2 KB. The
-  sketch is under 1 KB. Total ≈ 4–7 KB of 31.5 KB.
+  sketch is under 1 KB. Total ≈ 3–5 KB of 31.5 KB.
 - RAM: `SimRigState_t` is 64+8+64+4+8+1 = 149 B (double = 4 B on AVR). The RX frame buffer is 12+157+4 = 173 B
   (`POLARI_RX_PAYLOAD_MAX 157` in `simrigstate_packets.h`, not 64 B; two 64-B strings dominate), plus a TX frame of
-  about 173 B, Serial buffers of 2×64 B, and the core at about 100 B. Total ≈ 0.75 KB of 2 KB. **It fits.**
+  about 173 B and our own USART ring buffers (2×64 B). Total ≈ 0.6 KB of 2 KB. **It fits.**
 - If RAM tightens, a per-board knob `C_STR_MAX=32` halves the strings (a c_twin parameter, not a fork).
 
 ## 4. The BeagleV-Fire route (brd-2 / brd-2b)
@@ -245,8 +252,8 @@ uptime, motor PWM), 03 (temperature), 14 (the serial seam). New fields or classe
 
 ## 7. Decisions (his; recommendations in bold)
 
-- **D-brd-1 toolchain delivery.** Option one is a worker image `prf-board-engines` (arduino-cli + avr core pinned, avrdude,
-  simavr; later picotool/esptool/dfu-util) resolved by the ladder (knob `BOARD_ENGINES_URL`, provider module
+- **D-brd-1 toolchain delivery.** Option one is a worker image `prf-board-engines` (avr-gcc + avr-libc + avrdude + simavr
+  pinned; later picotool/esptool/dfu-util — C toolchains only, RULE 2) resolved by the ladder (knob `BOARD_ENGINES_URL`, provider module
   `board.engines`). Option two is host apt. **Recommend the worker**, so pol-core installs nothing. Flashing still
   resolves on `BoardInstance.host` with the device mapped (§2).
 - **D-brd-2 Libero.** The choices:
@@ -272,8 +279,7 @@ uptime, motor PWM), 03 (temperature), 14 (the serial seam). New fields or classe
 
 | Component | Licence | Role | Cost (estimate until measured) |
 |---|---|---|---|
-| arduino-cli | GPL-3.0 (https://github.com/arduino/arduino-cli) | build/upload engine | image with avr core ≈ 300–500 MB (**unverified**) |
-| avr-gcc / avr-libc (via arduino core) | GPL-3.0+ w/ runtime exception / BSD (**unverified for the arduino-packaged builds**) | compiler | in the above |
+| avr-gcc / avr-libc (Debian packages `gcc-avr`, `avr-libc`) | GPL-3.0+ with the runtime exception / modified BSD | C compiler + libc (the ONLY UNO toolchain under RULE 2; arduino-cli dropped) | image ≈ 150–250 MB (**unverified**) |
 | avrdude | GPL-2.0 (https://github.com/avrdudes/avrdude) | flasher | ~MBs |
 | simavr | GPL-3.0 (https://github.com/buserror/simavr) | AVR twin | ~10 MB (**unverified**) |
 | Renode | MIT (already in use, hwsim-1) | Fire twin | portable build ≈ hundreds of MB (**unverified**) |
@@ -289,7 +295,7 @@ Nothing NC appears anywhere. Libero is the one proprietary piece, and it is quar
 | Slice | What | Proof on real hardware | Gate |
 |---|---|---|---|
 | brd-0 | `board` module: Board/Instance/FirmwareBuild rows, UNO + Fire `BoardDefinition` seeds, `pol board detect` via `hwmap.scanner`, the USB rule as a selftest, the c_twin AVR mode (double conversion) | `pol board detect` on pol-core lists his UNO as a `BoardInstance` with by-id path | D-brd-7 |
-| brd-1 | UNO end to end: gen → build (worker) → flash (DRY-RUN then `--yes`) → monitor; sizes measured | TMP36 value in the `SimRigState` row; REST PUT lights/dims the LED; `status='commanded'` echoed | D-brd-1 |
+| brd-1 | UNO end to end in PLAIN C (avr-libc, no Arduino core): gen → build (worker, avr-gcc) → flash (DRY-RUN then `--yes`) → monitor; sizes measured | TMP36 value in the `SimRigState` row; REST PUT lights/dims the LED; `status='commanded'` echoed | D-brd-1 |
 | brd-2 | Fire: USB-C network detect, `pol board deploy fire` (bridge as systemd unit), recovery `flash --image` documented | the Fire's bridge pushes a row over 192.168.7.2; a PUT round-trips | D-brd-3, D-brd-6 |
 | brd-2b | Fire gateware: regblock into the cape design, Libero engine (or BB CI), `change-gateware.sh` from Linux, UIO access | hwsim-led pattern lit on real fabric from a `LedMatrix4x4State` row, read back | D-brd-2 |
 | brd-3 | twins in CI: simavr (same UNO artifact) + Renode `beaglev-fire` (+ Verilated regblock); worker images measured | n/a (twin parity: same rows as brd-1/brd-2 hardware runs) | cost rows |
