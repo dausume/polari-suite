@@ -51,13 +51,20 @@ conflict-free in all five repos. On the merged result every suite is green: fram
 157, tensormath 68, all drift guards, board live boot 43/43, firmwarefaults probe 55/55 with REAL simavr + CBMC (zero
 skips); cli prod-forge 112; suite jenkins 1105/1105, forge 218; angular dev build clean. ONE pre-existing failure,
 unrelated to the stack: `hwmap_selftest` needs `modules/hwmap/custom/fixture_pol_core.json`, never committed (blanket
-`*.json` ignore) — being fixed on `dev-hwmap-fixture` with a SANITISED fixture (no real identifiers) + a skip-with-reason.
+`*.json` ignore) — FIXED on framework branch `dev-hwmap-fixture` (fe5b87a, from dev): the file never existed anywhere — a synthetic fixture
+with placeholders only (no real identifiers; grepped against the denylist), a `.gitignore` exemption, and the selftest
+skips with a named reason when absent (15/15 with it, 7/7 without). Merge it with the stack.
 Harness note: several selftests resolve sibling paths relatively, so rehearsal worktrees must mirror the submodule nesting.
+
+## Frama-C evaluated (`AI-Notes/evaluations/FRAMA_C_EVALUATION.md`)
+Mthread is the only piece worth adopting (reports the exact race, recognises the protected build, UNBOUNDED); EVA and WP
+cannot settle these properties; Alt-Ergo's current build is non-commercial → excluded. A small bridge (cli/sei → Mthread
+mutex calls) is owed before scenario 1 can be restated as a race query. Not built.
 
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
    `/display/firmware-installer`; then `pol faults run torn-millis --both` on silicon.
-2. The merge word for the stack above.
+2. The merge word for the stack above (+ framework `dev-hwmap-fixture`). Rehearsed: conflict-free, all green.
 3. Confirm "STM32-C3" meant ESP32-C3 (the RTOS scenarios S6 target it).
 4. The register's open cells (adapter USB IDs get captured the first time each is plugged in).
 
