@@ -15,9 +15,17 @@ merged; nothing touched dev/main, the droplet, or the running stacks. His merge 
 | sc-1 five scenarios (S2–S6) + watchdog + statistics | `dev-sc-1` | 82f9e30 | a8980bc | 4333a48 | db76fe5 | — |
 | sc-4 the scenario pairs as an ADVISORY stage in polari-test (suite polari-jenkins only) | `dev-sc-4` | — | — | — | 78b4be7 | — |
 | sc-2 + 2b campaigns (rates → likelihood), CBMC/cppcheck engines, owed flags, the worker output fix, `tests/scenarios_stage.py` | `dev-sc-2` | 0d00445 | 0638ea7 | 84a68d7 | 03516e2 (carries sc-4) | — |
+| sc-2c Frama-C Mthread in the formal engines (unbounded race verdicts; image +185 MB) | `dev-sc-2c` (from sc-2) | fcc7fee | 82b2f20 | 1ac0681 | ce97238 | — |
+| cmod-0 C modularization: `cmod` module, pycparser atoms, `polari-firmware.json` conform over the UNO firmware (34 atoms; .hex byte-identical; make alone builds) | `dev-cmod-0` (from sc-2) | 3af175c | e0c0142 | 500c9a5 | dbdb3b9 | — |
+| sc-3 the RTOS scenarios on the ESP32-C3, twin-first | `dev-sc-3` (from sc-2) | building | | | | |
 
-Merge order when he says so: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 → sc-2 (each repo innermost-first; the
-suite's dev-sc-2 already carries sc-4's commits, so sc-4 needs no separate merge). The first real pipeline run of the
+Merge order when he says so: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 → sc-2 (carries sc-4) → then the three
+siblings off sc-2: sc-2c, cmod-0, sc-3 (independent files; expect clean merges — rehearse first as before) + framework
+`dev-hwmap-fixture`. Plans on dev: BOARD_PROGRAMMING, FIRMWARE_SCENARIO, C_MODULARIZATION.
+
+⚠ 2026-10-02 incident: an agent pushed suite `dev` from a stale worktree and dropped nine docs commits; recovered the
+same hour by rebuilding dev from the last good tip + its two commits (`--force-with-lease`), nothing lost. Rule now: agents
+never push `dev`; only Fable does, and from a worktree based on `origin/dev` fetched that minute. The first real pipeline run of the
 scenarios stage happens on econ-core after that merge; sc-4 found the engines worker truncating tool output (scenario 1
 red through the worker) — fixed on dev-sc-2.
 
