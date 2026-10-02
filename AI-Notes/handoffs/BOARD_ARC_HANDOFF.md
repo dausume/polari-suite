@@ -14,10 +14,10 @@ merged; nothing touched dev/main, the droplet, or the running stacks. His merge 
 | sc-0 firmwarefaults module + scenario 1 proven | `dev-sc-0` | b7f8ae5 | 9c6bd0a | a6beac0 | 3762123 | — |
 | sc-1 five scenarios (S2–S6) + watchdog + statistics | `dev-sc-1` | 82f9e30 | a8980bc | 4333a48 | db76fe5 | — |
 | sc-4 the scenario pairs as an ADVISORY stage in polari-test (suite polari-jenkins only) | `dev-sc-4` | — | — | — | 78b4be7 | — |
-| sc-2 + 2b campaigns (rates → likelihood), CBMC/cppcheck engines, owed flags, the worker output fix | `dev-sc-2` | building | | | | |
+| sc-2 + 2b campaigns (rates → likelihood), CBMC/cppcheck engines, owed flags, the worker output fix, `tests/scenarios_stage.py` | `dev-sc-2` | 0d00445 | 0638ea7 | 84a68d7 | 03516e2 (carries sc-4) | — |
 
-Merge order when he says so: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 → sc-2 → sc-4 (each repo innermost-first;
-sc-4 touches only polari-jenkins and merges cleanly over sc-2's suite pointers). The first real pipeline run of the
+Merge order when he says so: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 → sc-2 (each repo innermost-first; the
+suite's dev-sc-2 already carries sc-4's commits, so sc-4 needs no separate merge). The first real pipeline run of the
 scenarios stage happens on econ-core after that merge; sc-4 found the engines worker truncating tool output (scenario 1
 red through the worker) — fixed on dev-sc-2.
 
@@ -34,7 +34,11 @@ simulate few), `AI-Notes/plans/FIRMWARE_SCENARIO_PLAN.md` (fault objects, module
 - Two and three twins on one bridge routed by a 1- and 2-bit index; single instance = no index machinery at all;
   presence mask → a row returns to false/0.
 - Scenario 1 (torn millis read): forced IRQ at PC 0x01be → 511 for 255 → REFUTED; with ATOMIC_BLOCK → WITNESSED;
-  cost +6 B, +3 cycles, +14 cycles worst ISR latency; natural tear rate 3.12 % per carry over 60 seeds.
+  cost +6 B, +3 cycles, +14 cycles worst ISR latency; natural tear rate 3.12 % per carry over 60 seeds, 0 after.
+- sc-2: campaigns with intervals for all five (the debounce's limit measured at 20 ms; lost-ack hangs 47.5 % at p 0.5 →
+  0); CBMC as an engine (409 MB image): the atomic read decided-bounded, the non-atomic one REFUTED with a trace, the
+  64-slot ring bounded k=4; cppcheck finds style only — it does not catch the torn read, CBMC does. The engines
+  worker's output truncation is fixed (it had made scenario 1 red through the worker).
 - sc-1: lost ack → hang vs timeout state machine; INT0 bounce → double count vs debounce; UART bit errors → the
   parser's residual loss (0.23 % at BER 1e-3) vs the keep-tail parser (0); reset mid-EEPROM-write → half record vs
   write-then-commit; a hang vs the watchdog. Every technique's cost in bytes, RAM and cycles is on the rows. The RTOS
