@@ -411,3 +411,119 @@ identical.
   ModuleResourceProfile rows if the sidecar becomes a worker service.
 - Branch per phase; repos are PUBLIC — no secrets in protos or
   committed configs.
+
+---
+
+## grpc-j4 — the computer↔firmware mapping (his ruling 2026-10-02)
+
+His words (intent): *"define a mapping from the computer side to the firmware side. The gRPC should have identifiers
+tying it to the hardware interface it belongs to. It should be converted to not having that when being sent over as a
+struct … enum mappings that convert object states to enums … if we have multiples of structs we have indexes that
+indicate which is which in the shortest format we possibly can (boolean if we are using only two structs, etc). This
+way we can use objects at the polari level and still ensure they correspond to a very specific hardware interface when
+analyzing them."* Slice name `brd-wire` (board side); built on `dev-brd-fi`, branch `dev-brd-wire`.
+
+### The three layers (the bridge strips and re-attaches the identity)
+
+| layer | carries | where it lives |
+|---|---|---|
+| **Polari object** | the row (`SimRigState uno-twin-1`) with its full identity | object tree; tied to hardware by a `HardwareInterfaceBinding` row keyed (class, object name) |
+| **gRPC message** | the object's fields + `hardware_interface` (`HardwareInterface`: bridge, binding, board instance, port/adapter path, interface name, object class + name, contract hash v2, `instance_index`, `present_mask`, `wire_version`) | the generated proto (tag **2047** on every class message, a shared message); filled ONLY by the bridge (up) and the server (down) |
+| **wire struct** | fields only + the 12-byte header + a packed prelude (instance index + presence bits) | the firmware's `<class>_packets.h`, the Java codec, `packet_ref.py` |
+
+Up: a frame arrives on port P with index k → the bridge looks up its binding k for that class (refusing a frame whose
+index belongs to another port — a swapped cable is visible) → fills `hardware_interface` → Push. The server picks the
+row by `object_name` (the binding owns identity; a firmware need not even send `name`), applies exactly the present
+fields, and counts the frame on the binding. Down: a row change → the server finds the binding for (class, row name)
+and fills `hardware_interface` → the bridge whose name matches routes to binding k's port, strips the identity, and
+encodes the struct with index k. Unbound rows/bridges behave exactly as before (v1, no identity).
+
+### The 12-byte header has no spare bits → wire v2 = same header, version byte 2, a packed prelude
+
+Every header bit already means something (`device_id` is the firmware's DEVICE_ID knob, `msg_type` the class,
+`payload_len` is a real u16). So the index is NOT squeezed into a field another reader interprets. Decision: **version
+byte ≥ 2** says "the payload begins with a prelude": [v3: an index byte | v4: a u16 index] then `ceil((w + n) / 8)`
+bitfield bytes — bits 0..w-1 = the packed `instance_index` (v2, LSB first), then presence of field i in TAG order; then
+the PRESENT fields only, same encodings as v1
+(enum fields = 1 byte). Header layout, magic, CRC and framing are unchanged; a v1 frame (old firmware) still parses on
+the host and means "index 0, every field present". A v2 MCU parser accepts the v1 frame and refuses to DECODE it
+(returns -2: an old bridge's command is never misread). The prelude is counted in `payload_len` and covered by the CRC.
+
+**Index width = f(n), never a constant** (his clarification 2026-10-02: *"it is not always two instances and one bit
+… if we have 3 we should change, and if we have 20 we should change what our plan is too"*). n = the bindings of that
+class on that bridge, assigned densely 0..n-1 (`assign_indexes`); the SUGGESTED width is `ceil(log2 n)` (0 for 1, 1 for
+2, 2 for 3–4, 3 for 5–8 …). The REPRESENTATION changes with n, and the version byte says which:
+
+| n | representation | version | on the wire (SimRigState, 6 fields) |
+|---|---|---|---|
+| 1 | none | 2 | 6 presence bits — 1 B prelude |
+| 2 … 2^k | packed: `ceil(log2 n)` bits beside the presence bits | 2 | n ≤ 4: 1 B; 5–16: 2 B |
+| 2^k+1 … 256 | an explicit index BYTE, then the presence bits | 3 | 2 B |
+| 257 … 65536 | an explicit 16-bit LE index, then the presence bits | 4 | 3 B |
+
+k = the knob `packed_max_bits` (default **4** = up to 16 packed), stored on the `WireContract` row (contract data:
+hash v2 covers it), with the computed width shown beside it as a suggestion in the row's notes. Why switch at all, when
+packed bits are always shorter: past a handful of devices the link is likely ONE multiplexed stream (an RS-485 bus, SPI
+chip-selects behind a gateway MCU), and there the index is the routing key — byte-aligned at a fixed offset (payload
+byte 0) a gateway routes a frame without knowing the class; packed, it must know the class's field count first. The
+firmware's own index is a build knob (`instance_index`); a command with another index is ignored by the firmware.
+
+**At large counts (20+ on one bridge) what else changes** — designed, not built: (a) *per-port vs multiplexed*: today
+every binding is its own serial port (one reader thread + one fd per port in `BindingRouter`; 20 UNOs at 115200 Bd ≈ 2.3
+Mbit/s, well inside one USB 2.0 FS bus, and the index is a CHECK — a swapped cable is refused). One multiplexed stream
+makes the index the ROUTE, which is why v3/v4 exist; the router then keys a single port by index (the seam is
+`DevicePort.sendTo(class, index, …)`). (b) *who knows the index*: building one firmware per index (uno-pair) stops
+scaling at ~a dozen builds; the next step is ONE build with the index written at install (an EEPROM byte through the
+same avrdude plan, +1 `-U eeprom:w:` step) or announced at boot (a hello frame carrying the board's USB serial, which
+the bridge maps to its binding — +1 frame type, no per-board build). (c) *cost*: each extra board costs one binding row
++ its object row + ~11 MB per twin; the wire grows by at most 2 B per frame (v4).
+
+**Presence mask cost:** `ceil((w + n) / 8)` bitfield bytes per frame (+ the explicit index in v3/v4) — SimRigState on
+a 2-instance bridge: 7 bits = **1 byte**; UnoAnalogState alone: 6 bits = 1 byte. It pays for itself (measured frames:
+v1 54–61 B → v2 52 B with every field, **43 B** for the pair without `name`; blink 56 → 38 B): an absent field costs nothing (blink no longer
+sends temp_c / pwm_duty / name) and the status enum is 1 byte instead of 2 + up to 9. The proto `present_mask` is a
+uint64 (classes over 64 fields are refused for wire v2, with the reason).
+
+**Finding (1) fixed by presence, not by proto `optional`:** proto3 drops default values, so the server used to skip
+false/0/"" ("a row can never return to false"). Now the bridge sets `present_mask` from the frame (all ones for a v1
+frame) and the server applies every present field even when it equals its default. A message without
+`hardware_interface` keeps the old rule (no silent semantics change for other clients).
+
+### Enum mapping (`EnumMapping` rows)
+
+(class, field, ordered labels, unknown label). Wire value **0 = the unknown slot** (an unmapped string encodes as 0 and
+decodes to the unknown label — also proto3's required zero), labels i → i+1, 1 byte (≤ 255 labels). Generated into the C
+header (`enum` constants + a name table), into the bridge's proto (`enum <Class><Field>`), into Java (an enum with
+`toWire`/`fromWire`). The **proto field stays `string`**: the server's descriptor, the REST rows and every existing
+client are untouched; the conversion happens only at the struct boundary (bridge + firmware). Seed:
+`SimRigState.status` ∈ {boot, ok, commanded, echoed, fault}, `UnoAnalogState.status` ∈ {boot, ok, fault}.
+
+### Contract hash v2 (`WireContract` rows)
+
+v1 (`proto_gen.contract_hash`) hashes field → type only — brd-1 found two servers with different wire ORDER sharing a
+hash. v2 = sha256 over `[wire_version, presence, [index part], [[field, type, enum labels|null] in TAG order]]`, first 16
+hex (the index part = representation, packed bits, explicit bytes, `packed_max_bits`). Kept side by side: `contract_hash` (now documented as v1) still drives exposure staleness (it watches the
+SCHEMA); v2 is what a firmware build, the header comment and the installer's compat compare (it watches the WIRE). The
+`WireContract` row per (class, bridge) stores order, enum tables, width, instance count, prelude bytes and both hashes,
+so the hash is derived from rows, never from code constants.
+
+### Finding (3) — the parser resync (v2 headers only)
+
+The v1 C parser dropped a frame whose start fell inside a rejected candidate (garbage ending in 0x4C, then a real
+`4C 50 …`). The v2 parser keeps the candidate bytes and, on any rejection (magic, version, oversize, CRC), slides to the
+next 0x4C inside them and re-examines — no header change. Residual case (documented, not fixed): a valid frame found by
+that rescan which is FOLLOWED inside the same rejected span by part of another frame loses those trailing bytes. The
+Java parser gets the same pushback (a `PushbackInputStream` on the serial port). The v1 header text stays
+byte-identical (its sha is pinned), so v1 headers keep the old parser.
+
+### What is NOT changed
+
+Object field tags and types (append-only ledger; tag 2047 is now never allocated); the proto field types (enum fields
+stay `string`); v1 headers byte-identical; `contract_hash` v1 semantics; the server's REST rows; bridges with no
+bindings (legacy: v1 commands, `device_id`-only, the frame's `name` as identity).
+
+**Built 2026-10-02 on `dev-brd-wire`** (board plan §9 row brd-wire has the proof): rows + generators + the server's
+presence/identity rules + the Java router; selftests c_twin 42/42, contracts 34/34, serving 28/28, javabridge 25/25;
+`tests/board_pair_probe.py` 25/25 — n=2 (seeded uno-pair) and n=3 (uno-trio) on real simavr twins, index routing both
+ways, the row back to false; n = 4..257 at the unit level (fakes).
+
