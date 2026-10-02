@@ -456,7 +456,7 @@ class on that bridge, assigned densely 0..n-1 (`assign_indexes`); the SUGGESTED 
 
 | n | representation | version | on the wire (SimRigState, 6 fields) |
 |---|---|---|---|
-| 1 | none | 2 | 6 presence bits — 1 B prelude |
+| 1 | none — ELIDED (his ruling: *"if it is index 0 and only one instance, the struct in the firmware is not needed"*): no index type, macro, parameter, code path or knob; the host reads index 0 by construction | 2 | 6 presence bits — 1 B prelude |
 | 2 … 2^k | packed: `ceil(log2 n)` bits beside the presence bits | 2 | n ≤ 4: 1 B; 5–16: 2 B |
 | 2^k+1 … 256 | an explicit index BYTE, then the presence bits | 3 | 2 B |
 | 257 … 65536 | an explicit 16-bit LE index, then the presence bits | 4 | 3 B |
