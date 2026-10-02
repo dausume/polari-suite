@@ -44,6 +44,16 @@ simulate few), `AI-Notes/plans/FIRMWARE_SCENARIO_PLAN.md` (fault objects, module
   write-then-commit; a hang vs the watchdog. Every technique's cost in bytes, RAM and cycles is on the rows. The RTOS
   scenarios (priority inversion, two-lock deadlock) wait for the ESP32-C3 or SAMD21.
 
+## Merge rehearsal (2026-10-02, throwaway worktrees, nothing pushed)
+Every repo's `dev` is a strict ancestor of its branch tip → `git merge --no-ff origin/dev-sc-2` (angular: dev-brd-fi) is
+conflict-free in all five repos. On the merged result every suite is green: framework conventions 41/61/8, conform
+68/68, board 128, firmwarefaults 141, c_twin 44 + wire 21 + contracts 34 + javabridge 25, mathproofs 83, computelod
+157, tensormath 68, all drift guards, board live boot 43/43, firmwarefaults probe 55/55 with REAL simavr + CBMC (zero
+skips); cli prod-forge 112; suite jenkins 1105/1105, forge 218; angular dev build clean. ONE pre-existing failure,
+unrelated to the stack: `hwmap_selftest` needs `modules/hwmap/custom/fixture_pol_core.json`, never committed (blanket
+`*.json` ignore) — being fixed on `dev-hwmap-fixture` with a SANITISED fixture (no real identifiers) + a skip-with-reason.
+Harness note: several selftests resolve sibling paths relatively, so rehearsal worktrees must mirror the submodule nesting.
+
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
    `/display/firmware-installer`; then `pol faults run torn-millis --both` on silicon.
