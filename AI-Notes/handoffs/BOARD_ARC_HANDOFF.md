@@ -13,8 +13,13 @@ merged; nothing touched dev/main, the droplet, or the running stacks. His merge 
 | brd-wire computer↔firmware mapping (index, enums, presence) | `dev-brd-wire` | 1c003dc | d47bc19 | 411a81d | 21483b1 | — |
 | sc-0 firmwarefaults module + scenario 1 proven | `dev-sc-0` | b7f8ae5 | 9c6bd0a | a6beac0 | 3762123 | — |
 | sc-1 five scenarios (S2–S6) + watchdog + statistics | `dev-sc-1` | 82f9e30 | a8980bc | 4333a48 | db76fe5 | — |
+| sc-4 the scenario pairs as an ADVISORY stage in polari-test (suite polari-jenkins only) | `dev-sc-4` | — | — | — | 78b4be7 | — |
+| sc-2 + 2b campaigns (rates → likelihood), CBMC/cppcheck engines, owed flags, the worker output fix | `dev-sc-2` | building | | | | |
 
-Merge order when he says so: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 (each repo innermost-first).
+Merge order when he says so: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 → sc-2 → sc-4 (each repo innermost-first;
+sc-4 touches only polari-jenkins and merges cleanly over sc-2's suite pointers). The first real pipeline run of the
+scenarios stage happens on econ-core after that merge; sc-4 found the engines worker truncating tool output (scenario 1
+red through the worker) — fixed on dev-sc-2.
 
 ## Plans and designs (on dev)
 `AI-Notes/plans/BOARD_PROGRAMMING_PLAN.md` (rules, D-brd-1..7 all ruled, §7a the installer app, §8a track all /
