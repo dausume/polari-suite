@@ -12,7 +12,7 @@ merged; nothing touched dev/main, the droplet, or the running stacks. His merge 
 | brd-fi Firmware Installer App (variants, compat, page) | `dev-brd-fi` | efdbc13 | 102fa55 | a13cbf2 | fb2845d | e38a41f |
 | brd-wire computer↔firmware mapping (index, enums, presence) | `dev-brd-wire` | 1c003dc | d47bc19 | 411a81d | 21483b1 | — |
 | sc-0 firmwarefaults module + scenario 1 proven | `dev-sc-0` | b7f8ae5 | 9c6bd0a | a6beac0 | 3762123 | — |
-| sc-1 five scenarios (S2–S6) | `dev-sc-1` | building | | | | |
+| sc-1 five scenarios (S2–S6) + watchdog + statistics | `dev-sc-1` | 82f9e30 | a8980bc | 4333a48 | db76fe5 | — |
 
 Merge order when he says so: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 (each repo innermost-first).
 
@@ -29,7 +29,11 @@ simulate few), `AI-Notes/plans/FIRMWARE_SCENARIO_PLAN.md` (fault objects, module
 - Two and three twins on one bridge routed by a 1- and 2-bit index; single instance = no index machinery at all;
   presence mask → a row returns to false/0.
 - Scenario 1 (torn millis read): forced IRQ at PC 0x01be → 511 for 255 → REFUTED; with ATOMIC_BLOCK → WITNESSED;
-  cost +6 B, +3 cycles, +14 cycles worst ISR latency.
+  cost +6 B, +3 cycles, +14 cycles worst ISR latency; natural tear rate 3.12 % per carry over 60 seeds.
+- sc-1: lost ack → hang vs timeout state machine; INT0 bounce → double count vs debounce; UART bit errors → the
+  parser's residual loss (0.23 % at BER 1e-3) vs the keep-tail parser (0); reset mid-EEPROM-write → half record vs
+  write-then-commit; a hang vs the watchdog. Every technique's cost in bytes, RAM and cycles is on the rows. The RTOS
+  scenarios (priority inversion, two-lock deadlock) wait for the ESP32-C3 or SAMD21.
 
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
