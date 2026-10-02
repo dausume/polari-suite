@@ -65,7 +65,8 @@ mutex calls) is owed before scenario 1 can be restated as a race query. Not buil
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
    `/display/firmware-installer`; then `pol faults run torn-millis --both` on silicon.
 2. The merge word for the stack above (+ framework `dev-hwmap-fixture`). Rehearsed: conflict-free, all green.
-3. Confirm "STM32-C3" meant ESP32-C3 (the RTOS scenarios S6 target it).
+3. ✅ Confirmed 2026-10-02: the RTOS board is the ESP32-C3; Mthread joins the formal engines (sc-2c building). In flight
+   also: cmod-0 (C modularization plan + the atom parser over the UNO firmware, branch dev-cmod-0).
 4. The register's open cells (adapter USB IDs get captured the first time each is plugged in).
 
 ## Owed / found
