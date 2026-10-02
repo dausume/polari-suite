@@ -316,6 +316,24 @@ anything but a fast-forward on its own.
      -m <suite>` in the image the build just made. The discovery expression is
      `pol modules selftest`'s own, verbatim, so the two cannot disagree about
      what a module's tests ARE.
+   * the **proofs — ADVISORY** (`proofs.sh`, pf-3): every MathClaim through
+     its cheapest tier in the image just built (the framework's own
+     `tests/proofs_stage.py`); a red verdict is recorded, never enforced.
+   * the **firmware scenario pairs — ADVISORY** (`scenarios.sh`, sc-4,
+     FIRMWARE_SCENARIO_PLAN D-sc-3): every runnable `firmwarefaults` scenario
+     re-run as its BEFORE/AFTER pair on the simavr UNO twin — the module's own
+     `python3 -m firmwarefaults.custom.faults_cli run <scenario> --both --seed
+     <k>` inside the image just built, beside a THROWAWAY `prf-board-engines`
+     worker on a private network (named to the module by `BOARD_ENGINES_URL`).
+     Results come out with `docker cp` (no bind mount) into
+     `pool/test/<sha>/scenarios/results.json` + `scenarios.log`; the verdict
+     and `TEST_REPORT.md` carry a `scenarios` line and a pairs table (outcomes,
+     the forced cycle, the technique's measured cost). A **red pair** — the
+     AFTER build no longer witnessed, or a pair that would not run — is
+     recorded, **never enforced**. No engines image and no `BOARD_ENGINES_URL`,
+     a backend image without the module, or `CI_SCENARIOS=off` each record
+     `not run: <why>`. Measured locally 2026-10-02: 7 pairs ≈ 14 s, the stage
+     ≈ 17 s per seed (`CI_SCENARIO_SEEDS`, default 1), ≈ 2 MB of records.
    * the **isle stages** — `polari-isle-test`'s existing loop, with
      `VERSION=test/<sha>`, so the results land beside the verdict.
 7. **The verdict** (`verdict.py` — the ONE place the arithmetic lives):
@@ -471,6 +489,8 @@ polari-jenkins/
 ├── doctor.sh                 (B) what is configured, what is not, and what to do about each
 ├── mint-tag.sh               polari-vYYYY.MM.DD[.N] — the release version/tag
 ├── selftest.sh               the ci-7/ci-7b tests (no docker, libvirt, sudo or network needed)
+├── proofs.sh                 pf-3: the ADVISORY proofs stage of polari-test (tests/proofs_stage.py in the built image)
+├── scenarios.sh              sc-4: the ADVISORY firmware scenario pairs (faults_cli run --both in the built image + a throwaway prf-board-engines worker)
 ├── isle/preflight.sh         (A) is the device CLEAR and does it have room? exit 4 = refused
 ├── isle/authorize.sh         `pol jenkins isle authorize <alias>` — the PIPELINE user's own key onto the isle device
 ├── isle/app-debs.sh          a stage's app debs — a THIN VERB over polari-framework's appstore/custom/app_deb_builder.py
@@ -739,7 +759,7 @@ gains a `residue from an earlier run` row that FAILs and names the wipe.
 | job | trigger | does | pushes anywhere? |
 |---|---|---|---|
 | polari-dev-build | poll `dev` every 10 min | the **optional quick build**: debs (both flavors) + images. No tests, no scans, no publish | no |
-| **polari-test** | poll `test` every 5 min | **the testing pipeline**: wipe this device → build → advisory scans → module selftests + the isle stages → ONE verdict at `pool/test/<sha>/verdict.json` | **never** |
+| **polari-test** | poll `test` every 5 min | **the testing pipeline**: wipe this device → build → advisory scans → module selftests + advisory proofs + advisory firmware scenario pairs + the isle stages → ONE verdict at `pool/test/<sha>/verdict.json` | **never** |
 | polari-release | poll `main` every 10 min | mints `polari-vYYYY.MM.DD[.N]`, builds, writes `release.json` + `SHA256SUMS` + the offline medium → `pool/<version>/`; reads the TEST VERDICT for the sha and pushes the tag **only when it says `passed` and a github credential is present**. Runs no tests | it triggers polari-publish with DRY_RUN=auto |
 | polari-release-manual | manual only | polari-release with the two knobs exposed. Nothing polls it, so its parameters can never build a queue | as above |
 | polari-publish | manual / from release | routes/*.sh per selected route | only when the route's secret is present AND the route is in `CI_ROUTES` (DRY_RUN=auto) |

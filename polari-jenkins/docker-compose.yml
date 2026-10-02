@@ -68,6 +68,9 @@ services:
       - CI_CACHE_DIR=${CI_CACHE_DIR:-}
       - CI_CACHE_MAX_GB=${CI_CACHE_MAX_GB:-40}
       - CI_CACHE_PROXIES=${CI_CACHE_PROXIES:-off}
+      # sc-4: the firmware scenario pairs stage (advisory) — on|off, and seeds per pair
+      - CI_SCENARIOS=${CI_SCENARIOS:-on}
+      - CI_SCENARIO_SEEDS=${CI_SCENARIO_SEEDS:-1}
       # ci-9: app mode — what this device maintains, and where ITS releases go
       - CI_MODE=${CI_MODE:-suite}
       - CI_APP_NAME=${CI_APP_NAME:-}
@@ -138,6 +141,10 @@ services:
       # pf-3: the proofs stage (ADVISORY; plan COMPUTE_LOD_TENSOR §I.9) — runs the
       # framework's own tests/proofs_stage.py inside the freshly built backend image.
       - ./proofs.sh:/var/polari-jenkins/proofs.sh:ro
+      # sc-4: the firmware scenario pairs (ADVISORY; FIRMWARE_SCENARIO_PLAN D-sc-3) — the module's own
+      # `faults_cli run <scenario> --both` inside the freshly built backend image, beside a throwaway
+      # prf-board-engines worker; results copied OUT with docker cp (no bind mount of a controller path).
+      - ./scenarios.sh:/var/polari-jenkins/scenarios.sh:ro
       # ci-3: the one page a person reads before promoting. A FILE bind mount
       # binds an INODE — `git pull` writes a new file, so a rename of this path
       # needs `pol jenkins restart` to take (the §76 gotcha).

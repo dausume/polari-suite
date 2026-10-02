@@ -75,6 +75,23 @@ def proofs_summary(run_dir):
             'advisory': 'proofs never gate — a red verdict is recorded, not enforced (plan §I.9)'}
 
 
+def scenarios_summary(run_dir):
+    """sc-4: the firmware scenario pairs (scenarios.sh) — ADVISORY like the proofs: never part of decide()."""
+    doc = _load(os.path.join(run_dir, 'scenarios', 'results.json'))
+    pairs = doc.get('pairs') or []
+    return {'ran': bool(doc.get('ran')), 'not_run': doc.get('not_run') or ('' if doc else 'no results.json'),
+            'counts': doc.get('counts') or {},
+            'red': ['%s@seed%s' % (r.get('scenario'), r.get('seed', 0)) for r in (doc.get('red') or [])],
+            'red_why': {'%s@seed%s' % (r.get('scenario'), r.get('seed', 0)): r.get('why', '') for r in (doc.get('red') or [])},
+            'warn': ['%s@seed%s' % (r.get('scenario'), r.get('seed', 0)) for r in (doc.get('warn') or [])],
+            'pairs': [{'scenario': p.get('scenario'), 'seed': p.get('seed', 0),
+                       'before': (p.get('before') or {}).get('outcome', '-'), 'after': (p.get('after') or {}).get('outcome', '-') if p.get('after') else '-',
+                       'after_claim': (p.get('after') or {}).get('claim_status', '') if p.get('after') else '',
+                       'cycle': p.get('cycle', 0), 'cost': p.get('cost') or {}, 'wall_s': p.get('wall_s')} for p in pairs],
+            'engines': doc.get('engines', ''), 'pairs_wall_s': doc.get('pairs_wall_s'), 'elapsed_s': doc.get('elapsed_s'),
+            'advisory': 'scenario pairs never gate — a red pair is recorded, not enforced (FIRMWARE_SCENARIO_PLAN D-sc-3)'}
+
+
 def isle_summary(run_dir):
     doc = _load(os.path.join(run_dir, 'isle-test', 'results.json'))
     if not doc:
@@ -185,13 +202,14 @@ def build(args):
     selftests = selftest_summary(run_dir)
     scans = scan_summary(run_dir)
     proofs = proofs_summary(run_dir)
+    scenarios = scenarios_summary(run_dir)
     isle = isle_summary(run_dir)
     built = str(args.built).lower() in ('1', 'true', 'yes')
     verdict, why = decide(built, selftests, isle)
     doc = {
         'sha': args.sha, 'branch': args.branch, 'device': args.device, 'run': args.run,
         'built': built,
-        'scans': scans, 'proofs': proofs, 'selftests': selftests, 'isle': isle,
+        'scans': scans, 'proofs': proofs, 'scenarios': scenarios, 'selftests': selftests, 'isle': isle,
         'verdict': verdict, 'why': why,
         'decided_by': 'pipeline',
         # ci-3: the one page a person reads. report.py renders it beside this file.
@@ -231,6 +249,13 @@ def show(doc):
                                         ', '.join(pf.get('red') or []) or 'none',
                                         ('checked %d, unchanged %d' % ((pf.get('lean') or {}).get('checked', 0), (pf.get('lean') or {}).get('unchanged', 0))) if not (pf.get('lean') or {}).get('not_run') else 'not run'))
              if pf.get('ran') else 'not run'))
+    sn = doc.get('scenarios') or {}
+    sc_c = sn.get('counts') or {}
+    print('  scenarios  %s   (ADVISORY — a red pair changes nothing here)'
+          % (('%d pair(s): %d witnessed, %d refused build(s), %d red%s; %s s'
+              % (sc_c.get('pairs', 0), sc_c.get('witnessed', 0), sc_c.get('refused_builds', 0), sc_c.get('red', 0),
+                 (' (%s)' % ', '.join(sn.get('red') or [])) if sn.get('red') else '', sn.get('elapsed_s')))
+             if sn.get('ran') else 'not run: %s' % (sn.get('not_run') or 'no results')))
     for row in (isle.get('stage_rows') or []):
         tto = row.get('time_to_online')
         print('    stage %-2s %-18s install=%s (%s)  verify=%s  suites=%s/%s  uninstall=%s'

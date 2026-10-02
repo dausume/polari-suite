@@ -16,7 +16,7 @@ CI_ISLE_TARGET CI_ISLE_SSH_HOST CI_ISLE_SSH_USER CI_ISLE_VM_NAME CI_ISLE_VM_RAM_
 CI_ISLE_VM_VCPUS CI_ISLE_VM_DISK_GB CI_ISLE_NESTED CI_ISLE_POOL CI_ISLE_IMAGE_URL CI_BUILD_OFFLINE_MEDIUM CI_TAGGER_NAME CI_TAGGER_EMAIL \
 CI_MIN_FREE_GB CI_MIN_RAM_HEADROOM_GB CI_EXECUTORS CI_ROUTES CI_ISLE_STAGES \
 CI_CACHE CI_CACHE_DIR CI_CACHE_MAX_GB CI_CACHE_PROXIES CI_ROUTE_TARGET \
-CI_CORE_URL CI_DEVICE_NAME FORGE_URL"
+CI_CORE_URL CI_DEVICE_NAME FORGE_URL CI_SCENARIOS CI_SCENARIO_SEEDS"
 
 # Where the module manifests live (modules/<name>/polari-app.json) — the
 # catalogue CI_ISLE_STAGES is validated against. Overridable for tests.
@@ -103,6 +103,10 @@ device_load() {
     # frg-3: the self-hosted forge the four forgejo-* routes publish to (routes/destinations.sh dest_forge_url).
     # Production's public forge by default; a home/test forge is a URL here (no trailing slash needed).
     : "${FORGE_URL:=https://forge.polari-systems.org}"
+    # sc-4 (FIRMWARE_SCENARIO_PLAN D-sc-3, ADVISORY): the firmware scenario pairs re-run in polari-test after the
+    # proofs stage (scenarios.sh). off = recorded as "not run: CI_SCENARIOS=off"; seeds 0..N-1 per pair.
+    : "${CI_SCENARIOS:=on}"
+    : "${CI_SCENARIO_SEEDS:=1}"
     # ci-8: the Polari core that holds the SETTINGS for this device. Empty = no sync; the file below is
     # then the only truth there is, which is exactly the fallback posture cicd-sync.sh degrades to.
     : "${CI_CORE_URL:=}"
@@ -288,6 +292,7 @@ device_validate() {
     fi
 
     device_validate_cache
+    device_validate_scenarios
     device_validate_route_target
     device_validate_stages
 }
@@ -313,6 +318,22 @@ device_validate_cache() {
     esac
     [ -z "$CI_CACHE_DIR" ] && _row CI_CACHE_DIR "" OK "the default: <pool>/cache (relative to the pool, so an ssh target caches on its own disk)" \
         || _row CI_CACHE_DIR "$CI_CACHE_DIR" OK "an explicit cache root"
+}
+
+# ------------------------------- sc-4: the firmware scenario pairs (ADVISORY)
+# Advisory by construction: a red pair is recorded in the verdict, never enforced,
+# so neither knob can make a run fail — only an unreadable value is a FAIL here.
+device_validate_scenarios() {
+    case "$CI_SCENARIOS" in
+        on)  _row CI_SCENARIOS on OK "polari-test re-runs every runnable firmware scenario pair on the simavr twin (advisory; needs prf-board-engines on this daemon or BOARD_ENGINES_URL)" ;;
+        off) _row CI_SCENARIOS off OK "the scenarios stage records 'not run: CI_SCENARIOS=off' — a firmware change is then not re-checked against its techniques" ;;
+        *)   _row CI_SCENARIOS "$CI_SCENARIOS" FAIL "unknown value → on or off" ;;
+    esac
+    if _is_num "$CI_SCENARIO_SEEDS" && [ "$CI_SCENARIO_SEEDS" -ge 1 ]; then
+        _row CI_SCENARIO_SEEDS "$CI_SCENARIO_SEEDS" OK "seeds 0..$((CI_SCENARIO_SEEDS-1)) per pair (each pair ≈ 1–3 s on the twin; 7 pairs ≈ 17 s per seed measured locally)"
+    else
+        _row CI_SCENARIO_SEEDS "$CI_SCENARIO_SEEDS" FAIL "not a whole number ≥ 1 → fix it in $DEVICE_ENV_FILE"
+    fi
 }
 
 # --------------------------------------------- ci-9: where a release is sent

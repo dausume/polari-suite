@@ -130,6 +130,36 @@ def render(run_dir):
         a('    not run (no backend image on this device, or the stage could not start)')
     a('')
 
+    # ------------------------------------------------------------------- scenarios
+    sn = v.get('scenarios') or {}
+    a(BAR)
+    a('## Firmware scenarios (ADVISORY — a red pair is recorded, not enforced; FIRMWARE_SCENARIO_PLAN D-sc-3)')
+    a('')
+    if sn.get('ran'):
+        c = sn.get('counts') or {}
+        a('    scenarios  %d pair(s): %d witnessed, %d refused build(s), %d red · pairs %s s, stage %s s · engines: %s'
+          % (c.get('pairs', 0), c.get('witnessed', 0), c.get('refused_builds', 0), c.get('red', 0), sn.get('pairs_wall_s'),
+             sn.get('elapsed_s'), sn.get('engines') or '-'))
+        a('')
+        a('    %-28s %4s  %-12s %-12s %-12s %10s  %s' % ('scenario', 'seed', 'BEFORE', 'AFTER', 'AFTER claim', 'cycle', 'cost (AFTER − BEFORE)'))
+        for p in sn.get('pairs') or []:
+            cd = p.get('cost') or {}
+            cost = ('%+d B flash, %+d B RAM, %+d cycles' % (cd.get('flash_bytes', 0), cd.get('ram_bytes', 0),
+                                                         cd.get('guarded_fn_cycles', cd.get('cycles', 0)))) if cd else '-'
+            a('    %-28s %4s  %-12s %-12s %-12s %10s  %s' % (str(p.get('scenario'))[:28], p.get('seed', 0), p.get('before', '-'), p.get('after', '-'),
+                                                         p.get('after_claim') or '-', p.get('cycle') or '-', cost))
+        a('')
+        if sn.get('red'):
+            for r in sn.get('red') or []:
+                a('    RED %s — %s' % (r, str((sn.get('red_why') or {}).get(r, ''))[:200]))
+        else:
+            a('    red        none — every AFTER build witnessed, every refused build still refused')
+        for w in sn.get('warn') or []:
+            a('    note       %s: the BEFORE build no longer reproduces its fault' % w)
+    else:
+        a('    scenarios  not run: %s' % (sn.get('not_run') or 'no results (the stage did not start)'))
+    a('')
+
     # ------------------------------------------------------------------- scans
     a(BAR)
     a('## Scans (ADVISORY — no finding changed the verdict)')

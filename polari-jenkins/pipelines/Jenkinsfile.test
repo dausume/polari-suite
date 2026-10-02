@@ -266,6 +266,23 @@ pipeline {
       }
     }
 
+    // ------------------------------------------- 5a''. the firmware scenario pairs (ADVISORY, FIRMWARE_SCENARIO_PLAN sc-4 / D-sc-3)
+    // Every runnable firmwarefaults scenario as its BEFORE/AFTER pair on the
+    // simavr UNO twin, in the image just built, beside a throwaway
+    // prf-board-engines worker. A red pair (AFTER not witnessed, or a pair that
+    // would not run) is recorded for the verdict + report, never a build
+    // failure. CI_SCENARIOS=off, or no engines image, records "not run" + why.
+    stage('scenarios (ADVISORY — a red pair is recorded, not enforced)') {
+      when { expression { env.PROCEED == 'yes' } }
+      steps {
+        catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+          sh '''set +e
+            bash /var/polari-jenkins/scenarios.sh "$RUN_DIR/scenarios"
+            exit 0'''
+        }
+      }
+    }
+
     // ------------------------------------------- 5b. the tests that DO need an isle
     // The stage loop is polari-isle-test's, unchanged and not copied: it is the
     // one implementation of preflight → up → install+test (ci-3) → uninstall →

@@ -64,6 +64,22 @@ testing stages. It ends with exactly **one verdict** written to
 | `failed` | something that ran said no |
 | `partial` | nothing said no, but something that should have answered did not |
 
+**The firmware scenario pairs are advisory too** (sc-4, FIRMWARE_SCENARIO_PLAN
+D-sc-3). After the proofs, `polari-test` re-runs every runnable
+`firmwarefaults` scenario as its BEFORE/AFTER pair on the simavr UNO twin, in
+the image it just built, and the verdict and `TEST_REPORT.md` show a
+`scenarios` line plus a table: each pair's outcomes, the forced cycle and
+what the technique costs (flash, RAM, cycles). A **red pair** means the AFTER
+build, the one carrying the fix, was not witnessed safe under its scenario on
+this sha. That is either a firmware change that undid a technique or a pair
+that would not run, and the report gives the reason. It is recorded and
+**never changes the verdict**. The knob is `CI_SCENARIOS=on|off` in
+device.env (default on; off records `not run: CI_SCENARIOS=off`), with
+`CI_SCENARIO_SEEDS` (default 1) for the seeds per pair. The twin runs in a
+throwaway worker of `prf-board-engines:trixie`, so a device without that image
+(and without a `BOARD_ENGINES_URL`) records `not run: image absent`. Cost,
+measured locally: about 17 s per seed for 7 pairs.
+
 The human decision happens after that verdict: read it, and only then
 decide whether to promote to `main`. `pol jenkins promote main` refuses
 outright unless the sha on `test` carries a `passed` verdict — `--force-

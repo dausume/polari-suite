@@ -2960,6 +2960,103 @@ dev_env CI_ISLE_TARGET=local CI_ROUTES="github-release,$OLDR"
 has "  …the retired route name is unknown now" "$OLDR(unknown)" "$(doc)"
 dev_env CI_ISLE_TARGET=local
 
+# ============================================================ sc-4: the firmware scenario pairs (ADVISORY)
+echo "-- sc-4: the scenarios stage (mounted, stamped, catchError, not-run paths, the summary, the report, the knobs)"
+has "compose mounts scenarios.sh read-only beside proofs.sh" "./scenarios.sh:/var/polari-jenkins/scenarios.sh:ro" "$(cat "$J/docker-compose.yml")"
+has "compose: CI_SCENARIOS defaults to on"        'CI_SCENARIOS=${CI_SCENARIOS:-on}' "$(cat "$J/docker-compose.yml")"
+has "compose: CI_SCENARIO_SEEDS defaults to 1"    'CI_SCENARIO_SEEDS=${CI_SCENARIO_SEEDS:-1}' "$(cat "$J/docker-compose.yml")"
+has "controller-stamp records scenarios.sh"       "scenarios.sh" "$(cd "$J" && CI_CONTROLLER_STAMP="$T/stamp" bash -c 'source <(sed -n "/^stamp_files()/,/^}/p" controller-stamp.sh); J=.; stamp_files')"
+has "doctor compares the controller's copy of scenarios.sh" "proofs.sh scenarios.sh; do" "$(cat "$J/doctor.sh")"
+SCN_STAGE="$(sed -n "/stage('scenarios (ADVISORY/,/^    }/p" "$J/pipelines/Jenkinsfile.test")"
+has "Jenkinsfile.test has the scenarios stage"    "a red pair is recorded, not enforced" "$SCN_STAGE"
+has "  …under catchError that never colours the build" "catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS')" "$SCN_STAGE"
+has "  …running scenarios.sh into \$RUN_DIR/scenarios" 'scenarios.sh "$RUN_DIR/scenarios"' "$SCN_STAGE"
+eq  "  …after the proofs stage, before the isle stages" "proofs scenarios isle" \
+    "$(grep -o "stage('proofs (ADVISORY\|stage('scenarios (ADVISORY\|stage('test — the throwaway isle" "$J/pipelines/Jenkinsfile.test" | sed "s/stage('//; s/ (ADVISORY//; s/test — the throwaway isle/isle/" | tr '\n' ' ' | sed 's/ $//')"
+eq  "scenarios.sh never bind-mounts a controller path (results come out with docker cp)" "" "$(sed -e ':a' -e '/\\$/N; s/\\\n//; ta' "$J/scenarios.sh" | grep -F '"$DOCKER" run' | grep -e ' -v ' -e '--volume' -e '--mount' || true)"
+has "  …and copies them out"                      'cp "$NAME:/tmp/scn"' "$(cat "$J/scenarios.sh")"
+has "device.env.example: CI_SCENARIOS=on"         $'\nCI_SCENARIOS=on\n' "$(cat "$J/device.env.example")"$'\n'
+has "device.env.example: CI_SCENARIO_SEEDS=1"     $'\nCI_SCENARIO_SEEDS=1\n' "$(cat "$J/device.env.example")"$'\n'
+eq  "device.sh defaults: on and 1"                "on 1" "$( cd "$DEV" && DEVICE_ENV_FILE="$T/none.env" bash -c 'source ./device.sh; device_load; echo "$CI_SCENARIOS $CI_SCENARIO_SEEDS"' )"
+dev_env CI_ISLE_TARGET=local CI_SCENARIOS=maybe CI_SCENARIO_SEEDS=0
+has "device validation: an unknown CI_SCENARIOS is a FAIL naming on|off" "unknown value → on or off" "$( cd "$DEV" && bash -c 'source ./device.sh; device_load; device_validate_scenarios' 2>&1 )"
+has "  …and CI_SCENARIO_SEEDS=0 is a FAIL"        "not a whole number ≥ 1" "$( cd "$DEV" && bash -c 'source ./device.sh; device_load; device_validate_scenarios' 2>&1 )"
+dev_env CI_ISLE_TARGET=local
+SCN="$T/scn"; mkdir -p "$SCN"
+OUT=$(CI_SCENARIOS=off bash "$J/scenarios.sh" "$SCN/off" 2>&1)
+has "CI_SCENARIOS=off skips with the reason"      "not run: CI_SCENARIOS=off" "$OUT"
+eq  "  …recorded in results.json (ran false + the reason)" "False CI_SCENARIOS=off on this device" \
+    "$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(d['ran'], d['not_run'])" "$SCN/off/results.json")"
+OUT=$(SELFTEST_DOCKER="$T/no-such-docker" bash "$J/scenarios.sh" "$SCN/nodocker" 2>&1)
+has "no backend image → 'not run: image absent'"  "not run: image absent: the backend image" "$OUT"
+cat > "$T/scn-docker" <<'SH'
+#!/bin/bash
+# image inspect answers per FAKE_IMAGES; `run` is the module probe (FAKE_MODULE=1 = present)
+case "$1 $2" in
+  "image inspect") case " ${FAKE_IMAGES:-} " in *" $3 "*) exit 0 ;; *) exit 1 ;; esac ;;
+esac
+[ "$1" = run ] && { [ "${FAKE_MODULE:-0}" = 1 ] && exit 0 || exit 1; }
+exit 0
+SH
+chmod +x "$T/scn-docker"
+OUT=$(SELFTEST_DOCKER="$T/scn-docker" FAKE_IMAGES="prf-backend:staging" bash "$J/scenarios.sh" "$SCN/nomod" 2>&1)
+has "a backend image without firmwarefaults → 'not run: module absent in image'" "not run: module absent in image: prf-backend:staging" "$OUT"
+OUT=$(SELFTEST_DOCKER="$T/scn-docker" FAKE_IMAGES="prf-backend:staging" FAKE_MODULE=1 BOARD_ENGINES_URL= bash "$J/scenarios.sh" "$SCN/noeng" 2>&1)
+has "no prf-board-engines and no BOARD_ENGINES_URL → 'not run: image absent' naming the engines image" \
+    "not run: image absent: the board engines image prf-board-engines:trixie" "$OUT"
+eq  "  …with the stage's wall time measured" "True" \
+    "$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(isinstance(d['elapsed_s'], float))" "$SCN/noeng/results.json")"
+has "the driver runs the module's own entry point (faults_cli run … --both --seed k)" "'firmwarefaults.custom.faults_cli', 'run', n, '--both', '--seed'" "$(bash "$J/scenarios.sh" --print-driver)"
+# a fixture: one witnessed pair, one RED pair (AFTER not witnessed), one refused build — the driver's tree shape
+FX="$SCN/fx"; mkdir -p "$FX"
+printf '{"runnable": ["ok-pair", "red-pair", "guard"], "not_runnable": [], "seeds": 1}\n' > "$FX/index.json"
+scn_fx() {  # scn_fx <scenario> <before outcome> <before claim> <after outcome|-> <after claim>
+    local d="$FX/$1@seed0"; mkdir -p "$d/faults-home/runs"
+    printf '{"scenario": "%s", "seed": 0, "rc": 0, "wall_s": 1.5, "tail": []}\n' "$1" > "$d/meta.json"
+    python3 - "$d/faults-home/runs/$1@both@t.json" "$@" <<'PY'
+import json, sys
+out, name, bo, bc, ao, ac = sys.argv[1:7]
+runs = [{'name': name + '@before', 'side': 'before', 'outcome': bo, 'claim': 'c:' + name + ':b', 'variant': name + '-b',
+         'fault_cycle': 4083147, 'verdict_words': 'before words'}]
+claims = [{'name': 'c:' + name + ':b', 'proof_status': bc}]
+if ao != '-':
+    runs.append({'name': name + '@after', 'side': 'after', 'outcome': ao, 'claim': 'c:' + name + ':a', 'variant': name + '-a',
+                 'verdict_words': 'uptime_ms went backwards', 'cost_delta_json': json.dumps({'flash_bytes': 6, 'ram_bytes': 0, 'guarded_fn_cycles': 3})})
+    claims.append({'name': 'c:' + name + ':a', 'proof_status': ac})
+json.dump({'ScenarioRun': runs, 'MathClaim': claims}, open(out, 'w'))
+PY
+}
+scn_fx ok-pair failed refuted passed witnessed
+scn_fx red-pair failed refuted failed refuted
+scn_fx guard inapplicable inapplicable - -
+OUT=$(bash "$J/scenarios.sh" --summarise "$FX" "$SCN/fx-results.json" fixture-image "fixture engines" 2.5 2>&1)
+has "the summary line: 3 pairs, 1 witnessed, 1 refused build, 1 red (named)" "3 pair(s): 1 witnessed, 1 refused build(s), 1 red (red-pair)" "$OUT"
+eq  "results.json: red = exactly the pair whose AFTER is not witnessed" "red-pair" \
+    "$(python3 -c "import json,sys; print(','.join(r['scenario'] for r in json.load(open(sys.argv[1]))['red']))" "$SCN/fx-results.json")"
+eq  "  …each pair carries scenario, before, after, cycle, cost" "ok-pair failed passed 4083147 6" \
+    "$(python3 -c "import json,sys; p=json.load(open(sys.argv[1]))['pairs'][1]; print(p['scenario'], p['before']['outcome'], p['after']['outcome'], p['cycle'], p['cost']['flash_bytes'])" "$SCN/fx-results.json")"
+RD="$T/scn-run"; mkdir -p "$RD/scenarios"; cp "$SCN/fx-results.json" "$RD/scenarios/results.json"
+VOUT=$(python3 "$J/verdict.py" build "$RD" --sha fx --branch test --built true --run fx#1 --device fx 2>&1)
+has "verdict.py prints the scenarios line, ADVISORY" "scenarios  3 pair(s): 1 witnessed, 1 refused build(s), 1 red (red-pair@seed0); 2.5 s   (ADVISORY" "$VOUT"
+eq  "verdict.json carries scenarios_summary (ran, counts, red, elapsed)" "True 1 red-pair@seed0 2.5" \
+    "$(python3 -c "import json,sys; s=json.load(open(sys.argv[1]))['scenarios']; print(s['ran'], s['counts']['red'], ','.join(s['red']), s['elapsed_s'])" "$RD/verdict.json")"
+VWITH=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['verdict'])" "$RD/verdict.json")
+rm -rf "$RD/scenarios"; python3 "$J/verdict.py" build "$RD" --sha fx --branch test --built true --run fx#1 --device fx >/dev/null 2>&1
+eq  "a red pair changes NOTHING in the verdict (advisory)" "$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['verdict'])" "$RD/verdict.json")" "$VWITH"
+mkdir -p "$RD/scenarios"; cp "$SCN/fx-results.json" "$RD/scenarios/results.json"
+python3 "$J/verdict.py" build "$RD" --sha fx --branch test --built true --run fx#1 --device fx >/dev/null 2>&1
+python3 "$J/report.py" build "$RD" >/dev/null 2>&1
+REP="$(cat "$RD/TEST_REPORT.md" 2>/dev/null)"
+has "TEST_REPORT.md: the scenarios section, ADVISORY" "## Firmware scenarios (ADVISORY — a red pair is recorded, not enforced" "$REP"
+has "  …the scenarios line with counts and both wall times" "scenarios  3 pair(s): 1 witnessed, 1 refused build(s), 1 red · pairs 4.5 s, stage 2.5 s" "$REP"
+has "  …a table row per pair (the red one: failed / failed / refuted)" "red-pair                        0  failed       failed       refuted" "$REP"
+has "  …the cost column (AFTER − BEFORE)" "+6 B flash, +0 B RAM, +3 cycles" "$REP"
+has "  …the red pair named with its reason" "RED red-pair@seed0 — AFTER (red-pair-a) not witnessed: failed / refuted" "$REP"
+cp "$SCN/off/results.json" "$RD/scenarios/results.json"
+python3 "$J/verdict.py" build "$RD" --sha fx --branch test --built true --run fx#1 --device fx >/dev/null 2>&1
+python3 "$J/report.py" build "$RD" >/dev/null 2>&1
+has "a skipped stage reads 'not run: <why>' in the report" "scenarios  not run: CI_SCENARIOS=off on this device" "$(cat "$RD/TEST_REPORT.md")"
+
 echo
 TOTAL=$((PASS+FAIL))
 echo "$PASS/$TOTAL"
