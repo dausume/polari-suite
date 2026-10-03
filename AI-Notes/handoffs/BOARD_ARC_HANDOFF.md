@@ -101,6 +101,13 @@ sqlite commits cost 10.8 ms and the engine saves ~14 rows per frame synchronousl
 a shared-engine change (batched/async saves) is owed before 10 Hz solutions run on real disks. Merge note: the plan
 file is an add/add on dev (take dev's + hn-0's §7 edits).
 
+## Two more plans on dev (2026-10-03, a1fa198)
+`DESIGN_LEVEL_VIEWS_PLAN.md` (a page per level, one level-view component, ties, the zoom composed last; dlv-0 must fix
+ingestion: `polari_block` is never stamped and lod1 strips attributes) and `PCB_FROM_SCRATCH_PLAN.md` (KiCad as the
+engine, design as rows, DKRed constraints cited, the UNO shield first). Decisions D-dlv-1..5 and D-pcb-1..6 are his.
+Also his rule today: develop ACROSS devices — the engine workers are moving to isle-core (see memory
+develop-across-devices); isle-core's outage was a power cut, not the OS (memory other-machines-ssh).
+
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
    `/display/firmware-installer`; then `pol faults run torn-millis --both` on silicon.
