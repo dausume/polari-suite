@@ -169,6 +169,42 @@ or worker; no fab rules as data; no DFM/DFA or assembly (solder) data; no order/
 - **D-pcb-6 DigiKey API:** **none for now**; quotes entered as rows by a person; an optional engine later (closed
   service, its ToS recorded) — DKRed is DigiKey's own fab, so the same account covers both if he wants it.
 
+
+### 5a. HIS RULINGS 2026-10-03 (his words)
+- **D-pcb-1 → write directly:** "write directly so we can track them through polari and keep them in our own apis and
+  dbs, while relaying them through kicad engines." The design IS the rows (Part/Symbol/Footprint/Schematic/Board/…);
+  Polari writes `.kicad_sch`/`.kicad_pcb` from them and reads them back; KiCad is the relay engine for ERC/DRC/exports
+  and the editor a person uses. No SKiDL.
+- **D-pcb-2 → accepted:** a person places and routes in KiCad, Freerouting opt-in — "fine, if the functionality is too
+  complex."
+- **NEW — FreeCAD alongside KiCad, both as POLARI-MANAGED NATIVE APPS:** "along with KiCad, we should also already have
+  functionality to handle FreeCAD as well. Both of those can become polari managed native apps not on the isle or
+  swarm, and we can automate the download and setup of those apps so that we can set up volumes that enable them to
+  have files shared between both the native apps and the polari isle and/or swarm." → §5b.
+
+### 5b. KiCad + FreeCAD as Polari-managed NATIVE apps with shared volumes (new slice pcb-na, shared with the CAD arcs)
+- **A new app kind in the store: `native-desktop-app`** (beside container apps and hardware/KVM apps — the name
+  "Hardware App" stays the KVM guest's). Rows: `NativeAppDefinition` (name, upstream, licence — KiCad GPL-3, FreeCAD
+  LGPL-2.1+ — install routes per OS: Debian package / Flatpak / AppImage pinned by version + sha256, the binary and
+  the headless CLI it exposes: `kicad-cli`, `FreeCADCmd`), `NativeAppInstall` (per device: route taken, version,
+  verified sha, paths), `SharedProjectVolume` (a host folder registered with the node and mirrored to the file store:
+  SeaweedFS as the truth, mounted or synced both ways — `weed mount` (FUSE) where available, else a watched-folder sync
+  run by the node; conflict rule = the file store wins and the native copy is renamed, never silently overwritten).
+- **Automation:** `pol apps native install kicad|freecad` (download by pinned URL + sha, verify, install by the OS
+  route, register the CLI as an ENGINE for the ladder so the same `kicad-cli` serves the headless exports), `pol apps
+  native volume add <folder> --project <board>` (creates the volume row, the file-store bucket/prefix, the mount or
+  sync), `pol apps native open <project>` (launches the app on the shared folder). The app shell's store page shows
+  native apps with install/open; the desktop shell runs the fixed argv through its existing pkexec pattern.
+- **Where it runs:** on a person's desktop (pol-core-class box or a laptop), NOT on the isle or swarm; the isle/swarm
+  side sees the same files through the file store and runs the headless engines in workers (`prf-pcb-engines` for
+  `kicad-cli`; a `prf-cad-engines` with `FreeCADCmd` for STEP/mesh work).
+- **Why FreeCAD here:** enclosures, mounts, panels and the machines of the printing/BLCNC arcs are FreeCAD work; the
+  KiCad StepUp workbench (open) carries a board's STEP into FreeCAD and the enclosure back; FreeCAD's own files
+  (`.FCStd`) become rows the same way (`CadProject`, parts, parameters) and its 3D shows in the existing scene.
+- **Proof for pcb-na:** on pol-core, `pol apps native install kicad freecad` (pinned, verified), a shared volume for the
+  UNO-shield project, the schematic written by Polari opens in KiCad from the volume, a person's edit round-trips into
+  rows, `kicad-cli` in the worker exports the same project from the file store, and the board's STEP opens in FreeCAD.
+
 ## 6. Cost + licences
 
 | component | licence (verified where) | role | cost |
