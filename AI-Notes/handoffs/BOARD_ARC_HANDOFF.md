@@ -116,6 +116,16 @@ isle-core's workers: UNO builds byte-identical with pins now coming from rows; t
 byte-identical; a conflicting ingest leaves the rows alone; one pin moved changes every view together. `pol board
 render|ingest|pins|conflicts|assign`. Engines now run on isle-core (topology rows + swarm join in progress).
 
+## Engines on isle-core, bound by topology + swarm (2026-10-03)
+isle-core joined pol-core's swarm as a worker (`pol swarm join isle-core`); the three engine workers (board 9830,
+formal 9840, esp 9850) run as stack `polari-hw-engines` pinned to it (`polari-rf-node/docker-compose.hw-engines.yml`
+on `dev-topology-isle-engines`); the home topology carries the three instances + assignments (`board.engines`,
+`board.esp-engines`, `firmwarefaults.formal`) on suite `dev-topology-isle-engines` and in the live core, so the engines
+ladder resolves them with no env knobs. GAP: pol-core's ufw blocks isle-core on 2377/7946/4789 → the routing mesh never
+formed, so the topology-built URLs (manager address) refuse while isle-core's own address answers. HIS: the three `ufw
+allow from 192.168.0.24` lines (memory develop-across-devices). The twins still need a local process (owed: a remote
+twin verb). `pol swarm deploy hw-engines` + a ports check in `pol swarm join` are being added (dev-swarm-hw-engines).
+
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
    `/display/firmware-installer`; then `pol faults run torn-millis --both` on silicon.
@@ -123,6 +133,7 @@ render|ingest|pins|conflicts|assign`. Engines now run on isle-core (topology row
 3. ✅ Confirmed 2026-10-02: the RTOS board is the ESP32-C3; Mthread joins the formal engines (sc-2c building). In flight
    also: cmod-0 (C modularization plan + the atom parser over the UNO firmware, branch dev-cmod-0).
 4. The register's open cells (adapter USB IDs get captured the first time each is plugged in).
+5. The three ufw rules on pol-core so the swarm mesh forms (above).
 
 ## Owed / found
 - Pair first-PUT echo slow (1.9 s n=2, 4.7 s n=3 vs 0.1 s single) — cause unknown.
