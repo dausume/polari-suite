@@ -90,6 +90,11 @@ To merge: fast-forward each repo's `dev` to that tip, innermost-first (framework
 `pol jenkins promote test` from econ-core for the pipeline's own verdict (expect the new advisory scenarios stage to
 run for the first time there).
 
+## Hardware no-code plan (2026-10-03, dev 5f308e4)
+`AI-Notes/plans/HARDWARE_NOCODE_PLAN.md`: one no-code model across frontend, backend and hardware on the existing
+canvas; a §1a survey of 24 prior items; the C / FreeRTOS / Zephyr suggestion engine with measured evidence; ten
+hardware variants as scenarios; D-hn-1..6 his; slices hn-0..5. Nothing built; hn-0 starts on his word after the merge.
+
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
    `/display/firmware-installer`; then `pol faults run torn-millis --both` on silicon.
