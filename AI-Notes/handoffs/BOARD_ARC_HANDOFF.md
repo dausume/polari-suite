@@ -72,10 +72,28 @@ Mthread is the only piece worth adopting (reports the exact race, recognises the
 cannot settle these properties; Alt-Ergo's current build is non-commercial → excluded. A small bridge (cli/sei → Mthread
 mutex calls) is owed before scenario 1 can be restated as a race query. Not built.
 
+## ✅ THE INTEGRATION BRANCH (2026-10-03) — one merge word, nothing left to resolve
+`dev-hw-integration` in all five repos = dev + the whole stack, conflicts resolved, gitlinks set, every suite green on
+the merged tree (board 163, firmwarefaults 190, cmod 100, probes with real simavr + CBMC + Mthread + the C3 QEMU twin
+77/77, jenkins 1105/1105, forge 218, angular build clean):
+
+| repo | dev-hw-integration |
+|---|---|
+| polari-framework | a9885f8 |
+| polari-platform-angular | 1deb1da |
+| polari-rf-node | 3cc2254 |
+| polari-cli | 75d923f |
+| polari-suite | 965959b |
+
+To merge: fast-forward each repo's `dev` to that tip, innermost-first (framework, angular → rf-node → cli → suite), e.g.
+`git checkout dev && git merge --ff-only origin/dev-hw-integration && git push origin dev` in each; then
+`pol jenkins promote test` from econ-core for the pipeline's own verdict (expect the new advisory scenarios stage to
+run for the first time there).
+
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
    `/display/firmware-installer`; then `pol faults run torn-millis --both` on silicon.
-2. The merge word for the stack above (+ framework `dev-hwmap-fixture`). Rehearsed: conflict-free, all green.
+2. The merge word: fast-forward dev to `dev-hw-integration` in the five repos (table above).
 3. ✅ Confirmed 2026-10-02: the RTOS board is the ESP32-C3; Mthread joins the formal engines (sc-2c building). In flight
    also: cmod-0 (C modularization plan + the atom parser over the UNO firmware, branch dev-cmod-0).
 4. The register's open cells (adapter USB IDs get captured the first time each is plugged in).
