@@ -47,6 +47,32 @@ machines:
   notes: "Local staging host (192.168.0.210) \u2014 combined compose suite + single-node\
     \ swarm (polari-engines stack) + twin/dask compose projects."
 instances:
+- name: board-engines
+  kind: worker
+  service_kinds_json: '["prf-board-engines"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: isle-core
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: ''
+  blob_backend: ''
+  image_tag: staging
+  orchestration_target: swarm
+  topology_name: staging-a
+  notes: "The board (avr family) toolchain worker (:9830, brd-1/sc-3) — avr-gcc\
+    \ / avr-objcopy / avr-size / avrdude / simavr / the avr-twin harness, image\
+    \ prf-board-engines:trixie (id 155516d7589f, 535 MB), on a swarm worker pinned\
+    \ to isle-core (`docker-compose.hw-engines.yml`, `node.labels.polari.machine\
+    \ == isle-core`); mem cap 512m. Started 2026-10-03 as a plain `docker run --restart\
+    \ unless-stopped --memory 512m` container on isle-core (ENGINES-ON-ISLE-CORE.md),\
+    \ then bound into this topology + the swarm (2026-10-03, his point: Polari should\
+    \ already be capable of bundling two devices together via setup from the CLI) so\
+    \ modules/board/custom/board_engines.py resolves it with NO env knobs. LIMIT: the\
+    \ avr-twin (a long-lived simavr TCP port) refuses on a remote rung by design\
+    \ (board/custom/twin.py) — twin probes must run ON isle-core itself (`ssh\
+    \ isle-core`, a checkout there); nodes.yml already names isle-core for the\
+    \ hardware-integration role, `pol deploy` has no twin-specific verb yet (owed)."
 - name: cnt-engines
   kind: worker
   service_kinds_json: '["prf-cnt-engines"]'
@@ -95,6 +121,53 @@ instances:
   topology_name: staging-a
   notes: "The polari-engines swarm stack (:9500) \u2014 FEM/DFT compute workers, deployed\
     \ via `pol swarm deploy engines` (single-node swarm today)."
+- name: esp-engines
+  kind: worker
+  service_kinds_json: '["prf-esp-engines"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: isle-core
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: ''
+  blob_backend: ''
+  image_tag: staging
+  orchestration_target: swarm
+  topology_name: staging-a
+  notes: "The board ESP32-C3 family worker (:9850, sc-3) \u2014 idf-build / c3-run\
+    \ (QEMU) / esptool / riscv32-esp-elf-nm, image prf-esp-engines:noble (id 8e8ad8f64e85,\
+    \ 1.81 GB), on a swarm worker pinned to isle-core (`docker-compose.hw-engines.yml`,\
+    \ `node.labels.polari.machine == isle-core`); mem cap 2048m. Started 2026-10-03\
+    \ as a plain `docker run --restart unless-stopped --memory 2048m` container on\
+    \ isle-core (ENGINES-ON-ISLE-CORE.md), then bound into this topology + the swarm\
+    \ so modules/board/custom/board_engines.py's esp family resolves it with NO env\
+    \ knobs. GAP (found, not fixed here): the running home core's topology.provider_registry.PROVIDER_PORTS\
+    \ carries no prf-esp-engines:9850 entry (present on dev-sc-3/dev-hn-0, absent on\
+    \ the deployed image's line) \u2014 until that port lands, this instance's URL\
+    \ cannot be built even once the module assignment resolves; see the suite handoff\
+    \ for the offline proof. LIMIT: the c3-run twin is a long-lived QEMU process \u2014\
+    \ refuses on a remote rung by design; twin probes run ON isle-core."
+- name: formal-engines
+  kind: worker
+  service_kinds_json: '["prf-formal-engines"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: isle-core
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: ''
+  blob_backend: ''
+  image_tag: staging
+  orchestration_target: swarm
+  topology_name: staging-a
+  notes: "The firmware formal + static engines worker (:9840, sc-2b/sc-2c) \u2014\
+    \ CBMC / cppcheck / Frama-C 33 + Mthread, image prf-formal-engines:trixie (id\
+    \ 24e37129cc7a, 594 MB), on a swarm worker pinned to isle-core (`docker-compose.hw-engines.yml`,\
+    \ `node.labels.polari.machine == isle-core`); mem cap 1024m. Started 2026-10-03\
+    \ as a plain `docker run --restart unless-stopped --memory 1024m` container on\
+    \ isle-core (ENGINES-ON-ISLE-CORE.md), then bound into this topology + the swarm\
+    \ so modules/firmwarefaults/custom/formal_engines.py resolves it with NO env knobs.\
+    \ No twin/placement limit here \u2014 every engine is a one-shot /run request."
 - name: livekit
   kind: worker
   service_kinds_json: '["pol-livekit"]'
@@ -290,6 +363,27 @@ assignments:
   state: enabled
   topology_name: staging-a
   notes: Self-watering pot sim (aqp-1..6).
+- name: board.engines@board-engines
+  module_name: board.engines
+  instance_name: board-engines
+  state: enabled
+  topology_name: staging-a
+  notes: "brd-1/sc-3: the board (avr family) engine capability (avr-gcc/avrdude/simavr/avr-twin)\
+    \ on the board-engines worker — the provider modules/board/custom/board_engines.py\
+    \ resolves when BOARD_ENGINES_URL is unset and no local binary/image exists;\
+    \ `pol allocate board.engines board-engines`. Bound 2026-10-03 — no env knob\
+    \ needed on the home core once the board module ships there (it does not yet;\
+    \ see the edge note)."
+- name: board.esp-engines@esp-engines
+  module_name: board.esp-engines
+  instance_name: esp-engines
+  state: enabled
+  topology_name: staging-a
+  notes: "sc-3: the board ESP32-C3 family's engine capability (idf-build/c3-run/esptool)\
+    \ on the esp-engines worker — resolved when ESP_ENGINES_URL is unset and no\
+    \ local binary/image exists; `pol allocate board.esp-engines esp-engines`. Bound\
+    \ 2026-10-03; see the esp-engines instance notes for the PROVIDER_PORTS gap on\
+    \ the home core's current image."
 - name: cntfet.engines@cnt-engines
   module_name: cntfet.engines
   instance_name: cnt-engines
@@ -335,6 +429,18 @@ assignments:
   topology_name: staging-a
   notes: "The compute levels-of-detail module (tt/lod arc) \u2014 runs on the swarm\
     \ backend (POLARI_MODULES carries it); its engines are delegated below."
+- name: firmwarefaults.formal@formal-engines
+  module_name: firmwarefaults.formal
+  instance_name: formal-engines
+  state: enabled
+  topology_name: staging-a
+  notes: "sc-2b/sc-2c: the formal + static tier's engine capability (cbmc-check/cppcheck-run/mthread-check)\
+    \ on the formal-engines worker \u2014 the provider modules/firmwarefaults/custom/formal_engines.py\
+    \ resolves when FORMAL_ENGINES_URL is unset and no local binary/image exists;\
+    \ `pol allocate firmwarefaults.formal formal-engines`. Bound 2026-10-03 \u2014\
+    \ the firmwarefaults module itself is not in the home core's current POLARI_MODULES\
+    \ (predates it), so this is data for when it ships; see the edge note for the\
+    \ live-push outcome."
 - name: materialsScience.dft@engines
   module_name: materialsScience.dft
   instance_name: engines
@@ -420,6 +526,35 @@ assignments:
   notes: Tensor math (tt arc) on the swarm backend; the torch implementation is delegated
     to torch-engines.
 edges:
+- name: board@prf-a->board.engines
+  module_name: board
+  consumer_instance_name: prf-a
+  depends_on_module: board.engines
+  provider_instance_name: board-engines
+  status: unresolved
+  topology_name: staging-a
+  notes: "BOARD_ENGINES_URL knob wins, else a local binary, else the local prf-board-engines\
+    \ image, else this edge (live providers only), else refusal naming the knob.\
+    \ status=unresolved (not 'resolved'): verified directly against isle-core's\
+    \ :9830/capability (ENGINES-ON-ISLE-CORE.md) and offline against these rows\
+    \ (a fake topology answering them, like board_engines.py's own selftest) —\
+    \ never yet via THIS core's live resolver, because the deployed prf-backend\
+    \ image predates the board module (no modules/board/ in /app/modules, no\
+    \ prf-board-engines in topology.provider_registry.PROVIDER_PORTS)."
+- name: board@prf-a->board.esp-engines
+  module_name: board
+  consumer_instance_name: prf-a
+  depends_on_module: board.esp-engines
+  provider_instance_name: esp-engines
+  status: unresolved
+  topology_name: staging-a
+  notes: "ESP_ENGINES_URL knob wins, else a local binary, else the local prf-esp-engines\
+    \ image, else this edge (live providers only), else refusal naming the knob.\
+    \ status=unresolved for the same reason as board.engines above, PLUS a second\
+    \ gap: even with the board module present, the deployed image's\
+    \ topology.provider_registry.PROVIDER_PORTS has no prf-esp-engines:9850 entry\
+    \ (present on dev-sc-3/dev-hn-0) — _instance_url refuses with 'carries no\
+    \ known provider service kind' until that lands too."
 - name: cntfet@prf-a->cntfet.engines
   module_name: cntfet
   consumer_instance_name: prf-a
@@ -457,6 +592,21 @@ edges:
   topology_name: staging-a
   notes: ORFS_ENGINES_URL knob wins, else the pinned local image, else this edge (live
     only), else refusal.
+- name: firmwarefaults@prf-a->firmwarefaults.formal
+  module_name: firmwarefaults
+  consumer_instance_name: prf-a
+  depends_on_module: firmwarefaults.formal
+  provider_instance_name: formal-engines
+  status: unresolved
+  topology_name: staging-a
+  notes: "FORMAL_ENGINES_URL knob wins, else a local binary, else the local prf-formal-engines\
+    \ image, else this edge (live providers only), else refusal naming the knob.\
+    \ status=unresolved: verified directly against isle-core's :9840/capability\
+    \ (ENGINES-ON-ISLE-CORE.md) and offline against these rows, never yet via THIS\
+    \ core's live resolver — the deployed image predates the firmwarefaults\
+    \ module (no modules/firmwarefaults/ in /app/modules); its PROVIDER_PORTS DOES\
+    \ already carry prf-formal-engines:9840 (and prf-board-engines:9830), so only\
+    \ the module code itself (not the port map) is the live gap for these two."
 - name: materialsScience.multiscale@prf-a->materialsScience.dft
   module_name: materialsScience.multiscale
   consumer_instance_name: prf-a
