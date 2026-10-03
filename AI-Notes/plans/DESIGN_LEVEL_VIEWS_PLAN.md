@@ -208,6 +208,11 @@ Inputs are re-read by sha: re-ingesting unchanged files is a no-op (the second c
   then cells (the schematic exists), then layout (the DEF exists).
 - **D-dlv-5 reference core for C stepping:** **PicoRV32** now (pinned, ISC, Verilog), CVA6 later.
 
+## 5a. ✅ D-dlv-1..5 RULED 2026-10-03 — "go with all other recommendations": ONE parameterised `level-view` component with
+a renderer per level; ELK (elkjs) for the RTL / netlist / microarchitecture layouts; the layout level drawn from the DEF
+first, KLayout for GDS layers later; RTL + netlist pages first, cells second; PicoRV32 as the reference core for
+cycle-level C stepping.
+
 ## 6. Slices (each its own branch off dev; proofs on the adder at the hardware end, the UNO atoms at the C end)
 
 | slice | what | proof | gate |

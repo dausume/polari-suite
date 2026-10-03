@@ -227,6 +227,10 @@ read it.
   swarm, and we can automate the download and setup of those apps so that we can set up volumes that enable them to
   have files shared between both the native apps and the polari isle and/or swarm." → §5b.
 
+### 5a'. ✅ D-pcb-3..6 RULED 2026-10-03 — "go with all other recommendations": KiCad libraries + footprints we derive
+(no vendor libraries under their terms); the first board = the UNO shield (TMP36 + LED + header); through-hole,
+hand-soldered first (SMD + stencil later); no DigiKey API now.
+
 ### 5b. KiCad + FreeCAD as Polari-managed NATIVE apps with shared volumes (new slice pcb-na, shared with the CAD arcs)
 - **A new app kind in the store: `native-desktop-app`** (beside container apps and hardware/KVM apps — the name
   "Hardware App" stays the KVM guest's). Rows: `NativeAppDefinition` (name, upstream, licence — KiCad GPL-3, FreeCAD
