@@ -110,6 +110,51 @@ or worker; no fab rules as data; no DFM/DFA or assembly (solder) data; no order/
 - **`Order`/`Quote`**: fab + qty + price + date + the uploaded zip sha; DKRed via its web form (a person's step);
   later parts availability/price via the DigiKey API (a closed service, ToS — optional engine, D-pcb-6).
 
+## 2b. THE BOARD OBJECT — one definition shared by KiCad, Zephyr, FreeRTOS/ESP-IDF, bare C and Polari (his ruling 2026-10-03)
+
+*"we want to be able to share a similar or overlapping board definition between kicad as well as zephyr and freeRTOS and
+the system, trying to structure our board object to make sense in respect to all of them since we will be flipping
+between them."*
+
+Each world already has a "board" and they overlap on exactly one thing: **which MCU pin is wired to which net, and what
+that net is for.** So the shared object is built around the pin/net assignment, with each world as a VIEW generated from
+it (and ingested back into it), never four hand-kept copies:
+
+| layer (rows) | what it holds | KiCad view | Zephyr view | FreeRTOS / ESP-IDF view | bare-C view (cmod) | Polari runtime view (brd) |
+|---|---|---|---|---|---|---|
+| **Soc** (`SocDefinition`, from DatasheetFact rows) | the chip: packages, pins with their alternate functions, peripherals (USART0, ADC, TIM2…), memory map, clocks | the MCU symbol + footprint (package) | the SoC `.dtsi` it matches (upstream Zephyr) | the vendor HAL target (`-mmcu`, `IDF_TARGET`) | `F_CPU`, register names | ISA, flash/RAM class S/M/L |
+| **BoardHardware** (`Board`, `BoardComponent`, `Net`, `Connector`) | the physical board: every component, every net, connectors/headers and their pin order, power rails, crystals, USB bridge | THE schematic + PCB (components ↔ symbols/footprints, nets ↔ nets) | the board `.dts`: `chosen`, `aliases`, connector nodes (e.g. an Arduino-header gpio map), regulators | the BSP's pin definitions | — | USB VID:PID (the bridge/chip on the board), programmer kind, adapter needed |
+| **PinAssignment** (`BoardPin`: soc pin ↔ net ↔ connector pin ↔ function + peripheral + electrical facts) | the ONE overlap: "PD6 → net PWM_LED → header D6, function TIM0_OC0A" | net names and the ERC class (power/signal) | `pinctrl` + `gpio` aliases + `status = "okay"` per peripheral in the board `.dts`/overlay | `#define`s / `sdkconfig.defaults` / `menuconfig` fragments for the pins and peripherals in use | the generated `board_config.h` (cmod already generates one per variant: INSTANCE_INDEX, HAL knobs) + the HAL atoms' pin constants | the Firmware Installer's compatibility (a build names the pins it drives; refused if the instance's board lacks them) |
+| **RuntimeProfile** (per `firmware_runtime` knob) | which runtime, which peripherals enabled, clocks, stack/heap sizes, console UART, the twin | — | Kconfig fragment + the devicetree overlay | `sdkconfig` / FreeRTOSConfig.h deltas | the Makefile/linker script | twin (simavr/QEMU), BoardSimCost, the scenarios that apply |
+| **Identity** | name, revision, designer (theirs/ours), licence, the register row, roads | title block | `board.yml` / vendor + name | the BSP name | `BoardDefinition` (brd-0) + `Road` |
+
+Rules:
+- **Pins are named once.** A `BoardPin` has one canonical name (the connector label when there is one — `D6`, `A0` — else
+  the SoC pin); every generated view uses that name, so flipping between KiCad, a Zephyr overlay, an ESP-IDF header and
+  the C firmware shows the same identifiers. Nets carry the KiCad net name; the two are linked, not merged.
+- **Generate out, ingest in, both by hash.** `pol board render <board> --as kicad|zephyr|esp-idf|bare-c` writes the
+  view with a header naming the board row + its sha; `pol board ingest <path>` reads a KiCad project (nets, components,
+  footprints), a Zephyr board dir (`.dts`/`.dtsi`/`pinctrl`/`board.yml`), or an ESP-IDF BSP into the same rows and
+  reports what disagreed (a pin assigned differently in two views is a `BoardConflict` row — shown, never auto-resolved).
+- **Datasheet facts under everything** (derive-or-cite): a pin's alternate functions, drive strength, ADC channel
+  numbers, package dimensions come from `DatasheetFact` rows; the land pattern for the footprint and the Zephyr
+  pinctrl both cite the same fact.
+- **The SoC is shared across boards; the board is shared across runtimes.** The UNO, a future UNO shield, a Longan Nano,
+  the Pico 2 and the C3 each get a `Board` row; their SoCs (`ATmega328P`, `GD32VF103`, `RP2350`, `ESP32-C3`) are
+  separate rows the boards reference. Zephyr's own upstream board dirs for the C3/SAMD21/Pico 2 are INGESTED as the
+  starting rows (and cited), not retyped.
+- **brd-0's `BoardDefinition` becomes the Identity + runtime layer of this object** (no second board class); cmod's
+  `board_config.h` and hwnocode's `firmware_runtime` knob read the PinAssignment + RuntimeProfile rows; the PCB arc's
+  `Board`/`Net`/`Footprint` rows are the BoardHardware layer. One module owns the object: `board` (brd), with pcb/
+  hwnocode/cmod as readers and writers through it.
+
+First proofs: (1) ingest Zephyr's upstream `esp32c3_devkitm` (or the C3 board sc-3 used) + the UNO's pins typed from the
+Arduino pinout drawing (cited) → the same `BoardPin` rows render a Zephyr overlay AND cmod's `board_config.h` AND a
+KiCad netlist stub with identical pin names; (2) the UNO shield (pcb-1) is designed as a `Board` whose connector rows
+reference the UNO board's header pins, so its KiCad schematic, its C firmware and its Zephyr overlay (on a Zephyr-capable
+host board) are three renders of one assignment. Slice: `brd-bo` (the board object) — before pcb-0 and hn-1, since both
+read it.
+
 ## 3. The flow as no-code (ties to HARDWARE_NOCODE_PLAN)
 
 1. **Choose chips:** a `HardwareSolution` already names its board/MCU; a `Board` node on the ONE canvas (hn-0's
