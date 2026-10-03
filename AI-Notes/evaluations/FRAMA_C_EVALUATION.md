@@ -304,3 +304,16 @@ every shared access."** Concretely:
   from-source opam build in a production Dockerfile. Per-run cost is cheap once built: Mthread ran in 0.35 s at
   113 MB peak RSS on both properties tried here, cheaper than CBMC's ring check (156 s / 82 MB) and close to CBMC's
   millis checks (0.2–0.4 s / 13–14 MB).
+
+## 7. Outcome (2026-10-02): ruled and built as sc-2c
+
+His ruling: "Mthread can join the formal engines." Built on `dev-sc-2c` (plan §9 sc-2c row; module `COST.md` sc-2c section):
+Mthread only, opam-built from a pinned opam-repository commit into the SAME `prf-formal-engines` image — the pruned runtime
+closure is **+185 MB**, not the 3–6x this evaluation budgeted from its unpruned from-source container. The `ATOMIC_BLOCK` bridge §6
+said was not built now exists (`modules/firmwarefaults/custom/mthread_model/`: cli/sei/ATOMIC_BLOCK → one global interrupt lock,
+the ISR a started thread holding it), and the shipped build is recognised as protected through the firmware's REAL macro.
+Two corrections to §1 / §2c found while building: (1) opam-repository carries **`alt-ergo-free` 2.4.3 under CeCILL-C** (not only
+2.3.3 Apache-2.0) and frama-c 33.0's opam REQUIRES `("alt-ergo-free" | "alt-ergo")` — the free one is pinned and the build fails
+on any OCamlPro-NC `alt-ergo*`; (2) a thread from `Frama_C_thread_create` starts suspended until `Frama_C_thread_start`, and
+`ATOMIC_BLOCK`'s for-loop needs `-eva-slevel` ≥ 2 or the protected read reads back as `protected by (?)…`. Frama-C also has an
+`avr_16` machdep (int 16, long 32, pointers 16), used instead of `x86_32`.
