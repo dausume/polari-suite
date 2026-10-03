@@ -93,7 +93,13 @@ run for the first time there).
 ## Hardware no-code plan (2026-10-03, dev 5f308e4)
 `AI-Notes/plans/HARDWARE_NOCODE_PLAN.md`: one no-code model across frontend, backend and hardware on the existing
 canvas; a §1a survey of 24 prior items; the C / FreeRTOS / Zephyr suggestion engine with measured evidence; ten
-hardware variants as scenarios; D-hn-1..6 his; slices hn-0..5. Nothing built; hn-0 starts on his word after the merge.
+hardware variants as scenarios; D-hn-1..6 his; slices hn-0..5. D-hn-1..6 ruled 2026-10-03. ✅ hn-0 BUILT on `dev-hn-0` (from dev-hw-integration: framework 17b99ef / angular d563892 /
+rf-node c7cd269 / cli 13de99c / suite d06100f): the `hwnocode` module, the two node kinds on the ONE canvas with a
+data-driven palette, the split app over the UNO peripheral proven on the twin (glue byte-identical, backend node at
+10 Hz on tmpfs, chart with both series, PUT echo 0.15 s), suggestion = bare C with evidence. 🔑 Finding: on this disk
+sqlite commits cost 10.8 ms and the engine saves ~14 rows per frame synchronously inside the gRPC push path → 2.65 Hz;
+a shared-engine change (batched/async saves) is owed before 10 Hz solutions run on real disks. Merge note: the plan
+file is an add/add on dev (take dev's + hn-0's §7 edits).
 
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
