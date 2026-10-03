@@ -18,9 +18,10 @@ merged; nothing touched dev/main, the droplet, or the running stacks. His merge 
 | sc-2c Frama-C Mthread in the formal engines (unbounded race verdicts; image +185 MB) | `dev-sc-2c` (from sc-2) | fcc7fee | 82b2f20 | 1ac0681 | ce97238 | — |
 | cmod-0 C modularization: `cmod` module, pycparser atoms, `polari-firmware.json` conform over the UNO firmware (34 atoms; .hex byte-identical; make alone builds) | `dev-cmod-0` (from sc-2) | 3af175c | e0c0142 | 500c9a5 | dbdb3b9 | — |
 | sc-3 the RTOS scenarios on the ESP32-C3 (Espressif QEMU twin, ESP-IDF 5.5.5 worker 1.8 GB): priority inversion 12.2 ms → 2.1 ms with a mutex; two-lock deadlock at tick 370 → lock ordering / back-off; campaigns 40 %→0, 70 %→0 | `dev-sc-3` (from sc-2) | 0d4b4d1 | 821fa05 | 795de58 | 3dde68a | — |
+| cmod-1 one no-code graph → generated plain-C glue; rendered .hex BYTE-IDENTICAL to the hand-written sim-rig; 40 twin frames identical on every field; a negative control catches changes | `dev-cmod-1` (from cmod-0) | a311580 | 4f22a06 | 554ff96 | 764a1c7 (its plan edit b5c6dbf is cherry-picked onto dev — merge the branch without that file conflicting) | — |
 
 Merge order when he says so: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 → sc-2 (carries sc-4) → then the three
-siblings off sc-2: sc-2c, cmod-0, sc-3 (cmod-0 independent; sc-2c and sc-3 both APPENDED to firmwarefaults_selftest main(),
+siblings off sc-2: sc-2c, cmod-0 (+ cmod-1 after it), sc-3 (cmod-0 independent; sc-2c and sc-3 both APPENDED to firmwarefaults_selftest main(),
 polari-app.json, README/COST, the probe, faults.sh and the plan's status line → expect small textual conflicts there;
 rehearse the merge first as before) + framework
 `dev-hwmap-fixture`. Plans on dev: BOARD_PROGRAMMING, FIRMWARE_SCENARIO, C_MODULARIZATION.
