@@ -20,7 +20,8 @@ merged; nothing touched dev/main, the droplet, or the running stacks. His merge 
 | sc-3 the RTOS scenarios on the ESP32-C3 (Espressif QEMU twin, ESP-IDF 5.5.5 worker 1.8 GB): priority inversion 12.2 ms → 2.1 ms with a mutex; two-lock deadlock at tick 370 → lock ordering / back-off; campaigns 40 %→0, 70 %→0 | `dev-sc-3` (from sc-2) | 0d4b4d1 | 821fa05 | 795de58 | 3dde68a | — |
 | cmod-1 one no-code graph → generated plain-C glue; rendered .hex BYTE-IDENTICAL to the hand-written sim-rig; 40 twin frames identical on every field; a negative control catches changes | `dev-cmod-1` (from cmod-0) | a311580 | 4f22a06 | 554ff96 | 764a1c7 (its plan edit b5c6dbf is cherry-picked onto dev — merge the branch without that file conflicting) | — |
 
-Merge order when he says so: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 → sc-2 (carries sc-4) → then the three
+Merge order when he says so: fast-forward to `dev-hw-integration`, then merge `dev-hn-0` → `dev-brd-bo` (each stacks on the
+previous; plan files are small add/add conflicts, take dev's + the branch's section). Older detail: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 → sc-2 (carries sc-4) → then the three
 siblings off sc-2: sc-2c, cmod-0 (+ cmod-1 after it), sc-3 (cmod-0 independent; sc-2c and sc-3 both APPENDED to firmwarefaults_selftest main(),
 polari-app.json, README/COST, the probe, faults.sh and the plan's status line → expect small textual conflicts there;
 rehearse the merge first as before) + framework
@@ -107,6 +108,13 @@ ingestion: `polari_block` is never stamped and lod1 strips attributes) and `PCB_
 engine, design as rows, DKRed constraints cited, the UNO shield first). Decisions D-dlv-1..5 and D-pcb-1..6 are his.
 Also his rule today: develop ACROSS devices — the engine workers are moving to isle-core (see memory
 develop-across-devices); isle-core's outage was a power cut, not the OS (memory other-machines-ssh).
+
+## brd-bo — THE BOARD OBJECT (2026-10-03, `dev-brd-bo` from dev-hn-0: framework c2d8451 / rf-node 1637522 / cli bd5ec58 / suite b628529)
+One board definition shared by KiCad, Zephyr, ESP-IDF, bare C and Polari, built around `BoardPin`; seeds cited
+(ATmega328P datasheet, Arduino's UNO pinout, Zephyr v4.4.2's C3 board dir ingested with its licence); four proofs on
+isle-core's workers: UNO builds byte-identical with pins now coming from rows; the C3 overlay round-trips and its image is
+byte-identical; a conflicting ingest leaves the rows alone; one pin moved changes every view together. `pol board
+render|ingest|pins|conflicts|assign`. Engines now run on isle-core (topology rows + swarm join in progress).
 
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
