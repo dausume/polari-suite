@@ -36,8 +36,9 @@ ROOT = os.environ.get('SCN_ROOT', '/tmp/scn')
 SEEDS = max(1, int(os.environ.get('CI_SCENARIO_SEEDS', '1') or 1))
 os.makedirs(ROOT, exist_ok=True)
 from firmwarefaults.custom import scenarios as SC
-names = [s['name'] for s in SC.SEED_SCENARIOS if SC.runnable(s)]
-skipped = [{'scenario': s['name'], 'why': SC.refusal(s)[:200]} for s in SC.SEED_SCENARIOS if not SC.runnable(s)]
+gap = getattr(SC, 'engine_gap', lambda s: '')   # sc-3: the C3 scenarios need the esp engines (ESP_ENGINES_URL / prf-esp-engines)
+names = [s['name'] for s in SC.SEED_SCENARIOS if SC.runnable(s) and not gap(s)]
+skipped = [{'scenario': s['name'], 'why': (SC.refusal(s) or gap(s))[:200]} for s in SC.SEED_SCENARIOS if not SC.runnable(s) or gap(s)]
 print('[scenarios] runnable: %s' % ' '.join(names), flush=True)
 for s in skipped:
     print('[scenarios] not runnable (refused before anything is built): %s — %s' % (s['scenario'], s['why'][:120]), flush=True)
