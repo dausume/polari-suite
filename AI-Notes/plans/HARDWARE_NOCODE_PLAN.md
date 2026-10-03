@@ -330,6 +330,15 @@ wins and is recorded as `accepted_by`. When a person's pick contradicts the sugg
   host layer**. (ii) Third-party radio firmware (RNode) is commonly Arduino C++ (**unverified**): vendor it as an opaque
   engine artifact, or exclude it? → **opaque artifact, never a no-code target**.
 
+
+### 6a. ✅ ALL RULED 2026-10-03 (his words)
+- **D-hn-1 → subgraph:** cmod's graph rows stay the hardware SUBGRAPH that a solution references (RULE 2 enforced at the boundary).
+- **D-hn-2 → one canvas with new node kinds** (the palette becomes data-driven from the live endpoint; overlays for c-atom / hw-interface / register).
+- **D-hn-3 → suggest only** (the suggestion engine never pre-selects; the knob `firmware_runtime` stays the person's).
+- **D-hn-4 → the Polari-attached PERIPHERAL first, then the UNO** ("since we can prove it IRL") — i.e. variant (b) as it exists, then the split app on the UNO with a display, proven on real silicon; standalone after.
+- **D-hn-5 → the ESP32-C3** for Zephyr (toolchain + QEMU twin exist from sc-3).
+- **D-hn-6 → Python is fine on the SoC side** ("since we already use it") — a Linux SoC such as the BeagleV-Fire runs Polari Python; never on an MCU. **Radio firmware: prefer C over C++** ("so we are not introducing yet another new language") — RNode-class firmware is adopted only if a C path exists or is written; a C++ dependency is a decision, not a default.
+
 ## 7. Cost and slices
 
 Cost per the cost rule; numbers are estimates until measured. The module `hwnocode` holds pure Python rows plus the
