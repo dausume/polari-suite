@@ -170,8 +170,8 @@ first agent was killed mid-slice by an API error; a second finished it on the sa
   gitignores (board-home/, desktop/bin/, __pycache__/) and the in-container SKIPs in the firmwarefaults selftests.
 - HOME STACK: rebuilt + redeployed from dev twice today; placement constraint FROM THE STACK; `pol suite urls` = .210 on its own;
   pages 9/9; engines = 4 tasks on isle-core incl. KiCad; the backend reaches them by DIRECT address (knobs exported at render —
-  DEBT row). Mesh data plane still dead until pol-core sends VXLAN from .210 (route `src` — his sudo; durable = static .210 +
-  router reservation). `pol swarm ports` now explains both the drift and the data plane.
+  DEBT row). Mesh data plane PROVEN 2026-10-04 evening after his route-src change (non-persistent; durable = static .210 + router
+  reservation = tnb-0's first finding). `pol swarm ports` now explains both the drift and the data plane.
 - PIPELINE: 933b326 FAILED (pcb missing from app_taxonomy = regression, fixed; isle stage = the unattended-upgrades dpkg-lock
   flake, fixed at the bake + a lock wait); econ-core pulled d879381, controller refreshed, prepared base cleared; `pol jenkins
   promote test` → 025d10e (2026-10-04 afternoon) — verdict pending; main waits for a PASSED verdict (`pol jenkins promote main`).
@@ -182,7 +182,7 @@ first agent was killed mid-slice by an API error; a second finished it on the sa
 | hand-applied fix | where | wrap as |
 |---|---|---|
 | `ip addr add 192.168.0.210/24` + NM `+ipv4.addresses` (the swarm manager's advertised address had drifted from DHCP .212) | pol-core | topology machine row: advertised vs current vs route-source address; `pol topology validate` finding + consented action; rule: the manager's advertise address = its stable primary address |
-| route `src 192.168.0.210` (VXLAN frames left from .212 → `VXLAN_ENTRY_EXISTS` drops on isle-core) | pol-core | same finding (data-plane test per edge) |
+| route `src 192.168.0.210 metric 600` (VXLAN frames left from .212 → `VXLAN_ENTRY_EXISTS` drops on isle-core; found with bpftrace) — ✅ APPLIED by him 2026-10-04 evening: all four engine ports answer through pol-core in ~0.1 s, mesh proven both ways; NOT persistent (NM restores the DHCP src) | pol-core | tnb-0 finding `route-source-mismatch` + `address-not-stable` → static .210 + router reservation |
 | two ufw lines (4789/7946 udp) — NOT needed, ufw is inactive; harmless | pol-core | topology: observed firewall state per machine (`pol topology report`), rules derived from edges, applied with consent + hand-back journal (`pol net` → fold INTO topology) |
 | `docker service update --constraint-add node.labels.polari.machine==pol-core` ×6 | pol-core swarm | compose/render placement (dev-hw-followups #1) |
 | `BOARD/ESP/FORMAL/PCB_ENGINES_URL` + `LOCAL_IP` exported in the shell before the render | pol-core | topology edges resolve the URLs (the mesh) or the render writes them from rows; never a shell export |
