@@ -1,6 +1,6 @@
 # Hardware as no-code (hn arc): ONE no-code model across frontend, backend and hardware. A graph can span a sensor atom on a board, the bridge, a backend node and a configured display. Polari suggests bare C, FreeRTOS or Zephyr, with evidence.
 
-**Date:** 2026-10-03 · **Status: PLAN. Nothing built. D-hn-1..6 are his.** Drafted by an opus agent from the tree at
+**Date:** 2026-10-03 · **Status: D-hn-1..6 RULED (§6a). hn-0 BUILT 2026-10-03 on `dev-hn-0` (§7, numbers there); hn-1..5 PLAN.** Drafted by an opus agent from the tree at
 suite `origin/dev` (7b3f5bd), with framework `dev-hw-integration` a9885f8 and angular 1deb1da (the merged
 brd/sc/cmod stack). Fable reviews it. Code paths are under `polari-rf-node/polari-framework/` unless they say
 otherwise; Angular paths are under `polari-rf-node/polari-platform-angular/`. Facts marked **unverified** were not
@@ -347,12 +347,61 @@ The Fire's Polari node RSS is **unmeasured**.
 
 | slice | what | proof (twin / home machines; never the droplet) | gate |
 |---|---|---|---|
-| hn-0 | module `hwnocode` (`HardwareSolution`); kinds `HardwareSubgraph`, `hw-interface`; the palette from `/stateSpaceClasses`; the `c-atom` overlay (= cmod-3) + `hw-interface` overlay; `hn-split` compiler row; edges `field-cmd`, `deadband`; MCP `polari_propose_hardware_solution` | variant h on the simavr UNO twin: the `uno-sim-rig-graph` device half renders **byte-identical** to cmod-1 (4188f6ae…); ADC 700→800 mV crosses the threshold → the backend solution → Commands → `led_on` echoed in the next frame; a configured chart tab; a Python node dropped on the board is refused with the reason | D-hn-1, D-hn-2 |
+| hn-0 ✅ BUILT 2026-10-03 (`dev-hn-0`) | module `hwnocode` (`HardwareSolution`, `HardwareNodePlacement`); kinds `HardwareSubgraph`, `hw-interface` (+ `c-atom`); the palette from `/stateSpaceClasses`; the `c-atom` overlay (= cmod-3) + `hw-interface` overlay; `hn-split` compiler row; ~~edges `field-cmd`, `deadband`; MCP `polari_propose_hardware_solution`~~ (owed — see below) | variant h on the simavr UNO twin: the `uno-sim-rig-graph` device half renders **byte-identical** to cmod-1 (4188f6ae…); ADC 700→800 mV crosses the threshold → the backend solution → Commands → `led_on` echoed in the next frame; a configured chart tab; a Python node dropped on the board is refused with the reason | D-hn-1, D-hn-2 |
 | hn-1 | the feature extractor + rule table + `RuntimeSuggestion`/`HardwareSuggestion`; cmod verdict `blocking` | sim-rig graph → bare-c (rules 1/4, S2 + sc-0 evidence); a graph from the C3 `prio_inversion.c` atoms → freertos/esp-idf with the 12 160 → 2 098 µs pair attached; selftest = one case per rule row | D-hn-3 |
 | hn-2 | standalone variant: glue no-class mode, EEPROM config | the hn-0 graph minus the hw-interface → twin LED toggles on the ADC triangle with no bridge; the config byte written by the installer plan; `make` alone | D-hn-4 |
 | hn-3 | Polari-hosted: brd-2 + the `linux-device` placement + `hwfpga-regblock` row | the Renode `beaglev-fire` twin runs a lean node; a register write lights the hwsim-led pattern; the RSS is measured on pol-core | D-brd-3, D-hn-6 |
 | hn-4 | fleet: one build, the index at install, `assign_indexes` | 3 UNO twins on one bridge, 2-bit index, 0 refused frames; a swapped port refused; ≈ 11 MB per twin measured | — |
 | hn-5 | Zephyr glue target (`task`/`queue`/`mutex` nodes) | the inversion + deadlock pairs re-run on the C3 under Zephyr; cost rows beside the FreeRTOS ones; the image measured | D-hn-5 |
+
+
+### hn-0 — BUILT 2026-10-03 (branch `dev-hn-0` in framework / angular / rf-node / cli / suite; no UNO attached — the real-UNO replay is his)
+
+What was built, against the row above (module README: `polari-framework/modules/hwnocode/README.md`):
+- **Module `hwnocode`** (requires board, cmod, grpcbridge; 0 MB image): `HardwareSolution` (solution · cgraph = the D-hn-1 subgraph ·
+  board/instance · interface · displays · **`firmware_runtime`** knob — bare-c renders; `auto` refused (D-hn-3), an RTOS on the S-class UNO
+  refused for the RAM, elsewhere refused as hn-5 — never converged by a re-seed), `HardwareNodePlacement` (one row per node: where + why),
+  the node kinds `HardwareSubgraph` / `HardwareInterface` / `CAtom`, the split app's `SimRigTempSample` (a ring) + `SimRigTempDerived`.
+- **The placement rule as code** (§2b): c-atom/glue kinds/subgraph → board (twin while no BoardInstance is attached); hw-interface →
+  bridge (the split point); engine classes → backend; displays → browser. A Python node wired on the device side, a non-C kind inside the
+  CGraph and a device→backend edge without a hw-interface are each REFUSED, named.
+- **`hn-split`** = a GraphCompilerDefinition row: the board half through `cmod-glue` (unchanged output), the backend half as its own
+  SolutionDefinition (`uno-temp-split.backend`), run per frame by an EventTrigger on the bound row.
+- **One canvas (D-hn-2)**: a class that declares a `statePalette` is a state-space kind and GET /stateSpaceClasses returns that palette
+  (polyTyping; it also fixed a latent `polyTypedVariable.varName` AttributeError that broke the endpoint for any typed module class);
+  Angular's `StateSpacePaletteSourceService` registers the live entries the static registry lacks (static kinds always win); the canvas
+  dispatches the two new overlays on the entry's `overlayKind` (`c-atom` overlay for CAtom + the HardwareSubgraph as ONE collapsed node that
+  expands inside the overlay — the canvas has no grouping layer; `hw-interface` overlay), both on StateOverlayBase + `<state-overlay-shell>`.
+- **The split app `uno-temp-split`** + `/display/hardware-solutions` (3 configured tables + a GraphDefinition chart via `named-graph-panel` —
+  the graphs design's path; `sci-xy-chart` is not a display component) + `pol hwnocode solutions|place|render|build|suggest|runtime`.
+
+Measured:
+- `pol hwnocode render`: files_sha256 `926ae056…` = cmod-1's record, file by file; `pol hwnocode build` (make alone): `.hex 4188f6ae…`
+  byte-identical (flash 4310 B / RAM 491 B).
+- Placement of uno-temp-split: **twin 19** (the HardwareSubgraph + its 18 CGraph nodes, C), **bridge 1** (uno-twin), **backend 6**
+  (BackendStateChange, AnalysisCall, ConditionalChain, VariableAssignment ×2, StateChangeCommit — Python, the engine), **browser 1**.
+- Twin proof (`tests/hwnocode_probe.py`, 18/18, throwaway DB on tmpfs): the server's own header = the glue's (pinned v2 ledger restored);
+  the bridge 9.94 frames/s; the backend half **10.27 rows/s = 10.00 per firmware-second**, 94/94 firings, lag 0 ms; average 20.02 … 29.39 °C,
+  `over_threshold` false AND true; chart 258 rows of both series; PUT `{led_on: true}` → `status=commanded` in 0.15 s, PORTB5 high.
+- Suggestion: **bare-c**, rule 1 (memory class S: arduino-uno-r3 MCU-S, 2 KB RAM) — evidence BoardDefinition + CGlueBuild (flash 13.2 %,
+  RAM 24.0 %); rule 4 holds too (S2 lost-ack-hang, sc-0 torn-millis-read, FormalCheck hal-millis-not-torn); one activity (1 loop, 1 tick,
+  rx + command in the same pass); blocking atoms from the annotation (hal_adc_read, hal_usart_send, both in the telemetry tick); no radio;
+  applied: false.
+- Costs: engine 7.8 ms per frame; a firing under load 55 ms (≈ 14 row saves per frame, xsim-2's queue/lease/locks ≈ 8 of them); bridge
+  92 MB RSS; server 206 MB peak; live boot (all modules) 537 s / 404 MB, 0 tracebacks.
+- **Finding — storage bound**: one sqlite commit is 10.8 ms on pol-core's disk vs 0.06 ms on tmpfs; on disk (`--db disk`, 16/18) the
+  backend half sustains **2.65 Hz** (every frame processed, but the queue lags 48.9 s after 9 s and — the trigger runs in the gRPC push
+  path — the row and the PUT echo lag with it). Levers for a later slice (core): one tied long-lived run per HardwareSolution instead of
+  one gated run per frame; object triggers off the push thread; batched TriggerFiring rows for high-rate triggers.
+- Tests: hwnocode selftest 55/55; live boot 10/10 (subset 28 s, all modules 537 s); Angular 12/12 new specs (full suite 194/200 — the 6
+  are pre-existing XR specs: 5 fail at base 1deb1da, 1 order-dependent and green alone); `ng build --configuration development` passes;
+  conventions cause_context 41/41, outbound 61/61, manifests 8/8; `manifests conform hwnocode` OK; cmod 100/100, board 163/163,
+  firmwarefaults 190/190, c_twin 44/44 + 21/21 — those modules unchanged.
+
+Owed from the hn-0 row: the cmod edge kinds `field-cmd` / `deadband` (they change cmod's renderer; hn-0 kept cmod byte-for-byte unchanged),
+`polari_propose_hardware_solution` (MCP), the threshold → `StateChangeCommit led_on` round trip in the BACKEND (hn-0 proves the Commands leg
+with a REST PUT on the bound row; a backend write of SimRigState would re-fire its own trigger — needs a field filter / depth design), the
+real-UNO replay (his).
 
 Not in scope: VHDL/C++/Rust/MicroPython on devices (RULE 2); BLCNC revival (shelved); KVM hardware apps; LoRa / HaLow
 twins; signal-integrity physics.

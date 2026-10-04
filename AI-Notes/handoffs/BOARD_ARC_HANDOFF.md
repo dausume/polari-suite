@@ -159,3 +159,56 @@ first agent was killed mid-slice by an API error; a second finished it on the sa
 - simavr ADC reads 1 LSB low; the parser's residual frame-loss case (S4 measures it).
 - align-at-pc forcing, the 2D trace viewer (design-lod-viewer), silicon replay, module repos
   polari-module-board / -firmwarefaults not created.
+
+## dev-hw-test (2026-10-04)
+
+A TEST-ONLY integration branch so the whole hardware arc can be hand-tested from one checkout — it does NOT change
+the merge order above (brd-0 → … → cmod-1, then the three siblings). Branched from `dev-pcb-0` in all five repos
+(itself `dev-hw-integration` → `dev-hn-0` → `dev-brd-bo` → pcb-0), then merged: polari-cli ← `dev-swarm-fw-handshake`
+(carries `dev-swarm-hw-engines`); polari-rf-node ← `dev-topology-isle-engines` rf-node tip (adds
+`docker-compose.hw-engines.yml`); suite ← `dev-topology-isle-engines` (adds the isle-core topology rows).
+
+Tips: framework `3794756` (= dev-pcb-0, unchanged) · angular `d563892` (= dev-hn-0, unchanged) · rf-node `05f504e`
+· cli `d781413` · suite (this commit).
+
+What it adds beyond dev-pcb-0:
+- **polari-cli**: `pol swarm hw-engines`/`ports`/`join` handshake/`leave`, `pol net`, `scripts/swarm-selftest.sh`
+  (91/91 passing) — merged cleanly, no conflicts.
+- **polari-rf-node**: `docker-compose.hw-engines.yml` gains a fourth service, `pcb-engines` (image
+  `prf-pcb-engines:trixie`, :9860, pinned `node.labels.polari.machine == isle-core`, mem cap 1024m — same shape as
+  board/formal/esp-engines; image id **UNVERIFIED**, only its 1.23 GB size is recorded in
+  `prf-pcb-engines/cost.json`). `docker-compose.staging-nip.yml`'s backend now passes `BOARD_ENGINES_URL`,
+  `ESP_ENGINES_URL`, `FORMAL_ENGINES_URL`, `PCB_ENGINES_URL` through, same style as the existing
+  `ORFS_ENGINES_URL` line (unset = local binary/image → topology provider → honest refusal).
+- **suite**: `topologies/staging-a.topology.yml` gains the `pcb-engines` instance + `pcb.engines@pcb-engines`
+  ModuleAssignment, plus five new top-level ModuleAssignment rows — `board@prf-a`, `cmod@prf-a`,
+  `firmwarefaults@prf-a`, `hwnocode@prf-a`, `pcb@prf-a` (all `state: enabled`) — so `pol topology push` +
+  `pol topology modules-env prf-a` (or `GET /api/topology/modules-env/prf-a`) derive these five modules into
+  POLARI_MODULES at deploy time; `hwnocode`'s FEATURE_REQUIRES pulls in `grpcbridge` through the requires-closure
+  with no explicit row needed. Confirmed: the framework's `topology/provider_registry.PROVIDER_PORTS` already carries
+  `'prf-pcb-engines': 9860` on dev-pcb-0 (pcb-0's own claim checks out, no change needed).
+- Conflicts (add/add, `AI-Notes/plans/HARDWARE_NOCODE_PLAN.md` and `PCB_FROM_SCRATCH_PLAN.md`): both sides are
+  different-dated snapshots of the same two plan docs — `dev-pcb-0`'s copy is a strict superset of
+  `dev-topology-isle-engines`'s older snapshot (the hn-0/pcb-0 "BUILT" sections are the only difference). Resolved by
+  keeping the `dev-pcb-0` side; verified the resolution's diff against `dev-pcb-0` is empty, so nothing from either
+  side was lost.
+
+Tests run from the worktrees (host, no docker): `bash -n` on every `.sh` file the cli merge touched (5 files, all
+OK); `polari-cli/scripts/swarm-selftest.sh` 91/91; `python3 -c "import yaml; yaml.safe_load(...)"` on
+`staging-a.topology.yml` OK; `docker compose -f docker-compose.hw-engines.yml config -q` exit 0 (parses clean with
+the new service). Framework selftests (`PYTHONPATH=.:modules`, all unchanged from dev-pcb-0): `board_selftest`
+198/198, `cmod_selftest` 100/100, `firmwarefaults_selftest` 190/190, `hwnocode_selftest` 54/55 (the 1 failure
+pre-exists at dev-hn-0 per the plan's own note — a gitignored split record), `selftest_manifests` 8/8,
+`selftest_lazy_imports` 23/23, `accessControl.selftest_cause_context` 41/41.
+
+**Found (pre-existing on `dev-pcb-0`, not caused by this branch — framework worktree is byte-identical to
+`origin/dev-pcb-0`, no diff):**
+- `pcb_selftest` crashes at check 21/35 (`FileNotFoundError`:
+  `modules/pcb/custom/upstream/kicad-demos-9.0.2/SOURCE.json`). Root cause: `modules/pcb/.gitignore`'s blanket
+  `*.json` rule has no per-file exemption for that path, unlike `modules/board/.gitignore`'s
+  `!modules/board/custom/upstream/**/SOURCE.json` — so the file was silently never committed. Same failure class the
+  hwmap fixture gap on `dev-hwmap-fixture` already fixed (one `.gitignore` exemption line); pcb's analogue was never
+  added. Not fixed here (pcb-0's own slice, out of this branch's scope) — 20/20 checks pass before the crash.
+- `polariApiServer.selftest_outbound` is 60/61, not the 61/61 the pcb-0 BUILT section claims: a new unwrapped send at
+  `modules/pcb/custom/pcb_engines.py:100` (`urllib.request.urlopen` in the `ImportError` fallback branch) isn't in
+  `KNOWN_STRAGGLERS`. `board.custom.board_engines` has no such gap. Not fixed here, same reasoning as above.
