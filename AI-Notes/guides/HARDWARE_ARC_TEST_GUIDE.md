@@ -1,6 +1,6 @@
 # Hardware arc — hand-test guide (2026-10-04)
 
-Branch under test: `dev` (merged 2026-10-04; dev-hw-test was the staging branch) in all five repos (= dev-pcb-0 tip + the isle-core topology branch + the
+Branch under test: `dev` (merged 2026-10-04; dev-hw-test was the staging branch). The home stack is ALREADY rebuilt and deployed from dev (2026-10-04 afternoon) and the KiCad worker is in the isle-core stack — skip sections 1–2 unless you redeploy; pol-core's stack address is .210 (`pol suite urls`). in all five repos (= dev-pcb-0 tip + the isle-core topology branch + the
 pol swarm handshake branch + the four engine knobs in the staging compose + the five module assignments on prf-a).
 Device labels: **[pol-core]** = this desktop (swarm manager, the home stack, the browser); **[isle-core]** = the
 engine host 192.168.0.24 (board/formal/esp/pcb workers); **[bench]** = the UNO on USB at pol-core.

@@ -162,6 +162,22 @@ links. `pol pcb ingest|render-schematic|…`. Tests pcb_selftest 35/35, pcb_prob
 unchanged. Pre-existing unrelated: `resources.profiles_selftest` has one failure. Build time of the image unknown (the
 first agent was killed mid-slice by an API error; a second finished it on the same worktrees).
 
+## STATE 2026-10-04 evening — everything merged to dev, deployed at home, promoted to test (main NOT promoted)
+- dev tips: suite 025d10e · cli 46b8c11 · rf-node 2a96dfa · framework 38e8d56 · angular ea13f2c · app-shell ad2af35 · proof-tools 092151a · torch-tools 1973a04.
+  Contents since the morning merge: swarm advertise/data-plane checks (cli 195f220), the pipeline apt-lock flake fix (suite d879381),
+  the tnb plan (f615ab0), the nine deploy follow-ups (placement in compose, firmwarefaults columns site/position/check_name, honest
+  probes, modules-env closure from the checkout, lan_ip prefers the swarm address, pcb ingest --api paths, pcb in app_taxonomy),
+  gitignores (board-home/, desktop/bin/, __pycache__/) and the in-container SKIPs in the firmwarefaults selftests.
+- HOME STACK: rebuilt + redeployed from dev twice today; placement constraint FROM THE STACK; `pol suite urls` = .210 on its own;
+  pages 9/9; engines = 4 tasks on isle-core incl. KiCad; the backend reaches them by DIRECT address (knobs exported at render —
+  DEBT row). Mesh data plane still dead until pol-core sends VXLAN from .210 (route `src` — his sudo; durable = static .210 +
+  router reservation). `pol swarm ports` now explains both the drift and the data plane.
+- PIPELINE: 933b326 FAILED (pcb missing from app_taxonomy = regression, fixed; isle stage = the unattended-upgrades dpkg-lock
+  flake, fixed at the bake + a lock wait); econ-core pulled d879381, controller refreshed, prepared base cleared; `pol jenkins
+  promote test` → 025d10e (2026-10-04 afternoon) — verdict pending; main waits for a PASSED verdict (`pol jenkins promote main`).
+- NEXT: his route-src + the browser pass (guide `AI-Notes/guides/HARDWARE_ARC_TEST_GUIDE.md`, now on dev) + the UNO on the bench;
+  his D-tnb-1..4 → tnb-0; the 25 reserved-word columns (TESTING_OWED §79) = his shared-layer decision.
+
 ## DEBT: proved by hand on 2026-10-04 → must become `pol` verbs / topology rows (his rule: the average person, AIs and GUIs get it through Polari)
 | hand-applied fix | where | wrap as |
 |---|---|---|
