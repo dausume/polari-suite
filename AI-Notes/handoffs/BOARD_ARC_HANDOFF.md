@@ -162,6 +162,19 @@ links. `pol pcb ingest|render-schematic|…`. Tests pcb_selftest 35/35, pcb_prob
 unchanged. Pre-existing unrelated: `resources.profiles_selftest` has one failure. Build time of the image unknown (the
 first agent was killed mid-slice by an API error; a second finished it on the same worktrees).
 
+## DEBT: proved by hand on 2026-10-04 → must become `pol` verbs / topology rows (his rule: the average person, AIs and GUIs get it through Polari)
+| hand-applied fix | where | wrap as |
+|---|---|---|
+| `ip addr add 192.168.0.210/24` + NM `+ipv4.addresses` (the swarm manager's advertised address had drifted from DHCP .212) | pol-core | topology machine row: advertised vs current vs route-source address; `pol topology validate` finding + consented action; rule: the manager's advertise address = its stable primary address |
+| route `src 192.168.0.210` (VXLAN frames left from .212 → `VXLAN_ENTRY_EXISTS` drops on isle-core) | pol-core | same finding (data-plane test per edge) |
+| two ufw lines (4789/7946 udp) — NOT needed, ufw is inactive; harmless | pol-core | topology: observed firewall state per machine (`pol topology report`), rules derived from edges, applied with consent + hand-back journal (`pol net` → fold INTO topology) |
+| `docker service update --constraint-add node.labels.polari.machine==pol-core` ×6 | pol-core swarm | compose/render placement (dev-hw-followups #1) |
+| `BOARD/ESP/FORMAL/PCB_ENGINES_URL` + `LOCAL_IP` exported in the shell before the render | pol-core | topology edges resolve the URLs (the mesh) or the render writes them from rows; never a shell export |
+| `pol topology assign grpcbridge prf-a` by hand (closure computed from the old image) | core rows | modules-env closure from the checkout (dev-hw-followups #6) |
+| `pol pcb ingest /app/modules/...` (in-container path) | staging backend | the CLI sends module-relative paths / uploads (dev-hw-followups #8) |
+| rm of untracked `desktop/bin`, `__pycache__` to let `pol jenkins promote test` run | checkout | .gitignore lines in polari-app-shell / proof-tools / torch-tools |
+| `docker rm -f prf-pcb-engines` on isle-core, then `pol swarm deploy hw-engines` | isle-core | the stack owns the worker now; `pol swarm deploy` should offer to retire a same-port ad-hoc container |
+
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
    `/display/firmware-installer`; then `pol faults run torn-millis --both` on silicon.
