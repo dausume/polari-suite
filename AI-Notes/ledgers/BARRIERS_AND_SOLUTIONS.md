@@ -40,6 +40,8 @@ topology row for the average person; "hand" = applied by hand this once (a DEBT 
 | C7 | layer/schematic drawings empty on the deployed stack | `artifact_url` needed `POLARI_PUBLIC_BASE_URL` (unset in staging) → '' | relative `/api/pcb/artifacts/...` by default; stale rows derive from `artifact_path` | never require a public base url for in-app links ✅ |
 | C8 | drawings 404 after a backend redeploy | module artifact homes were `~/.cache/polari-*` inside the container (ephemeral) | `module_home()` → `/app/data/<name>` in the container | artifacts → the file store [owed] |
 | C9 | the C3 pin map drew an empty box | the C3 has BoardPin rows but no Connector/ConnectorPin rows (only the UNO seeds them) | a bare-BoardPin fallback layout | seed the C3 connectors [TODO 4] |
+| C10 | /display/c-canvas and /display/hardware-solutions reloaded forever | `initializeFromBackend()` wiped the just-created local canvas solution (save debounced 2 s) → fallback selected another solution → `router.navigate` → `display-page` reloaded the whole display on ANY query-param emission → the panel re-mounted → … | local unsaved solutions survive the cache rebuild; display reloads only on a real id/object change; spec: ensure+select once, no navigation | rules: a panel never navigates; a display reloads only on a real param change ✅ |
+| C11 | "ecc83-pp" meant nothing on the page | the ingest ignored the KiCad title block | title/description/licence read from the title block + SOURCE.json, shown first | every ingested artefact carries its own title/description ✅ |
 | C5 | installer probe crashed (`KeyError 'build'`) | it posted ESP32-C3 variants to the UNO-only endpoint | C3 variants skipped by board, failures reported not raised | ✅ |
 
 ## D. Product
