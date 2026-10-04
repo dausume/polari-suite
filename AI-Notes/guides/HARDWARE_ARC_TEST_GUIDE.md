@@ -68,7 +68,7 @@ also reachable by clicking: sidebar → Displays → Published Pages → the car
 
 | # | URL | what must be there |
 |---|-----|--------------------|
-| 1 | https://prf.192.168.0.212.nip.io/display/boards | 12 tables: devices (UNO, Longan Nano, C3, SAMD21, Hazard3/iCE boards …), adapters with VID:PIDs, roads (UNO first step done), programmers, instances (empty until a detect --push), facts (cited UNO datasheet rows), bindings, SoCs, pins (the UNO's D0–D13/A0–A5 ↔ ATmega328P pin ↔ net ↔ connector pin ↔ C symbol), runtime profiles, views, conflicts |
+| 1 | https://prf.192.168.0.212.nip.io/display/boards | 13 tables, each with a "what this is for / one row = / columns" blurb above it. First two are the demo1 readiness split (derived, never hand-flagged, from GET /api/board/boards/readiness): "Usable now" (UNO, and the ESP32-C3 once its scenarios are seeded — twin + firmware template + a no-code solution or scenario) and "Tracked for later" (Longan Nano, SAMD21, Hazard3/iCE boards … — readiness_why names what each is missing). Then adapters with VID:PIDs, roads, programmers, instances (empty until a detect --push), facts (cited UNO datasheet rows), bindings, SoCs, pins (the UNO's D0–D13/A0–A5 ↔ ATmega328P pin ↔ net ↔ connector pin ↔ C symbol), runtime profiles, views, conflicts |
 | 2 | https://prf.192.168.0.212.nip.io/display/firmware-installer | the installer panel (pick a variant → build → DRY-RUN argv → confirm → install, confirm disabled until a plan) + the six tables variants/builds/devices/programmers/plans/records; variants = uno-sim-rig, uno-blink-only, uno-adc-sweep, uno-pair, uno-echo |
 | 3 | https://prf.192.168.0.212.nip.io/display/firmware-faults | scenarios (torn-millis-read, lost-ack-hang, button-bounce-double-count, uart-residual-frame-loss, brownout-mid-eeprom-write, runaway-hang-watchdog, priority-inversion-mutex, two-lock-deadlock, …), runs, trace, claims, techniques, stats, campaigns, likelihoods, formal (CBMC + Mthread verdicts), static (cppcheck), one table per fault kind |
 | 4 | https://prf.192.168.0.212.nip.io/display/c-atoms | projects (uno), 34 atoms with ports/resources/ISR-safety/cost, modules, the graph uno-sim-rig-graph with its nodes/edges, glue builds |
@@ -81,6 +81,13 @@ also reachable by clicking: sidebar → Displays → Published Pages → the car
 Pages 6–9 fill when step 5.8 posts the ingest to the server (`--api`); before that they show the seeded rule rows only.
 Also open the no-code canvas you normally use: the palette now carries `c-atom` and `hw-interface` nodes (hn-0);
 drop one and open its overlay.
+
+demo1 (2026-10-04): every page now carries a description of what it is for, what writes its data, and which
+other pages it goes with; every table carries "what this is for / one row = ... / columns: ..." above it,
+written from the backing class's own docstring — no table is a wall of columns with no explanation. Still
+owed from this slice (not built): the per-layer SVGs rendered inline on board-layout, the schematic rendered
+inline on board-schematic, and the UNO pin-map SVG on /display/boards — all three need a new generic SVG/image
+panel plus (for the schematic) a worker-side `sch export svg` addition; scoped out of this pass for time.
 
 ## 4. The simulated UNO [pol-core — the twin runs here in the local prf-board-engines image; set NO BOARD_ENGINES_URL]
 
