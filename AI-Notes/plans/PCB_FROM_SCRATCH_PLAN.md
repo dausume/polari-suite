@@ -1,6 +1,6 @@
 # PCB from scratch (pcb arc): choose chips in Polari, generate the KiCad schematic, a person places and routes in KiCad, `kicad-cli` checks and exports, and the Gerber zip goes to a fab (DKRed first) — every step a row, traceable from the chosen chip to the uploaded file
 
-**Date:** 2026-10-03 · **Status: PLAN — §2b THE BOARD OBJECT ✅ BUILT (brd-bo, §2b'); the rest not built; D-pcb-1..6 ruled (§5a, §5a').** Drafted by an opus agent from the
+**Date:** 2026-10-03 · **Status: PLAN — §2b THE BOARD OBJECT ✅ BUILT (brd-bo, §2b'); §7 pcb-0 ✅ BUILT (§7', module `pcb`, the worker, DKRed rules, the ecc83-pp ingest, the UNO shield skeleton); pcb-1..5 not built; D-pcb-1..6 ruled (§5a, §5a').** Drafted by an opus agent from the
 tree at suite `origin/dev` 94f2900 (framework / angular at the `dev-hn-0` tips 17b99ef / d563892); Fable reviews.
 His ask (2026-10-03): *"We also need to plan out where different things needed for KiCad as well as footprint planning
 and solder and other things needed for KiCad to enable making a board from scratch."* + his screenshot of the fab's
@@ -322,7 +322,7 @@ export of the reference board. Whether kicad-cli runs with no X display in the s
 
 | slice | what | proof | gate |
 |---|---|---|---|
-| pcb-0 | module `pcb` (§2 rows), `prf-pcb-engines` worker + the engines ladder entry (`PCB_ENGINES_URL` → local `kicad-cli` → image → provider `pcb.engines` → refusal), `pol pcb ingest`; DKRed `FabProfile`/`FabRule` rows cited; pages board-bom / board-fab / board-layout (svg layers) | ingest an OPEN KiCad board: **Raspberry Pi's RP2040 Minimal design** (KiCad, `datasheets.raspberrypi.com/rp2040/Minimal-KiCAD.zip`; staff answer "all design files are made available openly, with no limitations", https://forums.raspberrypi.com/viewtopic.php?t=340030 — the formal licence page returned 404 → record as such). NOTE: the Raspberry Pi Debug Probe's repo is FIRMWARE ONLY (https://github.com/raspberrypi/debugprobe) — not a KiCad source. → rows (parts, placements, nets), kicad-cli DRC + Gerbers reproduce byte-stable (same sha twice), DKRed rule check reports the board's real violations or none; worker cost row | D-pcb-3 |
+| pcb-0 ✅ BUILT | module `pcb` (§2 rows), `prf-pcb-engines` worker + the engines ladder entry (`PCB_ENGINES_URL` → local `kicad-cli` → image → provider `pcb.engines` → refusal), `pol pcb ingest`; DKRed `FabProfile`/`FabRule` rows cited; pages board-bom / board-fab / board-layout (svg layers) | ingest an OPEN KiCad board: **Raspberry Pi's RP2040 Minimal design** (KiCad, `datasheets.raspberrypi.com/rp2040/Minimal-KiCAD.zip`; staff answer "all design files are made available openly, with no limitations", https://forums.raspberrypi.com/viewtopic.php?t=340030 — the formal licence page returned 404 → record as such). NOTE: the Raspberry Pi Debug Probe's repo is FIRMWARE ONLY (https://github.com/raspberrypi/debugprobe) — not a KiCad source. → rows (parts, placements, nets), kicad-cli DRC + Gerbers reproduce byte-stable (same sha twice), DKRed rule check reports the board's real violations or none; worker cost row — **BUILT against KiCad's own `ecc83-pp` demo instead (§7' below: the RP2040 design's licence rested on a forum statement only; `ecc83-pp` ships inside the same pinned `kicad-demos` package, GPL-2.0-or-later, explicit)** | D-pcb-3 |
 | pcb-1 | schematic generator (D-pcb-1) from rows: the UNO shield's Parts (TMP36, LED, 220 Ω, headers) + its electrodevice circuit; SPICE on the same rows; `/display/board-schematic` | `kicad-cli sch erc` clean; `sch export netlist` equals our nets; SPICE: LED current and TMP36 output at 25 °C within the cited datasheet values | D-pcb-1, D-pcb-4 |
 | pcb-2 | board seeded (outline 2-layer, DKRed rules into `.kicad_dru`, footprints) → a person places/routes → ingest → DRC (KiCad + ours) → Gerbers/drill/map/pos/BOM in DKRed names → zip | DRC 0 against DKRed rules; every file's extension accepted by the profile; zip sha in the file store; the upload form's verdict recorded as a fact (settles .gtl/.gbl vs the page text) | D-pcb-2 |
 | pcb-3 | assembly: SolderMethod per part, ReflowProfile rows cited, the board profile derived, stencil = paste layers; `/display/board-assembly`; LandPattern derivation for one SMD package compared with the KiCad footprint | hand-THT plan for the shield (all parts THT); one SOT-23 LandPattern derived from a datasheet within the KiCad footprint's pads ± a stated tolerance, differences listed | D-pcb-5 |
@@ -332,3 +332,58 @@ export of the reference board. Whether kicad-cli runs with no X display in the s
 **Not in scope:** autorouting by default, high-speed/impedance-controlled design, more than 4 layers (DKRed's limit),
 BGA assembly, an in-house fab or the BLCNC as a PCB mill (a later machine road), any vendor library committed without
 its terms read.
+
+### 7'. ✅ pcb-0 BUILT 2026-10-03 (branch `dev-pcb-0`, all four repos; module `pcb`)
+
+- **Rows** (one class per file, `modules/pcb/objects/pcb/`): `Part`, `Symbol`, `Footprint`, `LandPattern`, `Schematic`,
+  `SchematicSheet`, `PcbBoard`, `Placement`, `Route`, `DrcResult`, `FabricationExport`, `FabRuleSet`, `FabRule` — 13
+  classes, requires `board` (brd-bo's `BoardNet` is reused rather than a second net class). Only DKRed's 20 `FabRule` +
+  1 `FabRuleSet` rows are code-owned seed; every design class is OBSERVED (`pol pcb ingest` or the schematic writer).
+- **Worker `prf-pcb-engines`** (Debian trixie pinned by digest + `kicad=9.0.2+dfsg-1` + `kicad-symbols` +
+  `kicad-footprints`, NOT `kicad-packages3d`): `/capability`, `/system-info`, `/library` (one official symbol/
+  footprint entry + its library file's sha256, for the schematic writer to embed), `/run` (argv-only, relative paths,
+  `libfaketime`-frozen clock for byte-stable outputs). **Headless confirmed**: no X, no Xvfb needed — ERC/DRC/every
+  export exits 0 with `DISPLAY` unset. Built and running on isle-core :9860; image **1.23 GB**; build time
+  **unknown** (not logged by the agent that built it, per this plan's own "else state unknown").
+- **The engines seam** `custom/pcb_engines.py`: the same knob → local binary → local image → topology provider →
+  refusal ladder as `board.custom.board_engines` (`PCB_ENGINES_URL`, `PROVIDER_PORTS['prf-pcb-engines']=9860`,
+  `ENGINE_MODULES['pcb.engines']='prf-pcb-engines'`).
+- **Ingested board: `ecc83-pp`, not the RP2040 Minimal design.** This plan named Raspberry Pi's RP2040 Minimal design
+  (§7); its formal licence page returned 404 (only a forum staff statement backs it). pcb-0 ingests **KiCad's own
+  `ecc83-pp` demo** instead — the `kicad-demos` 9.0.2+dfsg-1 Debian package's `ecc83/` project (an ECC83/12AX7 valve
+  push-pull preamp, all through-hole, 15 footprints, 13 nets, 2-layer), explicitly **GPL-2.0-or-later** per Debian's
+  copyright file (compatible with this project's GPL-3.0), fetched with the SAME pinned Debian packages the engine
+  uses. Stored under `modules/pcb/custom/upstream/kicad-demos-9.0.2/ecc83/` with `LICENSE.md` + `SOURCE.json` (every
+  file's sha256, the package's sha256, the swap recorded). Real ingest on isle-core: **11 Part, 8 Symbol, 6
+  Footprint, 1 PcbBoard** (2 copper layers, 52.07 × 46.355 mm, 13 nets, 59 segments, 1 zone), **15 Placement, 13
+  BoardNet, 13 Route** rows; `sch erc` 0 violations; `pcb drc --schematic-parity` 6 warnings (2 silkscreen-clipped,
+  4 footprint/symbol mismatches — KiCad's own library footprints differ slightly from the demo's bundled ones,
+  reported not hidden); the DKRed fab-rule check **0 violations** (narrowest track 0.8 mm ≥ 0.127 mm min, smallest
+  hole 0.8 mm ≥ 0.2032 mm min, board 2.05″×1.825″ within 0.5–10″); **34 FabricationExport** rows (Protel +
+  `--no-protel-ext` Gerbers, Excellon drill + map, pos/BOM/netlist, 7 per-layer SVGs, STEP, the job file) with an
+  honest naming verdict (6 `yes`, 11 `no`, 3 `discrepancy` — never all-accepted); **byte-stable** (a second ingest
+  with the same frozen clock reproduces all 34 export shas exactly, checked not asserted); kicad-cli's own exported
+  netlist agrees with the board's own nets (13 = 13, nothing only-schematic or only-board).
+- **The UNO shield schematic skeleton** (`custom/uno_shield.py` + `custom/schematic_writer.py`, D-pcb-1 — write the
+  `.kicad_sch` directly, no SKiDL): 7 components (TMP36, 220 Ω, LED, 4 headers) from brd-bo's `BoardPin`/`Connector`
+  rows, 13 connections wired, 26 header pins left unconnected ON PURPOSE (the shield passes them through) — `sch erc`
+  through the worker exits 0 and reports 38 violations honestly (`pin_not_connected` groups, `lib_symbol_issues`
+  warnings), none hidden. No PCB yet (pcb-2).
+- **Pages** (`class-rows-table` only, no new component): `/display/board-schematic`, `board-layout`, `board-bom`,
+  `board-fab`; per-layer SVGs and every export link through `GET /api/pcb/artifacts/{board}/{path}` on an
+  `artifact_url` `:link` column (mathproofs' own pattern — no image-viewer component).
+- **Registration gotcha hit live** (the one `polariServer.py` already warns about at the cell/block arcs: "REGISTRATION
+  lives HERE (defClassList), not in the seed-pairs list alone"): the module's classes typed at boot only after they
+  were ALSO added to `defClassList` (aliased `Pcb*` — `Part`/`Symbol`/`Schematic`/`Placement`/`Route` are common
+  names across that one file's namespace, so the import is aliased; the registered row `className` is unaffected,
+  it comes from the class's own `__name__`), beside `feature_imports.py`, `module_endpoints.py`, `module_loading.py`'s
+  `FEATURE_MODULES`/`FEATURE_REQUIRES`, and `modules/polari-modules.json`.
+- **Tests**: `pcb_selftest` 35/35 (s-expr round trips on the real small `ecc83-pp` fixture, the 20 DKRed rules, export
+  naming, the engine refusal offline, the schematic writer on a fake library); `tests/pcb_probe.py` 30/30 — a REAL
+  live boot (`board` + `pcb` together) plus the real ingest/ERC/DRC/exports through
+  `PCB_ENGINES_URL=http://192.168.0.24:9860` (no KiCad ran on pol-core); `board_selftest` 198/198 UNCHANGED;
+  `selftest_lazy_imports` 23/23; `selftest_manifests` 8/8; `manifests conform pcb board` OK.
+- **Owed** (not pcb-0's scope): a person placing/routing the UNO shield's own `.kicad_pcb` and `pol pcb ingest`ing it
+  back (pcb-2); SMD `LandPattern` derivation vs a KiCad footprint (pcb-3); Order/Quote rows + the forge-published
+  design repo (pcb-4); the iCE40 FPGA companion board (pcb-5); KiCad/FreeCAD as Polari-managed native apps (pcb-na,
+  §5b).
