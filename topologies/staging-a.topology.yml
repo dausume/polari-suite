@@ -232,6 +232,29 @@ instances:
     \ image \u2014 the whole place-and-route flow for computelod lod-3e/3f; `docker\
     \ compose -p orfs-engines -f docker-compose.orfs-engines.yml up -d`. Cost: image\
     \ 4.69 GB, the adder flow 527 MB peak / 68 CPU-s (measured)."
+- name: pcb-engines
+  kind: worker
+  service_kinds_json: '["prf-pcb-engines"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: isle-core
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: ''
+  blob_backend: ''
+  image_tag: staging
+  orchestration_target: swarm
+  topology_name: staging-a
+  notes: "The PCB engines worker (:9860, pcb-0) — kicad-cli (ERC/DRC/exports\
+    \ for schematics/boards) for the pcb module, image prf-pcb-engines:trixie (id\
+    \ UNVERIFIED — not recorded in polari-rf-node/prf-pcb-engines/cost.json\
+    \ on dev-pcb-0, only its size: 1 231 504 880 B ≈ 1.23 GB, modules/pcb/COST.md),\
+    \ on a swarm worker pinned to isle-core (`docker-compose.hw-engines.yml`, `node.labels.polari.machine\
+    \ == isle-core`); mem cap 1024m, same shape as board-engines/esp-engines/formal-engines.\
+    \ Added on dev-hw-test (2026-10-04) to bind the pcb arc's engine the same way\
+    \ the three hardware-integration engines were bound — UNVERIFIED whether\
+    \ it is already running as a plain `docker run` container on isle-core the way\
+    \ those three were (ENGINES-ON-ISLE-CORE.md); check before relying on it."
 - name: prf-a
   kind: prf
   service_kinds_json: '["prf-backend", "prf-frontend"]'
@@ -384,6 +407,24 @@ assignments:
     \ local binary/image exists; `pol allocate board.esp-engines esp-engines`. Bound\
     \ 2026-10-03; see the esp-engines instance notes for the PROVIDER_PORTS gap on\
     \ the home core's current image."
+- name: board@prf-a
+  module_name: board
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: "brd-0..wire: boards programmed over USB (BoardDefinition, FirmwareVariant,\
+    \ the installer, twins) on the swarm backend; its two engine capabilities\
+    \ (avr family, esp family) are delegated to board-engines / esp-engines above.\
+    \ Added on dev-hw-test (2026-10-04, step 3)."
+- name: cmod@prf-a
+  module_name: cmod
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: "cmod-0/1: C functions of a normal C project as atoms with ports, resources\
+    \ and cost; `cmod-glue` renders a real C project byte-identically. No engine\
+    \ worker of its own (pure Python + the host C toolchain already in board-engines).\
+    \ Added on dev-hw-test (2026-10-04, step 3)."
 - name: cntfet.engines@cnt-engines
   module_name: cntfet.engines
   instance_name: cnt-engines
@@ -441,6 +482,23 @@ assignments:
     \ the firmwarefaults module itself is not in the home core's current POLARI_MODULES\
     \ (predates it), so this is data for when it ships; see the edge note for the\
     \ live-push outcome."
+- name: firmwarefaults@prf-a
+  module_name: firmwarefaults
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: "sc-0..4: firmware fault scenarios on the board twins (FirmwareFault objects,\
+    \ scenario pairs, campaigns) on the swarm backend; its formal/static engine capability\
+    \ is delegated to formal-engines above. Added on dev-hw-test (2026-10-04, step 3)."
+- name: hwnocode@prf-a
+  module_name: hwnocode
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: "hn-0: hardware as no-code — a HardwareSolution spanning board, bridge,\
+    \ backend and browser; requires board, cmod, grpcbridge (FEATURE_REQUIRES —\
+    \ grpcbridge pulled in by the requires-closure, no explicit grpcbridge@prf-a row\
+    \ needed). Added on dev-hw-test (2026-10-04, step 3)."
 - name: materialsScience.dft@engines
   module_name: materialsScience.dft
   instance_name: engines
@@ -480,6 +538,23 @@ assignments:
   topology_name: staging-a
   notes: Mathematical proofs (pf arc) on the swarm backend; the lean tier is delegated
     to proof-engines.
+- name: pcb.engines@pcb-engines
+  module_name: pcb.engines
+  instance_name: pcb-engines
+  state: enabled
+  topology_name: staging-a
+  notes: "pcb-0: the PCB engine capability (kicad-cli ERC/DRC/exports) on the pcb-engines\
+    \ worker — the provider modules/pcb/custom/pcb_engines.py resolves when\
+    \ PCB_ENGINES_URL is unset and no local binary/image exists; `pol allocate pcb.engines\
+    \ pcb-engines`. Added on dev-hw-test (2026-10-04)."
+- name: pcb@prf-a
+  module_name: pcb
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: "pcb-0: KiCad as the relay engine (rows, ingest, ERC/DRC/exports) on the\
+    \ swarm backend; requires board (FEATURE_REQUIRES); its engine capability is\
+    \ delegated to pcb-engines below. Added on dev-hw-test (2026-10-04, step 3)."
 - name: reticulum.mesh@reticulum
   module_name: reticulum.mesh
   instance_name: reticulum
