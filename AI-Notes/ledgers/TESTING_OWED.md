@@ -7795,3 +7795,36 @@ uninstall line as a warning with the findings. The route arms on `passed`. Selft
 hand-back arms the route and the verdict is `passed` naming the warning; `CI_UNINSTALL_GATE=fail` restores the
 old behaviour (`not passed`, `failed`). This supersedes §73's "an isle that cannot hand the machine back is not
 releasable" for the default; the findings still go to isle-core's contract note.
+
+### §79 — reserved-word column names break unquoted SQLite CREATE TABLE (found deploying the hardware arc, 2026-10-04)
+
+Three `firmwarefaults` treeObject classes used a SQLite reserved word as a field name —
+`ConcurrencyPrimitive.where`, `ScenarioStep.order`, `StaticFinding.check` — and `makeSQLiteTable()`
+(`polariDBmanagement/managedDB.py`) emits column defs UNQUOTED, so `CREATE TABLE IF NOT EXISTS` failed
+(`near "where"/"order"/"check": syntax error`) and every row of those three classes lived only in memory,
+never persisted. Fixed in firmwarefaults only (`dev-hw-followups`, polari-framework): renamed to
+`site` / `position` / `check_name` across the class files, `custom/taxonomy.py`, `custom/scenarios.py` /
+`scenarios_sc1.py` / `scenarios_sc3.py`, `custom/statistics.py`, `custom/campaign_runs.py`,
+`custom/static_rules.py`, `firmwarefaults_page.py`'s table columns, `firmwarefaults_selftest.py`'s fixture,
+and `tests/firmwarefaults_probe.py`'s fixture (190/190 selftest unchanged).
+
+**General finding (not fixed here — reported per the task that found it):** an AST scan of every
+`modules/*/objects/**/*.py` `__init__` signature for the words that SQLite actually refuses unquoted
+(empirically checked: `select from where order group check index default limit` — NOT `by key value
+offset`, which SQLite accepts unquoted) found 25 more classes carrying one, overwhelmingly `order`
+(a position/sequence field, same shape as `ScenarioStep`'s): `cicd.PipelineStage`/`PipelineSetupStep`
+(`index`), `cmod.CGraphEdge`/`CGraphNode` (`order`), `cntfet.FETCharacteristic` (`order`, `group`),
+`cntfet.FETFieldBand`/`FETRegime`/`FETOperatingState`/`ScatteringMechanism`/`TransportRegime` (`order`),
+`computelod.ComputeLOD` (`group`), `hwnocode.HardwareNodePlacement` (`order`), `iso.IsoBase` (`default`),
+`mealoptions.CookingStep`/`IngredientLine` (`order`), `pspp.LadderRung` (`order`), `security.ProxySnippet`/
+`SecurityDomain` (`order`), `sifet.RefinementRoute`/`RefinementStep`/`SiliconGrade` (`order`),
+`suiteapps.SuitePart` (`order`), `tensormath.TensorDimension` (`index`), `vpn.VpnAccessRule` (`order`),
+`zones.ZonePoint` (`index`). None of these are touched by this pass — they may simply not have hit the
+SQLite path yet (MariaDB staging quotes/escapes differently and some of these modules may be dev/API-only
+so far); each is a latent version of the exact same bug the moment its class is seeded against sqlite.
+
+**Suggested general fix (not applied — shared-layer change, out of scope here):** quote every column
+identifier in `managedDB.makeSQLiteTable()` (and whatever the matching MariaDB path does) — e.g. wrap each
+column name in double quotes (SQLite) / backticks (MariaDB) when building `CREATE TABLE`/`INSERT`/`UPDATE`
+statements — so a treeObject field name is never at the mercy of the SQL dialect's reserved-word list. That
+closes this whole class of bug at the root instead of one renamed field at a time.
