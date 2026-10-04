@@ -72,10 +72,46 @@ Mthread is the only piece worth adopting (reports the exact race, recognises the
 cannot settle these properties; Alt-Ergo's current build is non-commercial → excluded. A small bridge (cli/sei → Mthread
 mutex calls) is owed before scenario 1 can be restated as a race query. Not built.
 
+## ✅ THE INTEGRATION BRANCH (2026-10-03) — one merge word, nothing left to resolve
+`dev-hw-integration` in all five repos = dev + the whole stack, conflicts resolved, gitlinks set, every suite green on
+the merged tree (board 163, firmwarefaults 190, cmod 100, probes with real simavr + CBMC + Mthread + the C3 QEMU twin
+77/77, jenkins 1105/1105, forge 218, angular build clean):
+
+| repo | dev-hw-integration |
+|---|---|
+| polari-framework | a9885f8 |
+| polari-platform-angular | 1deb1da |
+| polari-rf-node | 3cc2254 |
+| polari-cli | 75d923f |
+| polari-suite | 965959b |
+
+To merge: fast-forward each repo's `dev` to that tip, innermost-first (framework, angular → rf-node → cli → suite), e.g.
+`git checkout dev && git merge --ff-only origin/dev-hw-integration && git push origin dev` in each; then
+`pol jenkins promote test` from econ-core for the pipeline's own verdict (expect the new advisory scenarios stage to
+run for the first time there).
+
+## Hardware no-code plan (2026-10-03, dev 5f308e4)
+`AI-Notes/plans/HARDWARE_NOCODE_PLAN.md`: one no-code model across frontend, backend and hardware on the existing
+canvas; a §1a survey of 24 prior items; the C / FreeRTOS / Zephyr suggestion engine with measured evidence; ten
+hardware variants as scenarios; D-hn-1..6 his; slices hn-0..5. D-hn-1..6 ruled 2026-10-03. ✅ hn-0 BUILT on `dev-hn-0` (from dev-hw-integration: framework 17b99ef / angular d563892 /
+rf-node c7cd269 / cli 13de99c / suite d06100f): the `hwnocode` module, the two node kinds on the ONE canvas with a
+data-driven palette, the split app over the UNO peripheral proven on the twin (glue byte-identical, backend node at
+10 Hz on tmpfs, chart with both series, PUT echo 0.15 s), suggestion = bare C with evidence. 🔑 Finding: on this disk
+sqlite commits cost 10.8 ms and the engine saves ~14 rows per frame synchronously inside the gRPC push path → 2.65 Hz;
+a shared-engine change (batched/async saves) is owed before 10 Hz solutions run on real disks. Merge note: the plan
+file is an add/add on dev (take dev's + hn-0's §7 edits).
+
+## Two more plans on dev (2026-10-03, a1fa198)
+`DESIGN_LEVEL_VIEWS_PLAN.md` (a page per level, one level-view component, ties, the zoom composed last; dlv-0 must fix
+ingestion: `polari_block` is never stamped and lod1 strips attributes) and `PCB_FROM_SCRATCH_PLAN.md` (KiCad as the
+engine, design as rows, DKRed constraints cited, the UNO shield first). Decisions D-dlv-1..5 and D-pcb-1..6 are his.
+Also his rule today: develop ACROSS devices — the engine workers are moving to isle-core (see memory
+develop-across-devices); isle-core's outage was a power cut, not the OS (memory other-machines-ssh).
+
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
    `/display/firmware-installer`; then `pol faults run torn-millis --both` on silicon.
-2. The merge word for the stack above (+ framework `dev-hwmap-fixture`). Rehearsed: conflict-free, all green.
+2. The merge word: fast-forward dev to `dev-hw-integration` in the five repos (table above).
 3. ✅ Confirmed 2026-10-02: the RTOS board is the ESP32-C3; Mthread joins the formal engines (sc-2c building). In flight
    also: cmod-0 (C modularization plan + the atom parser over the UNO firmware, branch dev-cmod-0).
 4. The register's open cells (adapter USB IDs get captured the first time each is plugged in).
