@@ -20,8 +20,10 @@ merged; nothing touched dev/main, the droplet, or the running stacks. His merge 
 | sc-3 the RTOS scenarios on the ESP32-C3 (Espressif QEMU twin, ESP-IDF 5.5.5 worker 1.8 GB): priority inversion 12.2 ms → 2.1 ms with a mutex; two-lock deadlock at tick 370 → lock ordering / back-off; campaigns 40 %→0, 70 %→0 | `dev-sc-3` (from sc-2) | 0d4b4d1 | 821fa05 | 795de58 | 3dde68a | — |
 | cmod-1 one no-code graph → generated plain-C glue; rendered .hex BYTE-IDENTICAL to the hand-written sim-rig; 40 twin frames identical on every field; a negative control catches changes | `dev-cmod-1` (from cmod-0) | a311580 | 4f22a06 | 554ff96 | 764a1c7 (its plan edit b5c6dbf is cherry-picked onto dev — merge the branch without that file conflicting) | — |
 
-Merge order when he says so: fast-forward to `dev-hw-integration`, then merge `dev-hn-0` → `dev-brd-bo` (each stacks on the
-previous; plan files are small add/add conflicts, take dev's + the branch's section). Older detail: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 → sc-2 (carries sc-4) → then the three
+Merge order when he says so: fast-forward to `dev-hw-integration`, then merge `dev-hn-0` → `dev-brd-bo` → `dev-pcb-0`
+(framework 3794756 / rf-node 370ac76 / cli e6a0942 / suite 3aa61ab; each stacks on the previous), then the device-binding
+branches: suite `dev-topology-isle-engines` (e215759; rf-node 918e5b9) and polari-cli `dev-swarm-hw-engines` (f047b92) →
+`dev-swarm-fw-handshake` (beba330), both off dev — independent of the hardware stack (plan files are small add/add conflicts, take dev's + the branch's section; plan files are small add/add conflicts, take dev's + the branch's section). Older detail: brd-0 → brd-1 → brd-fi → brd-wire → sc-0 → sc-1 → sc-2 (carries sc-4) → then the three
 siblings off sc-2: sc-2c, cmod-0 (+ cmod-1 after it), sc-3 (cmod-0 independent; sc-2c and sc-3 both APPENDED to firmwarefaults_selftest main(),
 polari-app.json, README/COST, the probe, faults.sh and the plan's status line → expect small textual conflicts there;
 rehearse the merge first as before) + framework
@@ -122,9 +124,26 @@ formal 9840, esp 9850) run as stack `polari-hw-engines` pinned to it (`polari-rf
 on `dev-topology-isle-engines`); the home topology carries the three instances + assignments (`board.engines`,
 `board.esp-engines`, `firmwarefaults.formal`) on suite `dev-topology-isle-engines` and in the live core, so the engines
 ladder resolves them with no env knobs. GAP: pol-core's ufw blocks isle-core on 2377/7946/4789 → the routing mesh never
-formed, so the topology-built URLs (manager address) refuse while isle-core's own address answers. HIS: the three `ufw
-allow from 192.168.0.24` lines (memory develop-across-devices). The twins still need a local process (owed: a remote
-twin verb). `pol swarm deploy hw-engines` + a ports check in `pol swarm join` are being added (dev-swarm-hw-engines).
+formed, so the topology-built URLs (manager address) refuse while isle-core's own address answers. The twins still need
+a local process (owed: a remote twin verb). ✅ polari-cli `dev-swarm-hw-engines` (f047b92): `pol swarm deploy hw-engines`,
+`pol swarm ports [<node>]`, mesh report in `join`, swarm-selftest 34/34 (swarm.sh had none). ✅ `dev-swarm-fw-handshake`
+(beba330, his ruling "account for this as an inherent need to bridge devices"): `pol net needs <binding>`, consent
+handshake in `join`/`ports --apply` (source-scoped `ufw allow from <peer>` through sudo; never in CI/non-TTY; idempotent;
+firewalld = print only), hand-back journal `~/.polari/handback/firewall.jsonl` replayed by `pol net handback --apply` /
+`pol swarm leave`; selftest 91/91. OWED: only node→manager is probed, so only manager-side rules auto-apply.
+
+## pcb-0 — KiCad as the engine (2026-10-03, `dev-pcb-0` from dev-brd-bo: framework 3794756 / rf-node 370ac76 / cli e6a0942 / suite 3aa61ab)
+Worker `prf-pcb-engines` (Debian trixie + kicad 9 + symbols/footprints, 1.23 GB, :9860 ON ISLE-CORE, no display needed;
+kicad-cli verbs 0.2–0.8 s / 109–236 MB RSS; a whole-board ingest 7.9 s). Module `pcb` (13 row classes, requires board;
+knob `PCB_ENGINES_URL` + the topology rung). Ingested KiCad's own `ecc83-pp` demo (GPL-2.0-or-later via kicad-demos
+9.0.2 — chosen over the RP2040 Minimal design whose licence rests on a forum post): 11 parts / 8 symbols / 6 footprints /
+2 layers / 13 nets / 15 placements; ERC 0 violations; DRC 2 silk-edge warnings + 1 footprint/symbol parity warning; DKRed
+rule rows all pass; 34 export files byte-stable across two ingests (6 names match DKRed's table, 11 don't, 3 differ between
+his screenshot and the page text). UNO shield `.kicad_sch` written directly from brd-bo rows: ERC exit 0 with 38 violations
+listed (26 unconnected header pins by design). Pages board-schematic/-layout/-bom/-fab = class-rows-table with artifact
+links. `pol pcb ingest|render-schematic|…`. Tests pcb_selftest 35/35, pcb_probe 30/30 (real engine), board 198/198
+unchanged. Pre-existing unrelated: `resources.profiles_selftest` has one failure. Build time of the image unknown (the
+first agent was killed mid-slice by an API error; a second finished it on the same worktrees).
 
 ## His, when back
 1. Plug in the UNO: `pol board detect` → `pol board install uno --variant uno-echo --yes` → open
@@ -133,7 +152,7 @@ twin verb). `pol swarm deploy hw-engines` + a ports check in `pol swarm join` ar
 3. ✅ Confirmed 2026-10-02: the RTOS board is the ESP32-C3; Mthread joins the formal engines (sc-2c building). In flight
    also: cmod-0 (C modularization plan + the atom parser over the UNO firmware, branch dev-cmod-0).
 4. The register's open cells (adapter USB IDs get captured the first time each is plugged in).
-5. The three ufw rules on pol-core so the swarm mesh forms (above).
+5. The swarm mesh: `pol swarm ports isle-core --apply` on pol-core (branch dev-swarm-fw-handshake) and answer y — or the three ufw lines by hand.
 
 ## Owed / found
 - Pair first-PUT echo slow (1.9 s n=2, 4.7 s n=3 vs 0.1 s single) — cause unknown.
