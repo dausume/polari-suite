@@ -2308,6 +2308,96 @@ has "  …and a clean that fails bakes NOTHING (a dirty template is worse than n
 has "  …the clean happens BEFORE the shutdown that precedes the flatten" "cleaning cloud-init in the guest" "$(printf '%s' "$TW" | sed -n '/^bake_prepared()/,/shutting the guest down cleanly/p')"
 has "bake key: the bake FORMAT is part of the key (v2) — a v1 base is simply never matched again" "|v2" "$(printf '%s' "$TW" | grep '^prepared_key()')"
 
+# ---- 2026-10-04: THE APT-LOCK FLAKE (isle-test #19, and #7 on 2026-09-20) — two layers
+# Inside the throwaway guest the isle stage boots, Isle-Mesh's router init runs `apt-get install yad sshpass`
+# on the fly and lost the race with the guest's own unattended-upgrades/apt-daily timers: "Could not get lock
+# /var/lib/dpkg/lock-frontend. It is held by process 5137 (unattended-upgr)" -> "Failed to initialize Isle
+# Router" -> `isle create failed` at 47 s -> the stage never came online (602 s of polling) -> the whole
+# verdict FAILED although the product was fine. Layer 1: the base bake masks the timers in every FRESH
+# prepared base. Layer 2: the stage runner waits for the lock before core-install regardless, so an
+# ALREADY-BAKED base from before this fix still passes.
+echo "-- 2026-10-04: the apt-lock flake (isle-test #19/#7) — bake mask, the stage-runner guard, the honest store check"
+
+# layer 1 — the bake's command list contains the mask line
+BAKE_BODY="$(printf '%s' "$TW" | sed -n '/^bake_prepared()/,/shutting the guest down cleanly/p')"
+has "the base bake masks apt-daily.timer / apt-daily-upgrade.timer / unattended-upgrades.service" \
+    "systemctl mask apt-daily.timer apt-daily-upgrade.timer unattended-upgrades.service" "$BAKE_BODY"
+has "  …and disables APT's periodic unit entirely, not just the timers" \
+    'APT::Periodic::Enable \"0\"' "$BAKE_BODY"
+has "  …named as the isle-test #19/#7 flake, so the 'why' survives the next person reading this file" \
+    "isle-test #19" "$BAKE_BODY"
+has "  …and said to be a THROWAWAY-guest posture, never a real isle's" \
+    "NOT the posture for a real isle" "$BAKE_BODY"
+has "  …the mask happens BEFORE the cloud-init clean that precedes the flatten" \
+    "cleaning cloud-init in the guest" \
+    "$(printf '%s' "$BAKE_BODY" | sed -n '/masking apt-daily.timer/,$p')"
+
+# layer 2 — the stage runner's own guard, exercised directly: a fake guest_ssh plays `fuser` so the loop is
+# proven to WAIT while the lock is held and PROCEED the moment it reports free, with no real sleep needed
+# (CI_ISLE_APT_LOCK_POLL_S=0) and no dependence on the rest of the guest cycle.
+apt_lock_test() {   # apt_lock_test <times the fake fuser reports the lock HELD before it reports free>
+    # CALLS lives in a FILE, not a shell variable: `W=$(wait_apt_quiet)` runs the whole guard inside a
+    # command-substitution SUBSHELL, so a plain variable bumped by guest_ssh there is gone the instant that
+    # subshell exits — a file is the one kind of state that survives it.
+    local n="$1" cf; cf="$(mktemp)"; printf '0' > "$cf"
+    local combined
+    # `exec 2>&1` INSIDE the subshell: a `) 2>&1` tacked on the OUTSIDE of a bare `VAR=$(...)` assignment
+    # (no command of its own) never touches the subshell's own fds — say()'s `>&2` stderr would leak straight
+    # past the capture onto the real terminal instead of landing in $combined. Found while writing this test.
+    combined=$(
+        exec 2>&1
+        CTR="$n"
+        guest_ssh() { printf '%s' "$(( $(cat "$cf") + 1 ))" > "$cf"; if [ "$CTR" -gt 0 ]; then CTR=$((CTR-1)); return 0; else return 1; fi; }
+        say() { printf '[say] %s\n' "$*"; }
+        CI_ISLE_APT_LOCK_POLL_S=0
+        source "$DEV/isle/guest-install.sh"
+        W=$(wait_apt_quiet)
+        echo "waited=$W"
+    )
+    local calls; calls="$(cat "$cf")"; rm -f "$cf"
+    printf '%s calls=%s\n' "$combined" "$calls"
+}
+OUT=$(apt_lock_test 3)
+has "the apt-lock guard polls fuser while the fake guest reports the lock held (3 held + 1 free = 4 calls)" \
+    "calls=4" "$OUT"
+has "  …and logs once it clears" "apt quiet after" "$OUT"
+OUT=$(apt_lock_test 0)
+has "  …and proceeds at once when the lock is already free (one call, not a wasted wait)" "calls=1" "$OUT"
+OUT=$(bash -c '
+    source "'"$DEV"'/isle/guest-install.sh"
+    guest_ssh() { return 0; }   # always held
+    say() { printf "[say] %s\n" "$*" >&2; }
+    CI_ISLE_APT_LOCK_WAIT_S=0 CI_ISLE_APT_LOCK_POLL_S=0
+    W=$(wait_apt_quiet)
+    echo "waited=$W"
+' 2>&1)
+has "  …and gives up after its own timeout rather than waiting forever" "still held after" "$OUT"
+has "install_do runs the apt-lock guard before the detached core-install script is sent" \
+    "wait_apt_quiet" "$(printf '%s' "$(cat "$J/isle/guest-install.sh")" | sed -n '/^install_do()/,/guest_run_detached install/p')"
+has "the wait is recorded in the same fenced convention _parse_install already reads" \
+    "###FIELD apt_lock_wait=" "$(cat "$J/isle/guest-install.sh")"
+has "  …and carried into the parsed doc" "'apt_lock_wait'" "$(cat "$J/isle/guest-install.sh")"
+
+# the honesty fix — a Traceback body FAILS the store-catalogue check even when the command exits 0 (found:
+# "pass: store: the catalogue answers — Traceback …json.load", a verify check marked PASS over a crash)
+STORECHK="$(sed -n '/^L=\$(sudo isle store list/,/^fi$/p' "$DEV/isle/guest-verify.sh")"
+run_store_check() {   # run_store_check <fake 'isle store list' output> <fake exit code>
+    FAKE_OUT="$1" FAKE_RC="$2" bash -c '
+        sudo() { case "$*" in *"isle store list"*) printf "%s\n" "$FAKE_OUT"; return "$FAKE_RC" ;; *) return 0 ;; esac; }
+        '"$STORECHK"'
+    '
+}
+OUT=$(run_store_check 'crate plant wall' 0)
+has "a healthy 'isle store list' still PASSES the catalogue check" \
+    "###CHECK store: the catalogue answers|pass|crate plant wall" "$OUT"
+OUT=$(run_store_check 'Traceback (most recent call last): ... json.load' 0)
+has "a Traceback body FAILS the catalogue check even though isle store list exited 0 (the honesty fix)" \
+    "###CHECK store: the catalogue answers|fail|isle store list failed: Traceback" "$OUT"
+hasnt "  …it is never reported as a pass" "|pass|" "$OUT"
+OUT=$(run_store_check 'Traceback (most recent call last): ... json.load' 1)
+has "  …and a Traceback with a non-zero exit was already a fail (unchanged)" \
+    "###CHECK store: the catalogue answers|fail|" "$OUT"
+
 # ---- ci-12 addendum 7: SUITE MODE BUILDS ITS OWN CORE
 # isle-test #5 reached "the core — pulled from a release" on a SUITE device and
 # refused: "polari-cli/scripts/lib/providers.sh is not in this checkout". It was

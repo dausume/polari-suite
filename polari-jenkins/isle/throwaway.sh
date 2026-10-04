@@ -325,6 +325,21 @@ bake_prepared() {  # the guest is up and pristine: install the prerequisites, sh
         left=\$(sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --dry-run ${CI_ISLE_PREREQ_PKGS:-} 2>/dev/null | grep -E '^Inst ' | awk '{print \$2}' | tr '\n' ' '); \
         [ -z \"\$left\" ] || { echo \"NOT INSTALLED: \$left\"; exit 1; }" < /dev/null \
         || { say "the prerequisites did not all install — NO prepared base baked (the run continues on the bare image; the install step will try again)"; return 0; }
+    # ---- 2026-10-04: MASK THE APT TIMERS IN THE PREPARED IMAGE (the isle-test #19 / #7 flake, 2026-09-20).
+    # A freshly cloned guest's unattended-upgrades.service and apt-daily*.timer fire on first boot and can hold
+    # /var/lib/dpkg/lock-frontend for a minute or two — exactly when core-install's Isle-Mesh router init runs
+    # its own `apt-get install yad sshpass` on the fly. That apt call failed with "Could not get lock
+    # /var/lib/dpkg/lock-frontend. It is held by process NNNN (unattended-upgr)" -> "Failed to initialize Isle
+    # Router" -> `isle create failed` at 47 s -> the stage never came online (602 s of polling) -> the whole
+    # verdict FAILED although the product was fine (polari-isle-test#19, #7). This base bake is a THROWAWAY
+    # GUEST made only to run one pipeline stage and be destroyed — disabling unattended upgrades here is
+    # correct; it is NOT the posture for a real isle, which keeps them on.
+    say "masking apt-daily.timer / apt-daily-upgrade.timer / unattended-upgrades.service in the prepared image (isle-test #19/#7 flake: throwaway guests only, never a real isle's posture)"
+    guest_ssh "sudo systemctl mask apt-daily.timer apt-daily-upgrade.timer unattended-upgrades.service 2>&1; \
+        sudo systemctl stop apt-daily.timer apt-daily-upgrade.timer unattended-upgrades.service >/dev/null 2>&1 || true; \
+        printf 'APT::Periodic::Enable \"0\";\n' | sudo tee /etc/apt/apt.conf.d/20polari-ci-disable-periodic >/dev/null; \
+        cat /etc/apt/apt.conf.d/20polari-ci-disable-periodic" < /dev/null \
+        || say "could not mask the apt timers in the guest — the stage runner's own apt-lock guard (guest-install.sh wait_apt_quiet) is the fallback"
     # THE CLEAN BEFORE THE FLATTEN. A cloud image's first boot writes /etc/netplan/50-cloud-init.yaml with
     # `match: macaddress: <this boot's MAC>` and records the instance under /var/lib/cloud — an image
     # flattened with those in it is a clone that (a) configures NO interface on a guest with any other MAC

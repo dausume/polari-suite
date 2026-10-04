@@ -67,9 +67,16 @@ else
     echo "###CHECK dns: polari.isle resolves in the guest|fail|polari.isle does not resolve — the hairpin block in /etc/hosts or the split-DNS to the router did not land"
 fi
 
+# 2026-10-04: an honesty fix — `isle store list` was seen PASSING this check (exit 0) while its own body
+# was a Python Traceback ("pass: store: the catalogue answers — Traceback …json.load"). An exit code alone is
+# not believed any more than core-install's is (see the file header): a Traceback in the body is a FAIL
+# regardless of what the command exited with.
 L=$(sudo isle store list 2>&1 | head -3 | tr '\n' ' ')
-if sudo isle store list >/dev/null 2>&1; then echo "###CHECK store: the catalogue answers|pass|$L"
-else echo "###CHECK store: the catalogue answers|fail|isle store list failed: $L"; fi
+if sudo isle store list >/dev/null 2>&1 && ! printf '%s' "$L" | grep -q 'Traceback'; then
+    echo "###CHECK store: the catalogue answers|pass|$L"
+else
+    echo "###CHECK store: the catalogue answers|fail|isle store list failed: $L"
+fi
 
 R=$(sudo virsh --connect qemu:///system domstate openwrt-isle-router 2>/dev/null | head -1 | tr -d '\n')
 [ "$R" = running ] && echo "###CHECK router guest: openwrt-isle-router|pass|libvirt domain state: running (nested KVM)" \

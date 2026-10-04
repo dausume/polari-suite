@@ -247,6 +247,7 @@ doc = {'kind': 'isle-install', 'stage': stage, 'ok': ok, 'why': why,
        'kvm': fields.get('kvm', ''), 'docker': fields.get('docker', ''),
        'health_code': fields.get('health_code', ''), 'hub_code': fields.get('hub_code', ''),
        'rc_core_install': fields.get('rc_core', ''), 'env_seed': fields.get('env_seed', ''),
+       'apt_lock_wait': fields.get('apt_lock_wait', ''),
        'containers': [c for c in fields.get('containers', '').split(',') if c],
        'at': datetime.datetime.now().isoformat(timespec='seconds'),
        'log_tail': log[-60:]}
@@ -254,6 +255,31 @@ if out_path and out_path != '-':
     json.dump(doc, open(out_path, 'w'), indent=1)
 print('%s|%s|%s' % ('ok' if ok else 'fail', doc['seconds'], why))
 PY
+}
+
+# ---------------------------------------------- the apt-lock guard (layer 2)
+# 2026-10-04, isle-test #19 (and #7, 2026-09-20): a freshly cloned guest's
+# unattended-upgrades/apt-daily*.timer can hold /var/lib/dpkg/lock-frontend for
+# its first minute or two — exactly when core-install's Isle-Mesh router init
+# runs its own `apt-get install yad sshpass` on the fly. That lost the race:
+# "Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 5137
+# (unattended-upgr)" -> "Failed to initialize Isle Router" -> `isle create
+# failed` at 47 s -> the stage never came online (602 s of polling) -> the
+# whole verdict FAILED although the product was fine. Layer 1 (throwaway.sh
+# bake_prepared) masks the timers in every FRESH prepared base; this guard is
+# layer 2, so a base baked BEFORE that fix (still cached under its key) is
+# covered too: wait here, over the guest's own ssh, rather than trust the bake.
+wait_apt_quiet() {   # wait_apt_quiet — prints the seconds waited on stdout; status/log goes to stderr
+    local tmo="${CI_ISLE_APT_LOCK_WAIT_S:-300}" step="${CI_ISLE_APT_LOCK_POLL_S:-5}" waited=0
+    while guest_ssh "sudo fuser /var/lib/dpkg/lock-frontend" </dev/null >/dev/null 2>&1; do
+        if [ "$waited" -ge "$tmo" ]; then
+            say "apt lock still held after ${waited}s — proceeding anyway (core-install's own apt call is next and may still race it)" >&2
+            break
+        fi
+        sleep "$step"; waited=$((waited + step))
+    done
+    say "apt quiet after ${waited}s" >&2
+    printf '%s' "$waited"
 }
 
 # ----------------------------------------------------------------- the verb
@@ -275,12 +301,17 @@ install_do() {   # install_do <payload dir on THIS machine> [<json out>] [<stage
             say "the payload could not be copied into the guest"
             raw=""; reached=no
         else
+            # the apt-lock guard, BEFORE core-install (isle-test #19/#7 flake — see
+            # wait_apt_quiet above): recorded as its own field, in the same fenced
+            # convention _parse_install already reads.
+            local apt_wait; apt_wait="$(wait_apt_quiet)"
             # DETACHED, not down a pipe: `isle core-install` kills the ssh
             # session it is run over (isle-test #7 — see throwaway.sh's
             # guest_run_detached for what that looked like).
             raw=$(_install_guest_script "$gdir" "$modules" \
                   | guest_run_detached install '###POLARI-INSTALL-END' \
                         "$(( ${CI_ISLE_CORE_INSTALL_TMO_S:-2400} + ${CI_ISLE_ONLINE_WAIT_S:-600} + 900 ))" 2>&1) || true
+            raw="$(printf '###FIELD apt_lock_wait=%s\n' "$apt_wait")$raw"
             case "$raw" in *POLARI-INSTALL-END*) reached=ok ;; *) reached=no ;; esac
             # the payload STAYS in the guest: the `apps` verb is a second ssh
             # hop with its own scratch directory on the target, so the only
