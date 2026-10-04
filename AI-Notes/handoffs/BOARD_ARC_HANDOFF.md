@@ -162,6 +162,22 @@ links. `pol pcb ingest|render-schematic|…`. Tests pcb_selftest 35/35, pcb_prob
 unchanged. Pre-existing unrelated: `resources.profiles_selftest` has one failure. Build time of the image unknown (the
 first agent was killed mid-slice by an API error; a second finished it on the same worktrees).
 
+## CLOSE OF 2026-10-04 — state + the scoped TODO (his: "save what we went through as a plan and as a to do … not too much scope drift")
+**dev tips:** suite e286130 · rf-node 88238e8 · framework bc6f000 · angular ff67866 · cli 46b8c11 (app-shell ad2af35, proof 092151a, torch 1973a04). main NOT promoted.
+**Pipeline:** polari-test PASSED on suite 126f2bf (89/89 + the isle stage, fresh-baked base). dev moved after it (demo-1b, demo-4, artifact urls, pinfix, module_home) → `pol jenkins promote test` again before main; `promote main` = his.
+**Home stack:** rolled from dev all day (last roll e286130 in progress at close): descriptions on every page/table, readiness split, the UNO/C3 pin maps + pin-roles table, inline schematic/layer SVGs (files now under /app/data via module_home), `/display/c-canvas` (the C graph in the no-code canvas, target definitions, the temperature-sensor capability ×2). Engines on isle-core through the mesh (route-src fix, NOT persistent).
+**Plans written today:** DEMONSTRABLES_PLAN (demo arc, his order: C canvas first), TOPOLOGY_NETWORK_BRIDGING_PLAN (tnb, his rulings D-tnb-1..5), the guide, the barriers ledger (`AI-Notes/ledgers/BARRIERS_AND_SOLUTIONS.md`).
+
+### TODO — in this order, nothing else
+1. **demo-2** the UNO as a live 2D board sim-space on the pin map (the twin's frames → pin states/ADC/LED/UART; replay fallback) — `level-view` renderer `board`; page /display/firmware-installer above the panel; bind CapabilityInstances to pins here (two temperature sensors).
+2. **demo-3** fault scenarios as a cycle trace view (`level-view` renderer `trace`, BEFORE/AFTER side by side) on /display/firmware-faults.
+3. **demo-4 leftovers:** real build/prove through the canvas buttons (not mocked); atom picker in the overlay; installer + hwnocode pages default to USABLE boards; a per-object "pin map" tab on BoardDefinition detail (check the node-detail pattern first).
+4. **Seeds:** Connector/ConnectorPin rows for the ESP32-C3 (today it draws from bare BoardPins); descriptions reviewed by him for accuracy.
+5. **tnb-0** (when he reopens topology): MachineAddress/MachineFirewall/NetworkEdge/AppliedRule rows in file + rows; findings advertise-address-drift / route-source-mismatch / address-not-stable / edge-data-plane-dead; `--json`; the durable .210 (static + reservation) is the first finding to raise.
+6. **Pipeline:** promote test → main (his); audit other verify checks for PASS-over-Traceback; `pol modules new` scaffold adds the taxonomy entry + the .gitignore exemption.
+7. **Shared layer (his decision):** quote identifiers in `makeSQLiteTable` (25 reserved-word columns remain); artifacts to the file store instead of /app/data.
+8. **Owed, unchanged:** remote-twin verb; `pol swarm deploy` retiring a same-port ad-hoc container; `pol pcb ingest --api` upload; the UNO on the bench (guide §4).
+
 ## STATE 2026-10-04 evening — everything merged to dev, deployed at home, promoted to test (main NOT promoted)
 - dev tips: suite 025d10e · cli 46b8c11 · rf-node 2a96dfa · framework 38e8d56 · angular ea13f2c · app-shell ad2af35 · proof-tools 092151a · torch-tools 1973a04.
   Contents since the morning merge: swarm advertise/data-plane checks (cli 195f220), the pipeline apt-lock flake fix (suite d879381),
