@@ -1,7 +1,10 @@
 # Demonstrables (demo arc): put a 2D sim-space on the page BEFORE the tables, on every hardware-arc page, reading the same rows the tables show
 
-**Date:** 2026-10-04 · **Status: PLAN; demo-1 BUILDING on `dev-demo-1` (his word — see the handoff). D-demo-1..4 his.**
-Drafted by an opus agent from the tree at suite `origin/dev` 7fc1f2f. Companions (read, not duplicated):
+**Date:** 2026-10-04 · **Status: PLAN; demo-1's descriptions sweep + derived board readiness MERGED to dev at
+`23e38cf` (the inline-SVG viewer and UNO pin map named in demo-1 below are NOT in that merge — verified by file
+search, not yet built). His reordering ruling (same day, quoted in §4) puts demo-4 FIRST. D-demo-1..5 his.**
+Drafted by an opus agent from the tree at suite `origin/dev` 7fc1f2f; revised the same day at `23e38cf` for the
+reordering + target-definitions ruling. Companions (read, not duplicated):
 `DESIGN_LEVEL_VIEWS_PLAN.md` (dlv — the `level-view` component this plan's demo-5 rung reuses, and whose §2c/§6
 slices own everything above RTL), `HARDWARE_NOCODE_PLAN.md` (hn — the canvas, `HardwareSolution`, placement,
 `hn-split`), `C_MODULARIZATION_PLAN.md` (cmod — atoms, `CGraph`/`CGraphNode`/`CGraphEdge`, `cmod-glue`),
@@ -55,11 +58,12 @@ a component); C/Verilog/SV only on devices; derive-or-cite; every table gets a p
 
 ## §3. The slices
 
-### demo-1 (S) — BUILDING now on `dev-demo-1`: descriptions everywhere + PCB SVGs shown inline + the UNO pin map
+### demo-1 (S) — descriptions sweep MERGED (`23e38cf`); PCB SVGs inline + the UNO pin map STILL OWED from this slice
 
-- **Descriptions.** Every `_table(...)` call across `board_page.py`, `cmod_page.py`, `firmwarefaults_page.py`,
-  `hwnocode_page.py`, `pcb_page.py` gets a one-line purpose + "one row = …" + a columns note, pulling from each
-  class's `plain_words` docstring attribute where present, written by hand where it is not yet on the class.
+- **Descriptions — MERGED (`23e38cf`).** Every `_table(...)` call across `board_page.py`, `cmod_page.py`,
+  `firmwarefaults_page.py`, `hwnocode_page.py`, `pcb_page.py` now carries a generic `DisplayItem.description` (one-line
+  purpose + "one row = …" + a columns note), pulling from each class's `plain_words` docstring attribute where
+  present; `board_page.py` additionally gained a derived device-readiness split (usable / partial / tracked).
 - **Inline KiCad SVGs.** `pcb_page.py`'s schematic/layout displays currently show `FabricationExport` rows (kind=svg)
   as a `class-rows-table` with `artifact_url` as a link column. demo-1 adds an `svg-artifact-viewer` display
   component (new, small: an `<img>`/`<object>` over the artifact URL + a layer `<select>` built from the distinct
@@ -72,10 +76,10 @@ a component); C/Verilog/SV only on devices; derive-or-cite; every table gets a p
   `--pin-<function>` + its `-text` pair, per `styling-theme-tokens`). Committed as a `FabricationExport`-shaped row
   (or a sibling `BoardView` row if `pcb`'s classes don't fit a non-PCB board) so it is itself a cited artifact with a
   sha256, shown the same way the KiCad SVGs are. Lands on `/display/boards` above `boards-pins`.
-- **Proof:** every page in §1's table lists its tables with real descriptions (grepped, 0 empty); the ecc83-pp demo's
-  schematic + 2-layer layout render inline with a working layer selector and the 2 DRC warnings marked on the
-  drawing at their x_mm/y_mm; the UNO pin map SVG matches `boards-pins` row-for-row (every canonical name on the
-  drawing, no extras, no omissions).
+- **Proof (descriptions half, met):** every page in §1's table lists its tables with real descriptions (grepped, 0
+  empty). **Proof (SVG half, owed):** the ecc83-pp demo's schematic + 2-layer layout render inline with a working
+  layer selector and the 2 DRC warnings marked on the drawing at their x_mm/y_mm; the UNO pin map SVG matches
+  `boards-pins` row-for-row (every canonical name on the drawing, no extras, no omissions).
 
 ### demo-2 (L) — the UNO as a live 2D board sim-space. Rung 0 of the ladder.
 
@@ -166,6 +170,46 @@ badges (ISR-safe/pure/cost, already derived data); render/build/prove from the c
 `.hex` sha256 (`4188f6ae…`) as the CLI path; `/display/c-atoms` lists `uno-temp-split` under "used by" for the
 `uno-sim-rig-graph` row (or its successor graph); the temperature chart updates live during a twin run.
 
+### §3a. Target definitions and capabilities (inside demo-4's scope — his ruling 2026-10-04, §4)
+
+**Why it is here, not in demo-2.** His ruling: targets get defined on no-code components FIRST, independently;
+tying them to board components is a LATER step. demo-4 declares targets on C-no-code nodes with no board in the
+loop; demo-2 (later) is the first thing that BINDS a declared target to a drawn board component. Built once, read
+by both.
+
+**New rows (module `hwnocode`, beside `HardwareNodePlacement` — file-per-class, cited not duplicated):**
+- **`TargetDefinition`** — one per `CPort` (or glue-owned `CGraphNode` field) that is a point of physical control;
+  not every port gets one (a pure math port, e.g. a moving-average's window size, never does). Fields: `port`/
+  `node_field`, `kind` (register | pin | peripheral | memory-field | bus | dynamic — resolved at placement, e.g.
+  "whichever ADC channel this instance is wired to"), `controls` (plain words — "ambient temperature, read-only"),
+  `lives_at` (where it lives TODAY, D-demo-5), `width`/`direction`/`rate` (mirroring `CPort.width_bytes`/`direction`,
+  never restated), `provenance` (declared-in-annotation | derived-from-parse | set-in-canvas).
+- **`CapabilityDefinition`** — a `CGraph` (or a named subset) + its ordered, still-UNBOUND `TargetDefinition`s + the
+  struct/class fields it exposes. Example: "temperature sensor solution" = the TMP36 `hal_adc_read` atom + a
+  moving-average node + one target {kind: pin, controls: "ADC input"} + the exposed field `temp_c`.
+- **`CapabilityInstance`** — one placement of a `CapabilityDefinition`, N per definition, each with its own target
+  bindings (two sensors = two instances, each binding its `pin` target to a different `BoardPin`).
+
+**Reused, not reinvented:** `CFunctionAtom.registers`/`resources_summary` (the `uses(...)` annotation clause,
+`C_MODULARIZATION_PLAN.md` §4) is the DERIVED, atom-wide, read-only guess; `TargetDefinition` is the bindable,
+port-level counterpart read beside it, not a replacement. `CPort` is the port shape it rides beside (zero or one per
+port). `HardwareInterfaceBinding.instance_index` (grpc-j4) is the EXISTING dense-N-instances machinery —
+`CapabilityInstance` reuses that pattern rather than a second index scheme, and where a target crosses the bridge,
+the `HardwareInterfaceBinding` row IS its `lives_at`. `EnumMapping` is reused for any exposed enum field, not a new
+table. The hwsim-nocode design's original `FieldRegisterBinding` (absorbed into `HARDWARE_NOCODE_PLAN.md` §1a as
+the cmod edge kind `field-register`, owed, not yet built) is exactly a register-kind target — `lives_at` naming a
+register is that same destination as a declarable ROW, not a parallel class. `HardwareNodePlacement` (WHERE a node
+RUNS) is a different axis from WHAT it controls; `TargetDefinition` is additive beside it. **Genuinely new: the
+three rows above, nothing else.**
+
+**Scope split (his words):** "do the[m] independently with C no-code first… drag in that capability on our board
+sim-space no-code view, and tie required targets to where they belong."
+- **demo-4:** targets DECLARED and shown on canvas nodes (kind/controls/`lives_at`, `unbound` allowed); a
+  `CapabilityDefinition` saves and reuses with no board involved.
+- **demo-2 (later):** the board view gains "drag a capability onto the drawing" — dropping it on a `BoardPin`
+  creates a `CapabilityInstance` and binds each target's `lives_at`; a second drop elsewhere makes a second
+  instance with its own index (two sensors, one `CapabilityDefinition`).
+
 ### demo-5 (per the dlv plan — reference, do not re-plan) — the ladder below the board, then semantic zoom
 
 RTL/netlist/cells/layout renderers and the semantic-zoom composition are entirely `DESIGN_LEVEL_VIEWS_PLAN.md`'s
@@ -176,24 +220,40 @@ noted so the two plans' components do not diverge).
 
 ## §4. Order, browser-pass checklist, costs, licences
 
-**Order:** demo-1 → demo-2 → demo-3 → demo-4 → demo-5, unless he reorders. Reasoning: demo-2 is first because
-everything else either reuses its renderer contract (demo-5) or is independent of it (demo-3, demo-4) but demo-2 is
-the only slice that proves a LIVE 2D sim-space exists at all — his verdict's central complaint. demo-3 next because
-it needs no live hardware (pure replay from rows already on dev) and is the cheapest proof that "step at the lowest
-clock" is real. demo-4 last among the near-term slices because it depends on the canvas's existing overlay
-machinery being proven stable by demo-2's real usage first (a canvas regression would be caught against a graph
-people are actually watching run).
+**Order — REORDERED by his ruling 2026-10-04 (quoted verbatim):**
+
+> "C graph in the no code canvas first, since we want to be able to tie pieces of the no code states into the 2D sim
+> spaces later so we can see side by side how the no-code corresponds to hardware…. For now just focus on doing the
+> [them] independently with C no-code first. For the sim space later, we need to define no-code components with
+> valid target definitions (what is this trying to control, what registers is it living on, or is it dynamic,
+> etc). Then based on those target definitions we should later on see the relation between and be able to tie them
+> to specific components on a board. Like in the no-code we may say 'assign to 1 specific register this part of a
+> struct, which we will use to track temperature from a sensor'. Then we generalize that along with it's code as
+> 'temperature sensor solution' and we can drag in that capability on our board sim-space no-code view, and tie
+> required targets to where they belong and be able to define multiple temperature sensors."
+
+**demo-4 → demo-2 → demo-3 → demo-5.** demo-4 (C in the canvas, now carrying §3a's target definitions and
+capabilities) moves first and stands alone: it needs no board, no twin, no live hardware, and it is the piece every
+later tie-in depends on — a capability cannot be dragged onto a board drawing (demo-2) before it exists as a
+declared, nameable thing with unbound targets. demo-2 follows second (the board sim-space is where a capability's
+targets first get BOUND to real pins — §3a's second half). demo-3 stays third (independent of both; pure replay from
+rows already on dev). demo-5 last, unchanged (rides the dlv plan's own ladder).
 
 **Browser-pass checklist (one line each, added to `AI-Notes/guides/HARDWARE_ARC_TEST_GUIDE.md`, not duplicated
-here):**
-- demo-1: every table on the five pages shows a description tooltip/caption; the PCB layout SVG renders inline with
-  a working layer dropdown and the 2 DRC warnings marked on it; the UNO pin map SVG is visible on `/display/boards`.
-- demo-2: `/display/firmware-installer` shows the board drawing above the install flow; moving the ADC slider moves
-  the drawing; pause freezes it; with no twin running the page still shows a replayed drawing, not a blank panel.
+here; order matches the build order above):**
+- demo-1: every table on the five pages shows a description tooltip/caption (MET, `23e38cf`); the PCB layout SVG
+  renders inline with a working layer dropdown and the 2 DRC warnings marked on it; the UNO pin map SVG is visible
+  on `/display/boards` (both still owed).
+- demo-4: `/display/c-atoms` opens `uno-sim-rig-graph` on the canvas with real ports and badges; every node shows
+  its target definition (kind/controls/`lives_at`, `unbound` allowed); the "used by" table lists `uno-temp-split`;
+  `/display/hardware-solutions` shows a live temperature chart during a twin run; a `CapabilityDefinition` can be
+  saved with no board attached.
+- demo-2: `/display/firmware-installer` shows the board drawing above the install flow; dragging a saved capability
+  onto a drawn pin creates a `CapabilityInstance` and binds its targets; two drops of the same capability give two
+  distinct instances; moving the ADC slider moves the drawing; pause freezes it; with no twin running the page still
+  shows a replayed drawing, not a blank panel.
 - demo-3: `/display/firmware-faults` shows a BEFORE/AFTER trace pair above the tables; the cursor steps one
   instruction at a time; the claim badge matches the row's outcome.
-- demo-4: `/display/c-atoms` opens `uno-sim-rig-graph` on the canvas with real ports and badges; the "used by"
-  table lists `uno-temp-split`; `/display/hardware-solutions` shows a live temperature chart during a twin run.
 
 **Costs:** demo-1's SVG viewer and pin-map generator add 0 MB of new engine image (KiCad SVGs are already exported
 by `prf-pcb-engines`, the pin map is pure Python + a template, no new binary). demo-2's frame rate is capped at the
@@ -207,7 +267,7 @@ reuses the existing canvas and `cmod-glue`/`hn-split` compiler rows; 0 MB. SVG s
 **Licences:** none new. The SVG viewer and pin-map generator are Polari code. KiCad's SVG export is already covered
 by pcb-0's KiCad licensing note (GPL-2.0-or-later for the kicad-demos content used).
 
-## §5. Decisions for him (D-demo-1..4)
+## §5. Decisions for him (D-demo-1..5)
 
 - **D-demo-1 frame source priority for demo-2 (board sim-space): live STOMP first, falling back to replay, or
   replay-first with a manual "go live" switch?**
@@ -242,6 +302,18 @@ by pcb-0's KiCad licensing note (GPL-2.0-or-later for the kicad-demos content us
   happened on the device. Once the storage-bound fix (hn-0's owed core item: batched/async row saves) lands and the
   measured rate rises, the cap rises with it automatically — the cap reads the twin's own reported `frames_per_s`,
   it is never a hardcoded number.
+
+- **D-demo-5 a target's "where it lives" (`TargetDefinition.lives_at`): a reference to the board object's
+  `BoardPin`/register rows, or a free string?**
+  **Recommendation: a reference, not a free string.** For `kind=pin`, `lives_at` names a `BoardPin.name`
+  (`board/objects/board/BoardPin.py` — the ONE row every view, KiCad/Zephyr/ESP-IDF/bare-C/Polari, already reads);
+  for `kind=register`, it names the register from the avr-libc register snapshot cmod-0 already committed (96
+  registers + 25 vectors, cited by sha) or the generator rows that own a register map (`hwfpga`
+  `RegisterMapDefinition`/`RegisterDefinition`) where one exists. A free string is allowed ONLY for `kind=dynamic`
+  (genuinely unresolved until placement) or `unbound` — never as a substitute for a reference that could be made.
+  Reasoning: demo-2's board drawing must resolve a binding to literal geometry without re-parsing text, and a
+  reference lets a pin rename be caught as model drift the same way `BoardConflict` already catches every other
+  view's disagreement with the board's own rows (brd-bo's existing pattern) — a free string would silently rot.
 
 ---
 
