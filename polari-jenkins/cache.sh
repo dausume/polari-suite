@@ -31,7 +31,10 @@
 # SOURCED by the builders, EXECUTED by `pol jenkins cache`:
 #   cache.sh status [--json]         sizes per area against the max, and the last run's hit rate
 #   cache.sh prune [--older-than N]  the ONE deleter: entries unused for > N days (default 30)
-#   cache.sh dir [area]              print a path (and create it)
+#   cache.sh dir [area] [--local]     print a path (and create it); under CI_ISLE_TARGET=ssh this
+#                                      prints the RESOLVED REMOTE location (<ssh host>:<path>) and
+#                                      creates nothing here — pass --local to force the old,
+#                                      local-mkdir behaviour
 #   cache.sh fetch <area> <entry> <url>   cached download; prints the path
 #   cache.sh wheels <dest> <spec>…   pip download, cache first, network only for the misses
 #   cache.sh images warm|save <ref>… docker save/load of base images, digest-checked
@@ -285,6 +288,33 @@ cache_status() {
     fi
 }
 
+# cache_dir_resolve <area> <force_local 0|1> — prints the path a CALLER should use for <area>.
+#
+# CI_ISLE_TARGET=ssh means the cache lives on a DIFFERENT machine than this shell is running on:
+# cache_root() (device_pool()/cache, from device.sh) resolves to a path like
+# /var/tmp/polari-ci-pool/cache that is only REAL on the ssh target. Printing — and, worse,
+# mkdir -p'ing — that path HERE creates an empty, unrelated directory on the wrong machine.
+#
+# That is exactly what happened 2026-10-04 (polari-isle-test build 20): `cache.sh dir cloud`,
+# run on the controller (econ-core) with CI_ISLE_TARGET=ssh pointed at isle-core, printed and
+# created an empty local dir on econ-core. The "delete the stale prepared base" step then deleted
+# nothing from it, while the real stale `prepared-*.qcow2` sat untouched in the REAL cache on
+# isle-core — so a bake-format fix kept silently missing its own cache for days.
+#
+# `--local` is an escape hatch for a caller that genuinely wants ITS OWN local path regardless
+# (e.g. inspecting the controller's own disk) — use it deliberately, not by default.
+cache_dir_resolve() {
+    local area="$1" force_local="$2"
+    if [ "$CI_ISLE_TARGET" = ssh ] && [ "$force_local" != 1 ]; then
+        local remote; remote="$(device_ssh_dest):$(cache_root)/$area"
+        echo "[cache] CI_ISLE_TARGET=ssh — the cache lives on the REMOTE target, not on this machine (this machine is the controller). Resolved location below; pass --local to force the local path instead (almost always NOT what you want)." >&2
+        printf '%s\n' "$remote"
+        return 0
+    fi
+    cache_area "$area"
+    echo
+}
+
 cache_prune() {   # cache_prune [days]
     local days="${1:-30}" a
     echo "[cache] prune — dropping only entries unused for more than $days day(s)"
@@ -305,7 +335,9 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     case "$CMD" in
         status)   cache_status ;;
         prune)    D=30; [ "${1:-}" = "--older-than" ] && D="${2:-30}"; cache_prune "$D" ;;
-        dir)      cache_area "${1:-wheels}"; echo ;;
+        dir)      DIR_AREA="wheels"; DIR_LOCAL=0
+                  for a in "$@"; do case "$a" in --local) DIR_LOCAL=1 ;; *) DIR_AREA="$a" ;; esac; done
+                  cache_dir_resolve "$DIR_AREA" "$DIR_LOCAL" ;;
         fetch)    cache_fetch "$1" "$2" "$3" "${4:-}"; echo ;;
         wheels)   D="$1"; shift; cache_wheels "$D" "$@" ;;
         images)   case "${1:-warm}" in

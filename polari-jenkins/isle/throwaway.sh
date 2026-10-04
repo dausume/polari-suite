@@ -53,6 +53,16 @@
 # `guest_ssh`, with no second path into the guest.
 set -euo pipefail
 
+# BAKE_FORMAT: bump this whenever bake_prepared()'s BODY changes (what it masks,
+# what it cleans, what it flattens) — prepared_key() folds it in below, and the
+# key is the ONLY thing that invalidates a cached base. A bake-logic fix with no
+# bump is invisible: choose_base() keeps matching the old (now-wrong) cache file
+# forever. v2->v3 2026-10-04: bake_prepared() started masking apt-daily.timer /
+# apt-daily-upgrade.timer / unattended-upgrades.service (isle-test #19/#7 flake)
+# — v2 bases predate that and still race Isle-Mesh's ad-hoc `apt-get install
+# yad sshpass` against unattended-upgrades holding the dpkg lock.
+BAKE_FORMAT=v3
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 J="$(cd "$HERE/.." && pwd)"
 # In the checkout device.sh is the parent's; on an ssh TARGET this script and
@@ -293,17 +303,23 @@ guest_run_detached() {
 # down cleanly, and its disk is flattened into <cache>/cloud/prepared-<key>.qcow2; every later run overlays
 # THAT. The key changes when the cloud image or the package list does, so a stale bake is never reused.
 # `CI_ISLE_PREPARED=off` boots the bare cloud image every time (the slow, fully-from-scratch reading).
-# `|v2`: the bake FORMAT is part of the key. v1 bakes (2026-09-20/21) were flattened without cleaning
-# cloud-init and carried the bake-time netplan (pinned to that boot's MAC) — every later guest booted to a
-# login prompt with no network (2026-09-23, polari-test #952). A cached v1 base is simply never matched again.
-prepared_key()  { printf '%s|%s|v2' "$IMG_NAME" "${CI_ISLE_PREREQ_PKGS:-}" | sha256sum | cut -c1-16; }
+# `|$BAKE_FORMAT`: the bake FORMAT is part of the key (defined at the top of this file). v1 bakes
+# (2026-09-20/21) were flattened without cleaning cloud-init and carried the bake-time netplan (pinned to
+# that boot's MAC) — every later guest booted to a login prompt with no network (2026-09-23, polari-test
+# #952). A cached v1 base is simply never matched again. v2 bakes (through 2026-10-03) did not mask the
+# apt timers — a base baked from a v2 key was found live on 2026-10-04 (polari-isle-test build 20) still
+# racing unattended-upgrades for the dpkg lock minutes after boot, because prepared_key()'s literal `v2`
+# never changed even though bake_prepared()'s body had grown the apt-timer mask. A cached base is ONLY
+# ever invalidated by this key, so a bake-logic change that does not bump BAKE_FORMAT is never seen again.
+prepared_key()  { printf '%s|%s|%s' "$IMG_NAME" "${CI_ISLE_PREREQ_PKGS:-}" "$BAKE_FORMAT" | sha256sum | cut -c1-16; }
 prepared_path() { printf '%s/prepared-%s.qcow2' "$IMAGES" "$(prepared_key)"; }
 choose_base() {  # sets BASE_FOR_RUN
     BASE_FOR_RUN="$BASE"
     [ "${CI_ISLE_PREPARED:-auto}" = off ] && return 0
     local p; p="$(prepared_path)"
     if [ -s "$p" ]; then
-        say "prepared base cached: $(basename "$p") ($(du -h "$p" | cut -f1)) — prerequisites baked in; keyed by the cloud image + the package list"
+        local mtime; mtime="$(date -d "@$(stat -c %Y "$p" 2>/dev/null || stat -f %m "$p" 2>/dev/null || echo 0)" '+%Y-%m-%d %H:%M' 2>/dev/null || echo unknown)"
+        say "prepared base cached: $(basename "$p") ($(du -h "$p" | cut -f1)) — baked $mtime — prerequisites baked in; key inputs: image=$IMG_NAME pkgs=[${CI_ISLE_PREREQ_PKGS:-}] format=$BAKE_FORMAT -> $(prepared_key)"
         cache_touch cloud "$(basename "$p")" 2>/dev/null || true
         BASE_FOR_RUN="$p"
     else

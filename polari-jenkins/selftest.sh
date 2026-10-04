@@ -652,6 +652,41 @@ dev_env CI_ISLE_TARGET=local
 has "the doctor reports the cache against its budget" "of a 40 GB budget"   "$(doc)"
 has "  …and says the hit rate is not measured yet"    "EXPECTED, not measured" "$(doc)"
 
+# --- ci-13 addendum 2026-10-04: the prepared-base prereq list bakes in what Isle-Mesh installs ad hoc
+# (router-init.sh's yad+sshpass, agent-manager.sh's avahi-daemon) so core-install never calls apt for them
+# and can never lose the dpkg-lock race against unattended-upgrades (isle-test #19/#7).
+dev_env CI_ISLE_TARGET=local
+PREREQ_DEFAULT="$( cd "$DEV" && bash -c 'source ./device.sh; echo "$CI_ISLE_PREREQ_PKGS"' )"
+for PKG in yad sshpass avahi-daemon; do
+    has "the prerequisite default bakes in '$PKG' (an Isle-Mesh ad-hoc apt install)" "$PKG" "$PREREQ_DEFAULT"
+done
+has "guest-install.sh's own fallback default carries the same three packages" "yad sshpass avahi-daemon" \
+    "$(grep '^PREREQS=' "$DEV/isle/guest-install.sh")"
+
+# --- ci-9/ci-13 addendum 2026-10-04: `cache.sh dir` resolves to the TARGET, not the controller
+# polari-isle-test build 20 found `cache.sh dir cloud` run on the controller (CI_ISLE_TARGET=ssh)
+# printing — and creating — an empty LOCAL directory: the real cache, and the stale prepared base
+# inside it, sat untouched on the real ssh target, so a "delete the stale base" step deleted nothing.
+# a FAKE "remote pool" path, inside this selftest's own $T — never the real /var/tmp/polari-ci-pool
+# device_pool() would otherwise point at on a real ssh target, so a test bug here cannot ever touch
+# a path outside the sandbox.
+FAKEPOOL="$T/fake-remote-pool"
+dev_env CI_ISLE_TARGET=ssh CI_ISLE_SSH_HOST=isle-core-fake CI_ISLE_POOL="$FAKEPOOL"
+LOCALCACHE="$FAKEPOOL/cache"; rm -rf "$LOCALCACHE"
+CACHECMD=(dir cloud)
+OUT=$(cachesh)
+has "cache.sh dir under CI_ISLE_TARGET=ssh prints the RESOLVED REMOTE location" \
+    "isle-core-fake:$FAKEPOOL/cache/cloud" "$OUT"
+has "  …with a warning that this machine is not where the cache lives" "not on this machine" "$OUT"
+eq  "  …and creates NOTHING on this machine" "gone" "$([ -d "$LOCALCACHE/cloud" ] && echo here || echo gone)"
+CACHECMD=(dir cloud --local)
+OUT=$(cachesh)
+has "  …--local forces the old, local-mkdir behaviour" "$FAKEPOOL/cache/cloud" "$OUT"
+hasnt "  …and no longer prints the ssh-host-prefixed remote form" "isle-core-fake:" "$OUT"
+eq  "  …so --local DOES create the local dir" "here" "$([ -d "$LOCALCACHE/cloud" ] && echo here || echo gone)"
+rm -rf "$FAKEPOOL"
+dev_env CI_ISLE_TARGET=local
+
 # ------------------------------------------- ci-9: app mode, end to end
 echo "-- app mode: the setup question, the pulled core, and a release of ONE deb to YOUR routes"
 
@@ -2306,7 +2341,23 @@ has "bake: cloud-init is CLEANED (network config, instance state, machine-id) be
 has "  …with a fallback that removes the MAC-pinned netplan by hand" "rm -f /etc/netplan/50-cloud-init.yaml" "$TW"
 has "  …and a clean that fails bakes NOTHING (a dirty template is worse than none)" "NO prepared base baked (a dirty template is worse than none)" "$TW"
 has "  …the clean happens BEFORE the shutdown that precedes the flatten" "cleaning cloud-init in the guest" "$(printf '%s' "$TW" | sed -n '/^bake_prepared()/,/shutting the guest down cleanly/p')"
-has "bake key: the bake FORMAT is part of the key (v2) — a v1 base is simply never matched again" "|v2" "$(printf '%s' "$TW" | grep '^prepared_key()')"
+PK_FN="$(printf '%s' "$TW" | grep '^prepared_key()')"
+has "bake key: the bake FORMAT is the BAKE_FORMAT constant folded into the key, not a literal" "\$BAKE_FORMAT" "$PK_FN"
+has "  …BAKE_FORMAT is defined once at the top, with the bump-when-to comment" \
+    "bump this whenever bake_prepared()'s BODY changes" "$TW"
+has "  …currently v3 (2026-10-04: the apt-timer mask grew; v2 bases never masked them)" "BAKE_FORMAT=v3" "$(printf '%s' "$TW" | grep '^BAKE_FORMAT=')"
+eq "  …so the key DIFFERS when BAKE_FORMAT changes, same image + same package list" "no" \
+   "$( A=$(IMG_NAME=x CI_ISLE_PREREQ_PKGS=y BAKE_FORMAT=v3 bash -c "$PK_FN"$'\n'"prepared_key"); \
+       B=$(IMG_NAME=x CI_ISLE_PREREQ_PKGS=y BAKE_FORMAT=v4 bash -c "$PK_FN"$'\n'"prepared_key"); \
+       [ "$A" = "$B" ] && echo same || echo no )"
+eq "  …and is UNCHANGED when only an unrelated env var moves (image + pkgs + format fixed)" "same" \
+   "$( A=$(IMG_NAME=x CI_ISLE_PREREQ_PKGS=y BAKE_FORMAT=v3 bash -c "$PK_FN"$'\n'"prepared_key"); \
+       B=$(IMG_NAME=x CI_ISLE_PREREQ_PKGS=y BAKE_FORMAT=v3 OTHER=whatever bash -c "$PK_FN"$'\n'"prepared_key"); \
+       [ "$A" = "$B" ] && echo same || echo no )"
+has "choose_base: the cache-hit log line prints the base's mtime" "baked \$mtime" "$(printf '%s' "$TW" | sed -n '/^choose_base()/,/^}/p')"
+has "  …and the key inputs that produced it (image, package list, bake format, the key itself)" \
+    "key inputs: image=\$IMG_NAME pkgs=[\${CI_ISLE_PREREQ_PKGS:-}] format=\$BAKE_FORMAT" \
+    "$(printf '%s' "$TW" | sed -n '/^choose_base()/,/^}/p')"
 
 # ---- 2026-10-04: THE APT-LOCK FLAKE (isle-test #19, and #7 on 2026-09-20) — two layers
 # Inside the throwaway guest the isle stage boots, Isle-Mesh's router init runs `apt-get install yad sshpass`

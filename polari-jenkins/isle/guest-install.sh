@@ -69,7 +69,16 @@ ONLINE_TMO="${CI_ISLE_ONLINE_WAIT_S:-600}"
 IMAGE_TAG="${CI_ISLE_IMAGE_TAG:-ci}"
 # ci-13: ONE prerequisite list, shared with the prepared base (throwaway.sh bakes exactly this set); when the
 # guest booted from a prepared base this apt line finds everything installed and takes seconds.
-PREREQS="${CI_ISLE_PREREQ_PKGS:-qemu-kvm qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients bridge-utils dnsmasq acl net-tools wget jq python3 docker.io docker-compose-v2}"
+# yad/sshpass/avahi-daemon added 2026-10-04: Isle-Mesh's own router init apt-installs these three ON THE FLY
+# (openwrt-router/scripts/router-init.sh check_prerequisites(): REQUIRED_CMDS includes yad+sshpass and
+# _try_install pulls them in; isle-agent/scripts/agent-manager.sh installs avahi-daemon earlier, for the host
+# agent) — when that ad-hoc apt call lands while unattended-upgrades still holds the dpkg lock on a freshly
+# booted guest, core-install fails with "Failed to initialize Isle Router" even though the product is fine
+# (polari-isle-test build 20, 2026-09-20 #19/#7). Baking them in here means core-install never calls apt for
+# them at all, baked-base or not. device.sh's own default for CI_ISLE_PREREQ_PKGS is the one that actually
+# reaches every caller (device_load() sets it before this fallback is ever consulted) — keep both lists
+# identical.
+PREREQS="${CI_ISLE_PREREQ_PKGS:-qemu-kvm qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients bridge-utils dnsmasq acl net-tools wget jq python3 docker.io docker-compose-v2 yad sshpass avahi-daemon}"
 TEST_SHA="${CI_TEST_SHA:-}"
 DEVICE_NAME="${CI_DEVICE_NAME:-pipeline}"
 GUEST

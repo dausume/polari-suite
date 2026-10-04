@@ -67,7 +67,13 @@ device_load() {
     # prerequisites are baked ONCE into a PREPARED base image in the cache (keyed by the cloud image + this
     # list) and every later throwaway boots from it; `off` boots the bare cloud image every time.
     : "${CI_ISLE_PREPARED:=auto}"
-    : "${CI_ISLE_PREREQ_PKGS:=qemu-kvm qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients bridge-utils dnsmasq acl net-tools wget jq python3 docker.io docker-compose-v2}"
+    # yad/sshpass/avahi-daemon 2026-10-04: Isle-Mesh's own router init apt-installs these three ON THE
+    # FLY (router-init.sh check_prerequisites(), isle-agent/agent-manager.sh for avahi-daemon) — baking
+    # them in here means core-install never calls apt for them, so it can never lose the dpkg-lock race
+    # against the guest's unattended-upgrades (isle-test #19/#7 flake). Keep this list IDENTICAL to
+    # guest-install.sh's own fallback default — this one is what actually reaches every caller, since
+    # device_load() always sets CI_ISLE_PREREQ_PKGS before guest-install.sh's own `${:-}` is ever consulted.
+    : "${CI_ISLE_PREREQ_PKGS:=qemu-kvm qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients bridge-utils dnsmasq acl net-tools wget jq python3 docker.io docker-compose-v2 yad sshpass avahi-daemon}"
     # test-built images are DISCARDED after the run (only a release keeps its images); 1 keeps them for a look
     : "${CI_KEEP_TEST_IMAGES:=0}"
     # the optional offline medium in a release (2 GB, minutes); false skips it — a device knob, not a job parameter

@@ -510,6 +510,32 @@ else
     fi
 fi
 
+# ------------------------------------- ci-13: the prepared isle base (bake cache)
+# Read from the RESOLVED location (on_target under CI_ISLE_TARGET=ssh), never the
+# controller's own disk — `cache.sh dir cloud` printing/creating an empty LOCAL dir
+# while the real cache sat on the ssh target (2026-10-04, polari-isle-test build 20)
+# is the same mistake this check exists to not repeat.
+sec "the prepared isle base (ci-13 bake cache)"
+if [ "${CI_ISLE_PREPARED:-auto}" = off ]; then
+    ok "prepared base" "CI_ISLE_PREPARED=off — every stage boots the bare cloud image (slow, deliberate)"
+else
+    PB_IMG="$(basename "${CI_ISLE_IMAGE_URL%%\?*}")"
+    PB_FMT="$(grep -m1 '^BAKE_FORMAT=' "$J/isle/throwaway.sh" | cut -d= -f2)"
+    PB_KEY="$(printf '%s|%s|%s' "$PB_IMG" "${CI_ISLE_PREREQ_PKGS:-}" "$PB_FMT" | sha256sum | cut -c1-16)"
+    PB_PATH="$(cache_root)/cloud/prepared-$PB_KEY.qcow2"
+    if [ "$CI_ISLE_TARGET" = local ]; then
+        PB_MTIME="$( { [ -s "$PB_PATH" ] && stat -c '%Y' "$PB_PATH"; } 2>/dev/null || true)"
+    else
+        PB_MTIME="$(on_target "[ -s '$PB_PATH' ] && stat -c '%Y' '$PB_PATH' 2>/dev/null" 2>/dev/null || true)"
+    fi
+    if [ -n "$PB_MTIME" ]; then
+        PB_DATE="$(date -d "@$PB_MTIME" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "epoch $PB_MTIME")"
+        ok "prepared base" "$(basename "$PB_PATH") baked $PB_DATE key $PB_KEY (on $(device_target_name))"
+    else
+        ok "prepared base" "none for key $PB_KEY — next isle stage bakes one (on $(device_target_name))"
+    fi
+fi
+
 # ------------------------------- ci-9: app mode, and the core it is tested against
 if [ "$CI_MODE" = app ]; then
     sec "app mode — ONE app, a pulled core, YOUR routes"
