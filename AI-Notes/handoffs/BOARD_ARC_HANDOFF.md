@@ -3,6 +3,23 @@
 _Written while he was at work ("work autonomously on this"). Everything below is on PHASE BRANCHES, pushed, NOT
 merged; nothing touched dev/main, the droplet, or the running stacks. His merge word is owed for the whole stack._
 
+## MERGED TO DEV 2026-10-04
+
+His merge word landed. `dev-hw-test` is merged into `dev` in all five repos, innermost-first (framework, angular →
+rf-node → cli → suite), by plain `git merge --no-ff` + plain `git push origin dev` (no force anywhere). `dev-hw-test`
+is now == dev content — everything below in this handoff describes work that is on `dev`, not a staging branch. New
+`dev` tips:
+
+| repo | new dev tip |
+|---|---|
+| polari-framework | a61fc510fdb9b662b61919ff3de802b8d19e95f0 |
+| polari-platform-angular | ea13f2cf1f0221d9d35f71345ed07205ef651751 |
+| polari-rf-node | ed5fa4ce4ef40daf4a6dddeb4422d014de376546 |
+| polari-cli | 74064583ddf63dd902af38936bd8626f1d06a574 |
+| polari-suite | 4612003236325ca39ad0b29bde17fa71e4e0b8a0 |
+
+The test guide `AI-Notes/guides/HARDWARE_ARC_TEST_GUIDE.md` keeps working — its branch line now says `dev`.
+
 ## The branch stack (innermost-first; each builds on the previous)
 
 | phase | branch | framework | rf-node | cli | suite | angular |
