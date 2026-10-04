@@ -1,8 +1,9 @@
 # Topology network bridging (tnb arc): addresses, firewalls and reachability become topology ROWS — no separate `pol net doctor`
 
-**Date:** 2026-10-04 · **Status: PLAN (tnb-0 not started). No code changed.** Drafted from the tree at suite
-`origin/dev` (d879381), with polari-rf-node pin `ed5fa4c` and polari-cli pin `195f220`. Facts marked
-**unverified** were not confirmed from a primary source or a measurement on 2026-10-04.
+**Date:** 2026-10-04 · **Status: D-tnb-1..4 RULED (§6). tnb-0 not started; no code changed.** Drafted from
+the tree at suite `origin/dev` (d879381); revised the same evening after his ruling, suite `origin/dev`
+(0896705). Facts marked **unverified** were not confirmed from a primary source or a measurement on
+2026-10-04.
 Companions: `AI-Notes/handoffs/BOARD_ARC_HANDOFF.md` (the DEBT table this plan clears, §7; "Engines on
 isle-core"), `HARDWARE_NOCODE_PLAN.md` (slice/decision house style), `CICD_PIPELINE_PLAN.md`.
 
@@ -22,9 +23,9 @@ His words (quoted, across the arc):
    we likely need accounted for in topology if it is not already."*
 
 Reading (2) + (3) together: the fixes proved by hand on 2026-10-04 (§1) are not a new diagnostic tool — they
-are gaps in `topology`'s own rows and in `pol topology report/validate/apply`. This plan folds the firewall
-and address plumbing built this week (`net-needs.sh`, `fw-handshake.sh`, `net.sh`, the four new `swarm.sh`
-checks) INTO topology, instead of leaving it as a swarm-specific side pocket.
+are gaps in `topology`'s own rows and in `pol topology report/validate/apply`. This plan folds this week's
+firewall/address plumbing (`net-needs.sh`, `fw-handshake.sh`, `net.sh`, the four new `swarm.sh` checks) INTO
+topology, instead of leaving it a swarm-specific side pocket.
 
 ## 1. What happened (2026-10-04) — the evidence
 
@@ -57,6 +58,12 @@ The isle-core swarm worker showed `Down`; the routing mesh never carried traffic
   (`BOARD_ENGINES_URL`, `ESP_ENGINES_URL`, …) reached the backend only via shell-exported knobs, never
   topology rows; `pol topology modules-env` computed the requires-closure from the OLD running image, not
   the checked-out one.
+- **Evening of 2026-10-04: proven both ways, not durable.** After he applied `route … src 192.168.0.210
+  metric 600`, all four hw-engine ports answered through pol-core's advertised address in ~0.1 s — the mesh
+  proven both ways (`AI-Notes/handoffs/BOARD_ARC_HANDOFF.md`, DEBT row). The fix is **NOT persistent**:
+  NetworkManager restores the DHCP-assigned route source on its own schedule. `address-not-stable` and
+  `route-source-mismatch` (§3) are therefore the first two findings tnb-0 must raise against the live home
+  topology — the durable fix (static .210 + a router reservation) is still owed.
 
 ## 2. What exists (the survey)
 
@@ -71,11 +78,10 @@ The isle-core swarm worker showed `Down`; the routing mesh never carried traffic
 | `TopologyObservation` | `topology_state.py:62-104` | stacks_json, services_json, modules_json per node, posted by `pol topology report` | **no addresses, no ports, no firewall** |
 
 `validate_topology` (`topology_analysis.py:140-351`) runs 18 structural checks today (`duplicate-instance`,
-`unknown-machine`, `unknown-target`, `target-unavailable`, `machine-not-in-swarm`, `unknown-db-backend`,
-`unknown-cache-backend`, `unknown-blob-backend`, `double-declared-cache`, `unknown-accessibility-scope`,
-`scope-unavailable`, `unknown-network-kind`, `unknown-env-tier`, `unknown-service-kind`,
-`assignment-unknown-instance`, `edge-without-provider`, `unknown-interconnect`,
-`connection-unknown-instance`) — **none about addresses, ports or reachability.** `drift_report`
+`unknown-machine`, `machine-not-in-swarm`, `unknown-db/cache/blob-backend`, `double-declared-cache`,
+`unknown-accessibility-scope/network-kind/env-tier/service-kind`, `edge-without-provider`,
+`unknown-interconnect`, `connection-unknown-instance`, four more) — **none about addresses, ports or
+reachability.** `drift_report`
 (`:736-791`) compares desired `service_kinds_json` against the latest `TopologyObservation` per machine —
 service kinds only, no socket-level check. `pol topology` (`polari-cli/scripts/topology.sh`, verbs
 `status|graph|validate|pull|push|diff|report|assign|modules-env|resolve|render|apply|deploy|export|
@@ -84,43 +90,34 @@ allocate`) has **no `--json`** on any verb (confirmed: no `--json` string anywhe
 **The security module builds a DIFFERENT, STATIC graph.** `/display/security-network`
 (`security_topology.py`) renders three views (os/network/app) from `load_scenario()` reading
 `os-security/scenarios/<name>.yml` — a hand-authored file describing a MACHINE CLASS (`swarm-full`,
-`swarm-lean`, `isle`, `dev`), not a live node. `SecurityTopologyNode`/`Edge` rows are seeded per scenario
-(generic panels only); `FirewallRuleSet` (`modules/security/objects/security/FirewallRuleSet.py`) holds one
-row per `(scenario, chain)` — `scenario, chain, rules, rule_count, applied, sources_resolved, artifact` —
-populated by `firewall_rule_rows()` (`modules/security/custom/security_network_rows.py:96-110`), which reads
-the RENDERED `os-security/out/<scenario>/ufw.sh` / `docker-user.sh` text and a from-hand `applied` dict
-(`security_facts.APPLIED_TODAY`); it never reads an actual host's `ufw status`. The scenario's
-`ufw.allow[]` rows (`os-security/scenarios/swarm-full.yml:26-35`, e.g. `{port: 4789, proto: udp, from:
-swarm, why: "overlay VXLAN (peers only)"}`) name a SOURCE CLASS (`any|isle|isle-lan|admin-lan|swarm`)
-resolved only at render-and-apply time by `ufw.sh.j2`'s `src_list()` (`$OS_SEC_ISLE_NET`, `$OS_SEC_LAN_NET`,
-`$OS_SEC_ADMIN_NET`, `$OS_SEC_SWARM_PEERS` env vars) — an unresolved source is SKIPPED with a warning, never
-widened to "any". The real interactive graph is `topology-graph-view.component.ts`
-(`polari-rf-node/polari-platform-angular/.../components/topology/`): D3, a `TopologyGraph` input, machines
-drawn as host boxes (`renderHosts`), modules as circles nested inside instance nodes, `ServiceConnection`
-rows as thin colored lines (`renderConnections`, colored by `interconnectKey`) and `ModuleDependencyEdge`
-rows as directed edges (`renderDependencyEdges`) colored by `status` (resolved/unresolved/degraded) — it
-draws the module graph; it has no concept of an address, a port or a firewall today.
+`swarm-lean`, `isle`, `dev`), not a live node. `FirewallRuleSet`
+(`modules/security/objects/security/FirewallRuleSet.py`) holds one row per `(scenario, chain)`, populated
+by `firewall_rule_rows()` (`modules/security/custom/security_network_rows.py:96-110`) reading the RENDERED
+`os-security/out/<scenario>/ufw.sh` text and a from-hand `applied` dict — it never reads an actual host's
+`ufw status`. The scenario's `ufw.allow[]` rows (`os-security/scenarios/swarm-full.yml:26-35`, e.g.
+`{port: 4789, proto: udp, from: swarm}`) name a SOURCE CLASS (`any|isle|isle-lan|admin-lan|swarm`) resolved
+only at render-and-apply time by `ufw.sh.j2`'s `src_list()` (`$OS_SEC_*` env vars) — unresolved sources are
+SKIPPED, never widened to "any". The real interactive graph is `topology-graph-view.component.ts`: D3,
+machines as host boxes (`renderHosts`), modules as circles, `ServiceConnection` lines
+(`renderConnections`) and `ModuleDependencyEdge` edges (`renderDependencyEdges`) colored by status — it
+draws the module graph; no concept of an address, a port or a firewall today.
 
-**CLI pieces built this week (polari-cli), to be FOLDED IN, not duplicated:**
-
-- `scripts/lib/net-needs.sh`: `net_needs <binding> [port]` — a pure derivation table, binding kind → the
-  ports/protos/purposes it needs open (`swarm-manager` → 2377/tcp, 7946/tcp+udp, 4789/udp;
-  `swarm-worker` → 7946/tcp+udp, 4789/udp; `engine-worker <port>` → one tcp port, 9830\|9840\|9850\|9860
-  known).
-- `scripts/lib/fw-handshake.sh`: `fw_detect` (ufw-active\|ufw-inactive\|firewalld\|nftables\|none),
-  `fw_can_prompt` (refuses in CI/no-TTY/`POL_ASSUME_NO=1`), `fw_handshake_apply` (turns
-  `SWARM_PORTS_CLOSED` into consented, SOURCE-SCOPED `ufw allow from <peer> to any port <p> proto <x>`
-  rules; firewalld/nftables get the equivalent PRINTED, never applied), `fw_journal_append` /
-  `fw_handback_apply` — the hand-back journal at `~/.polari/handback/firewall.jsonl`, replayed in reverse.
-- `scripts/net.sh`: `pol net needs|handback` — the data table + the undo ledger as a thin CLI face; the
-  handshake itself lives in `pol swarm ports --apply` / `pol swarm join`.
-- `scripts/swarm.sh`: `check_manager_advertise` (:168, advertise-drift + remedies),
-  `check_swarm_ports` (:225, probes `nc -z[u]` against the ADVERTISED address, not blindly localhost;
-  fills `SWARM_PORTS_CLOSED`, surfaces the Down reason via `_node_down_reason`), `check_mesh_formed`
-  (:271, polls `docker network inspect ingress`'s `Peers`), `check_data_plane` (:313, the via-node-vs-
-  via-manager timing test; feeds `4789/udp`+`7946/udp` into `SWARM_PORTS_CLOSED` on a VXLAN-blocked
-  verdict so the SAME consent handshake can open them).
-- Proven: swarm-selftest 129/129.
+**CLI pieces built this week (polari-cli), to be FOLDED IN, not duplicated:** `scripts/lib/net-needs.sh`'s
+`net_needs <binding> [port]` is a pure derivation table (binding → ports/protos/purposes: `swarm-manager`
+2377/tcp + 7946/tcp+udp + 4789/udp; `swarm-worker` 7946/tcp+udp + 4789/udp; `engine-worker <port>` one tcp
+port, 9830\|9840\|9850\|9860 known). `scripts/lib/fw-handshake.sh` has `fw_detect`
+(ufw-active\|ufw-inactive\|firewalld\|nftables\|none), `fw_can_prompt` (refuses in CI/no-TTY/
+`POL_ASSUME_NO=1`), `fw_handshake_apply` (turns `SWARM_PORTS_CLOSED` into consented, SOURCE-SCOPED `ufw
+allow from <peer> to any port <p> proto <x>` rules; firewalld/nftables get the equivalent PRINTED, never
+applied), `fw_journal_append`/`fw_handback_apply` (the hand-back journal `~/.polari/handback/
+firewall.jsonl`, replayed in reverse). `scripts/net.sh` is `pol net needs|handback` — the data table + undo
+ledger as a thin CLI face; the handshake itself lives in `pol swarm ports --apply`/`pol swarm join`.
+`scripts/swarm.sh` gained `check_manager_advertise` (:168, advertise-drift + remedies),
+`check_swarm_ports` (:225, probes against the ADVERTISED address, not blindly localhost; fills
+`SWARM_PORTS_CLOSED`, surfaces the Down reason), `check_mesh_formed` (:271, polls ingress `Peers`),
+`check_data_plane` (:313, the via-node-vs-via-manager timing test; feeds the VXLAN ports into
+`SWARM_PORTS_CLOSED` on a blocked verdict so the same handshake opens them). Proven: swarm-selftest
+129/129.
 
 ## 3. The design
 
@@ -151,8 +148,7 @@ class MachineFirewall(treeObject):
     rules_json: str = '[]'       # [{port, proto, from, comment}], from fw_detect()'s own read
 
 class NetworkEdge(treeObject):
-    """One reachability requirement, DERIVED from instances/edges/assignments — the net-needs
-    table becomes the derivation rule, not a hand-maintained row."""
+    """One reachability requirement — hand-declared OR accepted from a net_needs.py suggestion."""
     name: str = ''
     from_machine: str = ''
     to_machine: str = ''
@@ -180,13 +176,18 @@ class AppliedRule(treeObject):
     handed_back_at: str = ''     # '' = still open
 ```
 
-**Derivation, not declaration (D-tnb-1).** `NetworkEdge` rows are computed the same way
-`modules_env_for_instance` computes the requires-closure (`topology_analysis.py:65-132`): a swarm-worker
-`InstanceDefinition` implies the four `net_needs(swarm-worker)` edges both ways; an engine
-`ModuleAssignment` implies the caller→worker port from `net_needs(engine-worker, <port>)`; a proxy instance
-implies 80/443 from `any`. `topology/net_needs.py` becomes the one place this table lives (today's
-`net-needs.sh` stays a thin CLI mirror reading it, same shape as `modules_env` is read from the API or the
-local module).
+**First-class rows, derivation as suggestion (D-tnb-1 RULED, §6).** His ruling: network definitions live
+in both the topology configuration (the portable package, §3b) and the rows, and are modifiable by CLI
+commands — so `NetworkEdge` (and the other three classes) are hand-declarable first-class rows, the same
+footing as `InstanceDefinition`. Derivation stays, but as a SUGGESTION, not the only source:
+`topology/net_needs.py` computes candidate edges the same way `modules_env_for_instance` computes the
+requires-closure (`topology_analysis.py:65-132`) — a swarm-worker `InstanceDefinition` implies the four
+`net_needs(swarm-worker)` edges both ways, an engine `ModuleAssignment` implies the caller→worker port from
+`net_needs(engine-worker, <port>)`, a proxy instance implies 80/443 from `any` — and `validate_topology`
+surfaces them as proposed edges a person accepts into the rows (the same "suggestion, never silent" idiom
+as `suggest_reallocations`, `topology_analysis.py:794-847`). Once accepted, an edge is indistinguishable
+from one entered by hand through `pol topology net add-edge` (§3b) — derivation only seeds the first draft
+and never overwrites a row a person already owns.
 
 **New findings in `validate_topology`** (each evidence-bearing + naming the exact fix, the `aqp-1` idiom
 already used at `topology_analysis.py:135-137`):
@@ -211,8 +212,8 @@ move into `topology/net_probe.py`, run on the host directly or over ssh (same al
 advertised address. The kernel drop-reason tracer (bpftrace) is OPTIONAL evidence attached to a finding
 when bpftrace exists on the host (D-tnb-3) — never a hard requirement.
 
-**Actions.** `pol topology apply` gains consented host actions driven by findings, never free-standing:
-`address add-secondary`, `address route-source`, `address make-static` (prints the NetworkManager
+**Actions.** `pol topology apply` gains the consented host actions a `plan` step names (§3c), never
+free-standing: `address add-secondary`, `address route-source`, `address make-static` (prints the NetworkManager
 commands; applies only with `--yes` + sudo — same `fw_can_prompt`/no-CI/no-pipe rule as
 `fw_handshake_apply`), `firewall allow` (source-scoped, built from the derived `NetworkEdge` rows; ufw
 applies today, firewalld/nftables print the equivalent — exactly `fw_handshake_apply`'s existing behavior),
@@ -223,77 +224,136 @@ applies today, firewalld/nftables print the equivalent — exactly `fw_handshake
 ruling (1): AI and CLI get the same reliable surface a graphical wrapper calls. Never offered in CI/no-TTY,
 same as the firewall handshake.
 
-**Visualization — no new chart engine (per `frontend-graphing-capability`/`no-raw-json-on-screens`).**
-`topology-graph-view.component.ts` already draws host boxes, module circles, `ServiceConnection` lines and
-`ModuleDependencyEdge` edges colored by status (`:23-128` category/status palettes). It gains: `NetworkEdge`
-rows as edges BETWEEN MACHINES, colored by `state` (open=green, closed=red, drop-suspected=amber,
-unknown=grey — the same palette idiom as `RESOLUTION_COLORS`/`CLASSIFICATION_COLORS` already in the file);
-the firewall `engine`+`active` as a small badge on the host box (`renderHosts`); `AppliedRule` rows listed
-in the machine's detail/drawer tab. All of it is the existing per-object display pattern
-(`per-object-display-config`) — configured tables, no new component. `/display/security-network` keeps its
-scenario SIMULATION (what WOULD be blocked under a posture) and gains one more panel: a "live machines"
-table sourced from `MachineFirewall`/`NetworkEdge` rows, so the simulated view and the observed view sit
-side by side without merging (the scenario view answers "what would enforce do"; the new rows answer "what
-is true right now").
+**Visualization — no new chart engine** (`frontend-graphing-capability`/`no-raw-json-on-screens`).
+`topology-graph-view.component.ts` already draws host boxes, module circles and status-colored edges
+(`:23-128` palettes). It gains `NetworkEdge` edges BETWEEN MACHINES colored by `state` (open/closed/
+drop-suspected/unknown, the same `RESOLUTION_COLORS` idiom), a firewall `engine`+`active` badge on the host
+box (`renderHosts`), and `AppliedRule` rows in the machine's drawer tab — all the existing per-object
+display pattern, configured tables, no new component. `/display/security-network` keeps its scenario
+SIMULATION and gains one "live machines" panel from `MachineFirewall`/`NetworkEdge` rows, side by side with
+the simulation rather than merged into it.
 
 **Fold-in (delete duplicates, never maintain two copies of one fact):** `pol net` → `pol topology net …`
-aliases kept for one release (D-tnb-4); `pol swarm join`/`pol swarm ports` call the topology probes and
-findings instead of their own copies — `check_manager_advertise`/`check_swarm_ports`/`check_mesh_formed`/
-`check_data_plane` keep their names as thin wrappers over `topology/net_probe.py` so `swarm-selftest`
-doesn't need a rewrite, only a redirect; `net-needs.sh`'s table becomes `topology/net_needs.py`, read by the
-CLI from the API when reachable, from the local module file otherwise (same fallback shape
-`modules_env_for_instance` already uses for `load_module_requires`, `topology_analysis.py:103-111`).
+aliases kept for one release (D-tnb-4); `pol swarm join`/`pol swarm ports` call the topology probes instead
+of their own copies — `check_manager_advertise`/`check_swarm_ports`/`check_mesh_formed`/`check_data_plane`
+stay as thin wrappers over `topology/net_probe.py`, no `swarm-selftest` rewrite, only a redirect;
+`net-needs.sh`'s table becomes `topology/net_needs.py`, read from the API when reachable, the local module
+file otherwise (the same fallback `load_module_requires` already uses, `topology_analysis.py:103-111`).
 
 **Security posture (unchanged, now provable instead of asserted):** closed by default; every rule
-source-scoped (never `allow <port>` bare); consent/sudo is the handshake, never silent; a DHCP-leased
-address on a manager/proxy is a FINDING, not a silent change — nothing here authorizes `pol` to touch a
-firewall or an address without a typed `y`/sudo prompt, matching `fw-handshake.sh`'s existing rule
-word-for-word.
+source-scoped; consent/sudo is the handshake, never silent; a DHCP-leased manager/proxy address is a
+FINDING, not a silent change — matching `fw-handshake.sh`'s existing rule word-for-word.
+
+### 3b. One definition, everywhere — the sync contract
+
+His ruling (quoted verbatim): *"Networks in general are defined in both topology configuration and in
+objects in polari itself, and are modifiable via cli commands, when topology changes occur anywhere they
+affect everywhere."* `MachineAddress`/`MachineFirewall`/`NetworkEdge`/`AppliedRule` therefore live in both
+places every other topology row already lives in: the portable package `topologies/<name>.topology.yml`
+(today holds `machines`/`instances`/`assignments`/`edges`/`connections`, exported by
+`GET /api/topology/export`, written by `pol topology pull` at `topology.sh:122-143`, imported
+idempotent-by-name by `POST /api/topology/import` via `pol topology push` at `topology.sh:145-163`) gains
+`addresses`/`firewalls`/`network_edges`/`applied_rules` blocks the same way; and the live CRUDE rows on the
+core instance (§3).
+
+A change in any ONE of the three places (the file, the rows via CLI, a host observation) propagates to the
+others through the verbs that already exist for everything else in the package:
+
+| change happens in | propagates via | lands in |
+|---|---|---|
+| the committed file (hand-edited, or a fresh checkout) | `pol topology push <file>` | rows (idempotent-by-name, same as `machines` today) |
+| the CLI / a person (`pol topology net add-edge\|set-address\|set-firewall`) | a direct CRUDE write, the path `pol allocate`/`pol topology assign` already use | rows now; the NEXT `pol topology pull` refreshes the file |
+| a host (`pol topology report`) | observation rows (`source` names the probe; `NetworkEdge.state`/`data_plane`) | rows; `pol topology diff` names the gap against the desired rows/file, never auto-corrects |
+| rows (after any of the above) | `pol topology pull <name>` | the file, byte-stably |
+| a finding's suggested edge (D-tnb-1) | accepted by a person (the Topology tab, or `pol topology validate --accept`) | a new row, hand-equivalent, in rows and (after the next `pull`) the file |
+
+**The file is the portable truth** for a fresh checkout (clone the suite, `pol topology push`, every
+address/firewall/edge/rule row exists with no live core to ask first). **The rows are the live truth** (a
+report from an hour ago beats a file nobody has pulled since). Neither drifts from the other silently:
+`pol topology diff` already runs the exact byte-for-byte package comparison (`topology.sh:175-202`,
+`json.dumps(pkg, sort_keys=True) == json.dumps(live['document'], sort_keys=True)`) — **the round-trip test
+for the four new row classes is that SAME check, unchanged, now covering four more blocks: `pol topology
+pull` then `pol topology push` must be byte-identical for `addresses`/`firewalls`/`network_edges`/
+`applied_rules`, exactly as it already is for `machines`/`instances`/`assignments`/`edges`/`connections`.**
+
+### 3c. Execution by orchestration target — plan on the web; run through pkexec only inside the isle app
+
+His ruling: *"however topology changes are purely show and not executable in normal web views, the
+interface for topology is defined via web, but it needs to be smart enough to know the difference between
+a compose only setup vs an isle setup. A swarm only setup will have to do the automation through manual cli
+and ssh steps, whereas an isle step has cross-isle communication innately and can relay triggering actions
+through interfaces and with elevated permissions."* Refined: *"so for a human driven route we should assess
+the swarm state, and give suggestions based on the plan they ask for, in isle we can simply start executing
+so long as they are running it in the app itself because the javaFx app can just execute the shell files
+with appropriate permissions using pkExec."*
+
+**One verb, two executors.** `pol topology plan <what they ask for>` assesses the live swarm/host state
+(`pol topology report`) and returns an ORDERED SUGGESTION list — each step the exact command, its consent
+class, its undo — never executing anything itself, for EVERY target kind. For `compose`/`swarm`, the person
+runs each step themselves, the same per-step consent `pol topology apply`/`fw_handshake_apply` already
+require (a terminal, a typed `y`, a sudo prompt — never a web click). For `isle`, the identical plan is
+handed to the Isle Manager JavaFX app (`Isle-Mesh/isle-manager-app`), which already runs privileged shell
+steps through `pkexec bash <script> <args>` across its controllers (e.g.
+`PermissionsCheckController.java:230-252`) — it executes the SAME plan steps itself, through pkexec, ONLY
+when the person runs it from inside that app (the privilege boundary is "are you inside the JavaFX
+process", never "are you on the isle network"). The web topology view renders identically for both target
+kinds — the same plan, the same steps — except the isle one additionally shows a Run button, because
+`OrchestrationTarget.execution == isle-relay` means precisely this JavaFX+pkexec path and nothing else is
+granted elevated execution. Every executed step, by either path, is still journaled as an `AppliedRule`
+with its undo and still gated by the authority model (`AuthorityKernel`, `polari-mcp/authority.py:84-133`).
+
+`OrchestrationTarget` (`topology_basis.py:109-135`) gains `execution: show-only | cli-ssh | isle-relay`.
+Every finding/plan step carries `executable_via`, derived from its machine's `orchestration_target` → that
+target's `execution` — the Topology tab renders a Run button only where `executable_via == isle-relay`.
 
 ## 4. Slices
 
 | slice | what | proof | gate |
 |---|---|---|---|
-| **tnb-0** | `MachineAddress`/`MachineFirewall`/`NetworkEdge`/`AppliedRule` rows; `net_needs.py` derivation; `pol topology report` observes addresses/firewall/edges (`net_probe.py` wrapping the four `swarm.sh` checks); 9 new `validate_topology` findings; `--json` on `report`/`validate`/`graph` | on the LIVE home topology: must raise `advertise-address-drift` + `route-source-mismatch` + `address-not-stable` for pol-core AND `edge-data-plane-dead` for the four hw-engine ports, matching what was found and fixed by hand on 2026-10-04 | D-tnb-1 |
-| **tnb-1** | consented actions (`address add-secondary\|route-source\|make-static`, `firewall allow`, `swarm rejoin`) + `AppliedRule` mirror + `pol topology handback` | the fake no-TTY/CI harness (mirrors `fw-handshake.sh`'s existing selftest pattern) for every refusal path; ONE real consented run with him on pol-core | D-tnb-2 |
-| **tnb-2** | visualization: `NetworkEdge` edges colored by state, firewall badge, `AppliedRule` drawer tab | his browser pass on `/topology` and `/display/security-network`'s new "live machines" panel | — |
-| **tnb-3** | fold-in: `pol net`/`pol swarm ports`/`pol swarm join` become thin callers of `topology/net_probe.py` + `net_needs.py`; duplicate probe code deleted; selftests moved, not duplicated | `swarm-selftest` stays green post-redirect; no two functions answer the same question | D-tnb-4 |
+| **tnb-0** | `MachineAddress`/`MachineFirewall`/`NetworkEdge`/`AppliedRule` rows + their package blocks (§3b); `net_needs.py` suggestion derivation; `pol topology report` observes addresses/firewall/edges (`net_probe.py` wrapping the four `swarm.sh` checks); 9 new `validate_topology` findings; `--json` on `report`/`validate`/`graph` | on the LIVE home topology: must raise `advertise-address-drift` + `route-source-mismatch` + `address-not-stable` for pol-core AND `edge-data-plane-dead` for the four hw-engine ports — exactly what the 2026-10-04 evening evidence (§1) shows is still non-durable; plus the §3b push→pull round-trip byte-identical | D-tnb-1 ✅ |
+| **tnb-1** | `pol topology plan <ask>` (show-only/cli-ssh, §3c) + consented actions (`address add-secondary\|route-source\|make-static`, `firewall allow`, `swarm rejoin`) + `AppliedRule` mirror + `pol topology handback` | the fake no-TTY/CI harness (mirrors `fw-handshake.sh`'s existing selftest pattern) for every refusal path; ONE real consented run with him on pol-core before `make-static` applies anything (D-tnb-2) | D-tnb-2 ✅ |
+| **tnb-2** | visualization: `NetworkEdge` edges colored by state, firewall badge, `AppliedRule` drawer tab, the isle Run button (`isle-relay`, §3c) | his browser pass on `/topology` and `/display/security-network`'s new "live machines" panel | D-tnb-5 |
+| **tnb-3** | fold-in: `pol net`/`pol swarm ports`/`pol swarm join` become thin callers of `topology/net_probe.py` + `net_needs.py`; duplicate probe code deleted; selftests moved, not duplicated; `pol net` aliases retired (D-tnb-4) | `swarm-selftest` stays green post-redirect; no two functions answer the same question | D-tnb-4 ✅ |
 
 ## 5. Costs
 
-Measured per probe, nothing heavy — this is plumbing, not a new engine or image. Per-call cost is an ssh
-round trip (`ConnectTimeout=8`, same as `fw-handshake.sh`/`net.sh` today) plus one `nc`/`curl`/`docker
-inspect` each; `check_data_plane`'s curl pair is bounded by `SWARM_DP_TIMEOUT` (default 5 s) per route. No
-new container, no new dependency — `topology/net_probe.py` is pure Python reading the same `docker`/`ip`/
-`nc`/`curl` surface the shell checks already call, over the same ssh alias resolution `net.sh` already has.
-0 MB of new image.
+Measured per probe, nothing heavy — plumbing, not a new engine or image. Per-call cost is an ssh round trip
+(`ConnectTimeout=8`, as today) plus one `nc`/`curl`/`docker inspect`; `check_data_plane`'s curl pair is
+bounded by `SWARM_DP_TIMEOUT` (default 5 s) per route. No new container, no new dependency —
+`topology/net_probe.py` is pure Python over the same `docker`/`ip`/`nc`/`curl` surface and ssh alias
+resolution the shell checks already use. 0 MB of new image.
 
-## 6. Decisions (his; recommendations in bold)
+## 6. Decisions — RULED 2026-10-04 evening (his words quoted where he gave them)
 
-- **D-tnb-1 `NetworkEdge`: derived only, or also hand-declared?** → **Derived only** (§3): a swarm-worker
-  instance, an engine assignment and a proxy instance each imply their edges through `net_needs.py`, the
-  same way `modules_env_for_instance` derives the requires-closure rather than hand-listing it. A
-  hand-declared edge could drift from the instances it claims to describe; a derivation can't.
-- **D-tnb-2 does the static-address action apply NetworkManager changes with consent, or print only?** →
-  **Print only for tnb-1; apply with `--yes` + sudo only after one real run with him proves the NM command
-  set on pol-core's own config** (its `ipv4.addresses` knob, per the DEBT table's own fix). Addresses are
-  harder to undo cleanly than a firewall rule (no single "undo" line the way `ufw delete` is); the apply
-  path should not ship before it is proven on one real box.
-- **D-tnb-3 is the kernel drop-reason tracer (bpftrace) shipped as a probe, or stays a manual diagnosis
-  note?** → **Manual note for now.** It needs root + bpftrace on the target and was used exactly once, by
-  hand, to find the VXLAN_ENTRY_EXISTS drop reason; `check_data_plane`'s via-node/via-manager timing test
-  already proves the SYMPTOM (mesh formed, data plane dead) without root. Promote it to an optional
-  evidence-only probe later if the symptom recurs on a box where the timing test alone isn't conclusive.
-- **D-tnb-4 keep the `pol net` aliases, or remove at once?** → **Keep for one release** (the `HARDWARE_
-  NOCODE_PLAN` precedent: `pol net needs`/`pol net handback` are muscle-memory from this week's hand
-  debugging); delete in tnb-3 once `pol topology net …` is proven and nothing else calls the old names.
+- **D-tnb-1 `NetworkEdge`: derived only, or also hand-declared? → RULED: first-class in BOTH, derivation
+  demoted to a suggestion.** His words: *"Networks in general are defined in both topology configuration
+  and in objects in polari itself, and are modifiable via cli commands, when topology changes occur
+  anywhere they affect everywhere."* `MachineAddress`/`MachineFirewall`/`NetworkEdge`/`AppliedRule` are
+  hand-declarable first-class rows in BOTH the portable package (§3b) and the live rows; `net_needs.py`'s
+  derivation becomes `validate_topology`'s SUGGESTION path only (a person accepts a proposed edge) — a
+  hand-declared edge is never overwritten by a later derivation pass.
+- **D-tnb-2 does the static-address action apply NetworkManager changes with consent, or print only? →
+  RULED: print only, as recommended.** Print-only `make-static` commands until one real consented run with
+  him on pol-core proves the NM command set (its `ipv4.addresses` knob); `--yes`+sudo apply only after
+  that — addresses have no single clean "undo" line the way `ufw delete` does.
+- **D-tnb-3 is the kernel drop-reason tracer (bpftrace) shipped as a probe, or stays a manual note? →
+  RULED: manual note, as recommended.** It needs root + bpftrace and was used once, by hand; `check_data_
+  plane`'s via-node/via-manager timing test already proves the symptom without root.
+- **D-tnb-4 keep the `pol net` aliases, or remove at once? → RULED: keep for one release, as
+  recommended.** `pol net needs`/`pol net handback` stay muscle-memory through tnb-0..2; retire in tnb-3
+  once `pol topology net …` is proven and nothing else calls the old names.
+- **D-tnb-5 (new, §3c) does `pol topology plan` + the isle-manager Run button land in tnb-1, or wait for a
+  later slice?** → **Recommend: tnb-1 ships `plan` + `show-only`/`cli-ssh` for compose/swarm; the
+  `isle-manager-app` Run button is a THIN caller of the existing pkexec pattern** (`Isle-Mesh/isle-manager-
+  app`'s controllers already run `pkexec bash <script>`) added once `plan`'s step shape is proven on
+  compose/swarm, built out with isle-core's owner.
 
 ## 7. The DEBT table (from `BOARD_ARC_HANDOFF.md`), mapped to the slice that clears each row
 
 | hand-applied fix (2026-10-04) | cleared by |
 |---|---|
 | `ip addr add .210/24` + NM `+ipv4.addresses` (advertise drift) | **tnb-0** finding `advertise-address-drift` (+ **tnb-1** `address make-static` action, D-tnb-2) |
-| `route … src .210` (VXLAN frames left from the wrong address) | **tnb-0** finding `route-source-mismatch` |
+| `route … src .210 metric 600` (VXLAN frames left from the wrong address) — ✅ applied by him evening of 2026-10-04: mesh proven both ways, 4 ports ~0.1 s via the manager; NOT persistent | **tnb-0** findings `route-source-mismatch` + `address-not-stable` |
 | two ufw lines for 4789/7946 udp (harmless — ufw was inactive) | **tnb-0** observes `MachineFirewall`; **tnb-1** `firewall allow` applies the derived `NetworkEdge` rule with consent |
 | `docker service update --constraint-add` ×6 (unpinned placement) | **tnb-0** finding `placement-unpinned` (the render-side fix itself stays `dev-hw-followups #1`, outside this arc) |
 | `BOARD/ESP/FORMAL/PCB_ENGINES_URL` + `LOCAL_IP` exported by hand | **tnb-0** finding `knob-not-from-rows`; the edges that resolve the URLs are the derived `NetworkEdge` rows |
