@@ -321,3 +321,15 @@ Not in scope: VHDL/C++/Rust/MicroPython on devices (RULE 2, unchanged); editing 
 canvas (cmod's hand-edit guard stays a file-level boundary); the dlv ladder's RTL/netlist/cell/layout renderers
 (dlv's own slices, not re-planned here); a second chart engine (sci-xy-chart stays THE chart home); 3D views beyond
 the existing click-to-detail precedent (his ruling, unchanged).
+
+
+## 8. Addendum 2026-10-04 late — runtimes (his ruling) and what landed after the plan was written
+His words on seeing /display/c-canvas: "what is a hardware-subgraph? Also, the no-code solution seems to just be a single state, C (Hardware),
+along with Java/JavaFx (Native Bridge Backend and Frontend), these should be their own runtimes." Ruling: RUNTIMES are first-class rows
+(python-backend | typescript-browser | c-device | c-twin | java-bridge | javafx-native); every no-code node is placed into one (derived from
+hwnocode's placement rule); the canvas shows runtime lanes, cross-lane edges are the interfaces; a C graph's atoms are real nodes in the
+c-device lane; `HardwareSubgraph` (hn-0) survives only as the collapsed view of the C graph inside a mixed solution.
+Landed on dev the same night: demo-1 (descriptions, readiness split), demo-1b (api-svg-panel: schematic/layer SVGs + markers, the pin map
+from BoardPin rows for every modelled board, pin-roles table), demo-4 (c-graph-canvas-panel, TargetDefinition, CapabilityDefinition ×2
+instances, used_by), loopfix (the reload storm: unsaved local solutions survive initializeFromBackend; display-page reloads only on a real
+param change), demo-4b (Runtime rows, lanes/legend/crossings, atoms as real nodes, uno-temp-split first). Leftovers are in the handoff TODO §3.
