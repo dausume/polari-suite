@@ -333,3 +333,83 @@ Landed on dev the same night: demo-1 (descriptions, readiness split), demo-1b (a
 from BoardPin rows for every modelled board, pin-roles table), demo-4 (c-graph-canvas-panel, TargetDefinition, CapabilityDefinition ×2
 instances, used_by), loopfix (the reload storm: unsaved local solutions survive initializeFromBackend; display-page reloads only on a real
 param change), demo-4b (Runtime rows, lanes/legend/crossings, atoms as real nodes, uno-temp-split first). Leftovers are in the handoff TODO §3.
+
+## §9. Firmware Solution + Cross-Domain Solution (proposal, 2026-10-05)
+
+His quote, on uno-temp-split after the uno-digital-twin rename landed:
+
+> "rather than just calling it twin which is confusing, call it uno-digital-twin so it is clear. Also, we will need
+> a configuration based conditional and statement so that it goes the digital twin route when the configuration is
+> in one mode, and [hardware] route in the other case. Also it is not clear what the backend state change is for,
+> it seems like it is receiving temperature through the bridge from the Digital Twin? Also not sure what the
+> analysis call is. This seems to more so be a Cross-Domain Solution (Likely something that should be its own
+> category that specifically uses different kinds of bridging and api calls and relay specifications only). And
+> then the code defining what is happening specifically just in the Firmware itself (C only) should be in its own
+> solution). And maybe it is the case that our current formatting and approach does not make sense for C no-code?
+> … What I want to be able to do is define tasks (I think that is atoms) and then define register assignments, and
+> what the solution does is take in a Board Definition and puts out a finished firmware to be flashed or simulated
+> (digital twin). Maybe call it a Firmware Solution? And then we will want a state that takes a Firmware solution
+> based on a C runtime, and accepts a board definition that may be either passed as a variable or set from known
+> board solutions and validated when running that it still exists. The connectors also seem to not be set up
+> properly on the new uno-twin solution in the way it is in other solutions, or it may be the new states that do
+> not handle it properly."
+
+(The connector and rename complaints are FIXED, separately, 2026-10-05 — see the hn-0 selftest / the renamed state.
+This §9 is the proposal for the bigger restructuring his message asks for: today's single mixed canvas splits into
+three solution KINDS.)
+
+**(1) Firmware Solution** — a new HardwareSolution variant whose runtime is `c-device` | `c-digital-twin` (not the
+mixed board/bridge/backend canvas hn-0 draws today). Its canvas is not a free graph but THREE PARTS:
+  - a **TASK LIST**: the atoms (his "tasks (I think that is atoms)") with their ports and resources — what cmod
+    already calls a c-atom, listed, not scattered across a free-form canvas;
+  - a **SCHEDULE LANE**: tick ISR / main loop / interrupts, ordered, with measured cycles beside each (cmod-0's
+    already-measured per-atom cycle counts feed this directly — no new measurement);
+  - a **REGISTER MAP** bound to the board's pin map: dragging a task's target onto a pin/register sets
+    `TargetDefinition.lives_on` to that `BoardPin` (demo's own D-demo-5 ruling: a reference, never a free string).
+
+  Input: a `BoardDefinition` — passed as a variable, or picked from the known/usable boards (`/display/boards`'s own
+  readiness rows) and VALIDATED AT RUN TIME that it still exists (his words exactly) — a stale pick refuses loud,
+  named, the same posture as `knobs.check_runtime()`. Output: a `FirmwareBuild` (the existing class: .hex + the
+  repro block cmod-glue already produces) → flashed (`board.custom.installer`) or run in the digital twin
+  (`board.custom.twin`). Edges inside it are struct fields or triggers only (never a device↔backend crossing — there
+  is no backend here). `cmod-glue` still generates the C project; nothing about its C output changes.
+
+**(2) Cross-Domain Solution** — a new SOLUTION CATEGORY (his words: "its own category that specifically uses
+different kinds of bridging and api calls and relay specifications only") whose states are ONLY bridging/relay,
+never compute:
+  - **Firmware Run** — takes a Firmware Solution + a board (or digital twin) + the mode; this is the ONE place the
+    HARDWARE_MODE knob is read (today's `hwnocode.custom.solutions._hardware_route()`, moved here) and reports
+    which route it took (unchanged behavior, new home);
+  - **Bridge** — the serial/gRPC attach (today's HardwareInterface/HardwareInterfaceBinding, unchanged rows);
+  - **Relay** — frame → a backend event; a command → back down (today's BackendStateChange on the way up,
+    StateChangeCommit on the way down);
+  - **API call** / **Frontend emit** — the existing engine node kinds, unchanged.
+  Arithmetic (his "backend state change... analysis call" confusion) never lives here — a Relay state calls OUT to
+  a backend solution; it does not compute inline.
+
+**(3) Migration of `uno-temp-split`** (no behavior change, re-filed):
+  - the firmware half (`sim-rig`) → a new Firmware Solution `uno-sim-rig` (task list = the sim-rig CGraph's 18
+    atoms, unchanged; schedule lane = their existing stage/order fields; register map = TMP36 on A0, LED on D13);
+  - the relay half (`uno-digital-twin`/`on-temp`/`commit`) → the Cross-Domain Solution `uno-temp-split`, states
+    Firmware Run → Bridge → Relay (up) / Relay → Bridge (down);
+  - the analysis (`moving-avg`/`over?`/`flag-on`/`flag-off`) → a backend solution `temp-analysis`, called BY the
+    Relay state (his "this seems to more so be a Cross-Domain Solution" read literally: the split moves, nothing
+    about the moving-average math changes).
+
+**Slices** (D-fs-1..3 his, below, gate the order): **fs-0** the Firmware Solution model + rows + the BoardDefinition
+input's run-time validation; **fs-1** the three-part canvas formatting (task list / schedule lane / register map);
+**fs-2** the Cross-Domain category + the Firmware Run state + the HARDWARE_MODE knob's new home; **fs-3** the
+migration itself (uno-sim-rig / uno-temp-split / temp-analysis) + the firmware installer switched to read Firmware
+Solutions instead of FirmwareBuild rows directly.
+
+**Decisions (his, D-fs-1..3):**
+- **D-fs-1** — is the SCHEDULE LANE *derived* from each atom's existing ISR/tick annotation (cmod's own
+  `stage`/`order` fields, read-only, same posture as demo-4's "placement is derived, never typed in"), or
+  *authored* by dragging atoms into lanes on the canvas (and cmod-glue reads THAT as the source of truth instead)?
+- **D-fs-2** — does register assignment happen ON the pin map (drag-a-task-onto-a-BoardPin, demo-5's `lives_on`
+  reference) or in a bound TABLE (a configured `class-rows-table` over `TargetDefinition`, no new canvas
+  interaction)? Both resolve to the same reference; this is a UI-effort choice, not a data-model one.
+- **D-fs-3** — may a Cross-Domain Solution contain ANY compute at all (e.g. a trivial unit conversion on a relayed
+  field), or is it bridging/relay ONLY, full stop, with even a one-line conversion required to live in a backend
+  solution the Relay state calls? His message says "relay specifications only" — this decision is whether that is
+  read as absolute or as "no business logic," which changes how strict fs-2's Relay state's refusal rule is.
