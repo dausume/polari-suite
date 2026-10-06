@@ -420,3 +420,21 @@ ISR/tick/loop annotations, never authored. D-fs-2 = register assignment by dragg
 (rows FirmwareSolution / ScheduleSlot / RegisterAssignment / the Firmware Run state kind in a Cross-Domain palette category; derivations +
 validation; `/api/firmware`, `pol firmware`, /display/firmware-solutions; migration seeds uno-sim-rig + uno-temp-split (cross-domain) +
 temp-analysis). fs-1 = the three-part canvas formatting (task list · schedule lane · register map with the drag).
+
+### fs-2 — targets, registered tasks, compatibility (his ask 2026-10-06, go: "okay sounds good")
+His words: "we need to know compatibility between targets and registers as well, we should have a fourth section that gives the
+details about the targets. Also the views are too small even on a full computer screen … collapse and expand sections … a clear
+indicator of when we click on a target what ones are valid targets. The pins are the targets … call them 'Unregistered Tasks' whereas
+we should also be able to click on pins and see the 'Registered Tasks' and an expanded detail view of the register and info about it."
+Vocabulary: TARGETS = the pins (+ the register bits behind them); tasks needing a pin = UNREGISTERED TASKS; bound = REGISTERED TASKS of
+a pin. Compatibility DERIVED: task target kind (analog-in, pwm-out, uart-rx/tx, i2c, spi, digital-in/out, interrupt-in) × pin roles,
+a CITED table in the BOARD module (`target_compat.py`, `TargetCompatibilityRule` rows; ATmega328P datasheet facts; `undetermined` when a
+fact is missing; power/ground never assignable). Four COLLAPSIBLE sections (Unregistered Tasks · Schedule lanes · Pin map · Target
+details) with presets (all / one maximised / two side by side), layout remembered per viewer. Click a task → valid pins light, invalid
+grey with a reason; click a pin → its Registered Tasks + register detail (port/bit, DDR/PIN, alt functions, timer/ADC channel, limits,
+each cited). Invalid drop REFUSED; the conflict guard uses the backend's cooperation rule.
+- fs-2a (backend): `target_compat.py` + rows; `GET /api/board/<b>/pins/<pin>` (register detail + registered_tasks); `GET
+  /api/firmware/solutions/<n>/tasks/<t>/valid-targets`; solution payload gains unregistered_tasks + per-pin registered_tasks; `/assign`
+  refuses invalid/conflicting. Tests: ADC → A0–A5 exactly; PWM → D3 D5 D6 D9 D10 D11; UART → D0/D1; power never.
+- fs-2b (frontend): the four collapsible sections + presets, the renames, highlight/grey-out with reasons, the Target details section,
+  the stricter drop. Spec on real fixtures; his browser pass.
