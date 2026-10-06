@@ -413,3 +413,10 @@ Solutions instead of FirmwareBuild rows directly.
   field), or is it bridging/relay ONLY, full stop, with even a one-line conversion required to live in a backend
   solution the Relay state calls? His message says "relay specifications only" — this decision is whether that is
   read as absolute or as "no business logic," which changes how strict fs-2's Relay state's refusal rule is.
+
+**RULED 2026-10-05 (his: "go with your picks on the decisions"):** §9 ratified. D-fs-1 = the schedule lane is DERIVED from the atoms'
+ISR/tick/loop annotations, never authored. D-fs-2 = register assignment by dragging a task's target onto the PIN MAP (TargetDefinition.lives_on
+→ BoardPin). D-fs-3 = a Cross-Domain Solution contains NO compute — bridging/relay states only, validated. fs-0 building on `dev-fs-0`
+(rows FirmwareSolution / ScheduleSlot / RegisterAssignment / the Firmware Run state kind in a Cross-Domain palette category; derivations +
+validation; `/api/firmware`, `pol firmware`, /display/firmware-solutions; migration seeds uno-sim-rig + uno-temp-split (cross-domain) +
+temp-analysis). fs-1 = the three-part canvas formatting (task list · schedule lane · register map with the drag).
