@@ -171,6 +171,10 @@ first agent was killed mid-slice by an API error; a second finished it on the sa
 **Plans written today:** DEMONSTRABLES_PLAN (demo arc, his order: C canvas first), TOPOLOGY_NETWORK_BRIDGING_PLAN (tnb, his rulings D-tnb-1..5), the guide, the barriers ledger (`AI-Notes/ledgers/BARRIERS_AND_SOLUTIONS.md`).
 
 ### TODO — in this order, nothing else
+0. **Priorities + CapabilityDefinition clarity + the pin-interaction UX rework are now planned in
+   `AI-Notes/plans/HARDWARE_DEV_PRIORITIES.md`** (P1 capability fields/validator → P2 the UNO on the bench → P3 demo-2
+   → P4 the installer's live door → P5 demo-3 + sc-5 → P6 dlv; the export arc stays its own later iteration) — read it
+   before resequencing anything below.
 1. **demo-2** the UNO as a live 2D board sim-space on the pin map (the twin's frames → pin states/ADC/LED/UART; replay fallback) — `level-view` renderer `board`; page /display/firmware-installer above the panel; bind CapabilityInstances to pins here (two temperature sensors).
 2. **demo-3** fault scenarios as a cycle trace view (`level-view` renderer `trace`, BEFORE/AFTER side by side) on /display/firmware-faults.
 3. **demo-4 leftovers:** real build/prove through the canvas buttons (not mocked); atom picker in the overlay; installer + hwnocode pages default to USABLE boards; a per-object "pin map" tab on BoardDefinition detail (check the node-detail pattern first); demo-4b leftovers: cross-lane edges drawn dashed IN the canvas (today a text list), each crossing tied to its HardwareInterfaceBinding/TargetDefinition, a browser-kind state so the typescript-browser lane has a node, `GET /api/hwnocode/runtimes`; `pol pcb ingest --api` must accept the module-relative path.
