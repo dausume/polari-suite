@@ -208,6 +208,6 @@ custom-Python state): ports declared like `POLARI_NODE(...)`, a body authored fr
 loop, call another atom, read/write a target's register through the board object), compiled by a cmod code generator into a real
 `.c` atom (committed into the project like the glue, byte-stable, buildable with `make` alone), parsed back into the same CFunctionAtom
 row (round trip), proven on the digital twin with the same frame comparison. Rules it inherits: C only on the device; no raw JSON;
-derive-or-cite; reproducibility. Decisions for him: D-cmod-6 which building blocks the first C-body kind supports (recommend: the
-subset the sim-rig's atoms already use — read ADC, scale, write a struct field, set a pin); D-cmod-7 whether a no-code-authored body may
-replace a hand-written atom in a seeded graph (recommend: yes once its round trip + twin proof pass).
+derive-or-cite; reproducibility. RULED 2026-10-07 (his "go with your suggestion"): D-cmod-6 = the first C-body kind supports the subset the sim-rig's atoms
+already use (read ADC, scale, write a struct field, set a pin); D-cmod-7 = a no-code-authored body may replace a hand-written atom in a
+seeded graph once its round trip + twin proof pass. Order: after P2 (the bench) and the kit-parts samples backlog.
