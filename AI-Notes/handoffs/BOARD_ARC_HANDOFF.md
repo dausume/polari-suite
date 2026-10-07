@@ -1,3 +1,67 @@
+# HANDOFF — 2026-10-07 (read this first; everything below it is history)
+
+**To the next model, in one paragraph:** the hardware arc is merged to `dev` and running on the home stack across pol-core
+(backend, frontend, the digital twin) and isle-core (the four engine workers: board/formal/esp/pcb). Nothing has yet touched real
+hardware — every proof is on the simavr digital twin. The firmware story now has its full chain in rows and on pages: C tasks
+(cmod) → Firmware Solution with a DERIVED schedule and a register map on the board's pin map (fs-0..2d) → cross-domain relay +
+backend handler (fs-1) → Capabilities with goal text and an acceptance proof whose status only a persisted run can move (P1;
+`temp-sensor-to-os` = proven-on-twin on the live stack, `blink-on-command` = planned). His rules from this stretch are standing:
+demonstrable FIRST on every page and every table described; targets = the pins; Unregistered/Registered Tasks; one selection
+model, selection-then-confirm, second click deselects, Escape clears; Target details ranked by relevance; power/reference pins
+explain themselves and are never assignable; the Arduino Starter Kit parts register is the reference for sample firmwares (21 parts
+without a sample = the backlog); Java's configurable surface = bridging only; the JavaFX Polari Firmware Installer is THE hardware
+bridge and the ONE flash path (planned, not built — the docker-with-device flash in `flash.py` is a stopgap); connected mode is
+isle-only. **Start with his browser pass of /display/firmware-solutions, then P2: the UNO on the bench (guide §4).**
+
+**dev tips at handoff:** suite f140bba · rf-node 2baf57f · framework 9620ebf · angular 3060165 · cli 12f4b24 (app-shell ad2af35,
+proof-tools 092151a, torch-tools 1973a04). main NOT promoted since polari-v2026.09.27; polari-test PASSED on 126f2bf (2026-10-04);
+dev has moved far since → `pol jenkins promote test` before any `promote main` (his call).
+
+**Home stack (pol-core, swarm, address .210 = the manager's advertised address; .212 is the DHCP lease):** rolled from dev after
+every merge; last roll = f140bba (verification lines appended below when it lands). Eleven pages: boards, firmware-installer,
+firmware-faults, c-atoms, c-canvas, hardware-solutions, board-schematic, board-layout, board-bom, board-fab, firmware-solutions.
+Engines on isle-core reached by DIRECT address knobs exported at render (DEBT) — the mesh works after the route-src fix but is not
+persistent (DEBT, tnb-0). Backend boot ≈ 11–12 min (DEBT: boot budget); `pol swarm deploy node` bounces the backend even on a
+frontend-only change (DEBT: service-only roll). Twins run on pol-core's local `prf-board-engines:trixie`; a URL knob always wins and
+a twin refuses a remote rung; the server's capability prove door 409s when its engines cannot run a twin — the proof is pushed
+from a host that can (`pol capability prove <name> --twin` with POLARI_API set).
+
+**How to work here (learned the hard way, all in `AI-Notes/ledgers/BARRIERS_AND_SOLUTIONS.md`):** agents = sonnet, one or two,
+one deliverable + a time box, own worktrees only, never push dev, foreground with timeouts, no background waits, no
+`docker service logs` without `--tail` + `timeout`; merge innermost-first (framework/angular → rf-node → cli → suite) by plain
+pushes from worktrees; new classes MUST be added to `polariServer.defClassList` + `feature_imports.py` (the guard in
+`selftest_manifests` now fails otherwise); seeds must carry the fields the RENDERER reads (stateSvgWidth/Height, displayName,
+positions, connector id/slots); a display panel never writes the user's global selection, never navigates, never saves to the
+backend; bump the no-code cache version when its semantics change; prove a frontend roll by the `runtime.*.js` manifest or a
+served chunk, never `main.js`; a proof counts only when its run row exists on the server the pages read; measure before
+diagnosing (tcpdump on the target, kernel drop reasons) — three wrong network guesses happened before the right one.
+
+**Plans (all on dev):** DEMONSTRABLES_PLAN (demo arc + §9 Firmware/Cross-Domain + fs-2 note), HARDWARE_DEV_PRIORITIES (the chain
+table, the order P1→P6, §3b the ruled UX model), FIRMWARE_EXPORT_PLAN (exp arc, D-exp ruled, his go pending for exp-0),
+C_MODULARIZATION_PLAN cmod-2 (ruled, not started), TOPOLOGY_NETWORK_BRIDGING_PLAN (tnb, ruled, parked), DESIGN_LEVEL_VIEWS_PLAN
+(dlv, parked), the test guide `AI-Notes/guides/HARDWARE_ARC_TEST_GUIDE.md`.
+
+### THE ORDER (his), nothing else
+1. His browser pass of /display/firmware-solutions against §3b of HARDWARE_DEV_PRIORITIES (the ruled selection model).
+2. **P2 — the UNO on the bench** (guide §4): `sudo usermod -aG dialout $USER` → plug in → `pol board detect` → `detect --push` →
+   `install uno --variant uno-blink-only --yes` → `uno-echo` → `uno-sim-rig` with the TMP36 (left 5V, centre A0, right GND) and the
+   LED on D6 via 220 Ω → `pol capability prove temp-sensor-to-os --hardware` → the first `proven-on-hardware`. Record every refusal
+   verbatim; this is the first time any of it meets silicon.
+3. The samples backlog from the kit register (`GET /api/board/kit-parts` → `parts_without_sample`, 21): pushbutton, potentiometer,
+   external LED, piezo, servo, then the driver-mediated parts; each = a Capability with its acceptance proof on the twin, then hardware.
+4. cmod-2 (a task's body in no-code; D-cmod-6/7 ruled) · demo-2 (the live 2D board sim-space on the pin map) · the installer's live
+   validate→build→run door (through the flash gate) · demo-3 (trace view) + sc-5 (silicon replay) · dlv rungs.
+5. The export arc exp-0..4 (his go required) — exp-2 = the Polari Firmware Installer (JavaFX, on the app shell) = the one flash path.
+6. Parked until he reopens: tnb-0 (topology network bridging; the stable .210 address is its first finding), the pipeline items
+   (promote test → main; the 5 unregistered legacy classes in pspp/testing; the verify-check audit), the shared-layer decisions
+   (identifier quoting for 25 reserved-word columns; artifacts to the file store).
+
+### DEBT (hand-applied or stopgap — see the DEBT table further down for the full list)
+route `src .210` + the secondary address on pol-core (not persistent) · engine URL knobs exported at render · `flash.py` docker-with-
+device flash (one flash path = the shell app) · `glue_builds/uno-sim-rig-graph.json` is a tracked record that a proof mutates ·
+`pol pcb ingest --api` accepts only the host path · frontend-only roll bounces the backend · boot ≈ 12 min · the PCINT compatibility
+pairs undetermined (datasheet chapter not fetched) · `manifests generate` drops hand-set `requires.engines`.
+
 # Handoff — the board + firmware-fault arcs (brd, sc), state on 2026-10-02
 
 _Written while he was at work ("work autonomously on this"). Everything below is on PHASE BRANCHES, pushed, NOT
