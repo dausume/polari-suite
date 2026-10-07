@@ -18,7 +18,7 @@ proof-tools 092151a, torch-tools 1973a04). main NOT promoted since polari-v2026.
 dev has moved far since → `pol jenkins promote test` before any `promote main` (his call).
 
 **Home stack (pol-core, swarm, address .210 = the manager's advertised address; .212 is the DHCP lease):** rolled from dev after
-every merge; last roll = f140bba (verification lines appended below when it lands). Eleven pages: boards, firmware-installer,
+every merge; last roll = f140bba, VERIFIED LIVE 2026-10-07: runtime.18e9d877…, chunk 8571.120d5f5b… carries "Composed by"; pins/5V → purpose + assignable:false + 8 parts that connect here; pins/AREF → purpose; kit-parts 23 rows, 21 without a sample; 17 schedule rows each with composed_by (canvas deep link); 14/18 graph nodes carry `firmware`; capabilities: temp-sensor-to-os proven-on-twin (persisted across the redeploy), blink-on-command planned; eleven pages 200. ⚠ During this roll pol-core's root disk hit 0 bytes free (≈27 staging rebuilds in three days) — recovered with `docker builder prune -af; docker image prune -f` (16 GB free; 11.8 GB more reclaimable). RULE: prune after every few rebuilds; a roll checks `df` first; never `system prune -af` (it would drop the unused tagged engine images). Eleven pages: boards, firmware-installer,
 firmware-faults, c-atoms, c-canvas, hardware-solutions, board-schematic, board-layout, board-bom, board-fab, firmware-solutions.
 Engines on isle-core reached by DIRECT address knobs exported at render (DEBT) — the mesh works after the route-src fix but is not
 persistent (DEBT, tnb-0). Backend boot ≈ 11–12 min (DEBT: boot budget); `pol swarm deploy node` bounces the backend even on a
