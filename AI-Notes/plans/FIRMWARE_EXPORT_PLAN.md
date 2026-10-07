@@ -24,9 +24,23 @@ thing to build on and what would be pure duplication if a new thing were built i
 — it is the shape a future slice would take, ranked by how much it reuses, with an explicit refusal list of what we are
 NOT adding (§5 bloat budget).**
 
+**D-exp-3 is now RULED** (his words in full at §6): one new JavaFX app modelled on `polari-app-shell` — never
+`isle-manager-app` — that loads a Polari-made firmware export, installs over USB/USB-C, and can connect to Polari to
+flash updates dynamically. His architectural reason: **"the critical part here is we are using the JavaFx app as the
+way to bridge to the hardware"** — `language-layering`'s rule applied literally: the app IS the hardware bridge (§2).
+
 **Rulings this arc inherits, unchanged:**
 - C / Verilog / SystemVerilog only on a device; Java — JavaFX when a window is needed, headless otherwise — is the
   bridge to the kernel/hardware virtualization; everything else is the web stack (`language-layering`).
+- **Java's configurable surface is BRIDGING ONLY** (his words, 2026-10-06): *"We also need to be able to account for
+  if our other Hardware Shell Apps are capable of doing bridging as well and whether our defined configurable code
+  for bridging works. We should make it so that the configurable part of Java code is only for bridging, so that
+  people are not duplicating what languages are used for what."* `language-layering`'s table gains a column,
+  **configurable surface**: Python = backend logic/no-code, TypeScript = browser UI/no-code displays, C = device
+  tasks, Java = BRIDGING ONLY (`hwnocode.custom.runtimes.runtime_for_kind` already names the `java-bridge` runtime
+  `kind: 'native-bridge-backend'`; JavaFX screens are an app's own fixed UI, not configurable surface). Enforced the
+  way D-fs-3 already enforces "no compute in a Cross-Domain Solution" (DEMONSTRABLES §9) — a no-code validator
+  refuses any compute state placed in `java-bridge`, naming it (`placement.py`'s existing refusal pattern). See §2b.
 - USB or USB-C only, directly or through a USB adapter Polari knows (BOARD_PROGRAMMING_PLAN §0/§2a).
 - Derive-or-cite: every number in an exported README traces to a row with provenance, never invented.
 - Reproducibility: every exported artefact carries its inputs by sha256, tool/image versions, knobs, and (if any) seeds
@@ -45,7 +59,7 @@ NOT adding (§5 bloat budget).**
 |---|---|---|---|
 | "a lib that enables you to simply compute the firmware" | `modules/cmod/custom/glue_build.py` (cmod-1): renders a `CGraph` to a real project (`Makefile`, `hal.c/h`, `polari_graph.c/h`, `board_config.h`, `<class>_packets.h`) that **`make` alone builds**, with a repro block (sha256, avr-gcc 14.2.0, make-alone proof, byte-identical .hex checked against the recorded sha, measured in `prf-board-engines:trixie`) | the project only builds **inside the engines image, or with avr-gcc/avrdude/simavr already on PATH** — there is no standalone script that carries or fetches the toolchain itself and nothing is ever copied OUT of the server's working tree to a person's machine | a second build system, a second repro-block format, a second "make alone" proof — `glue_build.py`'s logic is the lib; exporting means **packaging its own render + its own verify call**, not writing a new one |
 | "a lib that can perform the install of the JavaFx bridging app as a deb" | the bridge is ALREADY a generated, buildable Maven project (`grpcbridge/custom/java_bridge.py:generate_project`, `pom.xml` with protobuf-maven-plugin + grpc-java) that is ALREADY downloadable as a tar.gz, built on demand and **never stored** ("the tarball is NOT stored; it is rebuilt deterministically at request" — `java_bridge.py:8-9`), plus `install-ubuntu.sh` + a systemd unit, LIVE-VERIFIED on staging 2026-07-10 (grpc-j2) | it ships as a tar.gz + a shell installer + a systemd service, not a `.deb`; nothing jpackages it; it is headless, not the JavaFX app the ask wants wrapped around it | a second Maven-project generator, a second systemd unit, a second staging/download route — the install LIB is a thin wrapper that turns the EXISTING generated project into a `.deb` using the EXISTING `build-polari-*-deb.sh` / `pol-build` conventions (control/postinst/polkit pattern already proven by `Isle-Mesh/isle-manager-app/shells/build-deb.sh` + its `debian/DEBIAN/{control,postinst,prerm}` + `usr/share/polkit-1/actions/*.policy`), not a bespoke packager |
-| "a JavaFx app that is a bridge app that can act as a generalized installer via both usb and usb-c" | TWO existing JavaFX precedents, each proving HALF the shape: (a) `Isle-Mesh/isle-manager-app` — a standalone JavaFX **Maven** app with real native screens (HomePage/PortsView/AppsView/SecurityView/PermissionsCheck), packaged as its OWN `.deb` (control + postinst that symlinks a bundled CLI onto PATH + a polkit `.policy`), pkexec'd scripts called from Java; (b) `polari-app-shell/desktop` — a Java Swing frame hosting a JavaFX `JFXPanel` (`ShellFrame.java`) with a narrow, ALREADY-PROVEN pkexec security pattern (`core/.../host/HostInstall.java`: a name validated against a strict allowlist regex turns into a FIXED argv array — never a shell string — `pkexec isle store install <name> --yes`; the actual `Process` call lives in `:desktop`'s `HostProcess`) | neither app has hardware-detection screens (USB VID:PID scan, board/adapter match, a build-verify gate, a flash confirm); `app-shell` is shaped to be a BROWSER CHROME around the Angular web UI (JCEF/WebView), not a place to hand-build native device screens; `isle-manager-app` has real native screens but is scoped to isle networking, not boards | a third JavaFX application framework, a second pkexec security pattern, a second Maven/jpackage/deb pipeline — §2's recommendation is to build the Installer App **packaged exactly like `isle-manager-app`** (same pom shape, same DEBIAN triple) while **reusing `HostInstall`'s fixed-argv-allowlist pattern** verbatim for its own pkexec calls, because BOARD_PROGRAMMING_PLAN §7a's flasher argv is already rendered server-side (`board.custom.programmers.render_dry_run`) — the Java side only ever executes a pre-rendered, server-signed argv, never builds its own shell line |
+| "a JavaFx app that is a bridge app that can act as a generalized installer via both usb and usb-c" | TWO existing JavaFX precedents were compared: `Isle-Mesh/isle-manager-app` (a standalone JavaFX Maven app, its own `.deb` + polkit, scoped to isle networking) and `polari-app-shell` (a JavaFX frame + JCEF browser chrome, `HostInstall`/`HostProcess`'s fixed-argv-allowlist pkexec pattern — never a shell string — `jpackage --type app-image` + thin-launcher `.deb` packaging, and the full instance discovery/auth stack: `InstanceRegistry`, `ReachabilityProbe`, `InstanceTrust` CA pinning, `OidcClient`/`Pkce`) | neither app has hardware-detection/flash screens; BOARD_PROGRAMMING_PLAN §7a's flasher argv is already rendered server-side (`board.custom.programmers.render_dry_run`), so whichever app is picked only ever executes a pre-rendered, server-signed argv | a third JavaFX framework, a second pkexec pattern, a second packaging pipeline, a second instance-discovery/auth stack — **D-exp-3 is RULED (§6, his words): modelled on `polari-app-shell`**, detailed in §2 |
 | "request as directories of compilable code (online/offline), already bundled apps, tars, or isos" | `/downloads/apps` already does exactly this shape for MODULE debs: **generate-on-request, stream, delete after a TTL, never store by default** (`appstore/app_deb_builder.py`, `DOWNLOADS_PAGE_PLAN.md` dl-4 "generate ON REQUEST, never store by default"); the bridge tarball already follows the same rule (§ above); `OFFLINE_INSTALL_PLAN`'s standard offline-bundle template (apt/images/router/debs/modules/engines/hardware/scripts sections, each present-or-EMPTY) is the existing shape for "offline version"; the ISO plan (`POLARI_ISO_PLAN.md`) is the existing shape for "iso" | no FORM exists yet for firmware/bridge exports specifically (no Export row, no README/lib/twin/flash bundle); nothing jpackages the bridge or an installer app into an app-image | a second on-demand-generation mechanism, a second TTL ledger, a second offline-bundle template, a second ISO plan — §2's `Export` row is a NEW ROW over the SAME generate-on-request discipline, and §2's offline toolchain form is `docker save prf-board-engines:trixie` (§5), not a new toolchain packaging effort |
 | "flash gate: proof the code makes sense, never destroy hardware" | `board.custom.flash.plan/flash`: DRY-RUN by default, needs a DETECTED `BoardInstance` + `--yes`, avrdude's own read-back verify (never `-V`), stamps `firmware_sha`/`last_flash_at` ONLY on a verified run; `board.custom.installer`: an `InstallPlan` row fixes the argv before confirm, re-checks compat at run time, refuses a plan made for another host; cmod-1's byte-identical-rebuild proof is the existing "does this code make sense" measurement | none of this runs OUTSIDE the server process today — a build exported as a directory has no equivalent local gate; a person with the export and a USB cable but no Polari server has nothing that refuses a bad flash | a second flash-safety design — §3 is `flash.py`'s existing read-back-verify + size-refusal + sha-check, re-expressed as a shell script shipped INSIDE the export, not a new safety model |
 | where an export's files live while someone downloads it | `module_home()` (`polariApiServer/module_home.py`): env override → `/app/data/<name>` (the persistent volume every backend container already mounts) → `~/.cache/polari-<name>` on a bare host; its own docstring already names the eventual SeaweedFS-backed path as the env-override case, same as `pcb`/`board`/`hwnocode`/`faults` | nothing — this already does the job for a transient generation directory | a second file-store integration, a second storage-location convention |
@@ -81,30 +95,77 @@ firmware/<solution>/
 
 ### The BRIDGE export
 The existing generated Maven project (§1) + `lib/polari-bridge-install.sh`: builds the SAME project with `mvn
-package` (unchanged), then either `jpackage` (a self-contained app-image/`.deb` with a bundled JRE) or
-`dpkg-deb` with the project's jar + a systemd **user** unit (closer to today's `install-ubuntu.sh` + system
-unit — a decision, not a given, §6 D-exp-2) — reusing the `control`/`postinst`/`prerm` TRIPLE `isle-manager-app`
-already has, not a new deb format.
+package` (unchanged), packaged as a `.deb` reusing the `control`/`postinst`/`prerm` triple `isle-manager-app` already
+has (not a new deb format). In production this `.deb` is installed BY, and its process hosted BY, the Polari Firmware
+Installer below — the bridge is not a separately-run service a backend reaches into; it lives on the same host as the
+board, under the same app that holds the USB port.
 
-### The INSTALLER APP
-One JavaFX app, packaged like `isle-manager-app` (§1), generalized (not board-specific): detects boards/adapters
-over USB/USB-C via the board/adapter register's VID:PIDs (reusing `hwmap.custom.scanner` + `board.custom.detect`
-— unchanged, already host-side Python; the Java side calls the server's `/api/board/installer` document, it does
-not re-implement detection), shows an export's `README.md`/register map as-is (no raw JSON — `no-raw-json-on-screens`),
-runs the build-verify gate (`lib/polari-firmware-build.sh`, shelled out, output shown verbatim), flashes through
-`HostInstall`'s fixed-argv-allowlist pattern (the argv is the SERVER's `plan.argv`, pkexec'd, never built by Java),
-and attaches the bridge (launches the bridge jar/deb it just installed). **Shared pieces named, per his ask:** the
-Maven/javafx-maven-plugin/maven-shade-plugin shape and the DEBIAN control/postinst/polkit-action triple come from
-`isle-manager-app`; the fixed-argv pkexec pattern (`HostInstall`, `HostProcess`) comes from `polari-app-shell`. It is
-a SIBLING of `isle-manager-app` (same build shape, its own small codebase), not a mode added to `app-shell` (a
-browser-chrome shell is the wrong shape for native USB-scan screens) and not a feature bolted onto `isle-manager-app`
-(wrong audience — isle networking vs. board flashing). Forms: `source-dir` (online/offline, a plain Maven
-checkout + `toolchain/` = JDK+JavaFX+Maven, pinned or vendored), `bundle` (`jpackage` app-image), `deb`, `tar`.
+### The Polari Firmware Installer — the hardware bridge on a host (D-exp-3 RULED, his words in §0)
+
+One new JavaFX app, modelled on `polari-app-shell` (not `isle-manager-app`). This IS the "generalized Firmware
+Installer App" BOARD_PROGRAMMING_PLAN §7a already ruled on (2026-10-01/02: one installer for every usable board,
+USB/USB-C through known adapters, engines resolved dynamically) — **one installer, two faces**: the web panel
+`/display/firmware-installer` (brd-fi, built) stays its IN-POLARI face; this app is its NATIVE face. Both share the
+gate (§3) and the two doors `/api/firmware/*` + `/api/board/installer/*` — only WHO ANSWERS those doors changes.
+
+**The architectural rule (his words): "the critical part here is we are using the JavaFx app as the way to bridge to
+the hardware."** In production this app is the ONLY process that ever touches a USB/serial port: it detects boards
+and adapters (VID:PID), flashes (its own pkexec'd fixed-argv script, read-back verify), and HOSTS the generated Java
+gRPC bridge (`java_bridge.py:generate_project`, unchanged) so device↔backend frames (the canvas's `java-bridge`
+runtime, DEMONSTRABLES §9's Bridge state) run inside or beside it — never inside the backend. The browser never
+touches hardware; **the backend never opens a USB port in production** — only this app does (today's CLI,
+`pol board flash`/`install` against the engines image, stays a DEVELOPER path, backend and port co-located on a dev box).
+
+**Consequences:** the app exposes a small local API/STOMP the backend calls ("which boards attached", "attach the
+bridge for solution X", "flash build Y after the gate" — the SAME `/api/board/installer` doors, now app-answered);
+it registers as a `BoardInstance` HOST in topology (machine → attached boards), so readiness pages know WHERE a board
+physically is; the twin stays backend/engines-side (no USB) — CONNECTED mode can also attach to its TCP link for parity.
+
+| from `polari-app-shell`, reused verbatim | new in this app, named so it is not mistaken for reuse |
+|---|---|
+| the JavaFX frame shape (a plain `Stage`, not JCEF — native hardware screens, not a browser chrome) | the hardware screens: open an export, show its README/register map, run the gate, confirm a flash |
+| `HostInstall`/`HostProcess` (fixed-argv, allowlisted, never a shell string) | the local API/STOMP surface the BACKEND calls INTO the app (new direction: backend→app, not browser→backend) |
+| `InstanceRegistry`/`ReachabilityProbe`/`InstanceTrust`/`OidcClient`+`Pkce` (discover + log into an instance) | a `FirmwareApiClient` over the same `HttpClient`+Gson+`InstanceTrust` shape `EnrollClient` uses, pointed at `/api/firmware`+`/api/board/installer` |
+| `jpackage --type app-image` + thin-launcher `.deb` packaging (`build-shared-shell.sh`/`build-launcher-deb.sh`) | a STOMP client for `FirmwareBuild` push (app-shell has none — its browser's JS STOMP covers the web case) + a register-map differ + hosting/launching the generated bridge jar as a child process |
+
+**OFFLINE mode:** open a Polari-made export (an exp-0 directory or its `.tar`) from disk, no instance needed — shows
+its README/register map/pin-effects, runs `lib/polari-firmware-build.sh` (§3), detects the board, flashes via
+`HostInstall`. One small new piece: the export's manifest also carries the board's `usb_ids`/`programmer`/`baud` as
+DATA (already-known facts, also emitted structured, not just README prose) so the app matches a plugged-in device
+with no server call — the same facts `hwmap.custom.scanner` derives, re-expressed locally.
+
+**CONNECTED mode:** discover/log into an instance (the same stack above), list `FirmwareSolution`s and builds
+filtered to the DETECTED board (`/api/firmware/solutions`, fs-2a's target-compat door, unchanged), offer "flash the
+latest." The SAME gate applies: the chosen build is pulled as an EXPORT (the exp-0 path, not a second download
+mechanism), rebuilt and verified LOCALLY, reported — sha before/after, the register-map diff — before the person
+confirms. Updates PUSH from Polari (STOMP, `FirmwareBuild` for the attached board, the live-update idiom
+`firmware-installer-panel.component.ts` already has) but a flash is NEVER automatic: the confirm is identical to the
+offline path, always in the app, always a person's act. Forms: `source-dir`, `jpackage` bundle, `.deb`, `tar` — the
+same four the bridge export uses.
 
 ### ISO
 Referenced, not re-planned: `POLARI_ISO_PLAN.md`'s offline-first image already carries the apt pool + platform debs;
 an export's `.deb` forms (firmware toolchain is NOT debbable — it is a directory or a docker tar, see §5) ride
 inside that ISO the same way any other platform deb does. No new ISO work in this arc.
+
+## §2b. Bridging is a declared, tested capability of a shell app
+
+His words: *"We also need to be able to account for if our other Hardware Shell Apps are capable of doing bridging as
+well and whether our defined configurable code for bridging works."* Not every Hardware Shell App is the Polari
+Firmware Installer, and not every one can bridge — this is a DECLARED, TESTED row, never an assumption from "it's
+JavaFX, so it must be able to":
+
+**`BridgingCapability`** (one row per shell app — the Polari Firmware Installer, `Isle-Mesh/isle-manager-app`,
+`polari-app-shell`'s own frame, the planned Polari-managed native apps `pcb-na`'s KiCad/FreeCAD, any future Hardware
+Shell App): `transports` (usb-serial, usb-hid, libvirt/kvm, network; bluetooth/lora later), `bridge_versions` (the
+generated bridge's contract hash it can host — the SAME `WireContract` rows `java_bridge_codegen.py` already
+stamps), `pkexec_verbs` (its `HostInstall`-shaped fixed-argv commands), `proven_by` — a bridge self-test the app runs
+ON DEMAND: host the generated bridge for a known class against the DIGITAL TWIN's TCP link and the backend, compare
+frames field-by-field (the SAME proof `tests/hwnocode_probe.py` already runs server-side, run instead FROM INSIDE the
+app) — recorded passed/failed/never-run, with date and versions. Today NONE of the existing apps has ever hosted the
+bridge from inside itself, so every row starts at never-run; exp-2 (§4) is the first time one goes to passed. The
+readiness/installer pages (`/display/boards`, `/display/firmware-installer`, already row-backed) show WHICH attached
+host app can bridge WHICH board by reading this row.
 
 ## §3. The safety gate — detail (his sentence: never flash what did not come out of a reviewed, independently buildable export)
 
@@ -130,18 +191,23 @@ Ranked by how much existing code each reuses vs. how much is net-new, highest re
    sha cmod-1 already measured for `uno-sim-rig` (4188f6ae…) — zero new infrastructure, one new script.
 2. **exp-1** — the bridge export + `lib/polari-bridge-install.sh` producing a `.deb` via the EXISTING generated
    Maven project + the EXISTING isle-manager-app control/postinst/polkit triple. No new Java code; packaging only.
-3. **exp-2 (most net-new)** — the JavaFX Installer App itself: detection screens, the gate, the flash confirm,
-   source-dir/jpackage/deb forms. This is the one slice that is a genuinely new codebase (small, per §2), because
-   no existing JavaFX app has hardware-detection screens.
+3. **exp-2 (most net-new)** — the **Polari Firmware Installer** itself: OFFLINE mode (open an export, gate, detect,
+   flash) and CONNECTED mode (discover, list `FirmwareSolution`s for the detected board, pull the chosen build as an
+   export, gate, diff, confirm, flash; STOMP push of `FirmwareBuild` updates), hosting the generated bridge, the local
+   API/STOMP the backend calls into it, and its own `BridgingCapability` row going to passed (§2b) — this is the one
+   slice that is a genuinely new codebase (small, built on `polari-app-shell`'s reused pieces per §2). **Proof:** the
+   UNO flashed from an OFFLINE export AND from a CONNECTED Polari instance produce the IDENTICAL resulting firmware
+   sha, and the bridge self-test (§2b) passes hosted from inside the app.
 4. **exp-3** — additional forms (tar, offline bundles carrying `prf-board-engines.tar` / a JDK+JavaFX runtime), the
    ISO reference tie-in, the `/downloads/apps`-style catalogue entry for exports (reusing dl-4's page, not a new page).
 5. **exp-4 (lowest priority, depends on exp-2)** — a Polari UI (status rows, artefact links) on the firmware/installer
    pages requesting an export — a configured-table view over the `Export` row, no new component.
 
 **Do-not-build list (explicit, per his steer):** no second toolchain build (the image is `docker save`d, never
-rebuilt for this arc); no new pkexec/privilege model (HostInstall's pattern is reused verbatim); no new deb format
-(isle-manager-app's triple is reused verbatim); no ISO work (referenced only); no new file-store integration
-(`module_home` as-is).
+rebuilt for this arc); no new pkexec/privilege model (`HostInstall`'s pattern is reused verbatim); no new deb format
+(the `isle-manager-app` control/postinst/polkit triple is reused verbatim); no second JavaFX frame/discovery/auth
+stack (the Installer App reuses `polari-app-shell`'s, §2); no ISO work (referenced only); no new file-store
+integration (`module_home` as-is); no compute in Java anywhere (§0, §2b — bridging only).
 
 ## §5. Costs, licences, bloat budget
 
@@ -171,12 +237,14 @@ starts duplicating an §1 row instead of extending it is out of scope until re-j
   image (`docker save`) for offline** — not a third option (pinned tarballs of the compiler itself), because the
   engines image is already built, measured, and versioned; a tarball-of-binaries path would be a second toolchain
   packaging effort with no proven consumer.
-- **D-exp-3 installer app: new app or an extension of app-shell/Isle Manager?** → **recommend: a NEW app, built the
-  same way as `isle-manager-app`** (own small Maven project, own `.deb`, same packaging triple), reusing
-  `polari-app-shell`'s `HostInstall`/`HostProcess` fixed-argv pattern for its pkexec calls. Not an app-shell mode
-  (app-shell is a browser chrome around the Angular UI — the wrong shape for native USB-scan screens); not a feature
-  added to `isle-manager-app` (wrong audience/scope — isle networking vs. board flashing; keeping them separate keeps
-  each app's `.deb` small and its polkit action narrowly scoped).
+- **D-exp-3 installer app: new app or an extension of app-shell/Isle Manager?** → **RULED, his words: "I think we
+  should likely have the one new JavaFx app that is similar to the Shell App. With this we are going to want to be
+  able to load polari made firmware files and install it via usb and usb-c. It should also be able to connect to
+  polari in general so that you can choose to flash updates to it dynamically."** One new app, the **Polari Firmware
+  Installer**, modelled on `polari-app-shell` (its frame shape, `HostInstall`/`HostProcess` pkexec pattern, discovery/
+  auth stack, `jpackage`+deb packaging — §2), NOT on `isle-manager-app` and NOT a mode bolted onto either existing
+  app. Per his further word, this app is THE hardware bridge on its host (§2's architectural rule) — not merely an
+  installer UI in front of a backend that does the flashing.
 - **D-exp-4 is a flash EVER allowed without a prior export?** → **recommend: no.** `pol board install --yes` (and the
   Installer App's flash button) routes through the SAME export-and-gate path exp-0 builds — generate the export (even
   if to a throwaway temp dir in the same process), rebuild, compare sha, THEN flash. This is the direct reading of his

@@ -301,6 +301,10 @@ inherently have usb or usb-c with polari as well."*
   can attach; the app refuses to install firmware whose header contract hash does not match a class the server knows.
 - Slice **brd-fi** (after brd-1 proves the UNO by CLI): the app's pages over the same rows + the adapter rows; the first
   adapter proven = a USB-UART (the CP2102 already on pol-core) driving the Fire's HSS step or an ESP32's bootloader.
+- **Native face, 2026-10-06:** this app is now planned as ONE installer with TWO faces — this web panel
+  (`/display/firmware-installer`) in-Polari, and a native **Polari Firmware Installer** JavaFX app (modelled on
+  `polari-app-shell`, his ruling: it IS the hardware bridge on its host) — same gate, same `/api/firmware` +
+  `/api/board/installer` doors. See `AI-Notes/plans/FIRMWARE_EXPORT_PLAN.md` (exp arc, D-exp-3).
 
 ## 8. Cost + licences
 
