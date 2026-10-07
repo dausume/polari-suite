@@ -215,6 +215,90 @@ Spec: from any of the three detail pages or the cross-domain canvas an export is
 the resulting directory builds on a machine without Polari (econ-core) to the sha the row states; the twin and board
 outputs are both present and readable.
 
+## §5c. RULE (his, 2026-10-07): the Hardware Bridge App's communications do not and CANNOT expose the local system to the isle
+
+> "we need to ensure any communications between the hardware app does not and cannot expose any information about the
+> local systems to the isle."
+
+What leaves the app, and nothing else — an ALLOW-LIST, structural, not a filter:
+- the device frames exactly as the wire class defines them (`ButtonClockState` fields — generated from the row, so the
+  outbound schema IS the proto the generator emits; no free-form field, no "extra" map);
+- an opaque `BoardInstance` id MINTED BY POLARI at admission (never the host's `/dev/serial/by-id/...` path, never the
+  board's USB serial number, never the VID:PID string — those stay in the app; the app reports "board kind X attached"
+  by the BoardDefinition name only);
+- the firmware sha the app verified, and a BridgingCapability proof verdict (passed/failed + date);
+- the commands it accepts (SET_TIME, SET_LED) flow DOWN; nothing about the host flows up with the ack.
+
+Never on the wire, by construction: hostname, username, home paths, kernel/OS version, IPs/MACs, device node paths,
+USB serial numbers, the list of other attached devices, logs, stack traces, crash reports, environment. The app keeps
+no telemetry channel of its own. "Cannot" is enforced three ways: (1) the only outbound code path is the GENERATED
+bridge (`GrpcForwarder`) whose message types come from the wire class — the generator REFUSES a wire class whose
+field names or types match the host-fact vocabulary (a validator like the cross-domain one); (2) the app's own
+`FirmwareApiClient` has a closed set of request shapes (attach / proof verdict / sha) with no free-text fields;
+(3) a capture test in `BridgingCapability.proven_by`: the self-test records the app's outbound bytes against the twin
+and asserts none of the host identifiers (collected locally on the test machine) appear — the proof FAILS if any do.
+The same posture as [[privacy-no-real-identifiers]], now applied to a running process, not just tracked files.
+Recorded as an acceptance item of ucd-4; the vocabulary of refused field names lives in one place (board module).
+
+## §5d. The pin model as it actually is today, and where it is thin (for the ChatGPT discussion, 2026-10-07)
+
+His words: "I do not think the current model for pins is sufficiently robust." The facts, from the code:
+
+**What exists (board module, one class per file):**
+- `BoardPin` — one row per board pin: `canonical` (D6), `number`, `soc_pin` (PD6), `net`, `connector_pin`, ONE
+  `function` string (gpio | pwm | adc | … | button | led), `peripheral`, `signal`, `firmware_symbol`, `electrical_json`
+  (FREE-FORM), `facts_json`, `origin`, `undetermined`.
+- `SocPin` — port/bit, package pin, `functions_json` = a LIST OF NAMES verbatim from the datasheet table
+  (`PD3: ['INT1', 'OC2B', 'PCINT19']`), `default_function`, one `fact`.
+- `BoardNet`, `Connector`, `ConnectorPin` — the KiCad net view; power/ground nets.
+- `TargetCompatibilityRule` + `target_compat.compatible()` — a hand-written if-chain: task kind (analog-in, pwm-out,
+  uart-rx/tx, i2c-*, spi-*, digital-in/out, interrupt-in, power, ground) vs the NAMES in `functions_json`; INT0/INT1 ok,
+  PCINT undetermined, power/ground never.
+- cmod's `TargetDefinition` / `RegisterAssignment` — a task port → `lives_on` = a BoardPin name; status bound |
+  unbound | conflict (conflict = two tasks on the same PIN).
+- `KitPart` rows (23), `DatasheetFact` rows, `pin_roles` (vocabulary with citations).
+
+**Where it is thin — each is a thing the demo would hit:**
+1. **"Register" means pin.** No row for a real register: DDRD/PORTD/PIND, EICRA/EIMSK (INT0/INT1 sense bits),
+   PCICR/PCMSKn, TCCRnx. The "register map on the pin map" is a pin map. Assigning `sense.isr` to D3 cannot say
+   "ISC11:ISC10 = 01 (any edge)" as data; it is C in the atom.
+2. **A pin has one `function`.** D13 is both LED and SCK; D3 is INT1 and OC2B and PCINT19. The row keeps one; the
+   rest live only in `SocPin.functions_json` as strings. There is no exclusivity knowledge: which alternate functions
+   can be ACTIVE at the same time on one pin, which cannot (D11 as MOSI vs OC2A).
+3. **No peripheral-level resources.** Timer0/1/2, USART0, ADC, EXTINT, TWI, SPI are not rows anyone can CLAIM.
+   `hal_millis` owns Timer2; a PWM on D3 (OC2B) silently fights it; telemetry owns USART0 so D0/D1 are taken — nothing
+   records either. Conflict detection stops at "two tasks, same pin".
+4. **No pin STATE per firmware.** Direction, pull-up, drive, edge sense, initial level — what D2 IS in `uno-button-clock`
+   (input, pull-up, falling) vs in `uno-sim-rig` — is nowhere as data; only the C says it.
+5. **Electrical facts are untyped.** `electrical_json` is free JSON; no typed max current per pin / per port / per
+   chip, no logic-level or tolerance, so no check that an LED on D6 through 220 Ω is within budget, or that
+   driving D6 (output) into D3 (input) is legal while driving two outputs together would not be.
+6. **No wiring beyond the board edge.** The jumper D6→D3, the button between D2 and GND, the LED + resistor — the
+   breadboard — exist only as prose in the test guide ("left pin → 5V"). `KitPart` rows exist but no row links a part's
+   TERMINAL to a board pin or net. So the twin cannot build the D6→D3 link from data, the sim rig cannot be drawn, and
+   nothing validates the wiring against the part's limits.
+7. **ATmega328P-literal code.** `FUNCTION_PERIPHERAL`, `PWM_FUNCTIONS`, the if-chain, `POWER_LABELS` are written for
+   the UNO. The C3 has no SocPin rows (its road says "datasheet-facts: todo"). A second SoC means a second if-chain.
+8. **Addressing by canonical name only.** Fine for a header pin; a SoC-only pin, a connector-only pin, a bus endpoint,
+   or a pin on an attached module (a shield, a kit part) has no address grammar.
+9. **PCINT is undetermined** because the bank registers are not modeled — a symptom of (1) and (3).
+
+**The direction worth discussing (my proposal, not ruled):** a layered, derived, cited model —
+- `Peripheral` rows per SoC (TIMER0, USART0, EXTINT, PCINT bank 2, ADC …) with their `Register` rows (name, address,
+  bit fields, cited page) — the real register map;
+- `PinFunction` rows: SocPin × (peripheral, signal), with an `exclusive_group` so "active at once" is data;
+- `BoardPin` keeps canonical/net/connector; `function` becomes DERIVED from the active claims, not a stored string;
+- `PinClaim` per Firmware Solution per pin: owner task, mode (in | out | alt:<PinFunction>), pull, edge, initial level
+  — rendered INTO the C (DDR/PORT/EICRA values generated, not hand-written) and checked for conflicts at BOTH the
+  pin and the peripheral level (`PeripheralClaim`: hal_millis → TIMER2);
+- `ExternalConnection` rows: a kit part's terminal ↔ a board pin or net (the breadboard as data) — the twin wires
+  simavr from these, the sim-rig drawing renders from these, electrical checks run over these using TYPED fields
+  (`max_ma`, `v_level`) moved out of `electrical_json`;
+- the compatibility if-chain becomes a table over `PinFunction` rows (one rule set for every SoC), PCINT included.
+Each piece is a row a page can show and an export README can print; nothing is typed in that the datasheet or the
+C does not already say. This would be its own arc (pin-2?), sized AFTER the discussion; ucd-0 can proceed on the
+model as it is (D2/D3/D6 are all INT/GPIO-clean today) while the discussion settles what ucd-1/4 render.
+
 ## §6. Cost, bloat budget, licences
 
 New code: ~6 C atoms + one wire class (small), one Firmware Solution, one Cross-Domain Solution, one backend solution,
