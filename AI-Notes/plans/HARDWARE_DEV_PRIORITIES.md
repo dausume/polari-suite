@@ -217,3 +217,21 @@ all drive identical selection state — not verified once and assumed equal else
 Not in scope here: the export arc itself (`FIRMWARE_EXPORT_PLAN.md`, unchanged, his separate go required); any new
 board beyond the UNO (BOARD_PROGRAMMING_PLAN's `Road` rows already track the rest as to-do); VHDL/C++/Rust/MicroPython
 on devices (RULE 2, unchanged); a second chart/viewer component anywhere in §3's slices.
+
+### §3b addendum — the selection model, ruled 2026-10-06 (his pick: option 3, "selection then action with a confirm")
+His ask: "The selection of a register and the selection of a task should be similar, selecting either highlights all that are
+connected and it goes both ways. We should have some kind of intuitive way to trigger toggling between just selecting and selecting
+in a way that sets a task to a register or vice versa though." Ruled:
+- **Symmetric highlighting, one grammar both ways.** Select a task → its registered pins SOLID, pins it could still register to
+  OUTLINED (valid), the rest grey with the reason on hover; its caller/called tasks solid in Tasks and Schedule. Select a pin → its
+  Registered Tasks solid in Tasks and Schedule, unregistered tasks that could register there outlined, the rest dim; Target details
+  shows the register.
+- **Selection then action, with a confirm — no mode switch.** With a task selected, clicking an OUTLINED pin offers
+  "Register <task> to <pin>? [Register] [Cancel]" in the selection bar; the mirror from a selected pin offers the same for an
+  outlined task; clicking a SOLID (already registered) counterpart offers "Unregister <task> from <pin>?". Nothing is written before
+  Register. Drag remains a shortcut that lands on the same confirm — ONE path to a write. The selection bar always states what the
+  next click will do ("click an outlined pin to register adc.channel there, or click adc.channel again to deselect").
+- **The toggle rule holds:** the second click on the selected item deselects and the offer disappears; Escape clears all.
+- A visible "skip confirmations" switch only as a per-viewer preference if ever asked, off by default.
+- Specs: symmetric highlight from both ends; offer appears only for valid pairs; no POST before Register; Unregister path; drag lands
+  on the confirm; toggle per selectable.
