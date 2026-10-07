@@ -166,14 +166,28 @@ on `/display/firmware-solutions`'s pin map and task list (fs-2's four-section pa
 - **Pin hit areas** are drawn larger than the visual cell (a pin's clickable region exceeds its drawn rectangle) so a
   precise click is never required.
 
-**A general Polari-wide rule, stated here because this is where it was raised, not scoped to pins:** *"we need
-everything that is selectable via click to also be deselected on a second click"* (his words). Every selectable
-element in the firmware panel — pins, Unregistered Task chips, schedule-lane chips, a section header's own selected
-state, a preset choice where toggling makes sense — follows the same toggle: click selects, the SAME click deselects,
-Escape clears every selection at once. This is a Polari-wide interaction rule, not a pin-only fix, and belongs in
-specs as **one toggle-spec per selectable element** (click → selected; same element clicked again → deselected;
-Escape → all clear) the same way `per-object-display-config` and `no-raw-json-on-screens` are checked today. Not
-scoped to this arc's pages alone, but this panel is where it is enforced first since it is the one under active work.
+**The first section is renamed and re-scoped** (his correction: *"the Tab for tasks should not be called
+Unregistered Tasks since it is all tasks, the shorthand display of the unregistered tasks for assignment makes
+sense"*): the section itself is **"Tasks"**, listing EVERY task a solution declares — a registered task shows the pin
+it is bound to, an unregistered one is marked as such. The existing compact chip strip of unregistered-only tasks
+stays, unchanged in purpose, as the assignment SHORTHAND beside/within the pin map — only the full section's tab
+label was wrong, not the strip's name.
+
+**One selection model, many entry points** (his correction): selecting a task is the SAME action regardless of where
+it is clicked — the Tasks section's row, the Unregistered Tasks chip strip, a schedule-lane chip, or a
+registered-task row inside Target details. Each produces the identical result: the task becomes the selection, the
+pin map enters choose-a-target mode with valid/invalid/undetermined colouring, Target details shows its requirement
+plus its valid-target list, and the selection bar names it; a second click on whichever element was clicked
+deselects it. One selection model, four entry points, never four separate behaviours.
+
+**A general Polari-wide rule, raised here, not scoped to pins:** *"we need everything that is selectable via click to
+also be deselected on a second click"* (his words). Every selectable element in the firmware panel — pins,
+Tasks-section rows, Unregistered Task chips, schedule chips, a section header's own selected state, a preset choice
+where toggling makes sense — follows the same toggle: click selects, the same click deselects, Escape clears every
+selection at once. Belongs in specs as **one toggle-spec per selectable element** (select / same-click deselect /
+Escape-clears-all), the same way `per-object-display-config` and `no-raw-json-on-screens` are checked today, PLUS
+**one "same behaviour, many entry points" spec** asserting the Tasks row / chip / schedule chip / Target-details row
+all drive identical selection state — not verified once and assumed equal elsewhere.
 
 ## §4. Decisions for him (D-hw-1..3)
 
