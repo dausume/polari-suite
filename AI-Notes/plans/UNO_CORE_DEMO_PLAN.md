@@ -403,6 +403,84 @@ requirement_kind` stored; `Peripheral`/`Register` rendered from the snapshot + t
 electrodevice `switch` kind + typed `max_ma`/`v_forward`/`v_level` on the few parts used; `pin_config.c` rendering;
 two twin flags; the CMake export. Everything else in the review is Phase 2+.
 
+## §5f. His correction (2026-10-07) + ChatGPT round 3 → the revised Phase-1 scope and the file-level sequence
+
+**His correction, the measure of success:** "intuitive no-code hardware design, exploration, and learning … a novice can
+inspect the model and understand why that firmware configures the hardware the way it does." Navigable both ways:
+**Board → Pin → SoC Pin → PinFunction → PeripheralSignal → Peripheral → Register → RegisterField**, and from a pin: its
+functions, peripherals, registers/fields, the active firmware configuration, the tasks claiming it, electrical facts
+and external connections, and the generated C implementing the choices. First-class rows for Peripheral, Register,
+RegisterField, PeripheralSignal, PinFunction, SignalRoute even where derived — materialized from authoritative
+sources with stable identities, references, provenance, configured views. This OVERRULES ChatGPT's round-3 cut #1
+("projection only"); the two reconcile because Polari's idiom IS materialization: rows seeded at boot from a derivation
+(`rows()` + `seed_upsert`), `origin` on every row, a disagreement = `BoardConflict`, never a hand edit.
+
+**Verified this round (ChatGPT's four asks):**
+1. *Do atom resources carry enough to derive every PinClaim field?* **No.** The scan records register names and r/w
+   access (`scan.py` `_write(lvalue)`), ports' directions, declared macros, ISR vectors — not the VALUES written, so
+   edge, pull, initial level and alternate-function choice are not derivable; the annotation grammar is
+   `in/out/inout/uses/role` only. Per his correction these are the novice's DESIGN CHOICES, so: PinClaim fields
+   `mode/pull/edge/initial` are authored on the pin page when a task is registered (the ruled selection-then-confirm
+   dialog gathers them, defaults offered from `requirement_kind` + an evidence-bearing suggestion from the circuit
+   rows, e.g. "switch to GND with no external resistor → internal pull-up"), provenance `canvas`; an atom may state a
+   hard need with ONE new clause `needs(edge=any)`, and a claim that contradicts a need refuses. Nothing is guessed
+   from register names.
+2. *Can simavr pin-level forcing exercise real EICRA/EIMSK?* By simavr's design yes: `avr_extint` is wired to the ioport
+   pin IRQs and evaluates the ISCn mode (low | any | falling | rising) on each level notify, raising the vector only
+   when EIMSK enables it; `avr_ioport` handles PCINT masks the same way. **To be PROVEN by the first twin test**, with a
+   negative: EIMSK cleared → no ISR; ISC=any → two ISR entries per press+release; ISC=falling → one.
+3. *Does the wire/bridge support SET_TIME and reconnect?* SET_TIME fits today: commands are presence-masked fields of
+   the class's command frame (the existing PUT path; the next frame's `status` = `commanded` is the ack). `PolariPacket`
+   carries a per-frame `sequence`, so gap detection at the packet layer is possible but NOT implemented. No ack
+   semantics beyond that. **Reconnect: absent** — `SerialCdcPort` reads a `FileInputStream`, `read()` throws
+   `EOFException`, no reopen/backoff anywhere in the template. New, small: reopen with backoff + a `SNAPSHOT` command on
+   (re)attach (device answers a full state frame and replays queued events) + sequence-gap counting in the bridge.
+4. *Can the register snapshot be shown without persistent rows?* The pages read class rows only, so the answer is the
+   materialization idiom above: `Register` rows regenerated from `registers_atmega328p.json` at boot (origin = the
+   snapshot's sha), never hand-maintained. The configured table already renders `column:ref:<Class>` as a link to
+   `/object/<Class>/<name>`, `refs` for many, `link` for URLs (`class-rows-table.component.ts:53-58`); the object page
+   (`instance-detail-panel`) lists related rows by `filterField`/`filterValue`. So BOTH directions of his chain are
+   configured tables: forward = ref columns; reverse = "rows of X where <ref> = this" tables on the object's page tabs
+   (his per-object display rule). **No new frontend component.** The fs-2 Target-details panel (already custom) gains
+   the chain as rows; the graph view (tech-tree/topology layout via `cross_refs_json`) is optional.
+
+**The chain as rows (board module unless noted; all derived+cited, materialized at boot):**
+`Peripheral` (<soc>:TIMER2; kind; datasheet chapter) ← from `registers.py` PERIPHERAL_RULES groups ·
+`PeripheralSignal` (<soc>:TIMER2:OC2B; channel; direction) ← from the SocPin function lists grouped by peripheral ·
+`PinFunction` (<soc>:PD3:OC2B; soc_pin → signal; routing fixed | mux | matrix; exclusive_group) ← from
+`SocPin.functions_json` · `SignalRoute` (<solution>:PD3←INT1; the ACTIVE PinFunction a claim selected; fixed on AVR,
+matrix later) ← from PinClaim · `Register` (<soc>:EICRA; addr, space io|mem, width) ← from the snapshot ·
+`RegisterField` (<soc>:EICRA.ISC1; bits; values with meanings; cite) ← hand-cited for the fields the demo generates
+(EICRA ISC0/ISC1, EIMSK INT0/INT1, EIFR INTF0/1, DDRD/PORTD/PIND bit n, PCICR PCIE2, PCMSK2 PCINT18/19 — which also
+settles the PCINT "undetermined") · `RegisterSetting` (<solution>:EICRA = 0b00001101; fields set; the claims that
+produced it; the `pin_config.c` line) ← from PinClaims — the row a novice reads to see WHY · cmod: `PinClaim`,
+`PeripheralClaim` (peripheral + channel + usage exclusive | shared-read | shared-config, so TIMER0's prescaler is
+shared-config while OC0A/OC0B are channel-exclusive) · `BoardPinNet` (BoardPin → electrodevice `CircuitNetDefinition`).
+Everything stays navigable from D3: PD3 → PinFunctions (GPIO, INT1, OC2B, PCINT19) → signals → EXTINT/TIMER2/PCINT →
+EICRA/EIMSK/TCCR2x/PCMSK2 → fields → the solution's PinClaim + RegisterSettings → `pin_config.c` lines → the circuit
+net LED_CONTROL and its parts. And back.
+
+**Adopted from round 3:** init vs runtime split (generated `pin_config_init()` owns DDR/PORT/pull/initial, EICRA, EIFR
+clear, EIMSK in that fixed order; `sei()` stays in main after all inits; the HAL atoms keep RUNTIME ops only — toggling
+D6, reading PIND); provenance comments in generated C naming the PinClaim/RegisterSetting ids; no Polari at build time;
+`--wire` validated (driven output → input, shared ground, level-compatible, single driver) before use; minimal
+PeripheralClaim with channel-level sharing; typed electrical fields only for the demo's parts; the time model
+(`uptime_ms` monotonic + `epoch_ms_est` from an offset + `sync_generation` + `sync_uncertainty_ms`; drift from ≥2 syncs,
+never from one; defined after reset; wrap-safe; host `received_at`; adjustments never reorder events); two wire
+classes with an explicit overflow policy (drop-oldest + `dropped_events`); the acceptance list.
+
+**Revised Phase-1 slices (replace §4's ucd-0):**
+| slice | files (new ⊕ / changed Δ) | tests to extend |
+|---|---|---|
+| **ucd-0a the hardware object chain** | ⊕ `board/objects/board/{Peripheral,PeripheralSignal,PinFunction,SignalRoute,Register,RegisterField,RegisterSetting,BoardPinNet}.py` · Δ `board/custom/soc_atmega328p.py` (chain derivation) · move `cmod/custom/registers.py` + `registers_atmega328p.json` → `board/custom/` (cmod already imports board; no cycle) · ⊕ `board/custom/register_fields_atmega328p.py` (cited) · Δ `board/board_page.py` (tables with `:ref:` columns + per-object reverse tables) · Δ `defClassList`, `feature_imports.py`, `board/polari-app.json` | `board/board_selftest.py` (row counts, every ref resolves, D3 forward+reverse walk), `selftest_manifests` guard, `board_uno_selftest` |
+| **ucd-0b claims + generated config** | ⊕ `cmod/objects/cmod/{PinClaim,PeripheralClaim}.py` · ⊕ `cmod/custom/claims.py` (derive, conflicts pin+peripheral+channel) · Δ `targets.py` (store `requirement_kind`) · Δ `annotation.py` (`needs(...)`) · Δ `firmware.py` (validate claims; `assign` door gathers mode/pull/edge) · ⊕ `cmod/custom/pin_config_gen.py` → `pin_config.h/.c` · Δ `board/custom/firmware/uno/hal.c` (init out, runtime kept) · Δ `cmod_firmware_api.py` · Δ `firmware-solution-panel.component.ts` (Target details = the chain rows; the confirm dialog's three fields) | cmod selftests, `tests/cmod_liveboot_probe.py --engines` (glue parity = frames identical), `tests/hwnocode_probe.py` |
+| **ucd-0c circuit + checks** | Δ `electrodevice/objects/circuit/_shared.py` (`switch` kind; typed `v_forward`, `max_ma`, `v_level`, `pull`) · ⊕ seed circuit `uno-button-clock` (nets LED_CONTROL, LED_ANODE, GND, BUTTON_INPUT; parts from `kit_parts`) · ⊕ `board/custom/electrical_check.py` (LED current, pin/port/chip budget cited, shared ground, single driver on LED_CONTROL, D2 pull defined) | `electrodevice/circuit_rows_selftest.py`, `board_selftest` |
+| **ucd-0d twin at pin level** | Δ `prf-board-engines/polari_avr_twin.c` (`--wire PD6:PD3`, `--pin-at cycle=,PD2=0|1`) · Δ `board/custom/twin.py` (flags from `BoardPinNet`) · Δ `firmwarefaults/custom/harness.py` (step kind `pin-at`) | `tests/board_uno_twin_probe.py` (+ EIMSK-off negative, ISC any/falling counts), `firmwarefaults_selftest` |
+| **ucd-0e the firmware + wire** | ⊕ `board/objects/board/{ButtonClockState,ButtonClockEvent}.py` + `c_twin` codegen (contract bump) · ⊕ `board/custom/firmware/uno/apps/button_clock.c` (atoms clock.tick/clock.set/button.isr/led.toggle/sense.isr/events.queue/telemetry.send; ATOMIC_BLOCK; bounded queue) · Δ `hal.c` (INT1 atom) · Δ `variants.py` · ⊕ `HardwareBridgeDefinition` row · Δ `java_bridge_templates.py` (reopen+backoff, SNAPSHOT on attach, sequence gaps) · ⊕ capability `button-clock-to-os` | `grpcbridge` loopback selftest (+ reconnect), `hwnocode_probe`, `pol capability prove … --twin` |
+| **ucd-0f CMake export** | ⊕ `cmod/custom/export_cmake.py` + `cmake/avr-gcc.toolchain.cmake` template; README with provenance; `twin`/`board`/`flash` targets; Makefile parity sha | `tests/board_installer_probe.py` (+ build on econ-core without Polari) |
+
+ucd-1..5 unchanged. Order: 0a → 0b → 0c → 0d → 0e → 0f, each with its proof before the next; a → d need no hardware.
+
 ## §6. Cost, bloat budget, licences
 
 New code: ~6 C atoms + one wire class (small), one Firmware Solution, one Cross-Domain Solution, one backend solution,
