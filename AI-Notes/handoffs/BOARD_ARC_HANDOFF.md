@@ -207,6 +207,7 @@ first agent was killed mid-slice by an API error; a second finished it on the sa
 | `pol topology assign grpcbridge prf-a` by hand (closure computed from the old image) | core rows | modules-env closure from the checkout (dev-hw-followups #6) |
 | `pol pcb ingest /app/modules/...` (in-container path) | staging backend | the CLI sends module-relative paths / uploads (dev-hw-followups #8) |
 | rm of untracked `desktop/bin`, `__pycache__` to let `pol jenkins promote test` run | checkout | .gitignore lines in polari-app-shell / proof-tools / torch-tools |
+| `board/custom/flash.py` flashes via `docker run --device` from the engines image (a stopgap from before the installer existed) | pol-core | ONE flash path = the Hardware Shell App's bridging (the Polari Firmware Installer); `pol board flash|install` DELEGATE to the running shell app or REFUSE; retire the docker route when exp-2 ships, never extend it (his correction 2026-10-06) |
 | `docker rm -f prf-pcb-engines` on isle-core, then `pol swarm deploy hw-engines` | isle-core | the stack owns the worker now; `pol swarm deploy` should offer to retire a same-port ad-hoc container |
 
 ## His, when back
