@@ -61,7 +61,7 @@ way to bridge to the hardware"** — `language-layering`'s rule applied literall
 | "a lib that can perform the install of the JavaFx bridging app as a deb" | the bridge is ALREADY a generated, buildable Maven project (`grpcbridge/custom/java_bridge.py:generate_project`, `pom.xml` with protobuf-maven-plugin + grpc-java) that is ALREADY downloadable as a tar.gz, built on demand and **never stored** ("the tarball is NOT stored; it is rebuilt deterministically at request" — `java_bridge.py:8-9`), plus `install-ubuntu.sh` + a systemd unit, LIVE-VERIFIED on staging 2026-07-10 (grpc-j2) | it ships as a tar.gz + a shell installer + a systemd service, not a `.deb`; nothing jpackages it; it is headless, not the JavaFX app the ask wants wrapped around it | a second Maven-project generator, a second systemd unit, a second staging/download route — the install LIB is a thin wrapper that turns the EXISTING generated project into a `.deb` using the EXISTING `build-polari-*-deb.sh` / `pol-build` conventions (control/postinst/polkit pattern already proven by `Isle-Mesh/isle-manager-app/shells/build-deb.sh` + its `debian/DEBIAN/{control,postinst,prerm}` + `usr/share/polkit-1/actions/*.policy`), not a bespoke packager |
 | "a JavaFx app that is a bridge app that can act as a generalized installer via both usb and usb-c" | TWO existing JavaFX precedents were compared: `Isle-Mesh/isle-manager-app` (a standalone JavaFX Maven app, its own `.deb` + polkit, scoped to isle networking) and `polari-app-shell` (a JavaFX frame + JCEF browser chrome, `HostInstall`/`HostProcess`'s fixed-argv-allowlist pkexec pattern — never a shell string — `jpackage --type app-image` + thin-launcher `.deb` packaging, and the full instance discovery/auth stack: `InstanceRegistry`, `ReachabilityProbe`, `InstanceTrust` CA pinning, `OidcClient`/`Pkce`) | neither app has hardware-detection/flash screens; BOARD_PROGRAMMING_PLAN §7a's flasher argv is already rendered server-side (`board.custom.programmers.render_dry_run`), so whichever app is picked only ever executes a pre-rendered, server-signed argv | a third JavaFX framework, a second pkexec pattern, a second packaging pipeline, a second instance-discovery/auth stack — **D-exp-3 is RULED (§6, his words): modelled on `polari-app-shell`**, detailed in §2 |
 | "request as directories of compilable code (online/offline), already bundled apps, tars, or isos" | `/downloads/apps` already does exactly this shape for MODULE debs: **generate-on-request, stream, delete after a TTL, never store by default** (`appstore/app_deb_builder.py`, `DOWNLOADS_PAGE_PLAN.md` dl-4 "generate ON REQUEST, never store by default"); the bridge tarball already follows the same rule (§ above); `OFFLINE_INSTALL_PLAN`'s standard offline-bundle template (apt/images/router/debs/modules/engines/hardware/scripts sections, each present-or-EMPTY) is the existing shape for "offline version"; the ISO plan (`POLARI_ISO_PLAN.md`) is the existing shape for "iso" | no FORM exists yet for firmware/bridge exports specifically (no Export row, no README/lib/twin/flash bundle); nothing jpackages the bridge or an installer app into an app-image | a second on-demand-generation mechanism, a second TTL ledger, a second offline-bundle template, a second ISO plan — §2's `Export` row is a NEW ROW over the SAME generate-on-request discipline, and §2's offline toolchain form is `docker save prf-board-engines:trixie` (§5), not a new toolchain packaging effort |
-| "flash gate: proof the code makes sense, never destroy hardware" | `board.custom.flash.plan/flash`: DRY-RUN by default, needs a DETECTED `BoardInstance` + `--yes`, avrdude's own read-back verify (never `-V`), stamps `firmware_sha`/`last_flash_at` ONLY on a verified run; `board.custom.installer`: an `InstallPlan` row fixes the argv before confirm, re-checks compat at run time, refuses a plan made for another host; cmod-1's byte-identical-rebuild proof is the existing "does this code make sense" measurement | none of this runs OUTSIDE the server process today — a build exported as a directory has no equivalent local gate; a person with the export and a USB cable but no Polari server has nothing that refuses a bad flash | a second flash-safety design — §3 is `flash.py`'s existing read-back-verify + size-refusal + sha-check, re-expressed as a shell script shipped INSIDE the export, not a new safety model |
+| "flash gate: proof the code makes sense, never destroy hardware" | `board.custom.flash.plan/flash`: DRY-RUN by default, needs a DETECTED `BoardInstance` + `--yes`, avrdude's own read-back verify (never `-V`), stamps `firmware_sha`/`last_flash_at` ONLY on a verified run; `board.custom.installer`: an `InstallPlan` row fixes the argv before confirm, re-checks compat at run time, refuses a plan made for another host; cmod-1's byte-identical-rebuild proof is the existing "does this code make sense" measurement | none of this runs OUTSIDE the server process today — a build exported as a directory has no equivalent local gate; a person with the export and a USB cable but no Polari server has nothing that refuses a bad flash. **DEBT, his correction:** `flash.py`'s `docker run --device` route (via `board.custom.board_engines`/`engine_run.docker_prefix` when avrdude resolves to the LOCAL_IMAGE rung) runs avrdude itself against the engines image — a STOPGAP from before any Hardware Shell App existed, never a second permanent flash path; his words: "the normal hardware shell app installs were already supposed to be handling that case" | a second flash-safety design — §3 is `flash.py`'s existing read-back-verify + size-refusal + sha-check, re-expressed as a shell script shipped INSIDE the export, not a new safety model |
 | where an export's files live while someone downloads it | `module_home()` (`polariApiServer/module_home.py`): env override → `/app/data/<name>` (the persistent volume every backend container already mounts) → `~/.cache/polari-<name>` on a bare host; its own docstring already names the eventual SeaweedFS-backed path as the env-override case, same as `pcb`/`board`/`hwnocode`/`faults` | nothing — this already does the job for a transient generation directory | a second file-store integration, a second storage-location convention |
 
 ## §2. The export model — a row and five directory shapes, built on what §1 named
@@ -109,16 +109,24 @@ USB/USB-C through known adapters, engines resolved dynamically) — **one instal
 gate (§3) and the two doors `/api/firmware/*` + `/api/board/installer/*` — only WHO ANSWERS those doors changes.
 
 **The architectural rule (his words): "the critical part here is we are using the JavaFx app as the way to bridge to
-the hardware."** In production this app is the ONLY process that ever touches a USB/serial port: it detects boards
-and adapters (VID:PID), flashes (its own pkexec'd fixed-argv script, read-back verify), and HOSTS the generated Java
-gRPC bridge (`java_bridge.py:generate_project`, unchanged) so device↔backend frames (the canvas's `java-bridge`
-runtime, DEMONSTRABLES §9's Bridge state) run inside or beside it — never inside the backend. The browser never
-touches hardware; **the backend never opens a USB port in production** — only this app does (today's CLI,
-`pol board flash`/`install` against the engines image, stays a DEVELOPER path, backend and port co-located on a dev box).
+the hardware."** His correction when an earlier draft called the engines-image flash route "a developer path": **"what
+do you mean engines image flash remains a developer path, the normal hardware shell app installs were already
+supposed to be handling that case."** There is ONE flash path, full stop: the Hardware Shell App's bridging — this
+app, or any shell app whose `BridgingCapability` (§2b) proves `usb-serial`. In production this app is the ONLY
+process that ever touches a USB/serial port: it detects boards/adapters (VID:PID), flashes (its own pkexec'd
+fixed-argv script, read-back verify), and HOSTS the generated Java gRPC bridge (`java_bridge.py:generate_project`,
+unchanged) so device↔backend frames (the canvas's `java-bridge` runtime, DEMONSTRABLES §9's Bridge state) run inside
+or beside it. The browser never touches hardware; **the backend never opens a USB port, ever** — `prf-board-engines`
+compiles and runs the DIGITAL TWIN only, no USB, ever.
 
-**Consequences:** the app exposes a small local API/STOMP the backend calls ("which boards attached", "attach the
-bridge for solution X", "flash build Y after the gate" — the SAME `/api/board/installer` doors, now app-answered);
-it registers as a `BoardInstance` HOST in topology (machine → attached boards), so readiness pages know WHERE a board
+**Consequences:** `pol board flash`/`install --yes` and the web panel DELEGATE the flash to the running shell app on
+the host that holds the port, through its local API/STOMP surface (below) — no capable app attached there → REFUSE:
+*"no Hardware Shell App is attached to this host — install/launch the Polari Firmware Installer"* (naming the
+deb/launch command), never `docker run --device`. "Flash build Y after the gate" (the SAME `/api/board/installer`
+doors, now app-answered) is a REQUEST TO the app, which alone runs the gate and the confirm — the backend never
+flashes, whether the click came from the app or the web panel. The app registers as a `BoardInstance` HOST in
+topology (machine → attached boards — the existing hardware-tier shape: a Hardware App needs the `hardware` tier, the
+heavier agent on a member; here, the shell app IS that tier on the host), so readiness pages know WHERE a board
 physically is; the twin stays backend/engines-side (no USB) — CONNECTED mode can also attach to its TCP link for parity.
 
 | from `polari-app-shell`, reused verbatim | new in this app, named so it is not mistaken for reuse |
@@ -136,12 +144,13 @@ with no server call — the same facts `hwmap.custom.scanner` derives, re-expres
 
 **CONNECTED mode:** discover/log into an instance (the same stack above), list `FirmwareSolution`s and builds
 filtered to the DETECTED board (`/api/firmware/solutions`, fs-2a's target-compat door, unchanged), offer "flash the
-latest." The SAME gate applies: the chosen build is pulled as an EXPORT (the exp-0 path, not a second download
-mechanism), rebuilt and verified LOCALLY, reported — sha before/after, the register-map diff — before the person
-confirms. Updates PUSH from Polari (STOMP, `FirmwareBuild` for the attached board, the live-update idiom
-`firmware-installer-panel.component.ts` already has) but a flash is NEVER automatic: the confirm is identical to the
-offline path, always in the app, always a person's act. Forms: `source-dir`, `jpackage` bundle, `.deb`, `tar` — the
-same four the bridge export uses.
+latest" — whether that click originates IN the app or on the WEB panel, "flash build Y" is always a REQUEST arriving
+at the app's local door (never the backend acting itself): the chosen build is pulled as an EXPORT (the exp-0 path,
+not a second download mechanism), rebuilt and verified LOCALLY by the app, reported — sha before/after, the
+register-map diff — before the person confirms IN THE APP. Updates PUSH from Polari (STOMP, `FirmwareBuild` for the
+attached board, the live-update idiom `firmware-installer-panel.component.ts` already has) but a flash is NEVER
+automatic: the confirm is identical to the offline path, always in the app, always a person's act. Forms:
+`source-dir`, `jpackage` bundle, `.deb`, `tar` — the same four the bridge export uses.
 
 ### ISO
 Referenced, not re-planned: `POLARI_ISO_PLAN.md`'s offline-first image already carries the apt pool + platform debs;
@@ -179,6 +188,7 @@ host app can bridge WHICH board by reading this row.
 | "what this will do to the pins" table | the register map rendered from `RegisterDefinition`/pin bindings — already a row-backed table (`/display/c-atoms`, `hwfpga` register views) | yes — a view, not new data |
 | dry-run default everywhere | `flash.plan()` always dry-runs; `--yes` + a detected instance is the only path to a real write | yes |
 | **what BLOCKS vs WARNS** | BLOCK: sha mismatch, no detected board, size over limit, signature mismatch, plan made for a different host/board, missing `--yes`. WARN (shown, not refused): an untested configuration, a knob left at a non-default, a board seen for the first time | the block list is existing refusal code (`FlashRefused`, `InstallRefused`); the warn list is new UI text only, no new mechanism |
+| **single flash path** | `pol board flash\|install --yes` and the web panel DELEGATE to the attached Hardware Shell App; no capable app on that host → BLOCK, named, never `docker run --device` | new refusal wording; replaces `flash.py`'s engines-image fallback (§1 DEBT) |
 
 ## §4. Slices (ranked by reuse — nothing here is scheduled; his go is required before any of it starts)
 
@@ -207,7 +217,9 @@ Ranked by how much existing code each reuses vs. how much is net-new, highest re
 rebuilt for this arc); no new pkexec/privilege model (`HostInstall`'s pattern is reused verbatim); no new deb format
 (the `isle-manager-app` control/postinst/polkit triple is reused verbatim); no second JavaFX frame/discovery/auth
 stack (the Installer App reuses `polari-app-shell`'s, §2); no ISO work (referenced only); no new file-store
-integration (`module_home` as-is); no compute in Java anywhere (§0, §2b — bridging only).
+integration (`module_home` as-is); no compute in Java anywhere (§0, §2b — bridging only); **no flash fallback to the
+engines image** — `flash.py`'s `docker run --device` route is DEBT (§1), a stopgap from before the installer existed;
+it stays behind `--yes` and the gate and is NOT extended; retire it once exp-2 ships.
 
 ## §5. Costs, licences, bloat budget
 
