@@ -152,6 +152,25 @@ attached board, the live-update idiom `firmware-installer-panel.component.ts` al
 automatic: the confirm is identical to the offline path, always in the app, always a person's act. Forms:
 `source-dir`, `jpackage` bundle, `.deb`, `tar` — the same four the bridge export uses.
 
+#### Modes × deployment kind (his ruling)
+
+His words: *"and the note is only on an isle not on a swarm implementation would a JavaFx app be installable since it
+would need an isle to be able to dynamically reach polari."*
+
+| mode | compose/swarm host (no isle) | isle host |
+|---|---|---|
+| OFFLINE | installable and usable — a `.deb`, no Polari and no isle on the host at all: open a reviewed export, run the gate, detect, flash | same, always available |
+| CONNECTED | **NOT offered** | the only place it works |
+
+CONNECTED needs isle-fabric plumbing only an isle carries: instance discovery, pinned CA trust, and the agent that
+lets the backend address "the host holding the board" + push STOMP `FirmwareBuild` updates — tied to
+`TOPOLOGY_NETWORK_BRIDGING_PLAN.md` §3c: on `compose`/`swarm`, `OrchestrationTarget.execution` is `show-only`/`cli-ssh`
+(a person runs steps themselves); only `isle-relay` lets a JavaFX app execute privileged steps itself, and only
+because the isle supplies the cross-isle trust/relay that makes it safe. No manual-URL/trust-bypass workaround is
+offered on compose/swarm — that would route AROUND the isle's trust model and this same `execution` rule, not around
+a missing feature. **Today's home stack is `swarm`, not an isle** (`dev-swarm-prod-app-route`) — the Installer App
+there is OFFLINE-only until it becomes one.
+
 ### ISO
 Referenced, not re-planned: `POLARI_ISO_PLAN.md`'s offline-first image already carries the apt pool + platform debs;
 an export's `.deb` forms (firmware toolchain is NOT debbable — it is a directory or a docker tar, see §5) ride
