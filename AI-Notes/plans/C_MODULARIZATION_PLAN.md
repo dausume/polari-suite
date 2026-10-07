@@ -197,3 +197,17 @@ component, justified because a C node's sockets come from a manifest, not from a
 | **cmod-2** host execution | the `-DPOLARI_HOST` build + HAL stubs in an engine worker, cffi calls, the `c-atom` handler in `SolutionExecutionEngine` | pure atoms agree host vs twin on a seeded sweep (sensor_value, crc8); an ISR atom refused mid-step, its limits stated |
 | **cmod-3** the canvas | the `c-atom` overlay (sockets from CPort, badges ISR-safe / pure / cost), drag a graph, compile, install via the Firmware Installer | a person builds the echo app from atoms on the canvas, installs it on the twin, PUT echoes |
 | **cmod-4** a second board + a plain project | the next board's HAL (D-brd-4: Pico 2 / RP2350) as atoms; `pol cmod conform <dir>` on a person's own repo | the same graph retargeted by swapping HAL atoms; a plain repo conforms with no Polari file but `polari-firmware.json` |
+
+
+## cmod-2 — define a task's BODY in no-code (scheduled 2026-10-07, not built)
+His ask: "We also should already have a way of describing and defining the tasks in C using no-code, so we will want our tasks to be
+linked to their no-code solutions that compose them as well." What exists: atoms are PARSED from hand-written C (cmod-0), the glue
+(main/dispatch/ISRs) is GENERATED (cmod-1), the c-canvas edits the GRAPH of atoms (demo-4), and fs-2d links every task to the graph/node
+that composes it (both ways). The gap: an atom's body cannot yet be authored as no-code. cmod-2 = a C-body state kind (the C twin of a
+custom-Python state): ports declared like `POLARI_NODE(...)`, a body authored from the canvas's existing building blocks (assign, if,
+loop, call another atom, read/write a target's register through the board object), compiled by a cmod code generator into a real
+`.c` atom (committed into the project like the glue, byte-stable, buildable with `make` alone), parsed back into the same CFunctionAtom
+row (round trip), proven on the digital twin with the same frame comparison. Rules it inherits: C only on the device; no raw JSON;
+derive-or-cite; reproducibility. Decisions for him: D-cmod-6 which building blocks the first C-body kind supports (recommend: the
+subset the sim-rig's atoms already use — read ADC, scale, write a struct field, set a pin); D-cmod-7 whether a no-code-authored body may
+replace a hand-written atom in a seeded graph (recommend: yes once its round trip + twin proof pass).
