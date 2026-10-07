@@ -235,3 +235,10 @@ in a way that sets a task to a register or vice versa though." Ruled:
 - A visible "skip confirmations" switch only as a per-viewer preference if ever asked, off by default.
 - Specs: symmetric highlight from both ends; offer appears only for valid pairs; no POST before Register; Unregister path; drag lands
   on the confirm; toggle per selectable.
+- **Target details ranks by relevance (his, same day):** "target details should also move viable to the top, it should put the most
+  relevant at the top and those deemed irrelevant at the bottom or hidden." With a task selected: valid targets first (sorted by lane
+  colour then pin name), then undetermined, then pins registered elsewhere (cooperating before conflicting), invalid pins collapsed
+  behind "show N more" with their reasons. With a pin selected: its Registered Tasks first, then compatible unregistered tasks, then
+  the rest collapsed. The register facts stay above the lists in a fixed order (SoC pin · port/bit · DDR/PORT/PIN · alternate
+  functions · limits · net/connector), each cited. Spec: the first row is always a viable one when any exists; the collapsed group
+  count equals the invalid count.
