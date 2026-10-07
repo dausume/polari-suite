@@ -299,6 +299,110 @@ Each piece is a row a page can show and an export README can print; nothing is t
 C does not already say. This would be its own arc (pin-2?), sized AFTER the discussion; ucd-0 can proceed on the
 model as it is (D2/D3/D6 are all INT/GPIO-clean today) while the discussion settles what ucd-1/4 render.
 
+## §5e. ChatGPT round 2 — reply grounded in the code (2026-10-07; round 1 = the §5d facts; his relay)
+
+ChatGPT's consolidated review (relayed by him) proposed: four concepts (HardwareCapability / HardwareConfiguration /
+HardwareState / HostObservedState); an address-space model (AddressSpace, MemoryRegion, Bus, Peripheral, Register,
+RegisterField, InterruptSource, PeripheralSignal, PinFunction, SignalRoute); ResourceRequirement/ResourceAllocation
+around PinClaim; SignalRoute for the C3's GPIO matrix; ElectricalNet/ComponentInstance/Terminal for the breadboard;
+typed electrical facts; generate pin config from the model; a HardwareState struct with a bounded transition queue
+and versioned serialization; an OS-side C receiver → JNI → JavaFX; reuse of the no-code state system; ten questions.
+
+**Confirmed codebase facts (verified this round):**
+- cmod atoms ALREADY derive resources: every register an atom touches (name, access r/w, PERIPHERAL via
+  `cmod/custom/registers.py` PERIPHERAL_RULES — USARTn, TIMERn, GPIO PORTx, ADC, EXTINT, PCINT, WDT, EEPROM, SPI, TWI,
+  CPU), declared macros (LED_PIN…), globals shared with ISRs, the ISR vector. `registers_atmega328p.json` is a
+  derived snapshot from `avr-gcc -E -dM <avr/io.h>` carrying addr, width, SPACE (io | mem) per register + vectors,
+  with the avr-libc version and the sha of the -dM text. So the AVR address-space facts and the register→peripheral
+  grouping exist as DERIVED data; what is missing is only their promotion to rows a page shows, and bit FIELDS.
+- `cmod/custom/targets.py:requirement_kind()` already derives a task's target kind (analog-in, pwm-out, uart-rx/tx,
+  interrupt-in, digital-in/out…) from the atom's resources and port shape — ChatGPT's ResourceRequirement exists as a
+  derivation, not as a row. `RegisterAssignment` is the allocation row (per solution, per task port → BoardPin).
+- Ownership in the real HAL (`board/custom/firmware/uno/hal.c`): Timer2 = `hal_tick_init` (TCCR2A/TCCR2B/TIMSK2,
+  lines 119-122) for `hal_millis`; USART0 = `hal_usart_init` (UBRR0/UCSR0A/B/C, 87-98); PWM = Timer0 on D5/D6 or
+  Timer1 on D9/D10 (236-242); the button = DDRD/PORTD/EICRA/EIMSK for INT0 (170-174). All of it hand-written C,
+  parameterized by `board_config.h` macros rendered from a `FirmwareVariant` row (LED_PIN, PWM_PIN, ADC_CHANNEL,
+  TELEMETRY_HZ, FEATURE_*). Pin NUMBERS are generated; register VALUES are not.
+- The breadboard already has rows: electrodevice `CircuitDefinition` / `CircuitNetDefinition` (net, is_ground) /
+  `CircuitComponentDefinition` (kinds vsource, resistor, capacitor, inductor, diode, led, device; `pins_json` = ordered
+  net names; `params_json` ohms etc.) rendering to an ngspice netlist; `BreadboardDefinition` / `ComponentPlacement`
+  (tie points) / `BoardJumper`; `PinBindingDefinition` (a design output bit → a vsource). The board module links to it
+  only through `BoardNet.circuit_net`. No `switch`/button kind; no typed limits beyond `params_json`; no row puts a
+  BoardPin on a circuit net.
+- The wire is already versioned and structured: `PolariPacket` (12-byte header + CRC32) + `WireContract` rows
+  (contract_version, tag-ordered fields, presence mask, instance-index prelude, wire_version, contract hashes);
+  `HardwareBridgeDefinition` (source simulated | serial, serial_device, baud, exposed classes → msg_type, grpc_target,
+  device_id). The C struct, the Java record/codec and the Python row are three materializations of ONE Polari class
+  (the `c_twin` codegen).
+- The simavr twin (`prf-board-engines/polari_avr_twin.c`, 327 lines; `twin_forcing.c`, 672) already observes PB5 by
+  ioport IRQ notify, drives ADC channels, raises interrupt VECTORS at a cycle (`--irq-at cycle=,vec=`), pokes RAM,
+  traces VCD. No pin-to-pin wiring flag; the button today is injected as the INT0 vector, not as a level on PD2.
+- The backend no-code state system: `StateDefinition` (source class, event method, input/output `SlotDefinition`s,
+  display fields, category) + `SolutionDefinition` + `StateBuildingBlock`/`SolutionExecutionEngine`; hwnocode adds
+  `HardwareSolution`, `HardwareNodePlacement`, `Runtime`, `FirmwareRunState`, `HardwareInterface`; fs-2 adds the
+  cross-domain states. Device state = the wire class on the device; host-observed state = the SAME class's row on the
+  server after the bridge push, plus `BackendStateChange` events in the relay.
+
+**Answers to the ten questions:**
+1. `RegisterAssignment` stays the firmware-binding row. Generalize by ADDING two derived rows beside it, not by
+   widening it: `PinClaim` (solution, pin, task, mode in|out|alt:<function>, pull, edge, initial level) and
+   `PeripheralClaim` (solution, peripheral, task, usage exclusive | shared-read | shared-config), both derived from
+   the atoms' resources + the solution's assignments. `requirement_kind` becomes a stored field on `TargetDefinition`
+   (it is computed today and thrown away). Conflicts then check at the pin AND the peripheral level.
+2. `BoardNet` stays board-internal (KiCad). External wiring reuses electrodevice: one new membership row
+   `BoardPinNet` (board pin → `CircuitNetDefinition` net) + a `switch` component kind + typed limit fields. No
+   ElectricalNet/ComponentInstance/Terminal classes — they would duplicate circuit rows that already render to ngspice.
+3. One class, three materializations (above). No new state-description system. `StateDefinition` describes how a
+   class is a no-code state; the relay states (fs-2) carry the timing/ownership difference. `FirmwareRunState` is the
+   firmware-side run row.
+4. Pin numbers only (macros from `FirmwareVariant`). Register values are hand C. Phase-1 change: render `pin_config.c`
+   (DDR/PORT/EICRA/EIMSK init) from `PinClaim` rows; the HAL atoms call it instead of writing those registers.
+5. None as a class. `SocPin.functions_json`, `soc_atmega328p.FUNCTION_PERIPHERAL`, `registers.py` PERIPHERAL_RULES and
+   the atoms' resource lists are the peripheral knowledge, all derived. A `Peripheral` + `Register` row pair rendered
+   FROM the snapshot is the cheap promotion; `RegisterField` rows only for the fields the demo uses (EICRA ISC, EIMSK
+   INT, DDR/PORT bits), cited.
+6. The C3 needs: a derivation like `registers.py` over ESP-IDF's `soc/*_reg.h` + `gpio_sig_map.h` (not avr-libc);
+   `PinFunction` rows with a `routing` column (fixed | mux | matrix); `compatible()` rewritten as a table lookup over
+   PinFunction rows keyed by (task kind → signal) with the routing mechanism deciding whether ANY pin qualifies.
+   Deferred to Phase 2; nothing in Phase 1 should hard-code AVR names in a new place.
+7. Add two flags to the twin: `--wire PD6:PD3` (ioport notify on the source bit → raise the ioport IRQ on the
+   destination; the same simavr APIs the twin already uses) and `--pin-at cycle=,PD2=0|1` (a LEVEL on the pin, so the
+   INT0 edge comes from the pin logic, not an injected vector). Both rendered from `BoardPinNet` rows by the twin
+   runner — the same rows the electrical check reads.
+8. Hardware definitions = board + SoC rows (and the register snapshot); task configuration = `PinClaim`/
+   `PeripheralClaim` per Firmware Solution, rendered into `pin_config.c`; `board_config.h` keeps only knobs that are
+   not pin configuration (rates, features). The HAL stops owning pin setup.
+9. Reuse as is: cmod atoms/glue/graphs, `FirmwareSolution`, `glue_build.py` (make → size → conform → twin equivalence),
+   `FirmwareBuild` repro block, `flash.py` DRY-RUN/`--yes`/read-back (last use, ucd-3), `pol capability prove`,
+   `ScenarioRun`, `WireContract`/PolariPacket, the generated Java bridge, the twin and its forcing flags.
+10. Redundant with the code: ElectricalNet/ComponentInstance/Terminal/NetMembership (electrodevice), a new versioned
+    serialization (WireContract), ResourceRequirement as a class (a derived field suffices), HostObservedState as a
+    class (the class row itself), AddressSpace/MemoryRegion/Bus for AVR (the snapshot; Phase 3 for custom SoCs),
+    "OS C receiver" (next item).
+
+**Where I disagree with the review:**
+- "OS C receiver → JNI → JavaFX": Polari's standing language rule is C on MCUs/FPGAs only; Java is the bridge, and
+  the generated bridge already reads the serial port (`SerialCdcPort`). No C receiver in the runtime path and no JNI.
+  A tiny C reader may ship in the firmware EXPORT as an inspection tool for a machine without Java — not a layer.
+- "monotonic time only, RTC later": his ask is date-times synced with the OS. Keep both: `uptime_ms` (monotonic,
+  primary ordering) AND the SET_TIME-synced epoch with measured `drift_ms`; the host adds `received_at`. No RTC chip.
+- `device_id` is fine (it exists in `HardwareBridgeDefinition`) and is a configured small integer, not a host fact,
+  so §5c holds.
+- Four new top-level concepts: not as classes. They are the existing rows (capability = board/SoC rows + snapshot;
+  configuration = RegisterAssignment + PinClaim/PeripheralClaim; state = the wire class on the device; host-observed
+  = the same class's server row + relay events).
+
+**Adopted from the review:** the bounded transition queue on the device (a second wire class `ButtonClockEvent`
+with `dropped_events` in the state struct — the bridge already supports several exposed classes per contract),
+acquisition and publication as separate atoms, ATOMIC_BLOCK copies (already proven by the torn-millis fault), the
+explicit acceptance list (startup, rapid transitions, timestamp ordering, overflow, reconnection), Phase 2/3 as
+influences not prerequisites.
+
+**Phase-1 model delta (the whole of it):** rows `PinClaim`, `PeripheralClaim`, `BoardPinNet`; `TargetDefinition.
+requirement_kind` stored; `Peripheral`/`Register` rendered from the snapshot + the handful of cited `RegisterField`s;
+electrodevice `switch` kind + typed `max_ma`/`v_forward`/`v_level` on the few parts used; `pin_config.c` rendering;
+two twin flags; the CMake export. Everything else in the review is Phase 2+.
+
 ## §6. Cost, bloat budget, licences
 
 New code: ~6 C atoms + one wire class (small), one Firmware Solution, one Cross-Domain Solution, one backend solution,
