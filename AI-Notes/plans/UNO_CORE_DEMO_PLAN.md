@@ -520,8 +520,66 @@ with a sequence gap as a transport loss (counted). Neither is confused with the 
 The navigable model is a primary product capability, not a by-product of generation: every row above has a page,
 every reference is a link, every reverse table exists.
 
-**Status after round 4:** plan FINAL for Phase 1 pending HIS word. ChatGPT's "proceed" is not his go. Still owed:
-D-ucd-1, 3, 4, 5, 6, 7 (recommendations in §5) and the go for ucd-0a.
+**Status after round 4:** plan FINAL for Phase 1. **His go for ucd-0a 2026-10-07** ("This is Dustin and I agree on this,
+you can start work"). Still owed: D-ucd-1, 3, 4, 5, 6, 7 (recommendations in §5).
+
+### ✅ ucd-0a BUILT 2026-10-07 (branch `dev-ucd-0a` in polari-framework + polari-cli; NOT merged, NOT rolled)
+Nine row classes (`Peripheral`, `PeripheralSignal`, `PinFunction`, `SignalRoute`, `Register`, `RegisterField`,
+`RegisterSetting`, `RegisterFieldSetting`, `BoardPinNet`); five materialized at boot from the register snapshot (moved to
+`board/custom/registers.py`, cmod re-exports), the SoC pin table and a NEW cited field table
+(`board/custom/register_fields_atmega328p.py`: EXINT, PCINT bank, ports B/D, MCUCR.PUD, Timer2 — 97 fields, every one
+with section/table/page from DS40002061B re-read via pdftotext, sha matched). Counts: 18 peripherals · 83 signals ·
+80 pin functions · 96 registers · 97 fields. Reverse links as `*_refs_json` (Class:name) on every row and on
+SocPin/BoardPin (`links_refs_json`, new column), so the generic object page walks both ways; six configured tables on
+/display/boards (the D3 walk via `GET /api/board/<board>/chain/<pin>`, peripherals, signals, pin functions, registers,
+fields) with `:ref:` / `:refs` columns; `pol board chain <board> <pin>`. Peripheral ids unified (EXINT, AC — the datasheet's
+names) across registers.py / FUNCTION_PERIPHERAL / cmod targets / the committed firmware manifest. Also closed: KitPart was
+never in `defClassList` (the guard named it). Tests: board_selftest 322/322 (+21 chain checks: construction, counts,
+citations, typed access, every forward ref + every reverse link resolves, the D3 walk forward and reverse, refusal, the
+board object unchanged); cmod_selftest 169/169; selftest_uno + selftest_firmwaresol exit 0; manifests guard 8/9 (the one
+failure = the parked pspp/testing legacy classes, pre-existing, not board); `cmod conform uno` changed only the 3 EXINT
+spellings. **Limitations:** fields captured for EXINT/PCINT/ports B+D/Timer2 only (the rest say so in
+`Register.undetermined`); `exclusive_group` undetermined (not cited); directions derived by signal family, 'undetermined'
+where mode-dependent; the ESP32-C3's SocPins carry no chain (matrix = Phase 2); `PeripheralSignal` has no datasheet
+chapter cite for AC/WDT/EEPROM/CPU/CLOCK/RESET (said in `undetermined`); the firmware-solution panel's Target details does
+not yet show the chain (ucd-0b); the four settings/route/circuit rows are defined and empty by design; the live stack is
+not rolled (his call). Manifest `generate` again dropped `requires.engines` + rewrote `selftests` — restored by hand
+(DEBT unchanged).
+**ROLLED LIVE 2026-10-07** on the home swarm from `dev-ucd-0a` (backend image 76d499023813): `/api/board/arduino-uno-r3/chain/D3`
+answers `source: live`, 45 hops; /display/boards 200; every chain class answers on its CRUDE door. ⚠ Incident during the roll:
+`pol rebuild help` RAN the rebuild (the trailing word was ignored) and removed the node stack; volumes survived; recovered by
+`pol node build --env staging backend` + `POLARI_MODULES=<the list the rows gave minutes earlier> pol swarm deploy node`
+(the resolver's documented bootstrap path while the core is down). Fixed in polari-cli 9914d2c (a trailing help word prints
+usage for start|rebuild|stop). Also learned: `pol swarm deploy node` does NOT rebuild images — build first (`pol node build
+--env staging backend`), then deploy. Disk pruned after the build. **Second lesson (the 0f roll):** with the tag unchanged
+(`prf-backend:staging`) and no registry digest, `docker stack deploy` KEEPS the running task — the 0a roll only took because
+the stack had been recreated. The roll recipe is therefore: build → `pol swarm deploy node` (re-renders) → `docker service
+update --force polari-node_backend` (and `_frontend` when its image changed). The frontend-only path = the forced update alone.
+
+### ✅ ucd-0f PULLED FORWARD + BUILT 2026-10-08 (his verdict on the 0a roll: "the key functionality has been drowned under a sea of data")
+His ask: "a link that shows just the UI for firmware no code and an export"; "keep [the tables] for more specialized or tabular
+displays we can open". Built on `dev-ucd-0a`: **/display/firmware** = the canvas + the exports table, nothing else;
+**/display/hardware-chain** = the six chain tables (moved off /display/boards, which is back to its 17 items);
+**Export (CMake)** button on the canvas bar → `POST /api/firmware/solutions/<name>/export` → `cmod.custom.export_cmake`
+writes `module_home('exp')/<solution>@<stamp>/` = the rendered C byte for byte + `CMakeLists.txt` (the Makefile's exact
+flags; targets board / twin / size / flash with the avrdude argv) + `avr-gcc.toolchain.cmake` + `polari-build.cmake` (one
+command) + README rendered from the rows (build, the two cases, the flash gate, the board as data, tasks by lane, register
+map, sizes, shas, provenance) + `polari-export.json` (every file's sha, usb ids / programmer / baud) and the tar.gz;
+`verify()` runs the exported CMake build on the engines image (cmake added to prf-board-engines, 3.31.6; `cmake` is a cmod
+engine beside make) and compares the hex sha with the committed Makefile build: **uno-sim-rig = IDENTICAL (4188f6ae…)** —
+the same bytes, the twin and the board are one code. `FirmwareExport` row (the durable record; the files are transient),
+`GET /api/firmware/exports` + `/<name>/download`, `pol firmware export <solution> --verify`. D-ucd-7 as recommended
+(CMake = the exported build, the Makefile = the proof build, parity by sha). Tests: cmod_selftest 179/179 (+10 export
+checks incl. parity), board 322/322, manifests 8/9 (parked legacy only). Limitations: one solution exported so far
+(uno-sim-rig); `-DPOLARI_TARGET` is a definition the C does not read (proven unused by the identical sha); offline form
+(the engines image tar) and the deb/jpackage forms are still exp-3/ucd-5; the Export action lives on the custom panel
+(no configured-table action exists); `generate` manifests again dropped `requires`/`selftests` (restored by hand).
+**ROLLED LIVE 2026-10-08** (backend fc1c9d86ec31, frontend 76d34915949f, runtime.8c70eadb…): /display/firmware, /display/hardware-chain,
+/display/boards all 200; the live export door wrote `uno-sim-rig@2026-10-08T12-06-28` and its download serves the 13-file tar.gz
+(21 KB). **Limitation on the server:** verify is REFUSED there, named — inside the backend container avr-gcc resolves to the
+remote worker (BOARD_ENGINES_URL → isle-core :9830), which runs single engines and has no cmake; parity shows `not-run` on the
+page while the host-side `pol firmware export --verify` proved IDENTICAL. DEBT: a `cmake` engine on the board worker (ship the
+rebuilt prf-board-engines to isle-core + list cmake in its /run engines) so the page's export verifies too.
 
 ## §6. Cost, bloat budget, licences
 
