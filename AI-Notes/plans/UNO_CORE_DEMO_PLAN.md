@@ -520,8 +520,31 @@ with a sequence gap as a transport loss (counted). Neither is confused with the 
 The navigable model is a primary product capability, not a by-product of generation: every row above has a page,
 every reference is a link, every reverse table exists.
 
-**Status after round 4:** plan FINAL for Phase 1 pending HIS word. ChatGPT's "proceed" is not his go. Still owed:
-D-ucd-1, 3, 4, 5, 6, 7 (recommendations in §5) and the go for ucd-0a.
+**Status after round 4:** plan FINAL for Phase 1. **His go for ucd-0a 2026-10-07** ("This is Dustin and I agree on this,
+you can start work"). Still owed: D-ucd-1, 3, 4, 5, 6, 7 (recommendations in §5).
+
+### ✅ ucd-0a BUILT 2026-10-07 (branch `dev-ucd-0a` in polari-framework + polari-cli; NOT merged, NOT rolled)
+Nine row classes (`Peripheral`, `PeripheralSignal`, `PinFunction`, `SignalRoute`, `Register`, `RegisterField`,
+`RegisterSetting`, `RegisterFieldSetting`, `BoardPinNet`); five materialized at boot from the register snapshot (moved to
+`board/custom/registers.py`, cmod re-exports), the SoC pin table and a NEW cited field table
+(`board/custom/register_fields_atmega328p.py`: EXINT, PCINT bank, ports B/D, MCUCR.PUD, Timer2 — 97 fields, every one
+with section/table/page from DS40002061B re-read via pdftotext, sha matched). Counts: 18 peripherals · 83 signals ·
+80 pin functions · 96 registers · 97 fields. Reverse links as `*_refs_json` (Class:name) on every row and on
+SocPin/BoardPin (`links_refs_json`, new column), so the generic object page walks both ways; six configured tables on
+/display/boards (the D3 walk via `GET /api/board/<board>/chain/<pin>`, peripherals, signals, pin functions, registers,
+fields) with `:ref:` / `:refs` columns; `pol board chain <board> <pin>`. Peripheral ids unified (EXINT, AC — the datasheet's
+names) across registers.py / FUNCTION_PERIPHERAL / cmod targets / the committed firmware manifest. Also closed: KitPart was
+never in `defClassList` (the guard named it). Tests: board_selftest 322/322 (+21 chain checks: construction, counts,
+citations, typed access, every forward ref + every reverse link resolves, the D3 walk forward and reverse, refusal, the
+board object unchanged); cmod_selftest 169/169; selftest_uno + selftest_firmwaresol exit 0; manifests guard 8/9 (the one
+failure = the parked pspp/testing legacy classes, pre-existing, not board); `cmod conform uno` changed only the 3 EXINT
+spellings. **Limitations:** fields captured for EXINT/PCINT/ports B+D/Timer2 only (the rest say so in
+`Register.undetermined`); `exclusive_group` undetermined (not cited); directions derived by signal family, 'undetermined'
+where mode-dependent; the ESP32-C3's SocPins carry no chain (matrix = Phase 2); `PeripheralSignal` has no datasheet
+chapter cite for AC/WDT/EEPROM/CPU/CLOCK/RESET (said in `undetermined`); the firmware-solution panel's Target details does
+not yet show the chain (ucd-0b); the four settings/route/circuit rows are defined and empty by design; the live stack is
+not rolled (his call). Manifest `generate` again dropped `requires.engines` + rewrote `selftests` — restored by hand
+(DEBT unchanged).
 
 ## §6. Cost, bloat budget, licences
 
