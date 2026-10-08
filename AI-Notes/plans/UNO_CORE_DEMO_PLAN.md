@@ -553,6 +553,25 @@ answers `source: live`, 45 hops; /display/boards 200; every chain class answers 
 usage for start|rebuild|stop). Also learned: `pol swarm deploy node` does NOT rebuild images — build first (`pol node build
 --env staging backend`), then deploy. Disk pruned after the build.
 
+### ✅ ucd-0f PULLED FORWARD + BUILT 2026-10-08 (his verdict on the 0a roll: "the key functionality has been drowned under a sea of data")
+His ask: "a link that shows just the UI for firmware no code and an export"; "keep [the tables] for more specialized or tabular
+displays we can open". Built on `dev-ucd-0a`: **/display/firmware** = the canvas + the exports table, nothing else;
+**/display/hardware-chain** = the six chain tables (moved off /display/boards, which is back to its 17 items);
+**Export (CMake)** button on the canvas bar → `POST /api/firmware/solutions/<name>/export` → `cmod.custom.export_cmake`
+writes `module_home('exp')/<solution>@<stamp>/` = the rendered C byte for byte + `CMakeLists.txt` (the Makefile's exact
+flags; targets board / twin / size / flash with the avrdude argv) + `avr-gcc.toolchain.cmake` + `polari-build.cmake` (one
+command) + README rendered from the rows (build, the two cases, the flash gate, the board as data, tasks by lane, register
+map, sizes, shas, provenance) + `polari-export.json` (every file's sha, usb ids / programmer / baud) and the tar.gz;
+`verify()` runs the exported CMake build on the engines image (cmake added to prf-board-engines, 3.31.6; `cmake` is a cmod
+engine beside make) and compares the hex sha with the committed Makefile build: **uno-sim-rig = IDENTICAL (4188f6ae…)** —
+the same bytes, the twin and the board are one code. `FirmwareExport` row (the durable record; the files are transient),
+`GET /api/firmware/exports` + `/<name>/download`, `pol firmware export <solution> --verify`. D-ucd-7 as recommended
+(CMake = the exported build, the Makefile = the proof build, parity by sha). Tests: cmod_selftest 179/179 (+10 export
+checks incl. parity), board 322/322, manifests 8/9 (parked legacy only). Limitations: one solution exported so far
+(uno-sim-rig); `-DPOLARI_TARGET` is a definition the C does not read (proven unused by the identical sha); offline form
+(the engines image tar) and the deb/jpackage forms are still exp-3/ucd-5; the Export action lives on the custom panel
+(no configured-table action exists); `generate` manifests again dropped `requires`/`selftests` (restored by hand).
+
 ## §6. Cost, bloat budget, licences
 
 New code: ~6 C atoms + one wire class (small), one Firmware Solution, one Cross-Domain Solution, one backend solution,
