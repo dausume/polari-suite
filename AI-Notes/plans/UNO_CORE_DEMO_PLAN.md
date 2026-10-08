@@ -545,6 +545,13 @@ chapter cite for AC/WDT/EEPROM/CPU/CLOCK/RESET (said in `undetermined`); the fir
 not yet show the chain (ucd-0b); the four settings/route/circuit rows are defined and empty by design; the live stack is
 not rolled (his call). Manifest `generate` again dropped `requires.engines` + rewrote `selftests` — restored by hand
 (DEBT unchanged).
+**ROLLED LIVE 2026-10-07** on the home swarm from `dev-ucd-0a` (backend image 76d499023813): `/api/board/arduino-uno-r3/chain/D3`
+answers `source: live`, 45 hops; /display/boards 200; every chain class answers on its CRUDE door. ⚠ Incident during the roll:
+`pol rebuild help` RAN the rebuild (the trailing word was ignored) and removed the node stack; volumes survived; recovered by
+`pol node build --env staging backend` + `POLARI_MODULES=<the list the rows gave minutes earlier> pol swarm deploy node`
+(the resolver's documented bootstrap path while the core is down). Fixed in polari-cli 9914d2c (a trailing help word prints
+usage for start|rebuild|stop). Also learned: `pol swarm deploy node` does NOT rebuild images — build first (`pol node build
+--env staging backend`), then deploy. Disk pruned after the build.
 
 ## §6. Cost, bloat budget, licences
 
