@@ -551,7 +551,10 @@ answers `source: live`, 45 hops; /display/boards 200; every chain class answers 
 `pol node build --env staging backend` + `POLARI_MODULES=<the list the rows gave minutes earlier> pol swarm deploy node`
 (the resolver's documented bootstrap path while the core is down). Fixed in polari-cli 9914d2c (a trailing help word prints
 usage for start|rebuild|stop). Also learned: `pol swarm deploy node` does NOT rebuild images — build first (`pol node build
---env staging backend`), then deploy. Disk pruned after the build.
+--env staging backend`), then deploy. Disk pruned after the build. **Second lesson (the 0f roll):** with the tag unchanged
+(`prf-backend:staging`) and no registry digest, `docker stack deploy` KEEPS the running task — the 0a roll only took because
+the stack had been recreated. The roll recipe is therefore: build → `pol swarm deploy node` (re-renders) → `docker service
+update --force polari-node_backend` (and `_frontend` when its image changed). The frontend-only path = the forced update alone.
 
 ### ✅ ucd-0f PULLED FORWARD + BUILT 2026-10-08 (his verdict on the 0a roll: "the key functionality has been drowned under a sea of data")
 His ask: "a link that shows just the UI for firmware no code and an export"; "keep [the tables] for more specialized or tabular
@@ -571,6 +574,12 @@ checks incl. parity), board 322/322, manifests 8/9 (parked legacy only). Limitat
 (uno-sim-rig); `-DPOLARI_TARGET` is a definition the C does not read (proven unused by the identical sha); offline form
 (the engines image tar) and the deb/jpackage forms are still exp-3/ucd-5; the Export action lives on the custom panel
 (no configured-table action exists); `generate` manifests again dropped `requires`/`selftests` (restored by hand).
+**ROLLED LIVE 2026-10-08** (backend fc1c9d86ec31, frontend 76d34915949f, runtime.8c70eadb…): /display/firmware, /display/hardware-chain,
+/display/boards all 200; the live export door wrote `uno-sim-rig@2026-10-08T12-06-28` and its download serves the 13-file tar.gz
+(21 KB). **Limitation on the server:** verify is REFUSED there, named — inside the backend container avr-gcc resolves to the
+remote worker (BOARD_ENGINES_URL → isle-core :9830), which runs single engines and has no cmake; parity shows `not-run` on the
+page while the host-side `pol firmware export --verify` proved IDENTICAL. DEBT: a `cmake` engine on the board worker (ship the
+rebuilt prf-board-engines to isle-core + list cmake in its /run engines) so the page's export verifies too.
 
 ## §6. Cost, bloat budget, licences
 
