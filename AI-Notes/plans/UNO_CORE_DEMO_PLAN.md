@@ -472,14 +472,56 @@ classes with an explicit overflow policy (drop-oldest + `dropped_events`); the a
 **Revised Phase-1 slices (replace §4's ucd-0):**
 | slice | files (new ⊕ / changed Δ) | tests to extend |
 |---|---|---|
-| **ucd-0a the hardware object chain** | ⊕ `board/objects/board/{Peripheral,PeripheralSignal,PinFunction,SignalRoute,Register,RegisterField,RegisterSetting,BoardPinNet}.py` · Δ `board/custom/soc_atmega328p.py` (chain derivation) · move `cmod/custom/registers.py` + `registers_atmega328p.json` → `board/custom/` (cmod already imports board; no cycle) · ⊕ `board/custom/register_fields_atmega328p.py` (cited) · Δ `board/board_page.py` (tables with `:ref:` columns + per-object reverse tables) · Δ `defClassList`, `feature_imports.py`, `board/polari-app.json` | `board/board_selftest.py` (row counts, every ref resolves, D3 forward+reverse walk), `selftest_manifests` guard, `board_uno_selftest` |
+| **ucd-0a the hardware object chain** (incl. RegisterField values/meanings/`access`/provenance for every field 0b generates — §5g C) | ⊕ `board/objects/board/{Peripheral,PeripheralSignal,PinFunction,SignalRoute,Register,RegisterField,RegisterSetting,RegisterFieldSetting,BoardPinNet}.py` · Δ `board/custom/soc_atmega328p.py` (chain derivation) · move `cmod/custom/registers.py` + `registers_atmega328p.json` → `board/custom/` (cmod already imports board; no cycle) · ⊕ `board/custom/register_fields_atmega328p.py` (cited) · Δ `board/board_page.py` (tables with `:ref:` columns + per-object reverse tables) · Δ `defClassList`, `feature_imports.py`, `board/polari-app.json` | `board/board_selftest.py` (row counts, every ref resolves, D3 forward+reverse walk), `selftest_manifests` guard, `board_uno_selftest` |
 | **ucd-0b claims + generated config** | ⊕ `cmod/objects/cmod/{PinClaim,PeripheralClaim}.py` · ⊕ `cmod/custom/claims.py` (derive, conflicts pin+peripheral+channel) · Δ `targets.py` (store `requirement_kind`) · Δ `annotation.py` (`needs(...)`) · Δ `firmware.py` (validate claims; `assign` door gathers mode/pull/edge) · ⊕ `cmod/custom/pin_config_gen.py` → `pin_config.h/.c` · Δ `board/custom/firmware/uno/hal.c` (init out, runtime kept) · Δ `cmod_firmware_api.py` · Δ `firmware-solution-panel.component.ts` (Target details = the chain rows; the confirm dialog's three fields) | cmod selftests, `tests/cmod_liveboot_probe.py --engines` (glue parity = frames identical), `tests/hwnocode_probe.py` |
 | **ucd-0c circuit + checks** | Δ `electrodevice/objects/circuit/_shared.py` (`switch` kind; typed `v_forward`, `max_ma`, `v_level`, `pull`) · ⊕ seed circuit `uno-button-clock` (nets LED_CONTROL, LED_ANODE, GND, BUTTON_INPUT; parts from `kit_parts`) · ⊕ `board/custom/electrical_check.py` (LED current, pin/port/chip budget cited, shared ground, single driver on LED_CONTROL, D2 pull defined) | `electrodevice/circuit_rows_selftest.py`, `board_selftest` |
 | **ucd-0d twin at pin level** | Δ `prf-board-engines/polari_avr_twin.c` (`--wire PD6:PD3`, `--pin-at cycle=,PD2=0|1`) · Δ `board/custom/twin.py` (flags from `BoardPinNet`) · Δ `firmwarefaults/custom/harness.py` (step kind `pin-at`) | `tests/board_uno_twin_probe.py` (+ EIMSK-off negative, ISC any/falling counts), `firmwarefaults_selftest` |
-| **ucd-0e the firmware + wire** | ⊕ `board/objects/board/{ButtonClockState,ButtonClockEvent}.py` + `c_twin` codegen (contract bump) · ⊕ `board/custom/firmware/uno/apps/button_clock.c` (atoms clock.tick/clock.set/button.isr/led.toggle/sense.isr/events.queue/telemetry.send; ATOMIC_BLOCK; bounded queue) · Δ `hal.c` (INT1 atom) · Δ `variants.py` · ⊕ `HardwareBridgeDefinition` row · Δ `java_bridge_templates.py` (reopen+backoff, SNAPSHOT on attach, sequence gaps) · ⊕ capability `button-clock-to-os` | `grpcbridge` loopback selftest (+ reconnect), `hwnocode_probe`, `pol capability prove … --twin` |
+| **ucd-0e1 the wire contract** | ⊕ `board/objects/board/{ButtonClockState,ButtonClockEvent}.py` (incl. `boot_session`, `seq`, `dropped_events`, the time fields; commands SET_TIME/SET_LED/SNAPSHOT) + `c_twin` codegen (contract bump; C header, Java record/codec, Python row regenerated) · ⊕ `HardwareBridgeDefinition` row | `grpcbridge` loopback selftest, `WireContract` parity |
+| **ucd-0e2 the firmware** | ⊕ `board/custom/firmware/uno/apps/button_clock.c` (atoms clock.tick/clock.set/button.isr/led.toggle/sense.isr/events.queue/telemetry.send; ATOMIC_BLOCK; bounded queue drop-oldest; the time model §5g) · Δ `hal.c` (INT1 atom; init moved to generated config in 0b) · Δ `variants.py` · ⊕ capability `button-clock-to-os` | `hwnocode_probe`, `board_uno_twin_probe`, `pol capability prove … --twin` → proven-on-twin |
+| **ucd-0e3 the bridge lifecycle** | Δ `java_bridge_templates.py` (reopen with backoff, SNAPSHOT on attach, sequence-gap counting, reboot vs reconnect by `boot_session`) | loopback selftest + a reconnect case + a reboot case |
 | **ucd-0f CMake export** | ⊕ `cmod/custom/export_cmake.py` + `cmake/avr-gcc.toolchain.cmake` template; README with provenance; `twin`/`board`/`flash` targets; Makefile parity sha | `tests/board_installer_probe.py` (+ build on econ-core without Polari) |
 
 ucd-1..5 unchanged. Order: 0a → 0b → 0c → 0d → 0e → 0f, each with its proof before the next; a → d need no hardware.
+
+## §5g. ChatGPT round 4 refinements (2026-10-07) — FINAL Phase-1 structure
+
+**A. RegisterSetting granularity.** `RegisterSetting` = one row per (solution, register, phase: init | runtime), carrying
+the final `value`, a `write_mask` (which bits this solution sets; bits outside the mask are left as reset values and
+SAID so), and the `pin_config.c` line. Beneath it, `RegisterFieldSetting` = one row per field set: `register_setting`,
+`register_field` (→ the cited RegisterField), `value` (+ its meaning from the field's value table), `pin_claim`, `task`,
+`rule` (the derivation rule name). Two field settings in one register with overlapping bits = a `conflict` row, never
+last-write-wins; two solutions never share a RegisterSetting (it is per solution). `RegisterField.access` is typed:
+`rw | r | w1c (write-one-to-clear) | w | rw-strobe`, cited — EIFR's INTFn are `w1c`, so "clear pending" renders as a plain
+write of the mask, never a read-modify-write; the generator refuses a field whose access it does not know. The page
+for a register shows the bit strip (value per bit, the fields highlighted) and "why these bits have these values"
+(one line per RegisterFieldSetting: field · value · meaning · the claim · the task) — both configured tables over
+these rows, no custom component (the bit strip is a `bits` column format over `value`+`fields`, one small format
+addition if the table lacks it; else a plain per-bit table).
+**B. SignalRoute stays in Phase 1**, also for fixed AVR routes: `PinFunction` = what is available; `SignalRoute` = the
+selected active route (one per PinClaim that uses an alternate function; `routing` copied from the PinFunction;
+`configuration` = the RegisterFieldSettings that make it active, e.g. none for a fixed INT1 pin beyond EIMSK);
+`PinClaim` = who asked. References are row NAMES typed by the column's class (`:ref:<Class>`), the Polari idiom —
+never an encoded composite that a page would have to parse. The same shape carries the C3 matrix later.
+**C. Sequence.** 0a now INCLUDES `RegisterField` values, meanings, `access` and provenance for every field 0b will
+generate (the generator reads them; it never carries its own table). 0e splits into **0e1** the wire contract
+(`ButtonClockState`, `ButtonClockEvent`, the commands incl. SET_TIME/SNAPSHOT, `boot_session`, contract bump, Java
+record/codec + Python row + C header regenerated, loopback selftest), **0e2** the firmware (atoms, queue, time model,
+variant, twin proof), **0e3** the bridge lifecycle (reopen with backoff, SNAPSHOT on attach, sequence-gap counting,
+reboot vs reconnect). **Boot session ≠ packet sequence:** the device mints `boot_session` at reset (a counter kept in
+EEPROM or a 32-bit random from an uninitialised-SRAM seed — pick one in 0e1, cited) and stamps it in every state frame;
+the host reads a NEW boot_session as a reboot (fresh state, counters restart, no gap alarm) and the SAME boot_session
+with a sequence gap as a transport loss (counted). Neither is confused with the other.
+
+**The two explanation chains, as the acceptance spec of Phase 1 (configured pages, both directions, ≤ 1 click per hop):**
+- firmware side: `Firmware Task → PinClaim → SignalRoute → PinFunction → PeripheralSignal → Peripheral → RegisterField
+  → RegisterFieldSetting → RegisterSetting → the generated C line`;
+- physical side: `Board → BoardPin → SocPin → PinFunction → PeripheralSignal → Peripheral → Register → RegisterField`,
+  plus `BoardPin → BoardPinNet → CircuitNet → parts`.
+The navigable model is a primary product capability, not a by-product of generation: every row above has a page,
+every reference is a link, every reverse table exists.
+
+**Status after round 4:** plan FINAL for Phase 1 pending HIS word. ChatGPT's "proceed" is not his go. Still owed:
+D-ucd-1, 3, 4, 5, 6, 7 (recommendations in §5) and the go for ucd-0a.
 
 ## §6. Cost, bloat budget, licences
 
