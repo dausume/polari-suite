@@ -583,6 +583,23 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### His rulings 2026-10-09 (afternoon) + BUILT the same day: the firmware's state as a SUMMARY of its Purposes; advise, never block
+His words: "we need all purposes to be proven on the sim, this way we can make the hardware build file and be confident in installing it
+on a real device"; "we should track the state of the overall firmware and the firmware in respect to a board, as a summary of the
+Purposes. In the way the purposes are a summary of the tasks"; "we do not need to enforce you cannot build, but should advise not to, it
+is useful to still have it be able to try and compile … for debugging purposes". His question on the planned chip → answered: a
+Purpose's chip is its own derived status; blink-on-command had never had its acceptance run → run + pushed → proven-on-twin; the demo-4
+example row now carries the temp-sensor acceptance as its proof (one path, one run). BUILT: `capabilities.purpose_summary(graph, manager,
+board, statuses)` → proof_status = the WEAKEST Purpose on the ladder failing < planned < proven-on-twin < proven-on-hardware, counts,
+`advice` ("ADVISED: every Purpose is proven on the sim (not yet on hardware)" | "NOT ADVISED for a real board: not proven on the sim — <names>;
+a twin build is fine"); `FirmwareSolution` and `HardwareBinding` carry proof_status / proof_why / counts (+ advice on the binding),
+refreshed when the payload and the bindings door are served; the export's manifest gains `proof`, its README a "Proof — is this firmware
+advised for a real board?" section, the row's notes the advice; the CLI reads the server's statuses when POLARI_API is set (the runs live
+there), else the seed's and says so; the install PLAN's notes carry the advice for a board target ("no Firmware Solution carries variant
+uno-blink-only — a bench test" for the variants without Purposes). Nothing refuses. DEBT: a ScenarioRun carries no board instance, so a
+hardware proof is counted for every board of the solution (said in the why). Pending his earlier asks: attestation (a person's confirmation
+as a run of kind attested + overrides with who/when/why beside derived values) — his yes still owed; the second board's name.
+
 ### ✅ ucd-0e2b + ucd-2 BUILT 2026-10-09 (framework c090cb8+): the no-code side closes the loop
 0e2b: `uno-button-clock-graph` (27 nodes, 18 edges) + FirmwareSolution `uno-button-clock` + its default HardwareBinding **valid 17/17**
 by derivation; the seed carries the AUTHORED pin config (D2 alt INT0 falling pull-up; D3 alt INT1 any; D6/D13 out low) as `config_json`,
