@@ -578,6 +578,10 @@ Tests: cmod 239/239, board 322/322, manifests 8/9. Limitations: timer / USART / 
 the HAL (their SignalRoutes stay `planned`); the EXINT path is proven by a synthetic D2 claim only (no interrupt-in task in
 uno-sim-rig yet — the button-clock firmware of 0e brings the real one); the confirm sentence omits the alternate-function
 name ("as INT1") because the valid-targets door does not carry it yet.
+**ROLLED LIVE 2026-10-08** (backend cf4a4af3028a, frontend 7b90e361c23f, runtime.fa28d565…): the solution payload carries the
+claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR settings; the chain door answers for a claimed pin
+(D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
+worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
 ### ✅ ucd-0f PULLED FORWARD + BUILT 2026-10-08 (his verdict on the 0a roll: "the key functionality has been drowned under a sea of data")
 His ask: "a link that shows just the UI for firmware no code and an export"; "keep [the tables] for more specialized or tabular
