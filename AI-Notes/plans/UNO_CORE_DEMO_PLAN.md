@@ -683,6 +683,15 @@ new mapping rows); stable ids + provenance across re-materialization (add: mater
 - **D-ucd-11 the fixture atoms for I²C/SPI tests.** Recommend YES (two tiny C files, parsed by the same pycparser path), because a
   requirement model proven only on GPIO/UART/ADC would be the review's own objection.
 
+- **D-ucd-12 RULED 2026-10-08 (his words): "We specifically want 'Purpose' as the label for groupings of tasks, and need to
+  acknowledge a task can belong to multiple purpose groupings. So it is Task and Purpose which is easy to remember naming wise."**
+  → the person-facing words are **Task** (a c-atom instance, a CGraphNode) and **Purpose** (what the arc called a Capability:
+  `CapabilityDefinition` with its goal sentence, acceptance proof and derived status). Class names stay (D-ucd-8's posture);
+  `plain_words`, page/table titles, the panel's headings and the payload key become Purpose/Task. Membership is MANY-TO-MANY as
+  data (it already is: `tasks_by_runtime_json` on each definition names tasks; `composed_by.purposes` is a list per task); the
+  Tasks section lists a task under EVERY Purpose it belongs to (never one exclusive bucket), with an "also in" chip; a task in no
+  Purpose sits under "No purpose yet". Built as a small slice before 0b2 (one sonnet agent).
+
 **Status:** AUDIT ONLY. ucd-0b2 (the reconciliation slice: items B1–B3, B6 and C) starts on his rulings; it is a day of work with
 one sonnet agent per half (model + tests; UI).
 
