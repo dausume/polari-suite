@@ -13,7 +13,7 @@ without a sample = the backlog); Java's configurable surface = bridging only; th
 bridge and the ONE flash path (planned, not built — the docker-with-device flash in `flash.py` is a stopgap); connected mode is
 isle-only. **Start with his browser pass of /display/firmware-solutions, then P2: the UNO on the bench (guide §4).**
 
-**dev tips at handoff:** suite f140bba · rf-node 2baf57f · framework 9620ebf · angular 3060165 · cli 12f4b24 (app-shell ad2af35,
+**dev tips (2026-10-08, ucd-0a/0f merged):** suite b6b3bc7 · rf-node ee83fce · framework f14f6b2 · angular dae9052 · cli 5ab69d1 — the UNO core demo arc is `AI-Notes/plans/UNO_CORE_DEMO_PLAN.md` (0a the hardware chain, 0f the CMake export; 0b in progress). Older tips at the 2026-10-07 handoff: suite f140bba · rf-node 2baf57f · framework 9620ebf · angular 3060165 · cli 12f4b24 (app-shell ad2af35,
 proof-tools 092151a, torch-tools 1973a04). main NOT promoted since polari-v2026.09.27; polari-test PASSED on 126f2bf (2026-10-04);
 dev has moved far since → `pol jenkins promote test` before any `promote main` (his call).
 
