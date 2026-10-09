@@ -583,6 +583,19 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ ucd-attest BUILT 2026-10-09 (framework + angular merged on dev-ucd-0b): attestation + overrides
+`ScenarioRun` gains kind measured | attested, attested_by (the signed-in subject id, '' unauthenticated — said), observed, board_instance
+(closes the hardware-run board DEBT); `POST /api/capabilities/<name>/attest` {mode, board_instance?, observed, outcome} → a run of kind
+attested; `derive_status` returns proof_kind beside the ladder step and `purpose_summary` says "(attested by a person)" vs "(measured)";
+a newer measured run always wins. `DerivedOverride` rows ('<class>:<row>:<field>', who/when/why, active | retired) via `POST
+/api/firmware/overrides` (why REQUIRED, refused by name) and `DELETE …/overrides/<name>` (retire, never delete); `overrides.apply_overrides`
+at every serve point for TargetDefinition.requirement_kind/role, PinClaim mode/pull/edge/initial, HardwareBinding.status — the served row
+carries `derived_<field>` beside the override and `overrides_refs_json`. Panel: "Confirm by hand" on a Purpose chip (dialog: mode, observed,
+board instance) → "(attested)" badge; "Override" on the binding line, the claim rows and the requirement cells (dialog: value + why) → an
+"overridden" marker with who/when/why and the derived value, retire on the marker; Escape cancels; nothing written before the confirm.
+`pol capability attest`. cmod 412/412, firmwarefaults 188/188. Left: the export's "Manual overrides" section (a named hook in
+overrides.py); the frontend not yet rolled.
+
 ### ✅ ucd-frames+bundle BUILT 2026-10-09 (framework merged on dev-ucd-0b; cli aa2cbf8)
 `pol board attach uno --variant uno-button-clock --twin --api <URL> [--seconds N] [--presses N]` — builds the variant, runs the twin HERE
 with the wire derived from the circuit rows and a press schedule, decodes the frames with the pinned wire spec and pushes the rows the
