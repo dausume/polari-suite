@@ -716,7 +716,16 @@ peripheral; MCUCR's block shared with the three GPIO ports, §14.4.1), MemoryReg
 tables on /display/hardware-chain; TargetDefinition widened (requirement_kind PER ROW — usart_init's D0 row = uart-rx, D1 row = uart-tx —
 role, required, resource_kind), RegisterAssignment widened (peripheral/signal/bus typed refs, at most one, validated; signal_route;
 configuration); I²C/SPI fixture atoms prove i2c-sda+i2c-scl and two spi-ss rows for one task; the legacy proof: no free-string target
-exists. cmod 275/275, board 333/333, parity identical. **ucd-0b2b (the HardwareBinding) in progress.**
+exists. cmod 275/275, board 333/333, parity identical.
+✅ **ucd-0b2b BUILT 2026-10-08** (framework 88ce568, cli 35635ad): `HardwareBinding` ('<solution>@<board>'; is_default; status valid |
+incomplete | invalid; why; requirements_met/total; reverse refs to its assignments/claims/settings/routes); one default binding derived per
+seeded solution, converges; a person's extra bindings are kept; claims/settings/routes re-keyed by binding (solution kept); validity from
+rows only (required rows met by a compatible resource of THIS board; conflicts → invalid; a board without chain rows → incomplete "Phase 2",
+never a crash); build/run/export take a binding (non-default = Phase 2, refused by name); doors GET /api/firmware/bindings, POST
+/api/firmware/solutions/<s>/bindings {board}, payload `binding` + `bindings`, every {name} accepts <solution>@<board>; Bindings tables on
+/display/firmware and /display/firmware-solutions; `pol firmware bindings | bind`. cmod 307/307. Found by it: three requirement rows had the
+wrong KIND (tick_init = the TIMER2 peripheral, not pwm-out; led_init = the same D13 as led; rx_pop = the USART0 RXD signal through the ring)
+→ ucd-0b2d fixes the derivation so the default binding reads valid by derivation, not by editing data. **ucd-0b2c (UI) + 0b2d in progress.**
 
 **Status:** AUDIT ONLY. ucd-0b2 (the reconciliation slice: items B1–B3, B6 and C) starts on his rulings; it is a day of work with
 one sonnet agent per half (model + tests; UI).
