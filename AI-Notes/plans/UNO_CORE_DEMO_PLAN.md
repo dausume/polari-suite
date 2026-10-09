@@ -583,6 +583,16 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### His rulings 2026-10-09 (evening): one board; pages SCOPED to what is in use
+His words: "ignore the second board for now, just do the current board first. And when we have a page we only want to be concerned about
+pins and properties we know belong to just the board, chip, and firmware we are using. We do not want a page with everything possible on
+it. We may want dedicated Board pages for going through all possible boards, dedicated pin pages for looking at all possible pins, etc.
+But those should be object specific pages." → RULE: a demonstrable's page is SCOPED to the binding in use (its board, its SoC, the pins
+it claims, the functions it activates, the peripherals it claims, the registers and fields it sets); the exhaustive views (every board,
+every pin, every register) are the CLASS pages (/class-main-page/<Class>, /object/<Class>/<name>), reached by link. Slices: ucd-scope
+(the chain page scoped to a binding; the all-rows tables leave it), ucd-frames (the twin + bridge attached from the host so the demo page
+shows live rows), ucd-bundle (the install bundle + the abstract, board-agnostic export). Second board: deferred by his word.
+
 ### ✅ ucd-doc BUILT 2026-10-09 (framework 6958209): datasheets as DOCUMENTS
 His words: "tracking data sheets as both documents and … as data … 3 different kinds of data sheets usually for a board … some have all 3
 in 1 so we have 4 types … Let's trace these." `Datasheet` rows, kind **soc | board | programming | combined | other** (his correction of
