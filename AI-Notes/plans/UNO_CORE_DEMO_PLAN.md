@@ -583,6 +583,21 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ ucd-0e2a BUILT 2026-10-09 (framework d44be5f): THE BUTTON-CLOCK FIRMWARE, proven on the twin
+`apps/button_clock.c`: six POLARI_NODE atoms (clock_tick, clock_set, led_toggle, sense_isr, events_queue, telemetry_send) + apply_command;
+hal gains `hal_sense_init` + `ISR(INT1_vect)` (any edge, §13.2.1 p.80) and a toggle-pending flag; EICRA/EIMSK as read-modify-write so
+button + sense share them; `boot_session` = an EEPROM boot counter at 0x0000 (cited); EVENT_QUEUE_LEN 16, drop-oldest + dropped_events;
+`sync_uncertainty_ms` = one frame period (the honest bound); drift only from the SECOND sync; commands presence-mask only the needed fields
+(encoding all 24 overflowed the twin's --inject — found empirically). Variant `uno-button-clock` (other variants' board_config.h stay
+byte-identical, 18/18). Flash 13 800 / 32 256 B · RAM 1 225 / 2 048 B. PROOF 12/12 (board_button_clock_twin_selftest + the probe): (a) 4
+presses + --wire PD6:PD3 → presses 4, rises+falls 4, led_on false, 8 button/LED + 4 sense + 1 sync events in seq order, dropped 0; (b) a
+2-slot queue drops exactly the oldest, received+dropped == minted; (c) SET_TIME → synced, generation 5, drift 0; second → generation 6,
+drift −4100 ms; (d) SNAPSHOT → an out-of-band state frame then normal ticks; (e) boot_session constant within a run, differs with the
+EEPROM's prior value (the twin's EEPROM is fresh per run — the limit is said); (f) NEGATIVE no wire → rises = falls = 0, presses 4.
+**Purpose `button-clock-to-os` = proven-on-twin** (`pol capability prove … --twin`; `--hardware` refuses by name until ucd-3). board
+398/398, cmod 324/324, firmwarefaults 188/188. **0e2b (graph, solution, binding, generated EXINT config, glue proof, export) + ucd-2 (the
+module) in progress.**
+
 ### ✅ ucd-1 BUILT 2026-10-09 (framework 1344b59): the cross-domain app
 Backend solution `button-clock-ledger` (on-frame → derive → commit, the temp-analysis shape); `ButtonClockDerived` (presses_per_min,
 invariant_ok/why from rises+falls == presses and led_on == rises > falls, events_seen, dropped_events_total, drift, received_at = the
