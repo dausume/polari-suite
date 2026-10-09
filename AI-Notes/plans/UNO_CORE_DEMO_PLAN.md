@@ -583,6 +583,15 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ ucd-0d BUILT 2026-10-09 (rf-node 17a599b: twin_forcing.c; framework 376a8a6: twin.py, harness, probe, selftest)
+`polari-avr-twin --pin-at cycle=N,pin=PDn,level=0|1` raises the ioport PIN irq (simavr's avr_extint then evaluates EICRA/EIMSK — no
+vector injection) and `--wire PSRC:PDST` propagates a driven pin onto another pin's input (JSON lines wire / wire-edge /
+wire-conflict). PROVEN (tests/board_uno_pinlevel_probe.py, 8/8; board_pinlevel_selftest in board_selftest): 4 presses → 4 counts
+(falling, the firmware default); EIMSK poked 0 → 0; EICRA any-edge → 8 = 2N; `--wire PD6:PD3` → 10 propagated edges, PIND bit 3 ==
+bit 6, no conflict; a build driving PD3 as output while wired → wire-conflict printed. Confirmed by experiment: `--poke` needs
+data-space addresses (io + 0x20 — the RegisterAddressMapping rows now say so). harness step kind `pin-at`; `twin.py`
+`wires_from_circuit()` reads ucd-0c's BoardPinNet rows (exercised once 0c lands). board 340/340, firmwarefaults 188/188, cmod 311/311.
+
 ### ✅ ucd-0f PULLED FORWARD + BUILT 2026-10-08 (his verdict on the 0a roll: "the key functionality has been drowned under a sea of data")
 His ask: "a link that shows just the UI for firmware no code and an export"; "keep [the tables] for more specialized or tabular
 displays we can open". Built on `dev-ucd-0a`: **/display/firmware** = the canvas + the exports table, nothing else;
