@@ -583,6 +583,19 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ ucd-0c BUILT 2026-10-09 (framework b856c26+, cli f8aa435)
+The demo bench as rows: electrodevice gains the `switch` kind (open 1e9 Ω / closed 0.1 Ω in the netlist seed) and typed limits; the
+circuit `uno-button-clock` (nets LED_CONTROL · LED_ANODE · GND · BUTTON_INPUT; R1 220 Ω, LED1 from the kit's `led` row, SW1 from
+`pushbutton`); four `BoardPinNet` rows (D6 driver / D3 input on LED_CONTROL, D2 input on BUTTON_INPUT, GND); `board/custom/
+electrical_check.py` with the five Phase-1 rules, cited: **led_current ok 13.636 mA ≤ pin D6 20 mA** (5 V cited; the LED's 2.0 V
+forward voltage is an EXPLICIT ASSUMPTION — the kit book prints none — said in the row and the finding), single_driver ok (D6),
+shared_ground ok, level_compatible ok, **pull_defined WARN** until a D2 claim says pull-up (the button-clock firmware of 0e); a two-driver
+net refuses; a missing cite → undetermined. `GET /api/board/circuits/<circuit>/check?board=`, `pol board circuit-check`, two tables on
+/display/firmware-solutions. Whole-node multi-pin rows now named '<solution>:<task>@<pin>' (usart_init shows D0 uart-rx + D1 uart-tx).
+Found, left: dispatcher tasks with a NAMED port on several pins (apply.r D13+D6, send.b D0+D1) share a name — noted in a selftest
+comment, next naming item. `seed_tables()` now carries the BoardPinNet rows → `twin.wires_from_circuit` derives PD6→PD3 with no
+server. cmod 319/319, board 367/367, electrodevice 78/78.
+
 ### ✅ ucd-0d BUILT 2026-10-09 (rf-node 17a599b: twin_forcing.c; framework 376a8a6: twin.py, harness, probe, selftest)
 `polari-avr-twin --pin-at cycle=N,pin=PDn,level=0|1` raises the ioport PIN irq (simavr's avr_extint then evaluates EICRA/EIMSK — no
 vector injection) and `--wire PSRC:PDST` propagates a driven pin onto another pin's input (JSON lines wire / wire-edge /
