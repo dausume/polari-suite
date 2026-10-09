@@ -692,6 +692,24 @@ new mapping rows); stable ids + provenance across re-materialization (add: mater
   Tasks section lists a task under EVERY Purpose it belongs to (never one exclusive bucket), with an "also in" chip; a task in no
   Purpose sits under "No purpose yet". Built as a small slice before 0b2 (one sonnet agent).
 
+**RULED 2026-10-08 (his words: "keep names and widen them for now. add address space rows now. Solutions should be separable
+from specific hardware, we should have hardware specific objects that are bindings or masks that bind to the solutions to
+combine into making a valid firmware, needing to meet the minimum requirements of the task for the hardware to be a valid
+target. Yes"):** D-ucd-8 keep + widen; D-ucd-9 address-space rows now; D-ucd-11 fixture atoms yes; **D-ucd-10 OVERRULED into a
+stronger model: the HardwareBinding.** A `FirmwareSolution` is HARDWARE-AGNOSTIC: its tasks (CGraphNodes) and their requirements
+(TargetDefinition rows: kind, role, required, constraints). A NEW row **`HardwareBinding`** ('<solution>@<board>') is the
+hardware-specific object — the mask that lays the solution over one board: it OWNS the assignments (RegisterAssignment →
+re-keyed by binding), the derived PinClaims / PeripheralClaims / SignalRoutes / RegisterSettings / RegisterFieldSettings, and a
+`status` valid | incomplete | invalid with `why` = the requirements the board cannot meet (no pin function for the kind, a
+peripheral the SoC lacks, a conflict) — "the minimum requirements of the task for the hardware to be a valid target". One
+solution may have several bindings (UNO, ESP32-C3, a custom board); `FirmwareSolution.board_definition` becomes the DEFAULT
+binding's board (converge: one binding derived per existing solution + its resolved board, assignments carried over by name).
+A build/run/export takes a binding, not a bare solution (the CLI/API accept `<solution>` meaning its default binding, or
+`<solution>@<board>`). Validity is computed from rows only: every `required` requirement has an assignment whose resource is a
+PinFunction/Peripheral/Signal the board's SoC actually has, no two assignments conflict, no peripheral over-claimed. The pages:
+a Bindings table on /display/firmware (solution · board · status · why) and the canvas works ON a binding (pick solution, then
+board; the pin map is the binding's). This is 0b2's heart; the rest of §5h B/C stands.
+
 **Status:** AUDIT ONLY. ucd-0b2 (the reconciliation slice: items B1–B3, B6 and C) starts on his rulings; it is a day of work with
 one sonnet agent per half (model + tests; UI).
 
