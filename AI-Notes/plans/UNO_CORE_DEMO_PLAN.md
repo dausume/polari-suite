@@ -583,6 +583,16 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ ucd-scope BUILT 2026-10-09 (framework 0119546): the chain page scoped to the binding in use
+`GET /api/firmware/solutions/<s>[@<board>]/hardware` (+ `?list=pins|soc_pins|pin_functions|signals|peripherals|registers|fields|settings|
+field_settings|routes`) — `cmod/custom/scope.py` over claims + binding, never a second derivation. For uno-button-clock@arduino-uno-r3:
+pins D0 D1 D2 D3 D6 D13 · functions PD0:RXD PD1:TXD PD2:INT0 PD3:INT1 PD6:GPIO PB5:GPIO · peripherals EXINT, GPIO PORTB/D, TIMER2, USART0 ·
+17 registers (6 "set at init": DDRB DDRD EICRA EIFR EIMSK PORTD; 11 "claimed peripheral": the TIMER2/USART0 ones + PORTB) · 11 fields set.
+/display/hardware-chain = the D3 walk + five scoped tables (pins / functions / peripherals / registers with why / fields) for the demo
+binding by name (a configured table cannot take the Binding picker; the canvas scopes by its picker); the seven all-rows tables LEFT the
+page — their rows and selftests stay, reached on the class pages. /display/boards = the all-boards object page, said in its description.
+cmod 397/397, board 415/415.
+
 ### His rulings 2026-10-09 (evening, 2): the datasheet kinds confirmed; YES to attestation + overrides
 "Yes those data sheets should be correct yes, yes on attestation and overrides." → the four kinds (soc · board · programming · combined)
 stand as built. ucd-attest (next slice): a person's confirmation is a ScenarioRun of kind `attested` (who, when, board or instance,
