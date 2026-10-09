@@ -589,6 +589,14 @@ cross-domain call's resultBindings) read FLAT vars → every field None → the 
 `polariNoCode/SolutionExecutionEngine.py`: an unpicked dict result is ALSO spread into the flat context (a no-op for every other caller,
 which picks a scalar first). Regression test runs uno-button-clock's backend half through the real engine: good wire → invariant_ok True +
 numeric presses_per_min; broken wire → False with the numbers in why. hwnocode 117/117; the composition selftest 12/12.
+**ROLLED LIVE 2026-10-09 (backend from framework 428e6e2, frontend 790a6ea9 = the attest/override dialogs):** the attest door refuses an
+empty body by name ("'observed' is required …" 400), the overrides door refuses without why (422); `pol board attach … --seconds 20
+--presses 4` decoded 219 frames, pushed 43 state updates + 12 events; **ButtonClockDerived live: presses_per_min 14.493 · invariant_ok true
+("sense_rises(2) + sense_falls(2) == button_presses(4); led_on(False) == (rises > falls)(False)") · events_seen 13 · drift 0** — the relay
+computes on the push path. (Reading a CRUDE class door: the response is `[{"<Class>": [{"class", "varsLimited", "data": [rows]}]}]` —
+rows live under `data`; an earlier "null" reading was a parsing error, said here so it is not repeated.) Readiness still reads the Purpose
+as planned and the circuit as warn (it reads the seed row and the bare board — the polish item stands); the bridge part reads never-run
+(no BridgingCapability row for button-clock yet).
 
 ### ✅ ucd-attest BUILT 2026-10-09 (framework + angular merged on dev-ucd-0b): attestation + overrides
 `ScenarioRun` gains kind measured | attested, attested_by (the signed-in subject id, '' unauthenticated — said), observed, board_instance
