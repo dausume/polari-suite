@@ -710,6 +710,14 @@ PinFunction/Peripheral/Signal the board's SoC actually has, no two assignments c
 a Bindings table on /display/firmware (solution · board · status · why) and the canvas works ON a binding (pick solution, then
 board; the pin map is the binding's). This is 0b2's heart; the rest of §5h B/C stands.
 
+✅ **ucd-0b2a BUILT 2026-10-08** (framework 33dd5da on dev-ucd-0b): AddressSpace (io, data — cited §8.5 p.30), RegisterAddressMapping (one per
+register per space; io registers carry both, EIMSK 0x1D/0x3D; Register.addr/addr_mem now come FROM the mappings), RegisterBlock (one per
+peripheral; MCUCR's block shared with the three GPIO ports, §14.4.1), MemoryRegion (flash/sram/eeprom from the cited memory map); two
+tables on /display/hardware-chain; TargetDefinition widened (requirement_kind PER ROW — usart_init's D0 row = uart-rx, D1 row = uart-tx —
+role, required, resource_kind), RegisterAssignment widened (peripheral/signal/bus typed refs, at most one, validated; signal_route;
+configuration); I²C/SPI fixture atoms prove i2c-sda+i2c-scl and two spi-ss rows for one task; the legacy proof: no free-string target
+exists. cmod 275/275, board 333/333, parity identical. **ucd-0b2b (the HardwareBinding) in progress.**
+
 **Status:** AUDIT ONLY. ucd-0b2 (the reconciliation slice: items B1–B3, B6 and C) starts on his rulings; it is a day of work with
 one sonnet agent per half (model + tests; UI).
 
