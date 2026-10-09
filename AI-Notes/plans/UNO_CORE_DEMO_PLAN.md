@@ -734,6 +734,14 @@ peripheral (kind timer, role clock) met by its PeripheralClaim; rx_pop = the USA
 shares D13 with led; peripheral-level kinds added to the vocabulary (timer, usart, adc, spi, twi, exint, pcint, gpio-port, cited);
 `uno-sim-rig@arduino-uno-r3` = **valid 14/14, why ''** — by derivation. The glue project re-rendered (comment names led_init), rebuilt
 (hex unchanged 1bb5c09e…), re-proved EQUIVALENT 40/40, conformed twice unchanged. cmod 311/311, board 332/332, manifests 8/9.
+**ROLLED LIVE 2026-10-09** (backend b97a5f2's image, frontend a45f4e41, runtime.fd71571a…): bindings door → `uno-sim-rig@arduino-uno-r3
+valid 14/14`; the payload serves the DERIVED assignment rows overlaid by live values and joined with the requirement facts (two fixes
+found on the live stack: a store predating a field answers None; the facts live on TargetDefinition) — tick_init reads timer · clock ·
+peripheral, rx_pop uart-rx · receive · signal, led_init digital-out · output · pin; chain hop detail shows the alias (EIMSK io 0x1d
+(0x3D)); export parity identical remote. **Known gap:** a task with several whole-node targets (usart_init: D0 and D1) collapses to ONE
+assignment row by name ('<solution>:<task>'), so the page's "Resources this task uses" shows the UART init as one row (uart-tx) instead
+of TX + RX; the per-pin claims are right (D0 RXD, D1 TXD). Fix = name whole-node rows per pin when a task has several
+('<solution>:<task>@<pin>') — first item of the next slice. Pending his review + merge word.
 
 **Status:** AUDIT ONLY. ucd-0b2 (the reconciliation slice: items B1–B3, B6 and C) starts on his rulings; it is a day of work with
 one sonnet agent per half (model + tests; UI).
