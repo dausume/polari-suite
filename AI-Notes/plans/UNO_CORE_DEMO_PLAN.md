@@ -583,6 +583,13 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ engine fix 2026-10-09 (framework 428e6e2): ButtonClockDerived's fields on the push path
+Root cause: `button-clock-ledger`'s `derive` AnalysisCall stored its whole result dict under one context key while the commit (and the
+cross-domain call's resultBindings) read FLAT vars → every field None → the engine's commit overwrote the correct computation. Fix in
+`polariNoCode/SolutionExecutionEngine.py`: an unpicked dict result is ALSO spread into the flat context (a no-op for every other caller,
+which picks a scalar first). Regression test runs uno-button-clock's backend half through the real engine: good wire → invariant_ok True +
+numeric presses_per_min; broken wire → False with the numbers in why. hwnocode 117/117; the composition selftest 12/12.
+
 ### ✅ ucd-attest BUILT 2026-10-09 (framework + angular merged on dev-ucd-0b): attestation + overrides
 `ScenarioRun` gains kind measured | attested, attested_by (the signed-in subject id, '' unauthenticated — said), observed, board_instance
 (closes the hardware-run board DEBT); `POST /api/capabilities/<name>/attest` {mode, board_instance?, observed, outcome} → a run of kind
