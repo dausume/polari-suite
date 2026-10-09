@@ -725,7 +725,15 @@ never a crash); build/run/export take a binding (non-default = Phase 2, refused 
 /api/firmware/solutions/<s>/bindings {board}, payload `binding` + `bindings`, every {name} accepts <solution>@<board>; Bindings tables on
 /display/firmware and /display/firmware-solutions; `pol firmware bindings | bind`. cmod 307/307. Found by it: three requirement rows had the
 wrong KIND (tick_init = the TIMER2 peripheral, not pwm-out; led_init = the same D13 as led; rx_pop = the USART0 RXD signal through the ring)
-→ ucd-0b2d fixes the derivation so the default binding reads valid by derivation, not by editing data. **ucd-0b2c (UI) + 0b2d in progress.**
+→ ucd-0b2d fixes the derivation so the default binding reads valid by derivation, not by editing data. ✅ **ucd-0b2c + 0b2d BUILT 2026-10-09.** 0b2c (angular): a Binding picker beside the Solution picker (every door re-targeted to
+<solution>@<board>; the default stays bare so older backends work), the binding status line with why, "+ bind to another board"
+(boards from the readiness door; nothing written before Bind), "Resources this task uses" (every requirement row of the task: port ·
+kind · role · required · bound to · status · route — a UART task shows TX and RX together; unbound required rows read "needs a pin";
+memory fields dimmed), N/M-bound chips per task. 0b2d (framework): requirement rows typed honestly — tick_init = the TIMER2
+peripheral (kind timer, role clock) met by its PeripheralClaim; rx_pop = the USART0 RXD signal through the ring (met via D0); led_init
+shares D13 with led; peripheral-level kinds added to the vocabulary (timer, usart, adc, spi, twi, exint, pcint, gpio-port, cited);
+`uno-sim-rig@arduino-uno-r3` = **valid 14/14, why ''** — by derivation. The glue project re-rendered (comment names led_init), rebuilt
+(hex unchanged 1bb5c09e…), re-proved EQUIVALENT 40/40, conformed twice unchanged. cmod 311/311, board 332/332, manifests 8/9.
 
 **Status:** AUDIT ONLY. ucd-0b2 (the reconciliation slice: items B1–B3, B6 and C) starts on his rulings; it is a day of work with
 one sonnet agent per half (model + tests; UI).
