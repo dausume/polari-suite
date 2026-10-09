@@ -583,6 +583,20 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ ucd-frames+bundle BUILT 2026-10-09 (framework merged on dev-ucd-0b; cli aa2cbf8)
+`pol board attach uno --variant uno-button-clock --twin --api <URL> [--seconds N] [--presses N]` — builds the variant, runs the twin HERE
+with the wire derived from the circuit rows and a press schedule, decodes the frames with the pinned wire spec and pushes the rows the
+Java bridge would (the backend's gRPC :3002 is NOT published in the stack — checked by a TCP connect; said in the CLI output; the Java
+path waits on that port), creates the `button-clock` HardwareBridgeDefinition through `POST /api/grpc/bridges`, reuses the seeded
+HardwareInterfaceBinding; state frames thinned to every 5th (HTTPS round trips), events never thinned. **LIVE RUN:** ButtonClockState
+button_presses 4 · sense_rises 2 · sense_falls 2 · led_on false; 12 ButtonClockEvent rows; readiness: the bridge part EXISTS. Offline proof
+board_attach_selftest 10/10. Export forms: **install-bundle** (firmware.hex sha-gated to the glue record + polari-install.json with the
+exact avrdude argv + INSTALL.md with the advice) and **solution** (hal/app/graph C + graph.json + requirements.json without lives_on +
+purposes.json + README + polari-solution.json; no pin_config / board_config / Makefile) via `--form` and the export door's `form`.
+cmod 377/377, board 425/425. **Named gaps:** the cross-domain relay fires on the HTTP push but its AnalysisCall leaves ButtonClockDerived's
+computed fields null (presses_per_min, invariant_ok) — a no-code engine binding bug to chase; no `BridgingCapability` row for
+button-clock yet (readiness bridge part reads never-run).
+
 ### ✅ ucd-scope BUILT 2026-10-09 (framework 0119546): the chain page scoped to the binding in use
 `GET /api/firmware/solutions/<s>[@<board>]/hardware` (+ `?list=pins|soc_pins|pin_functions|signals|peripherals|registers|fields|settings|
 field_settings|routes`) — `cmod/custom/scope.py` over claims + binding, never a second derivation. For uno-button-clock@arduino-uno-r3:
