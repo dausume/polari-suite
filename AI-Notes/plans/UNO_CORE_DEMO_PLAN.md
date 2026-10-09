@@ -556,6 +556,29 @@ usage for start|rebuild|stop). Also learned: `pol swarm deploy node` does NOT re
 the stack had been recreated. The roll recipe is therefore: build → `pol swarm deploy node` (re-renders) → `docker service
 update --force polari-node_backend` (and `_frontend` when its image changed). The frontend-only path = the forced update alone.
 
+### ✅ ucd-0b BUILT 2026-10-08 (branch `dev-ucd-0b` in framework / angular / cli / rf-node / suite; two sonnet agents + one for the generator)
+Backend: `PinClaim` + `PeripheralClaim` rows (cmod), `RegisterAssignment.config_json` (what a person authored on the pin
+page: mode / pull / edge / initial — the assign door accepts `config`), `cmod/custom/claims.py` (pin_claims from
+assignments + requirement_kind, peripheral_claims from the atoms' resources with channel-level usage, register_settings →
+RegisterSetting / RegisterFieldSetting / SignalRoute rows for PHASE init from the cited RegisterField rows: DDRx, PORTx,
+EICRA, EIFR (w1c), EIMSK, PCMSKx, PCICR — bit positions and meanings looked up, never hard-coded; overlapping fields =
+conflict), validate() refuses conflicts and names `incomplete` claims; the solution payload gains claims /
+peripheral_claims / register_settings / field_settings / routes (materialized into the tables on every GET);
+`GET /api/firmware/solutions/<s>/pins/<pin>/chain` (claim + settings + the board hops; an unclaimed pin answers with
+hops); `pol firmware claims`. Generator: `cmod/custom/pin_config_gen.py` renders `pin_config.h/.c` into the glue project
+(fixed order; masked RMW for rw, plain write for w1c, REFUSES strobe/toggle/read-only fields; provenance comment per
+register naming the setting, each field's meaning, claim, task, rule; deterministic bytes); the glue's `main()` calls
+`pin_config_init()` first; the HAL's GPIO/EXINT init writes are gated by `POLARI_PIN_CONFIG` so the hand-written
+reference keeps its own; **twin proof EQUIVALENT 40/40 frames** (generated config == hand-written init); conform twice
+unchanged; export parity still identical (hex 1bb5c09e…). Frontend: Target details "Why this pin is configured this way"
+(claim · field-setting lines · 8-bit strips · the chain hops as links · a Hardware chain page link); the Register confirm
+gains edge / pull / initial selects by task kind, sent as `config`; tasks show incomplete / conflict chips. Also: the
+board worker (isle-core) now lists make + cmake and cmod resolves them remotely, so the page's export verify can run.
+Tests: cmod 239/239, board 322/322, manifests 8/9. Limitations: timer / USART / ADC register config stays hand-written in
+the HAL (their SignalRoutes stay `planned`); the EXINT path is proven by a synthetic D2 claim only (no interrupt-in task in
+uno-sim-rig yet — the button-clock firmware of 0e brings the real one); the confirm sentence omits the alternate-function
+name ("as INT1") because the valid-targets door does not carry it yet.
+
 ### ✅ ucd-0f PULLED FORWARD + BUILT 2026-10-08 (his verdict on the 0a roll: "the key functionality has been drowned under a sea of data")
 His ask: "a link that shows just the UI for firmware no code and an export"; "keep [the tables] for more specialized or tabular
 displays we can open". Built on `dev-ucd-0a`: **/display/firmware** = the canvas + the exports table, nothing else;
