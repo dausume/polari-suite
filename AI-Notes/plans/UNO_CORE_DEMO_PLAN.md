@@ -583,6 +583,17 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ ucd-0e1 BUILT 2026-10-09 (framework, merged on dev-ucd-0b): the wire contract
+`ButtonClockState` (telemetry: seq, boot_session, uptime_ms, epoch_s, ms, clock_synced, sync_generation, sync_uncertainty_ms, drift_ms,
+button_presses, led_on, led_changed_at, sense_rises, sense_falls, last_edge_at, last_edge_ms, dropped_events, status; commands as
+presence-masked fields: set_epoch_s / set_ms / set_sync_generation = SET_TIME, set_led = SET_LED, snapshot = SNAPSHOT) and
+`ButtonClockEvent` (seq, boot_session, kind press|led_on|led_off|sense_rise|sense_fall|sync, uptime_ms, epoch_s, ms); pinned contracts
+v1 (tags alphabetical, the UnoAnalogState idiom); the `button-clock` bridge row (msg_type 1/2, serial 115200); generated C headers,
+Java record/codec/enum, loopback incl. the command path on the JDK. board 385/385, javabridge 36/36, contracts 34/34. **Named gap:**
+the wire-type table has only int64 / double / bool / char[] — every integer rides as int64 (the state frame ≈ 22 × 8 B) — fine at 10 Hz
+on 115200; narrowing = a `c_twin_v2`/`proto_gen` type-table extension, later. `pol board gen uno --class ButtonClockState` refuses by
+name until 0e2 adds the app.
+
 ### ✅ ucd-0e3 BUILT 2026-10-09 (framework 96441c4+): the generated Java bridge's lifecycle
 `SerialCdcPort` reopens with backoff (0.5→8 s, forever) and logs serial-lost / serial-open; SNAPSHOT requested on every (re)open for a
 class declaring a `snapshot` command (generated `HAS_SNAPSHOT_COMMAND`); a `SequenceTracker` per msg_type counts gaps_seen /
