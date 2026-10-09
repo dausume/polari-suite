@@ -608,6 +608,84 @@ remote worker (BOARD_ENGINES_URL → isle-core :9830), which runs single engines
 page while the host-side `pol firmware export --verify` proved IDENTICAL. DEBT: a `cmake` engine on the board worker (ship the
 rebuilt prf-board-engines to isle-core + list cmake in its /run engines) so the page's export verifies too.
 
+## §5h. ChatGPT round 5 (2026-10-08, relayed): "two revisions against the actual data model" — THE AUDIT, before any table changes
+
+The review asked for (1) a TaskResourceRequirement / TaskResourceAssignment model (many resources per task, typed refs,
+a configuration context) replacing a single `target`, and (2) a peripheral-centred hardware/memory-map model (RegisterBlock,
+AddressSpace, MemoryRegion, RegisterAddressMapping, SignalRoute as the static route + SignalRouteSelection as the choice,
+HardwareConfiguration), with migrations, materialization kept, firmware generation and UI following, and an ordered process:
+audit → reconcile → migrate → task refactor → firmware → UI → verify. It admits it has not seen the repository. This section is
+the audit it asked for, against the code as it is after ucd-0a/0b.
+
+**A. What already exists, under which names (verified by running the derivations on uno-sim-rig):**
+| the review's entity | Polari today | verdict |
+|---|---|---|
+| HardwareTask | `CGraphNode` (a c-atom instance in a `CGraph`); NO `target` field exists | the "single target" premise is wrong: targets are rows per port |
+| TaskResourceRequirement | `TargetDefinition` — ONE ROW PER PORT (or memory field) of a node: `usart_init` → two rows (D0, D1); `apply` → two (D13, D6); `kind` register \| pin \| peripheral \| memory-field \| bus \| dynamic; `direction`, `ctype`, `width`, `unit`, `constraints`, `provenance` | exists; GAPS: `requirement_kind` (uart-rx/tx, interrupt-in …) is derived PER TASK (`targets.requirement_kind`) not per row; no `role`; no `required`; the kind vocabulary is pin-flavoured |
+| TaskResourceAssignment | `RegisterAssignment` — one per (solution, task, port): `lives_on` = a BoardPin row name, status bound \| unbound \| conflict, `config_json` (0b: the authored mode/pull/edge/initial), provenance | exists; GAPS: the resource is ALWAYS a BoardPin (no typed peripheral / signal / bus assignment); the configuration context is implicit (= the solution) |
+| HardwareConfiguration | `FirmwareSolution` (settings, claims, routes are keyed by solution + phase) | exists under that name |
+| derived allocations | `PinClaim`, `PeripheralClaim` (0b; channel + usage exclusive \| shared-read \| shared-config) | exists |
+| Peripheral / PeripheralSignal / RegisterField | 0a rows, cited | exists |
+| SignalRoute (static possible route) | `PinFunction` (soc_pin × signal, `routing` fixed \| mux \| matrix) | exists under the other name |
+| SignalRouteSelection (the choice) | `SignalRoute` (per solution, per PinClaim, `configuration_refs_json`) | exists under the other name |
+| Register with width / reset / access | `Register` (addr, addr_mem, space io \| mem, width, reset_value, cited title) | exists; the alias is two COLUMNS, not rows |
+| RegisterBlock | `Register.peripheral` (grouping by the datasheet's register-summary naming rules) | implicit; no row; shared/aliased blocks not expressible |
+| AddressSpace / RegisterAddressMapping | `Register.space` + `addr` / `addr_mem` | implicit (two spaces on the AVR: I/O and data) |
+| MemoryRegion | `SocDefinition.memory_map_json` (flash / sram / eeprom with cited facts) | a JSON column, not rows |
+| BoardPin ↔ net ↔ SoC pin | `BoardPin.net`, `BoardNet`, `ConnectorPin.board_pin` — several connector pins on one net already (GND) | exists; not 1:1 |
+| "migration" | Polari has no migration framework: derived rows are code-owned and CONVERGE at boot (`_register_owned`); authored data survives through the seed's `keep` list | the migration is a re-derivation + a keep list, never a SQL script |
+
+**B. Reconciliation — what changes (smallest set that gives the review's semantics):**
+1. `TargetDefinition` gains `requirement_kind` (stored per ROW, derived per port: the usart atom's two rows become uart-tx and uart-rx
+   from the SIGNAL the port is bound to or a `needs(...)` clause — never from a per-task guess), `role` (input \| output \| receive \|
+   transmit \| clock \| select \| data \| ''), `required` (bool; a memory-field target is not a hardware requirement), and
+   `resource_kind` (pin \| signal \| peripheral \| bus). `requirement_kind()` keeps its signature but reads the row.
+2. `RegisterAssignment` gains typed resource columns beside `lives_on`: `peripheral`, `signal`, `bus` (row names; at most one of
+   the four non-empty, VALIDATED), `configuration` (= the solution name, explicit), `signal_route` (the chosen PinFunction when a
+   pin assignment activates an alternate function). A resource may satisfy requirements of several tasks (shared-read on ADC) —
+   already the case; the per-row status stays.
+3. NEW rows, derived, materialized: `AddressSpace` (atmega328p: `io` — IN/OUT, 0x00–0x3F; `data` — LD/ST, the I/O space at
+   +0x20 — cited §8 "I/O Memory"), `RegisterAddressMapping` (one per register × space: EIMSK → io 0x1D + data 0x3D; the alias as
+   ROWS, `Register.addr/addr_mem` become derived from them), `RegisterBlock` (one per peripheral today = the datasheet's register
+   summary grouping; `shared_with_refs_json` for a block another peripheral configures through — MCUCR.PUD for the ports; the C3's
+   `*_reg.h` blocks later), `MemoryRegion` (from `memory_map_json`, 3 rows). `Register.block` references the RegisterBlock.
+4. NAMES: keep the existing class names. `plain_words` and page titles say "task resource requirement" / "task resource
+   assignment" / "possible route" / "selected route"; a rename would churn every page, door, selftest and the committed firmware
+   manifest for no gain a novice sees. (D-ucd-8, below.)
+5. Firmware generation already follows requirement → assignment → claim → RegisterSetting → `pin_config.c` (0b). The pin-mux
+   registers that belong to a port or system controller (on the AVR: the peripheral's own enable bits, TXEN0/RXEN0 in UCSR0B,
+   COM0A in TCCR0A; MCUCR.PUD for the ports) are the NEXT generation step: PeripheralClaim → RegisterSettings for the enable
+   fields, which needs RegisterField rows for UCSR0B / TCCR0A / ADCSRA / ADMUX (cited, ucd-0b2). Until then those routes read
+   `planned` honestly.
+6. UI: the Target details block gains "resources this task uses" (all of a task's requirements with their assignments and
+   routes, so a UART task shows TX and RX together) and the register-first direction already exists (RegisterField →
+   RegisterFieldSetting → solution → task, by the rows' refs). Unresolved requirements, conflicts and shared use are the
+   status/usage columns the pages already show.
+
+**C. Tests the review lists, mapped:** single-pin GPIO (exists: D13); UART TX+RX as two assignments of one task (exists: usart_init
+D0/D1 — becomes an explicit assertion on `role` receive/transmit); I²C shared SDA/SCL and SPI with two chip-selects: NO atoms
+exist in the UNO firmware — add two small C fixture atoms under `cmod/custom/fixtures/` (twi_init touching TWCR/TWBR with ports
+sda/scl; spi_init + two `spi_select(cs)` ports) so the derivation is tested without inventing firmware; alternate-function conflicts
+(exists: `check_drop` + claims conflict); registers/fields independent of pins (exists); address-space alias (EIMSK io/data → the
+new mapping rows); stable ids + provenance across re-materialization (add: materialize twice, diff = ∅); legacy target migration
+(there is nothing to migrate: `lives_on` already names BoardPin rows or `unbound`; assert no free-string targets exist); generated C
++ reverse navigation (exists: pin_config selftest + the chain door).
+
+**Decisions for him (recommendation first):**
+- **D-ucd-8 class names.** Recommend KEEP `TargetDefinition` / `RegisterAssignment` / `PinFunction` / `SignalRoute` and widen them;
+  rename only `plain_words` and titles. Alternative: rename to the review's names with converge-time aliasing (every page, door,
+  selftest and the committed polari-firmware.json change; a week of churn, no new capability).
+- **D-ucd-9 address-space rows now or later.** Recommend NOW (small: 2 AddressSpace + ~100 mapping + 3 MemoryRegion rows, derived
+  from data already present), because the C3 and a custom RISC-V need them and the alias becomes a row a novice can click.
+- **D-ucd-10 HardwareConfiguration as its own row.** Recommend NOT YET: the FirmwareSolution is the configuration context; a
+  separate row only pays off when one solution carries several configurations (variants per board). Keep `configuration` as an
+  explicit column (= the solution) so the split is a rename later, not a migration.
+- **D-ucd-11 the fixture atoms for I²C/SPI tests.** Recommend YES (two tiny C files, parsed by the same pycparser path), because a
+  requirement model proven only on GPIO/UART/ADC would be the review's own objection.
+
+**Status:** AUDIT ONLY. ucd-0b2 (the reconciliation slice: items B1–B3, B6 and C) starts on his rulings; it is a day of work with
+one sonnet agent per half (model + tests; UI).
+
 ## §6. Cost, bloat budget, licences
 
 New code: ~6 C atoms + one wire class (small), one Firmware Solution, one Cross-Domain Solution, one backend solution,
