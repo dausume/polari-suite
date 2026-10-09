@@ -583,6 +583,16 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ ucd-0e3 BUILT 2026-10-09 (framework 96441c4+): the generated Java bridge's lifecycle
+`SerialCdcPort` reopens with backoff (0.5→8 s, forever) and logs serial-lost / serial-open; SNAPSHOT requested on every (re)open for a
+class declaring a `snapshot` command (generated `HAS_SNAPSHOT_COMMAND`); a `SequenceTracker` per msg_type counts gaps_seen /
+frames_lost / reordered; a record's `boot_session` (generated `HAS_BOOT_SESSION`) distinguishes a reboot (device-reboot logged,
+trackers reset, no gap) from a reconnect; a generic `LifecycleSelfTest.java` ships in every bridge. Proven on this host's JDK: reconnect
+seqs [50,51,52] reconnects=1 · gap gapsSeen=1 framesLost=3 · reboot reboots=1 gapsSeen=0 · snapshot-on-attach. javabridge 29/29.
+DEBT (named in the row): `HardwareInterfaceBinding` gained gaps_seen / frames_lost / reconnects / reboots but nothing stamps them yet
+(the Push proto was left untouched); multi-port bridges request snapshots bridge-wide. **0e1 (the wire contract) in progress; 0e2 (the
+firmware) next.**
+
 ### ✅ ucd-0c BUILT 2026-10-09 (framework b856c26+, cli f8aa435)
 The demo bench as rows: electrodevice gains the `switch` kind (open 1e9 Ω / closed 0.1 Ω in the netlist seed) and typed limits; the
 circuit `uno-button-clock` (nets LED_CONTROL · LED_ANODE · GND · BUTTON_INPUT; R1 220 Ω, LED1 from the kit's `led` row, SW1 from
