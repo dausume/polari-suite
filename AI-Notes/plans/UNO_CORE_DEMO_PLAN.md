@@ -583,6 +583,15 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### His rulings 2026-10-09 (evening, 2): the datasheet kinds confirmed; YES to attestation + overrides
+"Yes those data sheets should be correct yes, yes on attestation and overrides." → the four kinds (soc · board · programming · combined)
+stand as built. ucd-attest (next slice): a person's confirmation is a ScenarioRun of kind `attested` (who, when, board or instance,
+what was observed in their words) that the derivation counts as "proven-on-hardware (attested)" distinct from "(measured)"; every derived
+value a person may correct (a claim's edge/pull, a requirement's kind, a binding's validity, a register setting) takes an `override` with
+who / when / why shown BESIDE the derived value — the derivation reports the disagreement, never hides it; on the page: "Confirm by hand"
+on a Purpose's chip and "Override" on claim and setting rows, each a confirm dialog that writes a row; nothing changes before the confirm;
+the record of the manual change is itself a row.
+
 ### His rulings 2026-10-09 (evening): one board; pages SCOPED to what is in use
 His words: "ignore the second board for now, just do the current board first. And when we have a page we only want to be concerned about
 pins and properties we know belong to just the board, chip, and firmware we are using. We do not want a page with everything possible on
