@@ -583,6 +583,26 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ ucd-0e2b + ucd-2 BUILT 2026-10-09 (framework c090cb8+): the no-code side closes the loop
+0e2b: `uno-button-clock-graph` (27 nodes, 18 edges) + FirmwareSolution `uno-button-clock` + its default HardwareBinding **valid 17/17**
+by derivation; the seed carries the AUTHORED pin config (D2 alt INT0 falling pull-up; D3 alt INT1 any; D6/D13 out low) as `config_json`,
+provenance canvas, kept across converge; register settings from the cited fields: DDRB 0x20/0x20 · DDRD 0x40/0x4C · PORTD 0x04/0x04 ·
+**EICRA 0x06/0x0F (ISC0=10 falling, ISC1=01 any) · EIFR 0x03/0x03 (w1c plain write) · EIMSK 0x03/0x03**; SignalRoutes D2←INT0, D3←INT1
+active; `pin_config.c` carries the EXINT lines in the fixed order with the datasheet sentences, claim, task and rule per field; the
+glue render builds; **glue proof EQUIVALENT — 25 frames on both wire classes, raw UART identical** (stimulus: 4 pin-at presses, --wire
+PD6:PD3, one SET_TIME; `STIMULI` per graph in glue_build); conform twice unchanged; **export parity identical** (CMake defines
+POLARI_PIN_CONFIG=1); **circuit check all five OK** (pull_defined: D2's claim says pull-up). Found and left: `led_toggle`/`apply_command`
+requirement_kind labels fall to digital-out by port shape (cosmetic, validity unaffected). cmod 351/351.
+ucd-2: module `modules/uno_core_demo/` — polari-app.json kind hardware-app, **realization bridge**, a `parts` block naming the six parts
+(firmware, bridge + state/event classes, polari_app solution + display, cross_domain, circuit, purpose); `DemoReadiness` rows derived on
+request (a row per part with exists/status/why + the composition = the weakest), `GET /api/uno-core-demo/readiness`,
+/display/uno-core-demo-readiness; `app.realization` kvm | bridge REQUIRED for hardware-app (conform refuses its absence; isle_relay /
+isle_guestnet / voron migrated to kvm); tier derivation: bridge → member|hardware|core (never libvirt), kvm → hardware|core; kind titles
+"Hardware App (KVM)" / "Hardware Bridge App" in ONE helper; `BridgingCapability` row class (hardwareapps) with one seeded never-run row
+for the Polari Firmware Installer. After both merges: hwnocode 108/108 (hn-split re-rendered; 58 placements, 7 solution definitions),
+firmwarefaults 197/197 (15 scenarios, 24 steps), board 398/398, manifests 8/9. **Everything through ucd-2 is on dev-ucd-0b; the bench
+(ucd-3) is his; ucd-4 (the JavaFX Polari Firmware Installer) next on his word.**
+
 ### ✅ ucd-0e2a BUILT 2026-10-09 (framework d44be5f): THE BUTTON-CLOCK FIRMWARE, proven on the twin
 `apps/button_clock.c`: six POLARI_NODE atoms (clock_tick, clock_set, led_toggle, sense_isr, events_queue, telemetry_send) + apply_command;
 hal gains `hal_sense_init` + `ISR(INT1_vect)` (any edge, §13.2.1 p.80) and a toggle-pending flag; EICRA/EIMSK as read-modify-write so
