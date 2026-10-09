@@ -583,6 +583,17 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ ucd-doc BUILT 2026-10-09 (framework 6958209): datasheets as DOCUMENTS
+His words: "tracking data sheets as both documents and … as data … 3 different kinds of data sheets usually for a board … some have all 3
+in 1 so we have 4 types … Let's trace these." `Datasheet` rows, kind **soc | board | programming | combined | other** (his correction of
+the three kinds owed): 11 documents — atmega328p-ds40002061b (soc, sha b9b9d83c…), arduino-uno-r3-docs + arduino-uno-r3-pinout (board),
+arduino-boards-txt + arduino-optiboot-readme (programming), espressif-esp32-c3-datasheet (soc), espressif-esp32-c3-devkitm-user-guide
+(board), zephyr-esp32c3-devkitm-ingest (repo-file), the kit book, the TMP36 sheet, the Arduino `double` reference, one consolidated
+wikipedia row (its pages listed, derived). Every DatasheetFact and RegisterField links to its document; `BoardDefinition.datasheets_json`
+= the coverage per kind: **UNO soc + board + programming, combined ''; the C3 lacks a programming reference (said, not guessed)**; a
+cited-but-unknown document becomes an `undetermined` row. Datasheets table beside the facts on /display/boards. board 416/416. Not rolled
+yet (a table; rides the next roll).
+
 ### His rulings 2026-10-09 (afternoon) + BUILT the same day: the firmware's state as a SUMMARY of its Purposes; advise, never block
 His words: "we need all purposes to be proven on the sim, this way we can make the hardware build file and be confident in installing it
 on a real device"; "we should track the state of the overall firmware and the firmware in respect to a board, as a summary of the
