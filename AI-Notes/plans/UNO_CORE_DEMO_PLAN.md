@@ -602,6 +602,14 @@ isle_guestnet / voron migrated to kvm); tier derivation: bridge → member|hardw
 for the Polari Firmware Installer. After both merges: hwnocode 108/108 (hn-split re-rendered; 58 placements, 7 solution definitions),
 firmwarefaults 197/197 (15 scenarios, 24 steps), board 398/398, manifests 8/9. **Everything through ucd-2 is on dev-ucd-0b; the bench
 (ucd-3) is his; ucd-4 (the JavaFX Polari Firmware Installer) next on his word.**
+**ROLLED LIVE 2026-10-09 (two rolls):** bindings `uno-button-clock@arduino-uno-r3 valid 17/17` + `uno-sim-rig valid 14/14`; pages
+/display/firmware, /display/uno-core-demo, /display/uno-core-demo-readiness, /display/hardware-chain 200; the button-clock export verifies
+on the isle-core worker → parity identical (d26ddf2e…); the Purpose `button-clock-to-os` = proven-on-twin on the server (the run proved
+here and PUSHED — the server's worker cannot run a twin); the circuit findings on the BINDING: all five OK; the module `uno_core_demo` had
+to be ASSIGNED in topology (`pol topology assign uno_core_demo prf-a`) before the render carried it — a new module is not live until its
+ModuleAssignment row exists. ⚠ INCIDENT: a one-line page edit with a trailing comment swallowed the row's closing, was committed without
+an import check, rolled, and crash-looped the backend for ~20 min until repaired (framework f4c17a5 → the repair) — RULE: import-check
+every page edit before it rolls.
 
 ### ✅ ucd-0e2a BUILT 2026-10-09 (framework d44be5f): THE BUTTON-CLOCK FIRMWARE, proven on the twin
 `apps/button_clock.c`: six POLARI_NODE atoms (clock_tick, clock_set, led_toggle, sense_isr, events_queue, telemetry_send) + apply_command;
