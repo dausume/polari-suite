@@ -599,6 +599,9 @@ there), else the seed's and says so; the install PLAN's notes carry the advice f
 uno-blink-only — a bench test" for the variants without Purposes). Nothing refuses. DEBT: a ScenarioRun carries no board instance, so a
 hardware proof is counted for every board of the solution (said in the why). Pending his earlier asks: attestation (a person's confirmation
 as a run of kind attested + overrides with who/when/why beside derived values) — his yes still owed; the second board's name.
+**ROLLED LIVE 2026-10-09 (backend from framework 4a14d16):** bindings door → `uno-button-clock@arduino-uno-r3 valid · proven-on-twin 1/1 ·
+ADVISED` and `uno-sim-rig@arduino-uno-r3 valid · proven-on-twin 3/3 · ADVISED`; the sim-rig payload's `proof` names the weakest Purpose;
+a board-target export via the API carries "proven-on-twin · ADVISED: every Purpose is proven on the sim (not yet on hardware)".
 
 ### ✅ ucd-0e2b + ucd-2 BUILT 2026-10-09 (framework c090cb8+): the no-code side closes the loop
 0e2b: `uno-button-clock-graph` (27 nodes, 18 edges) + FirmwareSolution `uno-button-clock` + its default HardwareBinding **valid 17/17**
