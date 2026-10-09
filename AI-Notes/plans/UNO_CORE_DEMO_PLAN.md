@@ -583,6 +583,19 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### ✅ ucd-1 BUILT 2026-10-09 (framework 1344b59): the cross-domain app
+Backend solution `button-clock-ledger` (on-frame → derive → commit, the temp-analysis shape); `ButtonClockDerived` (presses_per_min,
+invariant_ok/why from rises+falls == presses and led_on == rises > falls, events_seen, dropped_events_total, drift, received_at = the
+server's own clock); retention `RETENTION=10000` as a pure prune + a door (never in the push path); the Cross-Domain Solution
+`uno-button-clock` beside uno-temp-split — Firmware Run (detail_ref FirmwareSolution uno-button-clock, honestly `planned` until 0e2b)
+→ Bridge (HardwareInterfaceBinding button-clock/ButtonClockState/0; ButtonClockEvent deliberately UNBOUND so it appends rows) →
+Relay-in → call-button-clock-ledger → Relay-out (WireContract ButtonClockState@button-clock: SET_TIME) → Frontend emit (DisplayDefinition
+uno-core-demo); `/display/uno-core-demo` = three configured tables (latest state, derived, last 200 events) + one sci-xy-chart (presses /
+rises / falls cumulative over uptime), no custom component; doors derived / chart / prune. hwnocode 105/108 — the three failures PRE-EXIST
+on the base: the `hn-split` record still names cmod-1's OLD glue sha (the glue hex changed when pin_config.c entered the project in 0b)
+→ re-split and re-record (small follow-up). Left to the bridge/installer: SET_TIME's actual periodic send (0e3 has the command path;
+the schedule lives with the attach lifecycle in ucd-4).
+
 ### ✅ ucd-0e1 BUILT 2026-10-09 (framework, merged on dev-ucd-0b): the wire contract
 `ButtonClockState` (telemetry: seq, boot_session, uptime_ms, epoch_s, ms, clock_synced, sync_generation, sync_uncertainty_ms, drift_ms,
 button_presses, led_on, led_changed_at, sense_rises, sense_falls, last_edge_at, last_edge_ms, dropped_events, status; commands as
