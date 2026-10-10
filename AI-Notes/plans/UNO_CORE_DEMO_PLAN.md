@@ -637,6 +637,23 @@ loop → called → '' at 220px pitch, Kahn topological rows at 130px; other lan
 the URL. Specs in `custom-no-code-ucd-hdr2.spec.ts`. cmod 527/527 (+3 live-door checks), hwnocode 117/117. Edge left: a `?focusSolution=`
 naming a solution that does not exist can sync the default once (self-corrects on the next pick).
 
+**His re-check (2026-10-10): "i am still seeing AdditionTester every time i navigate" — VERIFIED IN HIS CHROME** (extension
+attached; headless CDP driver `scratchpad/cdp.js` reproduced the same): the Composed-by click for task `led` lands on
+`/display/c-canvas?graph=uno-sim-rig-graph&node=led`, the scope is right (rx_pop · apply · led), BUT the canvas then appends
+`focusSolution=cmod.c-canvas.uno-sim-rig-graph&object=cmod` (case (b) graph/node was tagged origin 'url', and the writer syncs 'url'),
+the Object select shows AdditionTester (the hidden solution's "object" `cmod` is not an option, so the <select> falls to its first
+option), the Solution select has 0 options, the C group's own CGraph picker has 0 options on that path. A hand pick of CalculusTester
+sticks. SLICE ucd-hdr3 (running): the writer never writes a hidden name and a graph/node open writes only graph=/node=; THE GRAPH IS THE
+OBJECT — the Object select lists the C graphs (optgroup) and the separate CGraph picker goes away (one header); Solution = "atoms of
+<graph>"; plus the Purpose-coverage advice below.
+
+### His ruling 2026-10-10 (3): every task should have a Purpose — advised, never enforced
+His words: "I think we should try and ensure every task has at least one purpose, but it should not be enforced". On the button-clock
+graph only clock_set · clock_tick · events_queue · led_toggle · sense_isr · telemetry_send are named by `button-clock-to-os`; led,
+led_init, button, sense, apply, rx_pop … have none. → `composed_by.advice` on the task row ("no Purpose names this task — add it to
+one"), `scope.advice` + `purpose_coverage` on the graph door, an amber mark in the panel's Composed-by cell and a count in the canvas
+header summary. Seeding the missing Purposes (which tasks group how) is his call.
+
 ### His ruling 2026-10-10: the C-atom's CODE INTERFACE and C-ISOTOPES (arc ucd-iso)
 His words: "in the CFunctionAtom details page, we will want to be able to see a code-interface that shows it as though it is actual c-code,
 with the variables that come from board and pin specifications and other data-sheets laid out in the code clearly with comment that should
