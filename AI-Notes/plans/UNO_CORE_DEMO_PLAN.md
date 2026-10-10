@@ -608,6 +608,21 @@ is gated off. Pages: `cmod_page._canvas()` and `hwnocode_page._canvas_solution()
 same inputs; cmod_selftest / selftest_uno / hwnocode_selftest page checks updated. Specs in `runtime-options.spec.ts` (command group,
 derived runtime, solution-mode dispatch). Type-check clean; cmod 524/524, hwnocode 117/117.
 
+**His verdict on the hdr roll (2026-10-10, on `/display/c-canvas?graph=uno-sim-rig-graph&node=led&focusSolution=AdditionTester.
+test_addition&object=AdditionTester`):** "For some reason the nav from a composed by row on composed by always goes to that url from the
+c-canvas. It also seems that deleting the extra parameters (which ARE meant to be there to enable fast navigation to specific solutions)
+are always taking us only to AdditionTester, and when trying to switch to something else, it goes back to addition tester. Also, the
+only interface I see has an absurd amount of c-atoms, it does not look like the c-atoms for just a single task at all, it seems like
+everything in one disorganized place." ROOT CAUSES: (1) the canvas now mounts on the page directly with `syncUrl=true` (the deleted panel
+embedded it with `[syncUrl]="false"`), so the service's default-first-solution reselect (AdditionTester) writes `focusSolution`/`object`
+into the URL and the URL listener re-applies it over the page's graph; every SolutionDefinition STOMP change re-runs that default. (2)
+graph mode builds one state per node of the WHOLE graph (18 / 27) and `applyCLanes` stacks every c-device node in ONE column; `?node=`
+only outlines one state — nothing scopes to the task. SLICE ucd-hdr2 (running): one `resolveInitialSelection()` precedence rule
+(URL focusSolution > URL graph/node > page inputs > service default; the URL writer only for a selection the PERSON made; stale params
+removed; refresh preserves the current selection); a Scope control in the C group (task | purpose [default with ?node=] | graph) + Purpose
+chips (click-toggle), `GET /api/cmod/graphs/{graph}?node=` → `purposes` + `scope`; a staged layout (columns by stage, topological within);
+the c-canvas page default graph = `uno-button-clock-graph` (the firmware in use).
+
 ### His ruling 2026-10-10: the C-atom's CODE INTERFACE and C-ISOTOPES (arc ucd-iso)
 His words: "in the CFunctionAtom details page, we will want to be able to see a code-interface that shows it as though it is actual c-code,
 with the variables that come from board and pin specifications and other data-sheets laid out in the code clearly with comment that should
