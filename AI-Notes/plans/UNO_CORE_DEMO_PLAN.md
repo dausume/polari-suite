@@ -665,8 +665,20 @@ the first object in graph mode; the service's selectedObjectName$ (`cmod`) and t
 value; `loadCGraphs()` runs on every init path; the old picker + CSS removed. Advice: `composed_by.advice` = "no Purpose names this
 task — add it to one" (else ''); graph door `purpose_coverage {named, unnamed[]}` and `scope.advice {node: string}`; amber "no Purpose"
 mark in the panel's Composed-by cell; " · N atoms without a Purpose" on the canvas summary (counts every CGraphNode incl. glue kinds —
-may overcount). cmod 530/530 (+3). Specs: origin table, hidden-name helpers, composeObjectOptions, solutionOptionsFor. Not browser-
-verified by the agent — verification in his Chrome follows the roll.
+may overcount). cmod 530/530 (+3). Specs: origin table, hidden-name helpers, composeObjectOptions, solutionOptionsFor.
+
+**✅ VERIFIED IN HIS CHROME 2026-10-10 (angular 16eb87a after three direct fixes found only in the browser):** (1) picking a backend
+object while a graph was open did nothing — `updateFilteredSolutions` forced the one "atoms of <graph>" option whenever a hidden
+solution was open, so "select the first solution" saw the current one; now graph mode only while the selected OBJECT is the graph.
+(2) the staged layout never showed — `selectSolution()` had already run `loadSelectedSolution()` with the 4-per-row grid before
+`applyCLanes` wrote the staged positions, and a same-name reload inside 1 s is skipped; now the positions are re-read after they are
+written. (3) Runtime stayed "C (Hardware)" with the C group shown after opening the Python CalculusTester — rule (1) read the page's
+standing `graph` input; now it fires only for the graph's own hidden atoms solution. Flows seen: Composed-by `led` → URL
+`?graph=uno-sim-rig-graph&node=led` (nothing appended), Object "uno-sim-rig-graph (18 nodes, 13 atoms)", Solution "atoms of
+uno-sim-rig-graph", Runtime C, 3 atoms; plain load → button-clock graph, 27 atoms in stage columns init 7 · loop 6 · called 11 · glue 3;
+Object → CalculusTester → Runtime "Python (Backend)", C group hidden, URL focusSolution+object; Object → uno-sim-rig-graph (C graphs
+optgroup) → URL `?graph=uno-sim-rig-graph` only, staged again. No AdditionTester anywhere. Headless driver `scratchpad/cdp.js`
+reproduces the same without the extension.
 
 ### His ruling 2026-10-10: the C-atom's CODE INTERFACE and C-ISOTOPES (arc ucd-iso)
 His words: "in the CFunctionAtom details page, we will want to be able to see a code-interface that shows it as though it is actual c-code,
