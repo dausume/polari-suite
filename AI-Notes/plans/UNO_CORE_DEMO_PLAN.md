@@ -623,6 +623,20 @@ removed; refresh preserves the current selection); a Scope control in the C grou
 chips (click-toggle), `GET /api/cmod/graphs/{graph}?node=` → `purposes` + `scope`; a staged layout (columns by stage, topological within);
 the c-canvas page default graph = `uno-button-clock-graph` (the firmware in use).
 
+**✅ ucd-hdr2 BUILT 2026-10-10 (angular 08a4184, framework 9a65588).** A second cause found by tracing: `display-page.ts` reads its OWN
+`?object=` to decide whether to reload the whole display, so the canvas's URL write of `object=AdditionTester` remounted the page and the
+stale `focusSolution` lingered (query-param merge never dropped it). `resolveInitialSelection()` — THE rule: (a) explicit URL focusSolution/
+solution → origin 'url', wins outright; (b) URL graph (+node) → 'url'; (c) the page item's graph/solution inputs → 'page'; (d) none →
+the service default, never reflected in the URL. `syncUrlToSelectedSolution` runs only for origin 'selector' | 'url'
+(`shouldSyncUrlForOrigin`); a header/page open calls `clearStaleFocusParams()` (replaceUrl); `initializeFromBackend({keepSelection,
+preferred})` re-asserts the current selection on a STOMP refresh or targets the URL's name directly. Scope: `cScopeSubset` task | purpose
+(default with ?node=) | graph; Purpose chips (click-toggle); `GET /api/cmod/graphs/{graph}` → `purposes:[{name,title,task_names}]`
+(this graph's own c-device node instances only) and `?node=` → `scope:{node,purposes,task_names,neighbours,how}`; `scope=`/`purpose=` in
+the URL. Layout: real stage values are only init | loop | called | '' (glue-generated kinds carry none) → `C_STAGE_COLUMN_ORDER` init →
+loop → called → '' at 220px pitch, Kahn topological rows at 130px; other lanes shift right. The CGraph picker also folds its pick into
+the URL. Specs in `custom-no-code-ucd-hdr2.spec.ts`. cmod 527/527 (+3 live-door checks), hwnocode 117/117. Edge left: a `?focusSolution=`
+naming a solution that does not exist can sync the default once (self-corrects on the next pick).
+
 ### His ruling 2026-10-10: the C-atom's CODE INTERFACE and C-ISOTOPES (arc ucd-iso)
 His words: "in the CFunctionAtom details page, we will want to be able to see a code-interface that shows it as though it is actual c-code,
 with the variables that come from board and pin specifications and other data-sheets laid out in the code clearly with comment that should
