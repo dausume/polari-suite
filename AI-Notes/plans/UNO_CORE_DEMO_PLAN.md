@@ -654,6 +654,20 @@ led_init, button, sense, apply, rx_pop … have none. → `composed_by.advice` o
 one"), `scope.advice` + `purpose_coverage` on the graph door, an amber mark in the panel's Composed-by cell and a count in the canvas
 header summary. Seeding the missing Purposes (which tasks group how) is his call.
 
+**✅ ucd-hdr3 BUILT 2026-10-10 (angular f02b019, framework 09d9389).** Origins and what each writes to the URL: `selector` (a backend
+pick → focusSolution + object; a C graph picked in Object → graph=<g>, node cleared, focusSolution/solution/object cleared); `url`
+(an explicit focusSolution/solution/createSolution → re-asserted for a REAL name only); `graph` (NEW: a URL graph/node open → writes
+nothing, clears stale focusSolution/solution/object, keeps graph/node/scope/purpose); `page` (an @Input open → writes nothing, clears
+stale); `default` → nothing. `syncUrlToSelectedSolution` returns early for any hidden `cmod.c-canvas.*` name whatever the origin. THE
+GRAPH IS THE OBJECT: the Object select = backend objects + <optgroup "C graphs"> (a deep-linked graph not yet listed is still shown and
+selected); in graph mode the Solution select has the one option "atoms of <graph>"; `updateObjectAndSolutionLists` never falls back to
+the first object in graph mode; the service's selectedObjectName$ (`cmod`) and the bound-class code no longer overwrite the Object
+value; `loadCGraphs()` runs on every init path; the old picker + CSS removed. Advice: `composed_by.advice` = "no Purpose names this
+task — add it to one" (else ''); graph door `purpose_coverage {named, unnamed[]}` and `scope.advice {node: string}`; amber "no Purpose"
+mark in the panel's Composed-by cell; " · N atoms without a Purpose" on the canvas summary (counts every CGraphNode incl. glue kinds —
+may overcount). cmod 530/530 (+3). Specs: origin table, hidden-name helpers, composeObjectOptions, solutionOptionsFor. Not browser-
+verified by the agent — verification in his Chrome follows the roll.
+
 ### His ruling 2026-10-10: the C-atom's CODE INTERFACE and C-ISOTOPES (arc ucd-iso)
 His words: "in the CFunctionAtom details page, we will want to be able to see a code-interface that shows it as though it is actual c-code,
 with the variables that come from board and pin specifications and other data-sheets laid out in the code clearly with comment that should
