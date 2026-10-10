@@ -583,6 +583,18 @@ claims (A0 alt ADC0, D6 alt OC0A, D13 out, D0/D1 alt RXD/TXD) and the two DDR se
 (D6: DDRD.DDD6 = 1, 35 hops) and an unclaimed one (D3: claim null, 45 hops); the page's export verify now runs on the isle-core
 worker (cmake listed) → **parity identical on the page** (1bb5c09e…). Pending his browser review and his merge word.
 
+### His ruling 2026-10-10 (2): ONE canvas header — the C-graph controls belong in it, shown per runtime (ucd-hdr)
+His words (on the c-canvas page's screenshot): "the c-graph and render build prove, as well as runtimes (lanes) were built out as
+basically duplicates of the logic in the header. You can see that we already have a header dedicated to controlling runtime and other
+operations, it should have been incorporating into that, with the runtime automatically switching to C for the solution based on it's
+object and solution mapping to what type of runtime it is. The pieces of the menu could be adjusted based on what sort of commands a
+particular runtime needs, with pieces hiding and displaying dynamically based on runtime." → RULE: the no-code canvas has ONE header
+(Object · Solution · refresh · + New · Runtime · zoom · Recenter · run · settings); the Runtime is DERIVED from the selected Object/
+Solution's runtime mapping (a CGraph / c-device solution → "C (device)", never left at "TypeScript (Browser)"); the header's COMMAND GROUP
+is per runtime — for C: the graph picker, Render · Build · Prove, the render summary line (graph sha · files sha · unchanged · cost) and
+the lanes chips; for TypeScript/Python their own; pieces hide and show with the runtime. The separate bar above the canvas goes away;
+its logic moves INTO the header (one component, inputs from the page definition). Slice ucd-hdr, after iso-1 (same canvas files).
+
 ### His ruling 2026-10-10: the C-atom's CODE INTERFACE and C-ISOTOPES (arc ucd-iso)
 His words: "in the CFunctionAtom details page, we will want to be able to see a code-interface that shows it as though it is actual c-code,
 with the variables that come from board and pin specifications and other data-sheets laid out in the code clearly with comment that should
