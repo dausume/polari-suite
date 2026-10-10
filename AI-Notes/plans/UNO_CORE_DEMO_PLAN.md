@@ -595,6 +595,19 @@ is per runtime — for C: the graph picker, Render · Build · Prove, the render
 the lanes chips; for TypeScript/Python their own; pieces hide and show with the runtime. The separate bar above the canvas goes away;
 its logic moves INTO the header (one component, inputs from the page definition). Slice ucd-hdr, after iso-1 (same canvas files).
 
+**✅ ucd-hdr BUILT 2026-10-10 (angular d25d3ba, framework 91094c0).** `c-graph-canvas-panel.component.ts` DELETED (and its registry entry);
+its state/doors moved verbatim into `custom-no-code.ts` (`@Input() graph | solution | node`). The header's command group is ONE declarative
+table, `RUNTIME_COMMAND_GROUPS` (c-device → cCommands: true; c-twin / java-bridge / javafx-native / python-backend / typescript-browser →
+false); the template shows the C group (CGraph picker · Render · Build · Prove; summary line + lanes/crossings row under the toolbar) only
+for c-device. Runtime DERIVED by `deriveRuntimeForSolution(graph, solutionData, states)`: (1) a page-placed CGraph input → c-device
+(cmod RULE 2 — never from a name); (2) every loaded state's own `runtime` agreeing → that; (3) the solution's `targetRuntime` through
+`LEGACY_TARGET_TO_RUNTIME`; else the current default stays and "(default)" shows beside the select. A hand pick is honoured until the
+solution name actually changes. `solution` mode (the hardware-solutions page: open the REAL seeded drawing by name, `selectSolution(name,
+false)`, lanes applied, never persisted as the cross-page "last selected") ported as `dispatchHeaderSolution()`; in solution mode rule (1)
+is gated off. Pages: `cmod_page._canvas()` and `hwnocode_page._canvas_solution()` now place `componentName: 'custom-no-code'` with the
+same inputs; cmod_selftest / selftest_uno / hwnocode_selftest page checks updated. Specs in `runtime-options.spec.ts` (command group,
+derived runtime, solution-mode dispatch). Type-check clean; cmod 524/524, hwnocode 117/117.
+
 ### His ruling 2026-10-10: the C-atom's CODE INTERFACE and C-ISOTOPES (arc ucd-iso)
 His words: "in the CFunctionAtom details page, we will want to be able to see a code-interface that shows it as though it is actual c-code,
 with the variables that come from board and pin specifications and other data-sheets laid out in the code clearly with comment that should
@@ -618,6 +631,26 @@ Derived per (atom × HardwareBinding) when the atom has ≥ 1 datasheet-bound re
 no bare-C parent body and carries its minimum_level from the runtime it needs. The atom's object page lists its isotopes; the no-code
 canvas's state right-click menu gets "Open C-atom details". Slices: iso-0 (rows + derivation + the code-interface door + CLI), iso-1 (the
 details page with a `code` column format + the menu entry), iso-2 (minimum levels for the C3/FreeRTOS atoms).
+
+**✅ iso-0 BUILT 2026-10-10 (framework af2ed7a → merged 0aac1f2; cli 60268c2).** `cmod/custom/code_interface.py` (pure render +
+isotope derivation), `objects/cmod/CIsotope.py` ('<atom>@<binding>'; bindings_json soc|board|programming → Datasheet slugs;
+substitutions_json; source = the parent's body with ONLY those substitutions; `minimum_level`; sha; provenance derived|authored),
+`CFunctionAtom.isotopes_refs_json`. Doors: `GET /api/cmod/atoms/{atom}/code[?binding=S@B]` → `{ok, atom, source, lines:[{n,text,comment}],
+identifiers:[{name,kind,datasheet_kind,datasheet,fact,value,why}], bindings:{soc,board,programming}, rendered}` (kind/datasheet are
+structural — no binding needed; `value` resolves only under one) and `/isotopes`; isotopes materialize on the solution GET. CLI `pol cmod
+code <atom> [--binding S@B]` / `pol cmod isotopes <atom>`. 13 isotopes for `uno-button-clock@arduino-uno-r3`: hal_led_init /
+hal_button_init / hal_sense_init = {soc, board} at bare-c; hal_usart_init = {soc, programming} (UBRR0_VALUE → the ATmega328P's own Table
+20-7 entry; USART_U2X/F_CPU → boards.txt). The runtime ladder `LEVEL_ORDER = ('bare-c','freertos','esp-idf','zephyr')` lives in
+code_interface.py (hwnocode's RUNTIME_ROWS name WHERE code runs — a different axis — so the ladder is not read from them; cited);
+`level_ok('freertos','bare-c')` refuses by name. Foundational example: `polari_telemetry_start@esp32c3-freertos` (authored from
+polari_c3.c:138-146, `minimum_level='freertos'`) — the C3 project is NOT parsed by cmod yet (TEMPLATES has only 'uno'; no Makefile), so
+iso-2 = parse it. Named gaps: substitution happens only where the identifier's literal name appears in the function text (macro-indirected
+LED_PIN/BUTTON_PIN/SENSE_PIN are listed + dated, not substituted — in each isotope's `notes`); registers without cited bit-level fields
+(UBRR0H/UCSR0x) get no datasheet. Selftests: `custom/selftest_isotopes.py`; cmod 524/524, board 426/426.
+
+**✅ iso-1 BUILT 2026-10-10 (angular e5bb672).** `shared/code-block` component; class-rows-table formats `code` and `sha`; the CFunctionAtom
+object page gets a "Code interface" section (rendered C + comments, identifier table) and its isotopes; a CIsotope section; the canvas
+state menu's "Open C-atom details".
 
 ### ✅ engine fix 2026-10-09 (framework 428e6e2): ButtonClockDerived's fields on the push path
 Root cause: `button-clock-ledger`'s `derive` AnalysisCall stored its whole result dict under one context key while the commit (and the
