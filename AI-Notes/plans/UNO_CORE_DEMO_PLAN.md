@@ -1165,6 +1165,34 @@ to track the things we are not using from the board or chip data-sheet that is a
 the answer to that question in a person's words; tracking what the board/chip datasheet offers that this firmware does NOT use
 (peripherals, pins, registers, atoms kept for parity) is a legitimate Purpose, named for what it tracks, not an apology bucket.
 
+### ✅ ucd-light + ucd-hdr4 + the Hardware App home BUILT 2026-10-11 (framework 8a37a7c · angular 0a9dfa0 · suite c0829c1; two
+sonnet agents + me, merged to dev, his go "Go ahead")
+**ucd-light (framework `dev-ucd-light` 454def0):** `apps/light.c` + `light_defs.h`, variant `uno-light`; wire class `LightState`
+(led_on doubles as SET_LED, toggles, source command|button, seq, boot_session; pinned contract v1); graph `uno-light-graph` (16 nodes:
+the 7 asked atoms + tick_init/boot_session_mint/clock/usart_send/led/toggle_pending + class/parser/tick — the agent kept the EEPROM boot
+session so boot_session differs per reset; no D13 mirror); FirmwareSolution `uno-light` + binding `uno-light@arduino-uno-r3`; Purposes
+`light-from-polari` + `light-from-button` with acceptance Scenarios → BOTH **proven on the simavr twin here** (3 presses flip the light,
+toggles == presses, source=button; SET_LED 1/0 followed, source=command; glue ≡ hand-written light.c over 10 frames); cross-domain
+`uno-light` (Firmware Run → Bridge → Relay in → Relay out, no backend compute) + bridge seed; the on-screen button = backend solution
+`light-toggle` (5 states: entry → is-on? → turn-on/turn-off → commit — the engine has no 1-state flip and cannot read the row, so a run
+takes led_on as input; a bare run turns the light ON) proven to the gRPC Commands boundary via a new hook in
+`polariApiServer/solutionExecutionAPI.py` (an engine commit now reaches the command-down leg like a CRUDE PUT; no-op without a gRPC
+server) — NOT yet proven to a live twin end to end. Every atom of all three graphs now has a Purpose (sim-rig-serial-link/bring-up,
+button-clock-serial-link/bring-up/light-and-sensing, and ONE "Un-used components on board" on sim-rig for the PWM). Pages:
+/display/uno-core-demo = one LightState table with a row link; readiness shrunk to 6 parts; c-canvas/firmware/firmware-solutions default
+to uno-light; the button-clock page moved to `uno-button-clock-sample`. Selftests: cmod 553, hwnocode 140, board 440, firmwarefaults
+197, uno_core_demo 34, javabridge 44; manifests 8/9 (pspp/testing legacy). NOT done: the readiness bridge row (BridgingCapability never
+run → composition `incomplete`), the bench.
+**ucd-hdr4 (angular 0a9dfa0 via `dev-ucd-hdr4`; framework `cmod_capability_api.py` 0e301d8 + `tests/cmod_hdr4_selftest.py` 13/13):**
+Purpose ▾ / Atom ▾ dropdowns replace Task/Purpose/Graph + chips + the neighbours scope; URL graph/purpose/node; deep link presets
+Purpose (first naming the node) + Atom; red "no Purpose" mark rendered by the atom card's overlay (`no_purpose` state field), the summary
+counts real atoms only; "(no firmware solution)" in a Purpose option; doors `POST /api/capabilities/{p}/tasks {graph,node}` (idempotent,
+404/400/422 by name) + `DELETE …/tasks/{node}`; a dropped C Atom joins the selected Purpose — but a palette drop is a canvas state, not a
+CGraphNode row, so the join 422s until the node exists (= cmod-2's boundary, named). Specs 39/39, ng build ok. Not browser-verified yet.
+**Hardware App home (framework `dev-hw-home` f330521, me):** discipline app `app-hardware` "Hardware & Firmware" in the Apps menu →
+`/app/app-hardware` (the existing per-app home) with four groups — Build firmware · The board · Hardware Apps · Link hardware to Polari —
+18 links, every route an existing page; polariapps selftest 125/125. Plain-words description pass = `dev-plain-words` (agent, running).
+
 ## §5k. The UI pass 2026-10-11 (headless Chrome against the live stack; his ask: "go yourself and ensure the buttons and ui interfaces actually make sense")
 
 Pages read at 1400 and 1900 px: /display/c-canvas, /display/firmware, /display/firmware-solutions, /display/uno-core-demo.
