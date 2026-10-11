@@ -190,41 +190,51 @@ cd -
 pol board twin uno down
 ```
 
-## 5. The real UNO [bench + pol-core]
+## 5. The real UNO — the light test, through the Hardware Bridge App [bench + pol-core] (ucd-3, 2026-10-11)
+
+The firmware is `uno-light`: one light on D6 (220 Ω to GND), the kit pushbutton on D2 (to GND; the input is pulled up). Two
+Purposes must end `proven-on-hardware`: `light-from-polari` (the screen switches the light) and `light-from-button` (the button
+switches it and the screen learns of it). The ONLY flash path is the Hardware Bridge App — never `flash.py`.
 
 ```
-# 5.1 once: serial permission (the flash runs in the image AS YOUR USER with the port mapped in)
+# 5.1 once, with sudo: serial permission + the two debs (avrdude and a JRE come in as dependencies)
 id -nG | grep -q dialout || sudo usermod -aG dialout $USER     # then log out and back in; re-check id -nG
-
-# 5.2 plug the UNO R3 into pol-core (USB-B cable from the kit)
-lsusb | grep -E '2341:0043|2341:0001|1a86:7523'                 # genuine R3 = 2341:0043; a CH340 clone = 1a86:7523
-ls -l /dev/serial/by-id/ /dev/ttyACM* /dev/ttyUSB* 2>/dev/null
-pol board detect                                               # "board present: arduino-uno-r3" (never guessed)
-pol board detect --push --api $POLARI_API                      # the BoardInstance row
+cd ~/Desktop/polari-suite/polari-app-shell/dist
+sudo apt-get install -y ./polari-shell-core_0.1.0_amd64.deb ./polari-app-uno-core-demo_0.1.0_all.deb
 ```
-Browser: page 1 → instances shows the real board.
+(The same two files are on the demo page's Downloads table: https://prf.<pol-core ip>.nip.io/display/uno-core-demo.)
 
 ```
-# 5.3 first flash: the blink variant (nothing wired)
-pol board install uno --variant uno-blink-only                 # DRY-RUN: the docker run … --device /dev/ttyACM0 … avrdude argv
-pol board install uno --variant uno-blink-only --yes           # flash + read-back verify; the on-board L LED blinks
-pol board result
-
-# 5.4 echo: the bridge attaches over the real serial port
-pol board install uno --variant uno-echo --yes                 # frames print; a PUT {temp_c,pwm_duty,led_on} comes back status "echoed"
-pol board result
-
-# 5.5 the sim rig on the kit parts (power off while wiring):
-#   TMP36 flat face toward you: left pin → 5V, middle → A0, right → GND
-#   LED long leg → D6 through 220 Ω, short leg → GND (D13's L LED needs nothing)
-pol board install uno --variant uno-sim-rig --yes
-pol board result                                               # temp_c tracks a thumb on the TMP36; PUT led_on / pwm_duty → D13 lights, D6 dims; next frame status "commanded"
-pol board interface <the instance id printed by detect --push>
+# 5.2 wire, power off: LED long leg → D6 through 220 Ω, short leg → GND; pushbutton: one leg → D2, the other → GND.
+#     Then plug the UNO R3 into pol-core (USB-B). Genuine R3 = 2341:0043; a clone shows 2341:0001 / 2a03:0043.
+lsusb | grep -E '2341:0043|2341:0001|2a03:0043'
 ```
-Browser: page 2 → repeat 5.3 from the panel (pick → build → confirm → install); the record arrives over STOMP.
 
 ```
-# 5.6 faults against silicon — NOT built yet (sc-5): run it and record what it does
+# 5.3 the app — "Uno Core Demo" in the launcher (or: polari-shell --config /usr/share/polari-app-uno-core-demo/polari-shell.json)
+#   1 Open bundle  → "Fetch from Polari" (the newest demo bundle: firmware.hex + the bridge jar + the app definition)
+#   2 Gate         → the hex's sha256 must equal the bundle's manifest; a mismatch REFUSES, anything else is advice
+#   3 Detect board → the UNO by VID:PID (the two CP2102 boards on pol-core are refused by name)
+#   4 Flash        → the dialog prints the exact avrdude argv; confirm; read-back verify is avrdude's own
+#   5 Host bridge  → bridge.properties gets the port; the jar starts as a child; its log tails on screen
+#   6 Light        → "Toggle light" PUTs led_on on the Polari row; the board follows within a frame
+```
+Browser: /display/uno-core-demo — the LightState row: led_on, toggles, source (command | button), seq, boot_session.
+
+```
+# 5.4 prove both directions on the real board — a person's confirmation is the record (ScenarioRun kind attested)
+export POLARI_API=https://api.prf.<pol-core ip>.nip.io
+#   down: press "Toggle light" twice (on, off) — the LED follows, the row shows source=command
+pol capability attest light-from-polari --mode hardware --observed 'LED on D6 followed Toggle light on/off; row source=command'
+#   up:   press the pushbutton twice — the LED flips each time, the row shows toggles +2 and source=button
+pol capability attest light-from-button --mode hardware --observed 'two presses flipped the LED; row toggles +2, source=button'
+pol capability list                                            # both: proven-on-hardware (attested by a person)
+```
+Browser: /display/uno-core-demo-readiness — the two Purposes read proven-on-hardware; the bridge part reads ok while the bridge runs.
+Record every refusal verbatim (the app's sentences, avrdude's output, the bridge log): this is the first time any of it meets silicon.
+
+```
+# 5.5 faults against silicon — NOT built yet (sc-5): run it and record what it does
 pol faults run torn-millis-read --both                         # expected: runs on the twin as before; a silicon replay is the next slice
 ```
 
