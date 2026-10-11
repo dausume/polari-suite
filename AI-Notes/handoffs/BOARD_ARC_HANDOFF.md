@@ -7,7 +7,9 @@ LIGHT TEST in both directions (page button + kit pushbutton → one LED; one `Li
 ledger — those and the TMP36 chain become kit samples); the canvas's Scope buttons become Purpose ▾ / Atom ▾ dropdowns (graph =
 solution, fixed); every atom ≥ 1 Purpose and every Purpose ≥ 1 Firmware Solution, ADVISED not blocked; a Purpose answers "why
 this is in this firmware" (tracking unused board/chip parts is a legit Purpose, "Un-used components on board"). Slices
-ucd-light + ucd-hdr4 are specified there; HIS GO was still owed at the end of the day.
+ucd-light + ucd-hdr4 + the Hardware App home were BUILT, proven on the test node and ROLLED LIVE the same evening (his "Go ahead";
+plan §5i–§5k + the BUILT/ROLLED records; final dev tips: suite b0ffdd8 · rf-node 939d84f · framework c26d876 · angular 0a9dfa0 ·
+cli 97ff322; the live stack now loads `polariapps` → the Apps menu + `/app/app-hardware`). NEXT = the bench (ucd-3) with `uno-light`.
 **Testing route (his rule, `test-builds-over-ssh` memory):** test builds on econ-core via `pol deploy run econ-core --role node`
 (three CLI/script defects fixed that day: piece-wise pull, PRF certs first, bootstrap `checkout -B dev origin/dev`); the test node
 answers at https://prf.192.168.0.66.nip.io; selftests there via `ssh econ-core 'cd ~/polari-suite && pol modules selftest <m>'`

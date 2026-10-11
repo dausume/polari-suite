@@ -1191,7 +1191,20 @@ counts real atoms only; "(no firmware solution)" in a Purpose option; doors `POS
 CGraphNode row, so the join 422s until the node exists (= cmod-2's boundary, named). Specs 39/39, ng build ok. Not browser-verified yet.
 **Hardware App home (framework `dev-hw-home` f330521, me):** discipline app `app-hardware` "Hardware & Firmware" in the Apps menu →
 `/app/app-hardware` (the existing per-app home) with four groups — Build firmware · The board · Hardware Apps · Link hardware to Polari —
-18 links, every route an existing page; polariapps selftest 125/125. Plain-words description pass = `dev-plain-words` (agent, running).
+18 links, every route an existing page; polariapps selftest 125/125. Plain-words description pass = `dev-plain-words` (agent, merged).
+
+**✅ PROVEN ON THE TEST NODE + ROLLED LIVE 2026-10-11 evening (suite b0ffdd8 · rf-node 939d84f · framework c26d876 · angular 0a9dfa0
+· cli 97ff322).** Test node (econ-core, `pol deploy run econ-core --role node`): cmod 515, hwnocode 140, uno_core_demo 34 in-container;
+both light Purposes proven on pol-core's local twin and PUSHED (a rebuild drops pushed runs → re-push after every refresh);
+screenshots of /app/app-hardware, c-canvas, uno-core-demo, firmware, readiness read right after two polish fixes (the readiness table
+reads its door; one placeholder `uno-light` LightState row so the indicator exists before the first report — framework c26d876).
+LIVE on pol-core: `pol topology assign polariapps prf-a` (the live stack never loaded polariapps → the Apps menu answered 404),
+images SHIPPED from econ-core (`docker save | docker load`, 67 s, no rebuild on pol-core), `pol swarm deploy node` + `docker service
+update --force` both services; after the boot: /api/apps/nav 19 apps incl. app-hardware, all light doors 200, both Purposes
+proven-on-twin on the live stack, readiness firmware ok · bridge missing (until a board attaches) · cross_domain ok · two Purposes
+proven · composition incomplete; the served main.js carries the Purpose/Atom header. Polish named, not done: the firmware panel's
+"also in" chips print a Purpose's whole goal sentence (show its title); the on-screen toggle's last hop to a live twin end to end;
+the bridge row (BridgingCapability never-run) → the bench (ucd-3).
 
 ## §5k. The UI pass 2026-10-11 (headless Chrome against the live stack; his ask: "go yourself and ensure the buttons and ui interfaces actually make sense")
 
