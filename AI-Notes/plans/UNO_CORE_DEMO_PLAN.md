@@ -1130,6 +1130,34 @@ samples):**
 - Then ucd-3 on the bench with THIS firmware: the first proven-on-hardware is the light, both ways.
 - Selftest literal counts (hwnocode / firmwarefaults / cmod seeds, the hn-split record) shift — re-render + update after.
 
+## §5j. His correction 2026-10-11 (2): the Scope buttons make no sense — graph = solution (fixed), Purpose by dropdown, Atom from the Purpose (slice ucd-hdr4)
+
+His words: "the purpose, atom, and graph levels have buttons on the solution but it is unclear what they are for or how they are
+meant to be used. I presume they are for traversing between the additional different levels of a solution that firmware have that
+normal software may not, but I cannot make sense of it, maybe it would make more sense for the graph to be the same or equivalent to
+the solution (and so it is fixed) and then the purpose is able to be chosen via dropdown, and the atom is chosen based on what is in
+the purpose? I guess we should enforce that an atom has at least one purpose then although they can have multiple, and a purpose
+must have at least one solution it is tied to."
+
+**What they are today (ucd-hdr2):** FILTERS on which atoms the canvas draws, keyed to a hidden focused atom (`?node=`) that exists
+only after a Composed-by deep link — Task = the node + one-edge neighbours; Purpose = the union of Purposes naming the node, chips
+narrow to one; Graph = everything. On a plain load two of three are disabled with no visible reason. Since hdr3 the Object select
+already IS the graph and the Solution select is the fixed "atoms of <graph>" → the Graph button duplicates the Object select.
+
+**ucd-hdr4:** the C command group = **Purpose ▾** (this graph's Purposes; "All" default; a pick draws only that Purpose's atoms in
+the staged columns) · **Atom ▾** (only the chosen Purpose's atoms; a pick outlines + centres it; details on demand via the existing
+menu) · Render · Build · Prove · summary. The three buttons, the chips and the neighbour view are removed; a Composed-by link lands
+with both dropdowns preset; URL keeps `graph=`, `purpose=`, `node=`.
+
+**Rules (his, ENFORCED — supersedes ruling (3) of 2026-10-10 "advised, never enforced"):** (a) every atom in ≥ 1 Purpose (several
+allowed); (b) every Purpose tied to ≥ 1 Firmware Solution (its graph must carry one). Enforcement at AUTHORING + VALIDATION: the
+graph validator / `pol modules conform` reports an unnamed atom or an unbacked Purpose as FAILING (red, not amber); a new atom
+created on the canvas is created INSIDE the selected Purpose so the Atom dropdown can never show an orphan; glue-generated kinds
+(class/parser/frame/tick/rule) exempt. Build/export stay ADVISED-not-blocked per his 2026-10-09 rule (debugging value) unless he
+says otherwise. Consequence: ucd-light's graph passes by construction (7 atoms, 2 Purposes); the sample graphs `uno-sim-rig-graph`
+and `uno-button-clock-graph` need their leftover atoms grouped into a Purpose each (who groups how = his, or one "bench" Purpose
+per sample as the default).
+
 ## §6. Cost, bloat budget, licences
 
 New code: ~6 C atoms + one wire class (small), one Firmware Solution, one Cross-Domain Solution, one backend solution,
