@@ -1,4 +1,21 @@
-# HANDOFF — 2026-10-07 (read this first; everything below it is history)
+# HANDOFF — 2026-10-11 addendum (read with the 2026-10-07 paragraph below it)
+
+**State 2026-10-11:** the whole ucd arc (0a..0f, 0b2, 0c/0d/0e, 1, 2, scope/frames/attest/doc, iso-0/1, hdr/hdr2/hdr3) is MERGED
+TO DEV (his "go ahead and merge for now"); main NOT promoted. dev tips: suite 89d98af · rf-node e1ef989 · framework 43e7afe ·
+angular 1203912 · cli 97ff322. **His corrections that day (UNO_CORE_DEMO_PLAN §5i–§5k) RE-SCOPE THE DEMO:** the core demo is a
+LIGHT TEST in both directions (page button + kit pushbutton → one LED; one `LightState` struct up; two Purposes; NO clock/sense/
+ledger — those and the TMP36 chain become kit samples); the canvas's Scope buttons become Purpose ▾ / Atom ▾ dropdowns (graph =
+solution, fixed); every atom ≥ 1 Purpose and every Purpose ≥ 1 Firmware Solution, ADVISED not blocked; a Purpose answers "why
+this is in this firmware" (tracking unused board/chip parts is a legit Purpose, "Un-used components on board"). Slices
+ucd-light + ucd-hdr4 are specified there; HIS GO was still owed at the end of the day.
+**Testing route (his rule, `test-builds-over-ssh` memory):** test builds on econ-core via `pol deploy run econ-core --role node`
+(three CLI/script defects fixed that day: piece-wise pull, PRF certs first, bootstrap `checkout -B dev origin/dev`); the test node
+answers at https://prf.192.168.0.66.nip.io; selftests there via `ssh econ-core 'cd ~/polari-suite && pol modules selftest <m>'`
+(cmod skips by name without a twin rung). isle-core keeps the engine workers (swarm ingress holds its 80/443). The Chrome
+extension did not attach — the UI pass was done with headless Chrome screenshots (§5k: five canvas defects fixed, the rest named,
+incl. page descriptions written for the model, not a person).
+
+# HANDOFF — 2026-10-07 (everything below it is history)
 
 **To the next model, in one paragraph:** the hardware arc is merged to `dev` and running on the home stack across pol-core
 (backend, frontend, the digital twin) and isle-core (the four engine workers: board/formal/esp/pcb). Nothing has yet touched real
