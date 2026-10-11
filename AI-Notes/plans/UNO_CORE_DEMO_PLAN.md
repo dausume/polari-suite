@@ -1088,6 +1088,48 @@ of TX + RX; the per-pin claims are right (D0 RXD, D1 TXD). Fix = name whole-node
 **Status:** AUDIT ONLY. ucd-0b2 (the reconciliation slice: items B1–B3, B6 and C) starts on his rulings; it is a day of work with
 one sonnet agent per half (model + tests; UI).
 
+## §5i. His correction 2026-10-11: the core demo is a LIGHT TEST in both directions, nothing more (slice ucd-light)
+
+His words: "our current uno demo deviated from what our plan was, the temperature purpose is aligned with something that we may
+need later, but what we wanted was to test our ability to use a button to turn a light on and off on a board from the computer and
+that is all." Then, on the two readings: "the purpose of all of this functionality is to make a simple light test to make sure we can
+send data in both directions. So what we may want is both a button on a polari app that can turn the light on and off, in addition
+to a physical button on the device that toggles the same functionality and sends back a signal to polari letting it know the state
+changes. This way the struct of the light's state we can track and we test that data and signals are capable of going in both
+directions while have the simplicity of what we are toggling being a light on the hardware side and a UI indicator on the
+software / hardware-app side."
+
+**What drifted (facts from the tree, 2026-10-11):** `uno-button-clock` carries 30 functions — a software clock with SET_TIME and
+drift, a second sense ISR on D3, an event queue, a boot session — plus the backend ledger `button-clock-ledger` (presses/min, the
+sense/press/LED invariant), `ButtonClockEvent`, a derive analysis, a circuit row; the readiness page lists six parts. The TMP36 chain
+(`uno-sim-rig`, `uno-temp-split`, `temp-analysis`, Purpose `temp-sensor-to-os`) predates this arc (the HARDWARE_DEV_PRIORITIES worked
+example) and is still what most pages and defaults grew around. The wanted test already exists as a Purpose — `blink-on-command`
+("the OS turns the board's LED on and off on command", tasks rx_pop · apply · led) — but it lives on the temperature graph and
+relays through the temperature solution's states.
+
+**THE DEMO, re-stated:** one light (D6 via 220 Ω, L mirrors). Two buttons: a button on the Polari page and the kit pushbutton on D2.
+Either toggles the light; every change of the light's state goes up as ONE struct and the page's indicator follows. Proof = data in
+both directions: down (page → bridge → board → light) and up (button → board → bridge → row → indicator). No clock, no sense pin, no
+event ledger, no analysis, no compute anywhere but the three C tasks.
+
+**Slice ucd-light (replaces ucd-0/1/2's content for the demo; nothing is deleted — button-clock and the TMP36 chain become kit
+samples):**
+- Firmware Solution `uno-light` on a new graph `uno-light-graph` (bare C, arduino-uno-r3), atoms reused from the shared hal:
+  usart_init · led_init · button_init (INT0, debounced, the existing `hal_button_init`/`hal_take_toggle_pending`) · rx_pop · apply
+  (SET_LED) · led_toggle · telemetry_send. Wire struct `LightState {led_on, toggles, source: command|button, seq, boot_session}`;
+  one command SET_LED. Twin proof: inject a press → led_on flips → the frame says source=button; SET_LED 1/0 → led_on follows →
+  source=command.
+- Purposes (both ADVISED-coverage complete): `light-from-polari` (down: page → light; = blink-on-command retargeted) and
+  `light-from-button` (up: press → light → row). The firmware's proof status = the weakest of the two, as ruled 2026-10-09.
+- Cross-Domain Solution `uno-light`: Firmware Run → Bridge → Relay in (LightState row) → Relay out (SET_LED). No backend solution.
+- The page `/display/uno-core-demo`: ONE LightState table whose row carries the indicator (led_on) and the button — a configured
+  row action "Toggle light" (class-rows-table's existing `customAction` → the CRUDE PUT of led_on that hn-0 proved reaches the board
+  in 0.15 s on the twin), or an editable boolean cell if the action cannot be configured from the seed; no new component. The
+  readiness table shrinks to firmware · bridge · cross_domain · purposes (×2) · composition. c-canvas / firmware pages default to
+  `uno-light-graph`; the `uno_core_demo` manifest names the new three parts.
+- Then ucd-3 on the bench with THIS firmware: the first proven-on-hardware is the light, both ways.
+- Selftest literal counts (hwnocode / firmwarefaults / cmod seeds, the hn-split record) shift — re-render + update after.
+
 ## §6. Cost, bloat budget, licences
 
 New code: ~6 C atoms + one wire class (small), one Firmware Solution, one Cross-Domain Solution, one backend solution,
