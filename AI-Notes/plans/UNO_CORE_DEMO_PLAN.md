@@ -1206,6 +1206,49 @@ proven · composition incomplete; the served main.js carries the Purpose/Atom he
 "also in" chips print a Purpose's whole goal sentence (show its title); the on-screen toggle's last hop to a live twin end to end;
 the bridge row (BridgingCapability never-run) → the bench (ucd-3).
 
+## §5l. His ask 2026-10-11 evening: everything between now and real hardware, FIRST (slices ucd-app, ucd-demo, ucd-3)
+
+His words: "if there are any steps between now and real hardware we need to do that first. There should be an install deb for the
+hardware app, that we use to interconnect with the firmware, that is made via configuration. We should also have a definitive
+no-code definition for that app. And then how that no-code defined Hardware App Interconnects with the Firmware No-Code. We should
+have a demo section on the hardware home page with shortcuts to the page of the overall page for the Interdisciplinary View of the
+Demo, then we want views and no-code links to each of the pieces, and then we want the core Demo Page to have easy to see downloads
+for the deb for the hardware app and the bin for the firmware to be flashed to it. This way we can easily see everything going on.
+Continue on with ucd-3 as well … I want demo links that give me easy access to see that I can have confidence in this working."
+
+**Reuse map (what exists):** the per-app thin launcher deb by configuration = `pol apps shell <app>` (app row → AppShellDefinition
+scope=app → `build-launcher-deb.sh`: .desktop + icon + polari-shell.json, Depends polari-shell-core); the shared runtime deb =
+`pol shell dist` (gradle + jpackage of `polari-app-shell/desktop`, JavaFX 21 + JCEF); a NATIVE panel precedent inside that shell =
+`pipeline/PipelineSetupWindow` (opened by a config/CLI flag); the generated Java bridge = `grpcbridge.custom.java_bridge` project
+(`mvn package` → `polari-hw-bridge.jar`, run with `bridge.properties`, grpc.target → Polari :3002 — NOT published on the swarm
+today; attach_cli used an HTTP forwarder as the stopgap); firmware exports = `FirmwareExport` rows (forms source-dir /
+install-bundle / solution, `download_url` → `/api/firmware/exports/<name>/download`); the demo = cross-domain `uno-light` + Purposes
++ `/display/uno-core-demo`; the home = `app-hardware` nav data. Hosts: pol-core has JDK 22 + mvn + jpackage (no avrdude, no gradle →
+`./gradlew`); econ-core has JDK 21 + jpackage only.
+
+**The Hardware App, defined in no-code (ucd-app, framework):** SolutionDefinition `uno-light-app`, category `hardware-app`, every state
+on runtime `javafx-native` (the app's own steps, in order): open-bundle → gate (hex sha vs the bundle's manifest + the Polari row;
+advise, never block unless the sha differs) → detect-board (VID:PID of the UNO, the serial port) → flash (avrdude, fixed argv, read-back
+verify, confirm first) → host-bridge (run `polari-hw-bridge.jar` as a child with grpc.target) → sync-state (SET_LED relay + the state
+up). The INTERCONNECT is data: the cross-domain `uno-light`'s Bridge state links to `uno-light-app` (and back), `uno-light-app`'s flash
+state links to FirmwareSolution `uno-light` (+ its graph on the canvas), host-bridge links to the bridge/wire contract. The deb is
+"made via configuration": `pol apps shell uno_core_demo` (the launcher carries polari-shell.json with kind hardware-app, realization
+bridge → the shell opens its Hardware Bridge panel) + the DEMO BUNDLE export (form `demo-bundle`: firmware.hex + polari-install.json
++ INSTALL.md + polari-hw-bridge.jar + bridge.properties + the app definition JSON + README) that the panel opens offline or fetches
+from Polari. `/api/firmware/exports/upload` lets a host that built a deb/jar PUSH the artefact + row (the backend image has no JDK).
+Publish :3002 on the node stack (the bridge's gRPC target) — the HTTP forwarder stays the twin's stopgap.
+
+**The demo section (ucd-demo):** nav group "The light demo" on `app-hardware` (top bar): the whole demo (the cross-domain canvas,
+/display/firmware?solution=uno-light) · the firmware's no-code (/display/c-canvas?graph=uno-light-graph) · the Hardware App's no-code
+(/display/firmware?solution=uno-light-app) · the Polari side, the toggle (/custom-no-code?focusSolution=light-toggle) · the light right
+now (/display/uno-core-demo) · is it ready? (readiness) · downloads (the demo page's Downloads table). The demo page gains a DOWNLOADS
+table: FirmwareExport rows for uno-light — the install bundle (hex), the demo bundle, the Hardware App deb — `download_url` as a link,
+sha, parity, when.
+
+**The bench (ucd-3):** through the app, not flash.py: install polari-shell-core + the launcher deb on pol-core (avrdude comes as a
+dependency), open the demo bundle, plug the UNO, detect, flash, the bridge attaches, the light answers both buttons → the two Purposes
+`proven-on-hardware`. He plugs the board; everything else is prepared.
+
 ## §5k. The UI pass 2026-10-11 (headless Chrome against the live stack; his ask: "go yourself and ensure the buttons and ui interfaces actually make sense")
 
 Pages read at 1400 and 1900 px: /display/c-canvas, /display/firmware, /display/firmware-solutions, /display/uno-core-demo.
