@@ -52,7 +52,10 @@ checkout_dev_if_pushed(){  # DIR — dev when pointer == origin/dev, else note
     want=$(git -C "$dir" rev-parse HEAD 2>/dev/null)
     have=$(git -C "$dir" rev-parse origin/dev 2>/dev/null || echo "")
     if [ -n "$have" ] && [ "$want" = "$have" ]; then
-        git -C "$dir" checkout -q dev 2>/dev/null && ok "$dir on branch dev"
+        # -B: the LOCAL dev branch is (re)pointed at origin/dev. A plain `checkout dev` switched to a stale
+        # local dev when one existed (a checkout that predates the push — econ-core's, 2026-10-11), silently
+        # moving the piece BACK to an old commit after the pointer update above had set it right.
+        git -C "$dir" checkout -q -B dev origin/dev 2>/dev/null && ok "$dir on branch dev"
     else
         warn "$dir stays on the recorded commit (origin/dev is behind or absent — push pending)"
     fi
