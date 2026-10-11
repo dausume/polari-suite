@@ -1159,7 +1159,11 @@ and `uno-button-clock-graph` need their leftover atoms grouped into Purposes. **
 blocked** (a conform finding + the red mark; nothing refuses). **Leftover atoms: "preferably just try and come up with a sensible
 purpose for them"** (e.g. sim-rig: "serial link to the OS" for usart_init/rx_pop/send/frame; "board bring-up" for the init atoms;
 "tick clock" for tick_init/hal_millis), **and only what no sensible Purpose fits goes under one Purpose named "Un-used components on
-board"** (his words) — never a hidden orphan.
+board"** (his words) — never a hidden orphan. **His definition 2026-10-11: a Purpose answers "WHY THIS IS IN THIS FIRMWARE."** "or if
+they are from the chip or whatever, in any case the purpose should describe 'Why this is in this firmware', if the purpose is just
+to track the things we are not using from the board or chip data-sheet that is a legit purpose too." → every Purpose's `goal` is
+the answer to that question in a person's words; tracking what the board/chip datasheet offers that this firmware does NOT use
+(peripherals, pins, registers, atoms kept for parity) is a legitimate Purpose, named for what it tracks, not an apology bucket.
 
 ## §6. Cost, bloat budget, licences
 
