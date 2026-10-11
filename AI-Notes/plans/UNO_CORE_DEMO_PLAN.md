@@ -1165,6 +1165,34 @@ to track the things we are not using from the board or chip data-sheet that is a
 the answer to that question in a person's words; tracking what the board/chip datasheet offers that this firmware does NOT use
 (peripherals, pins, registers, atoms kept for parity) is a legitimate Purpose, named for what it tracks, not an apology bucket.
 
+## §5k. The UI pass 2026-10-11 (headless Chrome against the live stack; his ask: "go yourself and ensure the buttons and ui interfaces actually make sense")
+
+Pages read at 1400 and 1900 px: /display/c-canvas, /display/firmware, /display/firmware-solutions, /display/uno-core-demo.
+
+**Fixed (framework 43e7afe + angular `dev-ui-pass`):**
+1. Every atom of `apps/button_clock.c` on the canvas was a RED card "could not read uno:apps/button_clock.<fn>": the atom's name
+   carries a slash, so `GET /api/cmod/atoms/{atom}` never matched (the hal atoms, `uno:hal.hal_led_init`, did) → two-segment routes
+   for `/atoms`, `/code`, `/isotopes`.
+2. The glue-generated nodes (class · parser · tick …) were red too — "no atom named 'class'": the overlay fetched them as atoms →
+   the node carries `kind`; the overlay renders a glue kind read-only ("State struct (generated)" …), no fetch, no editor.
+3. The canvas header clipped: at 1400 px Render/Build/Prove + Scope were off the right edge (invisible); at 1900 px crammed over
+   the Runtime select → the toolbar wraps.
+4. Atom names truncated ("hal_usart_i…", "apply_com…") in 160-px cards in 220-px columns → 200-px cards.
+5. "Nodes by runtime" under the canvas listed uno-sim-rig-graph's rows beneath a uno-button-clock canvas → filtered to the page's
+   graph.
+
+**Seen, not fixed here (named for the ucd-light / hdr4 build or a pass of their own):**
+- Page and panel DESCRIPTIONS are written for me, not a person: plan file names, "his ruling 2026-10-10", "D-demo-3", "demo-4b",
+  backtick CLI verbs. A novice reads "ucd-hdr his ruling" above the canvas. → one plain-words pass over every hardware page's
+  `_page`/`_table` text (what it is, what to do here, where it leads), rulings and slice names kept in the plans only.
+- /display/firmware and /display/firmware-solutions open on "UNO sim-rig firmware" (the temperature sample), not the demo in use.
+- The pin map is illegible at page scale (the board SVG is ~330 px wide with 9-px labels); the legend "valid / invalid / undetermined /
+  selected" sits far from it. → the One/Two layout presets exist; the default should be the map at a readable size.
+- The "Override" chip beside "14/14 required resources met" says nothing about what it overrides or who; "Confirm by hand" beside a
+  Purpose's status is the attestation door, unnamed as such.
+- /display/uno-core-demo is the clock/ledger demo (status idle, presses/min, a one-point chart) — replaced by the light test (§5i).
+- The canvas's Scope buttons (Task/Purpose/Graph) — §5j, hdr4.
+
 ## §6. Cost, bloat budget, licences
 
 New code: ~6 C atoms + one wire class (small), one Firmware Solution, one Cross-Domain Solution, one backend solution,
