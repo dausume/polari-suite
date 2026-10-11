@@ -1155,8 +1155,11 @@ graph validator / `pol modules conform` reports an unnamed atom or an unbacked P
 created on the canvas is created INSIDE the selected Purpose so the Atom dropdown can never show an orphan; glue-generated kinds
 (class/parser/frame/tick/rule) exempt. Build/export stay ADVISED-not-blocked per his 2026-10-09 rule (debugging value) unless he
 says otherwise. Consequence: ucd-light's graph passes by construction (7 atoms, 2 Purposes); the sample graphs `uno-sim-rig-graph`
-and `uno-button-clock-graph` need their leftover atoms grouped into a Purpose each (who groups how = his, or one "bench" Purpose
-per sample as the default).
+and `uno-button-clock-graph` need their leftover atoms grouped into Purposes. **His ruling 2026-10-11: enforcement = ADVISED, not
+blocked** (a conform finding + the red mark; nothing refuses). **Leftover atoms: "preferably just try and come up with a sensible
+purpose for them"** (e.g. sim-rig: "serial link to the OS" for usart_init/rx_pop/send/frame; "board bring-up" for the init atoms;
+"tick clock" for tick_init/hal_millis), **and only what no sensible Purpose fits goes under one Purpose named "Un-used components on
+board"** (his words) — never a hidden orphan.
 
 ## §6. Cost, bloat budget, licences
 
