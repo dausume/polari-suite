@@ -1,3 +1,17 @@
+# HANDOFF — 2026-10-12 addendum: the Hardware Bridge App exists; the bench is next and is HIS
+
+**State 2026-10-12 ~04:00 (dev = live on pol-core; suite ≥ 9b8ca28 · framework cf1f32e · angular 473b77e · rf-node 477b464 ·
+app-shell f84cc3d · cli 396b1f5):** UNO_CORE_DEMO_PLAN §5l BUILT + ROLLED — the Hardware App `uno-light-app` as no-code (six JavaFX
+steps), the demo bundle + upload door + Downloads table (live: demo-bundle 17 MB, shell-core-deb 52 MB, bridge-app-deb 144 KB — the
+last one made by `pol apps shell uno_core_demo --publish` through the live app store), "The light demo" group first on /app/app-hardware,
+:3002 published, the Hardware Bridge PANEL in polari-app-shell/desktop (open bundle → gate → detect → flash → host bridge → light),
+`pol shell dist --core`. Both light Purposes proven-on-twin live (RE-PUSH after every roll: `POLARI_API=… pol capability prove <p>
+--twin` — a service update drops the runs, DEBT). The live instance's public/api URLs are ROW DATA on prf-a (set by hand 2026-10-12 for
+the app store; DEBT: into the topology file). **NEXT = THE BENCH, HIS: HARDWARE_ARC_TEST_GUIDE §5** (install the two debs from
+`polari-app-shell/dist/` or the demo page's Downloads; dialout; wire D6 + D2; plug the UNO; the app's six steps; attest both Purposes).
+Proposal awaiting his rulings: FIRMWARE_FLOW_STATES_PLAN.md (D-flow-1..6). Test node: econ-core (`pol deploy run econ-core --role
+node`; images ship to pol-core by docker save|load). Chrome extension did not attach all day — headless screenshots did every UI pass.
+
 # HANDOFF — 2026-10-11 addendum (read with the 2026-10-07 paragraph below it)
 
 **State 2026-10-11:** the whole ucd arc (0a..0f, 0b2, 0c/0d/0e, 1, 2, scope/frames/attest/doc, iso-0/1, hdr/hdr2/hdr3) is MERGED
