@@ -39,6 +39,17 @@ five behaviour atoms.
    pinned wire contract (version, hash), which fields are COMMANDS (down) and which are REPORTS (up). Any generic Polari object can be
    promoted to one ("Make this a Struct"): the promotion pins the contract and refuses fields that have no C type (a string, a nested
    object) by name. Generates: the `class` glue (the C struct), the codec, the proto. Today: `LightState`.
+1b. **Make a Struct** (`StructPromotion`) — his addition 2026-10-12: "we likely need a state for converting a polari object into a
+   struct and defining how many of the structs we want to be able to exist in the no-code, since we may have multiple instances of
+   this firmware." A state whose INPUT is any Polari object class and whose OUTPUT is the Struct (1), carrying: which fields go to the
+   board (typed for C) and which stay Polari-only; **how many instances may exist** — one (a single board), N (a fleet of N boards,
+   each its own row), or unbounded (every board that attaches gets a row); **what keys an instance** — the board (the opaque
+   BoardInstance id the bridge sends as `device.id`; the generated bridge already reads `binding.count` + `device.id`, hn-4's fleet
+   index is the same idea); and the row-naming rule (`<struct>#<index>` / `<struct>@<board>`). Generates: the per-instance rows at
+   attach (the bridge's Push keyed by device id), the `binding.count` in bridge.properties, the fleet index baked at install.
+   Refuses by name: a field with no C type; a count the wire header cannot address (the packet's device_id width); a second board
+   attaching when the count is one. Today's `LightState` = one instance keyed by the board `uno-light`; this state makes that an
+   explicit, visible choice.
 2. **HAL object** (`HalObject`), by kind — **Pin** (digital in / out, pull, edge), **Serial link** (UART: baud, frame), **Clock tick**
    (period), **Analog input** (ADC channel, reference), **PWM output** (timer, duty), **Interrupt source** (INT0/INT1/PCINT, edge),
    later **I²C** / **SPI** device. Each carries: the peripheral claim + pin claim it owns, its `init` atom, its `use` atoms (read / write /
@@ -110,6 +121,9 @@ one is given (else it derives as today).
 - **D-flow-2 priority form:** named levels interrupt / fast / normal / background (map to FreeRTOS numbers; bare C = order) · raw numbers → **named levels, numbers shown**.
 - **D-flow-3 task bodies:** atoms stay parsed from C (today) · composed on the canvas (cmod-2) → **parsed now, cmod-2 after flow-2** (the Task card is where cmod-2 lands later).
 - **D-flow-4 the HAL on the canvas:** one collapsed "Board support" node · HAL objects as first-class cards by kind → **first-class by kind** (a Pin and a Serial link are different things a person must set up).
+- **D-flow-6 what keys a Struct instance (his addition):** the board's opaque id (one row per attached board; a swapped board = a new
+  row) · a fleet index baked at install (hn-4; survives a board swap) → **the board id by default, the fleet index when a count N is
+  set** (both are already in the wire header).
 - **D-flow-5 init order:** authored "then" edges only · derived from datasheet dependencies and advised → **authored, with a derived suggestion** ("serial needs the clock first").
 
 ## §7. Ties
