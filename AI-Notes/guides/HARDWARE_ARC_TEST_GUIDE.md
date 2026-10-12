@@ -200,7 +200,7 @@ switches it and the screen learns of it). The ONLY flash path is the Hardware Br
 # 5.1 once, with sudo: serial permission + the two debs (avrdude and a JRE come in as dependencies)
 id -nG | grep -q dialout || sudo usermod -aG dialout $USER     # then log out and back in; re-check id -nG
 cd ~/Desktop/polari-suite/polari-app-shell/dist
-sudo apt-get install -y ./polari-shell-core_0.1.0_amd64.deb ./polari-app-uno-core-demo_0.1.0_all.deb
+sudo apt-get install -y ./polari-shell-core_0.1.0_amd64.deb ./polari-app-uno-core-demo-shell_0.1.0_all.deb   # the launcher made by `pol apps shell uno_core_demo --publish`
 ```
 (The same two files are on the demo page's Downloads table: https://prf.<pol-core ip>.nip.io/display/uno-core-demo.)
 
@@ -211,7 +211,7 @@ lsusb | grep -E '2341:0043|2341:0001|2a03:0043'
 ```
 
 ```
-# 5.3 the app — "Uno Core Demo" in the launcher (or: polari-shell --config /usr/share/polari-app-uno-core-demo/polari-shell.json)
+# 5.3 the app — "Uno Core Demo" in the launcher (or: polari-shell --config /usr/share/polari-app-uno-core-demo-shell/polari-shell.json)
 #   1 Open bundle  → "Fetch from Polari" (the newest demo bundle: firmware.hex + the bridge jar + the app definition)
 #   2 Gate         → the hex's sha256 must equal the bundle's manifest; a mismatch REFUSES, anything else is advice
 #   3 Detect board → the UNO by VID:PID (the two CP2102 boards on pol-core are refused by name)

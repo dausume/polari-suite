@@ -1245,6 +1245,19 @@ now (/display/uno-core-demo) · is it ready? (readiness) · downloads (the demo 
 table: FirmwareExport rows for uno-light — the install bundle (hex), the demo bundle, the Hardware App deb — `download_url` as a link,
 sha, parity, when.
 
+**✅ BUILT + ROLLED LIVE 2026-10-12 ~03:30 (suite 9b8ca28 · framework cf1f32e · angular 473b77e · rf-node 477b464 · app-shell f84cc3d ·
+cli 396b1f5; two sonnet agents + me):** `uno-light-app` (category hardware-app, six javafx-native steps titled on the canvas with their
+purpose sentences, linked both ways), the demo bundle (17 MB, bridge jar built by mvn in 13 s), `POST /api/firmware/exports/upload`
+(bundles + debs), the Downloads table (demo-bundle · shell-core-deb · bridge-app-deb, all live with shas), "The light demo" group
+FIRST on the Hardware home and in the top bar (live — needed the AppsNavSeed gate fix: it was gated on the composition module, so a
+changed seed never reached pol-core's prior row), `uno_core_demo` as a PolariAppDefinition (the launcher by configuration), :3002
+published, the proxy's api host at 200 MB bodies, the Hardware Bridge PANEL (Swing, six steps = the app definition read from the
+bundle; 30 tests) + `pol shell dist --core` → polari-shell-core_0.1.0_amd64.deb (52 MB) + the launcher polari-app-uno-core-demo_0.1.0_all.deb
+(142 KB, Depends polari-shell-core avrdude default-jre-headless), `--publish` on both verbs. Both Purposes proven-on-twin on the live
+stack (re-pushed after every roll — a service update drops the runs: DEBT, persist proof runs outside the container). The
+configuration route (`pol apps shell uno_core_demo`) needed the live instance's URLs declared (InstanceDefinition public_base_url /
+api_base_url; set as row data on prf-a — DEBT: put them in the topology file so a push keeps them). Bench steps = HARDWARE_ARC_TEST_GUIDE §5.
+
 **The bench (ucd-3):** through the app, not flash.py: install polari-shell-core + the launcher deb on pol-core (avrdude comes as a
 dependency), open the demo bundle, plug the UNO, detect, flash, the bridge attaches, the light answers both buttons → the two Purposes
 `proven-on-hardware`. He plugs the board; everything else is prepared.
