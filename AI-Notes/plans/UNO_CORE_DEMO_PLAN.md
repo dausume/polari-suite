@@ -1107,6 +1107,11 @@ example) and is still what most pages and defaults grew around. The wanted test 
 ("the OS turns the board's LED on and off on command", tasks rx_pop · apply · led) — but it lives on the temperature graph and
 relays through the temperature solution's states.
 
+**⚠ CORRECTION 2026-10-15 (his):** the cuts listed below (sense pin D3, clock, event ledger) were an AGENT's reading of his words, not
+his instruction. His rule: "we should be trying to account for everything we can about the boards, chips, and all levels of pins, we
+cannot ignore things and then be missing them later." The D3/INT1 feedback input returns in the generation module's first milestone
+(FIRMWARE_GENERATION_MODULE_PLAN §4/§6). Treat every "his ruling" in older plan text as a claim to verify against his own words.
+
 **THE DEMO, re-stated:** one light (D6 via 220 Ω, L mirrors). Two buttons: a button on the Polari page and the kit pushbutton on D2.
 Either toggles the light; every change of the light's state goes up as ONE struct and the page's indicator follows. Proof = data in
 both directions: down (page → bridge → board → light) and up (button → board → bridge → row → indicator). No clock, no sense pin, no

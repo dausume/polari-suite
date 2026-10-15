@@ -1,7 +1,8 @@
 # Polari Firmware Generation Module — Phase 0 reconciliation (gap analysis + file-level plan)
 
 **Date:** 2026-10-15 · **Status:** Phase 0 deliverable of the proposal he pasted 2026-10-15 ("Polari Firmware Generation Module",
-ATmega328P, C, Python + Jinja2, bidirectional button-and-LED). Nothing built. Decisions D-fgm-1..6 his.
+ATmega328P, C, Python + Jinja2, bidirectional button-and-LED). Nothing built. **ALL D-fgm-1..8 RULED 2026-10-15:** D-fgm-2 and D-fgm-3
+his own (§6); the rest "your recommendations seemed fine" → as recommended. HAL variable families added (§5b).
 Companion plans: FIRMWARE_FLOW_STATES_PLAN (the no-code FACES: Struct, HAL object, Init, Priority, Task) — this plan is the ENGINE
 underneath them; UNO_CORE_DEMO_PLAN §5i–§5l (the light test, the Hardware App, the bench).
 
@@ -52,8 +53,10 @@ Everything else is reuse, renaming, or widening.
 
 ## 4. Where the proposal differs from his standing rulings (flag, his call)
 
-1. **The D3 feedback pin.** §9 re-adds "Feedback input on D3 / PD3 / INT1". His 2026-10-11 ruling cut it: the demo is "a simple light
-   test … and that is all" (§5i). The `uno-light` firmware has no D3. → D-fgm-3.
+1. **The D3 feedback pin — CORRECTED 2026-10-15.** Earlier notes said he cut it on 2026-10-11. He did not: his words were about the demo's
+   purpose ("a simple light test … to make sure we can send data in both directions"); dropping the sense pin was an AGENT inference
+   recorded as his ruling. His rule (2026-10-15): "we should be trying to account for everything we can about the boards, chips, and all
+   levels of pins, we cannot ignore things and then be missing them later." → D3/INT1 feedback is IN the first milestone (§9 as proposed).
 2. **Three Purposes vs two.** Proposal: ButtonControlsLight · PolariObservesHardwareState · PolariCanControlLight. Today:
    `light-from-button` (button → light → Polari) · `light-from-polari` (Polari → light → report) + the planned Initialization Purpose.
    The proposal splits "button controls light" from "Polari observes" — finer, and it makes acceptance test 7 (comm loss must not
@@ -102,8 +105,22 @@ modules and they should have a dedicated directory and structure."
   `{{ … }}` expressions back into tokens. Anything else in `{{ }}` / `{% %}` that the converter does not recognise is REFUSED by name
   (no silent passthrough), so the two forms can never drift. Round-trip property is the selftest: jinja → polari → jinja is identity
   for every seeded template.
-- Every HAL variable must be declared in the CAtom's `hal_contract` (name · kind gpio_input / gpio_output / interrupt_source /
-  register_field / timer_source / transport_endpoint / task_struct_binding / execution_context · description). Inserting an undeclared
+- Every HAL variable must be declared in the CAtom's `hal_contract` (name · family · kind · description). **Families (his rule
+  2026-10-15: "different kinds of HAL variables like drive variables (all electric charging and powering methods) and register variables,
+  and protocol variables"):**
+  - **Drive variables** — everything that charges or powers: digital drive (push-pull, open-drain, sink/source current limit), PWM drive
+    (frequency, duty, resolution), analog/DAC output, supply rail selection (5V / 3V3 / VIN / IOREF), internal pull-up/down, battery and
+    charging methods (charge current, termination, cell chemistry), load characteristics (LED forward voltage + resistor, motor, relay
+    coil). They bind to the board's DrivePotential / SignalPotential facts (kept separate, §2) and the electrical rules (0c), so "can this
+    pin safely drive this load" is checked from the variable, not guessed.
+  - **Register variables** — register, register field, bit position, mask, write behaviour (rw / w1c / strobe), reset value: bound to
+    Register / RegisterField rows with their datasheet citation.
+  - **Protocol variables** — UART (baud, framing, parity, stop bits), I²C (address, speed), SPI (mode, clock, CS), the Polari wire packet
+    (device id, schema version, sequence width), timing (debounce ms, tick period, deadlines).
+  - **Signal variables** — inputs and events: GPIO level, edge, interrupt source and sense, ADC channel and reference.
+  - **Execution variables** — execution context (ISR / task / init), priority, Task Struct bindings.
+  Each family has its own chip colour in the editor and its own section in the "Insert variable" palette; a variable's kind fixes which
+  rows it may resolve to (a register variable can never resolve to a protocol setting). Inserting an undeclared
   name offers "declare it" (kind picker) rather than accepting free text.
 
 **The editor (reuse the LaTeX insertion idiom, no new editing paradigm):** the existing `shared/latex-edit-dialog` already keeps the
@@ -149,20 +166,24 @@ save-through-export to module files.
 
 ## 6. Decisions (his; recommendation first)
 
-- **D-fgm-7 where atom files live.** Under each owning module's `firmware/` (board owns the HAL atoms, the demo module owns its app
+- ✅ (ruled as recommended) **D-fgm-7 where atom files live.** Under each owning module's `firmware/` (board owns the HAL atoms, the demo module owns its app
   atoms) · one central `cmod/firmware/` → **under each owning module**, so a module repo (polari-module-*) carries its own atoms.
-- **D-fgm-8 variable chips.** Styled inline chips in an editable text area · a structured block editor → **chips in text**, matching
+- ✅ (ruled as recommended) **D-fgm-8 variable chips.** Styled inline chips in an editable text area · a structured block editor → **chips in text**, matching
   the LaTeX dialog.
 
-- **D-fgm-1 the word "task".** Proposal: Task = dispatchable unit of CAtoms. Pages today call each atom a "task". → **adopt the
+- ✅ (ruled as recommended) **D-fgm-1 the word "task".** Proposal: Task = dispatchable unit of CAtoms. Pages today call each atom a "task". → **adopt the
   proposal's meaning; atoms are "steps" on pages** (also matches the flow-states plan).
-- **D-fgm-2 where the module lives.** A new `firmware/` tree · inside `cmod` (+ `board`, `grpcbridge`) → **inside the existing
-  modules** (the proposal itself defers to Polari conventions; a second tree would duplicate rows).
-- **D-fgm-3 the D3 feedback pin.** Re-add (stronger proof: the MCU witnesses its own output) · keep cut (your 2026-10-11 ruling) →
-  **keep cut for the first milestone; add as a portability-phase sample**.
-- **D-fgm-4 Purposes for the light test.** Two (today) · the proposal's three (+ Initialization) → **the proposal's three plus
+- **D-fgm-2 where the module lives — RULED 2026-10-15 (his):** "a parent overall hardware tree that contains them, since this is a superset of
+  all of those." → ONE parent **Hardware** tree over board · cmod · hwnocode · grpcbridge · firmwarefaults · pcb · hwmap · hardwareapps ·
+  uno_core_demo (and future electrodevice/hwdigital). Step 1 logical: a `parent: hardware` field in each manifest + the Hardware app home
+  as its front door + one object-tree root; step 2 physical: `modules/hardware/<sub>/` with the firmware layout (§5b) under it — moved
+  module by module, imports kept by alias, each move gated by the module selftests and the byte-identical hex.
+- **D-fgm-3 the D3 feedback pin — RULED 2026-10-15 (his):** account for everything; never drop a pin or level to simplify. → D3/INT1
+  feedback in the first milestone; the hardware model stays exhaustive (every pin, every level, every function) — demos SCOPE what they
+  use, the model never omits.
+- ✅ (ruled as recommended) **D-fgm-4 Purposes for the light test.** Two (today) · the proposal's three (+ Initialization) → **the proposal's three plus
   Initialization** — the split makes "comm loss must not block local control" provable on its own.
-- **D-fgm-5 event delivery for the button.** Latest-value only (today) · reliable events with ack → **reliable events with a bounded
+- ✅ (ruled as recommended) **D-fgm-5 event delivery for the button.** Latest-value only (today) · reliable events with ack → **reliable events with a bounded
   queue and explicit overflow** (acceptance test 6 requires it).
-- **D-fgm-6 hand-written HAL vs templates.** Keep `hal.c` hand-written and template only glue · move HAL isotopes to templates → **move
+- ✅ (ruled as recommended) **D-fgm-6 hand-written HAL vs templates.** Keep `hal.c` hand-written and template only glue · move HAL isotopes to templates → **move
   HAL isotopes to templates in Phase 3** (it is what makes regeneration with another pin real).
