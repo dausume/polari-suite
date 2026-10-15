@@ -140,10 +140,12 @@ generated line → isotope → atom → Task → Purpose.
      failure on the twin). The Task Struct binding must carry "accessed from ISR" and the generator must emit the guard.
    Also: Optiboot occupies the top 512 B of flash (the size check must subtract it), and the UART RX ring overflow is an event to report.
 
-8. **Debounce:** R2 is right that it must not block in the ISR. Today `hal_take_toggle_pending` debounces with a millisecond timestamp
-   compared in the main loop (verify before relying on it); the template version should be "ISR records edge + time; Task validates
-   after N ms via the tick" — no new mechanism.
-
+8. **Debounce — checked in `board/custom/firmware/uno/hal.c`:** today's `ISR(INT0_vect)` does a NON-blocking lockout debounce inside
+   the ISR (compares `g_ms` with the last accepted press under `HAL_INT0_DEBOUNCE_MS`), then only counts and sets `g_toggle_pending`;
+   the main loop consumes the flag under `ATOMIC_BLOCK`. That is short, non-blocking and already honours R2's rule. A lockout debounce
+   accepts the first edge of a bounce burst (good latency, but a single noise spike also counts). The template version keeps this
+   isotope as the bare-C default and adds a second isotope "edge + confirm after N ms on the tick" for noisy switches — a choice the
+   resolver makes from the Purpose's `debounce_ms` and a switch-quality fact on the kit part, not a new mechanism.
 9. **The four-way capability distinction (documented capability / available potential / proposed claim / committed configuration)**
    is right and maps cleanly: PinFunction (documented) → derived availability (computed, not stored) → `PinClaim` with a new
    `state` ∈ proposed | committed → `RegisterSetting` (committed configuration). Availability must stay a COMPUTED view; storing it
