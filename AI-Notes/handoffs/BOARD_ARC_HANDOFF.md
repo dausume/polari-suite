@@ -1,3 +1,11 @@
+# HANDOFF — 2026-10-15 addendum: firmware generation module (fgm) — plan ruled, fgm-0 + fgm-2 started
+
+The arc is now `AI-Notes/plans/FIRMWARE_GENERATION_MODULE_PLAN.md` (R1 reconciliation + D-fgm-1..8 ruled; §5b editor + on-disk layout;
+§7 Revision 2 amendment with his rulings §7.8, remaining conflicts §7.9, the kit §7.10, the go §7.11). Codebase inventory with paths:
+`FIRMWARE_GENERATION_REVIEW_R2.md`. Things only he can do: `AI-Notes/ledgers/OWNER_REMINDERS.md`. Started 2026-10-15: fgm-0 (Jinja2
+identical-hex gate) and fgm-2 (UNO package / USB-interface / electrical / lifecycle / kit data), branches `dev-fgm-0`, `dev-fgm-2`.
+Rule learned this day: "his ruling" in older plan text may be an agent's inference — quote his words (memory: verify-attributed-rulings).
+
 # HANDOFF — 2026-10-12 addendum: the Hardware Bridge App exists; the bench is next and is HIS
 
 **State 2026-10-12 ~04:00 (dev = live on pol-core; suite ≥ 9b8ca28 · framework cf1f32e · angular 473b77e · rf-node 477b464 ·

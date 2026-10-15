@@ -414,3 +414,18 @@ the electrical rule checks; the D6→D3 feedback needs no extra part (a jumper; 
 the board's USB cable. Per-part electrical facts that the box does not print (LED Vf per colour, MOSFET/transistor part numbers) stay
 `undetermined` until the parts' own markings or datasheets are read — a person can read the part numbers off the transistors and the
 H-bridge for us (the attestation path).
+
+### 7.11 Record 2026-10-15: his go, and what starts
+
+His words: "mark those as things to remind me to do and start on the things you can reasonably start on" → then "update plans for record
+first". Reminders written to `AI-Notes/ledgers/OWNER_REMINDERS.md` (part markings, board Detect, bench prerequisites, wiring, D-flow-1..6).
+
+**Starting now (things that need nothing from him), one sonnet agent each, own worktree, own branch off framework `dev` cf1f32e:**
+- **fgm-0** — the Jinja2 identical-hex migration (§7.7 slice 1): branch `dev-fgm-0`. Gate: `uno-light`, `uno-sim-rig`, `uno-button-clock`
+  render to their identical hex; render twice → identical bytes; no behaviour change, no wire-contract change, no D3 (that is fgm-5).
+- **fgm-2** — the UNO hardware data (§7.7 slice 1′): branch `dev-fgm-2`. Package variants (DIP-28 + TQFP-32), USB-interface variants as
+  an independent axis (7.8.1), board component → SoC rows (U1, U2), `ElectricalCharacteristic` per pad class, `PowerBudget` groups,
+  `PinLifecycleConstraint` rows, the kit counts from the box (§7.10) incl. the new rows, electrical rules (f)–(j); every number cited
+  to DS40002061B / the R3 pinout / the box, else `undetermined`. Renders no C.
+**Not starting** (need his input or depend on the above): fgm-T tree move (after fgm-0 + fgm-2 merge), fgm-1 onward, the board-variant
+confirmation (needs the board plugged in), part-marking facts (need his photos), the bench, the flow-state decisions.
