@@ -298,9 +298,10 @@ just becomes a second caller. No predicate is rewritten.
 6. **R2 says "SignalPotential" as a separate entity** — the signal side is already carried by PinFunction + PeripheralSignal; add its
    timing / voltage-domain fields there. DrivePotential becomes `ElectricalCharacteristic` per pad CLASS (not per pin), which is how
    the datasheet states it.
-7. **R2 §12.1's board** — no conflict: the code models the UNO R3 A000066 with the ATmega328P-PU in 28-SPDIP (Figure 1-1, p.12 cites)
-   and the 16U2; that becomes the first `PackageDefinition` (DIP-28). The TQFP-32 variant (ADC6/ADC7) is added as a second package for
-   completeness, unused by milestone 1.
+7. **R2 §12.1's board — PENDING hardware identification (his ruling 7.8.1).** The code models the UNO R3 A000066 (ATmega328P-PU in
+   28-SPDIP, Figure 1-1 p.12 cites; ATmega16U2 USB bridge); the physical board on the bench is NOT confirmed. The model must carry
+   package variants (DIP-28, TQFP-32 with ADC6/ADC7) and USB-interface variants (16U2 2341:0043 / 2341:0001 / 2a03:0043; CH340
+   1a86:7523; others) INDEPENDENTLY, and the app identifies the real board at Detect.
 
 ### 7.7 Updated implementation sequence (each slice its own branch, proven on the econ-core test node, nothing starts before his go)
 
@@ -318,7 +319,47 @@ just becomes a second caller. No predicate is rewritten.
 | 8 | **fgm-7** bench | the Hardware Bridge App flash + attestation | R2 §12.6 items 1–10 on the real UNO |
 | 9 | **fgm-8** portability | second pin assignment; TQFP package; ESP32-C3 | same Tasks/Purposes, different isotopes |
 
-**✅ RULED 2026-10-15 (his: "I will go with your suggestions outside that"):** (a) and (b) as recommended below; the UNO is the R3 the
-code models. Was open: (a) approve 7.4 — Purpose stores lifecycle only; resolution derived; runtime fulfillment + health per
+**✅ RULED 2026-10-15 — see 7.8 for the exact wording (supersedes this line's first draft).** Was open: (a) approve 7.4 — Purpose stores lifecycle only; resolution derived; runtime fulfillment + health per
 board instance; (b) command acknowledgment: the next state frame confirms a latest-value command (SET_LED), explicit ack only for
 events — or ack commands too; (c) the go to start slices 1 and 1′.
+
+### 7.8 His rulings on the three questions (2026-10-15, verbatim intent) and what each changes
+
+1. **Board variant: pending identification.** "Keep the physical Uno variant as a pending hardware-identification question. The model
+   must support package and USB-interface variants independently." → `PackageDefinition` and a new `UsbInterfaceDefinition` (the bridge
+   chip + its VID:PID set + whether DTR resets the MCU + its own firmware/SoC when programmable) are SEPARATE axes on the board; a
+   physical board = one board design × one package × one USB interface. Detect (the app + `pol board detect`) reports which USB
+   interface it saw; the package is confirmed by a person (attestation) when not readable.
+2. **Purpose state.** "I approve storing lifecycle on the Purpose, deriving resolution from actual bindings, and storing runtime
+   fulfillment and health per deployed device. Preserve the declarative fulfillment contract and observation requirements on the
+   Purpose." → `CapabilityDefinition` keeps `criteria_json` (the fulfillment contract) and `observes_json` (observation requirements) as
+   declared fields; `lifecycle` stored; `resolution` derived from `HardwareBinding` validity; `PurposeObservation` (Purpose × deployed
+   BoardInstance): observed fulfillment + health, written by the backend from relayed state.
+3. **Command confirmation.** "use correlated state updates as light-command confirmation for the initial milestone, with explicit
+   acknowledgment for reliable events. Include command identifiers or equivalent correlation so an unrelated state update cannot be
+   mistaken for command completion." → every command carries `command_id` (u16, minted by the sender, monotonic per boot session of the
+   SENDER); the firmware echoes `last_command_id` + `last_command_result` (applied | rejected-invalid | rejected-busy) in the state
+   struct; a command counts as confirmed only by a frame whose `last_command_id` equals it (and whose `boot_session` is the one the
+   command was sent into — a reboot between send and echo means "unknown, resend", never "done"). Reliable events keep explicit ack.
+
+### 7.9 Remaining conflicts to resolve before implementation (none blocks slice 1)
+
+1. **The wire contract changes.** `LightState` v1 (pinned) has no `last_command_id` / `last_command_result` and no event queue fields →
+   **`LightState` v2** (new pinned contract; tag order rule), regenerated codec/proto/Java bridge, the `light-toggle` solution minting
+   `command_id`, the Hardware Bridge panel's Toggle PUT carrying it. Sequenced AFTER fgm-0 (the identical-hex gate must be green on v1
+   first, then v2 is a deliberate, gated change) — it lands in fgm-6.
+2. **The Hardware Bridge panel refuses CH340 clones.** Its Detect step matches only 2341:0043 / 2341:0001 / 2a03:0043
+   (`polari-app-shell/desktop/.../hardware/BoardDetector.java`). With the variant pending, Detect must read the USB-interface variants
+   from the model (7.8.1) instead of a hard-coded list → fgm-2 adds the rows, a small app change follows it.
+3. **Purpose names migrate.** Live proofs exist for `light-from-polari` and `light-from-button`; D-fgm-4 adds the R2 three + Initialization.
+   Resolution: seed the four new Purposes; set the two old ones to `lifecycle = retired` (their runs stay as history — the first real use of
+   the lifecycle field); acceptance Scenarios re-pointed; nothing deleted.
+4. **The "task" word (D-fgm-1)** touches page text, seeds and selftest pins across cmod / hwnocode / uno_core_demo → done in fgm-3 in one
+   sweep with the pins updated, never piecemeal.
+5. **fgm-2 vs the tree move (fgm-T).** Both touch the board module. Order: fgm-0 → fgm-2 merged → fgm-T moves board (with its new rows)
+   under the Hardware tree. fgm-2 starts in parallel with fgm-0 because it adds rows/checks only and renders no C.
+6. **D3 feedback in the light firmware** changes the C → never inside fgm-0 (which must be byte-identical); it lands in fgm-5 as a new
+   isotope, gated by the twin proof, not by the hex.
+
+**Sequence unchanged otherwise (7.7):** slice 1 = fgm-0, the identical-HEX Jinja2 migration; fgm-2 (electrical / package / USB-interface /
+lifecycle data) runs independently alongside it. Nothing starts before his explicit go.

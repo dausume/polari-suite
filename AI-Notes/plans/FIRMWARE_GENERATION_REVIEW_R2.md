@@ -3,7 +3,9 @@
 **Date:** 2026-10-15 · **From:** Claude (codebase) · **To:** the owner, for relay to the ChatGPT architecture review
 **Status:** assessment only; nothing implemented. **MERGED 2026-10-15 into FIRMWARE_GENERATION_MODULE_PLAN.md §7 — that section is
 authoritative; this file stays as the codebase inventory (Part 1). Correction: Part 6 fgm-5 file paths follow D-fgm-2/7 (owning module
-under the parent Hardware tree), not `board/firmware/`; Part 7 Q1 answered by the code (UNO R3 A000066, ATmega328P-PU DIP-28, 16U2).** Supersedes nothing — it reconciles R2 with FIRMWARE_GENERATION_MODULE_PLAN.md
+under the parent Hardware tree), not `board/firmware/`; Part 7 answered by him 2026-10-15 — see the plan §7.8: Q1 the board variant stays PENDING identification (package and USB-interface
+variants modelled independently); Q2 approved (lifecycle stored, resolution derived, runtime fulfillment + health per device, contract and
+observation requirements declared on the Purpose); Q3 approved with command correlation ids (`command_id` echoed as `last_command_id`).** Supersedes nothing — it reconciles R2 with FIRMWARE_GENERATION_MODULE_PLAN.md
 (R1 reconciliation, D-fgm-1..8 ruled 2026-10-15) and FIRMWARE_FLOW_STATES_PLAN.md (the no-code faces).
 Paths below are relative to `polari-rf-node/polari-framework/modules/` unless stated.
 
