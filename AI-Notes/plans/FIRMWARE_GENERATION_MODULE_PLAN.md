@@ -187,3 +187,137 @@ save-through-export to module files.
   queue and explicit overflow** (acceptance test 6 requires it).
 - ✅ (ruled as recommended) **D-fgm-6 hand-written HAL vs templates.** Keep `hal.c` hand-written and template only glue · move HAL isotopes to templates → **move
   HAL isotopes to templates in Phase 3** (it is what makes regeneration with another pin real).
+
+---
+
+## 7. Revision 2 amendment (2026-10-15) — reconciled INTO this plan; every D-fgm ruling preserved
+
+Source: ChatGPT "Polari Firmware Generation Architecture — Revision 2" (relayed by him) + his framing: treat R2 as an amendment, keep
+D-fgm-1..8, reopen nothing without a concrete technical conflict; the hardware model represents ALL documented capabilities at SoC,
+package, board and extension level even though milestone 1 exercises a subset. The codebase inventory with file paths and per-item
+status is `FIRMWARE_GENERATION_REVIEW_R2.md` (Part 1); this section is the reconciled architecture.
+
+### 7.1 Preserved, unchanged
+
+Parent **Hardware** tree over every hardware module (D-fgm-2) · catom/cisotope on-disk layout under each OWNING module (D-fgm-7, §5b) —
+i.e. `modules/hardware/<module>/firmware/catoms/<name>/…` once the tree move lands · the Polari-native editor: bare-name tokens drawn
+as chips, lossless Polari-form ↔ Jinja-form conversion, unknown template expressions refused (§5b, D-fgm-8) · the five HAL-variable
+families drive / register / protocol / signal / execution (§5b) · D3/INT1 feedback in milestone 1 + an exhaustive hardware model
+(D-fgm-3) · "task" = R2's dispatchable unit, atoms are "steps" on pages (D-fgm-1) · three Purposes + Initialization (D-fgm-4) ·
+reliable button events with a bounded queue (D-fgm-5) · HAL routines move into templates (D-fgm-6).
+
+### 7.2 Three kinds of progress (E = existing runtime behaviour · S = schema/model only, runtime incomplete · N = newly proposed)
+
+| area | E | S | N |
+|---|---|---|---|
+| Purpose | goal, tasks, acceptance Scenario, DERIVED proof status, attestation, overrides, weakest-wins summary (`cmod/custom/capabilities.py`) | `CapabilityInstance` (bindings mostly unbound) | lifecycle, typed criteria, observes, participants, per-instance observation |
+| Task / dispatch | derived `ScheduleSlot` lanes | — | `TaskDefinition`, `TaskStructBinding`, `TaskTrigger` |
+| CAtom / CIsotope | parsed atoms with ports/resources/ISR-safety/cost; derived substitution isotopes with `minimum_level` | isotope `bindings_json` (no selection uses it) | atom as contract (`hal_contract`), isotope `template_ref` + `fragments` + `compat`, alternatives |
+| SoC / package / board / extension | SocDefinition, SocPin (28-SPDIP numbers cited), BoardDefinition (UNO R3 A000066), BoardPin, BoardNet, BoardPinNet, Connector(Pin), circuit rows | `SocPin.package_pin` (string), `BoardHardware.components_json` (U1 ATmega328P-PU DIP-28, U2 ATmega16U2), power pins as package facts | `PackageDefinition` + `PackageContact`, `BoardExtension` + `ExtensionContact`, board component rows referencing their own SoC |
+| Pin mux | PinFunction / PeripheralSignal / Peripheral / SignalRoute, `target_compat` ok/no/undetermined used by valid-targets, check_drop, binding validity | — | mux-exclusivity groups as data the resolver searches over |
+| Registers | Register / Field / Setting / FieldSetting, masked RMW + strobe/toggle refusal in `pin_config_gen.py` | — | write-behaviour as a typed field the templates read |
+| Electrical | five circuit rules in `board/custom/electrical_check.py` over `BoardPin.electrical_json` (`max_ma` 20, cited) | `BoardHardware.power_rails_json` (volts) | `ElectricalCharacteristic` (per pad class × condition, limit class, verification), `PowerBudget` (groups) |
+| Lifecycle pins | power/reference pins `assignable:false` with reason (`power_pins.py`) | — | `PinLifecycleConstraint` (pin × phase × policy × cite): RESET←DTR, D0/D1 transport+bootloader, D13 L LED, ICSP, AREF |
+| Claims | exclusive PinClaim/PeripheralClaim with the cooperation rule | — | `mode` shared/time-multiplexed, `state` proposed/committed |
+| Generation | Python glue + verbatim atom extraction; pin_config generated; deterministic hex | — | Jinja2 env/context/filters, multi-fragment assembly, per-line provenance |
+| Build / flash | make in the engines image, size check, CMake export parity | the app's flash step (built, never run on silicon) | bootloader-aware size budget |
+| State / relay | pinned wire contract, Java bridge lifecycle, gRPC both ways, boot_session ≠ seq | — | firmware registry with revisions, `FirmwareEvent`, ack, resync |
+
+### 7.3 Assessment 1 — do the five HAL-variable families cover R2's electrical and mux requirements?
+
+**Yes as families; they need named KINDS and two attached checks.** Nothing in R2 needs a sixth family.
+
+| family | kinds needed for R2 | resolves to |
+|---|---|---|
+| drive | digital_drive (push-pull / open-drain, source/sink limit), pwm_drive, analog_out, supply_rail, pull (up/down, range), load (LED Vf+R, relay coil, motor), charge (current, termination, chemistry) | `ElectricalCharacteristic` (VOH/VOL at IOH/IOL, limits by class), `PowerBudget` membership, the circuit component |
+| signal | digital_in (VIH/VIL), edge_interrupt (source + sense), analog_in (channel), analog_ref (AREF / AVCC / internal), comparator_in, clock_in | `PinFunction` + `PeripheralSignal` + input characteristics |
+| register | register, field, bit, mask, write_behaviour (rw / w1c / strobe / toggle), reset value | `Register` / `RegisterField` (+ citation) |
+| protocol | uart, i2c, spi, wire_packet (device id, schema version, sequence width), timing (debounce, tick, deadline) | `Peripheral` instance + transport / contract rows |
+| execution | context (init / isr / task), priority, struct_binding, isr_shared | `TaskDefinition` / `TaskStructBinding` |
+
+**Pin multiplexing is not a variable family and should not become one.** An atom author declares WHAT it needs (signal:edge_interrupt,
+protocol:uart); the mux choice — which PinFunction on which SocPin — is the resolver's OUTPUT, recorded as the claim and as the
+binding's target. Making it a variable would let a template choose a pin (R2 §2.6 / §5 template rule 4 forbid that).
+
+**Two checks attach to every binding that resolves to a pin:** the electrical check (drive and signal kinds evaluate their
+`ElectricalCharacteristic` + `PowerBudget` + the connected circuit; absolute-maximum values are never accepted as a target; a missing
+number yields `undetermined`, never unlimited) and the lifecycle check (`PinLifecycleConstraint` for every phase the firmware passes
+through). The editor shows both verdicts on the variable's chip.
+
+### 7.4 Assessment 2 — do R2's Purpose states and fulfillment contracts fit the existing Purpose?
+
+**Naturally, with one correction.** The existing rule is that Purpose status is DERIVED from evidence and never hand-set; R2's four
+stored dimensions would break that rule twice:
+- **lifecycle** (draft / enabled / suspended / retired) — a person's intent → STORED field on `CapabilityDefinition`. No conflict.
+- **resolution** (unresolved / resolving / resolved / blocked) — already answerable: a valid `HardwareBinding` exists for the Purpose's
+  tasks or it does not (`cmod/custom/binding.py`). → DERIVED on read, like `status`. "Resolving" is a job's state, not a Purpose's.
+- **fulfillment** splits into design-time proof (exists: `status` from ScenarioRuns, attestation) and runtime fulfillment of a
+  DEPLOYED firmware, which is per board instance (two UNOs running one Purpose can disagree) → `PurposeObservation` rows keyed
+  (Purpose, BoardInstance), written by the backend from relayed state; the Purpose shows the weakest (existing `purpose_summary` rule).
+- **execution health** — same: per instance's Tasks + bridge, summarised up.
+**Fulfillment contract** = typed `criteria_json` (max_latency_ms, delivery, freshness_ms, debounce_ms, reliability) + the existing
+acceptance Scenario (machine-checkable on the twin) + runtime predicates evaluated in the BACKEND over relayed state, never on the MCU.
+**Observation requirements** (`observes_json`: fields and events with delivery kind) are what drive the relay Task: they become its
+trigger (tick period bounded by the tightest freshness/latency), its coalescing rule (latest-value fields) and its queue (events).
+**Scope**: one `participants_json` relation (SocDefinition / BoardDefinition / host Runtime, with a role) is enough; placement already
+lives in `hwnocode/custom/placement.py` + `Runtime`; communication between participants already IS the Cross-Domain Solution. R2's five
+scope entities are not needed for milestone 1 and not ruled out later.
+**Multi-chip is already real:** the UNO R3 carries two programmable MCUs (U1 ATmega328P, U2 ATmega16U2 running the USB-serial
+firmware). The model gains a board component row → its own SocDefinition; milestone-1 firmware targets U1 only; U2 appears as the
+transport participant and as the cause of the DTR auto-reset.
+
+### 7.5 Assessment 3 — extend the resolver, or replace it?
+
+**Extend.** Today's "resolver" is a set of correct predicates without a search loop:
+| exists (keep as predicates) | role in the new resolver |
+|---|---|
+| `board/custom/target_compat.py: compatible()` | can this pin do this requirement kind (ok / no / undetermined + cite) |
+| `GET …/tasks/<t>/valid-targets` | candidate enumeration for ONE requirement |
+| `check_drop()` (422) | refuse a conflicting choice, named |
+| `cmod/custom/binding.py: validate` | does the board meet every required task requirement |
+| `cmod/custom/claims.py` | turn committed claims into RegisterSettings / FieldSettings / SignalRoutes |
+| `board/custom/electrical_check.py` | circuit findings |
+| `code_interface.isotopes_for_atom` | derive substitution isotopes |
+New layer only: `cmod/custom/resolver/` — enumerate isotopes by `compat`, collect all requirements of all Tasks, order them most-constrained
+first, propose claims, run the existing predicates + the new electrical/lifecycle checks, backtrack on conflict, prefer the least
+specialised resource, commit. The person-driven path (drag a task onto a pin) keeps working through the same predicates; the resolver
+just becomes a second caller. No predicate is rewritten.
+
+### 7.6 Contradictions found (and how each resolves)
+
+1. **R2 stores four Purpose state dimensions** vs the existing derived-status rule → 7.4 (store lifecycle only).
+2. **R2 orders phases 0A–0C (Purpose, connectivity, electrical) before Jinja2** vs this plan's first slice (Jinja2 identical-hex gate).
+   Technical reason to keep the gate first: it guards the D-fgm-2 tree move and every later template change; it touches no hardware
+   rows, so it runs in PARALLEL with the electrical work rather than delaying it.
+3. **R2 PinLifecycleConstraint carries its own `override_policy`** vs the existing `DerivedOverride` (who/when/why) → overrides go
+   through `DerivedOverride`; never past an electrical safety refusal.
+4. **R2's `PurposeScope` / `PurposeParticipant` / `PurposePlacementConstraint` / `PurposeDependency` / `PurposeCommunicationRequirement`**
+   overlap placement and the Cross-Domain Solution → one `participants_json` + `depends_on` now (7.4).
+5. **My own R2 review (Part 6, fgm-5) placed catoms under `board/firmware/catoms`** — contradicts D-fgm-2/7 → corrected: under the
+   owning module inside the parent Hardware tree.
+6. **R2 says "SignalPotential" as a separate entity** — the signal side is already carried by PinFunction + PeripheralSignal; add its
+   timing / voltage-domain fields there. DrivePotential becomes `ElectricalCharacteristic` per pad CLASS (not per pin), which is how
+   the datasheet states it.
+7. **R2 §12.1's board** — no conflict: the code models the UNO R3 A000066 with the ATmega328P-PU in 28-SPDIP (Figure 1-1, p.12 cites)
+   and the 16U2; that becomes the first `PackageDefinition` (DIP-28). The TQFP-32 variant (ADC6/ADC7) is added as a second package for
+   completeness, unused by milestone 1.
+
+### 7.7 Updated implementation sequence (each slice its own branch, proven on the econ-core test node, nothing starts before his go)
+
+| # | slice | builds | acceptance |
+|---|---|---|---|
+| 1 | **fgm-0** Jinja2 gate | `cmod/custom/generator/` (StrictUndefined env, typed context, identifier/literal filters) + today's glue and pin_config as templates | `uno-light`, `uno-sim-rig`, `uno-button-clock` render to their identical hex; render twice → same bytes |
+| 1′ (parallel) | **fgm-2** UNO hardware truth | `PackageDefinition`/`PackageContact` (DIP-28 + TQFP-32), board component → SoC rows (U1, U2), `ElectricalCharacteristic`, `PowerBudget`, `PinLifecycleConstraint` — every number page-cited from DS40002061B / the R3 pinout or `undetermined`; `electrical_check.py` rules (f) VOH under load (g) group budgets (h) input thresholds incl. D6→D3 (i) abs-max never a target (j) lifecycle conflicts | deliberate invalid configs refused by name: LED without resistor; GPIO on D0 while USB-serial is the transport; SPI on D13 without the L-LED load; the novice chain shows package and lifecycle hops |
+| 2 | **fgm-T** the parent Hardware tree | `parent: hardware` in each hardware manifest, one object-tree root, the Hardware home as front door; then `modules/hardware/<sub>/` moves one module at a time (imports aliased) | every module selftest + the fgm-0 hex gate green after each move |
+| 3 | **fgm-1** Purpose widening | `CapabilityDefinition`: `lifecycle`, `criteria_json`, `observes_json`, `participants_json`, `depends_on`; derived `resolution`; Initialization Purpose; the R2 three Purposes | existing proofs unchanged; resolution never stored |
+| 4 | **fgm-3** Tasks | `TaskDefinition`, `TaskStructBinding` (incl. `isr_shared`), `TaskTrigger`; derived ScheduleSlot as the agreement check | the four Tasks of the light test; agreement check passes |
+| 5 | **fgm-4** typed HAL + resolver search | `hal_contract` (five families × kinds, 7.3) on atoms; `HalBinding`; `cmod/custom/resolver/` over the existing predicates; claim `mode`/`state` | light test resolved from scratch; D7 instead of D6 → valid; conflicts backtrack; each binding shows electrical + lifecycle verdicts |
+| 6 | **fgm-5** templates for real | multi-fragment isotopes; HAL routines as `catoms/<name>/template.c.j2` under their owning module; the D3 feedback isotope; ATOMIC_BLOCK emitted for `isr_shared` | unchanged atoms → identical hex; new firmware with D3 compiles and passes on the twin |
+| 6′ | **ed-0..3** the editor | converter + round-trip selftest → three-pane detail pages → insertion dialog → save through export | jinja → polari → jinja identity on every template |
+| 7 | **fgm-6** state registry + relay | `FirmwareEvent`, revisions, bounded queue + overflow report, ack, resync treating reconnect = reboot on the UNO; bridge ack (`grpcbridge/custom/java_bridge_templates.py`); `PurposeObservation` | twin: 20 rapid presses → 20 events or a reported overflow; unplug/replug → consistent state |
+| 8 | **fgm-7** bench | the Hardware Bridge App flash + attestation | R2 §12.6 items 1–10 on the real UNO |
+| 9 | **fgm-8** portability | second pin assignment; TQFP package; ESP32-C3 | same Tasks/Purposes, different isotopes |
+
+**Open for his review (genuine):** (a) approve 7.4 — Purpose stores lifecycle only; resolution derived; runtime fulfillment + health per
+board instance; (b) command acknowledgment: the next state frame confirms a latest-value command (SET_LED), explicit ack only for
+events — or ack commands too; (c) the go to start slices 1 and 1′.
