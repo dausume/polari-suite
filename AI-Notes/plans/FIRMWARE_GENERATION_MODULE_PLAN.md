@@ -549,3 +549,23 @@ command-id contract (fgm-6) — the row class, doors and summary land now with n
   flashing); with no bundle open the old 16U2-only default is unchanged; an ESP32's CP2102 is still refused by name. cmod 632, desktop 31.
   The runtime deb (polari-shell-core) must be rebuilt to carry this (`pol shell dist --core`) before the bench.
 Still open from §7.13: a display surface for the new hardware classes.
+
+### 8.6 ✅ fgm-1 BUILT + MERGED 2026-10-15 (framework merge 52e8205, sonnet agent)
+The eleven states as `Purpose*State` classes (category Purpose, statePalette) + `PurposeObservation` (per BoardInstance; writer = the
+backend's service account only, a person's POST → 403); `cmod/custom/purpose_{nocode,derived,text,palette,seeds,doors}.py`; a `purpose`
+category in `hwnocode/custom/cross_domain.validate` (refuses compute + runtime kinds by name). Doors: `GET/PUT /api/capabilities/{p}/solution`
+(PUT writes back to the row; refuses derived-state edits, unknown lifecycle/dependency/participant, and task-list changes — those go through
+the existing …/tasks doors), `GET …/resolution` (derived: resolved / unresolved / blocked + the binding's reason), `GET/POST …/observations`,
+`GET /api/purposes` (the Purposes table with derived resolution + observed + a drawing link). Seeds: `initialization`,
+`ensure-button-controls-light`, `ensure-polari-observes-hardware-state` (its own new acceptance Scenario reusing the button frames),
+`ensure-polari-can-control-light`; `light-from-polari` / `light-from-button` lifecycle **retired** (kept with their runs); scenarios
+re-pointed — runs recorded under those scenario names before the re-point COUNT for the new Purposes (same steps; said in the scenario
+notes). Numbers cited from the variant's own knobs (debounce 30 ms, 10 Hz report → 100 ms bound). Coverage 16/16 atoms named by a live
+Purpose. Retired Purposes no longer decide a firmware's proof status. Merged-tree selftests: cmod 698, board 498, hwnocode 163, polariapps
+126, uno_core_demo 34, firmwarefaults 197.
+**Gaps (next, fgm-1b — Angular):** a Purpose drawing on the canvas must LOAD through `GET …/solution` (so the three derived cards show live
+values — today the stored drawing row reads "(worked out when asked)") and SAVE through `PUT …/solution`, never through the canvas's generic
+CRUDE auto-save (which would store derived values on the drawing row). Also: initialization has no acceptance (no step kind reads
+boot_session — add one in fgm-6 with the boot frame); command_id correlation is declared on the Purpose but not on the wire until fgm-6;
+no DerivedOverride path for a person disputing an observation; a reseed overwrites goal/lifecycle edits made through the door (the existing
+converge behaviour for goal — decide whether lifecycle should be `keep` in the converge list: recommend yes, it is a person's intent).
