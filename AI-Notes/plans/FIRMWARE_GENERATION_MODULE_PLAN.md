@@ -463,3 +463,78 @@ table shows the new classes yet (plain-words display surface owed — on the cha
 Hardware Bridge app's Detect still hard-codes the genuine VID:PIDs — read `UsbInterfaceDefinition` rows instead (§7.9 item 2); (4) the new
 rules are not yet called by a resolver (fgm-4).
 **Next per §7.7:** fgm-T (the parent Hardware tree move), then fgm-1 (Purpose widening).
+
+## 8. Purpose no-code (fgm-1, expanded) — the states, the code, what it looks like (his ask 2026-10-15)
+
+His words: "please do work on fleshing out what states are needed and the code for it and what it should look like for purpose no-code."
+Rulings it must honour: lifecycle STORED on the Purpose; resolution DERIVED from actual bindings; runtime fulfillment + health PER
+DEPLOYED DEVICE; the declarative fulfillment contract and observation requirements live ON the Purpose (§7.8.2); a Purpose answers
+"why this is in this firmware"; every task ≥ 1 Purpose and every Purpose ≥ 1 Firmware Solution, ADVISED never blocked; commands are
+confirmed by correlated state (§7.8.3).
+
+### 8.1 The principle
+A Purpose is drawn as ONE no-code solution of category **`purpose`** — a declarative description, never executed by the engine (the
+category validator refuses every compute and runtime kind, the same posture as `cross-domain` / `hardware-app`). The
+`CapabilityDefinition` row stays the single source of truth; the drawing is rendered FROM the row, and edits on the canvas write BACK to
+the row's fields through one door (never a second copy that can drift).
+
+### 8.2 The states (node kinds), left → right as a person reads a Purpose
+
+| # | state (kind · class) | carries | row field it reads/writes | derived or authored |
+|---|---|---|---|---|
+| 1 | **Purpose** `purpose-goal` · `PurposeGoalState` | name, the goal sentence ("why this is in this firmware"), lifecycle (draft / enabled / suspended / retired) | `goal`, `title`, `lifecycle` | authored |
+| 2 | **Depends on** `purpose-depends` · `PurposeDependsState` | the Purpose that must hold first (every firmware Purpose depends on Initialization) | `depends_on` | authored |
+| 3 | **Participant** `purpose-participant` · `PurposeParticipantState` (one per participant) | what takes part and in what role: the board (+ its pending package / USB-interface variant), the MCU, the host + Polari | `participants_json` | authored; refs validated against rows |
+| 4 | **When** `purpose-trigger` · `PurposeTriggerState` | what starts it: a hardware event (button press on an interrupt source), a command from Polari (a Struct command field), a period, boot | `criteria_json.trigger` | authored |
+| 5 | **Then** `purpose-outcome` · `PurposeOutcomeState` | the expected observable result: a Struct field transition (LightState.led_on flips), a physical output (D6 high) | `criteria_json.outcome` | authored |
+| 6 | **Within** `purpose-criterion` · `PurposeCriterionState` (one per criterion) | a measurable bound: max_latency_ms, debounce_ms, freshness_ms, delivery (latest / event-reliable / event-best-effort), reliability, electrical_safety | `criteria_json.criteria[]` | authored |
+| 7 | **Polari must see** `purpose-observes` · `PurposeObservesState` (one per item) | a state field or an event Polari must observe, with its delivery kind; a command's correlation (command_id echoed) | `observes_json` | authored |
+| 8 | **Done by** `purpose-tasks` · `PurposeTasksState` | the Tasks that fulfil it (today: the atom refs `tasks_by_runtime_json`; after fgm-3 the TaskDefinitions), each linking to the firmware canvas | `tasks_by_runtime_json` | authored (membership doors exist) |
+| 9 | **Proved by** `purpose-proof` · `PurposeProofState` | the acceptance Scenario + its DERIVED status (planned / proven-on-twin / proven-on-hardware / failing) + last proof | `acceptance_scenario`, `status`, `last_proof` | scenario authored; status derived, read-only |
+| 10 | **Can it run here?** `purpose-resolution` · `PurposeResolutionState` | DERIVED: resolved (a valid HardwareBinding exists for its tasks) / unresolved (none) / blocked (the binding validator's named reason) | — (never stored) | derived, read-only |
+| 11 | **On each device** `purpose-observed` · `PurposeObservedState` | DERIVED summary of the per-device runtime rows: per BoardInstance fulfillment (unknown / satisfied / at-risk / violated) + health (unknown / healthy / degraded / failed); the weakest shown, each device one click | `PurposeObservation` rows | derived, read-only |
+
+Edges: one kind, **then**, in the fixed reading order 1 → 11 (the drawing is a sentence: *Purpose … depends on … with … when … then …
+within … Polari must see … done by … proved by … can run here … on each device*). Multiple Participants / Criteria / Observes are
+stacked in their column.
+
+### 8.3 The code (what lands, all in `cmod` — Purpose already lives there)
+- `cmod/objects/cmod/CapabilityDefinition.py` — new fields `lifecycle` (default `enabled`), `criteria_json` (`{trigger, outcome,
+  criteria[]}`), `observes_json`, `participants_json`, `depends_on`; `status` unchanged (derived).
+- `cmod/objects/cmod/PurposeObservation.py` — NEW runtime row: `purpose`, `board_instance`, `fulfillment`, `health`, `why`, `observed_at`,
+  `evidence` (the frame / event that decided it). Written by the backend, never by a person (overrides via `DerivedOverride`).
+- `cmod/objects/cmod/Purpose*State.py` — the eleven node-kind classes, each with a `statePalette` (category **Purpose**, plain-words
+  description, `displayFields`, `variables`) so the palette is data-driven like `FirmwareRunState`.
+- `cmod/custom/purpose_nocode.py` — `render(capability_row) → SolutionDefinition dict` (category `purpose`, the eleven-column layout, every
+  state's `displayName` + `purpose` sentence so the canvas card titles itself, links on each state to where it points);
+  `validate(definition)` (only Purpose kinds; refuses compute / runtime kinds by name); `write_back(definition, row)` (canvas edits →
+  row fields; refuses edits to derived states); `resolution(row, manager)` (from `binding.py`); `observed_summary(row, manager)`.
+- `cmod/cmod_capability_api.py` — `GET /api/capabilities/{p}/solution` (the rendered drawing), `PUT /api/capabilities/{p}/solution`
+  (write-back), `GET /api/capabilities/{p}/resolution`, `GET/POST /api/capabilities/{p}/observations` (POST = the backend's writer; 403 for
+  a person).
+- Seeds (`cmod/custom/capabilities.py`): the R2 three — `ensure-button-controls-light`, `ensure-polari-observes-hardware-state`,
+  `ensure-polari-can-control-light` — plus `initialization` for uno-light, each with criteria / observes / participants filled; the old
+  `light-from-polari` / `light-from-button` set to `lifecycle = retired` (their runs kept as history), acceptance Scenarios re-pointed.
+- Pages: the Purpose drawing opens on the existing canvas at `/display/hardware-solutions?solution=purpose-<name>`; the Purposes table
+  (c-canvas page) gains columns lifecycle · resolution · observed and a link to each drawing; the Hardware home's "The light demo" group
+  gains "The Purposes: why each part exists".
+
+### 8.4 What it looks like (the light test, `ensure-polari-can-control-light`)
+```
+[Purpose]          [Depends on]     [Participant]        [When]                 [Then]                    [Within]
+Polari can         Initialization   UNO R3 (board,       a command from         LightState.led_on         max latency 100 ms
+control the light  (board set up)   variant pending)     Polari: SET_LED        equals the command,       delivery: latest-value
+enabled                             ATmega328P (MCU)     with command_id        D6 follows                confirmed by command_id
+                                    host + Polari
+→ [Polari must see]                → [Done by]                     → [Proved by]              → [Can it run here?] → [On each device]
+LightState.led_on (latest)          ReceivePolariCommand (rx_pop,    light-from-polari-         resolved: uno-light   uno-light #1:
+LightState.last_command_id +        apply, led_toggle) +             acceptance · proven-on-    @arduino-uno-r3       unknown (not
+last_command_result                 RelayPolariState (report)        twin (last run …)          valid 11/11           deployed yet)
+```
+Every card is the generic state card (title = displayName, the purpose sentence beneath, since 2026-10-12); the two derived columns
+are grey and read-only; clicking a Task opens the firmware canvas at that atom; clicking a device opens its BoardInstance.
+
+### 8.5 Not in this slice
+TaskDefinition (fgm-3) — "Done by" lists atom refs until then; the runtime writer of PurposeObservation from relayed state needs the
+command-id contract (fgm-6) — the row class, doors and summary land now with no writer except a selftest; a dedicated Purpose overlay
+(the generic card suffices).
