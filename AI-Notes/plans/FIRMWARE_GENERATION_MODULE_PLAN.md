@@ -538,3 +538,14 @@ are grey and read-only; clicking a Task opens the firmware canvas at that atom; 
 TaskDefinition (fgm-3) — "Done by" lists atom refs until then; the runtime writer of PurposeObservation from relayed state needs the
 command-id contract (fgm-6) — the row class, doors and summary land now with no writer except a selftest; a dedicated Purpose overlay
 (the generic card suffices).
+
+### 7.14 ✅ fgm-2 follow-ups closed 2026-10-15 (me, while fgm-1 builds)
+- **Rule (a) honest about an assumed Vf** (framework 28f82f9): the circuit LED row carries `v_forward_basis: assumed`; `led_current`
+  reports `undetermined` with the assumed figure (13.636 mA) and the Vf-free ceiling (22.7 mA) instead of `ok` — now agrees with rule (f).
+  board 498.
+- **Detect reads the modelled USB-interface variants** (framework 9ac6f0f + app-shell 89b3ef2): the demo bundle carries
+  `usb-interfaces.json` (the board design's `UsbInterfaceDefinition` rows: 16U2 verified with its three ids, CH340 unverified); the
+  Hardware Bridge panel's Detect matches those, names the interface it saw, and says when a variant is UNVERIFIED (confirm before
+  flashing); with no bundle open the old 16U2-only default is unchanged; an ESP32's CP2102 is still refused by name. cmod 632, desktop 31.
+  The runtime deb (polari-shell-core) must be rebuilt to carry this (`pol shell dist --core`) before the bench.
+Still open from §7.13: a display surface for the new hardware classes.
