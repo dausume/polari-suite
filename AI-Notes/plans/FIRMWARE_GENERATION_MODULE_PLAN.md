@@ -441,3 +441,25 @@ legacy vs templates vs committed project for uno-light / uno-sim-rig / uno-butto
 1bb5c09e… · d26ddf2e… — note the sim-rig GLUE hex is 1bb5c09e…; 4188f6ae… is its hand-written reference); render twice identical.
 Records gain `templates` (name → sha256) + `template_generator: jinja2 3.1.6`. cmod 575 → 631, hwnocode 163, board 440, uno_core_demo 34;
 manifests 8/9 (the known pspp/testing legacy). Jinja2 3.1.6 already in the backend image; now declared in requirements.txt.
+
+### 7.13 ✅ fgm-2 BUILT + MERGED 2026-10-15 (framework merge 966fd03 on top of fgm-0, sonnet agent)
+
+Seven board classes (48 total): `PackageDefinition` (28-SPDIP, 32-TQFP) + `PackageContact` (60), `UsbInterfaceDefinition` (ATmega16U2
+bridge, CH340), `BoardComponent` (U1 mcu, U2 usb-bridge + a new `atmega16u2` SocDefinition), `ElectricalCharacteristic` (33, per pad
+class × condition), `PinGroupBudget` (7 — renamed from PowerBudget: cntfet already owns that class name), `PinLifecycleConstraint` (23).
+SocPin gains electrical class + package-contact refs; BoardInstance gains `package_variant` / `usb_interface` / `variant_status` (pending).
+Kit: all 25 KitPart rows have box-cited counts (+ `mosfet`, `assembly-base`; variants as `variants_json` on the part). Rules (f)–(j) in
+`board/custom/electrical_hw.py`. Cites read page-exact from DS40002061B (sha b9b9d83c…): Table 30-1 pp.322–323 (VOH 4.2 V min @ −20 mA,
+VOL 0.9 V max @ 20 mA, VIL 0.3·VCC, VIH 0.6·VCC, RPU 20–50 kΩ, IIH/IIL ≤ 1 µA, group notes 3–4: 2×150 mA source / 3×100 mA sink), abs-max
+pp.308/322 (40 mA/pin, 200 mA VCC/GND), the UNO R3 schematic (DTR → C5 100 nF → RESET with the RESET-EN jumper; D0/D1 via 1 kΩ to the
+16U2), UNO product datasheet p.6 (−40…85 °C). **Correction found in the schematic:** D13's onboard L LED is driven by an LMV358 buffer whose
+input is on SCK — the load on D13 is the buffer input, not the LED. Refusals proven by name: LED with no resistor; GPIO on D0 while the
+transport is USB-serial; SPI on D13 without the `l-led` acknowledgment; a design relying on abs-max; 153 mA over a 150 mA group; a 25 mA load
+on the D6→D3 net. The light test: no refusal; five findings `undetermined` (red LED Vf ×3, pushbutton closed resistance, supply total).
+Merged-tree selftests: board 498, cmod 631, hwnocode 163, uno_core_demo 34.
+**Follow-ups found:** (1) the older rule (a) `led_current` still assumes 2.0 V Vf from the circuit rows and reports ok while rule (f)
+says the Vf is uncited — reconcile in the next hardware slice (rule (a) must read the same cited Vf or report undetermined); (2) no page /
+table shows the new classes yet (plain-words display surface owed — on the chain page and object pages, not the demo page); (3) the
+Hardware Bridge app's Detect still hard-codes the genuine VID:PIDs — read `UsbInterfaceDefinition` rows instead (§7.9 item 2); (4) the new
+rules are not yet called by a resolver (fgm-4).
+**Next per §7.7:** fgm-T (the parent Hardware tree move), then fgm-1 (Purpose widening).

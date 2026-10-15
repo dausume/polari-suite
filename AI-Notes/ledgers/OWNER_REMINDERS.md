@@ -7,7 +7,10 @@ Newest first. Tick a line (`[x]`) when done; Claude reads this file at the start
 - [ ] **Photograph the printed markings on the small kit parts** so their electrical facts can be cited instead of "undetermined":
       the 5 transistors, the 2 MOSFETs, the H-bridge chip, the 2 optocouplers, the temperature sensor's flat face, the back of the
       16×2 LCD, and the servo/DC-motor labels. (LED colours have no markings — their forward voltage comes from a datasheet or a
-      measurement; skip those.)
+      measurement; a multimeter's diode mode on one red LED gives the number the light test still needs.)
+- [ ] **While the board is on the bench, read its fuses once** (the app or `avrdude -c arduino -p atmega328p -P /dev/ttyACM0 -U hfuse:r:-:h`)
+      — the RESET pin's disable fuse (RSTDISBL) state is the one board fact no document can give us.
+- [ ] **If the board turns out to be a CH340 clone,** say so — its USB id and whether DTR resets it are undetermined today.
 - [ ] **Plug the UNO into pol-core once** so Detect can read its real USB ids — that confirms the board variant (pending; the box says
       genuine UNO R3 with the DIP chip + 16U2, the board itself decides). `lsusb | grep -E '2341|2a03|1a86'` is enough.
 - [ ] **Bench prerequisites (sudo):** add yourself to `dialout` and log out/in; install avrdude (or install the two debs, which pull it in).
