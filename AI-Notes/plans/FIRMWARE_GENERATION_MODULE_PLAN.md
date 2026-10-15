@@ -318,6 +318,7 @@ just becomes a second caller. No predicate is rewritten.
 | 8 | **fgm-7** bench | the Hardware Bridge App flash + attestation | R2 §12.6 items 1–10 on the real UNO |
 | 9 | **fgm-8** portability | second pin assignment; TQFP package; ESP32-C3 | same Tasks/Purposes, different isotopes |
 
-**Open for his review (genuine):** (a) approve 7.4 — Purpose stores lifecycle only; resolution derived; runtime fulfillment + health per
+**✅ RULED 2026-10-15 (his: "I will go with your suggestions outside that"):** (a) and (b) as recommended below; the UNO is the R3 the
+code models. Was open: (a) approve 7.4 — Purpose stores lifecycle only; resolution derived; runtime fulfillment + health per
 board instance; (b) command acknowledgment: the next state frame confirms a latest-value command (SET_LED), explicit ack only for
 events — or ack commands too; (c) the go to start slices 1 and 1′.
