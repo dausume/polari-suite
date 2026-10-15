@@ -363,3 +363,54 @@ events — or ack commands too; (c) the go to start slices 1 and 1′.
 
 **Sequence unchanged otherwise (7.7):** slice 1 = fgm-0, the identical-HEX Jinja2 migration; fgm-2 (electrical / package / USB-interface /
 lifecycle data) runs independently alongside it. Nothing starts before his explicit go.
+
+### 7.10 The kit on the bench (his photos 2026-10-15; transcribed here — photos NOT committed: barcode + personal background)
+
+**Board identification evidence (not yet a confirmation):** the box is the genuine Arduino Starter Kit, SKU **A000066_K7**, listing "1
+ARDUINO UNO board R3"; the cover art shows the socketed 28-pin DIP MCU and the small square USB-bridge chip by the USB-B jack — consistent
+with the modelled R3 (ATmega328P-PU DIP-28 + ATmega16U2, USB id 2341:0043). Status stays **pending** until Detect reads the real USB ids
+from the board itself (7.8.1); the box becomes a cited source for the KitPart rows and the board's package/USB-interface evidence.
+
+**His rule: "all parts we can use"** — every part in the kit is modelled as usable (a KitPart row with a count, its electrical facts
+cited or `undetermined`), whether or not a demo uses it.
+
+**Counts printed on the box ("THIS KIT INCLUDES") vs the code's register** (`board/custom/kit_parts.py`, 23 types, every `kit_quantity`
+today "undetermined" — the book prints no counts; the box does):
+
+| box line | count | register row | change in fgm-2 |
+|---|---|---|---|
+| Projects book (176 pp.) | 1 | — | source document (Datasheet kind other) |
+| Arduino UNO board R3 | 1 | arduino-uno | qty 1 |
+| USB cable | 1 | usb-cable | qty 1 |
+| Breadboard | 1 | breadboard | qty 1 |
+| Easy-to-assemble base | 1 | — | new row (mechanical, no electrical role) |
+| 9V battery snap | 1 | battery-snap | qty 1 |
+| Solid core jumper wires | 70 | jumper-wires | qty 70 + split |
+| Stranded jumper wires | 2 | jumper-wires | qty 2 (variant) |
+| Light sensors | 6 | phototransistor | qty 6 |
+| Potentiometer 10 kΩ | 3 | potentiometer | qty 3, value 10 kΩ |
+| Pushbuttons | 10 | pushbutton | qty 10 |
+| Temperature sensor | 1 | tmp36 | qty 1 |
+| Tilt sensor | 1 | tilt-sensor | qty 1 |
+| LCD screen 16×2 | 1 | lcd-16x2 | qty 1 |
+| LED bright white | 1 | led | variant white, qty 1 |
+| LED RGB | 1 | led | NEW variant rgb (4 legs, common lead — polarity cited or undetermined) |
+| LEDs red / green / yellow / blue | 8 / 8 / 8 / 3 | led | per-colour variants with counts (Vf differs by colour — cite or undetermined) |
+| Small DC motor 6/9 V | 1 | dc-motor | qty 1, rated 6/9 V |
+| Small servo motor | 1 | servo | qty 1 |
+| Piezo capsule | 1 | piezo | qty 1 |
+| H-bridge motor driver | 1 | h-bridge | qty 1 |
+| Optocouplers | 2 | optocoupler | qty 2 |
+| MOSFET transistors | 2 | transistor | NEW row `mosfet` (a different device from the bipolar transistors) |
+| Transistors | 5 | transistor | qty 5 |
+| Capacitors 100 µF / 100 nF / 100 pF | 3 / 5 / 5 | capacitors | per-value variants |
+| Diodes | 7 | diode | qty 7 |
+| Transparent gels (R, G, B) | 3 | gels | qty 3 |
+| Male pins strip (40×1) | 1 | male-header-pins | qty 1 |
+| Resistors 220 Ω / 560 Ω / 1 kΩ / 4.7 kΩ / 10 kΩ / 1 MΩ / 10 MΩ | 22 / 7 / 7 / 7 / 22 / 7 / 7 | resistors | per-value variants with counts |
+
+Consequences for the light test: the LED on D6 uses a 220 Ω (22 in the kit) — with a red LED's forward voltage the current is the value
+the electrical rule checks; the D6→D3 feedback needs no extra part (a jumper; 70 available); the pushbutton is one of 10; the bench uses
+the board's USB cable. Per-part electrical facts that the box does not print (LED Vf per colour, MOSFET/transistor part numbers) stay
+`undetermined` until the parts' own markings or datasheets are read — a person can read the part numbers off the transistors and the
+H-bridge for us (the attestation path).
