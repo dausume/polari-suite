@@ -82,7 +82,77 @@ Everything else is reuse, renaming, or widening.
 Jinja2 templates and get the identical `firmware.hex` sha. It proves the engine without changing any behaviour, and every later phase
 then edits templates instead of Python string code.
 
+## 5b. His addition 2026-10-15: editing a CAtom in Polari, two views of one template, and a fixed on-disk layout
+
+His words: "we will additionally want to have a way to edit a catom in the polari interface, and be able to insert HAL variable without
+having to specify they are HAL in the variable name, instead in the editor on polari that is edited out and we convert between a real
+jinja template we can use and a polari-format coding that we show to the user. We should have insertion similar to how we do insertion
+in math equation for latex, having the option to enter variable names and then we see both the style altered and the real jinja version
+code on the catom or cisotope detail page. We should also have a defined file structure for when catoms and cisotopes are saved in
+modules and they should have a dedicated directory and structure."
+
+**Two forms of one source, converted losslessly both ways (`cmod/custom/generator/polari_format.py`):**
+- **Jinja form** (on disk, rendered by the generator): plain C with `{{ hal.<name> }}` for every HAL variable, `{{ struct.<name>.<field> }}`
+  for Task Struct bindings, `{% if hal.<name>.feature %}` only for resolved optional features (§5 template rules).
+- **Polari form** (shown and edited): the same C, every variable written as its bare name — `PORTD |= (1 << led_bit);` — and DRAWN as a
+  chip (styled, coloured by kind: HAL variable · Struct field · constant), never typed with a `hal.` prefix. The variable's identity is
+  carried as a TOKEN, not inferred from the text: the editor stores a token list `[{kind, name, offset}]` beside the text, so a C
+  identifier that happens to share a name is never turned into a variable by accident.
+- Conversion rules: polari → jinja replaces each token with its `{{ hal.<name> }}` / `{{ struct.… }}` form; jinja → polari parses the
+  `{{ … }}` expressions back into tokens. Anything else in `{{ }}` / `{% %}` that the converter does not recognise is REFUSED by name
+  (no silent passthrough), so the two forms can never drift. Round-trip property is the selftest: jinja → polari → jinja is identity
+  for every seeded template.
+- Every HAL variable must be declared in the CAtom's `hal_contract` (name · kind gpio_input / gpio_output / interrupt_source /
+  register_field / timer_source / transport_endpoint / task_struct_binding / execution_context · description). Inserting an undeclared
+  name offers "declare it" (kind picker) rather than accepting free text.
+
+**The editor (reuse the LaTeX insertion idiom, no new editing paradigm):** the existing `shared/latex-edit-dialog` already keeps the
+last-known cursor across palette clicks and inserts a palette entry with a cursor offset (`insertSymbol`). The CAtom editor is that
+dialog's pattern with a different palette: **Insert variable ▾** lists the CAtom's declared HAL variables and its Task's Struct fields
+(grouped by kind, each with its one-line description and, under a chosen binding, the value it resolves to); a **New variable** entry
+declares one inline. Typing a name and pressing Tab converts it to a chip when it matches a declared variable. Save writes the JINJA form
+to the module directory below; nothing is saved in the polari form.
+
+**The detail pages (CFunctionAtom / CIsotope object pages — the iso-1 sections, reusing `shared/code-block`):** three panes side by
+side, collapsible: **Polari form** (styled chips, editable via the dialog) · **Jinja form** (the real template, read-only, line
+numbers) · **Rendered C** under the chosen HardwareBinding (today's code-interface view: each resolved value with the datasheet
+comment that justifies it). A row under them lists every variable: kind, description, its binding's value and the register field /
+pin it comes from (the traceability chain, one click each). A CIsotope page shows only its substitutions/overrides over the parent
+CAtom, with "inherited" marked on the rest (the iso-0 rule: structure inherited, never re-authored).
+
+**On-disk layout — one dedicated directory per module, the same shape everywhere (D-fgm-7):**
+```
+modules/<module>/firmware/
+  catoms/
+    <catom_name>/
+      catom.json             # contract: purpose sentence, inputs/outputs, hal_contract[], resources, isr_safe, cost hints, version
+      template.c.j2          # the JINJA form (the only source of truth for the body)
+      README.md              # generated: the polari form rendered as text + what each variable is
+      isotopes/
+        <isotope_name>/      # e.g. avr-atmega328p, esp32c3-freertos
+          isotope.json       # compatibility: soc / board / programming bindings, minimum_level, toolchain, overrides of hal_contract defaults
+          template.c.j2      # ONLY when the isotope overrides the body; absent = inherits the parent's
+          substitutions.json # per-variable fixed values for this hardware (iso-0's substitutions), each with its datasheet fact
+  templates/                 # shared non-atom templates this module contributes: isr/, task/, dispatcher/, state/, transport/, root/
+  boards/<board>/            # optional: board-specific HAL defaults (today's board_config.h moves here as a template + json)
+  fixtures/                  # golden rendered C per (catom × isotope × binding) for the regression gate
+```
+Rules: names are lowercase-kebab and equal the row name; the JSON files are what the seed reads (the module initialData convention:
+files → rows at boot, rows → files on export, privacy strip unchanged); a CAtom/CIsotope edited in the Polari editor is written back
+through the module's export door to these files, then committed like any module change. Today's hand-written `board/custom/firmware/
+uno/{hal.c, apps/*.c}` stays as the PARSED source of the first isotopes until Phase 3 converts each function into `catoms/<name>/
+template.c.j2`; the byte-identical hex check gates every conversion.
+
+**Slices:** fgm-ed-0 the converter + round-trip selftest + the on-disk layout with the `uno-light` atoms converted (gated by identical
+hex) · fgm-ed-1 the three-pane detail pages (read-only) · fgm-ed-2 the editor dialog with variable insertion and declare-inline · fgm-ed-3
+save-through-export to module files.
+
 ## 6. Decisions (his; recommendation first)
+
+- **D-fgm-7 where atom files live.** Under each owning module's `firmware/` (board owns the HAL atoms, the demo module owns its app
+  atoms) · one central `cmod/firmware/` → **under each owning module**, so a module repo (polari-module-*) carries its own atoms.
+- **D-fgm-8 variable chips.** Styled inline chips in an editable text area · a structured block editor → **chips in text**, matching
+  the LaTeX dialog.
 
 - **D-fgm-1 the word "task".** Proposal: Task = dispatchable unit of CAtoms. Pages today call each atom a "task". → **adopt the
   proposal's meaning; atoms are "steps" on pages** (also matches the flow-states plan).
