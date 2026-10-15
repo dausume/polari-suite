@@ -13,8 +13,8 @@ Newest first. Tick a line (`[x]`) when done; Claude reads this file at the start
 - [ ] **If the board turns out to be a CH340 clone,** say so — its USB id and whether DTR resets it are undetermined today.
 - [ ] **Plug the UNO into pol-core once** so Detect can read its real USB ids — that confirms the board variant (pending; the box says
       genuine UNO R3 with the DIP chip + 16U2, the board itself decides). `lsusb | grep -E '2341|2a03|1a86'` is enough.
-- [ ] **Before installing the debs:** Claude rebuilds and republishes the runtime deb so it carries the new Detect step (tracked in
-      the plan §7.14 — not yours; listed so you install the fresh one).
+- [x] ~~Claude rebuilds the runtime deb with the new Detect step~~ — done 2026-10-15 (sha e586932c…, on the demo page's Downloads;
+      install that one, the newest row).
 - [ ] **Bench prerequisites (sudo):** add yourself to `dialout` and log out/in; install avrdude (or install the two debs, which pull it in).
       Steps: `AI-Notes/guides/HARDWARE_ARC_TEST_GUIDE.md` §5.
 - [ ] **Wire the light test (power off):** LED long leg → D6 through a 220 Ω resistor, short leg → GND; pushbutton between D2 and GND;
