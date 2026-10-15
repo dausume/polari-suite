@@ -429,3 +429,15 @@ first". Reminders written to `AI-Notes/ledgers/OWNER_REMINDERS.md` (part marking
   to DS40002061B / the R3 pinout / the box, else `undetermined`. Renders no C.
 **Not starting** (need his input or depend on the above): fgm-T tree move (after fgm-0 + fgm-2 merge), fgm-1 onward, the board-variant
 confirmation (needs the board plugged in), part-marking facts (need his photos), the bench, the flow-state decisions.
+
+### 7.12 ✅ fgm-0 BUILT + MERGED 2026-10-15 (framework ed8d38c, sonnet agent)
+
+Generator `cmod/custom/generator/` (StrictUndefined env, refusing filters c_ident / c_type / c_expr / c_int / c_hex / c_block / c_comment /
+c_str, typed contexts) + templates `cmod/custom/templates/avr/` (polari_graph.c/.h, Makefile, pin_config.h/.c, shared macro libs) — under
+`custom/` because the manifests selftest allows only objects/ custom/ initialData/ as module subdirectories (the §5b on-disk layout must
+respect the same rule: `firmware/` will need a manifest-schema allowance, or live under `custom/firmware/` — decide at fgm-5/ed-0).
+Legacy emitters kept as `glue_legacy.py` / `pin_config_legacy.py` behind `POLARI_GLUE_LEGACY=1` for diffing. Gate: source byte-identical
+legacy vs templates vs committed project for uno-light / uno-sim-rig / uno-button-clock; built hex = committed record (6e8d95d2… ·
+1bb5c09e… · d26ddf2e… — note the sim-rig GLUE hex is 1bb5c09e…; 4188f6ae… is its hand-written reference); render twice identical.
+Records gain `templates` (name → sha256) + `template_generator: jinja2 3.1.6`. cmod 575 → 631, hwnocode 163, board 440, uno_core_demo 34;
+manifests 8/9 (the known pspp/testing legacy). Jinja2 3.1.6 already in the backend image; now declared in requirements.txt.
