@@ -569,3 +569,18 @@ CRUDE auto-save (which would store derived values on the drawing row). Also: ini
 boot_session — add one in fgm-6 with the boot frame); command_id correlation is declared on the Purpose but not on the wire until fgm-6;
 no DerivedOverride path for a person disputing an observation; a reseed overwrites goal/lifecycle edits made through the door (the existing
 converge behaviour for goal — decide whether lifecycle should be `keep` in the converge list: recommend yes, it is a person's intent).
+
+### 8.7 ✅ fgm-1b + polish MERGED and SEEN on the test node 2026-10-15/16
+- **fgm-1b** (angular 86fe322, sonnet): a `category: purpose` drawing LOADS through `GET …/solution` (derived cards live — the test node
+  shows "Proved by … proven-on-twin" and "Can it run here? resolved") and SAVES through `PUT …/solution` (debounced 2 s, only on a real
+  change; a 422 is shown on the canvas naming the state); the generic CRUDE auto-save skips Purpose drawings; derived cards refuse edits
+  (moving allowed). The CRUDE rows DO carry `category` (verified live), so recognition is by category.
+- **Generic card shows the state's own values** (angular 9a64921): the default overlay filled fields from class defaults only (every
+  generic card — e.g. a criterion's Bound/Value/Unit — read blank); the canvas now passes `boundObjectFieldValues`.
+- **Palette groups + no lanes** (angular, dev-purpose-canvas): `Purpose` and `Cross-Domain` are palette categories of their own (they had
+  been folded into Custom); a Purpose drawing is not re-laid into runtime lanes (it pushed every card into a default lane off-screen).
+- **Converge keep** (framework 4d6da0d): a reseed never resets a Purpose's `lifecycle`, `status` or `last_proof`.
+- Seen past the demo-terms dialog with the new CDP driver (`scratchpad/cdp-shot.js`, memory test-builds-over-ssh).
+**Still small:** the first column is clipped at the canvas's left edge until Recenter (initial pan); the Runtime select reads "Python
+(Backend) (default)" for a declarative drawing (should read "Declarative — not run"); the canvas viewport cannot show all eleven columns
+at once at 1900 px (zoom-to-fit on open would). Not rolled to pol-core yet.
