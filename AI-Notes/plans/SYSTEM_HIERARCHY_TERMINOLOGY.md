@@ -205,3 +205,61 @@ No existing class clashes with HardwareSystem, HardwareEnclosure, EmbeddedDevice
 Updated ladders: WHY — Purpose → Hardware Mission. HOW — C atom/isotope → Task → Firmware → Board build → **Hardware System** →
 **Embedded Device**. D-sys-4 and D-sys-5 become these names once he confirms the two refinements (Participant umbrella; Operating
 environment beside the Enclosure).
+
+## 11. Enclosures as nested systems + the development escalation (his words 2026-10-17)
+
+His words: "Enclosures are a set of systems that need solved unto themselves and are also an active part of the Hardware System since
+they can interact with enclosing and exposing pins at multiple levels, and there may be multiple levels of enclosures for making
+components and boards fit together as a whole device. We also need to account for escalation of device development. Starting at
+BreadBoards testing the Hardware System minimally, then moving to a ProtoBoard based Embedded Device, then a PCB based ED, then
+potentially one from scratch using custom RiscV SoC printed by a vendor, then eventually we will have BLCNC printed RiscV SOCs."
+
+### 11.1 Hardware Enclosure = a nested system with two faces (corrects §9/§10)
+
+§9 put the enclosure wholly in the Device body. That was wrong: an enclosure decides which pins reach the outside, so it is
+**active in the Hardware System**. Each Hardware Enclosure has:
+- **its exposure map** (Hardware System face): which inner pins, signals and conditions cross its boundary, and how: header,
+  connector, panel button, light window, cutout, vent, cable gland, test pad. Exposed pins carry electrical checks too (ESD, grounding,
+  reachability).
+- **its body** (Embedded Device face): geometry and fit, clearance, material, heat, ingress, mounting, mechanical load.
+- **its own solution**: solved as a system in its own right (its own no-code, checks and trade study), then composed into the level
+  above.
+
+**Levels nest**, and an outer pin traces inward through each level's exposure map down to a die pad:
+
+| level | enclosure | exposes | exists today |
+|---|---|---|---|
+| E1 | chip package | die pads → package pins | ✅ PackageDefinition / PackageContact (fgm-2); microchip ladder rank 6 |
+| E2 | board | chip pins → headers, connectors, USB | ✅ BoardPin, BoardComponent, UsbInterfaceDefinition |
+| E3 | sub-assembly (shield stack, carrier, bracket, daughterboard) | board connectors → carrier connectors | new |
+| E4 | device housing | carrier/board → panel buttons, windows, ports | new |
+| E5 | installation (rack, wall box, vehicle) | housing ports → field wiring | new, later |
+
+Proposal: generalize the PackageContact pattern (inner contact → outer contact) into one exposure-map row used at every level, so the
+trace "panel button → housing → shield header → UNO D2 → PD2 → die pad" is one query. An enclosure feature can also be a Hardware
+Participant ("the light window" lets the LED be seen; "the panel button" is what the person presses). §9's seam therefore has two kinds:
+transducers (electrical ↔ physical quantity) and enclosures (inner pin ↔ outer pin, plus body).
+
+### 11.2 Development stages (the escalation ladder)
+
+| stage | what it is | Hardware System | Embedded Device | enclosure levels | links |
+|---|---|---|---|---|---|
+| **S1 Breadboard** | bought dev board + parts + jumper wires | minimal, proves the Purposes on real hardware | none | E1, E2 (bought) | ← the UNO demo is here |
+| **S2 Protoboard** | parts soldered on perfboard / a proto shield, first case | the same, made permanent | **first** | + E3, E4 begin | kit parts |
+| **S3 PCB** | our own board; the chip placed directly, the dev board dropped | re-bound to our board | PCB-based | E2 becomes ours; E4 designed to the outline | PCB_FROM_SCRATCH_PLAN (pcb-0 built) |
+| **S4 Vendor-fabbed RISC-V SoC** | our own die on an open PDK, fabricated by a vendor | new processor → Task Plan re-derived | custom-SoC-based | E1 becomes ours | MICROCHIP_LADDER_PLAN, FET_LADDER_PLAN, riscv-cores-reference |
+| **S5 BLCNC-printed RISC-V SoC** | the same die, printed in-house | same as S4 | same | same | MATERIALS_TECH_TREE / TECH_TREE_TOPOLOGY plans (BLCNC) |
+
+**What carries across a stage step:** the Hardware Mission and its Purposes stay the same (they never named parts). The Task Plan is ported
+or re-derived and recorded as "Designed for" (the stage below) / "Also runs on" (§8). Bindings are re-made. Enclosure levels are added or
+replaced. Each step is therefore an ordinary porting record, with the stage as a field on the Hardware System, the Embedded Device and their
+units.
+
+**Moving up a stage is advised, never blocked:** the advice is "every Purpose proven-on-hardware at the stage below", shown as a readiness
+finding.
+
+**Naming note:** the microchip ladder already uses "device" for rank 1 (the FET). His "Embedded Device" prefix keeps the two apart, which is
+one more reason to keep the prefix.
+
+**Open (his):** D-sys-7 stage names and count (S1–S5 as above?) · D-sys-8 one exposure-map row generalized from PackageContact for every
+enclosure level · D-sys-9 enclosure levels E1–E5 as above?
