@@ -82,6 +82,28 @@ for ONE dedicated d3 visualization — recorded as his explicit exception for th
   (what changed, which pins, cause, who/when), while the per-phase pin states stay DERIVED. The view has a phase selector and an event
   timeline; selecting an event shows the pins it changed.
 
+### 2.6 His layout sketch (2026-10-17, graph paper; transcribed, photo not committed)
+
+What the sketch shows, outermost first:
+- **The board** as a large outline, with **board pins** around its edges (and edge-connector pins just outside the outline).
+- Inside the board, **the SoC enclosure** (the package) as a square with **SoC enclosure pins** on its outer edge.
+- Inside the enclosure, **the SoC** (the die) as a smaller square ringed by **SoC pins** (the inner pads). Lines run from SoC pins out through the
+  enclosure to the enclosure pins: the bond from pad to leg.
+- Below the SoC, **two other parts on the board** ("Peripheral One", "Peripheral Two"), each a box with its own pins.
+- **Peripheral One is selected, so its connections show:** its pins are drawn joined to SoC enclosure pins above it and to board pins at the
+  left and bottom edges ("Peripheral to Board Connections"). Peripheral Two is not selected, so it shows no connections.
+
+What this changes in the design:
+- **Layout = concentric nesting:** die inside package inside board, each level with its own ring of pins on its own edge. Pins are placed on
+  each shape's perimeter by the math-defined shape (2.1).
+- **Connection lines appear only for the selection** (a chip, a part, a pin): nothing is wired by default, so the pins stay the focus (2.3).
+- **Other parts on the board are first-class shapes with pins:** on the UNO they are U2 (the ATmega16U2, itself a die inside a QFN), the LMV358
+  buffer (U5B), the 16 MHz part, the L LED, the series resistor networks (RN4A/B), C5, the USB connector, the ICSP headers. Selecting U2 would
+  draw its lines to the 328P's D0/D1 legs (through RN4A/RN4B 1 kΩ), to RESET (through C5 from DTR), to the USB connector and to its ICSP header.
+- **Terminology flag:** the sketch calls these parts "Peripheral". In the model, `Peripheral` already means a block INSIDE the chip (TIMER0,
+  USART0); a part on the board is a `BoardComponent` (or a schematic part). Proposal: the view labels them "board parts" (or by their role:
+  "USB bridge", "LED buffer"), and keeps "peripheral" for the on-chip blocks shown when a SoC is opened. D-pv-6 his.
+
 ### 2.5 Data door (one composed read)
 `GET /api/board/{board}/pin-view?system=&binding=&phase=&protocol=` → shapes (from the shape rows), pins per level with positions, crossings,
 capabilities by protocol family, consumers, ladder verdicts for the filter, the phase's pin states, and events. One read per view change; the
@@ -102,4 +124,5 @@ The existing card views stay until pv-1..3 cover them, then the board page leads
 - **D-pv-2** colours per protocol family as theme tokens, reusing the existing role vocabulary.
 - **D-pv-3** blank = two baselines (chip blank, board as delivered).
 - **D-pv-4** `ConfigurationEvent` rows for real-world events; per-phase pin states derived.
+- **D-pv-6** what to call the parts on a board in the view ("board parts" / role names recommended; "peripheral" stays for on-chip blocks).
 - **D-pv-5** order: pv-0 alongside the msp register profile (rp-0), then pv-1..4; the solution search (sol-0) later draws its candidates in this view.
