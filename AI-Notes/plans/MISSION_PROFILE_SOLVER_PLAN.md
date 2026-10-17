@@ -122,3 +122,16 @@ Purpose. Times come from the twin's measured cycle counts per task (simavr), est
 Resources carry units and are measured, per the resource-cost rule. The two objectives pull apart on the UNO: fastest-cycle prefers interrupts
 and hardware peripherals (INT0/INT1, USART interrupts) and dedicated pins; minimum-resources prefers polling and shared pins where the criteria
 allow. The score card (§2.5 step 4) sorts by the chosen objective first and shows the other as a secondary column.
+
+## 6. ✅ rp-0 BUILT + MERGED 2026-10-17 (framework cd40f06; cli `pol board registers | memory`; sonnet agent) — started on his go ("Go ahead and start revising work")
+- 96 registers: 18 pin-configuration, 50 peripheral-operation, 9 memory-nvm, 10 cpu-system, 9 mixed (MCUCR, UCSR0B, SPCR, TWCR, TCCR0A/0B/1A/2A/2B).
+  Fields from RegisterField rows (97) + cited alternate-function rules (14) + bit names from the datasheet Register Summary pp.621–624
+  (committed snapshot `register_summary_atmega328p.json`, method recorded); 77 registers have no field rows ("fields not modelled").
+- Memory map (MemoryRegion 3 → 8): register file 0x0000/32 B, I/O 0x0020/64 B, extended I/O 0x0060/160 B, SRAM 0x0100/2048 B (data space
+  0x0000–0x08FF contiguous); flash = application + boot loader (chip default BOOTSZ 4096 B @0x7000, Table 27-13 options; on the UNO Optiboot 512 B
+  @0x7E00 → application 32256 B = boards.txt upload.maximum_size); EEPROM 1 KB. Firmware use from sizes (.text+.data flash, .data+.bss RAM), else
+  `unmeasured`.
+- Judgement calls (cited rule entries, reversible): w1c status flags and interrupt-enable bits (TIMSKn) = peripheral-operation, not pin; FOCnx = pin.
+- Doors `/api/board/socs/{soc}/register-profile`, `/memory-map`; pages `/display/register-profile`, `/display/memory-map`; Hardware home group
+  "The chip's registers and memory". board 616 (worktree), cmod 698, hwnocode 163, apps 126, manifests 8/9 (unchanged).
+- Undetermined: the UNO's shipped BOOTSZ fuse (boards.txt high_fuses not read); EEPROM use (no .eeprom size recorded).
