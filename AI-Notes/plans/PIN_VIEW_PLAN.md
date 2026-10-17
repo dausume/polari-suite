@@ -122,6 +122,35 @@ Supersedes the electrical detail in 2.3's pin click. The interaction is a three-
 Every surface and connection obeys the click-toggle rule. The data door (2.5) returns connections as pin-to-pin pairs with a `drive` summary;
 electrical values are served only by the electrical view's own door.
 
+### 2.8 Correction — "drive" is electricity, not signal direction (his words 2026-10-17)
+
+"drive means electricity flow and supply, signals are different, please recall the way we were organizing pin data before for organizing if
+the pin, chip, or peripheral meet valid electronics constraints."
+
+2.7 wrongly put "which end drives and which senses, the protocol signal" under drive. The vocabulary already agreed (R2 §2.5 and §7, the HAL
+families in FIRMWARE_GENERATION_MODULE_PLAN §5b/§7.3, built in fgm-2):
+
+| term | means | where it lives today |
+|---|---|---|
+| **Documented capability → Available potential → Proposed resource claim → Committed configuration** | the four stages of a resource | PinFunction (documented) → the ladder (available, computed) → PinClaim (proposed/committed) → RegisterSetting (committed) |
+| **SignalPotential** | the signals a resource can generate or receive: digital I/O, UART, SPI, PWM, analog input, interrupt; direction, timing, voltage-domain compatibility, modes, protocol constraints | PinFunction + PeripheralSignal (+ Peripheral) |
+| **DrivePotential** | the electrical driver: output-high/low voltage at a stated current, source and sink current, drive strength, open-drain behaviour, shared output-current limits, supply domain — never an independent budget per pin | ElectricalCharacteristic per pad class (not per pin) + PinGroupBudget (shared limits) |
+| **InputElectricalConstraint** | input voltage range, logic thresholds (VIL/VIH), leakage, capacitance, internal pull-up/down, analog restrictions, clamp current, powered vs unpowered | ElectricalCharacteristic input rows |
+| **PinElectricalLimit** | the class of every limit: absolute maximum · recommended operating · guaranteed · typical · conditional; absolute maximum is never a design target | `limit_class` on ElectricalCharacteristic; rule (i) |
+| HAL families | **drive** (all electric charging and powering: digital drive push-pull/open-drain, PWM drive, analog out, supply rail, pull, load, charge) · **signal** (digital in, edge interrupt, analog in, analog reference, comparator in, clock in) · **protocol** (UART, I²C, SPI, wire packet, timing) · **register** · **execution** | §7.3; resolver input in fgm-4 |
+| the checks | does the pin / chip / part meet valid electronics constraints | electrical rules (a)–(e) `electrical_check.py`, (f)–(j) `electrical_hw.py`, lifecycle rows, the ladder rung 7 |
+
+**2.7's connection panel, corrected — three separate sections:**
+- **Drive** (DrivePotential, abstracted): which end SUPPLIES or SOURCES current and which SINKS it or is supplied, the supply domain or rail, the
+  pull, and the verdict class of the relevant limit (within recommended · undetermined · over) — no numbers; the numbers are the electrical view's.
+- **Signal** (SignalPotential): which end outputs and which inputs the signal, the protocol signal it carries (e.g. USART0 TXD → 16U2 RXD1),
+  its family (UART) for the colour.
+- **Use**: the tasks that claim it and the Purposes they serve (documented / available / proposed / committed stage).
+
+**Vocabulary debt found:** `BoardPinNet.role` uses `driver` / `input` to mean SIGNAL direction on a net (ucd-0c, and the hsp-1 path text "D6 drives
+net LED_CONTROL"). Under this vocabulary that is the signal side. Proposal: rename the role values to `output` / `input` (signal) and keep "drive"
+for current and supply — D-pv-7 his; nothing renamed until he rules.
+
 ### 2.5 Data door (one composed read)
 `GET /api/board/{board}/pin-view?system=&binding=&phase=&protocol=` → shapes (from the shape rows), pins per level with positions, crossings,
 capabilities by protocol family, consumers, ladder verdicts for the filter, the phase's pin states, and events. One read per view change; the
@@ -143,4 +172,5 @@ The existing card views stay until pv-1..3 cover them, then the board page leads
 - **D-pv-3** blank = two baselines (chip blank, board as delivered).
 - **D-pv-4** `ConfigurationEvent` rows for real-world events; per-phase pin states derived.
 - **D-pv-6** what to call the parts on a board in the view ("board parts" / role names recommended; "peripheral" stays for on-chip blocks).
+- **D-pv-7** rename `BoardPinNet.role` driver → output (signal direction), keeping "drive" for current and supply (recommended).
 - **D-pv-5** order: pv-0 alongside the msp register profile (rp-0), then pv-1..4; the solution search (sol-0) later draws its candidates in this view.
