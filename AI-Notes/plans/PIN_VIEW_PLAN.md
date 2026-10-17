@@ -104,6 +104,24 @@ What this changes in the design:
   USART0); a part on the board is a `BoardComponent` (or a schematic part). Proposal: the view labels them "board parts" (or by their role:
   "USB bridge", "LED buffer"), and keeps "peripheral" for the on-chip blocks shown when a SoC is opened. D-pv-6 his.
 
+### 2.7 Click surfaces and the connection ladder (his words 2026-10-17)
+
+"We will also want to be able to click on individual peripherals and individual SoCs and enclosures and Boards, all are valid click surfaces.
+Clicking on them should yield a view and render visualizations for what kinds of connections they have. These should specifically be pin to pin
+connections only and disregard the electrical details, as those will have their own view, we will simply have that abstracted into drive
+information that can be viewed by clicking on the connection, the connection should be clickable after clicking on a pin to see what it is
+connected to."
+
+Supersedes the electrical detail in 2.3's pin click. The interaction is a three-step ladder:
+1. **Click any surface** — a board part, a SoC (die), an enclosure (package), a board. Its view renders its **pin-to-pin connections only**,
+   grouped by kind (to another chip, to a board part, to a header, to the bench, pad to leg). No electrical numbers.
+2. **Click a pin** → its connections are drawn and become clickable.
+3. **Click a connection** → the **drive information**, abstracted: which end drives and which senses (or both), the protocol signal it carries,
+   whether a task uses it and for which Purpose, and what sits in the path as a named kind only ("through a series resistor", "through a
+   buffer"). A link opens the separate **electrical view** (levels, currents, limits, the electrical rule verdicts), which is out of this view.
+Every surface and connection obeys the click-toggle rule. The data door (2.5) returns connections as pin-to-pin pairs with a `drive` summary;
+electrical values are served only by the electrical view's own door.
+
 ### 2.5 Data door (one composed read)
 `GET /api/board/{board}/pin-view?system=&binding=&phase=&protocol=` → shapes (from the shape rows), pins per level with positions, crossings,
 capabilities by protocol family, consumers, ladder verdicts for the filter, the phase's pin states, and events. One read per view change; the
