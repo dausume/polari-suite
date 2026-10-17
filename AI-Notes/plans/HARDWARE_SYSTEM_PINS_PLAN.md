@@ -151,3 +151,6 @@ undetermined, and the answer names the first blocking rung. A missing input is `
   2026-10-17). DEBTS: (1) every `pol deploy run` regenerates certs → rebuilds → recreates the backend → a full 31-min boot; (2) lazy boot is off on
   the test node, so health only answers after the full boot; (3) the 8-min silent phase before `polariServer created` is unexplained; (4) the
   ~41k "failed to analyze variable manager" log lines per boot.
+- **Rolled to pol-core 2026-10-17** (images shipped from econ-core, `pol swarm deploy node` + forced service updates): `/api/hardware-systems/
+  uno-light-system/paths` answers live with the three paths; D13 exposure = 5 crossings. Backend ready ≈ 26 min after the roll. Pruned 1.07 GB;
+  disk 94 % (7.4 GB free) — prune again before the next roll.
