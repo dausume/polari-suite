@@ -109,3 +109,19 @@ undetermined, and the answer names the first blocking rung. A missing input is `
   other words.
 - **D-hsp-2 home:** the board module now, moved with everything else under the parent Hardware tree in fgm-T (recommended).
 - **D-hsp-3 the 16U2:** model all 32 contacts with citations, unused ones included (recommended, per "account for everything").
+
+## 5. ✅ hsp-0 BUILT + MERGED 2026-10-17 (framework 7de838e + review 0583bed + dffefc3; cli 11f5e63; sonnet agent)
+- Classes (board now 51): `EnclosureKind` 54 rows, all tentative, no physics numbers (adds `E2:test-pad`); `HardwareEnclosure` 4 (U1 SPDIP,
+  TQFP variant, U2 QFN, the UNO board); `EnclosureContact` 166 (SPDIP 28 + 2 not-bonded ADC6/ADC7, TQFP 32, QFN 33, UNO board 71). Extra via
+  kinds found on the schematic: `series-inductor` (AVCC through L2 10 µH) and `series-fuse` (USB VBUS through F1).
+- The 16U2: `atmega16u2-32-qfn` (32M1-A), 33 contacts (32 legs from Figure 1-1 p.2 + the centre pad), 23 SocPins, functions from Tables 12-3/12-6/12-9.
+- `board/custom/reachability.py` (header | internal | not-bonded per SoC pin; 155 pin functions flagged) + `board/custom/ladder.py` (the ten
+  rungs; 6 → target_compat, 7 → electrical_check, 8 → electrical_hw.rule_lifecycle, 9 → cmod claims; pending variant → every allowed package).
+- Doors `GET /api/board/{b}/exposure[/{pin}]`, `GET /api/board/{b}/reachability[?pin&function&package&circuit&binding&phase&transport]`; chain door
+  gains EnclosureContact hops. CLI `pol board exposure | reach | ladder`.
+- Review fixes (me): a board pin's exposure listed the 16U2's same-named PB5 under D13 → scoped to the board's own SoC (selftest pins it); the
+  ladder headline said "available" with rungs 7/9 unchecked → now "available so far (unchecked: rungs 7, 9; not yet: rung 10)".
+- Selftests: board 497 → 540, cmod 698, hwnocode 163, manifests 8/9 (pre-existing pspp/testing legacy, unchanged), lazy imports 23, lazy boot 34.
+- Left undetermined (named in the rows): die pads; the QFN centre pad's ground tie; nine bare 16U2 stubs; RESET-EN series vs bridge and the
+  RN1D/D2 branch; LMV358 input current; 16U2 ElectricalCharacteristics; the doc7799 footer revision mismatch (one file, sha matches).
+- TQFP context: rung 3 is judged on the modelled SPDIP board nets → `conditional` (no TQFP board exists).
