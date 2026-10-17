@@ -263,3 +263,57 @@ one more reason to keep the prefix.
 
 **Open (his):** D-sys-7 stage names and count (S1–S5 as above?) · D-sys-8 one exposure-map row generalized from PackageContact for every
 enclosure level · D-sys-9 enclosure levels E1–E5 as above?
+
+## 12. Device-level enclosures, thermal resistance and stress + the kinds to account for (his questions 2026-10-17)
+
+His words: "We previously talked through enclosures for chips and boards there are likely device level enclosures as well? Specifically
+for establishing stress tensor and thermal resistance around components?" and "what kinds of enclosures should we account for?"
+
+**Record check:** the earlier chip/board enclosure talk is §11 (E1 package, E2 board) plus R2's package-variant row; no earlier plan has
+thermal resistance or stress per enclosure. What exists: the FEM engine computes real stress tensors (`MeshTri.init_tensor`), the casting
+module has material thermal profiles, materials_science holds materials, the ATmega328P rows cite the TA = −40..105 °C range and the UNO's
+85 °C limit, and the PCB plan routes enclosures through FreeCAD + KiCad StepUp (and the printing suite: an enclosure is a print job). No
+θJA/θJC is cited for any package yet.
+
+### 12.1 Yes — each enclosure level sets the "ambient" of the level inside it
+
+A component's ambient is the air or material inside the next enclosure out, not the room. The UNO's 85 °C limit applies to the air
+inside the housing. So every level contributes to two chains:
+- **Thermal resistance chain** junction → case (θJC, package, cited) → board (copper, vias, pads) → housing interior (air, thermal pads)
+  → housing → ambient (θSA, vents, fans, case-as-heat-sink). Solved first as a lumped resistance network (cheap, every number cited or
+  derived); a FEM thermal field only when geometry matters.
+- **Load path for stress** external loads (mounting torque, drop, vibration, cable pull, button presses) enter at the outermost level and
+  pass inward through each level's mounts. Thermal expansion mismatch between levels (die/package/solder/board/housing) adds stress, so
+  stress is solved AFTER the temperature field (coupled: thermal → stress via CTE). The FEM engine gives the tensor per level.
+The device housing usually dominates both: it holds most of the resistance to the room, and it is where outside loads come in.
+
+### 12.2 Kinds to account for
+
+**By level** (E0 added inside E1; §11 table otherwise holds):
+
+| level | kinds |
+|---|---|
+| E0 die | passivation, die attach, underfill, glob-top (chip-on-board) |
+| E1 component | chip packages (DIP, SOIC, TQFP, QFN, BGA, SOT, TO-220/TO-92 with tab heat paths), LED domes, crystal cans, relay cans, electrolytic cans, optocouplers, connector shells, servo/motor housings, sensor housings |
+| E2 board | the board itself, heat sinks, thermal pads/vias, RF/EMI shield cans over a component group, conformal coating, potting |
+| E3 sub-assembly | shield stacks, module carriers, standoffs, brackets, card cages, daughterboards, harness sleeves |
+| E4 device housing | 3D-printed, injection-moulded, sheet-metal, extruded-aluminium (doubles as heat sink); panels, gaskets, windows, light pipes, button caps, vents, fans, cable glands, battery bays |
+| E5 installation | DIN rail, rack, wall/junction box, outdoor cabinet, vehicle mount, submersible housing (aquaponics, saltwater) |
+
+**By function** (one enclosure usually does several; each function carries its own checks):
+
+| function | what it checks |
+|---|---|
+| mechanical / structure | load path, stress tensor, drop, vibration, fatigue |
+| thermal | resistance chain, internal ambient vs each part's limit |
+| ingress / environment | IP rating, water, dust, humidity, condensation, UV, salt, chemicals |
+| EMI / RF | shielding, the RF nodes' antennas outside the shield (ties to the no-TX legality rule) |
+| electrical safety | insulation, creepage/clearance, mains isolation, grounding of metal, ESD at exposed pins |
+| exposure / interface | the pin map (§11.1): connectors, buttons, windows |
+| optical | light windows, light pipes, diffusers (the LED demo's light has to be seen) |
+
+**Proposal:** one Hardware Enclosure row carries a level (E0–E5), a set of functions, a material (materials_science), its exposure map, and its
+contributions to the thermal chain and load path. Checks run per function and are advised, never blocked.
+
+**Open (his):** D-sys-10 add E0 and the kinds above · D-sys-11 thermal first as a lumped network, FEM only on demand · D-sys-12 stress solved
+after the temperature field (coupled through expansion).
