@@ -128,3 +128,19 @@ undetermined, and the answer names the first blocking rung. A missing input is `
 - **Seen live on the econ-core test node 2026-10-17** (`pol deploy run econ-core --role node`, exit 0): `/api/board/arduino-uno-r3/exposure/D13`
   answers from live rows (5 crossings, the buffer among them, no 16U2 rows); the ladder for D0 RXD with transport=usb-serial is blocked at
   rung 8 on both packages; reachability lists 48 pins and 155 functions. pol-core not rolled yet.
+
+## 6. ✅ hsp-1 BUILT + MERGED 2026-10-17 (framework 8eeca13; cli: systems | system | links | paths; sonnet agent)
+- Classes (board now 54): `HardwareSystem` 1 (`uno-light-system`, S1-breadboard, 14 participants of kind hardware / software / person in the
+  cmod Purpose participant shape), `SystemLink` 7 (USART0↔USART1 via RN4A/RN4B 1 kΩ; U2 USB ↔ host with LightState v1 as protocol — partial
+  while the bench variant is pending; DTR → C5 → RESET; the D6→D3 jumper; button → D2; D6 → R1 → LED1 → GND; serial port ↔ Java bridge ↔
+  backend gRPC ↔ page), `SignalPath` 3 derived (button-to-polari 19 hops, polari-to-led 20, led-line-to-d3 10).
+- Every hop names the check that owns it (ladder rung, electrical rule, lifecycle, contract hash, Purpose proof) and copies that check's own
+  verdict; no hop is ok without a check. D0 RXD on polari-to-led = ok "reserved for the transport, used as the transport" while a GPIO claim on
+  D0 stays blocked. The LED hops = undetermined (assumed Vf). The contract hop = conditional (LightState v1 has no command_id; fgm-6 v2).
+  led-line-to-d3's sense-counter hop = not-yet (fgm-5 D3 isotope).
+- Removing the D3 BoardPinNet blocks led-line-to-d3 at a hop naming it; the other two paths are unchanged hop for hop.
+- Ladder refinements: a claim of the binding in context confirms the asked function (a different function still blocks); rung 7 reads the
+  binding's PinClaims (rule (e) sees pull='up'); shared caches (one build 25 s → 0.8 s).
+- Doors `GET /api/hardware-systems[/{name}[/links|/paths[?path=]]]`. Selftests: board 540 → 574, cmod 698, hwnocode 163, manifests 8/9 (unchanged).
+- Owed: a `Person` class (the bench operator ref is `undetermined`); a display surface (configured tables) for the hsp classes; seeding the paths
+  at import now pulls cmod_seed (~4 s) into board_seed (guarded: board still loads alone).
