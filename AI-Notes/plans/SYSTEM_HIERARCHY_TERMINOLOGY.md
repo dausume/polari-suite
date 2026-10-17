@@ -109,3 +109,42 @@ coarsest roles; finer roles (the light, the button) come with fgm-4's typed HAL 
   physics, simulated together)** · "Electronic system" for the physics-coupled whole (his suggestion) · "Embedded system".
 - **D-sys-5** Participants as **roles bound to parts** · parts named directly.
 - **D-sys-6** the comparison words: **Candidate / Trade study / Score card** · Option / Evaluation / Score.
+
+## 8. His rulings and refinement (2026-10-16, second message)
+
+His words: "We need to be specific and call it 'Hardware Mission', Tasks can likely be derived through automation but still be able to
+be modified manually via no-code. The tasks should likely be generated no-code with already specified and chosen c-isotopes and hardware
+set as a context specific to that no-code. So the purpose and mission level no-code is not firmware specific, but the Task no-code
+basically is (partially, it does not take in specific pins and registers yet, but it got formulated in respect to a specific set of them
+and had optimizations done in respect to that hardware). So we should be able to build firmware derived for one device towards another
+that is similar still (a lot of firmware is like this) but we acknowledge and record what the original was based and designed around,
+and what other things we found to work as well if we search for them. Tasks are Specific to an Electronic System I think?"
+
+**Ruled:** D-sys-1 → **Hardware Mission**. D-sys-3 refined → Tasks (and their priorities) are DERIVED by automation and editable by hand
+in no-code (a hand edit is recorded beside the derived value, who/when/why).
+
+**Three layers of specificity (the refinement, stated precisely):**
+
+| layer | no-code | hardware-specific? | exists as |
+|---|---|---|---|
+| Hardware Mission + Purposes | the WHY drawings (plan FGM §8) | **no** — names roles, never parts | CapabilityDefinition; Mission row next |
+| **Task Plan** | the Task no-code, GENERATED for a chosen hardware context (which processors, which chosen C isotopes, which runtime), then editable | **partly** — formulated and optimized against a hardware set, but no pins or registers | new (fgm-3) |
+| Binding | pins, registers, claims, register settings per board | **fully** | ✅ HardwareBinding, claims, RegisterSettings |
+
+**Answer to "Tasks are specific to an Electronic System?" — yes, with one precision:** the **Task Plan** is derived for one Electronic
+system (it decides how the work splits across the processors that system has and which isotopes each uses), and **each Task belongs to
+one processor** within it (a Task never spans two chips; work that crosses chips is two Tasks plus the link between them). Pins and
+registers come one step later, in the Binding — that is why the Task layer is "partly" specific.
+
+**Porting, recorded honestly (his "designed around … and what other things we found to work as well"):**
+- **Designed for** — the Task Plan's origin context, written once and never changed: the Electronic system, processors, chosen isotopes
+  and runtime it was derived and optimized for (+ who/when, the Hardware Mission version).
+- **Also runs on** — every other hardware context the plan has been carried to, each with HOW we know: `resolver-valid` (every
+  requirement met, untested) < `proven-on-twin` < `proven-on-hardware` (the existing proof ladder), plus what had to change (a
+  different isotope chosen, a task regrouped, a binding re-made). Found by search: the resolver (fgm-4) tries the plan against the known
+  boards/chips and lists the ones that resolve, ranked by the Score card.
+- Reuse: this is today's HardwareBinding pattern (one solution, several bindings, each with its own validity and proof) applied one level
+  up to Task Plans across Electronic systems.
+
+**Still open:** D-sys-2 (importance scale), D-sys-4 (Electronic system / Device), D-sys-5 (Participants as roles), D-sys-6 (Candidate /
+Trade study / Score card).
