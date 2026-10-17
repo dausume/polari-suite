@@ -100,3 +100,25 @@ D7 for the LED when D6 is taken, and reports the TQFP difference.
 - **D-msp-3** overlap rules cited per SoC family, AVR first (recommended).
 - **D-msp-4** order: mis-0 and rp-0 in parallel, then pp-0 → pp-1 → sol-0 (recommended).
 - **D-msp-5** the search runs in the backend, no new engine container (recommended; revisit when the problem stops being small).
+
+## 5. His rulings 2026-10-17 (second message) — Purposes as states, Mission settings
+
+His words: "Purposes should become states in the Mission No-code. We should specify settings in the mission, like aiming to accomplish the
+mission with as minimum resources as possible (we want to use the least resources possible to accomplish our goal) or accomplish all purposes
+completing one cycle as fast as possible (fastest cycles through all purposes possible with available resources. (one cycle per purpose is
+doing all tasks relevant to the single purpose)."
+
+**§2.1 amended — the Mission drawing's states:** Goal → **Settings** → **one state per Purpose** (each a full state: its importance, its derived
+resolution, its pin-profile count, and a link into that Purpose's own drawing) → Participants (roles) → Constraints → Resolution (derived).
+
+**Settings = the objective the solution search optimizes** (one chosen; the Purpose criteria stay as bounds either way):
+| objective | minimizes | subject to |
+|---|---|---|
+| **minimum-resources** | resources used: pins, peripherals, flash bytes, RAM bytes, CPU share, parts on the bench | every required Purpose's criteria (latency, debounce, rate) still met |
+| **fastest-cycle** | the Mission cycle time with the resources available | the resources the candidate hardware has |
+
+Cycle definitions (his): a **Purpose cycle** = executing every task relevant to that one Purpose once; a **Mission cycle** = one cycle through every
+Purpose. Times come from the twin's measured cycle counts per task (simavr), estimated from atom sizes until measured, labelled which.
+Resources carry units and are measured, per the resource-cost rule. The two objectives pull apart on the UNO: fastest-cycle prefers interrupts
+and hardware peripherals (INT0/INT1, USART interrupts) and dedicated pins; minimum-resources prefers polling and shared pins where the criteria
+allow. The score card (§2.5 step 4) sorts by the chosen objective first and shows the other as a secondary column.
