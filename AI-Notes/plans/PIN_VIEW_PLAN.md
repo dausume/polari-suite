@@ -216,3 +216,15 @@ The existing card views stay until pv-1..3 cover them, then the board page leads
 - Follow-ups: (1) at stage base an unassigned line names the BoardPin's default role (D6 "pwm" → OC0A) — base should list capabilities, not pick
   one; (2) claims attach to the atom that configures a pin, so `use` shows the Initialization Purpose only (the toggle/report Purposes reach the pin
   through tasks, not claims) — fix with fgm-3 Tasks; (3) a stage read takes ~7 s (no cache).
+
+## 6. ✅ pv-1 BUILT + MERGED 2026-10-17 (angular d6219b6, framework d1a4c35 + merge fd200e7; sonnet agent)
+- `hardware-pin-view` (angular `components/dashboard/generic/pin-view/`: component + layout / encode / panel / draw / service / types modules), registered
+  as a generic display component; page `/display/pin-view` first in "Pin data views". Tokens `--pin-<family>` + `-text` (12 families + other) in
+  `_variables.css` / `_theme-dark.css`.
+- Concentric die → package → board per his sketch; nothing wired by default; surface click draws only its connections; pin → connections clickable →
+  Drive / Signal / Use sections; SoC → register profile link; stage selector + binding picker; protocol sets; show-unassigned; dimming; click-toggle +
+  Escape. Spec 10/10, ng build + check:styles OK, board 648, apps 126.
+- Deviations: dies drawn at ≤ 55 % of their package (the 16U2 die equals its body otherwise); the lock glyph only fires on "reserv" text (no lifecycle
+  field in the payload yet — follow-up: add it to the pin payload); table-row ↔ view selection sync not yet; the board page (`/display/boards`) has no
+  slot (dedicated page + nav only).
+- My layout fix (framework 949b0d6): the parts grid overlapped U1 → moved to the free lower-left area; computed: no surface overlaps.
