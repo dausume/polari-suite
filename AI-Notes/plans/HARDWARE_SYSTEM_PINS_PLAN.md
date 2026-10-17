@@ -144,3 +144,10 @@ undetermined, and the answer names the first blocking rung. A missing input is `
 - Doors `GET /api/hardware-systems[/{name}[/links|/paths[?path=]]]`. Selftests: board 540 → 574, cmod 698, hwnocode 163, manifests 8/9 (unchanged).
 - Owed: a `Person` class (the bench operator ref is `undetermined`); a display surface (configured tables) for the hsp classes; seeding the paths
   at import now pulls cmod_seed (~4 s) into board_seed (guarded: board still loads alone).
+- **Test-node deploy finding (2026-10-17):** the hsp-1 refresh never served — the backend's full (non-lazy) boot on econ-core measured **31 min**
+  (≈2 min module load, ≈8 min silent pre-server phase, ≈20 min restoring ~10k persisted rows: MoldFillSimState 2808, MatrixEquationDefinition
+  1067, NutrientContent 988, MatrixDefinition 847 …), past the 1800 s healthcheck grace → compose marked it unhealthy and never started the
+  proxy. hsp-1's own share: board_seed import 5 s in-container, a few hundred rows. Fix: grace 3600 s in docker-compose.staging-nip.yml (rf-node,
+  2026-10-17). DEBTS: (1) every `pol deploy run` regenerates certs → rebuilds → recreates the backend → a full 31-min boot; (2) lazy boot is off on
+  the test node, so health only answers after the full boot; (3) the 8-min silent phase before `polariServer created` is unexplained; (4) the
+  ~41k "failed to analyze variable manager" log lines per boot.
