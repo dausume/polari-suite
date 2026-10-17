@@ -1,0 +1,102 @@
+# Hardware Mission no-code, pin profiles, register profiles, and the solution search (msp arc) — plan 2026-10-17
+
+PLAN ONLY. Nothing here is built before his go. Terminology: `SYSTEM_HIERARCHY_TERMINOLOGY.md` §8–§13. Pins: `HARDWARE_SYSTEM_PINS_PLAN.md`
+(the availability ladder §2b, hsp-0/1 built).
+
+## 0. His words (2026-10-17)
+
+"Okay do we have an approach towards defining the mission and purposes of our project as no-code for now? And once we do so, having an
+approach to run an engine that attempts to identify parts to assign to purposes to identify a viable solution out of tasks specific to a
+board? We likely want to start with profiling from the purposes what pin-profiles are required per purpose, and identifying which
+pin-profiles can allow overlap at all. We want to also be able to see a profile of registers on the SoCs and profile the registers that
+belong to pin configurations vs those that belong to Flash or RAM"
+
+## 1. What exists (read 2026-10-17)
+
+| piece | today | gap |
+|---|---|---|
+| Purpose no-code | ✅ fgm-1: eleven declarative states, category `purpose`; the row is the truth (lifecycle stored, resolution derived); participants, criteria, observes, tasks; four seeded Purposes for the light demo | no level above it |
+| Hardware Mission | terminology only (§8, ruled name) | no class, no no-code |
+| Task kinds per pin | ✅ `board/custom/target_compat.py` `TASK_KINDS` (analog-in, pwm-out, uart-rx/tx, i2c-sda/scl, spi-*, digital-in/out, interrupt-in + peripheral-level kinds), cited, with `compatible(kind, pin)` | a Purpose does not state which kinds it needs; it reaches them only through its tasks' atoms |
+| What a task touches | ✅ `cmod/custom/targets.py` derives each atom's targets (declared pin macros, registers → peripheral, struct fields) | not rolled up per Purpose |
+| Pin sharing | ✅ `cmod/custom/claims.py`: exclusive claims with a cooperation rule; PinFunction `overrides_gpio` (§14.3) | no table saying which kinds may share one pin or one net |
+| Availability | ✅ hsp-0 ladder: ten rungs per (pin, function, context) | answers one pin at a time; nothing searches |
+| Registers | ✅ 96 Register rows (by peripheral: TIMER1 17, CPU 13, TIMER2 9, ADC 8 …), 97 cited RegisterFields (71 carry `affects_pin`, 37 `affects_signal`), 18 RegisterBlocks, 2 AddressSpaces | no classification into pin configuration / peripheral operation / memory / CPU-system |
+| Memory | ✅ MemoryRegion flash 32 KB, SRAM 2 KB @0x0100, EEPROM 1 KB | the register file R0–R31 (0x00–0x1F) and the bootloader section (Optiboot, top 512 B of flash) are not regions |
+| The search | planned as fgm-4 (typed HAL + resolver over the existing predicates, backtracking) | not started |
+
+## 2. The approach
+
+### 2.1 Hardware Mission as no-code (mis-0)
+- `HardwareMission` (cmod, beside `CapabilityDefinition`): name, title, goal, `purposes_json` = [{purpose, importance}] (importance scale =
+  D-sys-2: safety | required | important | desired), `participants_json` (roles only, hardware-agnostic, the same shape as Purposes),
+  `constraints_json` (target development stage S1–S5, budget knobs, allowed board families — all optional), lifecycle stored, resolution
+  DERIVED (every required Purpose resolvable on some candidate).
+- No-code category `mission`, reusing the Purpose machinery (declarative doors GET/PUT `…/solution`, the row is the truth, derived cards
+  read-only): states **Goal → Purposes (one per Purpose, importance on it) → Participants (roles) → Constraints → Resolution (derived)**.
+  Hardware-agnostic: no pins, no boards (§8 layer 1).
+- Seed: `uno-light-mission` — "Prove Polari and one board can control and observe one light in both directions" — with Initialization
+  (required) and the three light Purposes (required).
+
+### 2.2 Pin profiles per Purpose (pp-0)
+A **pin profile** is what a Purpose needs from one pin, before any pin is chosen:
+{kind (a `TASK_KINDS` entry), role (which participant it serves: "the button", "the LED"), direction, electrical need (drive: load class +
+current; signal: threshold class + pull), timing need (edge, rate, latency from the Purpose criteria), lifecycle phases it is active in, count}.
+- DERIVED, never typed: Purpose → its tasks (graph nodes) → each atom's targets (`cmod/custom/targets.py`) → kinds; electrical and timing
+  needs from the Purpose's participants (the circuit parts) and criteria. A person's correction is a DerivedOverride (who/when/why), the
+  same rule as everywhere else.
+- Rolled up per Mission: the multiset of profiles every required Purpose needs. Light demo expected: interrupt-in (button), digital-out
+  (LED drive), interrupt-in (sense), uart-rx + uart-tx (transport), plus the reserved transport/bootloader pins.
+
+### 2.3 Which profiles may overlap (pp-1)
+A cited **overlap table** per SoC family (AVR first): for each pair of kinds, at three scopes — **same pin**, **same net** (two pins wired
+together), **same peripheral** — the verdict compatible | exclusive | conditional (reason) | undetermined, each with its citation. Examples
+from rules already cited in the code:
+- same pin: digital-out + digital-in = compatible (the input buffer reads an output pin back) · interrupt-in + digital-in = compatible ·
+  pwm-out + digital-out = exclusive (an enabled alternate function overrides PORT, §14.3) · uart-rx + anything = exclusive while USART0 RX is
+  enabled · analog-in + digital-in = conditional (DIDR0 turns the digital buffer off).
+- same net: one driver + any number of inputs = compatible (rule (b), the D6→D3 wire); two drivers = exclusive.
+- same peripheral: two channels of one timer = compatible on channels, exclusive on the timer's mode (claims' cooperation rule).
+Sharing modes recorded beside it: exclusive · shared-read · time-multiplexed (time-multiplexed is a later fgm-4 claim mode).
+Output per Mission: which profiles can co-locate, the minimum number of pins, and the conflicts named.
+
+### 2.4 Register profile of a SoC (rp-0)
+Classify every register FIELD (then roll up to the register): **pin configuration** (a field with `affects_pin` / `affects_signal`, or one that
+enables an alternate function taking over a pin: DDRx/PORTx/PINx, COMnx in TCCRnA, RXEN0/TXEN0, SPE, TWEN, DIDR0, ISCnx/INTx, PCMSKn/PCIE) ·
+**peripheral operation** (counts, compare values, baud, data registers) · **memory / NVM** (EEPROM EEAR/EEDR/EECR, flash self-programming
+SPMCSR, stack pointer SP) · **CPU / system** (SREG, MCUCR, SMCR, PRR, CLKPR, OSCCAL, WDTCSR, MCUSR, GPIORn). DERIVED from the cited field rows;
+a register whose fields fall in two classes is **mixed** (MCUCR: PUD disables every pull-up = pin configuration; IVSEL/BODS = CPU).
+Plus the **memory map** view: register file R0–R31, I/O space, extended I/O, SRAM, flash (application + the bootloader section), EEPROM, each
+as a MemoryRegion with its citation; and what a firmware uses of each (flash and RAM bytes measured at build, the bootloader subtracted).
+Doors: `GET /api/board/socs/{soc}/register-profile`, `…/memory-map`; CLI `pol board registers <soc> [--class pin|peripheral|memory|cpu]`.
+
+### 2.5 The solution search (sol-0, refines fgm-4)
+Input: a Mission (+ optional stage and candidate boards). Steps:
+1. Derive the pin profiles (2.2) and the overlap table (2.3).
+2. For each candidate context (board × package × USB interface; every allowed one while the bench variant is pending), assign profiles to pins
+   as a constraint search: each profile's candidate pins = pins whose ladder (rungs 1–9) is not blocked for its kind; the overlap table prunes
+   co-location; claims and lifecycle are honoured; backtrack on conflict.
+3. Prefer the least specialised pin (keep INT0/INT1, PWM, ADC pins free when a plain pin will do) and record why each pin was chosen.
+4. Each viable assignment is a **Candidate**; several are compared in a **Trade study** with a **Score card** (D-sys-6: pins left free, scarce
+   functions left, electrical margin, unchecked rungs). The chosen one becomes the Hardware System's pin plan; after fgm-3 it seeds the
+   **Task Plan** ("Designed for" this Hardware System).
+5. Every run is a recorded row (inputs by sha256, rule versions, the candidate list) — the reproducible-initial-conditions rule.
+Runs in the backend (pure Python; the UNO problem is tiny), behind `POST /api/missions/{m}/solve` and `pol board solve <mission> [--board B]`.
+Acceptance on the UNO: finds D2 / D6 / D3 (or an equivalent the score card explains), refuses D0/D1 for the button by name (rung 8), accepts
+D7 for the LED when D6 is taken, and reports the TQFP difference.
+
+## 3. Slices (each its own branch, proven on the econ-core test node)
+| # | slice | builds |
+|---|---|---|
+| 1 | mis-0 | HardwareMission + `mission` no-code category + seed + doors |
+| 2 | rp-0 | register field classes + roll-up + memory map (register file, bootloader region) + doors + CLI — independent of 1, can run in parallel |
+| 3 | pp-0 | pin profiles derived per Purpose and per Mission + door + CLI |
+| 4 | pp-1 | the cited AVR overlap table + per-Mission co-location report |
+| 5 | sol-0 | the search on the UNO → Candidates + Score card; feeds fgm-3 Task Plans |
+
+## 4. Decisions (his; my recommendation first)
+- **D-msp-1** importance scale for Purposes in a Mission: safety | required | important | desired (this is D-sys-2).
+- **D-msp-2** pin profiles DERIVED with DerivedOverride corrections (recommended) — or authored per Purpose.
+- **D-msp-3** overlap rules cited per SoC family, AVR first (recommended).
+- **D-msp-4** order: mis-0 and rp-0 in parallel, then pp-0 → pp-1 → sol-0 (recommended).
+- **D-msp-5** the search runs in the backend, no new engine container (recommended; revisit when the problem stops being small).
