@@ -148,3 +148,42 @@ registers come one step later, in the Binding — that is why the Task layer is 
 
 **Still open:** D-sys-2 (importance scale), D-sys-4 (Electronic system / Device), D-sys-5 (Participants as roles), D-sys-6 (Candidate /
 Trade study / Score card).
+
+## 9. Electronic system vs Device, sharpened (his ask 2026-10-16: "Distinguish Between Electronic System and Device")
+
+**One-line test:** if it carries a signal or runs code, it is in the **Electronic system**. If it only has mass, shape, heat or
+surroundings, it is in the **Device**. A Device = one Electronic system + its physical body + the environment it sits in.
+
+| | **Electronic system** | **Device** |
+|---|---|---|
+| boundary | where the wires end | the outer body and whatever touches it |
+| contains | boards, chips, Firmware, Tasks, links (USB/UART/I²C/radio), power electronics, host software, Polari/Hardware apps | the Electronic system + enclosure, mounts, heat sinks, mechanical loads, materials, ambient conditions (temperature, vibration, humidity) |
+| question it answers | does the logic and signalling work? | does it behave and survive in the world? |
+| checks | electrical rules (a)–(j), resource claims, timing, protocol contracts, Task schedulability | stress, thermal, fatigue, ingress, sensor readings of physical conditions |
+| twin | firmware twins (simavr) + simulated links + host apps | the electronic twin coupled to the physics simulation (FEM/thermal), which feeds the simulated sensors |
+| owns | Task Plans, Firmware, Bindings | physical requirements that flow DOWN onto the Electronic system (e.g. "the board runs at 70 °C ambient" → derating, a slower clock) |
+
+**The seam is the transducers.** Every sensor and actuator has two faces: an electrical face in the Electronic system (a pin, a
+voltage, a PWM duty) and a physical face in the Device (a temperature, a force, a light level). The TMP36 is "an ADC reading on A0"
+in the Electronic system and "the enclosure temperature" in the Device. A Device twin connects the two faces; an Electronic-system twin
+drives the electrical face directly (today's `drive-adc-ramp`).
+
+**They vary independently.** The same Electronic system can go into different Devices (the UNO light board in a desk lamp vs a sealed
+outdoor box: same Tasks, different thermal and ingress limits). The same Device design can swap its Electronic system (UNO → Nano
+inside the same box); the Device's physical requirements then re-check against the new electronics.
+
+**Where the other levels attach:**
+- Tasks and Task Plans → the Electronic system (§8). The Device only adds constraints to them.
+- Hardware Missions and Purposes → either level. A Purpose whose participants are physical ("keep the enclosure under 60 °C") is
+  only provable on a Device twin. A Purpose whose participants are electrical ("the button toggles the light") is provable on the
+  Electronic-system twin.
+- Porting (§8 "Designed for / Also runs on") is recorded between Electronic systems. A Device adds "also fits in" records for
+  bodies the Electronic system has been checked inside.
+
+**Design vs physical unit.** "Device" in speech also means the one physical thing on the desk. Proposal: **Device** and **Electronic
+system** name designs; the physical thing is a **unit** (a Device unit, with a serial), the same split as BoardDefinition vs
+BoardInstance today. PurposeObservation already attaches per BoardInstance, so observations move to the unit level unchanged.
+
+**The UNO demo under this split:** the Electronic system = the UNO + LED + 220 Ω + button + D6→D3 jumper + USB + the host bridge + the
+light app. The Device level is empty: nothing is boxed and no body is modelled, so the bench is the only environment. It stays empty
+until the first enclosure or physics-coupled case (D-sys-4 still his to confirm).
