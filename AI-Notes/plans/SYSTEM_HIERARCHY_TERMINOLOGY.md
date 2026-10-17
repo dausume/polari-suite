@@ -317,3 +317,12 @@ contributions to the thermal chain and load path. Checks run per function and ar
 
 **Open (his):** D-sys-10 add E0 and the kinds above · D-sys-11 thermal first as a lumped network, FEM only on demand · D-sys-12 stress solved
 after the temperature field (coupled through expansion).
+
+## 13. His go 2026-10-17 — enclosure kinds tentative, pins first
+
+His words: "Okay let's tentatively make the different kinds of enclosures we need and plan out for things we need, but in terms of
+implementation focus on the ones for pins for now that are relevant to electronic systems and finish fleshing out what we need logic wise
+for the electronics, pins, and signals, we are only accounting for terminology and the need for devices down the road"
+
+→ Implementation record: `HARDWARE_SYSTEM_PINS_PLAN.md` (hsp-0 enclosures + exposure maps + reachability + the 16U2 rows; hsp-1 Hardware
+System + links + end-to-end signal paths). Embedded Device physics (§12.1) stays terminology + catalogue rows only.
