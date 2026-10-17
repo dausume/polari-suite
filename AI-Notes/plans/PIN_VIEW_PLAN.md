@@ -1,6 +1,6 @@
 # The pin view: a d3 visualization of boards, chips, enclosures and their pins (pv arc) — plan 2026-10-17
 
-PLAN ONLY until his go. Builds on hsp-0/1 (`HARDWARE_SYSTEM_PINS_PLAN.md`: enclosures, exposure maps, the availability ladder, Hardware
+✅ GO 2026-10-17 ("Go ahead and start revising work"). D-pv-1..7 as recommended ("that sounds good"); D-pv-7 applied (framework 3b6608a). Builds on hsp-0/1 (`HARDWARE_SYSTEM_PINS_PLAN.md`: enclosures, exposure maps, the availability ladder, Hardware
 Systems, links, signal paths) and feeds the solution search (`MISSION_PROFILE_SOLVER_PLAN.md`).
 
 ## 0. His words (2026-10-17)
@@ -151,8 +151,33 @@ families in FIRMWARE_GENERATION_MODULE_PLAN §5b/§7.3, built in fgm-2):
 net LED_CONTROL"). Under this vocabulary that is the signal side. Proposal: rename the role values to `output` / `input` (signal) and keep "drive"
 for current and supply — D-pv-7 his; nothing renamed until he rules.
 
+### 2.9 His go + two additions (2026-10-17)
+
+His words: "Go ahead and start revising work, we need views specific to data on the pins, connections, etc for that visualization as well" and
+"and the ability for it to be used with base composition of components before any inits occur, as well as after inits and tasks start getting
+assigned via Task definitions on a Mission, and it starts to be altered via the firmware by assignments of pins to different responsibilities."
+
+**Data views (configured pages, no raw JSON) beside the d3 view**, each a DisplayDefinition reading the same `pin-view` door family:
+- **Pins** — every pin at every level (SoC pad, package leg, board pin, board-part pin): level, owner, capabilities (signal families), drive
+  class (pad class), assignment stage, consumers.
+- **Connections** — every pin-to-pin connection: the two ends, kind (pad-to-leg, on-board, chip-to-chip, to a board part, to the bench), via kind,
+  and the three summaries (Drive / Signal / Use).
+- **Surfaces** — boards, enclosures, SoCs, board parts: pin counts by stage (unassigned / available / proposed / committed).
+- **Configuration events** (pv-4).
+The d3 view and these tables select together (a row click selects the same pin or connection in the view).
+
+**Composition stages the view (and the tables) can be set to** — extends §2.4's phases with the Mission side:
+| stage | what defines the pins |
+|---|---|
+| **base composition** | the parts as composed (chips in packages on a board, board parts, bench circuit) before any init: chip blank / board as delivered; only electrical connectivity and documented capability |
+| **after init** | the Initialization Purpose's configuration applied (the init tasks' register settings) |
+| **tasks assigned** | Task definitions on a Mission have proposed claims: pins carry proposed responsibilities (stage "proposed") |
+| **firmware committed** | a firmware binding's committed configuration: pins assigned to responsibilities by the firmware (stage "committed"), each change a ConfigurationEvent with its cause |
+The same `stage` parameter drives the d3 view, the tables and the solution search's candidates (§ MISSION_PROFILE_SOLVER_PLAN sol-0 draws here).
+Until fgm-3 Tasks exist, "tasks assigned" reads today's graph-node claims (PinClaim of a binding) and says so.
+
 ### 2.5 Data door (one composed read)
-`GET /api/board/{board}/pin-view?system=&binding=&phase=&protocol=` → shapes (from the shape rows), pins per level with positions, crossings,
+`GET /api/board/{board}/pin-view?system=&binding=&mission=&stage=&phase=&protocol=` (+ `/pins`, `/connections`, `/surfaces` row views for the tables) → shapes (from the shape rows), pins per level with positions, crossings,
 capabilities by protocol family, consumers, ladder verdicts for the filter, the phase's pin states, and events. One read per view change; the
 component sends names only.
 
