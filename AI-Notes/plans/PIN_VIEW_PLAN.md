@@ -228,3 +228,40 @@ The existing card views stay until pv-1..3 cover them, then the board page leads
   field in the payload yet — follow-up: add it to the pin payload); table-row ↔ view selection sync not yet; the board page (`/display/boards`) has no
   slot (dedicated page + nav only).
 - My layout fix (framework 949b0d6): the parts grid overlapped U1 → moved to the free lower-left area; computed: no surface overlaps.
+
+
+## 7. Drive view, signal view, filters (his words 2026-10-17) → slice pv-2
+
+"We are also going to do a drive view where only pins relevant to drive and their status in relation to drive appear, and the symbols change to
+revolve around drive and power flow rather than signals. We are also going to want to have a signals specific view, where we see only pins related to
+signals and what is activated per pin in terms of protocols. We are going to also want filters we can apply to highlight pieces of logic we want to
+narrow down to like identifying the pins relevant to I2C only, or pins relevant to SPI only and so on while some are highlighted when filtered others
+are greyed out"
+
+A **view mode** on the pin view: **All** (today) · **Drive** · **Signal**. Each mode shows only the pins relevant to it; the rest are hidden (not merely
+dimmed), and the legend switches with the mode. Filters then highlight within the mode; what does not match is greyed out.
+
+**Drive view** (DrivePotential — electricity: flow and supply, never signal direction):
+- Pins shown: supply and ground pins and rails, every pin that can source or sink current (I/O pads), pins with a pull, pins feeding a load (the
+  LED through R1), the USB VBUS / fuse path, the regulator-fed rails.
+- Status per pin at the chosen stage: **supplies** (a rail source: VBUS, the 5 V / 3V3 pins) · **supplied** (VCC, AVCC) · **returns** (GND) ·
+  **sources current** / **sinks current** (an output into a load; which one depends on the level, so a committed output shows "sources or sinks") ·
+  **pulled up / pulled down** (internal pull enabled by the claim) · **high impedance** (an input: leakage only) · **not driven** (blank stage).
+  Plus the limit verdict class (within recommended · undetermined · over) from the electrical rules, and the shared group budget it counts toward.
+- Symbols for power flow: arrow out of the pin = sources current; arrow in = sinks; ⊕ supply, ⏚ return, a small resistor glyph = pull, a load glyph on
+  the far end (LED, resistor), a fuse/inductor glyph on via-parts in the path; colour = rail/domain (5 V, 3.3 V, USB VBUS, ground) or limit class.
+- Drive filters: by rail (5 V / 3.3 V / VBUS / ground), by status (sourcing, sinking, pulled, high-impedance), by limit class (show only
+  undetermined / over), by group budget.
+
+**Signal view** (SignalPotential):
+- Pins shown: every pin that carries or can carry a signal (no supply or ground pins).
+- Per pin: what is ACTIVATED at the chosen stage — the protocol function in use (e.g. D0 = USART0 RXD, D2 = INT0) — with the other capable
+  functions listed greyed beside it; at stage base nothing is activated, so every pin shows its capabilities only (fixes pv-0 follow-up 1).
+- Symbols: outputs / inputs / bidirectional / clock / analog, coloured by protocol family.
+- Signal filters (exists for one protocol; extend): one protocol or a protocol SET (I²C → SDA/SCL; SPI → SCK/MOSI/MISO/SS; UART → RXD/TXD; USB → D+/D−;
+  interrupt; PWM/timer; analog), several at once; "activated only" vs "capable"; matching pins highlighted, the rest greyed.
+
+**Also in pv-2 (from my screenshot pass 2026-10-17):** label collisions (CSTCE16M0V53-R0 over ICSP1; "PB6 line" texts), unnamed small part boxes,
+bench parts clipped at the right edge by the fit, the die label overlapping leg labels; the lifecycle reservation as a payload field (the lock glyph).
+Data: the pin payload gains per-mode fields (`drive_status`, `rail`, `pull`, `limit_class`, `group_budget`; `activated` + `capable` functions) so the
+component never re-derives a rule.
