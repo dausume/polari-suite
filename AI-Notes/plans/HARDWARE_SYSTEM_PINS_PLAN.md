@@ -125,3 +125,6 @@ undetermined, and the answer names the first blocking rung. A missing input is `
 - Left undetermined (named in the rows): die pads; the QFN centre pad's ground tie; nine bare 16U2 stubs; RESET-EN series vs bridge and the
   RN1D/D2 branch; LMV358 input current; 16U2 ElectricalCharacteristics; the doc7799 footer revision mismatch (one file, sha matches).
 - TQFP context: rung 3 is judged on the modelled SPDIP board nets → `conditional` (no TQFP board exists).
+- **Seen live on the econ-core test node 2026-10-17** (`pol deploy run econ-core --role node`, exit 0): `/api/board/arduino-uno-r3/exposure/D13`
+  answers from live rows (5 crossings, the buffer among them, no 16U2 rows); the ladder for D0 RXD with transport=usb-serial is blocked at
+  rung 8 on both packages; reachability lists 48 pins and 155 functions. pol-core not rolled yet.
