@@ -199,3 +199,20 @@ The existing card views stay until pv-1..3 cover them, then the board page leads
 - **D-pv-6** what to call the parts on a board in the view ("board parts" / role names recommended; "peripheral" stays for on-chip blocks).
 - **D-pv-7** rename `BoardPinNet.role` driver → output (signal direction), keeping "drive" for current and supply (recommended).
 - **D-pv-5** order: pv-0 alongside the msp register profile (rp-0), then pv-1..4; the solution search (sol-0) later draws its candidates in this view.
+
+## 5. ✅ pv-0 BUILT + MERGED 2026-10-17 (framework cda34f9..183e92f; cli `pol board pin-view`; sonnet agent + my review)
+- 23 MathShapeDefinition rows (3 packages, 2 dies, the UNO board, 14 board parts, 3 bench parts); pins computed by generators (`board/custom/pv_shapes.py`:
+  two-row DIP/SOIC, quad QFP/QFN + exposed pad, die ring, part box, header rows). Cited: SPDIP pitch 2.54 / body 7.239 × 34.671 / rows 7.62 (DS40002061B
+  p.644); TQFP pitch 0.80 / body 7.00 (p.636); QFN pitch 0.50 / body 5.00 / pad 3.10 (doc7799 p.295, 328P p.641–642; 16U2 pad = partial); UNO bbox
+  66.04 × 50.80 + holes (A000066 p.12). Drawing knobs (labelled): die squares + pad positions, header/footprint placements, part boxes, 4 family hexes.
+- 12 signal families with `--pin-<family>` tokens; sets spi/i2c/uart/usb expand to child signals (`pv_families.py`).
+- UNO base view: 22 surfaces, 186 pins (die 61, package 61, board 38, part 22, bench 4), 161 pin-to-pin connections (60 pad-to-leg, 56 to-header,
+  18 to-board-part, 12 on-board, 12 to-bench, 3 chip-to-chip) + 14 `unresolved` crossings with reasons. Each connection: separate drive / signal / use.
+- Stages: base (0 claims) · after-init (the Initialization Purpose's tasks; = tasks-assigned for uno-light, whose four claims are init tasks) ·
+  tasks-assigned · firmware-committed (claims cited by generated RegisterFieldSetting/SignalRoute rows). `mission` = undetermined until fgm-3.
+- Doors `GET /api/board/{b}/pin-view` + `/pin-view/{pins,connections,surfaces}`; pages pin-view-pins / -connections / -surfaces ("Pin data views"
+  group on the Hardware home); SoC surfaces link to the register profile. board 646, cmod 698, hwnocode 163.
+- Review fix (me): a header pin on a bench net takes that net's signal role (the jumper reads D6 outputs / D3 inputs), else it "passes".
+- Follow-ups: (1) at stage base an unassigned line names the BoardPin's default role (D6 "pwm" → OC0A) — base should list capabilities, not pick
+  one; (2) claims attach to the atom that configures a pin, so `use` shows the Initialization Purpose only (the toggle/report Purposes reach the pin
+  through tasks, not claims) — fix with fgm-3 Tasks; (3) a stage read takes ~7 s (no cache).
