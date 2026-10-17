@@ -187,3 +187,21 @@ BoardInstance today. PurposeObservation already attaches per BoardInstance, so o
 **The UNO demo under this split:** the Electronic system = the UNO + LED + 220 Ω + button + D6→D3 jumper + USB + the host bridge + the
 light app. The Device level is empty: nothing is boxed and no body is modelled, so the bench is the only environment. It stays empty
 until the first enclosure or physics-coupled case (D-sys-4 still his to confirm).
+
+## 10. Naming with a "Hardware" prefix (his proposal 2026-10-17)
+
+His words: "We should likely add a specifying word to participants as well to clarify, and to enclosures as well would Hardware
+Participant and Hardware Enclosure work? And maybe we change Electronic System to Hardware System. And then Device is Embedded Device"
+
+| was | his proposal | assessment |
+|---|---|---|
+| Electronic system | **Hardware System** | fits: matches Hardware Mission / Hardware App; the §9 test is unchanged (signal or code → Hardware System) |
+| Device | **Embedded Device** | fits: "embedded device" in common use means a physical product with a computer inside it, which is exactly level 6. (The §3 worry was about "embedded SYSTEM", which means the inner computer; that word is now Hardware System, so no clash.) Physical unit = "Embedded Device unit" |
+| (body, §9) | **Hardware Enclosure** | fits, as ONE part of the Embedded Device's body. The body also holds mounts, heat sinks and mechanical loads, and the surroundings are not enclosure at all → proposal: Embedded Device = Hardware System + Hardware Enclosure (+ other body parts) + **Operating environment** |
+| Participant | **Hardware Participant** | fits for parts, but today's Purpose seeds also name a host and Polari as participants (`purpose_seeds.py`: board, chip, host, Polari), and a person pressing the button participates too → proposal: keep **Participant** as the umbrella with three kinds: **Hardware Participant** (board, chip, LED, button, sensor), **Software Participant** (host bridge, Polari, a Hardware App), **Person** |
+
+No existing class clashes with HardwareSystem, HardwareEnclosure, EmbeddedDevice or HardwareParticipant (checked 2026-10-17).
+
+Updated ladders: WHY — Purpose → Hardware Mission. HOW — C atom/isotope → Task → Firmware → Board build → **Hardware System** →
+**Embedded Device**. D-sys-4 and D-sys-5 become these names once he confirms the two refinements (Participant umbrella; Operating
+environment beside the Enclosure).
