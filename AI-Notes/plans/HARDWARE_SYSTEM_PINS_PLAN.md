@@ -48,6 +48,39 @@ So:
 | later | housing exposure features (panel button, light window), thermal chain, stress | Embedded Device, terminology §12 |
 | later | a display surface (configured Table definitions, no raw JSON) for the fgm-2 and hsp classes | next display slice |
 
+## 2b. The availability ladder (recalled 2026-10-17 at his ask; agreed 2026-10-15)
+
+His words: "there was logic we laid out previously on a ladder of how pins are exposed or not across different levels based on a
+combination of participants and enclosures, determining where pins are available. Do you recall the logic for that"
+
+Source: Revision 2 §5 (pasted 2026-10-15) — the hierarchy SoC pad → package contact → board net / board contact / onboard component →
+board extension contact, "modelled as a connectivity graph rather than assuming every relationship is one-to-one" — and §5.2 "Derived
+availability". My reconciliation (`FIRMWARE_GENERATION_REVIEW_R2.md` Part 2 items 3, 4, 9) kept it: availability is a COMPUTED view,
+never stored; the four-way distinction documented capability (PinFunction) → available (computed) → proposed claim → committed
+(RegisterSetting); one `participants_json` instead of five scope entities.
+
+**The ladder, in order. A function on a pin is available only if every rung passes in the given context:**
+
+| rung | question | answered by |
+|---|---|---|
+| 1 SoC capability | can the silicon do it on this pad? | PinFunction / PeripheralSignal |
+| 2 package exposure | is the pad bonded on the package in use? | E1 EnclosureContact (not-bonded rows), PackageContact |
+| 3 board routing | where does the leg go on the board: header, internal, via what? | E2 EnclosureContact |
+| 4 connected components | what already sits on the line: onboard parts, bench circuit | E2 consumers + BoardPinNet + circuit rows |
+| 5 attached extensions | does a shield / carrier take or re-expose it? | E3 EnclosureContact (none seeded yet) |
+| 6 pin multiplexing | does the function exclude another active one? | target_compat, PinFunction exclusivity |
+| 7 electrical limits | do the loads and levels fit? | electrical rules (a)–(j) |
+| 8 lifecycle | is it reserved or prohibited in this phase / condition? | PinLifecycleConstraint |
+| 9 existing claims | does another task already hold it? | cmod PinClaim / PeripheralClaim |
+| 10 isotope requirements | does the chosen CIsotope's need match? | fgm-4 resolver (not yet) |
+
+**Where participants and enclosures come in.** The participants fix the context: which board, which chip, which package (every allowed one
+while the bench board's variant is pending), which circuit and extensions are attached, which host and transport (the condition
+transport=usb-serial comes from the host participant). Rungs 2–5 are the enclosure levels walked inward to outward. Rungs 6–10 are the
+existing checks, called, never re-implemented. Each rung answers ok · blocked (reason + citation) · conditional · unchecked · not-yet ·
+undetermined, and the answer names the first blocking rung. A missing input is `unchecked`, never ok. Built in hsp-0 as
+`board/custom/reachability.py` (rungs 1–5 derived, 6–9 delegated, 10 `not-yet`).
+
 ## 3. Slices (each its own branch off dev, proven on the econ-core test node via `pol deploy run econ-core --role node`)
 
 ### hsp-0 — enclosures and exposure (board module; moves under the Hardware tree with fgm-T)
@@ -71,7 +104,7 @@ So:
   bench wiring (removing the D6 → D3 BoardPinNet) breaks path 3 by name; the LightState v1 contract appears as the protocol of the
   host link.
 
-## 4. Decisions (his; my recommendation first)
+## 4. Decisions — ✅ RULED 2026-10-17 ("Will go with your recommendations")
 - **D-hsp-1 names:** EnclosureKind / HardwareEnclosure / EnclosureContact / HardwareSystem / SystemLink / SignalPath (recommended), or
   other words.
 - **D-hsp-2 home:** the board module now, moved with everything else under the parent Hardware tree in fgm-T (recommended).
