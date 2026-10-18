@@ -303,3 +303,15 @@ component never re-derives a rule.
 - **Live check 2026-10-18 (econ-core, small fixes + mis-0):** header reads "Pin view"; fit hangs from the top (no empty band); short package titles
   "U1 SPDIP" / "U2 QFN" clear of the leg labels; labels clean. The first load right after the backend's boot showed "The server could not be reached"
   (the door answered 200 in 0.3–0.7 s moments later) → follow-up: the component retries a failed read once (with a short back-off) before saying so.
+
+## 10. ✅ pv-4 BUILT + MERGED 2026-10-18 (framework 61fee87 + merge a7574d9, angular 238aaf9; sonnet agent)
+- Phases on the pin-view door (`phase=power-up|reset|bootloader|init|runtime|programming|debug`, `blank=chip|board`; per-pin `phase_basis`): power-up/reset —
+  every I/O pin high-impedance, no pull, nothing activated (328P DS40002061B §14.2.1 p.85 + Table 14-1 p.86; 16U2 doc7799 §2.2.4–2.2.6 p.4–5, §12.2.1 p.68;
+  DDRC/PORTC reset values not in the rows — said); bootloader (board as delivered) — D0 serves RXD (§20.7 p.188), D1 TXD (§20.6 p.185), RESET answers DTR via
+  C5, the rest blank (Optiboot's D13 start-up flashes and the 16U2's own firmware undetermined); chip blank → no bootloader; init = the after-init stage.
+- `ConfigurationEvent` (observed, never seeded); GET/POST `/api/board/{board}/config-events`: InstallRecord (installed) → flash, canvas BoardPinNet → wiring-added,
+  derived on every read; POST validates kind/refs/who/when, refuses unknown kinds by name; a recorded event citing an InstallRecord hides the derived one;
+  `pins_changed` = the payload diff (2–5 s per distinct comparison).
+- Angular: phase selector + blank toggle + "After every reset the pins are blank until init runs" banner + an event timeline (click → its pins, before/after table).
+- board 722, cmod 1011, manifests 8/9, spec 30/30, ng build OK. Owed: a "Configuration events" table page + a `pol board events` verb; derived wiring events
+  carry no time/person (the row stores none).
