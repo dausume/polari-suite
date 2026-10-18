@@ -151,6 +151,27 @@ CLI (his rule):
 - **fsc-4** — cited prices on KitPart (bom-cost / cost-to-build-now) and the cited current figures (active-current).
 - **fsc-5** — the isle-core measurement campaign for the finished solutions (measured flash/RAM/cycles).
 
+## 10a. His answers 2026-10-18 (quoted) → what they fix
+- **D-fsc-1:** "If it is a deadline flagged as being safety critical then yes it needs to count as a failure. If it is not flagged as safety critical,
+  then no, it should just be scoring based on how close it gets to it."
+  - A deadline criterion in a Purpose's `criteria_json` carries `safety_critical: true|false`, default false.
+  - Violating a safety-critical deadline is a FAILURE.
+  - Any other deadline is scored by closeness. The `deadline-fit` term = 100 at or under budget, falling smoothly with the overrun (budget/cycle). The
+    curve is a stated knob.
+  - A Purpose of importance `safety` whose deadline is not flagged gets a SUGGESTION to flag it. It is never auto-flagged (the knobs-and-suggestions rule).
+  - Unanswered: "finished" still needs every Purpose proven. That is my default, kept from §2.
+- **D-fsc-2:** "A cited list would be ideal, accounting for the fact you can buy used or locally as well in that."
+  - Prices are cited OFFERS per part class: condition new | used, channel online | local, price + currency, source + URL, and the date cited.
+  - bom-cost uses the cheapest offer the PROFILE accepts. Knobs: accept used (default yes), accept local (default yes).
+  - The breakdown names the offer used.
+  - Local offers cite a chain's public list price, never his location (privacy rule).
+- **D-fsc-3:** "Yes build on existing score module."
+- **D-fsc-4:** "The sample profiles sound good."
+- **D-fsc-5:** "it should be split according to weighting of the importance of a purpose maybe?"
+  - A shared route's cost and time are split across the Purposes that use it, in proportion to each Purpose's importance weight.
+  - The weights are knobs: safety 4 · required 3 · important 2 · desired 1.
+  - Each split is stated in the breakdown.
+
 ## 10. Decisions (his)
 - **D-fsc-1** — Is a violated stated deadline a FAILURE, as his "does not fulfil all purposes" suggests, or a scored penalty? Recommend failure. Is a Purpose with no passing proof a failure? Recommend yes, for "finished".
 - **D-fsc-2** — Price source: cited vendor list prices with a date (recommend), or what he actually paid (kept local, never in tracked files).
