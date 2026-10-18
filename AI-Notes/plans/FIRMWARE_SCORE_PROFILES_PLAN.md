@@ -203,6 +203,11 @@ The dedicated page `/display/firmware-scores` has tabs:
 
 Each tab is a configured table: no raw JSON and no new custom component. The bar chart moves inside a profile tab.
 
+**Acceptance (his "make sure you check it with chrome"):** the page is checked in Chrome on the test node and then on live pol-core.
+- Screenshots: the main tab; every profile tab, confirming top = 100 and bottom = 0, sorted; a breakdown opened; the Failures tab; and a weight edit
+  in the editor that re-ranks.
+- The screenshots go to him, and anything wrong is fixed before he is told the page is done.
+
 Backend: `GET /api/firmware-scores/top?mission=` returns the main tab's rows. A profile tab reads `GET /api/firmware-scores?mission=&profile=`.
 
 ## 10. Decisions (his)
