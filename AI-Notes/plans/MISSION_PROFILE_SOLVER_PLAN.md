@@ -290,3 +290,6 @@ recorded "Also runs on" (terminology §8).
   chosen "SPDIP / bare-c / LED gpio-out, button ext-interrupt, command uart-rx-interrupt, report uart-tx, **sense gpio-poll**" (same plan on the TQFP), 9.7 ms,
   resources 1.898. Note to check: the sense line comes out POLLED here, while the agent's bench-preferred scenario reported INT1 on D3 — read the score card's
   deciding difference (probably the 10.7 ms loop vs the INT1 cost under fastest-cycle) before calling it right. Phase `reset` and config-events doors 200.
+  → Checked: the top candidates all tie at 9.7 ms (the Mission cycle is bounded by the USART send wait, not the sense route), and the tie is broken on the
+  secondary objective — a polled sense uses fewer resources than INT1. Correct under the stated model because the sense Purpose carries NO latency criterion;
+  if the D3 sense must witness every edge within N ms, that belongs in the Purpose's criteria (then INT1 wins by rule, not by preference).
