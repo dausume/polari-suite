@@ -1,0 +1,159 @@
+# Firmware Score Profiles (fsc) — PLAN, 2026-10-18 (nothing built)
+
+His ask (2026-10-18, quoted): "of our existing solutions we have tried, what is our scoring equation and how did we run it on the devices to find
+which solution is ideal? Anything that does not fulfill all purposes is just a failure, but we should be able to have a few different scores for
+different desires … cheapest … quickly … other common desired solution configurations and terms … like those in the scorecard … particular
+'Mission Solutions/Firmware Solutions' and a page that compares each finished Firmware Solution against Firmware Score Profiles … weight the
+scoring from terms ourselves … sample scores like profiling for just the fastest or just the cheapest … one that scores unique to the hardware
+and might weight cheapness and fastness per-purpose."
+
+## 1. What exists today (sol-0, `cmod.custom.solve_engine` / `solve_cost`)
+- **Two objectives.** The Mission picks one; the other is shown as the secondary column.
+  - `minimum-resources` = Σ wₖ·fractionₖ:
+    - pins used / header pins (w 3)
+    - on-chip blocks / 9 kinds (w 2)
+    - parts to acquire, whole units (w 3)
+    - part classes / 10 (w 0.5)
+    - flash / limit (w 1)
+    - RAM / limit (w 1)
+    - CPU class / 4 (w 1)
+
+    The weights are knobs (`limits.weights`).
+  - `fastest-cycle` = Σ over Purposes of the Purpose cycle in µs. A Purpose cycle runs from the trigger to the last task. A polled trigger adds up to one main-loop pass.
+- **Rank key:** rank_class (0 placed + on bench · 1 parts missing · 2 a deadline violated · 3 a Purpose lost · 4 unplaceable) → lost-Purpose weight → primary → secondary → risk points → hardware order → tier.
+- **Undetermined values** are scored at a stated stand-in, never 0.
+- **Where it ran:**
+  - The search is a static estimator inside the backend: live pol-core, and the test node on econ-core. For the UNO it gives 40 candidates (20 plans × 2 packages).
+  - Cycle figures are cyc-0 counts MEASURED on the simavr twin where the route's atoms have a cycle record; otherwise they are counted estimates.
+  - The proofs are twin runs (`pol faults run`); the suites ran on isle-core.
+  - Nothing has run on a real board yet.
+- **Live winners, 2026-10-18:**
+  - minimum-resources: poll button + poll sense, 1.777 (21.8 ms).
+  - fastest-cycle: INT0 button + INT1 sense, 10.6 ms (1.847).
+- **Gaps against his ask:**
+  1. An incomplete candidate is ranked lower instead of being a FAILURE.
+  2. "Cheapest" is chip-resource fractions, not money. No price data exists.
+  3. Only two fixed objectives exist; there are no saved profiles, no per-Purpose weighting, and no per-hardware profile.
+  4. Candidates are plans. Only 7 firmware configs are actually built (uno-light, -pcint, -analog, -sense-poll, -sense-pcint, sim-rig, button-clock). Nothing ties a candidate to the built FirmwareSolution that realises it.
+
+## 2. Vocabulary
+- **Mission Solution** — one solve candidate for a Mission: hardware × runtime tier × a route per job, plus its pin assignment. It is stored from a SolveRun.
+- **Firmware Solution** (the existing fs-0 row) — a Mission Solution REALISED: graph + board → a built image.
+  - It is **finished** when it is built AND every Purpose of the Mission is proven (on the twin now, on hardware later).
+- **Failure** (his rule) — any solution that does not fulfil every Purpose. It is listed with the Purpose it fails and the reason, and NEVER gets a score.
+  - Proposed failures: a lost Purpose · unplaceable · a stated deadline violated · a Purpose with no passing proof (D-fsc-1).
+  - Missing parts are NOT a failure; they are a cost term.
+- **Firmware Score Term** — one measurable quantity of a solution, with a direction and a normalization.
+- **Firmware Score Profile** — a named, weighted set of terms. Weights can apply per Purpose and per hardware context.
+
+## 3. Reuse the scoring module, don't invent (the scorecard pipeline is already in `modules/scoring`)
+The `scoring` module already carries the Political Scorecard's math: normalize → context-match by specificity → weighted mean → levelize to 0–100, with every absent term named. Mapping:
+
+| scorecard / `scoring` | firmware |
+|---|---|
+| `ScoreTerm` (is_positive, normalization_json) | Firmware Score Term (category `firmware`) |
+| `ScoreSubject` (object_ref_json) | a Mission Solution / Firmware Solution (objectRef to the row) |
+| `ScoreContext` | `purpose:<name>` and `hardware:<board>` contexts (new context types) |
+| `ContextualizedValue` | one term value for one solution, in one context, with kind measured/estimated/cited/stand-in + basis |
+| `ScoreConcept` (term_weights_json, weighted-mean, levelize) | a **Firmware Score Profile** |
+
+There are no new score classes. The new pieces are:
+- a value WRITER that turns a solve candidate or a FirmwareSolution into ContextualizedValues
+- the two context types
+- seeded profiles
+- the comparison page
+
+## 4. Terms (each with its basis; undetermined → stated stand-in)
+| group | term | direction | basis now |
+|---|---|---|---|
+| Cost | **bom-cost** — money for every part the solution needs | lower | cited vendor prices with date (NEW data: `KitPart.unit_price` + a source); stand-in = undetermined |
+| | **cost-to-build-now** — money for the parts NOT on the bench | lower | the same prices × parts_missing |
+| | parts-to-acquire (count) | lower | exists |
+| Speed | **mission-cycle** µs | lower | exists |
+| | **worst-purpose-latency** µs | lower | per-Purpose cycle, exists |
+| | **deadline-slack** — min over Purposes of (budget − cycle)/budget | higher | exists (deadline Purposes only) |
+| | boot-to-ready µs | lower | init lane, exists |
+| Headroom | flash-free %, RAM-free % | higher | measured from the ACTUAL build (avr-size) for finished ones; estimated for plans |
+| | pins-free, blocks-free | higher | exists (inverse of used) |
+| | cpu-idle — 1 − load class | higher | exists (ordinal); measured later |
+| Power | **active-current** mA | lower | datasheet-cited per block + LED; undetermined until cited |
+| | **sleep-capable** — every trigger can wake from sleep (interrupt-driven) | higher | derived from routes (polled = no) |
+| Robustness | risk-points — unchecked/conditional ladder rungs | lower | exists |
+| | noise-immunity — debounce/threshold margin | higher | per route (analog threshold < digital) — cited/estimated |
+| | shared-resources — shared pins/nets/blocks | lower | exists |
+| Evidence | **confidence** — share of the score's terms that are measured vs stand-in | higher | exists (bases counts) |
+| | proof-level — twin / hardware / none per Purpose | higher | ScenarioRuns |
+| Build effort | wires/joints, part count | lower | from the pin assignment + parts |
+| | code size (atoms, LOC) | lower | the graph |
+| Portability | also-runs-on — packages/boards with the same plan | higher | exists |
+
+## 5. Sample profiles (seeded ScoreConcepts; his to rename / re-weight)
+- **Fastest** — mission-cycle 1.0 only.
+- **Cheapest** — bom-cost 1.0 only (money). Until prices are cited it falls back to cost-to-build-now + parts-to-acquire, and says so.
+- **Build it today** — cost-to-build-now 0.5, wires/joints 0.3, confidence 0.2.
+- **Balanced** — cycle 0.3, bom-cost 0.3, headroom 0.2, robustness 0.2.
+- **Battery** — active-current 0.5, sleep-capable 0.4, cycle 0.1.
+- **Room to grow** — flash/RAM/pins/blocks free 0.25 each.
+- **Most trustworthy** — confidence 0.4, proof-level 0.4, risk-points 0.2.
+- **Today's two objectives** reproduced as profiles (`minimum-resources`, `fastest-cycle`), so the old ranking stays one click away and is proved equal.
+- **Hardware-specific (his "unique to the hardware")** — one profile per board context with **per-Purpose weights**. Example for the UNO light Mission:
+  - ensure-button-controls-light: latency 0.8, cost 0.2
+  - ensure-polari-can-control-light: latency 0.5, cost 0.5
+  - report state: cost 0.8, latency 0.2
+
+  The score is Σ_p αₚ · Σₜ wₜ,ₚ · norm(vₜ,ₚ) / Σw, where αₚ is the Purpose weight. Cost terms are attributed to a Purpose through the routes its jobs use; a route that two Purposes share is split evenly, and the split is stated.
+
+## 6. Normalization (stated on every cell)
+- **Absolute** where a natural bound exists: flash/RAM/pins against the chip's limits, and slack against each deadline.
+- **min-max-auto across the compared set** otherwise: money, µs, mA. The breakdown names the set.
+- Levelized 0–100, higher = better (is_positive inverts).
+- A stand-in value shows as a hatched cell, and the profile's confidence column drops.
+
+## 7. The page — `/display/firmware-scores` (configured tables; no raw JSON, no new custom component)
+1. **Finished Firmware Solutions × Profiles.**
+   - One row per finished solution, one column per profile.
+   - Each cell shows a 0–100 score and its rank in that column; the best in each column is marked.
+   - Click a cell → the term breakdown (term · value · kind · normalized · weight · points · basis).
+2. **Failures** — a separate table: solution · the Purpose it fails · why. No score.
+3. **Mission Solutions not yet built** — the same columns, marked "plan (estimated)", so the gap between built and possible stays visible.
+4. **Profile editor** — weights per term (and per Purpose for a hardware profile) as a configured form.
+   - Saving creates the user's own ScoreConcept; seeded profiles are copied before they are edited.
+   - It follows the click-toggle rule.
+5. **Term-by-solution chart** — a bar view in `sci-xy-chart` (THE chart home).
+
+CLI (his rule):
+- `pol firmware scores [--profile P] [--mission M] [--json]`
+- `pol firmware profile show|create|weight`
+- `pol firmware score-values refresh` (rewrites the ContextualizedValues)
+
+## 8. Running it on the devices
+- **isle-core (twin campaign).** For each finished solution: build → avr-size → cycle record → the acceptance scenarios. This MEASURES flash/RAM/cycles for the built image instead of estimating them.
+  - Command: `pol deploy selftest isle-core …` or a new `pol firmware measure <solution> --node isle-core`.
+  - Results are stored as ContextualizedValues of kind measured, with sha256 inputs (the reproducibility rule).
+- **pol-core.** The live server holds the values and profiles and serves the page.
+- **The bench (his).** Once the UNO is plugged in, the same scenarios run on hardware: proof-level → hardware. Current draw needs a USB power meter (an owner reminder); until then active-current stays cited/estimated.
+
+## 9. Slices
+- **fsc-0**
+  - the failure rule
+  - link Mission Solution ↔ FirmwareSolution (each built config resolves to its candidate)
+  - "finished" derived
+  - Term rows seeded
+- **fsc-1**
+  - the value writer (candidate + FirmwareSolution → ContextualizedValues, per Purpose + per hardware context)
+  - the two context types
+  - the old two objectives as profiles, proven to reproduce today's ranks
+- **fsc-2**
+  - the seeded sample profiles
+  - per-Purpose weighting
+  - the CLI
+- **fsc-3** — the page (tables + breakdown + editor + chart).
+- **fsc-4** — cited prices on KitPart (bom-cost / cost-to-build-now) and the cited current figures (active-current).
+- **fsc-5** — the isle-core measurement campaign for the finished solutions (measured flash/RAM/cycles).
+
+## 10. Decisions (his)
+- **D-fsc-1** — Is a violated stated deadline a FAILURE, as his "does not fulfil all purposes" suggests, or a scored penalty? Recommend failure. Is a Purpose with no passing proof a failure? Recommend yes, for "finished".
+- **D-fsc-2** — Price source: cited vendor list prices with a date (recommend), or what he actually paid (kept local, never in tracked files).
+- **D-fsc-3** — Reuse `modules/scoring` (recommend) vs firmware-only score classes.
+- **D-fsc-4** — The sample profile set and weights in §5.
+- **D-fsc-5** — How cost is attributed to Purposes for per-Purpose weighting: an even split of shared routes (recommend), or assign each route to its most important Purpose.
