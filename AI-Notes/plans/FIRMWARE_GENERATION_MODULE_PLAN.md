@@ -609,3 +609,18 @@ with importance breaking ties, overridable) + the attempt engine (MISSION_PROFIL
   deadline_ms, context) survive a re-derive and are flagged when the derived value moves; "Designed for" written once by POST `/api/missions/{name}/task-plan`.
 - cmod 1060 (+49), board 734, apps 131. Owed: link `HardwareSystem.task_plan` (still empty, text says "arrives with fgm-3"); rt-0's preview text; the
   sense gpio-poll atoms (or a sense latency criterion so INT1 wins by rule — see MSP plan §14 note).
+
+## 10. fgm-6a — command confirmation on the wire (LightState v2), started 2026-10-18 under the night go
+His ruling §7.8.3 (command_id correlation; reliable events with ack) + §7.9.1 (LightState v2 = a deliberate, gated change). To keep the bench path he
+has prepared intact (the v1 firmware, the Hardware Bridge deb, the demo bundle), v2 is built as a NEW contract + NEW firmware variant beside v1
+(`uno-light-v2`); v1 stays the default until he says switch. Scope: pinned `LightState` v2 (tag order rule) with `last_command_id` (u16, minted by the
+sender, monotonic per the sender's boot session), `last_command_result` (applied | rejected-invalid | rejected-busy), `boot_session`; the firmware echoes
+them; the backend counts a command confirmed ONLY on a frame whose last_command_id matches within the boot_session it was sent into (a reboot between
+send and echo = "unknown, resend"); codec/proto/Java bridge regenerated for v2 alongside v1; twin proof (20 rapid commands → 20 confirmations or
+named failures; unplug/replug = reboot → unknown, resend). Identical-hex gate: v1 hexes unchanged; v2's hex is a new recorded baseline.
+
+## 11. C3 pin functions — so the attempt engine can resolve on a second board, started 2026-10-18
+The ESP32-C3 model has no PinFunction / PeripheralSignal rows (sol-0 reports it undetermined). Build them from cited Espressif sources (the ESP32-C3
+datasheet's pin table + the TRM's IO MUX / GPIO matrix chapters; fetched, hashed, page-cited like the UNO's documents) with `routing = matrix` for
+signals the GPIO matrix routes to any GPIO and `fixed` for IO-MUX-only functions, strapping pins and the USB-JTAG pins as lifecycle constraints. Then
+sol-0 on the C3 resolves or refuses by rule, and "Also runs on" can record a real second board.
