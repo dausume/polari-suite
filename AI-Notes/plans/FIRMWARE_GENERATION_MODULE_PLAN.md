@@ -599,3 +599,13 @@ with importance breaking ties, overridable) + the attempt engine (MISSION_PROFIL
   the agreement check passing, a hand edit kept beside the derived value (DerivedOverride) and surviving a re-derive.
 - NOT in this slice: the page-wide word sweep atoms → "steps" (D-fgm-1; touches many pages — its own sweep later); the Task no-code drawing (a configured
   page first); code generation from Tasks (fgm-5/6).
+### 9.1 ✅ fgm-3 BUILT 2026-10-18 (framework 502859f; merging after fgm-5a)
+- `TaskDefinition`, `TaskStructBinding` (isr_shared), `TaskTrigger`, `TaskPlan`; `cmod/custom/task_plan*.py`. Light Mission on `uno-light-system`, seeded from
+  sol-0's chosen candidate (bare-c; at the time: button polled on A0, sense polled on A1): five Tasks on U1 — init (boot, priority 0, agrees init) ·
+  handle-button-press (edge polled, debounce 30 ms, 100 ms, 1, agrees loop) · receive-command (USART RX interrupt on D0, 2, agrees) · relay-state (period
+  100 ms from TELEMETRY_HZ, labelled estimate, 3, agrees) · sense (A1 polled, 4, UNCHECKED — the gpio-poll route has no atoms yet; with the INT1 candidate
+  the sense Task takes the route's atoms and agrees isr). The four 100 ms tasks TIE (deadline + importance) → Purpose order, marked "TIE with …".
+- isr_shared: g_toggle_pending, the rx ring head/tail, g_ms. Edits via `POST /api/firmware/overrides` on TaskDefinition (priority, trigger, steps_order,
+  deadline_ms, context) survive a re-derive and are flagged when the derived value moves; "Designed for" written once by POST `/api/missions/{name}/task-plan`.
+- cmod 1060 (+49), board 734, apps 131. Owed: link `HardwareSystem.task_plan` (still empty, text says "arrives with fgm-3"); rt-0's preview text; the
+  sense gpio-poll atoms (or a sense latency criterion so INT1 wins by rule — see MSP plan §14 note).
