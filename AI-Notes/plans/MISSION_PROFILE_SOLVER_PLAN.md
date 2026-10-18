@@ -241,3 +241,26 @@ recorded "Also runs on" (terminology §8).
   resources") → four "Required: …" Purpose states → five Participants → Limits → "Can it be done here? resolved", with the link row into each Purpose's
   drawing. The page frame still carries the generic Hardware-solutions text and the Runtime picker says "Python (Backend)" on a declarative drawing
   (same known leftover as the Purpose drawings, FGM plan §8.7).
+
+## 12. ✅ pp-1 BUILT + MERGED 2026-10-18 (framework e2e2345 + my fix 96a13d3; cli `pol board overlap`, `pol capability colocation`; sonnet agent)
+- Cited overlap table for the ATmega328P, code-owned and derived on read (no stored rows that could drift): 17 kinds (incl. `transport`, `comparator-in`
+  with AIN0/AIN1 + DIDR1 rules, `pin-change-in` separate from INT0/INT1) × 153 pairs × 3 scopes = 459 verdicts (218 compatible, 148 exclusive, 92 conditional,
+  1 undetermined: pwm-out + comparator-in on PD6 — the datasheet is silent). Every datasheet cite = section + printed page + verbatim quote, checked against
+  DS40002061B; code rules cited by name (single_output, claims, lifecycle). Modes exclusive · shared-read · shared-config · time-multiplexed-later.
+- Light demo co-location: 5 profiles need 5 pins apart, 4 under the most permissive valid sharing (LED + sense on one pin is conditional: the sense would see
+  the firmware's own writes — the demo deliberately uses a real wire); button + LED never share (pull-up only while input, Table 14-1; switch to ground
+  would short an output); transport lines forced apart.
+- My review fix: the host-link reservation now also applies at NET scope (the report had listed "transport + button could share a net, conditional").
+- Note: co-location is SoC-scope (pin options include PB6/PB7/PC6 that the UNO does not expose) — board availability is the ladder's job in sol-0.
+- Doors `/api/board/socs/{soc}/profile-overlap`, `/api/missions/{name}/colocation`; page `/display/profile-overlap`. board 702, cmod 909.
+
+## 13. ✅ rt-0 BUILT + MERGED 2026-10-18 (framework 7ad6dd7 + merge afd64b2; cli `pol capability approach`; sonnet agent)
+- Light demo on the UNO: 3 independent triggers (button, SET_LED, the 10 Hz report), tightest deadline 100 ms, one periodic task (telemetry 100 ms from
+  TELEMETRY_HZ), one blocking op (the USART send wait ≤ 9.5 ms, estimated), 4 ISRs, 5 loop tasks → **bare-c, PROVISIONAL**: worst loop pass ≈ 10.7 ms
+  (estimated upper bounds) inside the 70 ms button budget (100 ms − 30 ms debounce); apply / telemetry_send call generated code the profiler cannot bound
+  → a twin cycle count closes it. Priority preview: 5 tasks tie (100 ms, required).
+- Tiers: UNO bare-c available (measured 3110 B flash / 513 B RAM vs cited 32256 / 2048), freertos blocked (2 KB SRAM refusal; kernel RAM undetermined),
+  zephyr blocked (no AVR in Zephyr v4.4.2). C3: bare-c blocked (no bare template), freertos + zephyr available (kernel footprints undetermined).
+  Synthetic missions recommend freertos (3 conflicting periodic + a blocking bus read) and zephyr (large) — the thresholds are labelled rules of the profiler.
+- Doors `/api/missions/{name}/approach[?board&tier]`; page "Approach". After the merge: cmod 956, board 702, apps 129, manifests 8/9.
+- Owed: measured per-atom cycle counts on the twin (closes "provisional"); the chosen-tier DerivedOverride write path.
