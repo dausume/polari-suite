@@ -669,3 +669,6 @@ sol-0 on the C3 resolves or refuses by rule, and "Also runs on" can record a rea
 - Generic `GET /PinFunction` now lists stored rows only (UNO + the C3's 72 fixed); derived rows are served through the domain doors.
 - cyc-0 merge note: its "counted by structure" check assumed the polled sense had no atoms (fgm-5b gave it atoms) → the clause now applies only when such a
   part exists.
+- **Retire run on econ-core 2026-10-18:** boot after deploying c3-derive (old rows still stored) ≈50 min (14:17 → 15:07). `pol board retire-derived` dry run →
+  2 640 stored, 2 640 identical, 0 edited; `--apply` → all retired (the first call outlasted the CLI's 30 s curl limit while the server kept deleting — the verb
+  now gives the apply 900 s). After: 0 stored; the C3 solve unchanged (GPIO20/21, GPIO3, GPIO10, GPIO8) in 8.8 s. Redeploying to measure the boot.
