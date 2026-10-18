@@ -135,3 +135,9 @@ allow. The score card (§2.5 step 4) sorts by the chosen objective first and sho
 - Doors `/api/board/socs/{soc}/register-profile`, `/memory-map`; pages `/display/register-profile`, `/display/memory-map`; Hardware home group
   "The chip's registers and memory". board 616 (worktree), cmod 698, hwnocode 163, apps 126, manifests 8/9 (unchanged).
 - Undetermined: the UNO's shipped BOOTSZ fuse (boards.txt high_fuses not read); EEPROM use (no .eeprom size recorded).
+
+## 7. His go 2026-10-17 night — "do small fixes first then move on autonomously, work through the night"
+D-msp-1..5 had no explicit ruling; taken AS RECOMMENDED under this go (each reversible, his to overturn): importance scale safety | required |
+important | desired; pin profiles DERIVED with DerivedOverride corrections; overlap rules cited per SoC family, AVR first; order mis-0 → pp-0 → pp-1 →
+sol-0 (rp-0 already built); the search runs in the backend. Settings per §5 (his words): objective minimum-resources | fastest-cycle.
+Night sequence: small pin-view fixes (sf) ‖ mis-0 → pp-0 → pp-1 → sol-0 → pv-4 configuration events, each a branch proven on econ-core.
