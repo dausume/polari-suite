@@ -315,3 +315,13 @@ component never re-derives a rule.
 - Angular: phase selector + blank toggle + "After every reset the pins are blank until init runs" banner + an event timeline (click → its pins, before/after table).
 - board 722, cmod 1011, manifests 8/9, spec 30/30, ng build OK. Owed: a "Configuration events" table page + a `pol board events` verb; derived wiring events
   carry no time/person (the row stores none).
+
+## 11. ✅ pv-5 BUILT + MERGED 2026-10-18 (framework 54e214c, angular e625f3d; cli `pol board events`; sonnet agent)
+- Candidate stage: `stage=candidate&run=&candidate=` (default: the latest SolveRun's chosen candidate) marks the candidate's pins `proposed` at die,
+  package and header, with consumer = role + route + Purposes and the run's reason per pin; score / tier / variants / risks / "what lost" in the response;
+  a non-chosen candidate is replayed from the recorded inputs and refused 409 if the replay no longer matches the stored result hash.
+  Bench-preferred fastest-cycle run: D2 (INT0), D6, D3 + the transport D0/D1; resources 1.898, cycle 9.7 ms; "what lost" leads with D0/D1 refused at rung 8.
+- Angular: "Candidate (from a solution search)" in the stage selector, run + candidate pickers, "Why these pins", "What lost", risks, link to Solutions found;
+  `event=` selects an event in the timeline.
+- Page `/display/config-events` ("Configuration events", "Pin data views" group) with links into the pin view at each event; CLI `python3 -m board.custom.config_events list`.
+- board 734, cmod 1011, apps 130, manifests 8/9, spec 35/35, ng build OK.
