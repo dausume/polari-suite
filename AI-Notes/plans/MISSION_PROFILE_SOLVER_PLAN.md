@@ -199,3 +199,15 @@ recorded "Also runs on" (terminology §8).
 | rt-0 | approach pre-profiler | `approach_profile` (8.2) + tier checks (memory measured, support by name) + door/page |
 | sol-0 | the attempt engine | 8.4 over the UNO (+ the modelled ESP32-C3 as a second hardware) → candidates, score card, recorded runs, the pin view drawing a candidate's assignment (stage "candidate") |
 | fgm-5 | templates | real Jinja2 templates for the most useful variants (PCINT button, PWM LED, analog-threshold button), each compiled + twin-proven, status climbing the ladder |
+
+## 9. ✅ mis-0 BUILT + MERGED 2026-10-18 (framework 167b16a + merge 2190271, angular 21c160a; sonnet agent)
+- `HardwareMission` + six states (MissionGoal / Settings / Purpose — one per Purpose, field `purpose_name` / Participant / Constraint / Resolution —
+  derived, never stored); `cmod/custom/mission_{nocode,derived,text,palette,seeds,doors}.py`, `cmod_mission_api.py` (MissionAPI); doors GET
+  `/api/missions`, GET/PUT `/api/missions/{name}/solution`, GET `/api/missions/{name}/resolution`; hwnocode validator category `mission`.
+- Seed `uno-light-mission` (4 required Purposes, 5 participants incl. the person, objective minimum-resources, stage S1-breadboard) + its drawing
+  `mission-uno-light-mission`; seed converges nothing a person sets (settings, lifecycle, importances, notes).
+- Angular: category Mission (icon rocket_launch), GET/PUT drawing load/save, read-only resolution, a row of links into each Purpose's drawing
+  (`mission-links.ts`). Hardware home group "Missions" → `/display/hardware-solutions?solution=mission-uno-light-mission`.
+- Resolution rule: safety + required Purposes decide (else all named); none → unbound; a missing Purpose = unresolved, named. Cycle/resource
+  estimates show "Not worked out yet" until sol-0.
+- cmod 698 → 769, hwnocode 163, board 668, apps 127, hdr4 13, specs 13/13, ng build OK. Manifests: I fixed pv-2's unlisted files (board) → 8/9 again.
