@@ -624,3 +624,20 @@ The ESP32-C3 model has no PinFunction / PeripheralSignal rows (sol-0 reports it 
 datasheet's pin table + the TRM's IO MUX / GPIO matrix chapters; fetched, hashed, page-cited like the UNO's documents) with `routing = matrix` for
 signals the GPIO matrix routes to any GPIO and `fixed` for IO-MUX-only functions, strapping pins and the USB-JTAG pins as lifecycle constraints. Then
 sol-0 on the C3 resolves or refuses by rule, and "Also runs on" can record a real second board.
+### 10.1 ✅ fgm-6a BUILT 2026-10-18 (framework 54bbb22 + my review fix; merging)
+- `LightStateV2` = a NEW class beside LightState (contract `board/custom/contracts/LightStateV2.v1.json`, hash 7168b2d02d82157e, wire v2 5976dfed2e718479):
+  the 7 v1 fields + `command_id` (down), `last_command_id` (up), `last_command_result` (up: applied | rejected-invalid | rejected-busy); tags alphabetical
+  (fresh class); u16 range enforced in firmware + backend. C codec, proto, Java record/codec/enums generated beside v1 (javac clean).
+- Firmware `uno-light-v2`: 3920 B flash / 652 B RAM, baseline hex e288db76… (identical across builds); answers each command with an immediate frame
+  (id + result), rejects malformed as rejected-invalid, ignores a repeat of the id it last answered; the button leaves the echo alone; RX_RING 128.
+- Backend `board/custom/light_confirm.py` + door GET/POST `/api/board/light-v2` (pending_command + recent commands); `LightCommand` ledger; frame observer
+  hook `register_frame_observer` in grpcbridge wire_contract; `light-toggle-v2` built but NOT seeded (v1 stays the default).
+- Twin proofs (ScenarioRuns, simavr): 20 rapid commands → 20 confirmations by their own ids; reset mid-answer / mid-command → unknown-resend (sessions 1→2,
+  a no-reset control confirmed); 4 malformed commands → rejected-invalid, light stays off, the next good one applies; a button press never confirms a pending
+  command (a lost command → unconfirmed at its timeout).
+- v1 unchanged: uno-light hex 94b9b77f… (3090/10/503), LightState header + contract file + Java/proto v1 pinned in selftests.
+- My review fix: the stale-id hazard the agent flagged (a row's outgoing command_id surviving a board restart would be APPLIED by a later whole-row push) →
+  `on_report` clears it when a report shows a new boot_session; selftest.
+- To switch the demo to v2 (his word): Hardware Bridge app `LightClient.java` (read/parse → /LightStateV2 or the light-v2 door; toggle → POST + poll
+  pending_command), `State.sentence()`, `HardwareBridgePanel.java` SOLUTION/toggle, `Bundle.java` (v2 firmware + bridge.properties + uno-light-app),
+  `HardwareBridgeTest.java`; the light page (`hwnocode/light_page.py`: LightStateV2 + LightCommand tables); seed the v2 solution rows (`toggle_v2_rows()`).
