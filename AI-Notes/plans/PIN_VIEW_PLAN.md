@@ -269,3 +269,14 @@ component never re-derives a rule.
   the U2 package dims the rest and draws its 73 connections (to U1's D0/D1/RESET legs, the USB connector, its crystal Y1, its ICSP header, the test pads,
   the rails); the side panel lists its 33 pins with capabilities, stage and consumer. Readability findings handed to pv-2: zoom to the selection
   (a 5 mm QFN is a cluster at board scale) and collapse rail connections to stubs outside Drive mode.
+
+## 8. ✅ pv-2 BUILT + MERGED 2026-10-17 (framework eb2a635, angular 1547323; sonnet agent)
+- Payload: per pin `drive_relevant, drive_status, drive_why, rail, pull, limit_class, limit_basis, group_budget` and `signal_relevant, activated, capable,
+  lifecycle (locks)`; per connection `drive_relevant, signal_relevant`; part `short_title, title_pos, extent`; filters `protocol=i2c,spi`, `activated_only=1`,
+  row-view `rail / drive_status / limit_class` lists. Base lines name no protocol signal (capabilities only) — pv-0 follow-up 1 closed.
+- Component: mode switch All · Drive · Signal (irrelevant pins hidden; legend + panel per mode); drive glyphs (out/in/double current, ⊕, ⏚, pull resistor,
+  hatched limit); signal badges; multi-select protocol + drive chips (highlight, grey the rest); zoom to the selection; rail stubs outside Drive; shelf-packed
+  part labels (no overlaps, selftested), fit includes parts + labels, die titles inside the die; `--drive-*` tokens.
+- board 668, cmod 698, hwnocode 163, spec 20/20, ng build + check:styles OK.
+- Honest gaps: `pull=external` never emitted (no row names one); the 16U2 UCAP rail undetermined; unclaimed I/O stays not-driven at later stages;
+  ICSP header pins reach the chip only through the ICSP1 part (not mode-relevant).
