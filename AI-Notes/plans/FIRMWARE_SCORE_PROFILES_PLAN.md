@@ -203,6 +203,14 @@ The dedicated page `/display/firmware-scores` has tabs:
 
 Each tab is a configured table: no raw JSON and no new custom component. The bar chart moves inside a profile tab.
 
+**How tabs are built:** configured pages have NO tabs today (`module_pages_seed._page` = rows of tables), and the profile set is dynamic (his own
+saved profiles add tabs). So fsc-3 adds a GENERIC display feature, not a page-specific component:
+- page-level `tabs`: static tabs, each holding rows of configured tables, the same as a page;
+- a `tabs_from` source: one tab per row of a list door (`/api/firmware-score-profiles`), with `{name}` templated into each table's data_path.
+- The first tab is static (Top scorers); the last two are static (Failures, Profile editor).
+- The selected tab is kept in the URL (`?tab=`), so a shared link opens the same tab.
+- The click-toggle rule does not apply to tabs: a tab is a place, not a selection.
+
 **Acceptance (his "make sure you check it with chrome"):** the page is checked in Chrome on the test node and then on live pol-core.
 - Screenshots: the main tab; every profile tab, confirming top = 100 and bottom = 0, sorted; a breakdown opened; the Failures tab; and a weight edit
   in the editor that re-ranks.
