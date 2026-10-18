@@ -211,3 +211,15 @@ recorded "Also runs on" (terminology §8).
 - Resolution rule: safety + required Purposes decide (else all named); none → unbound; a missing Purpose = unresolved, named. Cycle/resource
   estimates show "Not worked out yet" until sol-0.
 - cmod 698 → 769, hwnocode 163, board 668, apps 127, hdr4 13, specs 13/13, ng build OK. Manifests: I fixed pv-2's unlisted files (board) → 8/9 again.
+
+## 10. ✅ pp-0 BUILT + MERGED 2026-10-18 (framework 739cfff; cli `pol capability pins | pins-mission`; sonnet agent)
+- Profiles DERIVED per Purpose from its tasks, the bench circuit rows and PinClaims, evidence per field; signal and drive in separate keys.
+  initialization: transport uart-rx/tx (reserved), LED digital-out, button interrupt-in (debounce undetermined: no criterion). ensure-button-controls-light:
+  button interrupt-in, pull-up, falling edge, debounce 30 ms (its criterion); LED digital-out sourcing current into LED1 via R1 220 Ω (current undetermined —
+  assumed Vf; Vf-free ceiling 22.7 mA shown as "not a design target"); sense line D3 interrupt-in (origin: bench — the light graph has no sense task yet).
+- Mission roll-up `uno-light-mission`: 5 distinct profiles (transport uart-rx, uart-tx reserved; the LED; the button; the sense line) with importance from
+  `purposes_json`; the LED counted once across three Purposes.
+- Corrections through DerivedOverride (class PinProfile added to overrides.py). Doors GET `/api/capabilities/{name}/pin-profiles`, `/api/missions/{name}/pin-profiles`,
+  `/api/pin-profiles`; page `/display/pin-profiles` ("Pin profiles" group on the Hardware home). cmod 805, board 671, hwnocode 163, apps 127, manifests 8/9.
+- Found and handled: `usart_send` matched D0 as uart-tx (wrong) — dropped by target_compat by name; `led_toggle` would fall back to pwm-out — folded into
+  the LED digital-out with the reason in evidence.
