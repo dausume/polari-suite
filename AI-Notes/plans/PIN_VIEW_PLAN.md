@@ -265,3 +265,7 @@ dimmed), and the legend switches with the mode. Filters then highlight within th
 bench parts clipped at the right edge by the fit, the die label overlapping leg labels; the lifecycle reservation as a payload field (the lock glyph).
 Data: the pin payload gains per-mode fields (`drive_status`, `rail`, `pull`, `limit_class`, `group_budget`; `activated` + `capable` functions) so the
 component never re-derives a rule.
+- **Live check on econ-core 2026-10-17** (after the rotation + header fixes): U1 lies along the board; the top header reads SCL/SDA … D8, D7 … D0; clicking
+  the U2 package dims the rest and draws its 73 connections (to U1's D0/D1/RESET legs, the USB connector, its crystal Y1, its ICSP header, the test pads,
+  the rails); the side panel lists its 33 pins with capabilities, stage and consumer. Readability findings handed to pv-2: zoom to the selection
+  (a 5 mm QFN is a cluster at board scale) and collapse rail connections to stubs outside Drive mode.
