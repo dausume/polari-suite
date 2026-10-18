@@ -41,3 +41,13 @@ are marked **(taken, yours to overturn)** — all were my recorded recommendatio
 - Record the fgm-5a / v2 ScenarioRuns on the live stack; roll the night's work to pol-core (last roll had rp-0 … pv-2).
 - The sense Purpose has no latency criterion, so the engine polls D3 (cheaper); add one if every edge must be caught within N ms.
 - The C3 board's header map (rung 3), the N4/N4X variant; v2 switch-over (your word); the atoms → "steps" page sweep; your reminders ledger (part photos, fuses, the UNO plugged in for Detect).
+
+## Update — day of 2026-10-18 (after his "it is well past morning … leverage the 3 devices")
+- **Boot fix (the big one):** every boot stored another `polariServer` row and the next boot RE-CONSTRUCTED each one (a full server init per row). Fixed
+  (polariServer = runtime singleton, never re-constructed). Test node 51 → 17 min; live pol-core ≈26 → 7.5 min (it held 53 stale rows).
+- **Three devices:** `pol deploy selftest <node> --ref <branch>` runs suites on isle-core (separate checkout, private pip --target deps, host engine images);
+  heavy test runs no longer load pol-core. Memory rule saved.
+- Merged since the night report: Task Plans (fgm-3), LightState v2 beside v1 (fgm-6a), ESP32-C3 pin functions (the engine places the light Mission on the C3),
+  sense-route templates (all five Tasks agree; the demo plan is rank 1 under fastest-cycle + bench wiring), measured cycles (bare-c no longer provisional;
+  simavr's UART is ≈2.2× slower than the chip — recorded), c3-derive (2 640 C3 rows derived on read; `pol board retire-derived`).
+- **Decide:** 13 GB of unused tagged Docker images on pol-core (old engine / lean images) — the rule forbids a blanket prune; tell me which to drop.

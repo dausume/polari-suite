@@ -162,3 +162,6 @@ undetermined, and the answer names the first blocking rung. A missing input is `
   → **VERIFIED on econ-core 2026-10-18:** boot 16:09:18 → ready 16:26:26 = **≈17 min (was ≈51)**; the log says "Skipping polariServer: a runtime singleton … 29
   stored row(s) left on disk, not re-constructed". The healthcheck grace (60 min) can come back down later; the stale rows can be cleaned with a retire verb
   if ever wanted (they are no longer read).
+- **Rolled to pol-core 2026-10-18 16:28** (everything since the last roll: mis-0 … fgm-6a, C3, sense routes, cycles, c3-derive, the boot fix): the live
+  backend answered in **≈7.5 min (was ≈26)**; its log: "Skipping polariServer … **53** stored row(s) left on disk". task-plan, pin-view, atom-jobs doors 200.
+  Pruned 772 MB; pol-core disk 5.0 GB free. Still owed on pol-core: `pol board retire-derived --api <live>` (dry run first) for its old C3 matrix rows.
