@@ -154,3 +154,8 @@ undetermined, and the answer names the first blocking rung. A missing input is `
 - **Rolled to pol-core 2026-10-17** (images shipped from econ-core, `pol swarm deploy node` + forced service updates): `/api/hardware-systems/
   uno-light-system/paths` answers live with the three paths; D13 exposure = 5 crossings. Backend ready ≈ 26 min after the roll. Pruned 1.07 GB;
   disk 94 % (7.4 GB free) — prune again before the next roll.
+- **ROOT CAUSE of the slow, GROWING boot (found 2026-10-18 on econ-core):** every boot persisted another `polariServer` row, and the restore pass
+  re-CONSTRUCTED each stored one — re-running the whole server init (DefInit of 815 classes, the API profiler …) per old row. 28 stale rows ≈ 34 min of a
+  51-min boot (+≈73 s per redeploy). c3-derive's 2 640 rows were NOT the cause (retired; boot unchanged). FIX (framework branch dev-bootfix, objectTreeManager
+  Decorators.RUNTIME_SINGLETON_CLASSES): polariServer is a runtime singleton — never re-constructed on restore, rows left on disk, logged. Verifying with
+  `pol deploy selftest isle-core --ref dev-bootfix` then a test-node boot. The same accumulation likely exists on pol-core's live stack.
