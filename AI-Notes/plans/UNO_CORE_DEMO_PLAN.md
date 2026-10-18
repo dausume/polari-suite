@@ -1307,3 +1307,16 @@ transports, framings, components. The JavaFX app's measured cost (jpackage image
 DEMONSTRABLES_PLAN §9 (the three solution kinds) · HARDWARE_DEV_PRIORITIES P1/P2/§3b (capabilities, the bench, the
 selection model) · FIRMWARE_EXPORT_PLAN §2/§2b/§4 (the Installer, BridgingCapability, exp-2) · HARDWARE_NOCODE_PLAN
 (one no-code model) · POLARI_TREE_PLAN §2 (app kinds) · BOARD_PROGRAMMING_PLAN §7a · HARDWARE_ARC_TEST_GUIDE §4–5.
+
+## 2026-10-18 — demo readiness maintained (his "keep on task … good enough shape to meet our current goals")
+- Live pol-core: all four light Purposes proven-on-twin (initialization stays planned — no acceptance; `ensure-polari-observes-hardware-state` proven
+  today). Readiness: firmware ok, cross-domain ok, both light Purposes proven-on-twin; the bridge `uno-light` was MISSING (never created on the live
+  stack) → created + LightState schema stabilized + gRPC exposure enabled + bridge generated (23 files, contract v1 current) → bridge `never-run` until a
+  real board runs through it (the bench). Same on the econ-core test node (+ its two light proofs re-pushed after the rebuild dropped them).
+- Wrapped as a verb (his CLI rule): `pol hwnocode demo-prepare --api URL [--dry-run]` (idempotent; selftested).
+- Found: the variant proofs (PCINT / analog button, sense poll / pcint) PASS on the twin but the live server refuses to store them — a Purpose's runs
+  door only accepts its own acceptance_scenario (right guard) and there is no door for route-level proofs, so iso-0's catalogue cannot read them as
+  proven-on-twin on a live server. OWED: a ScenarioRun door for route proofs (firmwarefaults), keyed by scenario, read by the catalogue.
+- Fixed: the uno-temp-split record (hal.c sha moved with fgm-5a/5b; hwnocode 166/167 on dev) re-rendered → 170/170.
+- Bench path unchanged and ready on his side: plug the UNO in → Detect in the Hardware Bridge App → flash uno-light → the bridge runs → readiness
+  `bridge` flips from never-run (OWNER_REMINDERS has the wiring + prerequisites).
