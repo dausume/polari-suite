@@ -223,3 +223,17 @@ recorded "Also runs on" (terminology §8).
   `/api/pin-profiles`; page `/display/pin-profiles` ("Pin profiles" group on the Hardware home). cmod 805, board 671, hwnocode 163, apps 127, manifests 8/9.
 - Found and handled: `usart_send` matched D0 as uart-tx (wrong) — dropped by target_compat by name; `led_toggle` would fall back to pwm-out — folded into
   the LED digital-out with the reason in evidence.
+
+## 11. ✅ iso-0 BUILT + MERGED 2026-10-18 (framework cbeed9d; cli `pol cmod jobs | variants`; sonnet agent)
+- `AtomJob` (6: read-button, drive-led, sense-led-line, read-temperature, report-state, receive-command) + `IsotopeVariant` (22 = §8.3's 20 + the two
+  transport routes). Stored: declared fields + estimated/undetermined costs; DERIVED on request: status, on-bench flags, measured costs, eligibility.
+- Status today: `compiles` ×7 (INT0 button, GPIO LED, PWM LED, INT1 sense, TMP36 analog, uart-tx report, uart-rx command) — climbs to proven-on-twin /
+  -hardware only from a passing ScenarioRun of a Purpose whose graph holds the route's atoms; 15 `declared`. Measured: INT0 button 210 B flash / 8 B RAM /
+  17 B stack, GPIO LED 16 B, TMP36 50 B (atom sizes from uno-button-clock / manifests); the rest undetermined, lower bounds or labelled estimates.
+- Eligibility on the UNO: SPI-shift-register / I²C-expander routes and the DS18B20 / TMP102 / MAX31855 sensors blocked BY THE MISSING BENCH PART (named);
+  poll / INT / PCINT / ADC threshold / comparator / GPIO / PWM / transistor / TMP36 ok. Tier: zephyr blocked on AVR (RuntimeProfile row), freertos refused
+  for 2 KB SRAM, esp-idf Espressif-only. ESP32-C3: GPIO/ADC/TMP36 ok; INT/PCINT/comparator/PWM/UART routes undetermined (no PinFunction rows — GPIO matrix).
+- Variant `profiles_json` uses pp-0's kind/role vocabulary (selftest: every profile of uno-light-mission is offered by some variant).
+- Gap for pp-1: TASK_KINDS has no comparator kind (the comparator route uses analog-in with a note).
+- Doors `/api/atom-jobs`, `/api/atom-jobs/{job}/variants[?board&tier]`, `/api/atom-variants`; page `/display/isotope-variants`. cmod 896, board 671,
+  hwnocode 163, apps 128, manifests 8/9.
