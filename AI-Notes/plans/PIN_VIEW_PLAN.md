@@ -289,3 +289,14 @@ component never re-derives a rule.
   "5V"/"GND" stubs with the rail's other pins listed in the panel, D0/D1/RESET legs carry the lifecycle lock, its connections to U1, ICSP1, the test
   pads, Y1 and X2 are drawn. Left: the U2 package title runs into a U1 leg label; an empty band above the board in the fit-all view.
 - **✅ Rolled to pol-core 2026-10-17** (rp-0, pv-0, pv-1, pv-2 and fixes): pin-view surfaces, register profile and `/display/pin-view` answer 200 (backend ready ≈ 27 min). Disk was 98 % → `docker builder prune -af` freed 3.9 GB; now 95 % (6.3 GB free).
+
+## 9. ✅ Small fixes MERGED 2026-10-17 night (framework 448127a, angular 820c7e0; sonnet agent) — his "do small fixes first"
+- Package titles: short titles ("U2 QFN", "U1 SPDIP"), full name on hover; selftest: package-title boxes vs every other chip's leg-label boxes (at an
+  assumed 6 px/mm fit zoom — a knob, not measured).
+- Empty band: cause = fit() centred a wide board vertically in a tall viewport → `fitTransform()` hangs content from the top (18 px margin); spec at 3 sizes.
+- Page headers: optional `title` on DisplayDefinitions (definition JSON), else the name humanized ("pin-view" → "Pin view"; names already in prose
+  unchanged); titles set on Pin view / Pins / Connections / Surfaces / Register profile / Memory map. On an already-seeded server the title lands
+  only if the seed rewrites the row — else the humanized fallback shows.
+- Table → view: the component reads `pin= / surface= / connection=` (with mode/stage/protocol) and selects + zooms; `class-rows-table` gains a
+  `view:` column format (`view:view:/display/pin-view?pin={id}`, in-app routerLink); every pin-data table has a "show in view" link.
+- board 671, apps 126, specs 33/33, check:styles + ng build OK. To verify live with mis-0.
