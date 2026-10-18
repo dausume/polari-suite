@@ -172,6 +172,23 @@ CLI (his rule):
   - The weights are knobs: safety 4 · required 3 · important 2 · desired 1.
   - Each split is stated in the breakdown.
 
+## 10b. His correction 2026-10-18 (quoted) — scoring is COMPETITIVE; replaces §6
+"scoring is meant to be done competitively, so the top scorer is normalized to the top score and the bottom score to 0 and the rest distributed in
+between."
+
+**Per term:** every term is min-max normalized across the solutions being compared. The best value scores 100, the worst scores 0, and the rest fall linearly in between.
+- This replaces the absolute normalization §6 gave flash, RAM, pins and slack. The chip limits stay in the basis text only.
+
+**Per profile:** the weighted result is normalized the same way within each profile column, so the top solution reads 100 and the bottom reads 0.
+- The raw weighted value stays in the breakdown.
+
+**Who competes:** the compared set is every non-failed solution in the view. Finished and plan rows compete together only when the view shows both, and the page says which set was used.
+- Failures never enter the set.
+
+**Edge cases, stated:** a set of one, or a term where every solution ties, scores 100 for all, and the breakdown says "no competition on this term". A stand-in value competes at its stand-in, and is marked.
+
+**Why it matters:** sol-0's score cards show raw weighted sums (1.777, 1.847 …), which read as strange. The new page shows competitive 0–100 only.
+
 ## 10. Decisions (his)
 - **D-fsc-1** — Is a violated stated deadline a FAILURE, as his "does not fulfil all purposes" suggests, or a scored penalty? Recommend failure. Is a Purpose with no passing proof a failure? Recommend yes, for "finished".
 - **D-fsc-2** — Price source: cited vendor list prices with a date (recommend), or what he actually paid (kept local, never in tracked files).
