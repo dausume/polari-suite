@@ -306,3 +306,7 @@ recorded "Also runs on" (terminology §8).
 - sol-0 with D2,D3 occupied: minimum-resources unchanged (poll button A0 / LED D9 / poll sense A1); fastest-cycle now picks the PCINT button on A0 (10.06 ms).
 - Identical-hex gate green (uno-light, uno-sim-rig, uno-button-clock + all 10 manifest configurations). hal.c gained one guard (`#if HAL_INT0 && !HAL_BUTTON_ROUTE`);
   the three graph projects re-rendered/built/proved. Catom layout kept under `custom/` (manifests rule). cmod 1069, board 742, firmwarefaults 188, ucd 34.
+- **Live check of the candidate stage + Task Plan on econ-core 2026-10-18:** the pin view's "Candidate" stage draws the stored run (pickers, "Why these
+  pins", proposed legs); the Task Plan door answers in 0.4 s with the five Tasks (4 agree, sense unchecked). FOUND: my POST put `prefer: bench-wiring` at the
+  top level; the door only read `limits.prefer` and SILENTLY ran the default search (LED on D9, sense on A0). FIXED (framework, this commit): top-level
+  prefer / occupy / only_jobs accepted like the GET, unknown body keys refused 422 by name; selftest: top-level prefer places D2 / D6 / D3. 56/56.
