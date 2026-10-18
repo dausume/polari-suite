@@ -141,3 +141,61 @@ D-msp-1..5 had no explicit ruling; taken AS RECOMMENDED under this go (each reve
 important | desired; pin profiles DERIVED with DerivedOverride corrections; overlap rules cited per SoC family, AVR first; order mis-0 → pp-0 → pp-1 →
 sol-0 (rp-0 already built); the search runs in the backend. Settings per §5 (his words): objective minimum-resources | fastest-cycle.
 Night sequence: small pin-view fixes (sf) ‖ mis-0 → pp-0 → pp-1 → sol-0 → pv-4 configuration events, each a branch proven on econ-core.
+
+## 8. The attempt engine: hardware × runtime tier × isotope variants (his words 2026-10-17 night)
+
+"We also need to ensure we have an engine to run attempts with different actual hardware and then isotopes, we should pre-profile approaches by
+things like 'if this seems like it would benefit from multithreading should we use FreeRTOS isotopes and profile to those? If the complexity goes
+further should we go to zephyrRTOS isotopes?' Then looking at isotopes of different profiles, like if thermal sensors exist that allow readings via
+analog, digital, spi, etc, all of the ways to code for those specific variants of hardware protocols would be the valid isotopes for the C atom that
+has to do with communicating with the thermal sensor to get its data…. in this case we are instead using button presses and LEDs, but we should
+enable and account for various ways to do it, so we can find ways to do it later on boards with only specific resources still. Like under normal
+conditions SPI is maybe wasteful for a button press, but if it works and is all we have left and everything else is occupied with more important
+things that may be what we have to do."
+
+### 8.1 What exists
+- The runtime ladder: `CIsotope.minimum_level` ∈ bare-c < freertos < esp-idf < zephyr (`cmod/custom/code_interface.py` LEVEL_ORDER, `level_ok` refuses
+  by name); runtimes as rows (`hwnocode/custom/runtimes.py`); the ESP32-C3 RTOS variants (sc-4) prove a non-bare tier.
+- Isotopes today: one per atom × binding, DERIVED by substitution — no ALTERNATIVES across protocols.
+- The kit (25 KitPart rows): pushbutton, LED, resistors, TMP36 (analog), phototransistor, tilt sensor, potentiometer, piezo, LCD 16×2, servo, DC
+  motor, H-bridge, MOSFET, transistor, optocoupler, diode, capacitors … — NO shift register and NO I/O expander, so an SPI- or I²C-routed button needs
+  a part the bench does not have (the engine must say so, not assume).
+
+### 8.2 Pre-profiling the approach (runtime tier) — `approach_profile(mission)`
+Derived from the Mission's Purposes, never authored: count of independent triggers and their deadlines (criteria), periodic tasks with conflicting
+periods, blocking operations (waits, bus transactions), data rates, the number of concurrent responsibilities per processor. Output: a recommended
+tier with the reasons — **bare-c** (a superloop + ISRs meets every deadline: the light demo), **freertos** (several independent periodic/blocking
+tasks whose deadlines a superloop cannot guarantee; priorities derived per terminology §D-sys-3), **zephyr** (beyond that: many drivers, stacks,
+devicetree-described multi-device systems). Each tier is then CHECKED against the hardware: RAM/flash budget (FreeRTOS on the ATmega328P's 2 KB SRAM
+is tight — measured, never guessed), and support (Zephyr has no AVR port → zephyr is `unavailable` on the UNO, by name). The tier filters which
+isotopes are eligible (`level_ok`). Advised, never forced: a person can pick a higher tier and the engine shows its cost.
+
+### 8.3 Isotope variants per C atom (the protocol axis)
+A C atom's isotopes are ALL the ways to do its job on any hardware. Each variant declares: the pin profiles it needs (pp-0 kinds), the peripherals
+it claims, the extra parts it needs (KitPart refs or "not on the bench"), its runtime tier, its costs (pins, peripherals, flash, RAM, CPU share,
+latency — estimated until measured on the twin, labelled), and its status (declared · template exists · compiles · proven-on-twin ·
+proven-on-hardware). Seed catalogue (declared first; templates follow in fgm-5):
+| atom job | variants |
+|---|---|
+| read the button | GPIO poll · external interrupt (INT0/INT1) · pin-change interrupt (PCINT) · analog threshold (ADC) · analog comparator (AIN0/AIN1) · via an SPI shift register (needs a 74HC165-class part — not on the bench) · via an I²C I/O expander (not on the bench) |
+| drive the LED | GPIO out · PWM (timer compare output) · via an SPI shift register (74HC595-class — not on the bench) · via an I²C expander (not on the bench) · through a transistor/MOSFET for higher current (kit has both) |
+| read temperature | analog (TMP36 — on the bench) · 1-Wire digital (DS18B20-class) · I²C (TMP102-class) · SPI (thermocouple-converter class) — each part class marked on/off the bench |
+| sense the LED line | external interrupt · PCINT · GPIO poll · analog read of the line |
+
+### 8.4 The attempt engine (extends sol-0)
+For each candidate HARDWARE (board × package × USB interface × bench parts available) → each eligible RUNTIME TIER (8.2) → each combination of
+isotope VARIANTS (8.3): derive the needed pin profiles → resolve them with the ladder + the overlap table (pp-1) + claims → score by the Mission's
+objective (minimum-resources | fastest-cycle). Variants are never excluded for being "wasteful": an SPI-routed button stays a valid candidate and
+is simply scored worse (more pins/peripherals/parts) — it wins only when the better variants cannot be placed (everything else occupied by more
+important Purposes, by importance). Search order: least-cost variants first, backtracking on conflict, with every pruned branch recorded with its
+reason. Every run is recorded (inputs by sha256, rule versions, candidates, the chosen one, why each other lost). Output = Candidates + Trade study +
+Score card (D-sys-6), and the chosen candidate seeds the Task Plan (fgm-3) "Designed for" that hardware; other hardware the same plan resolves on is
+recorded "Also runs on" (terminology §8).
+
+### 8.5 Slices (after pp-0/pp-1)
+| # | slice | builds |
+|---|---|---|
+| iso-0 | variant catalogue | the declared isotope variants of 8.3 as rows linked to their atom jobs, with profiles / parts / tier / cost estimates / status; bench-part availability from KitPart |
+| rt-0 | approach pre-profiler | `approach_profile` (8.2) + tier checks (memory measured, support by name) + door/page |
+| sol-0 | the attempt engine | 8.4 over the UNO (+ the modelled ESP32-C3 as a second hardware) → candidates, score card, recorded runs, the pin view drawing a candidate's assignment (stage "candidate") |
+| fgm-5 | templates | real Jinja2 templates for the most useful variants (PCINT button, PWM LED, analog-threshold button), each compiled + twin-proven, status climbing the ladder |
