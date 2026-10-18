@@ -319,3 +319,18 @@ recorded "Also runs on" (terminology §8).
 - **fgm-5b sense routes + link-ups:** templates + twin proofs for `sense-led-line:gpio-poll` and `sense-led-line:pin-change-interrupt` (so the sense Task is
   checkable whatever route the engine picks); `HardwareSystem.task_plan` linked to the saved TaskPlan (hwsys rows + the Hardware System door); rt-0's
   "Task Plans come in fgm-3" preview text replaced by a link to the real plan.
+
+## 17. ✅ fgm-5b MERGED 2026-10-18 (framework 85089eb) + cyc-0 BUILT (aeaf179; merging)
+- **fgm-5b:** the sense-led-line catom (same §5b layout as read-button, JSON force-added): `uno-light-sense-poll` (D3 polled, D6→D3) 13792 / 1229 B and
+  `uno-light-sense-pcint` (D8 = PCINT0, D6→D8) 13866 / 1231 B, on the button-clock app (the light app has no sense field — adding one would change LightState);
+  twin: 4 presses → exactly 4 counted edges; no-jumper and wrong-pin controls → 0; fail-controls on firmware lacking the route. Existing hexes identical.
+  Task Plan: all five Tasks AGREE (sense = `hal_sense_poll.hal_sense_read`, loop lane). `HardwareSystem.task_plan` linked (set on POST, derived on every
+  read). rt-0's preview text points at the real plan. EFFECT on sol-0: the polled sense now costs its measured loop step (+348 µs), so under fastest-cycle
+  + bench wiring the INT1 sense wins and the DEMO PLAN is rank 1; minimum-resources still picks polling.
+- **cyc-0:** cycles measured on the twin (`--fn-cycles` on the -fno-inline build; `--isr-latency` for ISRs; loop gaps from the shipped hex), records in
+  `board/custom/cycle_records/<variant>.json` with inputs by sha256. uno-light per call: apply_command 238–310, led_toggle 48–168, hal_rx_pop 14–68,
+  telemetry_send ≈175 k (CPU part 13 936 = 0.87 ms; the rest is the USART wait), INT0 98–116, PCINT2 88–155, INT1 62–65, hal_adc_read 1686–3221.
+  FINDING: simavr times a USART byte at 3000 cycles vs the chip's 1360 (UBRR 16, U2X) → measured sends include a wait ≈2.2× too long; records keep the
+  CPU-only part separately. Worst loop pass: 10.97 ms on the twin, 5.44 ms at the chip's byte time; rt-0's argued 10.9 ms (110 B max frame, 55 B real).
+  rt-0: bare-c no longer provisional (`fits-known`: every loop task measured; INT rates still outside the CPU share). sol-0: measured cycles preferred,
+  basis labelled per candidate; the chosen plan's cycle 9.70 → 10.53 ms (the CPU work the bounds had missed).
