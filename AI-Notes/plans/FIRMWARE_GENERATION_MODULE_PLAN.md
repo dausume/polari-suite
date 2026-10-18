@@ -584,3 +584,18 @@ converge behaviour for goal — decide whether lifecycle should be `keep` in the
 **Still small:** the first column is clipped at the canvas's left edge until Recenter (initial pan); the Runtime select reads "Python
 (Backend) (default)" for a declarative drawing (should read "Declarative — not run"); the canvas viewport cannot show all eleven columns
 at once at 1900 px (zoom-to-fit on open would). Not rolled to pol-core yet.
+
+## 9. fgm-3 Tasks — started 2026-10-18 under his night go ("move on autonomously, work through the night")
+Scope = §7.7 slice 4 + the terminology rulings (SYSTEM_HIERARCHY_TERMINOLOGY §8: Tasks DERIVED by automation and editable by hand in no-code; a **Task
+Plan** is derived for ONE Hardware System, each Task on ONE processor; "Designed for" written once, "Also runs on" recorded; priority deadline-monotonic
+with importance breaking ties, overridable) + the attempt engine (MISSION_PROFILE_SOLVER_PLAN §14: the chosen candidate seeds the Task Plan).
+- Classes: `TaskDefinition` (name, plan, processor, purposes, steps = CAtom refs in order, trigger, deadline, period, priority derived + override, context
+  init/isr/loop/task, struct bindings), `TaskStructBinding` (incl. `isr_shared` → ATOMIC_BLOCK later in fgm-5), `TaskTrigger` (boot | edge | period | command
+  | message), `TaskPlan` (hardware system, processor list, tier, chosen variants, designed_for (immutable), also_runs_on [{hardware, how we know}], source
+  = derived | edited).
+- Derivation: Mission → Purposes → their graph nodes (atoms) + criteria → Tasks grouped per processor and trigger, using the sol-0 candidate's variants/pins.
+  The existing derived `ScheduleSlot` lanes become the AGREEMENT CHECK (a Task's context must match the lane its atoms derive).
+- Acceptance: the light test's Tasks (init, handle-button-press, relay-state, receive-command, + sense) with triggers/deadlines from the Purpose criteria,
+  the agreement check passing, a hand edit kept beside the derived value (DerivedOverride) and surviving a re-derive.
+- NOT in this slice: the page-wide word sweep atoms → "steps" (D-fgm-1; touches many pages — its own sweep later); the Task no-code drawing (a configured
+  page first); code generation from Tasks (fgm-5/6).
