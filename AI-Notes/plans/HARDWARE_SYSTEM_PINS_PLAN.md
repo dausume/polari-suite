@@ -159,3 +159,6 @@ undetermined, and the answer names the first blocking rung. A missing input is `
   51-min boot (+≈73 s per redeploy). c3-derive's 2 640 rows were NOT the cause (retired; boot unchanged). FIX (framework branch dev-bootfix, objectTreeManager
   Decorators.RUNTIME_SINGLETON_CLASSES): polariServer is a runtime singleton — never re-constructed on restore, rows left on disk, logged. Verifying with
   `pol deploy selftest isle-core --ref dev-bootfix` then a test-node boot. The same accumulation likely exists on pol-core's live stack.
+  → **VERIFIED on econ-core 2026-10-18:** boot 16:09:18 → ready 16:26:26 = **≈17 min (was ≈51)**; the log says "Skipping polariServer: a runtime singleton … 29
+  stored row(s) left on disk, not re-constructed". The healthcheck grace (60 min) can come back down later; the stale rows can be cleaned with a retire verb
+  if ever wanted (they are no longer read).
