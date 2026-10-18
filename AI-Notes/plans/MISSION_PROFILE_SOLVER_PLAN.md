@@ -293,3 +293,16 @@ recorded "Also runs on" (terminology §8).
   → Checked: the top candidates all tie at 9.7 ms (the Mission cycle is bounded by the USART send wait, not the sense route), and the tie is broken on the
   secondary objective — a polled sense uses fewer resources than INT1. Correct under the stated model because the sense Purpose carries NO latency criterion;
   if the D3 sense must witness every edge within N ms, that belongs in the Purpose's criteria (then INT1 wins by rule, not by preference).
+
+## 15. ✅ fgm-5a BUILT 2026-10-18 (framework 6f75b63; merging) — three variants made real
+| variant | template | flash / RAM (vs uno-light 3100 / 513) | twin proof |
+|---|---|---|---|
+| `uno-light-pcint` (button D4, LED D6) | `board/custom/firmware/uno/catoms/read-button/isotopes/pin-change-interrupt/template.c.j2` | 3154 / 520 (+54 / +7) | 3 presses on D4 flip the light, counted, source=button; D2 does nothing; a bounce counts once |
+| `uno-light-analog` (button A0) | `…/isotopes/analog-threshold/template.c.j2` | 3124 / 521 (+24 / +8) | ADC ramp 200→4800 mV → 3 presses = a pure model; held-high and closed-from-boot count nothing |
+| PWM LED (uno-sim-rig) | hal.c (existing) | 4310 / 491 | SET pwm_duty 25/50/100 → OCR0A 63/127/255 (duty within 0.5 points); the PD6 waveform itself not sampled |
+- Each proof has a negative control (the check fails on firmware lacking the behaviour). Atom-only sizes for the engine: PCINT 258 B, analog 226 B (INT0 210 B).
+- iso-0: the two buttons `declared` → `compiles` with measured costs; each route reads its own acceptance Scenario (`implemented_by.proof_scenarios`) →
+  `proven-on-twin` from a passing ScenarioRun (selftested with in-memory runs). OWED: record the three ScenarioRuns on a live node (`pol faults run …`).
+- sol-0 with D2,D3 occupied: minimum-resources unchanged (poll button A0 / LED D9 / poll sense A1); fastest-cycle now picks the PCINT button on A0 (10.06 ms).
+- Identical-hex gate green (uno-light, uno-sim-rig, uno-button-clock + all 10 manifest configurations). hal.c gained one guard (`#if HAL_INT0 && !HAL_BUTTON_ROUTE`);
+  the three graph projects re-rendered/built/proved. Catom layout kept under `custom/` (manifests rule). cmod 1069, board 742, firmwarefaults 188, ucd 34.
