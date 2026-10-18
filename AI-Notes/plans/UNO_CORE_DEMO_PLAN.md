@@ -1317,6 +1317,15 @@ selection model) · FIRMWARE_EXPORT_PLAN §2/§2b/§4 (the Installer, BridgingCa
 - Found: the variant proofs (PCINT / analog button, sense poll / pcint) PASS on the twin but the live server refuses to store them — a Purpose's runs
   door only accepts its own acceptance_scenario (right guard) and there is no door for route-level proofs, so iso-0's catalogue cannot read them as
   proven-on-twin on a live server. OWED: a ScenarioRun door for route proofs (firmwarefaults), keyed by scenario, read by the catalogue.
+  → BUILT the same day: `POST /api/firmwarefaults/runs` (route_proof.py; refuses a Purpose's own acceptance scenario — that keeps its own door — and
+  changes no Purpose status); `pol faults run <scenario> --api URL` pushes there. Verified on the econ-core test node: the four variant proofs stored,
+  the catalogue reads read-button ext-interrupt / pin-change-interrupt / analog-threshold proven-on-twin (others declared).
+  Then rolled to live pol-core (door up 6 min after the roll — the boot fix holds) and the same four + `sim-rig-pwm-duty-acceptance` pushed to both
+  stacks. Live UNO catalogue now: proven-on-twin = read-button ext-interrupt / pin-change-interrupt / analog-threshold, drive-led gpio-out / pwm,
+  read-temperature analog-sensor, sense-led-line ext-interrupt / pin-change-interrupt / gpio-poll, report-state uart-tx, receive-command
+  uart-rx-interrupt; every SPI / I²C / one-wire / comparator / transistor route stays declared (no template or no part on the bench).
+  Live readiness: firmware ok, cross_domain ok, both light Purposes proven-on-twin, bridge never-run → composition never-run (weakest part = the
+  bridge, as designed) — only the bench flips it.
 - Fixed: the uno-temp-split record (hal.c sha moved with fgm-5a/5b; hwnocode 166/167 on dev) re-rendered → 170/170.
 - Bench path unchanged and ready on his side: plug the UNO in → Detect in the Hardware Bridge App → flash uno-light → the bridge runs → readiness
   `bridge` flips from never-run (OWNER_REMINDERS has the wiring + prerequisites).

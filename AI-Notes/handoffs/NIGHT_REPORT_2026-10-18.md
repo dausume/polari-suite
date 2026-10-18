@@ -50,4 +50,7 @@ are marked **(taken, yours to overturn)** — all were my recorded recommendatio
 - Merged since the night report: Task Plans (fgm-3), LightState v2 beside v1 (fgm-6a), ESP32-C3 pin functions (the engine places the light Mission on the C3),
   sense-route templates (all five Tasks agree; the demo plan is rank 1 under fastest-cycle + bench wiring), measured cycles (bare-c no longer provisional;
   simavr's UART is ≈2.2× slower than the chip — recorded), c3-derive (2 640 C3 rows derived on read; `pol board retire-derived`).
-- **Decide:** 13 GB of unused tagged Docker images on pol-core (old engine / lean images) — the rule forbids a blanket prune; tell me which to drop.
+- ~~Decide: 13 GB of unused images on pol-core~~ → pruned on his OK (engine images kept); pol-core 93 %, 8.3 GB free. econ-core cleanup not done (his: storage later).
+- **Route proofs:** a ScenarioRun door for variant proofs (`POST /api/firmwarefaults/runs`); live pol-core rolled and the variant proofs pushed —
+  the live UNO catalogue reads 12 routes proven-on-twin (button PCINT/analog/INT, LED GPIO/PWM, sense poll/PCINT/INT, temperature, UART tx/rx).
+- **Demo state:** everything is ok / proven-on-twin except the bridge (never-run until the bench). Your steps: plug in the UNO → Detect → flash uno-light.
