@@ -659,3 +659,13 @@ sol-0 on the C3 resolves or refuses by rule, and "Also runs on" can record a rea
   ⚠ **Backend boot grew to ≈48 min** (10:33 → 11:21; was ≈31) — the C3 slice added ≈3 000 stored rows (2 640 of them mechanical matrix PinFunctions).
   The healthcheck grace is 60 min. NEXT (c3-derive): keep the 72 fixed C3 PinFunctions + the 178 signals as rows and DERIVE the 2 640 matrix-routed
   PinFunctions on read (the overlap-table pattern: code-owned, deterministic, no stored copy to drift); measure the boot before/after.
+### 11.2 c3-derive BUILT 2026-10-18 (framework 1b52078 + retire door 16df4b5; merging) + cyc-0 merged (5b4b4bf)
+- The 2 640 C3 GPIO-matrix PinFunctions are DERIVED on read (`board/custom/soc_functions.py` `pin_functions(tables, soc)`: stored + derived, deduped by
+  name, a stored/edited row wins); every reader moved onto it (ladder, pin view, chain, target_compat, solve, eligibility, claims, scope). Board seed 4 730 →
+  2 090 rows; PinFunction in the seed 2 792 → 152; the seed build 18.3 s → 7.7 s on pol-core. Equivalence pinned by sha256 per pad against the old stored set.
+- A server seeded before still holds the old copies → GET/POST `/api/board/maintenance/retire-derived-rows` (dry run / {"apply": true}; only rows
+  identical to the derived copy; edited rows kept; 503 without a manager) + `pol board retire-derived [--apply] [--api URL]`. To run once on econ-core and
+  pol-core after the roll, then measure the boot (was ≈48 min on econ-core).
+- Generic `GET /PinFunction` now lists stored rows only (UNO + the C3's 72 fixed); derived rows are served through the domain doors.
+- cyc-0 merge note: its "counted by structure" check assumed the polled sense had no atoms (fgm-5b gave it atoms) → the clause now applies only when such a
+  part exists.
