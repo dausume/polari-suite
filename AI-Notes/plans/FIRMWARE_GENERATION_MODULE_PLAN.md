@@ -672,3 +672,9 @@ sol-0 on the C3 resolves or refuses by rule, and "Also runs on" can record a rea
 - **Retire run on econ-core 2026-10-18:** boot after deploying c3-derive (old rows still stored) ≈50 min (14:17 → 15:07). `pol board retire-derived` dry run →
   2 640 stored, 2 640 identical, 0 edited; `--apply` → all retired (the first call outlasted the CLI's 30 s curl limit while the server kept deleting — the verb
   now gives the apply 900 s). After: 0 stored; the C3 solve unchanged (GPIO20/21, GPIO3, GPIO10, GPIO8) in 8.8 s. Redeploying to measure the boot.
+
+## 12. ed-0 — the template converter, started 2026-10-18 under the night go
+§5b's editor, slice ed-0 only: a LOSSLESS converter between the jinja form (`{{ hal.x }}`, filters, blocks) and the polari form (bare-name variable
+chips/tokens, HAL family shown, no `hal.` prefix), with the identity round trip jinja → polari → jinja byte-for-byte on EVERY template in the repo
+(cmod/custom/templates/avr/*, the catoms' template.c.j2 + _common.j2), refusals by name for anything it cannot represent, and a door + CLI to view a
+template in either form. No editing UI yet (ed-1..3).
