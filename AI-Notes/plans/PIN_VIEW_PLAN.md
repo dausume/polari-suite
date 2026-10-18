@@ -285,3 +285,7 @@ component never re-derives a rule.
   U1 legs highlighted, the rest greyed, supplies hidden; "31 pins can carry i2c + spi" (incl. the 16U2's SPI pins). Found: every label spread
   ("a r d u i n o") — measured cause: the page's inherited letter-spacing 0.25px on a ~0.9-unit font under the zoom → reset on the drawing's text
   (angular, this commit). Still to see after the redeploy: label packing, package-title overlap, the empty band above the board in the fit.
+- **After the letter-spacing fix (econ-core, 2026-10-17):** labels read normally; no part-label collisions; clicking U2 zooms in, rail links show as
+  "5V"/"GND" stubs with the rail's other pins listed in the panel, D0/D1/RESET legs carry the lifecycle lock, its connections to U1, ICSP1, the test
+  pads, Y1 and X2 are drawn. Left: the U2 package title runs into a U1 leg label; an empty band above the board in the fit-all view.
+- **pol-core roll started 2026-10-17** (rp-0, pv-0, pv-1, pv-2 and fixes; disk was 98 % → `docker builder prune -af` freed 3.9 GB before the roll).
