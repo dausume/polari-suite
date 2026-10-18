@@ -189,6 +189,22 @@ between."
 
 **Why it matters:** sol-0's score cards show raw weighted sums (1.777, 1.847 …), which read as strange. The new page shows competitive 0–100 only.
 
+## 10c. His page layout 2026-10-18 (quoted) — replaces the §7 grid
+"there needs to be a dedicated UI page for the scores with different scores being tabs listing the top score to the bottom and the main page of the
+scoring page showing just the top scorer of each category"
+
+The dedicated page `/display/firmware-scores` has tabs:
+- **Main tab (Top scorers)** — one row per profile: profile · its top solution · 100 · runner-up gap (the second-best score) · the compared set.
+  Clicking a row opens that profile's tab. This is the landing view.
+- **One tab per profile** (Fastest, Cheapest, Build it today, Balanced, Battery, Room to grow, Most trustworthy, the hardware profiles, and his own
+  saved profiles) — every non-failed solution ranked top (100) → bottom (0).
+  Columns: rank · solution · score · finished | plan · the deciding terms. Clicking a row opens the term breakdown.
+- **Failures** and the **profile editor** sit as their own tabs at the end.
+
+Each tab is a configured table: no raw JSON and no new custom component. The bar chart moves inside a profile tab.
+
+Backend: `GET /api/firmware-scores/top?mission=` returns the main tab's rows. A profile tab reads `GET /api/firmware-scores?mission=&profile=`.
+
 ## 10. Decisions (his)
 - **D-fsc-1** — Is a violated stated deadline a FAILURE, as his "does not fulfil all purposes" suggests, or a scored penalty? Recommend failure. Is a Purpose with no passing proof a failure? Recommend yes, for "finished".
 - **D-fsc-2** — Price source: cited vendor list prices with a date (recommend), or what he actually paid (kept local, never in tracked files).
