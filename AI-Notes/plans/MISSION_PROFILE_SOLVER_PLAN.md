@@ -310,3 +310,12 @@ recorded "Also runs on" (terminology §8).
   pins", proposed legs); the Task Plan door answers in 0.4 s with the five Tasks (4 agree, sense unchecked). FOUND: my POST put `prefer: bench-wiring` at the
   top level; the door only read `limits.prefer` and SILENTLY ran the default search (LED on D9, sense on A0). FIXED (framework, this commit): top-level
   prefer / occupy / only_jobs accepted like the GET, unknown body keys refused 422 by name; selftest: top-level prefer places D2 / D6 / D3. 56/56.
+
+## 16. Next slices under the night go (recorded 2026-10-18 before building)
+- **cyc-0 measured cycles on the twin:** simavr counts cycles; measure each atom/route's worst-path cycles per call (ISR entry→exit, loop steps) on the UNO
+  twin with a recorded harness, store them as measured costs (CFunctionAtom / IsotopeVariant cost `measured`, with the run's inputs by sha256), and feed
+  rt-0 (bare-c verdict loses "provisional" when apply / telemetry_send are bounded by measurement) and sol-0's fastest-cycle model (measured replaces
+  counted/estimated where present, labelled).
+- **fgm-5b sense routes + link-ups:** templates + twin proofs for `sense-led-line:gpio-poll` and `sense-led-line:pin-change-interrupt` (so the sense Task is
+  checkable whatever route the engine picks); `HardwareSystem.task_plan` linked to the saved TaskPlan (hwsys rows + the Hardware System door); rt-0's
+  "Task Plans come in fgm-3" preview text replaced by a link to the real plan.
