@@ -280,3 +280,8 @@ component never re-derives a rule.
 - board 668, cmod 698, hwnocode 163, spec 20/20, ng build + check:styles OK.
 - Honest gaps: `pull=external` never emitted (no row names one); the 16U2 UCAP rail undetermined; unclaimed I/O stays not-driven at later stages;
   ICSP header pins reach the chip only through the ICSP1 part (not mode-relevant).
+- **Live check of pv-2 on econ-core 2026-10-17:** Drive at firmware-committed — D2 pulled-up, D1 (TX) sources-or-sinks, D0 (RX) high-impedance, D6 current glyph
+  hatched (limit undetermined, assumed Vf), 3V3 / 5V coloured by rail, grounds as returns. Signal + I²C + SPI — D10–D13, SDA/SCL, A4/A5 and the matching
+  U1 legs highlighted, the rest greyed, supplies hidden; "31 pins can carry i2c + spi" (incl. the 16U2's SPI pins). Found: every label spread
+  ("a r d u i n o") — measured cause: the page's inherited letter-spacing 0.25px on a ~0.9-unit font under the zoom → reset on the drawing's text
+  (angular, this commit). Still to see after the redeploy: label packing, package-title overlap, the empty band above the board in the fit.
