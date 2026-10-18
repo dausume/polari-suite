@@ -264,3 +264,10 @@ recorded "Also runs on" (terminology §8).
   Synthetic missions recommend freertos (3 conflicting periodic + a blocking bus read) and zephyr (large) — the thresholds are labelled rules of the profiler.
 - Doors `/api/missions/{name}/approach[?board&tier]`; page "Approach". After the merge: cmod 956, board 702, apps 129, manifests 8/9.
 - Owed: measured per-atom cycle counts on the twin (closes "provisional"); the chosen-tier DerivedOverride write path.
+- **Live on econ-core 2026-10-18** (tonight's merged slices): `/api/missions` 0.18 s; `/api/missions/uno-light-mission/{pin-profiles, colocation,
+  approach}` ≈ 2 s each (cold derivation); `/api/atom-jobs/read-button/variants?board=arduino-uno-r3` 0.06 s; `/api/board/socs/atmega328p/profile-overlap`
+  pwm-out + digital-out at pin = exclusive with its §14.3 / Table 14-2 / compare-output cites.
+- **Incident 2026-10-18 night:** pol-core's root disk filled (0 MB) while sol-0's agent ran the full cmod selftest — cause: 16 finished agent worktrees
+  in the scratchpad (two Angular ones ≈ 1.7 GB each with .angular/dist caches) + the screenshot driver's Chrome profiles never deleted from /tmp.
+  Fixed: finished worktrees removed (`git worktree remove`), the driver now deletes its profile after each run; 7.9 GB free. RULE kept: remove an
+  agent's worktree once its branch is merged; never leave a build cache behind.
