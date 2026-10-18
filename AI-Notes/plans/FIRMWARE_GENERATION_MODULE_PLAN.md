@@ -654,3 +654,8 @@ sol-0 on the C3 resolves or refuses by rule, and "Also runs on" can record a rea
   matrix-routed options as "transport-wire"; strapping pads carry a scarcity tag. UNO behaviour unchanged.
 - Open: the C3's E2 header map (rung 3); the N4 vs N4X variant; the bridge wiring + boot button rows are partial; 2712 rows add to the boot-time restore
   (watch the 31-min test-node boot).
+- **Live 2026-10-18 (econ-core):** C3 solve via the door → 200 in 15 s, FreeRTOS, transport GPIO20/21, LED GPIO3, button GPIO10 (polled), sense GPIO8 (polled).
+  `/api/board/light-v2` → 404 "no LightStateV2 row named 'uno-light-v2'" (expected: v2 is not seeded; a v2 board's first report creates it).
+  ⚠ **Backend boot grew to ≈48 min** (10:33 → 11:21; was ≈31) — the C3 slice added ≈3 000 stored rows (2 640 of them mechanical matrix PinFunctions).
+  The healthcheck grace is 60 min. NEXT (c3-derive): keep the 72 fixed C3 PinFunctions + the 178 signals as rows and DERIVE the 2 640 matrix-routed
+  PinFunctions on read (the overlap-table pattern: code-owned, deterministic, no stored copy to drift); measure the boot before/after.
