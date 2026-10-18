@@ -237,3 +237,7 @@ recorded "Also runs on" (terminology §8).
 - Gap for pp-1: TASK_KINDS has no comparator kind (the comparator route uses analog-in with a note).
 - Doors `/api/atom-jobs`, `/api/atom-jobs/{job}/variants[?board&tier]`, `/api/atom-variants`; page `/display/isotope-variants`. cmod 896, board 671,
   hwnocode 163, apps 128, manifests 8/9.
+- **mis-0 live on econ-core 2026-10-18:** `/display/hardware-solutions?solution=mission-uno-light-mission` draws Goal → Settings ("Aims at: the fewest
+  resources") → four "Required: …" Purpose states → five Participants → Limits → "Can it be done here? resolved", with the link row into each Purpose's
+  drawing. The page frame still carries the generic Hardware-solutions text and the Runtime picker says "Python (Backend)" on a declarative drawing
+  (same known leftover as the Purpose drawings, FGM plan §8.7).

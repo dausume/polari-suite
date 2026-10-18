@@ -300,3 +300,6 @@ component never re-derives a rule.
 - Table → view: the component reads `pin= / surface= / connection=` (with mode/stage/protocol) and selects + zooms; `class-rows-table` gains a
   `view:` column format (`view:view:/display/pin-view?pin={id}`, in-app routerLink); every pin-data table has a "show in view" link.
 - board 671, apps 126, specs 33/33, check:styles + ng build OK. To verify live with mis-0.
+- **Live check 2026-10-18 (econ-core, small fixes + mis-0):** header reads "Pin view"; fit hangs from the top (no empty band); short package titles
+  "U1 SPDIP" / "U2 QFN" clear of the leg labels; labels clean. The first load right after the backend's boot showed "The server could not be reached"
+  (the door answered 200 in 0.3–0.7 s moments later) → follow-up: the component retries a failed read once (with a short back-off) before saying so.
