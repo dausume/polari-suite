@@ -641,3 +641,16 @@ sol-0 on the C3 resolves or refuses by rule, and "Also runs on" can record a rea
 - To switch the demo to v2 (his word): Hardware Bridge app `LightClient.java` (read/parse → /LightStateV2 or the light-v2 door; toggle → POST + poll
   pending_command), `State.sentence()`, `HardwareBridgePanel.java` SOLUTION/toggle, `Bundle.java` (v2 firmware + bridge.properties + uno-light-app),
   `HardwareBridgeTest.java`; the light page (`hwnocode/light_page.py`: LightStateV2 + LightCommand tables); seed the v2 solution rows (`toggle_v2_rows()`).
+### 11.1 ✅ C3 pin functions BUILT 2026-10-18 (framework ea22925; merging)
+- Documents fetched + hashed, facts extracted (PDFs not committed): ESP32-C3 datasheet v2.4 (833fc000…), TRM v1.4 (90ef8256…), ESP32-C3-MINI-1/1U datasheet
+  v2.2 (de736138…: in-package flash, which pads the module exposes), ESP32-C3-DevKitM-1 guide (e36f1ce3…: headers, RGB LED on GPIO8, the USB-UART bridge).
+- Rows: Peripheral 22, PeripheralSignal 178 (the 120 valid GPIO-matrix signals of TRM Table 5.11-1 + JTAG + ADC/USB/XTAL + per-pad), PinFunction 2712
+  (2640 matrix-routed = 22 pads × 120 + 72 fixed), `exclusive_group` only where cited (F0/F2/GPIO/matrix outputs of one pad); 43 lifecycle rows (strapping
+  GPIO2/8/9, USB GPIO18/19, UART0 GPIO20/21 as the bridge transport, JTAG GPIO4–7, flash GPIO11–17, the RGB LED + boot button); a QFN32 package (33 contacts).
+- C3 now: ladder rungs 1/2/6/8 answer from rows (rung 3 undetermined — no E2 header map); analog-in only GPIO0–5; INT/PCINT/PWM/UART/GPIO/ADC/TMP36 routes
+  ok on FreeRTOS; the comparator route blocked by name (no comparator in the datasheet's peripheral list); bare-c blocked (no template). sol-0 PLACES the light
+  Mission (FreeRTOS, ≈37 s cold): transport GPIO20/21, LED GPIO3, button GPIO10, sense GPIO8 (strapping pad + RGB-LED load → rungs 6/8 conditional risks).
+- Engine changes (`soc_functions.py`): ladder / target_compat / eligibility / solve handle a SoC whose functions are PinFunction names; reserved lines refuse
+  matrix-routed options as "transport-wire"; strapping pads carry a scarcity tag. UNO behaviour unchanged.
+- Open: the C3's E2 header map (rung 3); the N4 vs N4X variant; the bridge wiring + boot button rows are partial; 2712 rows add to the boot-time restore
+  (watch the 31-min test-node boot).
