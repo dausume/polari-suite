@@ -271,3 +271,18 @@ recorded "Also runs on" (terminology §8).
   in the scratchpad (two Angular ones ≈ 1.7 GB each with .angular/dist caches) + the screenshot driver's Chrome profiles never deleted from /tmp.
   Fixed: finished worktrees removed (`git worktree remove`), the driver now deletes its profile after each run; 7.9 GB free. RULE kept: remove an
   agent's worktree once its branch is merged; never leave a build cache behind.
+
+## 14. ✅ sol-0 BUILT + MERGED 2026-10-18 (framework 42c3a65 + review 3d8965a; cli `pol capability solve`; sonnet agent)
+- The attempt engine over hardware (board × package × USB interface × bench parts) → eligible tier (rt-0) → isotope variants per job (iso-0) → pin assignment
+  via the ladder + pp-1 + claims, backtracking, least-specialised pins first, importance when pins run out; scored by the Mission's objective with the other
+  shown; undetermined costs get a stated stand-in (never zero); every pruned branch recorded; `SolveRun` (inputs by sha256, replayable, deterministic).
+- UNO light Mission (280 candidates, ≈2 s warm / 12–17 s cold): **minimum-resources** → poll button + GPIO LED + poll sense on the least specialised pins (LED D9,
+  button A0, sense A1); the demo's interrupt plan is #3 (+0.071 resources, −10.7 ms cycle). **fastest-cycle** → button on D2/INT0. With `prefer: bench-wiring`
+  + fastest-cycle → D2/INT0, D6, D3/INT1 exactly (the bench). D0/D1 refused by name (rung 8). D6 occupied → LED to D9; INT0+INT1 occupied → PCINT (worse by ≈1 µs);
+  only SPI pins left → the SPI shift-register route on D13/D12/D10, flagged "needs a 74HC165-class part NOT on the bench", ranked below every buildable plan;
+  too few pins → a "desired" Purpose loses its button, named. ESP32-C3: undetermined (no BoardPin/PinFunction rows), bare-c blocked by name.
+- Judgement calls (his to overturn): pin SHARING off by default (knob `share_pins`) — pp-1 would let button + sense share a pin, wrong for distinct signals;
+  "least specialised" = derived scarcity (A0/D9 cheapest because every UNO pin carries something); routes without atoms timed from counted instructions
+  (mixed bases, said per candidate); the USB interface is attached per package (the ladder does not read it).
+- Review fix (me): SolveRun was not registered in defClassList / feature_imports (manifests 7/9) → registered; cmod 1011/1011, board 702, hwnocode 163,
+  apps 130, manifests 8/9. Owed: the pin view's "candidate" stage drawing a chosen assignment; measured cycles on the twin.
