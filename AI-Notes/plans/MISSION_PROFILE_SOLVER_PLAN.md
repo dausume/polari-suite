@@ -286,3 +286,7 @@ recorded "Also runs on" (terminology §8).
   (mixed bases, said per candidate); the USB interface is attached per package (the ladder does not read it).
 - Review fix (me): SolveRun was not registered in defClassList / feature_imports (manifests 7/9) → registered; cmod 1011/1011, board 702, hwnocode 163,
   apps 130, manifests 8/9. Owed: the pin view's "candidate" stage drawing a chosen assignment; measured cycles on the twin.
+- **sol-0 live on econ-core 2026-10-18:** POST `/api/missions/uno-light-mission/solve` {fastest-cycle, prefer bench-wiring, UNO} → 201 in 5.4 s: 280 candidates,
+  chosen "SPDIP / bare-c / LED gpio-out, button ext-interrupt, command uart-rx-interrupt, report uart-tx, **sense gpio-poll**" (same plan on the TQFP), 9.7 ms,
+  resources 1.898. Note to check: the sense line comes out POLLED here, while the agent's bench-preferred scenario reported INT1 on D3 — read the score card's
+  deciding difference (probably the 10.7 ms loop vs the INT1 cost under fastest-cycle) before calling it right. Phase `reset` and config-events doors 200.
