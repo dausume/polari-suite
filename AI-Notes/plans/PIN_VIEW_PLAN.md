@@ -288,4 +288,4 @@ component never re-derives a rule.
 - **After the letter-spacing fix (econ-core, 2026-10-17):** labels read normally; no part-label collisions; clicking U2 zooms in, rail links show as
   "5V"/"GND" stubs with the rail's other pins listed in the panel, D0/D1/RESET legs carry the lifecycle lock, its connections to U1, ICSP1, the test
   pads, Y1 and X2 are drawn. Left: the U2 package title runs into a U1 leg label; an empty band above the board in the fit-all view.
-- **pol-core roll started 2026-10-17** (rp-0, pv-0, pv-1, pv-2 and fixes; disk was 98 % → `docker builder prune -af` freed 3.9 GB before the roll).
+- **✅ Rolled to pol-core 2026-10-17** (rp-0, pv-0, pv-1, pv-2 and fixes): pin-view surfaces, register profile and `/display/pin-view` answer 200 (backend ready ≈ 27 min). Disk was 98 % → `docker builder prune -af` freed 3.9 GB; now 95 % (6.3 GB free).
