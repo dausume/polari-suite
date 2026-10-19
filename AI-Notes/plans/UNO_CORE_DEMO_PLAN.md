@@ -1329,3 +1329,33 @@ selection model) · FIRMWARE_EXPORT_PLAN §2/§2b/§4 (the Installer, BridgingCa
 - Fixed: the uno-temp-split record (hal.c sha moved with fgm-5a/5b; hwnocode 166/167 on dev) re-rendered → 170/170.
 - Bench path unchanged and ready on his side: plug the UNO in → Detect in the Hardware Bridge App → flash uno-light → the bridge runs → readiness
   `bridge` flips from never-run (OWNER_REMINDERS has the wiring + prerequisites).
+
+## 2026-10-18 — the struct controls the light (his ruling; slice `scl`)
+His words: "The state of the led being on or off and the relaying of that state to polari is important yes. The struct being altered by the polari
+side button, should be what is triggering the tasks to turn off the light, this is how the polari side button for turning on and off the light
+should work. Because the whole point is for the struct to be what is controlling the light."
+
+**Where it stands, read from the code:**
+- **Polari side, already right.** The screen button runs `light-toggle`, which writes `LightState.led_on` on the row (one StateChangeCommit). The
+  relay-out fires on that row change, and the wire's `led_on` is the command field.
+- **The proof bypasses the struct.** `ensure-polari-can-control-light` is proven by `board.custom.light_twin` injecting hand-built SET_LED frames
+  into the twin. That proves the board half only, never "the struct was altered → the tasks turned the light".
+- **Board side, not struct-driven.** `light.c` has two MUTATORS, `apply_command` (SET_LED) and `led_toggle` (the button). Each writes `state.led_on` AND
+  calls `hal_led()` itself, so the pin follows the code path, not the struct.
+
+**scl — what changes:**
+1. **Board.** Mutators only alter the struct: `led_toggle` flips `state.led_on`, and `apply_command` sets it from the command. One new atom,
+   `led_follow_state`, drives D6 whenever `state.led_on` differs from what the pin was last set to. The struct is the controller.
+   - The same applies to every light variant (pcint, analog, sense-poll, sense-pcint, v2).
+   - The wire contract is unchanged (LightState v1).
+   - Rebuild the hexes, then re-prove everything.
+2. **The proof starts from the struct.** The from-Polari acceptance writes `LightState.led_on` through the backend's own `light-toggle` solution
+   (a StateChangeCommit on a test manager). The command frame is DERIVED from the struct change by the same contract encoder the relay uses, never
+   hand-built. Pass: D6 follows, and the board's next report carries `led_on` with `source=command`.
+   - Negative control: a row write that does not change `led_on` sends no frame and changes nothing.
+3. **Mission data.** The LED state and its relay are important (his "yes"). The sense-led-line job also serves `ensure-polari-observes-hardware-state`
+   (the sensed pin level is the board's truth about the light). Failure rows then name that Purpose too.
+4. **Purpose wording.** The trigger of `ensure-polari-can-control-light` is "LightState.led_on altered on Polari (the struct)". The SET_LED frame is
+   how the change travels, not the trigger.
+
+The bench path changes in code shape only (same wire, same pins). The bench hex is re-proven before it stays the default.
