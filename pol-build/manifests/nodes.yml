@@ -36,6 +36,7 @@ nodes:
       esp:    {node: isle-core, port: 9850}
       formal: {node: isle-core, port: 9840}
       pcb:    {node: isle-core, port: 9860}
+      bridge: {node: isle-core, port: 9870}    # sim-2: the hosted bridge worker -> BRIDGE_ENGINES_URL
     notes: "N95 4-core / 7.5G; the business-ops/economics core — Odoo host per ODOO_INTEGRATION_PLAN (renamed from lightweight 2026-07-27); suspend disabled 2026-07-08 — safe headless target"
 
 # Repos are PUBLIC — clone needs no credentials:
