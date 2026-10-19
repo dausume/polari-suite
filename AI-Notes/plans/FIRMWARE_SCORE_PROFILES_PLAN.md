@@ -224,3 +224,28 @@ Backend: `GET /api/firmware-scores/top?mission=` returns the main tab's rows. A 
 - **D-fsc-3** — Reuse `modules/scoring` (recommend) vs firmware-only score classes.
 - **D-fsc-4** — The sample profile set and weights in §5.
 - **D-fsc-5** — How cost is attributed to Purposes for per-Purpose weighting: an even split of shared routes (recommend), or assign each route to its most important Purpose.
+
+## 11. Status 2026-10-18 — fsc-0..3 BUILT + MERGED, checked in Chrome on the test node
+- **Merged slices:**
+  - fsc-0..2 (backend, scoring module, 10 profiles, doors, `pol firmware scores|profile|score-values`)
+  - fsc-0b (`initialization-acceptance` on the twin; built configs that miss a Purpose = failure rows; a Purpose is proven for a config only by
+    that config's own runs)
+  - fsc-3 / 3b (page `/display/firmware-scores`; generic tabs + tabs_from; editable table columns + row actions; max_height; side-by-side rows;
+    `score:fixed:1`; header "More" menu)
+  - chart rank order (`categoryOrder: 'data'`).
+- **Chrome (econ-core test node):**
+  - Top scorers lists 10 profiles, each at 100.
+  - Each profile tab ranks 380 plans from 100 to 0.
+  - Picking a solution fills the breakdown beside the list.
+  - In the editor: Copy to edit (Balanced) → "My Balanced" picked → cost weight set to 5 → saved → the ten best re-ranked (the ESP32-C3 at $6.50 leads).
+  - The tab strip wraps; the nav shows "More"; scores show 1 decimal.
+- **Known, not done:**
+  - Nothing is FINISHED yet. Each sense variant needs its own four Purpose runs (boot / button / command / report) on its own build.
+  - A new profile's tab appears after a reload.
+  - The chart panel header shows the graph's internal name.
+  - Seven Angular specs fail outside the touched files: FirmwareSolutionPanel `%40`, and XR lobby/panel. Not baselined.
+  - Q to him: should the sense line also serve `ensure-polari-observes-hardware-state`? The Mission data ties it to the two light-control Purposes.
+- **Next:**
+  - the per-config Purpose runs (the first finished solutions)
+  - fsc-4 cited current figures (Battery's active-current)
+  - fsc-5 measured avr-size for finished builds
