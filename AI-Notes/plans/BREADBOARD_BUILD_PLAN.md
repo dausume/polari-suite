@@ -81,3 +81,29 @@ The first acceptance, checked in Chrome:
   advise, never block.)
 - **D-bb-4:** Confirmation granularity. Recommend a tick per step plus the final whole-board check.
 - **D-bb-5:** An optional photo with the confirmation, kept in the file store and never in git (the kit-photo rule).
+
+## 6. His answers 2026-10-19 (quoted)
+"We should make it so breadboards are their own objects, we will also later on want protoboards as their own objects as well. Just define half and full
+for now. Make wire colors modifiable"
+
+- **Boards are objects.**
+  - A breadboard is a first-class object: a `Breadboard` row (one physical board on a bench) of a `BreadboardModel` (the geometry).
+  - It has its own object page (Polari's per-object display rule) and is a participant of the Hardware System. It appears in the pin view beside the MCU board, and
+    a build names WHICH breadboard it is on.
+  - The existing ncg-5 `BreadboardDefinition` becomes the model/instance pair (a converge, no lost rows).
+  - **Protoboards later.** Room for `ProtoboardModel` / `Protoboard` (the same tie-point grammar, soldered = permanent; enclosure stage S2) is left in the
+    design; nothing is built for it.
+- **Two models only, for now:**
+  - `half` — 400 ties: 30 rows × (a–e, f–j) + 2 rail pairs;
+  - `full` — 830 ties: 63 rows × (a–e, f–j) + 2 rail pairs.
+  - Pitch 2.54 mm. The counts are the common industry layout; cite a datasheet when one is read.
+  - The kit's own size stays undetermined until he says it. A build asks which breadboard, and the default is `half`.
+- **Wire colours are modifiable.**
+  - A `WireColorScheme` object: the default is red = 5 V, black = GND, signals in the pin-view signal-family colours. A person can edit it or copy it for their
+    own bench (seeded schemes are copied before an edit, as with score profiles).
+  - Each wire can also take its own colour override, kept beside the derived colour.
+  - The walkthrough text and the drawing use the effective colour.
+- **Unanswered, so my recommendations stand (his to overturn):**
+  - D-bb-3: ordered, with a recorded "bind anyway".
+  - D-bb-4: a tick per step plus a final whole-board check.
+  - D-bb-5: an optional photo in the file store, never in git.
