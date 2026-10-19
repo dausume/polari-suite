@@ -140,3 +140,16 @@ the PORTB5 edge trace, JSON status lines on stdout (`{"t":"ready"…}`, status e
   lights PD6 in the SSE stream. Finding: the events door is LIVE fan-out only — an edge raised before a subscriber connects is not replayed (the page will
   subscribe on open, so this is fine; a small replay ring, e.g. the last 100 events, is a follow-up for sim-3). The "no worker" refusal is 424 (a 503 is masked
   by the proxy as "Backend unavailable").
+
+## 10. Status 2026-10-19 — brg-0 + sim-2 BUILT, MERGED, the bridge worker LIVE on the swarm
+- `TcpDevicePort` (`source=twin-tcp`, `twin.host/port/connect_timeout_s`): the serial port's lifecycle over a socket (backoff 0.5→8 s, snapshot on
+  attach); one port shared by all bindings (the twin takes one client). The regenerated uno-light bridge compiles; the bridge self-test has a twin-session mode.
+- `prf-bridge-engines` (isle-core, :9870; openjdk-21-jdk-headless + maven; 505.6 MB; jar 18.4 MB, cached build 0.3 s): `/bridges` (start from a session,
+  files = the generated project, grpc_target optional → log-only; cap 6; TTL reaper; logs; RSS/CPU in the detail). `HostedBridge` rows + `GET/POST
+  /api/grpc/hosted-bridges`, `…/{name}`, `…/{name}/logs`, `/api/grpc/hosted-engines`; `pol grpc hosted start|list|show|stop|logs|engines`; 424 refusals.
+- Topology: instance `bridge-engines`, assignment `grpcbridge.engines@bridge-engines` (allocated on live and on the test node); compose service in
+  `docker-compose.hw-engines.yml`; knob `BRIDGE_ENGINES_URL` (nodes.yml `engines.bridge` for the test node). The hw-engines stack is rolled: 5 workers.
+- Proof both ways (from pol-core, session on isle-core, bridge → the test node's :3002): press → the test node's `LightState` row reads `led_on=True
+  toggles=1 source=button` in **146 ms**; `light-toggle` on the test node → the twin's PD6 falls **31 ms** after the POST; next report `source=command`.
+  Selftest 47/47 with the server leg; isle-core: hosted 23/23 (+3 skipped), sessions 25/25, javabridge 51, contracts 34, serving 28, c_twin 44.
+- Undetermined: the worker's online Maven fallback; bridge CPU under continuous reporting; the edge status reads `unresolved` until a live backend resolves it.
