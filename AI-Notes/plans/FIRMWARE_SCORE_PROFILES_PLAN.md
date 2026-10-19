@@ -301,3 +301,11 @@ through the struct (scl).
 - smp-0: curation + default scope + the plans tab
 - smp-1: S2–S4 + F2 built and proven (`pol firmware prove`)
 - smp-2: S5 on the C3 twin
+  - **BUILT 2026-10-19 (branch `dev-smp-c3`, not merged): config `esp32c3-light`.** Route (a): the real ESP-IDF v5.5.5 FreeRTOS build, booted in Espressif's QEMU `-machine esp32c3` (the existing
+    prf-esp-engines image; `polari-c3-run` gained `--rx-plan` and `--boots`). **QEMU's C3 GPIO is a register stub** (measured: `gpio_set_level` leaves GPIO_OUT at 0, GPIO_IN never moves, no pin
+    lines on the machine), so a button press and an LED level cannot be reached: the build under test replaces exactly the pin HAL (`light_hal.h`, `PIN_SHIM=1`: LED and sense in RAM, the button a
+    scripted falling-edge source from the flash params). The tasks, the struct and the frames are the same code as the chip-HAL build, which also compiles and boots on the twin. **This is a twin
+    result with a pin shim. No C3 board is on the bench; nothing is a chip result.** Wire: ButtonClockState + ButtonClockEvent (the sense configs' wire, so the LED sense line has fields); tasks rx,
+    button, sense, telemetry (10 Hz), led_follow_state (the only task that drives the LED pin; the mutators only alter the struct). Pins GPIO0 (LED) / GPIO1 (sense) / GPIO3 (button): the only three of
+    the 22 with no lifecycle_c3 constraint row. `fsc_link.resolve` skips configs of another board (a C3 config must not take a UNO solver candidate from a UNO config); a page reads the config with
+    `fsc_link.config_state(config, ctx, manager)`. Prove: `pol firmware prove esp32c3-light` (needs the esp engines image on the machine, so isle-core).
