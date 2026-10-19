@@ -1359,3 +1359,44 @@ should work. Because the whole point is for the struct to be what is controlling
    how the change travels, not the trigger.
 
 The bench path changes in code shape only (same wire, same pins). The bench hex is re-proven before it stays the default.
+
+## 2026-10-19 — coherence sweep before real testing (his ask: "recheck that all of that should in theory be working … the no-code works in combination with the new visualizations")
+Swept live pol-core in Chrome (15 pages) and the export doors. **Fixed and committed during the sweep:**
+- **Compiled downloads.** Live had lost its AVR compiler worker: the board-engines container sat without a network for about 7 days. The swarm service was
+  force-recreated, the engine providers re-allocated (`pol allocate board.engines board-engines` and the same for esp/formal), and the install-bundle / demo-bundle
+  exports work again.
+- **Export door.** A compiled form with no reachable engine is a named 422, not a bare 500 (it was a 500 on the test node, which has no engines).
+- **Display Not Found.** Pages sometimes showed "Display Not Found" because the demo-terms reinit aborted their first read. Display and solution reads now retry
+  aborted and 5xx answers.
+- **roleplay.** It called `https://localhost:2096` before the runtime config had loaded. It now waits for the config.
+- **The demo page has a Polari-side light button.** "Turn the light on / off" runs `light-toggle` through `/executeSolutionStepped`
+  with the row's `object` and `led_on`; the struct is altered and the change is relayed (his struct rule). Generic fixes that came with it:
+  - a whole-field placeholder keeps its type (a boolean stays a boolean)
+  - a 200 that carries a failure is not shown as "Done."
+  - the acted-on table refreshes itself
+
+**Found, OWED (the no-code / visualisation coherence pass, after the smp agents land):**
+1. **The demo app vs the sample.** The demo app (page, bridge, bundles, debs) is the LightState `uno-light` app, but `uno-light` was a FAILURE in the Mission (no
+   sense line), and the finished configs were the button-clock app. Redirected: the smp agent adds the sense line to uno-light (the reported led_on = the
+   sensed level, the v1 contract unchanged), so uno-light becomes S1 and the app is the top sample. The bench needs one jumper.
+2. **The no-code canvas.**
+   - BackendStateChange nodes (relay-in / relay-out / toggle-requested) render with NO title (only a "coding comment" fold), and VariableAssignment nodes show
+     "Variable Creation" instead of their names (turn-on / turn-off).
+   - Every node has a red border (meaning unclear).
+   - The graph sits partly off-canvas (top/left clipped) until Recenter.
+   - The "Object" picker on `?focusSolution=light-toggle` holds the SOLUTION name, not the LightState row, so a run from the editor fails ("instanceRef did not resolve").
+3. **Navigation.** The nav's "light demo" link (`/custom-no-code?focusSolution=light-toggle`) switches the top bar to "Software Engineering" (it leaves the
+   Hardware app group).
+4. **The Firmware Installer.**
+   - It defaults to `uno-sim-rig` and lists about 20 cards (most "SCENARIO ONLY") before the light demo. It should lead with the Mission's sample (S1..S5, S1 selected),
+     with the fault-scenario builds in a later section.
+   - The radio circles are inconsistent sizes.
+   - It says "installs run on 1c859e8274aa" (a container id, not a machine name).
+5. **Demo downloads.** The table mixes old (2026-10-12, pre-scl) bundles with the new ones. Show the newest per form, or mark the older ones superseded.
+6. **The top sample cannot be exported yet.** The export door takes FirmwareSolutions only; the sense configs are FirmwareVariants. This becomes moot once uno-light is
+   S1 (item 1); S2..S5 still need it.
+7. **Source-dir.** It carries a Makefile and CMakeLists (one command: `make` or `cmake -B build && cmake --build build`), but no `build.sh` that checks the
+   hex sha against the export's record, and no OFFLINE toolchain form (FIRMWARE_EXPORT_PLAN §2: `lib/polari-firmware-build.sh` + `docker save
+   prf-board-engines`). Both are planned, not built.
+8. **The demo bundle.** It ships `BRIDGE-NOT-BUILT.txt` (the backend image has no Java). The bridge app arrives as the separate bridge-app-deb (2026-10-12; it predates
+   scl, but the LightState v1 contract is unchanged, so it still matches).
