@@ -102,3 +102,24 @@ bridges) are placed by topology on isle-core, never ad-hoc.
 - **D-hbc-3:** overlays are derived from KitPart interface kinds (no per-part UI code); a part with no interaction kind draws as a plain sprite.
 - **D-hbc-4:** a manual session is recordable as a ScenarioRun (`proof_kind=attested`), never auto-promoted to a proof.
 - **D-hbc-5:** the sim bench embeds the configured App page rows beside the layout; no second UI for the app.
+
+## 8. sim-0 / sim-1 technical spec (read from the code 2026-10-19, so the build brief is exact)
+**The twin binary** (`polari-rf-node/prf-board-engines/polari_avr_twin.c`, 327 lines + twin_forcing.c + twin_scenario_io.c): ONE TCP listener (`--tcp`, the
+USART, one client, `listen_tcp` / `poll_tcp` in the `avr_run` loop), ADC via `avr_raise_irq(ADC_IRQ_ADC0+ch, mv)`, `--pin-at cycle=,pin=,level=` (forcing), `--watch`,
+the PORTB5 edge trace, JSON status lines on stdout (`{"t":"ready"…}`, status every `--status-ms`). Realtime pacing or `--free`.
+- **sim-0 adds `--ctl PORT`:** a second listener polled in the same loop; JSON lines both ways:
+  - in: `{"set":"PD2","level":0}` (the same path as `--pin-at`, at the current cycle) · `{"adc":0,"mv":750}` · `{"watch":["PD6","PB5"]}` ·
+    `{"run":false|true}` (pause/resume stepping) · `{"status":1}` · `{"reset":1}` (the existing power-rail reset path).
+  - out: `{"t":"pin","pin":"PD6","level":1,"cycle":N}` on every watched edge (`avr_irq_register_notify` on the IOPORT pin irq, as the PB5 trace does) ·
+    `{"t":"status",…}` · `{"t":"ack","of":…}` · refusals in words (`{"t":"refused","why":"PX9 is not a pin of atmega328p"}`).
+  - One ctl client at a time; a token on the first line (`{"token":"…"}`) when the session was started with one.
+- **The worker** (`board_engines_service.py`, falcon under gunicorn `-w 1 -t 600`): `/run` is one subprocess per request, so sessions must be DETACHED processes:
+  `POST /sessions {hex_b64, board, mcu, freq, ttl_s, token}` → `Popen(polari-avr-twin --hex … --tcp P1 --ctl P2 --free|realtime)` with ports from a range, state in
+  `/srv/sessions/<id>.json` (pid, ports, hex sha, started, ttl, owner); `GET /sessions` · `GET /sessions/{id}` (status from the twin's stdout) · `DELETE /sessions/{id}`;
+  a reaper on each request kills sessions past their TTL. The Dockerfile `EXPOSE`s a port range (9832–9863) and `docker-compose.hw-engines.yml` publishes it on
+  isle-core (placement label unchanged). Cost (image delta, RSS per session, CPU-s/s realtime) recorded in `modules/board/COST.md`.
+- **sim-1, the backend:** `TwinSession` rows (`board`), doors `GET/POST /api/board/twins`, `DELETE /api/board/twins/{id}`, `POST /api/board/twins/{id}/inject`
+  ({set|adc|reset}), `GET /api/board/twins/{id}/events` (SSE fan-out of the ctl stream), the hex taken from the config's committed build (its sha = the LOCKED
+  firmware). `pol board twin session start <config>|list|stop <id>`. The session is a participant `twin:<board>#<n>` of the Hardware System.
+- **Proof for sim-0/1:** start a session of S1 on isle-core from the test node; `inject set PD2 0` then `1` → the events stream shows PD6 rising; the USART
+  report says `source=button`; `adc 0 750` is reflected in the next status; the TTL reaper ends an abandoned session; the cost block is measured.
