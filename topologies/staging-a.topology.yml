@@ -255,6 +255,30 @@ instances:
     \ the three hardware-integration engines were bound — UNVERIFIED whether\
     \ it is already running as a plain `docker run` container on isle-core the way\
     \ those three were (ENGINES-ON-ISLE-CORE.md); check before relying on it."
+- name: bridge-engines
+  kind: worker
+  service_kinds_json: '["prf-bridge-engines"]'
+  replicas: 1
+  env_tier: staging
+  machine_name: isle-core
+  placement_constraint: ''
+  db_backend: sqlite
+  cache_backend: ''
+  blob_backend: ''
+  image_tag: staging
+  orchestration_target: swarm
+  topology_name: staging-a
+  notes: "The HOSTED BRIDGE worker (:9870, sim-2) \u2014 builds the generated Java\
+    \ bridge (JDK 21 + Maven, offline from a repository warmed at image build) and runs\
+    \ it as a detached process beside a twin session (source=twin-tcp), so a\
+    \ Polari server's LightState row follows a simulated board and light-toggle\
+    \ reaches it. Image prf-bridge-engines:trixie (size and id in modules/grpcbridge/COST.md),\
+    \ built ON isle-core only (polari-rf-node/prf-bridge-engines/build.sh), on a swarm\
+    \ worker pinned to isle-core (`docker-compose.hw-engines.yml`, `node.labels.polari.machine\
+    \ == isle-core`); mem cap 1024m. Placed with the twin sessions (board-engines)\
+    \ so the bridge reads the session's serial port on the same host; the bridges\
+    \ listen on nothing, they connect OUT to the session and to the backend's gRPC\
+    \ port. `pol swarm deploy hw-engines` rolls it with the others."
 - name: prf-a
   kind: prf
   service_kinds_json: '["prf-backend", "prf-frontend"]'
@@ -490,6 +514,23 @@ assignments:
   notes: "sc-0..4: firmware fault scenarios on the board twins (FirmwareFault objects,\
     \ scenario pairs, campaigns) on the swarm backend; its formal/static engine capability\
     \ is delegated to formal-engines above. Added on dev-hw-test (2026-10-04, step 3)."
+- name: grpcbridge.engines@bridge-engines
+  module_name: grpcbridge.engines
+  instance_name: bridge-engines
+  state: enabled
+  topology_name: staging-a
+  notes: "sim-2: the hosted-bridge capability (build the generated Java bridge, run it\
+    \ beside a twin session) on the bridge-engines worker \u2014 the provider\
+    \ modules/grpcbridge/custom/bridge_engines.py resolves when BRIDGE_ENGINES_URL\
+    \ is unset; `pol allocate grpcbridge.engines bridge-engines`."
+- name: grpcbridge@prf-a
+  module_name: grpcbridge
+  instance_name: prf-a
+  state: enabled
+  topology_name: staging-a
+  notes: "gRPC contracts + the Java hardware bridge + hosted bridges (sim-2) on the swarm\
+    \ backend (already in the requires-closure of hwnocode; this row names it for the\
+    \ edge below); its hosted-bridge capability is delegated to bridge-engines above."
 - name: hwnocode@prf-a
   module_name: hwnocode
   instance_name: prf-a
@@ -682,6 +723,19 @@ edges:
     \ module (no modules/firmwarefaults/ in /app/modules); its PROVIDER_PORTS DOES\
     \ already carry prf-formal-engines:9840 (and prf-board-engines:9830), so only\
     \ the module code itself (not the port map) is the live gap for these two."
+- name: grpcbridge@prf-a->grpcbridge.engines
+  module_name: grpcbridge
+  consumer_instance_name: prf-a
+  depends_on_module: grpcbridge.engines
+  provider_instance_name: bridge-engines
+  status: unresolved
+  topology_name: staging-a
+  notes: "BRIDGE_ENGINES_URL knob wins, else this edge (live providers only), else\
+    \ refusal naming the knob. status=unresolved: a hosted bridge is a worker-level\
+    \ door (no local binary or image serves it); verified directly against the worker's\
+    \ :9870/capability on isle-core, never yet via the swarm backend's live resolver\
+    \ (prf-bridge-engines:9870 is in topology.provider_registry.PROVIDER_PORTS on\
+    \ dev-brg-0 only until it ships)."
 - name: materialsScience.multiscale@prf-a->materialsScience.dft
   module_name: materialsScience.multiscale
   consumer_instance_name: prf-a
