@@ -1400,3 +1400,5 @@ Swept live pol-core in Chrome (15 pages) and the export doors. **Fixed and commi
    prf-board-engines`). Both are planned, not built.
 8. **The demo bundle.** It ships `BRIDGE-NOT-BUILT.txt` (the backend image has no Java). The bridge app arrives as the separate bridge-app-deb (2026-10-12; it predates
    scl, but the LightState v1 contract is unchanged, so it still matches).
+
+**Checked in Chrome on the test node 2026-10-19 (after the redeploy):** the demo page's "Turn the light on / off" button flips `led_on` on the row (false → true) through the real `light-toggle`; the Mission drawing and `?solution=uno-light` pages load every time (no "Display Not Found"); no `localhost:2096` calls. The owed list (items 2–5) is with the canvas-fix agent.
