@@ -31,6 +31,11 @@ nodes:
                                   # legacy alias 'lightweight' still works)
     repo_dir: ~/polari-suite
     roles: [engines, remote-worker, business-ops, economics]
+    engines:                      # as a STANDALONE node (test node) it reaches the engine workers by knob: family -> the node that
+      board:  {node: isle-core, port: 9830}    # runs the worker + its port; the ip is resolved over ssh at deploy time (never written here)
+      esp:    {node: isle-core, port: 9850}
+      formal: {node: isle-core, port: 9840}
+      pcb:    {node: isle-core, port: 9860}
     notes: "N95 4-core / 7.5G; the business-ops/economics core — Odoo host per ODOO_INTEGRATION_PLAN (renamed from lightweight 2026-07-27); suspend disabled 2026-07-08 — safe headless target"
 
 # Repos are PUBLIC — clone needs no credentials:
