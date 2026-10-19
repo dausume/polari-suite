@@ -153,3 +153,7 @@ the PORTB5 edge trace, JSON status lines on stdout (`{"t":"ready"…}`, status e
   toggles=1 source=button` in **146 ms**; `light-toggle` on the test node → the twin's PD6 falls **31 ms** after the POST; next report `source=command`.
   Selftest 47/47 with the server leg; isle-core: hosted 23/23 (+3 skipped), sessions 25/25, javabridge 51, contracts 34, serving 28, c_twin 44.
 - Undetermined: the worker's online Maven fallback; bridge CPU under continuous reporting; the edge status reads `unresolved` until a live backend resolves it.
+- **Test node, through its OWN doors, in Chrome (2026-10-19):** `pol board twin session start uno-light --api <test node>` → `pol grpc hosted start
+  <session> --api <test node>` (the bridge on isle-core pushes to the test node's :3002) → a twin press makes the demo page's row read `led_on=True toggles=1
+  source=button`; the page's "Turn the light on / off" button makes the twin's LED follow (`toggles 2 → 3, source=command`, the report count climbing). This is
+  the App-UI path and the "physical" path on one simulated device, before any sim-bench page exists. Both stopped afterwards; no session or bridge left.
