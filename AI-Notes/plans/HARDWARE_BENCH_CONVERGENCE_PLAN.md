@@ -135,3 +135,8 @@ the PORTB5 edge trace, JSON status lines on stdout (`{"t":"ready"…}`, status e
   events stream → the USART report says `led_on=True toggles=1 source=button`; adc reflected; pause/resume; reset; bad pin / wrong token / second client
   refused in words; the abandoned session reaped; no twin left behind.
 - Known: the twin's own `peak_rss_kb` inherits gunicorn's high-water mark (use /proc); the USART tcp port stays raw (only ctl is token-gated).
+- **Test node (econ-core) 2026-10-19:** sessions start through its own backend (`pol board twin session start uno-light --api <test node>`) now that a
+  standalone node reaches the worker by knob (`nodes.yml` `engines:` → `<FAMILY>_ENGINES_URL`, resolved at deploy time); a press injected through the backend
+  lights PD6 in the SSE stream. Finding: the events door is LIVE fan-out only — an edge raised before a subscriber connects is not replayed (the page will
+  subscribe on open, so this is fine; a small replay ring, e.g. the last 100 events, is a follow-up for sim-3). The "no worker" refusal is 424 (a 503 is masked
+  by the proxy as "Backend unavailable").
