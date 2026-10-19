@@ -249,3 +249,19 @@ Backend: `GET /api/firmware-scores/top?mission=` returns the main tab's rows. A 
   - the per-config Purpose runs (the first finished solutions)
   - fsc-4 cited current figures (Battery's active-current)
   - fsc-5 measured avr-size for finished builds
+
+## 12. 2026-10-19 — the first FINISHED solutions (fsc-6) + scl, checked in Chrome on the test node
+- **Per-config proofs.** `acceptance.run(scenario, variant=V)`; the Purpose door takes `variant` only for a built config of the Mission;
+  `pol firmware prove <config>`; `pol faults run --variant`.
+- **The sense variants.** They are the button-clock app (ButtonClockState), so their checks use its fields: `button_presses`,
+  `status=commanded`, `set_led`.
+- **Test node.**
+  - `uno-light-sense-poll` and `uno-light-sense-pcint` are FINISHED: all four Purposes are proven on their own builds, and they rank 16/17 under Fastest at 95.6.
+  - Failures: uno-light, -analog, -pcint, -v2. None has a sense-line route, which three Purposes now need (scl-3).
+- **scl.** `led_follow_state` is the only pin writer. The from-Polari proof starts from a struct write through `light-toggle`, and the frame is
+  derived from it.
+- **Still owed.**
+  - the finished rows' sizes and cycles MEASURED from their own builds (fsc-5)
+  - cited currents (fsc-4)
+  - uno-button-clock prove (one command, his word)
+  - two stale light-graph edge rows on the servers
