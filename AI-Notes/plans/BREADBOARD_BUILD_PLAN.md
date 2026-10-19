@@ -107,3 +107,13 @@ for now. Make wire colors modifiable"
   - D-bb-3: ordered, with a recorded "bind anyway".
   - D-bb-4: a tick per step plus a final whole-board check.
   - D-bb-5: an optional photo in the file store, never in git.
+
+## 7. 2026-10-19 — folded into PROTOTYPING_VIEWS_PLAN (his "general renderer for complex layouts spanning N boards")
+This plan is now the LAYOUT slice of `AI-Notes/plans/PROTOTYPING_VIEWS_PLAN.md`:
+- bb-0 → lay-0 (the board FAMILY: breadboard half/full, devboard; protoboard and PCB reserved)
+- bb-1 + bb-2 → lay-1
+- bb-3 is REPLACED: there is no pin-view layer; the layout is its own page with a general N-board renderer
+- bb-4 → lay-3
+- bb-5 stays (any no-code Hardware System gets a walkthrough).
+
+The circuit-state work (cst) and its SPICE pairing are new slices in that plan.
