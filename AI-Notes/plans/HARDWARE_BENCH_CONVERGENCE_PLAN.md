@@ -123,3 +123,15 @@ the PORTB5 edge trace, JSON status lines on stdout (`{"t":"ready"…}`, status e
   firmware). `pol board twin session start <config>|list|stop <id>`. The session is a participant `twin:<board>#<n>` of the Hardware System.
 - **Proof for sim-0/1:** start a session of S1 on isle-core from the test node; `inject set PD2 0` then `1` → the events stream shows PD6 rising; the USART
   report says `source=button`; `adc 0 750` is reflected in the next status; the TTL reaper ends an abandoned session; the cost block is measured.
+
+## 9. Status 2026-10-19 — sim-0 + sim-1 BUILT, MERGED, LIVE on the swarm worker
+- `polari-avr-twin --ctl PORT [--ctl-token T | POLARI_TWIN_CTL_TOKEN]`: JSON lines (token · set · adc · watch · run · status · reset → ack · pin · status ·
+  refused). The worker's `/sessions` (ports 9832–9863 minus 9840/9850/9860, cap 8, TTL default 1800 s / max 14400 s, reaper). Image
+  `prf-board-engines:trixie` rebuilt on isle-core (+22 KB; `trixie-pre-sim` kept); COST.md: 2.78 MB RSS and 0.37–0.45 CPU-s per realtime second per session.
+- Backend: `TwinSession` rows, `GET/POST /api/board/twins`, `GET/DELETE …/{id}`, `POST …/{id}/inject`, `GET …/{id}/events` (SSE, bounded queues), the
+  session as participant `twin:<board>#<n>`; `pol board twin session start|list|show|stop|inject|events`.
+- The hw-engines stack is rolled (compose publishes the session ports); `GET /capability` on the worker shows the sessions block.
+- Proof, live from pol-core against the swarm worker: 35/35 — uno-light session (firmware locked by sha), PD2 0→1 (66 ms apart) → PD6 rises in the
+  events stream → the USART report says `led_on=True toggles=1 source=button`; adc reflected; pause/resume; reset; bad pin / wrong token / second client
+  refused in words; the abandoned session reaped; no twin left behind.
+- Known: the twin's own `peak_rss_kb` inherits gunicorn's high-water mark (use /proc); the USART tcp port stays raw (only ctl is token-gated).
