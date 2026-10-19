@@ -1402,3 +1402,10 @@ Swept live pol-core in Chrome (15 pages) and the export doors. **Fixed and commi
    scl, but the LightState v1 contract is unchanged, so it still matches).
 
 **Checked in Chrome on the test node 2026-10-19 (after the redeploy):** the demo page's "Turn the light on / off" button flips `led_on` on the row (false → true) through the real `light-toggle`; the Mission drawing and `?solution=uno-light` pages load every time (no "Display Not Found"); no `localhost:2096` calls. The owed list (items 2–5) is with the canvas-fix agent.
+
+**Canvas / installer fixes checked in Chrome on the test node 2026-10-19:** nodes titled by their own names (toggle-requested, turn-off, turn-on, flip), blue (the
+class colour; the red was a hard-coded fill on every rectangle), the graph fits on load; the installer leads with the Mission's light configs, one radio size, the
+machine named (prf-a); the demo Downloads shows the newest file per form. Small follow-ups left: the class word sits BESIDE the title and crowds it
+("turn-… Variable Cr…") — put it under the title; a direct URL to the editor still shows the Software Engineering group (only a nav-item click keeps the app);
+the installer's "sample" group is the `uno-light*` name prefix until smp lands the Mission's `sample_solutions`.
+
