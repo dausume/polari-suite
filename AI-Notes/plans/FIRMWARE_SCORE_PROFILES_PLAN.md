@@ -265,3 +265,39 @@ Backend: `GET /api/firmware-scores/top?mission=` returns the main tab's rows. A 
   - cited currents (fsc-4)
   - uno-button-clock prove (one command, his word)
   - two stale light-graph edge rows on the servers
+
+## 13. 2026-10-19 — his ruling: a CURATED sample, not 384 rows (slice `smp`)
+His words: "That seems like a bit too many plans and failures, I do not know if we needed that much. Maybe just 2 failure examples and success
+examples for different kinds of devices and components so that this project which is just a sample project serves as a way to prove out how to
+use those components along with managing the state of LEDs."
+
+**Facts at the time (live):**
+- 384 enumerated: 378 plans (estimates, never built), 2 finished, 4 failures. Only 6 were ever built and run.
+- Every profile's #1 was an unbuilt plan.
+- Among the built ones the top is a tie at 100: sense-poll and sense-pcint.
+
+**The sample set** (I chose it: he could not be asked, so my recommendation stands, his to overturn).
+Every success is built AND has all four Purposes proven on its own build. Each shows one kind of component or device while managing the LED state
+through the struct (scl).
+
+| # | device | components shown | outcome |
+|---|---|---|---|
+| S1 | UNO | button INT0 · LED gpio-out · sense polled | success (exists: uno-light-sense-poll) |
+| S2 | UNO | button + sense on pin-change interrupts (PCINT) | success (build) |
+| S3 | UNO | button as an ADC threshold · LED on timer PWM | success (build) |
+| S4 | UNO | LED through the kit's transistor (driver stage) | success (build; the kit has 5 transistors + 2 MOSFETs) |
+| S5 | ESP32-C3 | the same Mission under FreeRTOS | success on the C3 twin (build; no C3 on the bench, so twin only, said) |
+| F1 | UNO | uno-light: no sense line, so Polari cannot observe the LED | failure (exists) |
+| F2 | UNO | a slow polled button route against a deadline flagged `safety_critical` | failure (shows D-fsc-1) |
+
+**Page and data:**
+- The Mission carries `sample_solutions` (the S/F names).
+- The scores doors default to the SAMPLE scope: the sample successes compete (100 → 0), and only F1–F2 show under Failures.
+- The other built configs (pcint, analog, v2, sense-pcint) are not listed as failures; they stay as history.
+- All enumerated plans move behind a "Possible plans (not built)" tab: the solver's search, kept but out of the way.
+- Top scorers reads the sample.
+
+**Slices:**
+- smp-0: curation + default scope + the plans tab
+- smp-1: S2–S4 + F2 built and proven (`pol firmware prove`)
+- smp-2: S5 on the C3 twin
