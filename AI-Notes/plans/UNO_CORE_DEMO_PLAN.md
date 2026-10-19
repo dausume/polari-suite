@@ -1409,3 +1409,5 @@ machine named (prf-a); the demo Downloads shows the newest file per form. Small 
 ("turn-… Variable Cr…") — put it under the title; a direct URL to the editor still shows the Software Engineering group (only a nav-item click keeps the app);
 the installer's "sample" group is the `uno-light*` name prefix until smp lands the Mission's `sample_solutions`.
 
+
+**Live pol-core rolled 2026-10-19** with the sweep + canvas fixes (checked in Chrome: the demo button, the canvas node titles); the samples (smp) and twin sessions (sim-0/1) are still building.
