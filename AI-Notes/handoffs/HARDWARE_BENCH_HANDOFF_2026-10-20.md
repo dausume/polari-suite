@@ -66,3 +66,54 @@
 ## His bench
 S1 wiring: button D2→GND, D6 → 220 Ω → LED → GND, jumper D6→D3 (`pol board layout uno-light --steps`); on `/display/firmware-installer` do the SIM install
 first (the twin runs the hex; run the four Purposes; tick "I checked the simulated board does what the firmware says"), then the REAL install is offered.
+
+## dev-smp-2 cmod FAIL lines (isle-core, full run; the labels only)
+  [PASS] …a subsequent MEASURED run — even a FAILURE — always wins over an earlier attestation (the newest evidential run rule, unchanged): status downgrades HONESTLY to planned, proof_kind repo
+- the UNO template parses over its 13 configurations (11 seeded variants + 2 coverage; smp-1: + uno-light-unsensed) into 71 atoms (fgm-5a: + the 8 atoms of the two rendered button files; fgm-5b: + the
+- the 31 POLARI_NODE annotations attach to their functions (hal 10, sim_rig 2, echo 1, scenario_rig 3, button_clock 10, light 5; scl: + led_follow_state in button_clock and light) ['apps/light.sense_p
+- the UNO's polari-firmware.json is committed beside its Makefile, validates, schema polari-firmware/1, 71 atoms []
+- every atom carries ports (a list), resources (a list) and a measured cost: text bytes as a node > 0 for all 69 72
+- seeds = the committed manifest projected: 1 project, 11 modules (ucd-0e2b: + apps/button_clock_defs header; ucd-light: + apps/light + its defs header), 71 atoms (fgm-5a: + 8 rendered-button atoms; f
+- GET /api/cmod → the uno project with 71 atoms, the parser named {"ok": true, "parser": {"engine": "pycparser", "version": "2.21", "runs": "in this process"}, "projects": [{"name": "uno", "kind": "
+  [PASS] read-button:pin-change-interrupt: a FAILED run lifts nothing 
+  [PASS] read-button:analog-threshold: a FAILED run lifts nothing 
+  [PASS] drive-led:pwm: a FAILED run lifts nothing 
+  [PASS] sense-led-line:gpio-poll: a FAILED run lifts nothing 
+  [PASS] sense-led-line:pin-change-interrupt: a FAILED run lifts nothing 
+- pp-0: the control Purpose has the transport rx (reserved), the LED and the sense line; the observe Purpose the transport tx (reserved) plus, since scl, the LED and the sense line (the sensed level i
+- pp-0: the Mission roll-up of the light Purposes is exactly: transport uart-rx + uart-tx (reserved), the LED digital-out, the button interrupt-in, the sense line interrupt-in [('the LED', 'digital-ou
+- pp-0: the real seeded HardwareMission uno-light-mission (live row and pure seed) rolls up to the 5 light profiles, importance per Purpose from purposes_json (6, 6)
+- pp-0: with the REAL mis-0 MissionAPI on one falcon.App (its first): /api/missions/{name}/solution, /resolution, the /api/missions list and my /pin-profiles all answer (200, '{"mission": "uno-light-m
+- pp-0: with the REAL mis-0 MissionAPI on one falcon.App (mine first): /api/missions/{name}/solution, /resolution, the /api/missions list and my /pin-profiles all answer (200, '{"mission": "uno-light-
+- pp-0: ?purposes=a,b names the Purposes when no Mission row exists (works before mis-0 merges); an unnamed Mission without it is a 404 (200, 6)
+- pp-0: the page doors answer {ok, rows} in plain words: every light Purpose, the 5-profile Mission, and the unresolved tasks (39, 6, 42)
+- pp-1: the light Mission co-location reads pp-0's 5 profiles (transport rx + tx reserved, the LED, the button, the sense line) ['the transport', 'the LED', 'the button', 'the sense line']
+- pp-1 LIGHT DEMO: the transport pair is reserved - each on its own pin, never grouped; the minimum is 4 pins for 5 profiles (the LED and the sense line share one pin, with the self-interrupt conditio
+- pp-1 DOORS: GET /api/missions/{name}/colocation[?purposes=&view=pairs|groups|apart] and /api/board/socs/{soc}/profile-overlap ADD on a real falcon.App with EVERY cmod door (mis-0 solution/resolution
+- pp-1 DOORS: GET /api/missions/{name}/colocation[?purposes=&view=pairs|groups|apart] and /api/board/socs/{soc}/profile-overlap ADD on a real falcon.App with EVERY cmod door (mis-0 solution/resolution
+  [PASS] a FAILED run lifts nothing 
+- rt-0: concurrency from the schedule lanes and pp-0: 6 interrupt vectors (fgm-5a/5b: the ISR atoms of the project, hal_button_pcint.PCINT2_vect and hal_sense_pcint.PCINT0_vect among them), 6 loop tas
+- rt-0: UNO bare C is AVAILABLE: the recorded build (3132 B flash, 514 B static RAM, MEASURED; scl moved them from 3110 / 513) fits the cited limits (32256 B after Optiboot, 2048 B) [{'what': 'flash',
+- rt-0: the light Mission's six loop tasks (scl: + led_follow_state) all tie (100 ms, required) and the preview says the order is only the schedule order 7 task(s) tie on both deadline and importance,
+- rt-0: ?view=priorities answers flat plain-words rows for the page table {"ok": true, "view": "priorities", "mission": "uno-light-mission", "board": "arduino-uno-r3", "count
+- sol-0 / fgm-5b: the polled sense line is priced by its own atoms now - under fastest-cycle it costs loop time (cycle + ... us) against the INT1 sense and ranks below it, and the score card says so 1
+  [PASS] fsc-0 FAIL RULE: a normal candidate (placed, all Purposes kept, no flagged deadline) does not fail 
+  [PASS] fsc-0 FAIL RULE (his D-fsc-1): an UNFLAGGED deadline violation is NOT a failure (scored by closeness) but is listed 
+  [PASS] fsc-0 FAIL RULE: the SAME violation on a deadline flagged safety_critical IS a failure, naming the Purpose and the reason 
+  [PASS] fsc-0 FAIL RULE: a lost Purpose fails, naming it 
+  [PASS] fsc-0 FAIL RULE: pins that cannot be placed fail 
+  [PASS] fsc-0 FAIL RULE: MISSING PARTS are not a failure (a cost term): drive-led:gpio-out, read-button:i2c-expander, receive-comman needs PCF8574-class I2C I/O expander 
+  [PASS] fsc-0b FAILURES: uno-light-unsensed, uno-light-pcint, -analog and -v2 (built for this Mission, no route for sense-led-line) are FAILURES: the Purposes that job serves (derived from the Missio
+  [PASS] fsc-0b FAILURES: a failing config never appears among the records (so it is never scored or compared) and is counted in counts.failed (5) 
+  [PASS] fsc-0 FINISHED: a LATER FAILED run takes the proof away again (a stale pass is never carried forward) 
+  [PASS] fsc-0b DOOR scores: GET /api/firmware-scores?mission=uno-light-mission lists the four built light configs as FAILED rows (name, Purpose failed, why, no score) and never ranks them: ['uno-ligh
+  [PASS] fsc-0 FAIL RULE end to end: with the deadline tightened but NOT flagged, nothing fails - the polled plans are scored by closeness (deadline-fit below 100) and the miss is listed 
+  [PASS] fsc-0 FAIL RULE end to end: the SAME deadline flagged safety_critical -> the plans that miss it FAIL (80), each naming the Purpose and the reason; the survivors (60) all meet it 
+  [PASS] fsc-2 FAILURES (door): failed solutions are listed after the ranked ones with state `failed`, the Purpose and the reason, NO score and NO rank, and never enter the compared set (60 ranked, 85
+  [PASS] fsc-2 FAILURES (door): the breakdown of a failed solution says failed with the Purpose and reason and a null score, and the top tab counts the failures 
+  [PASS] fsc-6 DOOR: a LATER FAILED run of a config leaves the Purpose's own status alone too 
+  [PASS] smp-0 CLI: `pol firmware scores` defaults to the sample - it names the curated sample, prints S1.., lists F1 and F2 as FAILED and names the history 
+- fgm-3: steps are the graph's atoms in graph order - init: the five init atoms; the button task is fed by INT0_vect; the command task by USART_RX_vect; the report task by the tick (TIMER2_COMPA_vect)
+- fgm-5b: the polled sense task's step is the route's read atom, whose lane (loop) is read from the shipped atom it replaces (called by sense_isr in uno-button-clock-graph); its init atom belongs to t
+- fgm-3: the demo candidate (button INT0, sense INT1 on D3) gives a sense task fed by INT1_vect: its steps are the route's atoms with lanes read from the graph that schedules them (uno-button-clock-gr
+- cyc-0: with the records off sol-0 is as it was (0 measured parts, the ~9.7 ms estimate); with them the same plan costs 10.59 ms - 0.78 ms of measured CPU work the upper bounds had left out (9808.6, 
