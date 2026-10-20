@@ -157,3 +157,19 @@ the PORTB5 edge trace, JSON status lines on stdout (`{"t":"ready"…}`, status e
   <session> --api <test node>` (the bridge on isle-core pushes to the test node's :3002) → a twin press makes the demo page's row read `led_on=True toggles=1
   source=button`; the page's "Turn the light on / off" button makes the twin's LED follow (`toggles 2 → 3, source=command`, the report count climbing). This is
   the App-UI path and the "physical" path on one simulated device, before any sim-bench page exists. Both stopped afterwards; no session or bridge left.
+
+## 11. Status 2026-10-19 — lay-2 + sim-3 BUILT + MERGED (the renderer and the sim bench)
+- `hardware-layout-view` (d3, generic/layout-view/): N boards from BoardModel geometry, 2-D sprites (resistor bands from value, LED polarity, button,
+  pot, TMP36, transistor, generic), wires in their effective colour, pan/zoom/fit, hole/part/wire click → net + strip (click-toggle), shared scopes
+  (`config`, `board`, `scheme`, `component`, `net`, `rev`), step mode (`?step=`), Whole build. The SCENE is derived on the server
+  (`electrodevice/custom/layout_scene.py`: each part's interaction/output from its KitPart interface kind + the watch list) — no per-part browser code.
+- `/display/layout?config=&board=` (build mode + steps + gate verdict + wire-colour schemes, copy-before-edit) and `/display/sim-bench?config=&session=`
+  (sessions table with start/stop; the renderer in bench mode subscribes to `…/events?replay=100` BEFORE any inject, then sets `watch` to every output
+  pin; overlays: press (pointer/Space), toggle (tilt), sliders (pot % → mV, TMP36 °C → 500 + 10·°C mV), LED from the watched pin (PWM dim only with a
+  duty figure), piezo tone marker; the firmware panel with the LOCKED sha; the demo page's LightState table embedded via `light_state_table()`; a Bridge
+  row with "Attach a bridge"; `BenchInteraction` rows; "Record this session as evidence" → a ScenarioRun `kind=attested`, never auto-promoted).
+- New doors: `/api/layout/steps|verdict|models`, `/api/board/twins?name=`, `…/twins/interactions`, `…/twins/evidence`, `…/twins/light-state`,
+  `POST …/twins/{name}/stop|record`. Both pages are TABBED (a non-tabbed page would recreate the component on every scope change and drop the stream).
+- Tests: Karma 54 (23 math + 31 mounted); isle-core layout 89, hwnocode 171, apps 131, bench 46 (new `board.board_bench_selftest`), twin-session 25.
+- Undetermined: the photoresistor overlay (its divider is unknown to this layer); the UNO outline is schematic beyond the pin pitch; scheme/board picks are not
+  kept in the URL; the KitPart TMP36 note's "500 mV at 25 °C" wording looks wrong (the formula gives 750 mV) — left for the circuit slice to cite.
