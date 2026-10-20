@@ -181,3 +181,40 @@ the PORTB5 edge trace, JSON status lines on stdout (`{"t":"ready"…}`, status e
   click after step mode (check the toggle); the layout/bench pages show no app group in the header on a direct URL (the known nav follow-up).
 
 **Live pol-core rolled 2026-10-20:** everything on dev (sim-0/1, brg-0/sim-2, lay-0..2, sim-3, the curated sample, the fixes); S1–S4 proven FINISHED on live, S5 proven from isle-core. Owed: smp-2 (dev-smp-2 WIP), cst-0/1 (design in PROTOTYPING_VIEWS_PLAN §8), the sim-bench follow-ups above, lay-3/sim-4, brg-1..3, cst-2.
+
+
+## 12. Next iteration (his asks 2026-10-20) — PLAN
+His words: "a page dedicated to tracking all state objects in a particular piece of firmware (Structs, Enums, etc)" and "for the install page we need an
+obvious toggle for switching between a Sim install and a Real Install, which makes it clear to the user. Validation via a sim install is a step we want
+confirmed by a user before moving to a real install."
+
+### fst-0..2 — the firmware state-objects page, `/display/firmware-state?config=`
+Derived, never typed, from sources the arc already has:
+- Rows `FirmwareStateObject` (one per struct / enum / enum-like define group) and `FirmwareStateField` (one per field or enum value): name, C type, size,
+  where it lives (wire struct from the pinned contract via `grpcbridge.custom.wire_contract`; the firmware's own statics such as `state`, `g_sensed`,
+  `g_seq`, `rx`; generated packet structs; EEPROM-persisted fields such as `boot_session`), the enum values with their meaning (`LIGHTSTATE_SOURCE_*`,
+  `LIGHTSTATE_STATUS_*`, message types, presence flags), command vs telemetry, and the pin or task the field controls (the struct-controls-the-hardware rule).
+- Readers and writers per field: from the parsed atoms (`POLARI_NODE` in/out/uses annotations + the atom bodies) → "written by apply_command, led_toggle;
+  read by led_follow_state, telemetry_send". Unwritten or unread fields are findings.
+- Live values: bound to a twin session (its decoded reports) or to the bridge's row, beside the static picture.
+- Page = configured tables with tabs: Structs · Enums · Fields (readers/writers) · Live; doors `GET /api/firmware-state/<config>[/fields|/enums|/live?session=]`;
+  `pol firmware state <config> [--json]`. Selftest: uno-light's `LightState` fields, the two enums, `led_on` written by both mutators and read by the
+  follow task and the report; a field nobody writes is reported.
+
+### ins-0..1 — Sim install vs Real install on the installer, with a confirmed sim step
+- An OBVIOUS two-state toggle at the top of `/display/firmware-installer`: **Sim install** (the twin) | **Real install** (a detected board). It replaces
+  the small "Where it goes" radio; the rest of the page re-labels itself to the chosen mode (the button text, the target line, the dry-run words).
+- The gate: Real install is offered for a config only after a **sim install validated and confirmed by a person**: the sim install runs the config's four
+  Purposes on the twin (the existing acceptance runs) AND the person ticks "I checked the simulated board does what the firmware says" — stored as a
+  `SimInstallConfirmation` row (config, hex sha, who, when, the ScenarioRun names). Until then the Real install side shows, in words, what is missing and
+  offers the sim install. A changed hex voids the confirmation. Overriding is possible only through an explicit "install anyway", recorded with the reason
+  (the advise-never-block rule; D-bb-3 applies).
+- The readiness page and the sim bench link to it: after a bench session is recorded as evidence, the same confirmation can be ticked there.
+- Doors `GET/POST /api/board/installer/sim-confirmations`, `pol board install --sim|--real`, and the installer document carries `install_mode` + the
+  gate verdict per config. Selftest: real install refused in words without a confirmation; offered after; voided by a new hex.
+
+### Order for the next iteration (no agents unless he says so)
+1. ins-0/1 (the toggle + gate) — it changes his bench path first.
+2. fst-0..2 (the state-objects page).
+3. The three sim-bench follow-ups (firmware-table mismatch, Whole-build toggle, nav group), then smp-2 (dev-smp-2) and cst-0/1 (PROTOTYPING_VIEWS_PLAN §8).
+4. lay-3/sim-4 (confirm-then-bind on the real board), brg-1..3, cst-2.
