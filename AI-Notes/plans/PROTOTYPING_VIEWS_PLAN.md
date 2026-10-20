@@ -117,3 +117,15 @@ The first proof is S1 (uno-light + sense jumper):
   netlist are NOT circuit states (they stay Task Plan / Mission states).
 - **D-ptv-3:** SPICE pairing order: `.op` per state first, transient co-simulation second. Recommend yes.
 - **D-ptv-4:** How the views are bound: shared references + URL scope, with no merged "everything" view. Recommend yes.
+
+## 7. Status 2026-10-19 — lay-0 + lay-1 BUILT + MERGED (electrodevice)
+- Objects: `BoardModel` (breadboard half = 30 rows / 400 ties, full = 63 rows / 830 ties, 2.54 mm, counts derived from the geometry; devboard UNO from
+  BoardPin rows; protoboard/pcb reserved, refused in words), `BenchBoard` (the instance: `bench-half-1` default, `bench-full-1`, `bench-uno-1`; the old
+  BreadboardDefinition seeds converge onto it), hole grammar `r<N><a-j>` + `rail:<top|bottom>:<+|->:<N>` (old `r<N>L/R` kept), `BoardJumper.kind`
+  jumper|header + `colour_override`, `WireColorScheme` (`wires-pin-view` seeded from the pin view's palette, copy-before-edit), `LayoutEdit`.
+- Placer + netlist gate + derived build steps (never stored); doors `/api/layout/boards`, `/api/layout/<config>[?board=]`, `…/steps`, `…/edit`,
+  `/api/layout/wire-colors`; `pol board layout <config> [--board] [--steps]`, `pol board wire-colors show|copy|set`.
+- S1 on bench-half-1: SW1 straddles the trench (rows 3/5, e–f); R1 220 Ω rows 7–11 hole e; LED anode r11d, cathode r12d; GND rail wire black; D2→r3a grey,
+  D6→r7a orange, the sense jumper D3→r7b grey (stand-in until smp lands `sense_pin`). Gate OK: 4 layout nets == 4 design nets. The backwards LED and the
+  missing resistor are refused in words. Selftests: layout 89/89, electrodevice 114/114.
+- Undetermined: the bench breadboard's size (default half); TMP36/transistor pinouts proven only on a synthetic design; layout knobs (spans, start row) labelled.
