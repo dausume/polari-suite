@@ -327,3 +327,13 @@ through the struct (scl).
 - **Test node 2026-10-20:** `pol firmware prove` S1 uno-light, S2 uno-light-all-pcint, S3 uno-light-pwm-analog, S4 uno-light-transistor → all four Purposes
   PASS on each own build, each listed FINISHED; S5 esp32c3-light proven from isle-core (four PASS on the C3 twin; the scores page shows its state from its own
   runs, not scored among the UNO solutions). Chrome: Top scorers = the sample (S1 tops every profile; S2/S4 runners-up), Failures = F1 + F2 only.
+
+- **smp-2 BUILT on `dev-smp-2` (2026-10-20, in-session, not merged yet):** the compiled-in check in `cmod/custom/graph.py` now stands a ROUTE-RENDERED atom
+  (`hal_sense_poll.hal_sense_read`, compiled in the base config) in for the hal.c key the node names (`_route_alternative`; the node keeps `route_of`), and
+  `glue.render_files` carries the route module whole (it is already in `route_files`). `uno-light-graph` renders with `hal_sense_poll.c`; on isle-core: build
+  by make alone (.hex cf5d6e28…, .text 3370) and **prove EQUIVALENT** against hand-written uno-light (.hex 87f92761…) — 10 frames, raw UART identical, the twin
+  carrying the jumper PD6:PD3 (glue_build_light's stimulus now adds `light_button.wire_args(base)`). New glue record committed; `cycle_records/uno-light.json`
+  measured on the twin (presses + SET_LED + the jumper; `hal_sense_poll.hal_sense_read` 81..201 cycles per pass) and force-added past `*.json` in .gitignore.
+  `claims.PURE_CONFIG_SEED` claims D3 as a plain polled input (no INT1); the observe Purpose names sense_init / sense / sense_poll; INSTALL.md opens with the
+  bench wiring DERIVED from the layout steps (`export_cmake._wiring_lines`, the jumper among them) and the manifest carries the same lines; selftest_light,
+  selftest_bundle expectations updated (25/25, 23/23 locally). Owed before merge: the cmod / board / hwnocode / firmwarefaults suites on isle-core at dev-smp-2.

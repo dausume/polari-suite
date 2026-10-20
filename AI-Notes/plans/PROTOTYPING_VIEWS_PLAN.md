@@ -147,3 +147,22 @@ The first proof is S1 (uno-light + sense jumper):
 - **Files to write:** `electrodevice/custom/cst_modes.py`, `cst_sources.py`, `cst_netlist.py`, `cst_verdict.py`, `circuit_states_api.py`,
   `circuit_states_selftest.py`; rows `CircuitState`, `CircuitStateTransition` (register: feature_imports, polariServer defClassList, module_endpoints,
   manifest regenerate); the rung-7 hook; `fsc_values.active_current`; `polari-cli/scripts/circuit.sh` + index entry.
+
+## 9. Status 2026-10-20 — cst-0/1 BUILT on `dev-cst` (framework + polari-cli; not merged yet)
+- `electrodevice/custom/cst_sources.py` — the evidence: HAL init pin modes read from the rendered sources by a regex over each compiled `hal_*_init` body
+  (D2 input + pull-up, D6 output low through LED_DDR/LED_BIT → LED_PIN, D3 input), the pin writer from the parsed atoms (`firmware_state`: led_on →
+  apply_command / led_toggle → led_follow_state → D6), the press record, the bench circuit matched BY THE PINS the config uses (uno-button-clock: D2, D3, D6;
+  uno-echo is refused in words).
+- `cst_modes.py` — the mode catalogue and the reachable states: switches × the driver pin's levels × lifecycle → S1's six (idle-led-off, button-held-led-off,
+  led-on, led-on-button-held, reset-high-z, reset-button-held), named from their modes; 18 transitions (external 6, firmware 6 — the press-driven flip timed
+  by the press record 0.013..0.024 ms, SET_LED "read from the source" — lifecycle 6, DS §14.2.1 cited for the reset).
+- `cst_netlist.py` — the `.op` deck per state from the circuit rows: ideal pin sources through 0 V ammeters (the worst-case bound), the pull-up at both RPU ends
+  (20 k / 50 k), ngspice's own ground (a `Vgnd GND 0` is a shorted source — found the hard way), `;` for end-of-line comments, node names without `-`.
+- `cst_verdict.py` — limits from the ElectricalCharacteristic / PinGroupBudget rows (40 / 20 / 200 mA, cited), per-pin + supply judgement, the structural
+  floating-input rule (reset states: LED_CONTROL floats under D6/D3, BUTTON_INPUT under D2), rows CircuitState / CircuitStateTransition / CircuitRunResult
+  `<config>:<state>:op`, `rung7_findings` (ladder rung 7 carries the SPICE currents beside the rule verdict; a model's Vf never lifts an undetermined),
+  `active_current_ma` (+ `cmod.custom.fsc_values.active_current`: the Battery term's basis when a run is stored; not yet wired into the scorer).
+- uno-light numbers: LED branch 14.7 mA = D6 (1.76 V forward over 220 Ω), pull-up 0.25 mA @ 20 k / 0.10 mA @ 50 k only while held, every running state ok.
+- Doors `/api/circuit-states/{config}[/states|/transitions|/spice|/findings]`, `/configs`, `POST …/run` (424 without ngspice, naming NGSPICE_BIN);
+  `pol circuit states|transitions|findings|deck`. Selftest `electrodevice.circuit_states_selftest` 29/29 (SPICE parts skip honestly without the binary).
+- Not in this slice: the page (cst-2), the transient co-simulation (cst-3), wiring active_current into the scorer, an ngspice engine image/worker.
