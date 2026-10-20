@@ -173,3 +173,9 @@ the PORTB5 edge trace, JSON status lines on stdout (`{"t":"ready"…}`, status e
 - Tests: Karma 54 (23 math + 31 mounted); isle-core layout 89, hwnocode 171, apps 131, bench 46 (new `board.board_bench_selftest`), twin-session 25.
 - Undetermined: the photoresistor overlay (its divider is unknown to this layer); the UNO outline is schematic beyond the pin pitch; scheme/board picks are not
   kept in the URL; the KitPart TMP36 note's "500 mV at 25 °C" wording looks wrong (the formula gives 750 mV) — left for the circuit slice to cite.
+- **Chrome on the test node 2026-10-20 (sim-3):** `/display/sim-bench?config=uno-light&session=<s>` → "Live: connected to the simulated board"; "Press and
+  hold: SW1 (D2)" → `LED1 (D6): lit — pin high`, two BenchInteraction rows with the twin cycles; "Attach a bridge" then the App-UI "Turn the light on / off"
+  → the LED followed (dark). `/display/layout?config=uno-light` draws the UNO + half breadboard with step mode (step 3: SW1 outlined, the ground wire dimmed).
+  **Follow-ups:** the bench's "Firmware you can run" table lists EVERY variant, so "Start a session" can bind a firmware that is not the picture's config
+  (I started uno-sim-rig under uno-light's picture) — filter it to the page's config family or refuse the mismatch in words; "Whole build" did not take from a
+  click after step mode (check the toggle); the layout/bench pages show no app group in the header on a direct URL (the known nav follow-up).
