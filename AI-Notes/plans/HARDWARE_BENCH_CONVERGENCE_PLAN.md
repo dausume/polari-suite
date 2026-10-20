@@ -179,3 +179,5 @@ the PORTB5 edge trace, JSON status lines on stdout (`{"t":"ready"…}`, status e
   **Follow-ups:** the bench's "Firmware you can run" table lists EVERY variant, so "Start a session" can bind a firmware that is not the picture's config
   (I started uno-sim-rig under uno-light's picture) — filter it to the page's config family or refuse the mismatch in words; "Whole build" did not take from a
   click after step mode (check the toggle); the layout/bench pages show no app group in the header on a direct URL (the known nav follow-up).
+
+**Live pol-core rolled 2026-10-20:** everything on dev (sim-0/1, brg-0/sim-2, lay-0..2, sim-3, the curated sample, the fixes); S1–S4 proven FINISHED on live, S5 proven from isle-core. Owed: smp-2 (dev-smp-2 WIP), cst-0/1 (design in PROTOTYPING_VIEWS_PLAN §8), the sim-bench follow-ups above, lay-3/sim-4, brg-1..3, cst-2.
