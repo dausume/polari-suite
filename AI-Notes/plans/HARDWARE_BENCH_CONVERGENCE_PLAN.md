@@ -246,3 +246,11 @@ Derived, never typed, from sources the arc already has:
   reads correctly in code (stepView/null → every part shown, no dimming) — to be re-checked in Chrome on the test node.
 - Gotchas met: `manifests generate board` also drops `requires.engines_note` (restored with `requires.engines`); new object classes go in THREE places
   (feature_imports board list, polariServer defClassList, the manifest) or selftest_manifests fails; `pol deploy selftest` needs the branch pushed.
+- **Chrome on the test node 2026-10-20 (dev @ fst fix-ups):** `/display/firmware-installer` opens on the SIM INSTALL side (no board seen), the two-state
+  toggle at the top; the REAL side says "No board is detected … do the sim install first" with the button, and the gate door answers "Real install not offered
+  yet: no build to confirm yet" (the four Purposes read proven-on-twin on this node). `/display/firmware-state?config=uno-light` fills every tab from the URL's
+  scope (Structs: 24 objects; Fields: led_on command+telemetry, controls D6 via led_follow_state, boot_session persisted in EEPROM via boot_session_mint).
+  `/display/layout?config=uno-light&step=3` → a click on Whole build shows every part undimmed ("Whole build (11 steps)") — the toggle works. `/display/
+  sim-bench?config=uno-light&session=<uno-light-all-pcint session>` redrew the picture for uno-light-all-pcint (SW1 on D4, witness D8, "Live: connected");
+  the header keeps "Hardware & Firmware" on the direct URLs. The test node's backend boot after the deploy ran ~15 min CPU-bound with buffered logs (not a
+  hang). One transient "server could not be reached" on the first bench shot cleared on the retry. Sessions stopped; the worker lists none.
