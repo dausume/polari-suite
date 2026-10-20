@@ -8,7 +8,9 @@
 - **Gate passed at the dev tip on isle-core:** board 992/992, cmod 1369/1369, hwnocode 171/171, firmwarefaults 233/233, manifests 8/9 (the known
   pspp/testing baseline); local: fst 28/28, installer 61/61, apps 131/131; Karma installer+apps-nav 26/26 (display-page tabs + layout-view specs passed too).
 - **dev-cst** (framework 85e2014 + cli b4fdd70): electrodevice 114/114, circuit states 21/21 (SPICE skipped on isle-core), layout 89/89, cmod 1369/1369;
-  its board suite was running on isle-core (`scratchpad/selftest-cst-b.log` in the session's scratchpad). Merge after it passes.
+  its board suite on isle-core: **991/992** — the one miss is 'the twin runners leave no temp directory behind' naming a `/tmp/fsc0b-boot-*` dir that the
+  CONCURRENT smp-2 cmod run owned (an environmental collision, not a cst defect). dev-cst is ready to merge: merge to dev, `pol deploy run econ-core --role
+  node`, a Chrome look at the installer page (cst has no page yet), roll live, ff main.
 - **dev-smp-2** (framework a4bbc74 + the cycle record 3e614dc): hwnocode 171/171, firmwarefaults 233/233, cmod **1347/1373 — 26 expectation drifts** to fix
   before merging: `cmod/cmod_task_plan_selftest.py` (fgm-3 init steps = the five init atoms — now six with sense_init; the sense task's steps/lanes now come
   from uno-light-graph's own sense nodes, not uno-button-clock-graph; agreement counts), `cmod/custom/selftest_cycles.py` (cyc-0: with the new
