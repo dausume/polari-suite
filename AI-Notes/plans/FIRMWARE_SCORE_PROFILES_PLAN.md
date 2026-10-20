@@ -317,3 +317,10 @@ through the struct (scl).
 - isle-core at 2a51363: firmwarefaults 233, fsc 143, fsc_page 54, cmod 1369, board_light 46, hwnocode 171; board_selftest cut by the 3600 s cap (now 7200).
 - **OWED (smp-2):** the demo/install bundles are built from `uno-light-graph`, still the sense-less app (its base config is now `uno-light-unsensed`); the
   graph needs the sense nodes so the bundle carries S1 and its INSTALL text names the D6→D3 jumper.
+- **smp-2 WIP (2026-10-20, branch `dev-smp-2` @ 43232cc1, NOT merged):** `light.c` gained a `sense_poll` atom (the polled read split out of main; the
+  reported `led_on` = the sensed level under HAL_INT1), `uno-light-graph` has base config `uno-light` again + nodes sense_init / sense / sense_poll, glue
+  copies the route-rendered `hal_sense_poll.c`, manifest re-conformed (72 atoms; uno-light hex 87f92761…, F1 unchanged 1e75dab5…). BLOCKER: `pol cmod
+  render uno-light-graph` refuses "hal.hal_sense_read is not compiled in the base configuration uno-light" — the compiled-in check in `cmod/custom/graph.py`
+  must count a route-rendered `hal_sense_*` as compiled in. Then: render → build → prove (EQUIVALENT), new glue record, cycle record, `claims.py`
+  PURE_CONFIG_SEED `uno-light:sense_init` (plain input, no INT1), the observe Purpose names the sense tasks, the "no sense / no D3" selftest expectations,
+  INSTALL/README jumper wording from `pol board layout uno-light --steps`, the readiness check.
