@@ -1,10 +1,10 @@
 # Hardware bench handoff — 2026-10-20 (evening)
 
 ## STATE AT HANDOFF (written as the session ran out)
-- **Live roll IN PROGRESS:** `prf-backend:staging` + `prf-frontend:staging` were built on pol-core from dev (framework 9f96fca, angular 22092a1, cli cd87a8b)
-  and `docker service update --force` was issued on `polari-node_backend` + `polari-node_frontend`; the backend task was "Starting 4 minutes ago" with
-  `/health` 503 (its boot takes 11+ min). **Check `/health` → 200, then fast-forward main to dev in all five repos** (suite e1192e7, rf-node, framework,
-  angular, cli: `git checkout main && git merge --ff-only dev && git push`) — NOT done yet.
+- **LIVE ROLLED + MAIN == DEV (done at the very end):** pol-core's `polari-node_backend` / `polari-node_frontend` run the dev images (framework 9f96fca,
+  angular 22092a1, cli cd87a8b); verified through the proxy at `https://api.prf.192.168.0.210.nip.io` (`/api/health`, the installer document with
+  modes sim|real, `/api/firmware-state/uno-light/fields` 200; frontend 200). NOTE: the live API hostname is the nip.io one — `api.polari.isle` answers 503
+  from this stack's proxy and is not a roll failure. main was fast-forwarded to dev in all five repos.
 - **Gate passed at the dev tip on isle-core:** board 992/992, cmod 1369/1369, hwnocode 171/171, firmwarefaults 233/233, manifests 8/9 (the known
   pspp/testing baseline); local: fst 28/28, installer 61/61, apps 131/131; Karma installer+apps-nav 26/26 (display-page tabs + layout-view specs passed too).
 - **dev-cst** (framework 85e2014 + cli b4fdd70): electrodevice 114/114, circuit states 21/21 (SPICE skipped on isle-core), layout 89/89, cmod 1369/1369;
