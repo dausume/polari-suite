@@ -129,3 +129,21 @@ The first proof is S1 (uno-light + sense jumper):
   D6→r7a orange, the sense jumper D3→r7b grey (stand-in until smp lands `sense_pin`). Gate OK: 4 layout nets == 4 design nets. The backwards LED and the
   missing resistor are refused in words. Selftests: layout 89/89, electrodevice 114/114.
 - Undetermined: the bench breadboard's size (default half); TMP36/transistor pinouts proven only on a synthetic design; layout knobs (spans, start row) labelled.
+
+## 8. cst-0/1 design settled 2026-10-20 (nothing built yet — to be built in-session)
+- **ngspice:** `electrodevice.circuit_api.run_netlist` runs a LOCAL binary (`NGSPICE_BIN` → PATH → `~/tools/ngspice/bin/ngspice`, present on pol-core); no
+  image or worker seam exists (one is a later engines slice).
+- **Limits already exist** in `board.custom.electrical_atmega328p`: `ElectricalCharacteristic` I_PIN abs-max 40 mA / recommended 20 mA, RPU 20–50 kΩ
+  (DS40002061B Table 30-1 p.323); `PinGroupBudget` 200 mA VCC/GND abs-max (§29.1 p.308). There is NO `PinElectricalLimit` class — use these.
+- **Rung 7 reader:** `ladder._rung7` reads only `electrical_check.check` findings → add a small reader for SPICE pin currents from `CircuitRunResult`
+  rows (a `config` key in the ladder context).
+- **Pin evidence:** init modes from the HAL (`hal_button_init` D2 pull-up, `hal_led_init` D6 output, `hal_sense_init` D3 input); `press_records/uno-light.json`
+  (press → D6 rise, 0.013–0.023 ms); no `uno-light` cycle record (nearest `uno-light-unsensed`); `BenchInteraction` rows live only.
+- **S1 states (6):** idle-led-off, button-held-led-off, led-on, led-on-button-held, reset-high-z, reset-button-held. **Transitions (~18):** press/release
+  external; D6 by firmware (`led_toggle` → `led_follow_state` on a press; `apply_command` → `led_follow_state` on SET_LED); boot/reset lifecycle. Only the
+  press-driven rise has twin evidence; the rest are read from the source and must say so.
+- **`.op` plan:** D6 an ideal 5 V source (worst-case upper bound); the D2 pull-up through a 0 V ammeter at 20 kΩ and 50 kΩ; a 0 V ammeter in series with the
+  LED; checks against 40 / 20 / 200 mA; a structural floating-input rule (a net with no driver, pull-up, or closed switch to ground); no engine → 424.
+- **Files to write:** `electrodevice/custom/cst_modes.py`, `cst_sources.py`, `cst_netlist.py`, `cst_verdict.py`, `circuit_states_api.py`,
+  `circuit_states_selftest.py`; rows `CircuitState`, `CircuitStateTransition` (register: feature_imports, polariServer defClassList, module_endpoints,
+  manifest regenerate); the rung-7 hook; `fsc_values.active_current`; `polari-cli/scripts/circuit.sh` + index entry.
