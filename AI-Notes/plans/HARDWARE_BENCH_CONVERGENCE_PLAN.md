@@ -218,3 +218,31 @@ Derived, never typed, from sources the arc already has:
 2. fst-0..2 (the state-objects page).
 3. The three sim-bench follow-ups (firmware-table mismatch, Whole-build toggle, nav group), then smp-2 (dev-smp-2) and cst-0/1 (PROTOTYPING_VIEWS_PLAN §8).
 4. lay-3/sim-4 (confirm-then-bind on the real board), brg-1..3, cst-2.
+
+## 13. Status 2026-10-20 — ins-0/1 + fst-0..2 + two sim-bench follow-ups BUILT (branch `dev-ins` in framework / angular / cli)
+- **ins-0/1 (`board.custom.sim_gate`, `SimInstallConfirmation`):** the installer's document carries `modes` (sim = the twin, real = a detected board),
+  `default_mode` (real when a board is seen), `attest` and a `gate` per build; `plan()` stamps `install_mode` and, for a REAL plan of a Mission config, the
+  gate verdict: offered only when fsc_link reads every Purpose `proven-on-twin` for THAT config's own ScenarioRuns AND a valid confirmation exists for the
+  build's exact hex. Otherwise the plan is REFUSED in words that name what is missing and offer the sim install; `install_anyway` + `reason` plans it with
+  `gate=overridden`, the reason on the plan and the record. `run()` re-reads the gate (a tick voided by a new hex refuses at run time). Doors: GET
+  `installer/gate`, GET/POST `installer/sim-confirmations`, POST `installer/sim-install` (runs the four Purposes here when the host has a local twin, else
+  refuses with the exact `pol firmware prove <config> --api …`), POST `twins/{name}/record {confirm_sim}`; the sim-bench page gained a confirm row action,
+  the installer page the confirmations table. CLI: `pol board install uno --sim|--real [--anyway REASON]`, `pol board gate`, `pol board confirm-sim`.
+  Panel: the two-state toggle at the top; everything below re-labels; the Real side shows the gate words + "Do the sim install first" + "Install anyway"
+  (ticked + a reason); the Sim side adds step 5 (the four Purposes, the tick). Selftest (installer 61/61): refusal in words, offer after runs + tick,
+  voiding (also at run time), install anyway needs a reason, the bench tick. Bench variants (uno-echo, blink) are not gated — the words say why.
+- **fst-0..2 (`board.custom.firmware_state`, `/display/firmware-state?config=`):** every state object of a config DERIVED from its rendered sources
+  (cmod's preprocessor + pycparser), the pinned wire contract and the generated header text: the wire struct (91 B, tags, C types, command vs
+  telemetry, the pin a field controls through its reader atom's `uses`, EEPROM persistence through the minting atom), the rx parser (9 fields), every
+  static of the app / defs header / hal / sense route, local statics, enum blocks (meaning from the EnumMapping; who SETS and who COMPARES each value),
+  presence bits + framing constants (word matches in function bodies — defines are gone after preprocessing), per field WHO WRITES / WHO READS it with
+  pointer hand-offs followed ("polari_rx_feed (via main hands it over)"). Findings: uno-light → rx.device_id / rx.sequence never read; uno-blink-only →
+  pwm_duty / temp_c written by nobody beyond zeroing. Rows FirmwareStateObject / FirmwareStateField (BOARD_CLASSES 62), doors
+  `/api/firmware-state/{config}[/fields|/enums|/findings|/live?session=]` + `/configs`, five tabs of configured tables, `pol firmware state <config>`.
+  The page's scope comes from the URL: `_page(scope_query=[...])` → `scope_from_query`, seeded by the display page (a general no-code gain).
+  Selftest 28/28.
+- **sim-bench follow-ups:** the bench picture now FOLLOWS the session's firmware (a session of another config redraws the layout for it, the URL's
+  `?config=` moves with it); the header keeps the app group on a direct URL (`appForUrl` ignores a nav item's own `?config=`). The Whole-build toggle
+  reads correctly in code (stepView/null → every part shown, no dimming) — to be re-checked in Chrome on the test node.
+- Gotchas met: `manifests generate board` also drops `requires.engines_note` (restored with `requires.engines`); new object classes go in THREE places
+  (feature_imports board list, polariServer defClassList, the manifest) or selftest_manifests fails; `pol deploy selftest` needs the branch pushed.
