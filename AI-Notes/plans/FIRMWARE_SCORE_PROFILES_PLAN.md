@@ -324,3 +324,6 @@ through the struct (scl).
   must count a route-rendered `hal_sense_*` as compiled in. Then: render → build → prove (EQUIVALENT), new glue record, cycle record, `claims.py`
   PURE_CONFIG_SEED `uno-light:sense_init` (plain input, no INT1), the observe Purpose names the sense tasks, the "no sense / no D3" selftest expectations,
   INSTALL/README jumper wording from `pol board layout uno-light --steps`, the readiness check.
+- **Test node 2026-10-20:** `pol firmware prove` S1 uno-light, S2 uno-light-all-pcint, S3 uno-light-pwm-analog, S4 uno-light-transistor → all four Purposes
+  PASS on each own build, each listed FINISHED; S5 esp32c3-light proven from isle-core (four PASS on the C3 twin; the scores page shows its state from its own
+  runs, not scored among the UNO solutions). Chrome: Top scorers = the sample (S1 tops every profile; S2/S4 runners-up), Failures = F1 + F2 only.
