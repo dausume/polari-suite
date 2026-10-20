@@ -301,3 +301,19 @@ through the struct (scl).
 - smp-0: curation + default scope + the plans tab
 - smp-1: S2–S4 + F2 built and proven (`pol firmware prove`)
 - smp-2: S5 on the C3 twin
+
+## 14. Status 2026-10-19 — smp-0/1 BUILT + MERGED (the curated sample)
+- All UNO configs are the LightState app (`light.c`, v1 wire unchanged); the reported `led_on` is the SENSED LED line (the struct's `led_on` stays the
+  command; `led_follow_state` is the only pin writer). `uno-light` knobs: `sense_pin` 3, `sense_route` poll → **the bench jumper is D6 → D3**; without it the
+  board drives D6 but reports `led_on` false (twin-proven).
+- S1 `uno-light` (INT0 button, LED out, sense polled) · S2 `uno-light-all-pcint` (PCINT button D4, PCINT sense D8, jumper D6→D8) · S3 `uno-light-pwm-analog`
+  (button as a voltage on A0, LED on Timer0 phase-correct PWM) · S4 `uno-light-transistor` (the kit transistor's base on D6; the twin cannot show the
+  transistor — wiring, documented) · S5 `esp32c3-light` (C3 twin) · F1 `uno-light-unsensed` (the old app; fails the observe Purpose) · F2 `uno-light-slow-loop`
+  (every main-loop pass held 250 ms: "misses the safety-critical deadline: 221.2 ms against 100 ms", measured on the twin by `press_latency`; the flag lives on
+  the sample entry, the real Mission untouched). S1–S4: all four Purposes proven on their own builds (board_light_selftest 46/46).
+- Scopes: `sample` (default when a Mission carries one) · `all` · `plans` · `finished`; `GET /api/firmware-scores/sample`; the page's Top scorers carries the
+  sample table + a "Possible plans (not built)" tab; the installer's sample group reads `sample_solutions` in S1..F2 order; `pol firmware scores --scope`.
+  History (not failures): uno-light-pcint/-analog/-v2, uno-light-sense-poll/-pcint, uno-button-clock.
+- isle-core at 2a51363: firmwarefaults 233, fsc 143, fsc_page 54, cmod 1369, board_light 46, hwnocode 171; board_selftest cut by the 3600 s cap (now 7200).
+- **OWED (smp-2):** the demo/install bundles are built from `uno-light-graph`, still the sense-less app (its base config is now `uno-light-unsensed`); the
+  graph needs the sense nodes so the bundle carries S1 and its INSTALL text names the D6→D3 jumper.
