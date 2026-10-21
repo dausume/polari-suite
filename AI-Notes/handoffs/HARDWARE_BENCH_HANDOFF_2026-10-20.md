@@ -1,5 +1,8 @@
 # Hardware bench handoff — 2026-10-20 (evening)
 
+> **SHELVED until 2026-10-23 (his word, 2026-10-21): resume from "STATE AT HANDOFF" below — live and main are at dev; dev-cst is ready to merge;
+> dev-smp-2 has its cmod drift list at the end of this file. Nothing is running on the engines worker.**
+
 ## STATE AT HANDOFF (written as the session ran out)
 - **LIVE ROLLED + MAIN == DEV (done at the very end):** pol-core's `polari-node_backend` / `polari-node_frontend` run the dev images (framework 9f96fca,
   angular 22092a1, cli cd87a8b); verified through the proxy at `https://api.prf.192.168.0.210.nip.io` (`/api/health`, the installer document with
