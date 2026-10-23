@@ -20,21 +20,6 @@
   `cycle_records/uno-light.json` sol-0 has measured parts even "as it was" — re-read the numbers), plus the rest of the list (a full-FAIL run was in
   progress on isle-core worktree `~/polari-suite-test-runs/smp2`). Its board suite is still owed.
 
-## RESUMED 2026-10-23 — now TWO instances (Claude on pol-core, Codex on isle-core)
-Contract: `AI-Notes/guides/CODEX_COLLABORATION_GUIDE.md`; mailbox `AI-Notes/handoffs/codex/` (CX-001 = this arc's desktop half).
-The owed list below splits:
-
-| item | owner | why |
-|---|---|---|
-| merge `dev-cst`; fix the 26 `dev-smp-2` cmod drifts, its suites, merge; test node deploy; live roll; ff main | **Claude** | Polari-side logic, selftests, swarm |
-| cst-2 page (ONE sanctioned d3 component), cst-3 transient co-sim, `fsc_values.active_current` into the scorer | **Claude** | web + sim core |
-| lay-3/sim-4 — confirm-then-bind: the backend gate + the page | **Claude** | doors + Angular |
-| lay-3/sim-4 — the REAL board from a host over USB (the bench) | **Codex** | needs the desktop host's USB (CX-001 §4) |
-| brg-1 device picker in the shell; brg-3 app-session runs inside the app | **Codex** | the JavaFX app is the host-side bridge |
-| brg-2 the embedded no-code UI (the configured page the shell opens) | Claude (page/config) + Codex (the frame) | contract by request |
-| cx-3 the "app-session" ScenarioRun kind + its door | **Claude** | an object class — Claude only adds those |
-| the three bench pages inside the shell's JCEF frame | **Codex** reports, Claude fixes | desktop rendering vs Chrome |
-
 ## Where everything is
 - **dev** (framework, angular, cli, rf-node, suite) carries ins-0/1, fst-0..2 and the sim-bench follow-ups; **main** is fast-forwarded to dev once the
   isle-core suite at the dev tip passes and live is rolled (see "Roll" below — if main lags dev when you read this, that step was not reached).

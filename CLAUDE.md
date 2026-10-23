@@ -45,17 +45,7 @@ accountability ledger (state + revival path per arc); move a plan
 back out on revival and update that table. Older references to
 "<X>_PLAN.md at suite root" or "AI-Plans/<X>" mean
 `AI-Notes/plans/<X>_PLAN.md` now. The suite root keeps only README,
-GETTING_STARTED_DEV, this file, and `AGENTS.md` (the Codex entry point,
-added 2026-10-23 — it only points here and at the collaboration guide).
-
-## Two instances (since 2026-10-23)
-
-Codex runs on isle-core (desktop apps, Blender/FreeCAD/KiCad GUIs, USB on
-a host, the JavaFX shell + bridge app); Claude runs here (web, sim core,
-framework, compose/swarm, deploys, `main`). Contract + ownership table:
-`AI-Notes/guides/CODEX_COLLABORATION_GUIDE.md`. Channel = the mailbox
-`AI-Notes/handoffs/codex/` (one file per request, ledger in its README).
-Codex pushes `codex/*` branches only; Claude merges.
+GETTING_STARTED_DEV, and this file.
 
 ## Repo shape
 
