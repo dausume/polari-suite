@@ -15,32 +15,39 @@ this plan holds only the arc, its slices and his decisions.
 - The two instances split by proof kind: web / compose / swarm / doors / Chrome = Claude (pol-core); desktop windows, GUIs, USB on a
   host, the JavaFX shell = Codex (isle-core). Codex has an X11 desktop MCP on isle-core; libvirt is present there (its dnsmasq listens
   on the virt bridge).
-- Today's lesson: Chrome's extension cannot attach to a certificate interstitial, so any isle Claude must test in Chrome needs its CA
-  trusted ONCE in the browser (step-ca as the single internal root — `polari-tls-ca` plan — is now on the critical path).
+- Today's lesson: Chrome's extension cannot attach to a certificate interstitial. On the compose test node that needs a hand import;
+  on the isle it needs nothing — the agent's bootstrap trusts the isle root (`/etc/isle-mesh/ca/isle-root.crt`) on the joined device.
 
-## 2. Shape
-- **Placement:** the test isle is a **libvirt VM on isle-core**, under Codex's lifecycle. Own IP, own 80/443 (no collision with the
-  swarm ingress on isle-core or the test node's proxy on econ-core); exercises the real install path (onboarding installers, the ISO
-  plan) and the uninstall rule, which reusing a busy box never would.
-- **Reach from pol-core:** Chrome at `https://<app>.isle` once pol-core routes `.isle` to the isle's DNS (one `resolvectl` domain route
-  or the isle join step — his sudo) and trusts the isle CA (his browser step).
+## 2. Shape (corrected the same evening by his words: "The whole point of isle-mesh is it takes care of that automatically so long as
+you install the appropriate apps and modules. So long as an isle agent is installed on pol-core and connected to the isle-core, you
+will automatically be able to resolve any .isle website defined via installs. That functionality is already built.")
+- **Placement:** the isle core runs **on isle-core itself** (it is the isle core; Codex takes it over). Isle apps sit on the mesh's own
+  addressing (macvlan — `isle-onboarding-installers`), so they do not contend with the swarm ingress on the host. A libvirt VM is only
+  the fallback if the swarm worker and the isle core cannot share the box.
+- **Reach from pol-core:** install the **isle agent on pol-core** and connect it to isle-core — `isle core-install` on isle-core ends with
+  JOIN INFO (CA fingerprint + the `isle-bootstrap.sh` one-liner served at `https://apt.isle/isle-bootstrap.sh`); running that one-liner
+  on pol-core (sudo: his) verifies the CA fingerprint, trusts the CA, enables apt-on-mesh, installs CLI + store + runtime and runs
+  `isle onboard`. DNS for `.isle` and the CA trust are then AUTOMATIC — built, not a decision. Chrome reaches `https://<app>.isle`
+  for every app installed on the isle; the uninstall must hand back a working Ubuntu (`uninstall-hands-back-default-ubuntu`).
 - **Verification loop:** Claude deploys from dev tips (pointers moved) → message "verify the desktop half of X" → Codex replies with what
   it saw; both write one line on the shared state board; locks before anything that restarts, flashes or reinstalls a shared resource.
 
 ## 3. Slices (each its own branch where code is touched; suites on isle-core; the isle itself is not a repo change)
 | # | slice | who | proves |
 |---|---|---|---|
-| a | **ti-0** VM up + isle installed | Codex | one web app answers at a `.isle` name from inside the VM; DNS IP + CA path reported |
-| b | **ti-1** `.isle` from pol-core | his two steps + Claude | `https://<app>.isle` renders in Chrome on pol-core with no interstitial; a screenshot in the handoff |
-| c | **ti-2** the Polari node inside the isle | Claude deploys, Codex watches the desktop side | `pol deploy run <isle-vm> --role node` from dev tips; `/health` 200; the same four pages checked in Chrome as on econ-core |
-| d | **ti-3** the bench boards in the isle | Codex (USB passthrough) + Claude (twin/bridge) | CX-001's desktop half runs against the VM; a board flashed from inside the isle, the hosted bridge reporting it |
+| a | **ti-0** the isle core on isle-core | Codex | `isle core-install` done (idempotent); its JOIN INFO (CA fingerprint + bootstrap one-liner) on the shared board; `https://apt.isle` answers on isle-core |
+| b | **ti-1** pol-core joins | his one sudo line (the one-liner, prepared by Claude from the board) + Claude | `https://<app>.isle` renders in Chrome on pol-core with no interstitial; a screenshot in the handoff; `isle status` on pol-core shows the agent connected |
+| c | **ti-2** the Polari node inside the isle | Claude deploys, Codex watches the desktop side | the Polari apps installed as isle apps/modules from dev tips (pointers moved); `/health` 200 at its `.isle` name; the same four pages checked in Chrome as on econ-core |
+| d | **ti-3** the bench boards in the isle | Codex (USB on the host) + Claude (twin/bridge) | CX-001's desktop half runs on isle-core as the isle core; a board flashed from the isle, the hosted bridge reporting it |
 | e | **ti-4** one round trip of the loop | both | a dev change → deploy → desktop verify → reply, all through the board and locks, no mouth relay |
 
 ## 4. Decisions (his; my recommendation first)
-- **D-ti-1** placement: libvirt VM on isle-core (recommended) — or bare on econ-core beside the test node.
-- **D-ti-2** how pol-core joins `.isle` DNS: a `resolvectl` per-domain route he sets once (recommended) — or an isle join command that does it.
-- **D-ti-3** the CA: adopt step-ca now as the single internal root Chrome trusts once (recommended) — or keep importing per-node CAs by hand.
-- **D-ti-4** VM lifecycle owner: Codex (recommended, his words today) — or him.
+- **D-ti-1** placement: the isle core bare on isle-core, Codex's (his words today — taken as ruled unless he says otherwise); a libvirt
+  VM only if the swarm worker and the isle core cannot share the box (then D-ti-1b: who moves — the worker or the isle).
+- ~~D-ti-2 DNS route~~ ~~D-ti-3 CA~~ — NOT decisions: the agent install does both (his correction). Retired the same evening.
+- **D-ti-4** isle lifecycle owner on isle-core: Codex (recommended, his words today) — or him.
+- **D-ti-5** does the econ-core test node stay (compose, `pol deploy run`) beside the isle, or does the isle become THE test target and
+  econ-core goes back to Jenkins only? (recommended: keep both until ti-2 is proven, then retire the compose test node.)
 - **D-cx-6..9** (the protocol's own decisions) live in the device-local README.
 
 ## 5. Rules this plan keeps
