@@ -524,6 +524,9 @@ sections never share a table; nav Hardware & Firmware → Chips and levels; self
 only): UNO R3, Arduino Zero (SAMD21), Adafruit Feather M0 Express (SAMD21), an Elecrow ESP32 (Xtensa) eval board, a bare iCE40UP5K WLCSP chip,
 two BUD BB-32650-W breadboards (the kit register should gain these rows: the two breadboards + the SAMD21 boards + the ESP32 board). Not yet:
 Chrome check on the test node (rides with the next deploy), the SAMD21 emulator question (none known), the ESP32 board's module (read the silk).
+**Correction 2026-10-24 (his photos):** the Elecrow board is an **ESP32-S3** (Xtensa LX7), an enclosed e-paper HMI display (CrowPanel form), derived
+from its GPIO header silk — IO20 and IO38 together exist only on the S3. Not RISC-V (the S3's only RISC-V is its ULP coprocessor). So esp-emulator's
+S3 coverage (§11.4, D-mis-21b) now reaches a board on the bench. Exact module pending `esptool chip_id` / `flash_id` over USB.
 
 **✅ bench-0 + chp-1 BUILT 2026-10-24 (same branch, rebased onto dev-pv-bench; his asks: "clear separation between those simulatable and
 those not and how they are simulated with what software", "a dev/eval-board selection component for adding dev and eval boards to a Bench",
