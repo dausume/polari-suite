@@ -526,7 +526,9 @@ two BUD BB-32650-W breadboards (the kit register should gain these rows: the two
 Chrome check on the test node (rides with the next deploy), the SAMD21 emulator question (none known), the ESP32 board's module (read the silk).
 **Correction 2026-10-24 (his photos):** the Elecrow board is an **ESP32-S3** (Xtensa LX7), an enclosed e-paper HMI display (CrowPanel form), derived
 from its GPIO header silk — IO20 and IO38 together exist only on the S3. Not RISC-V (the S3's only RISC-V is its ULP coprocessor). So esp-emulator's
-S3 coverage (§11.4, D-mis-21b) now reaches a board on the bench. Exact module pending `esptool chip_id` / `flash_id` over USB.
+S3 coverage (§11.4, D-mis-21b) now reaches a board on the bench. **Read over USB the same day (esptool v5.6.0, CH340 bridge on pol-core):**
+ESP32-S3 (QFN56) rev v0.2, Wi-Fi + BT 5 LE, dual core + LP core, 240 MHz, embedded PSRAM 8 MB, 40 MHz crystal, flash 8 MB quad 3.3 V
+(0xc8/0x4017) — the WROOM-1 N8R8 pairing; the module brand stays under the case. Zephyr `esp32s3_devkitc` is the candidate upstream board.
 
 **✅ bench-0 + chp-1 BUILT 2026-10-24 (same branch, rebased onto dev-pv-bench; his asks: "clear separation between those simulatable and
 those not and how they are simulated with what software", "a dev/eval-board selection component for adding dev and eval boards to a Bench",
