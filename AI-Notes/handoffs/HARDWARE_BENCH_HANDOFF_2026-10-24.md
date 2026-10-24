@@ -43,3 +43,6 @@ D-mis-21 RULED (own C3 twin as module `c3twin`; esp-emulator re-base recommended
 Memory `operating-mode-token-split`: even Fable / non-Fable split (Fable = decisions, ssh/deploys/merges, Chrome; Sonnet = bounded verifiable
 chunks — today: the smp-2 L7 drift + suites, 56 k tokens, 12 tool uses, correct first time); token hygiene; checkpoint at milestones; this
 handoff; "clear now" said plainly when the context is heavy.
+
+## Test isle + parallel-work protocol (added 18:25)
+His direction: isle-core = the isle core under Codex; a protocol so both work from up-to-date apps and coordinate tests. BUILT: the protocol (§"Working in parallel") appended to BOTH device READMEs; `~detts/collab/STATE.md` (the one board) + `~detts/collab/locks/` on isle-core; Codex AGENTS.md points at them; CX-003 in Codex's inbox (protocol + the test isle VM half, asks for DNS IP + CA path); Polari plan `AI-Notes/plans/TEST_ISLE_PLAN.md` (ti-0..4, D-ti-1..4). His: D-ti-1..4, D-cx-6..9; the `.isle` DNS route on pol-core and the isle CA trust are his sudo/browser steps.
