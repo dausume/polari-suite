@@ -334,3 +334,10 @@ recorded "Also runs on" (terminology §8).
   CPU-only part separately. Worst loop pass: 10.97 ms on the twin, 5.44 ms at the chip's byte time; rt-0's argued 10.9 ms (110 B max frame, 55 B real).
   rt-0: bare-c no longer provisional (`fits-known`: every loop task measured; INT rates still outside the CPU share). sol-0: measured cycles preferred,
   basis labelled per candidate; the chosen plan's cycle 9.70 → 10.53 ms (the CPU work the bounds had missed).
+
+## 18. 2026-10-24 — the Mission view judged incoherent; the generic Mission arc
+
+His words: "the Mission and Purpose No-Code does not really seem particularly coherent right now" and "we will want a more generic Mission
+structure later on for various kinds of engineering … attempt to use existing solutions through a search to meet Missions through
+automation or get as close as possible". The faults of the mis-0 drawing, the generic `Mission` / `MissionKind` / `MissionAttempt`
+structure, the configured Mission page and the FirmwareMission kind are planned in `MISSION_GENERIC_PLAN.md` (slices mis-1a/1b/1c, mis-2).
