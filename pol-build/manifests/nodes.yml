@@ -22,12 +22,12 @@ nodes:
     roles: [node, research-core]
     notes: "HP ProDesk 600 G1; the research/Polari core — node stack lives here (renamed from staging-a 2026-07-27)"
   isle-core:
-    ssh: isle-core                # detts@192.168.0.24 (passwordless key)
+    ssh: isle-core                # ssh alias; user + address live in ~/.ssh/config (passwordless key)
     repo_dir: ~/polari-suite
     roles: [engines, remote-worker, node, infra-core, hardware-integration]
     notes: "6-core i5 / 7.6G; the isle-mesh/infra/hardware core — science engines; also runs the Isle-Mesh project + its own Claude"
   econ-core:
-    ssh: econ-core                # dausume@192.168.0.66 (passwordless key;
+    ssh: econ-core                # ssh alias; user + address in ~/.ssh/config (passwordless key;
                                   # legacy alias 'lightweight' still works)
     repo_dir: ~/polari-suite
     roles: [engines, remote-worker, business-ops, economics]
