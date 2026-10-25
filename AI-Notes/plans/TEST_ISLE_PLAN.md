@@ -52,8 +52,9 @@ will automatically be able to resolve any .isle website defined via installs. Th
 ## 3. Slices (each its own branch where code is touched; suites on isle-core; the isle itself is not a repo change)
 | # | slice | who | proves |
 |---|---|---|---|
-| a | **ti-0** the isle core on isle-core | Codex | `isle core-install` done (idempotent); its JOIN INFO (CA fingerprint + bootstrap one-liner) on the shared board; `https://apt.isle` answers on isle-core |
-| b | **ti-1** pol-core joins | his one sudo line (the one-liner, prepared by Claude from the board) + Claude | `https://<app>.isle` renders in Chrome on pol-core with no interstitial; a screenshot in the handoff; `isle status` on pol-core shows the agent connected |
+| a | **ti-0** the isle core on isle-core | Codex | `isle core-install` done (idempotent) + `isle-registry-setup` (the mesh registry `pol dev deploy` pushes to); its JOIN INFO (CA fingerprint + bootstrap one-liner) on the shared board; `https://apt.isle` answers on isle-core |
+| b | **ti-1** pol-core joins | his one sudo line (the one-liner, prepared by Claude from the board) + Claude (`pol dev setup`) | `https://<app>.isle` renders in Chrome on pol-core with no interstitial; a screenshot in the handoff; `isle status` on pol-core shows the agent connected; `pol dev status` shows the registry catalog |
+| b' | **ti-1a** `pol dev` without literal addresses | Claude (polari-cli, branch dev-ti-1a) | `pol dev`/`isle-dev-setup.sh` take the isle host from the ssh alias or nodes.yml and the registry from `registry.isle`; no home-LAN literal remains in polari-cli (grep clean); `pol dev help` unchanged |
 | c | **ti-2** the Polari node inside the isle (swarm-oriented isle app) | Claude deploys, Codex watches the desktop side | the Polari node installed as an isle app from dev tips (pointers moved); `/health` 200 at its `.isle` name; the four bench pages (pin-view, chip-ladder, bench, the C-function-atom colours) get their visual pass HERE — this replaces the econ-core Chrome pass as the gate before a live roll |
 | d | **ti-3** the QEMU twins + engines as qemu-based isle apps, then the bench boards | Codex (isle app installs, USB on the host) + Claude (twin/bridge) | the C3 twin / engine workers run as isle apps (the `smp S5` checks pass through the isle); CX-001's desktop half runs on isle-core as the isle core; a board flashed from the isle, the hosted bridge reporting it |
 | e | **ti-4** one round trip of the loop | both | a dev change → deploy → desktop verify → reply, all through the board and locks, no mouth relay |
@@ -65,8 +66,24 @@ will automatically be able to resolve any .isle website defined via installs. Th
 - **D-ti-4** isle lifecycle owner on isle-core: Codex (recommended, his words today) — or him.
 - ✅ **D-ti-5 RULED (21:00):** the isle is THE development test target; econ-core's compose node and the pipeline VM serve pipeline
   automation only. The node on econ-core stays up as-is (no further `pol deploy run` for dev iteration); the pending bench Chrome pass
-  and the live-roll gate move to ti-2. Open corollary **D-ti-6**: does the live roll of today's dev (bench + colouring) wait for ti-2,
-  or go on his word before the isle exists? (recommended: wait — the isle pass is the whole point; he can say "roll" to override.)
+  moves to ti-2.
+- ✅ **D-ti-6 RULED (21:30, his words):** "it looked good enough for now i do not care to do a roll live in the first place … I do not
+  care about deploying for a long while right now. And I care about functionality progression and getting a smooth setup of using real
+  isle apps for testing from here on out with collab between you and codex." → NO live roll, no deploy work; dev is the branch of record
+  (every repo at pushed dev, verified 21:30); effort goes to functionality + the isle testing loop.
+
+## 4b. The loop already in the CLI (found 21:30) — ti-2's mechanism, and its debts
+`pol dev` (polari-cli/scripts/dev.sh, "the ISLE-ORIENTED developer workflow") is the route: `pol dev setup` (trust the isle CA for the
+browser + docker, point at the isle host + mesh registry; `polari-cli/shells/isle-dev-setup.sh`) · `pol dev deploy backend|frontend`
+(`pol node build` here → push to the mesh registry → `isle-polari-deploy --pull` on the isle core) · `pol dev status` · `pol dev teardown`.
+The isle side: `isle-polari-deploy` pulls `registry.isle:5000/prf-*:staging`; the registry is NOT part of `isle core-install` — it is
+`isle-registry-setup` on the CA host (isle-core), so **ti-0 includes `isle-registry-setup`** and **ti-1 includes `pol dev setup`**
+on pol-core after the bootstrap one-liner. Debts found: (1) `dev.sh` / `isle-dev-setup.sh` default the isle and registry hosts to a
+LITERAL home-LAN address — a real identifier in a public tracked file (privacy rule) and stale; slice **ti-1a** (polari-cli, mine):
+resolve the isle host from the ssh alias / `pol-build/manifests/nodes.yml` and the registry from `registry.isle` once joined, no literal
+addresses. (2) Isle-Mesh `isle-cli/scripts/polari.sh` has the same literal as a pull fallback — isle code, Codex's side (noted on the board).
+(3) qemu-based isle apps: the engine/twin images are docker images that CONTAIN QEMU; nothing in Isle-Mesh b029fc9 names a separate
+"qemu" app kind — ti-3 installs them as isle apps the same way, and the kind words follow what the store shows at install time.
 - **D-cx-6..9** (the protocol's own decisions) live in the device-local README.
 
 ## 5. Rules this plan keeps
