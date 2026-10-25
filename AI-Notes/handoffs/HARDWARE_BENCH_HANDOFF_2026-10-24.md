@@ -40,6 +40,22 @@ test-node-first order — his call to roll live without it. pol-core live swarm 
 **Open decisions (his):** D-mis-1..9, 10..14, 15..19, 20 (buy a C3 DevKitM-1), 22..26 — all in `AI-Notes/plans/MISSION_GENERIC_PLAN.md`;
 D-mis-21 RULED (own C3 twin as module `c3twin`; esp-emulator re-base recommended as D-mis-21b).
 
+## 2026-10-25 — the isle day (Codex) + what I owe
+Codex worked isle-core all day through the ORIGINAL app (his rule: normal-user setup through the app, never the backend CLI) and sent 19
+messages (all read + acked 18:10, answered in CX-007). State on isle-core at 18:10: polari-complete 0.1.43+uninstall1 installed; core created
+(router VM + agent + sample app + prf-isle frontend/backend) BUT prf-isle runs the ghcr RELEASE images 2026.09.27, not dev; after his reboot the
+router is OFF (libvirt autostart failed: br-mgmt missing; ingress agent exited) — Codex packaging the boot-recovery fix; `isle status` shows no
+router. Fixed by Codex in LOCAL branches (not pushed — his "no Wi-Fi pushes"; the non-Wi-Fi ones are merge-request material): pkexec caller
+resolution, image-tag derivation, CA trust import as the real user + fingerprint compare (`isle trust browser`), ensure_mesh_mdns SIGPIPE
+false-negative, uninstall package selection + honest failures (codex/fix-mdns-unit-check 6bfd233; Isle 4c14721; app-shell 2ba40ce). OPEN BUG
+(diagnosis only, his rule): the installer clones the NetworkManager Wi-Fi uplink into networkd 20-wifi.network → second DHCP lease (.24/.25),
+docs failure-mode F6 = the August incident; the app uninstall left connectivity unusable until a manual Wi-Fi off/on. No JOIN INFO yet
+(apt-repo publish fails under pkexec); no `isle-registry-setup` yet → `pol dev deploy` cannot push dev images until it exists (asked for in CX-007).
+NEW TASK relayed through Codex (his words via Codex 02:39): "YOU install a non-QEMU/lightweight Isle on pol-core: agent + normal apps, .isle
+access in Chrome; NO local core/router VM" and Codex may build debs for me to install via terminal. Every step is sudo = his hands; I take the
+instruction from him in chat before running anything; prerequisites listed in CX-007 §3 (JOIN INFO or final deb set + sha256; the uplink-cloning
+bug must not reach pol-core — its isle NIC is the wired eno1). Lock name reserved: `pol-core-member`.
+
 ## What changed in how we work (2026-10-24)
 Memory `operating-mode-token-split`: even Fable / non-Fable split (Fable = decisions, ssh/deploys/merges, Chrome; Sonnet = bounded verifiable
 chunks — today: the smp-2 L7 drift + suites, 56 k tokens, 12 tool uses, correct first time); token hygiene; checkpoint at milestones; this

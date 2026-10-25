@@ -27,6 +27,12 @@ this plan holds only the arc, its slices and his decisions.
   `/dev/kvm` + virsh (the isle's own OpenWRT router runs as a libvirt VM — that VM is part of the isle, not a test VM); the host is a
   swarm WORKER running the five hw-engines services; 7 GB RAM, 808 GB free. The runbook is `isle-cli/scripts/core-install.sh`
   (7 idempotent steps) after `isle-cli/shells/install-cli.sh` or the CLI deb.
+- 2026-10-25 (Codex's isle day, 19 messages): the core exists on isle-core, created through the original app (polari-complete 0.1.43),
+  but (a) prf-isle runs the ghcr RELEASE images 2026.09.27 — dev tips reach it only via `pol dev deploy` once `isle-registry-setup` is done
+  (owed, ti-0); (b) the installer clones the NM Wi-Fi uplink into networkd (duplicate lease, docs F6, = the August incident) — diagnosis
+  only by his rule, fix as a reviewed proposal; (c) after a reboot the router VM did not come back (br-mgmt missing) — Codex packaging the
+  boot-recovery unit; (d) CA trust in the user's browser now auto-matches the minted CA (Codex's `isle trust browser`, clean-profile proven);
+  (e) his relayed ask: a lightweight member on pol-core (ti-1 — agent + apps + Chrome, no router VM), sudo = his; prerequisites in CX-007.
 - Codex's own session had restricted networking on 2026-10-24 (no ssh out, no DNS → it could not read its mailbox, pull, or apt) —
   that is a session-permission setting of his, not anything of ours; until it changes, its inbound messages reach it only on its own disk.
 
