@@ -82,8 +82,18 @@ on pol-core after the bootstrap one-liner. Debts found: (1) `dev.sh` / `isle-dev
 LITERAL home-LAN address — a real identifier in a public tracked file (privacy rule) and stale; slice **ti-1a** (polari-cli, mine):
 resolve the isle host from the ssh alias / `pol-build/manifests/nodes.yml` and the registry from `registry.isle` once joined, no literal
 addresses. (2) Isle-Mesh `isle-cli/scripts/polari.sh` has the same literal as a pull fallback — isle code, Codex's side (noted on the board).
-(3) qemu-based isle apps: the engine/twin images are docker images that CONTAIN QEMU; nothing in Isle-Mesh b029fc9 names a separate
-"qemu" app kind — ti-3 installs them as isle apps the same way, and the kind words follow what the store shows at install time.
+(3) The two kinds he named map to catalog kinds that already exist in `modules/islemesh/islemesh_catalog.py`: swarm-oriented docker apps =
+`mesh-app` (a compose file or image → `isle app deploy`), qemu-based isle apps = `hardware-app` (a KVM guest rendered from Polari rows →
+`isle vm define`, needs the hardware tier). The engine workers are `mesh-app`s (the esp worker's image carries QEMU inside the container);
+the science engines msci/cad already have tiles with `provides_engine`, the FIVE hardware workers (board 9830 / formal 9840 / esp 9850 /
+pcb 9860 / bridge 9870, compose files in polari-rf-node) have NONE — that is ti-3a.
+
+## 4c. ti-3 split (speculative work while the isle comes up — selftest-proven, browser-proven later in the isle)
+| # | slice | who | proves |
+|---|---|---|---|
+| d1 | **ti-3a** hardware engine tiles | Claude (framework, dev-ti-3a) | five `mesh-app` tiles with `provides_engine`; `install_plan` yields `isle app deploy <w> --compose … --engine <family>`; the board module resolves a worker deployed as an isle app through its EngineProviderBinding row (knob still absolute); islemesh + board selftests |
+| d2 | **ti-3b** `pol dev deploy <worker>` | Claude (polari-cli) | builds/ships the worker image to `registry.isle:5000` and runs `isle store install <worker>` on the isle core over ssh — the engines reach the isle the same way the node does; dry-run prints the exact steps |
+| d3 | **ti-3c** the isle install itself | Codex (isle-core, after ti-0) | `isle store install esp-engines` etc. on the isle core; the `smp S5` twin checks pass against `https://esp-engines.isle` from the Polari node inside the isle |
 - **D-cx-6..9** (the protocol's own decisions) live in the device-local README.
 
 ## 5. Rules this plan keeps
