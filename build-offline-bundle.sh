@@ -35,7 +35,7 @@
 #   signs or pretends to. README states how verification stands.
 # - App/docker/VM images = decision 4 + off-0 inventory: named as
 #   absent in README, never guessed at.
-set -eu
+set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRAMEWORK="$ROOT/polari-rf-node/polari-framework"
 DEBS_DIR="$ROOT/.generated/debs"
@@ -90,15 +90,17 @@ for deb in "$POOL/repo/"*.deb; do
         | tr ',' '\n' | sed 's/([^)]*)//; s/|.*//; s/ //g')"
 done
 OUR_NAMES=$(for deb in "$POOL/repo/"*.deb; do
-    dpkg-deb -f "$deb" Package; done | sort -u)
+    dpkg-deb -f "$deb" Package
+    dpkg-deb -f "$deb" Provides | tr ',' '\n' | sed 's/([^)]*)//;s/ //g'
+    done | sort -u)
 DEPS=$(echo "$DEPS" | tr ' ' '\n' | sort -u | grep -v '^$' \
     | grep -vxF -f <(echo "$OUR_NAMES") | tr '\n' ' ')
-[ -n "$CLOSURE_EXTRA" ] && DEPS="$DEPS $(echo "$CLOSURE_EXTRA" | tr ',' ' ')"
+[ -n "$CLOSURE_EXTRA" ] && DEPS="$DEPS $(echo "$CLOSURE_EXTRA" | tr ',' '\n' | sed 's/|.*//;s/([^)]*)//;s/ //g' | tr '\n' ' ')"
 echo "    closure roots:$DEPS"
 URIS_FILE="$POOL/repo/CLOSURE_URIS.txt"
-if docker run --rm "$BASE_IMAGE" bash -lc \
+if docker run --rm --memory=384m --cpus=1 "$BASE_IMAGE" bash -lc \
     "apt-get update -qq >/dev/null 2>&1 && \
-     apt-get install --print-uris -qq -y $DEPS 2>/dev/null" \
+     apt-get install --reinstall --print-uris -qq -y $DEPS 2>/dev/null" \
     | grep -oP "^'\K[^']+" > "$URIS_FILE"; then
     COUNT=$(wc -l < "$URIS_FILE")
     ok "closure resolved: $COUNT deb(s) beyond the base image"
@@ -130,7 +132,7 @@ if [ "$DOWNLOAD" = 1 ]; then
             fi
         done < "$URIS_FILE"
         if [ "$MISSES" -gt 0 ]; then
-            ( cd "$CACHE_APT" && xargs -n1 -P4 curl -fsSO < "$POOL/repo/.misses" )
+            ( cd "$CACHE_APT" && xargs -n1 -P2 curl -fsSO < "$POOL/repo/.misses" )
             while IFS= read -r uri; do
                 [ -n "$uri" ] || continue
                 b="$(basename "${uri%%\?*}")"
@@ -143,7 +145,7 @@ if [ "$DOWNLOAD" = 1 ]; then
         # the arithmetic the pipeline's cache-report.json wants, on one parseable line
         echo "[cache-report] apt cached_bytes=$CB fetched_bytes=$FB entries=$COUNT"
     else
-        ( cd "$POOL/repo" && xargs -n1 -P4 curl -fsSO < CLOSURE_URIS.txt )
+        ( cd "$POOL/repo" && xargs -n1 -P2 curl -fsSO < CLOSURE_URIS.txt )
         ok "closure debs in pool/repo/ (no POLARI_APT_CACHE — every run re-downloads them)"
     fi
     CLOSURE_DOWNLOADED=true
