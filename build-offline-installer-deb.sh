@@ -19,7 +19,13 @@ STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 SHARE="$STAGE/usr/share/polari-offline-installer"
 mkdir -p "$SHARE/medium" "$STAGE/DEBIAN" "$STAGE/usr/share/applications" "$OUTPUT"
-cp -a "$MEDIUM/." "$SHARE/medium/"
+# Immutable build inputs can share inodes while dpkg reads them. This avoids
+# writing the multi-GB payload to disk again just to build a small revision.
+if ! cp -al "$MEDIUM/." "$SHARE/medium/" 2>/dev/null; then
+    rm -rf "$SHARE/medium"
+    mkdir -p "$SHARE/medium"
+    cp -a "$MEDIUM/." "$SHARE/medium/"
+fi
 cat > "$SHARE/launch.sh" <<'LAUNCH'
 #!/bin/bash
 set -eu
