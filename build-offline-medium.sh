@@ -240,6 +240,7 @@ for repo, key in (('polari-rf-node/polari-framework', 'prf-backend'), ('polari-r
     except Exception: comps[key] = {'sha': '?'}
 m = {'polari': ver, 'flavor': 'offline', 'target': target, 'superproject': sha,
      'builtAt': datetime.datetime.now().isoformat(timespec='seconds'), 'builtOn': socket.gethostname(),
+     'desktopRuntime': {'package': 'polari-shell-core', 'file': debs['polari-shell-core']},
      'architecture': subprocess.check_output(['dpkg', '--print-architecture'], text=True).strip(),
      'requiredPackages': required_packages, 'requiredImages': required_images.split(),
      'router': {'file': 'openwrt-isle-router.qcow2', 'metadata': 'build.json', 'packages': sorted('packages/' + f for f in os.listdir(os.path.join(out, 'router', 'packages')) if f.endswith('.ipk'))},
