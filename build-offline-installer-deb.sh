@@ -16,7 +16,8 @@ PY
 dpkg --validate-version "$VERSION"
 ARCH=$(dpkg --print-architecture)
 STAGE=$(mktemp -d)
-trap 'rm -rf "$STAGE"' EXIT
+PACKAGE_TMP=""
+trap 'rm -rf "$STAGE"; [ -z "$PACKAGE_TMP" ] || rm -f "$PACKAGE_TMP"' EXIT
 SHARE="$STAGE/usr/share/polari-offline-installer"
 mkdir -p "$SHARE/medium" "$STAGE/DEBIAN" "$STAGE/usr/share/applications" "$OUTPUT"
 # Immutable build inputs can share inodes while dpkg reads them. This avoids
@@ -66,4 +67,9 @@ Description: Complete Polari Isle offline installer
  and pristine OpenWrt router plus packages. Open Polari Offline Installer
  after installation. Compatible installed dependencies and images are reused.
 EOF
-dpkg-deb --build --root-owner-group --threads-max=1 -Zzstd -z3 "$STAGE" "$OUTPUT/polari-offline-installer_${VERSION}_${ARCH}.deb"
+# Publish only a complete archive; interruption must not leave a plausible DEB.
+PACKAGE_TMP=$(mktemp "$OUTPUT/.polari-offline-installer.XXXXXX")
+dpkg-deb --build --root-owner-group --threads-max=1 -Zzstd -z3 "$STAGE" "$PACKAGE_TMP"
+chmod 644 "$PACKAGE_TMP"
+mv -f "$PACKAGE_TMP" "$OUTPUT/polari-offline-installer_${VERSION}_${ARCH}.deb"
+PACKAGE_TMP=""
