@@ -66,10 +66,10 @@ will automatically be able to resolve any .isle website defined via installs. Th
 | e | **ti-4** one round trip of the loop | both | a dev change → deploy → desktop verify → reply, all through the board and locks, no mouth relay |
 
 ## 4. Decisions (his; my recommendation first)
-- **D-ti-1** placement: the isle core bare on isle-core, Codex's (his words today — taken as ruled unless he says otherwise). No test VM
+- ✅ **D-ti-1** RULED 2026-10-26 (his "go with your own recommendations"): the isle core bare on isle-core, Codex's. No test VM
   (his ruling: VMs are for pipeline automation); if the swarm worker and the isle core cannot share the box, D-ti-1b = which one moves.
 - ~~D-ti-2 DNS route~~ ~~D-ti-3 CA~~ — NOT decisions: the agent install does both (his correction). Retired the same evening.
-- **D-ti-4** isle lifecycle owner on isle-core: Codex (recommended, his words today) — or him.
+- ✅ **D-ti-4** RULED 2026-10-26: Codex owns the isle lifecycle on isle-core.
 - ✅ **D-ti-5 RULED (21:00):** the isle is THE development test target; econ-core's compose node and the pipeline VM serve pipeline
   automation only. The node on econ-core stays up as-is (no further `pol deploy run` for dev iteration); the pending bench Chrome pass
   moves to ti-2.
