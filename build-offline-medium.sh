@@ -37,7 +37,7 @@ while [ $# -gt 0 ]; do case "$1" in
     --target) TARGET="$2"; shift 2 ;;
     --version) VERSION="$2"; shift 2 ;;
     --modules) MODULES="$2"; shift 2 ;;
-    --closure) CLOSURE="$2"; shift 2 ;;
+    --closure) CLOSURE="$CLOSURE,$2"; shift 2 ;;
     --bundle) BUNDLE="$2"; shift 2 ;;
     --no-download) DOWNLOAD=0; shift ;;
     *) echo "unknown arg $1" >&2; exit 1 ;;
@@ -74,6 +74,16 @@ PYCHECK
 case "$ROUTER_IMAGE" in /var/lib/libvirt/*) fail "refusing an installed router disk; supply a pristine image" ;; esac
 ls "$ROUTER_PACKAGES"/*.ipk >/dev/null 2>&1 || fail "router package closure is empty"
 [ -d "$DEBS_DIR" ] || fail "missing --debs-dir $DEBS_DIR"
+# The images must match the release environment actually shipped in the CLI.
+CLI_DEB=$(ls "$DEBS_DIR"/isle-mesh-cli_*.deb | sort -V | tail -1)
+python3 - "$CLI_DEB" "$IMAGE_REPO" "$IMAGE_TAG" <<'PYENV' || fail "bundled platform image references differ from the requested release"
+import io,subprocess,sys,tarfile
+archive,repo,tag=sys.argv[1:]
+with tarfile.open(fileobj=io.BytesIO(subprocess.check_output(['dpkg-deb','--fsys-tarfile',archive]))) as tar:
+    env=tar.extractfile('./usr/share/isle-mesh/polari-isle/.env').read().decode()
+values=dict(line.split('=',1) for line in env.splitlines() if '=' in line and not line.startswith('#'))
+assert values.get('POLARI_IMAGE_REPO')==repo and values.get('POLARI_IMAGE_TAG')==tag
+PYENV
 # Validate all image inputs before expensive staging.
 for ref in $IMAGES $ENGINE_IMAGES; do
     docker image inspect "$ref" >/dev/null 2>&1 || fail "missing image $ref; build/pull it before assembling the medium"
