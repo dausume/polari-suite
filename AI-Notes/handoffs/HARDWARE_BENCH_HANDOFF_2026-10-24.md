@@ -3,6 +3,25 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-26 — the oscilloscope arc (osc), built autonomously through the day (his: "work on this autonomously through the day")
+
+His ask (verbatim in `AI-Notes/plans/OSCILLOSCOPE_PLAN.md`): emulate 4-channel oscilloscope behaviour against devices, adhere to the
+LXI-compliant data standard, use + emulate the two biggest makers, start with the RIGOL DHO804; prefer an open source engine; then visualise
+captures from the simulated device. What the standard really is: LXI = reach (VXI-11/HiSLIP/mDNS); the data = SCPI + the IEEE 488.2 block
+with a vendor preamble (Agilent lineage: Keysight + Rigol; Tektronix lineage) — plan §0. Engine: **PyVISA + PyVISA-py (MIT)** admitted as the
+transport/block engine (optional import; raw socket is stdlib); **scopehal (BSD-3)** cited for the DHO command set; libsigrok (GPL-3) later.
+- ✅ osc-0..4 BUILT on framework branch `dev-osc-0` (merge to dev once the local board suite is read): `modules/instruments` — see the plan's
+  §3 table for what each slice holds; selftests `instruments_selftest` 22/22 and `instruments_capture_selftest` 62/62 (the emulator is driven
+  over a real loopback socket: 4 channels, 250k-point pages, sha256 byte-exact, volts reproduce the synthesised signals, refusal replay; osc-4:
+  the uno-light stimulus's five presses land on CH1 at 0.1 s + k × 157 ms within one sample, the analog variant's triangle on CH3, twin pin
+  events on CH4); bench setup selftest 0 failures with the fifth workbench step (Instruments).
+- Facts: DHO804 numbers from the DHO800 datasheet DSA36106-1110 (Oct. 2024) pp.6-9 read in full; the programming guide (PGA39106-1110,
+  2025-05-09) has no direct URL on rigol.com → ports 5555 / 111 are forum-reported and the rows say so; LXI class unverified; Keysight and
+  Tektronix are lineage rows with -1 numbers until a datasheet is read.
+- OWED: the Chrome pass of `/display/instruments` + the workbench's Instruments step in the isle; osc-4 (device-fed channels from the twin's
+  pin events / ADC ramp); osc-5 (the emulator as the isle app `scope-engines` 9880 + 5555, cost block, Keysight then Tektronix profiles);
+  D-osc-1..6 (plan §4) are his — built on the recommended options, nothing hinges on them yet.
+
 ## STATE AT HANDOFF (fill the live/test-node lines when the roll is done)
 
 **Branches (all pushed):**
