@@ -51,10 +51,13 @@ false-negative, uninstall package selection + honest failures (codex/fix-mdns-un
 (diagnosis only, his rule): the installer clones the NetworkManager Wi-Fi uplink into networkd 20-wifi.network → second DHCP lease (.24/.25),
 docs failure-mode F6 = the August incident; the app uninstall left connectivity unusable until a manual Wi-Fi off/on. No JOIN INFO yet
 (apt-repo publish fails under pkexec); no `isle-registry-setup` yet → `pol dev deploy` cannot push dev images until it exists (asked for in CX-007).
-NEW TASK relayed through Codex (his words via Codex 02:39): "YOU install a non-QEMU/lightweight Isle on pol-core: agent + normal apps, .isle
+NEW TASK relayed through Codex (his words via Codex 02:39) — ⏸ PUT OFF by him 18:30 ("codex is still working out bugs on the isle"): "YOU install a non-QEMU/lightweight Isle on pol-core: agent + normal apps, .isle
 access in Chrome; NO local core/router VM" and Codex may build debs for me to install via terminal. Every step is sudo = his hands; I take the
 instruction from him in chat before running anything; prerequisites listed in CX-007 §3 (JOIN INFO or final deb set + sha256; the uplink-cloning
 bug must not reach pol-core — its isle NIC is the wired eno1). Lock name reserved: `pol-core-member`.
+
+## 2026-10-25 evening — built on dev (all pushed)
+- framework 0f156ac = ti-3a (81212d1: five hardware engine tiles in the isle catalog + EngineProviderBinding rung in board/formal/pcb/bridge) ⊕ wb-0 (workbench facts + doors; see WORKBENCH_WALKTHROUGH_PLAN §4a); angular 0c375f0 = Codex's service-connection-dialog (first merge request through the protocol, reviewed + ff); cli 6dad11e = ti-3b `pol dev deploy <worker>|all --dry-run`. Next: wb-1 (generic cards / popup picker / step strip in Angular, D-wb-1), wb-2 the page; the pol-core member is PUT OFF (his 18:30).
 
 ## What changed in how we work (2026-10-24)
 Memory `operating-mode-token-split`: even Fable / non-Fable split (Fable = decisions, ssh/deploys/merges, Chrome; Sonnet = bounded verifiable
