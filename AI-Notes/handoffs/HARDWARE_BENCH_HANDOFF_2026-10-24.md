@@ -18,9 +18,13 @@ transport/block engine (optional import; raw socket is stdlib); **scopehal (BSD-
 - Facts: DHO804 numbers from the DHO800 datasheet DSA36106-1110 (Oct. 2024) pp.6-9 read in full; the programming guide (PGA39106-1110,
   2025-05-09) has no direct URL on rigol.com → ports 5555 / 111 are forum-reported and the rows say so; LXI class unverified; Keysight and
   Tektronix are lineage rows with -1 numbers until a datasheet is read.
-- OWED: the Chrome pass of `/display/instruments` + the workbench's Instruments step in the isle; osc-4 (device-fed channels from the twin's
-  pin events / ADC ramp); osc-5 (the emulator as the isle app `scope-engines` 9880 + 5555, cost block, Keysight then Tektronix profiles);
-  D-osc-1..6 (plan §4) are his — built on the recommended options, nothing hinges on them yet.
+- ✅ osc-5 part 1 (afternoon): the emulator as an isle-app WORKER — `polari-rf-node/prf-scope-engines/` (control API :9880 + SCPI :5555-:5559,
+  build.sh vendors the framework's emulator, cost MEASURED: image 177.8 MB, 41 MB idle, 4 × 250k capture 0.38 s), compose, catalog tile
+  `scope-engines` + binder `scope`, `pol dev deploy scope-engines`, the framework seam `scope_engines.py` (knob → binding row → in-process;
+  a declared-but-unreachable worker refuses), the doors route to the worker; worker selftest 22/22, islemesh 103/103, resources profile row.
+- OWED: the actual isle deploy of scope-engines + the Chrome pass of `/display/instruments` and the workbench's Instruments step in the isle
+  (needs the registry on the core, TEST_ISLE ti-0); osc-5 part 2 = the Keysight then Tektronix emulator profiles; D-osc-1..6 (plan §4) are
+  his — built on the recommended options, nothing hinges on them yet.
 
 ## STATE AT HANDOFF (fill the live/test-node lines when the roll is done)
 
