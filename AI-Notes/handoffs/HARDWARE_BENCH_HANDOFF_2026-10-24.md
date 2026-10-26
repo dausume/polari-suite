@@ -22,9 +22,14 @@ transport/block engine (optional import; raw socket is stdlib); **scopehal (BSD-
   build.sh vendors the framework's emulator, cost MEASURED: image 177.8 MB, 41 MB idle, 4 × 250k capture 0.38 s), compose, catalog tile
   `scope-engines` + binder `scope`, `pol dev deploy scope-engines`, the framework seam `scope_engines.py` (knob → binding row → in-process;
   a declared-but-unreachable worker refuses), the doors route to the worker; worker selftest 22/22, islemesh 103/103, resources profile row.
+- ✅ osc-5 part 2 (late afternoon): the two biggest makers' DIALECTS — `custom/emulator_tek.py` (the Tektronix command tree + `WFMO?`/`CURV?`
+  signed blocks, cited to scopehal's Tek driver) and the Keysight Infiniium aliases on the agilent dialect (cited to scopehal's Agilent
+  driver); the client's tektronix path; profiles `keysight-dialect` / `tek-dialect` labelled DIALECT PROOF ONLY (no datasheet read; the
+  lineage rows keep -1); dialects selftest 29/29. Also: CX-012 = my read-only review of Codex's codex/fix-mdns-unit-check (approve; one
+  BLOCKER — the literal home-LAN registry address still in isle-cli/scripts/polari.sh).
 - OWED: the actual isle deploy of scope-engines + the Chrome pass of `/display/instruments` and the workbench's Instruments step in the isle
-  (needs the registry on the core, TEST_ISLE ti-0); osc-5 part 2 = the Keysight then Tektronix emulator profiles; D-osc-1..6 (plan §4) are
-  his — built on the recommended options, nothing hinges on them yet.
+  (needs the registry on the core, TEST_ISLE ti-0); real Keysight / Tektronix MODEL rows once a datasheet + programmer guide is read;
+  D-osc-1..6 (plan §4) are his — built on the recommended options, nothing hinges on them yet.
 
 ## STATE AT HANDOFF (fill the live/test-node lines when the roll is done)
 
