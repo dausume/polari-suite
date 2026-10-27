@@ -113,6 +113,8 @@ N_CLOSURE=$(find "$BUNDLE/pool/repo" -maxdepth 1 -name '*.deb' -printf '%f\n' | 
 if [ "$N_CLOSURE" -gt 0 ]; then
     for f in "$BUNDLE"/pool/repo/*.deb; do case "$(basename "$f")" in isle-*|polari-*) ;; *) cp "$f" "$OUT/apt/" ;; esac; done
     cp "$BUNDLE/pool/repo/CLOSURE_URIS.txt" "$OUT/apt/"
+    [ -f "$BUNDLE/pool/repo/CLOSURE_METADATA.json" ] || fail "dependency pool lacks authenticated upstream SHA256 inventory"
+    cp "$BUNDLE/pool/repo/CLOSURE_METADATA.json" "$BUNDLE/pool/repo/CLOSURE_APT_RECORDS.txt" "$OUT/apt/"
     ( cd "$OUT/apt" && dpkg-scanpackages --multiversion . /dev/null 2>/dev/null > Packages && gzip -kf Packages \
         && apt-ftparchive -o APT::FTPArchive::Release::Origin=polari-offline \
             -o APT::FTPArchive::Release::Label="Polari offline medium" \
@@ -240,7 +242,7 @@ for repo, key in (('polari-rf-node/polari-framework', 'prf-backend'), ('polari-r
                   ('Isle-Mesh', 'isle-mesh'), ('polari-app-shell', 'app-shell'), ('polari-cli', 'pol-cli')):
     try: comps[key] = {'sha': subprocess.check_output(['git', '-C', os.path.join(os.path.dirname(out), '..', repo), 'rev-parse', '--short', 'HEAD'], text=True).strip()}
     except Exception: comps[key] = {'sha': '?'}
-m = {'polari': ver, 'flavor': 'offline', 'target': target, 'superproject': sha,
+m = {'schemaVersion': 2, 'upstreamAptMetadata': 'apt/CLOSURE_METADATA.json', 'polari': ver, 'flavor': 'offline', 'target': target, 'superproject': sha,
      'builtAt': datetime.datetime.now().isoformat(timespec='seconds'), 'builtOn': socket.gethostname(),
      'desktopRuntime': {'package': 'polari-shell-core', 'file': debs['polari-shell-core']},
      'architecture': subprocess.check_output(['dpkg', '--print-architecture'], text=True).strip(),
