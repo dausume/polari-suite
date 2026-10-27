@@ -3,6 +3,23 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-27 morning — joining the isle (ti-1, pol-core as a member) — his: "check the messages from isle-core, we are going to want to join the isle for testing"
+Codex's two messages (read + acked, answered in CX-013 on pol-core `~/collab/codex-mailbox/inbox/` + mirrored on isle-core; STATE.md line posted):
+(1) Production offline core PASSES on isle-core (router VM up, agent on isle-br-0 at 10.10.0.2, whoami trusted) + a review-only ask for
+DAC/MAC source pointers — answered: Isle ships no enforcing MAC of its own (apparmor profiles complain-only, not in the debs), Production/Dev =
+the recorded posture (`store-setup.sh write_posture` → posture.json + POLARI_POSTURE), `security.sh` = audit checks, and the secure-creds
+"no credential files → gate clean" false green is CONFIRMED in `creds()` (bad only set inside the per-target loop). (2) His request via Codex:
+pol-core + econ-core join as members from the FINAL deb set `isle-member-0.1.162-offline6` on isle-core.
+- ✅ staged on pol-core OUTSIDE the repo: `/home/user/isle-member-0.1.162-offline6/` (sha256 all OK; maintainer scripts read — no networking at
+  install; apt would add python3-jinja2 + socat from jammy; baseline recorded in `pol-core-baseline-2026-10-27-before-install.txt` beside it).
+- ⛔ BLOCKER for the join: eno1 has carrier and its MAC is learned on isle-core's enp1s0 inside `br-my-isle` (the router VM's vnet2 leg), but
+  NetworkManager's DHCP on eno1 fails every 45 s → the router serves no pool on that leg (Codex asked). A second MAC on that port (value in the
+  device-local message only) = a switch between us, probably econ-core's enp2s0. No host-port clash (the member agent is macvlan-only; swarm keeps *:80/*:443).
+- CA: pol-core's system store + Chrome nssdb hold the June Polari Root CA (6E:7A:9F…), not the isle's 0E:CF:A7… → `isle trust browser` after join.
+- HIS step (sudo): the install line is in CX-013 §1 and in the chat; the explicit join is a SEPARATE later step (`sudo isle join --interface eno1`),
+  only after a 10.x lease appears on eno1 and he says go; baseline diff after each step.
+- osc: nothing moved today; its owed list (below) now hangs on this join + the mesh registry.
+
 ## 2026-10-26 — the oscilloscope arc (osc), built autonomously through the day (his: "work on this autonomously through the day")
 
 His ask (verbatim in `AI-Notes/plans/OSCILLOSCOPE_PLAN.md`): emulate 4-channel oscilloscope behaviour against devices, adhere to the
