@@ -13,7 +13,8 @@ family vocabulary (`pv_families`), nothing duplicated; `SystemLink.signal_kind`,
   (+ the commit carrying this line). Files: `board/custom/parallelism.py`
   (COD RISC-V 2nd ed. TOC read: ten kind rows + per-processor facts, Hazard3 3 stages cited), `board/custom/signal_kinds.py` (the axis on pv_families; `kind_of_signal`
   falls back to the peripheral), `instruments/custom/testability.py` (+ door + tab), `budget.py` PollCycle / `isr_hart_of` / `lockstep` mirrors, the two Instrument rows
-  (ScopeFun: software GPLv3 read, hardware licence unverified; DSO138: PARTLY open, closed `libdso138.a`, no licence found), `ScopeChannel.signal_kind`, source kind
+  (ScopeFun and DSO138 both ADMITTED by his licence rulings later that afternoon: "DSO138 gives sufficient permissions to be both open source and allows resale";
+  "for ScopeFun GPLv3 is sufficient, the hardware is under the CERN OHL" — the rows' openness say so and name what stays unread), `ScopeChannel.signal_kind`, source kind
   `digital`, the pin-view legend prints the kind (angular types + html, no logic). Selftests: budget 31/31, instruments 33/33 + 62/62 + 29/29, chain + pin view +
   hardware system 113/113, C3 pins 29/29, bench 46/46, bench setup 0, task plan 56/56.
 - The honest answer to the cheap-scopes question is in the rules (plan §2b): channels add up only with a shared trigger (alignment -1 until measured), bandwidth /
