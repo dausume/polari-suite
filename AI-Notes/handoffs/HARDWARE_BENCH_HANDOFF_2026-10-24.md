@@ -3,6 +3,21 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-27 — the interrupt + polling budget (ipb), built autonomously (his "go with your own recommendations … work autonomously through the day")
+His rulings today, all in `AI-Notes/plans/INTERRUPT_POLL_BUDGET_PLAN.md` by his words: RISC-V names canonical (memory `riscv-first-firmware-basis`); the unit =
+one PROGRAM COUNTER (hart): two columns per PC, four for two (D-ipb-3); two columns ALWAYS (bare C has interrupts too); threads = sub-rows of their hart;
+test cases TC-A (multi-hart) / TC-B (two chips over a link); "go with risc-v setups as much as possible for chip test cases" + "prefer more open source"
+(TC-A1 → QEMU RISC-V virt, 2 harts); the product serves BOTH planning (a Mission) and analysing the real boards on a Bench.
+- ✅ ipb-0..3 BUILT on framework `dev-ipb-0` (selftest 26/26; neighbours green): `board/custom/interrupt_controllers.py` (7 controller rows, 14 hart-facts
+  rows, every number cited or -1 — PLIC spec / QEMU virt docs / Hazard3 Readme READ today; AVR datasheet + Arm TRMs NOT re-read → their cycle numbers -1
+  with `to_read`), `cmod/custom/budget.py` (+ `budget_suggest.py`), doors `/api/missions/{name}/budget`, `/api/benches/{bench}/budget`, `/api/hart-facts`
+  (+ `/knobs`, per process), page `/display/budget` (Bench / Plan / Facts tabs, configured tables only). On the real home-bench: the UNO's hart from its
+  Mission (11 polls, 3 interrupts from the uno-light cycle record; scan bound 177 400 cycles beside the twin's measured worst gap 175 647; headroom 0.78 at
+  the defaulted 50 ms scan deadline), Zero / Feather facts-only, the S3 as TWO harts → 10 columns.
+- NOT done: ipb-4 (the C3 `mcycle` harness — engines down), ipb-5 (the C3 FreeRTOS graph + real link numbers), the Chrome pass of `/display/budget` (the
+  isle), merge of `dev-ipb-0` to dev (after the full cmod suite is read — it was running at handoff time; the per-test 500 s window cut it once).
+- Open decisions left to him: none new; D-ipb-6 (PIO state machines) still his.
+
 ## 2026-10-27 morning — joining the isle (ti-1, pol-core as a member) — his: "check the messages from isle-core, we are going to want to join the isle for testing"
 Codex's two messages (read + acked, answered in CX-013 on pol-core `~/collab/codex-mailbox/inbox/` + mirrored on isle-core; STATE.md line posted):
 (1) Production offline core PASSES on isle-core (router VM up, agent on isle-br-0 at 10.10.0.2, whoami trusted) + a review-only ask for

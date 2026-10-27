@@ -95,6 +95,16 @@ ISR's latency budget → "shorten the critical section in <atom>"; on an RTOS an
 "defer to a thread". Every suggestion names the measured rows it came from.
 
 ## 4. Slices (each its own branch off dev; selftest-proven; the page's Chrome pass in the isle)
+**State 2026-10-27 (his "go with your own recommendations … work autonomously … both for planning and analysing existing hardware on specific Benches", then
+"go with risc-v setups as much as possible for chip test cases" + "prefer more open source"):** ✅ ipb-0, ipb-1, ipb-2, ipb-3 BUILT on framework
+branch `dev-ipb-0` (one commit), selftest `cmod.cmod_budget_selftest` 26/26; neighbours green (task plan 56/56, bench 46/46, bench setup 0 failures).
+Deviations from the table below, said: (1) D-ipb-4's C3 `mcycle` harness (ipb-4) could NOT run today — the board engines (QEMU) are down with the swarm
+(isle switch-over), so the first page shows the UNO's measured numbers and the RISC-V harts with -1 numbers + their cited facts; (2) TC-A1 moved OFF the
+S3 onto the fully open QEMU RISC-V virt machine (his two mid-day rulings) — built as the facts + knob shape (harts by knob, CLINT + PLIC row, icount said),
+numbers wait for ipb-4; the S3 stays on the bench page as an ISA exception with two harts; (3) TC-A2 = RP2350 two Hazard3 harts facts-only (as planned);
+(4) TC-B2 = UNO + a C3 with an RTOS-shaped relay task on ONE plan (synthetic in the selftest) — four columns + the link row; the real C3 FreeRTOS graph
+is still ipb-5; (5) knobs hold per process (not persisted) — said on the page. Also found + fixed: the board and cmod manifests had pre-existing drift
+(bench / chip-ladder / workbench files never listed; the tool's `write` drops hand-set blocks, so the lists were merged by hand in the hand order).
 | # | slice | holds | proves |
 |---|---|---|---|
 | ipb-0 | controller FACT rows | `board/custom/interrupt_controllers.py`: `InterruptControllerKind` rows riscv-clint-plic, riscv-clic, avr-vectors, arm-nvic (+ esp32c3-matrix) with the §1 fields, cited or -1; the adaptation table as rows | selftest: every numeric field is cited or -1; the C3 and the UNO resolve to a kind |
