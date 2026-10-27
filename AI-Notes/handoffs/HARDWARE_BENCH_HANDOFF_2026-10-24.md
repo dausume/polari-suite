@@ -9,7 +9,8 @@ PollCycle; harts assignable separately unless lockstep; the kinds of parallelism
 component; ScopeFun + DSO138 as open-source scopes; testability per scope and "several cheap ones in parallel instead of one expensive one?". His correction
 mid-build: "a lot of the signal kinds stuff and other things should already exist, examine what is there first" → the kinds now RIDE ON the pin view's existing
 family vocabulary (`pv_families`), nothing duplicated; `SystemLink.signal_kind`, the task kinds and the pin view's `differential-pair` drive role were found and mapped.
-- ✅ BUILT on framework `dev-ipb-6` (NOT merged until the full cmod suite reads green — running in the background at the time of this line): `board/custom/parallelism.py`
+- ✅ BUILT on framework `dev-ipb-6`, full cmod suite 1373/1373 → MERGED + PUSHED: framework dev = 17cebfe, angular dev = 44e71e0, rf-node dev = d5783a4, suite dev = 650aa8d
+  (+ the commit carrying this line). Files: `board/custom/parallelism.py`
   (COD RISC-V 2nd ed. TOC read: ten kind rows + per-processor facts, Hazard3 3 stages cited), `board/custom/signal_kinds.py` (the axis on pv_families; `kind_of_signal`
   falls back to the peripheral), `instruments/custom/testability.py` (+ door + tab), `budget.py` PollCycle / `isr_hart_of` / `lockstep` mirrors, the two Instrument rows
   (ScopeFun: software GPLv3 read, hardware licence unverified; DSO138: PARTLY open, closed `libdso138.a`, no licence found), `ScopeChannel.signal_kind`, source kind
