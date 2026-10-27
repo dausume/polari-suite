@@ -80,6 +80,23 @@ the DHO branch (`m_protocol = DHO`, models `DHO%d` < 5000; `m_highDefinition = t
 parsing; write only what no engine gives: the canonical capture record, the two preamble adapters, the **emulator** (no open source
 4-channel SCPI *server* fed from device state exists), and the configured view.
 
+**Two OPEN SOURCE oscilloscopes (his ask 2026-10-27: "incorporate two more Oscilloscope simulators: ScopeFun, DSO138 — both open source … because open
+source options should be our priority, we want people to be able to test without expensive options if possible") — facts read 2026-10-27, rows seeded (osc-6):**
+| fact | ScopeFun | JYE Tech DSO138 |
+|---|---|---|
+| analog channels / bits | 2, 10-bit (scopefun.com) | 1, 12-bit (users manual 13803K/04K, Specifications table) |
+| bandwidth (−3 dB) | 100 MHz (Crowd Supply campaign page) | 0–200 kHz (manual); a third-party page (tomeko.net) measured the anti-alias filter at 11 MHz on the JYE board (C8 120 pF) and 13.3 kHz on a clone (100 nF) — the EFFECTIVE bandwidth depends on the board |
+| sample rate | 500 MSa/s (1 ch) / 250 MSa/s (2 ch) real-time; 2.0 GSa/s equivalent-time (repetitive) | 1 MSa/s |
+| memory | 128 Msamples per channel | 1024 points |
+| digital inputs | 12 shared logic analyzer / pattern generator channels, 250 MSa/s, 125 MHz toggle, 1.25–3.3 V interface, 5 V tolerant | none |
+| other | 2 AWG outputs 200 MSa/s 12-bit ±2 V; Artix-7 XC7A35T; 512 MB DDR3; Cypress FX3 USB 3.0; inputs ±50 V protected; 10 mV–2 V/div | 1 MΩ / 20 pF; 50 Vpk; 10 mV–5 V/div; 10 µs–500 s/div; Auto/Normal/Single, trigger at 50 %; 9 V 120 mA; 117 × 76 × 15 mm; STM32F103Cx (the manual's schematic page) |
+| host access | its own USB 3.0 protocol through the host software — NO SCPI (lineage `none`) | on HOLD the firmware sends the 1024-point record as text over UART TX at 115200 8N1 (tomeko.net; third-party; exact format unverified) — NO SCPI |
+| openness | software **GPLv3** (gitlab.com/scopefun/scopefun-software, COPYING.TXT); hardware + FPGA "completely open source" (campaign page) but NO licence NAME found on the site, the campaign or the GitLab group → unverified | **PARTLY**: "Source Code: Basic version" + the LCD schematic on the product page; the third-party page says most functionality is a precompiled closed library (`libdso138.a`); no licence named anywhere read; the alternative firmware DLO-138 (github ardyesp/DLO-138, Arduino build, 2 analog + 2 digital, serial output) has NO licence file either |
+| price | USD 899 (2019 campaign); SparkFun "retired", Crowd Supply enclosure "no longer available" — availability unverified | -1 (cnx-software reported USD 23 in 2015; the product page calls it old and points to the DSO138mini) |
+So: ScopeFun is the open PC-hosted instrument (2 analog + 12 digital); the DSO138 is the cheapest real instrument that could stand on the bench (one 200 kHz channel) and
+its openness is PARTIAL and said so. Neither is EMULATED (no SCPI to emulate; `emulated=False`, `data_access` says what an adapter would read): a serial-text adapter
+for the DSO138 and a saved-capture reader for ScopeFun are slice osc-7, built only once a real dump / file has been read.
+
 ## 2. Shape — a new module `instruments` (feature module, library kind; hardware-app tier not needed: no USB ownership)
 ```
 modules/instruments/
@@ -121,6 +138,31 @@ modules/instruments/
 - **Discovery (later):** mDNS `_scpi-raw._tcp`, `_vxi-11._tcp`, `_lxi._tcp` on the isle (Codex's mdns unit) → endpoint rows proposed, never
   auto-added.
 
+## 2b. Signal kinds and TESTABILITY (his asks 2026-10-27: "separation between digital, analog and differential type signals on the signals component";
+"design testability for oscilloscopes, and be able to adapt to the type of oscilloscope and its capabilities. Perhaps using multiple in parallel to feed
+polari and deriving data that way instead of buying more expensive ones? Not sure if that would work")
+- **Signal kinds ride on the pin view's ONE vocabulary** (his correction: "a lot of the signal kinds stuff … should already exist, examine what is there first"):
+  `board.custom.pv_families` (pv-0) already maps every pin function to a family (gpio / interrupt / pwm-timer / analog / uart / spi / i2c / usb / clock /
+  reset-programming / power / ground); `board/custom/signal_kinds.py` adds the AXIS on it — family → **analog** (the value of a voltage) | **digital** (a level by
+  threshold) | **differential** (a pair's difference: the usb family) | undetermined (power / ground are rails). It reaches: `family_rows()` (`signal_kind` per
+  family → the pin view legend prints it), every per-pin signal row (`kind`), every `PeripheralSignal` row (`signal_kind` + why; the peripheral decides when no
+  name rule does: a port bit PB5 → digital, the C3's matrix names → digital, ADC blocks → analog), `SystemLink.signal_kind` words and the task kinds through
+  `kind_of_link` / `kind_of_task_kind`, and a scope channel's `signal_kind` (+ `threshold_v`, `pair_channel`) = how its capture is READ. Readings: `logic_levels`
+  (threshold + hysteresis), `differential` (A − B on one axis); emulator source kind `digital` (a bit pattern at two levels).
+- **Testability = can the bench's instruments, together, measure a test's needs** (`instruments/custom/testability.py`, door `GET|POST
+  /api/instruments/bench/{bench}/testability`, the Signals + testability tab). The honest answer to "several cheap ones instead of one expensive one":
+  | what | across units | rule |
+  |---|---|---|
+  | channels (analog, digital) | ADD UP | only with a SHARED TRIGGER (one unit's trigger-out or the signal itself into every unit); alignment = ± one sample of the slowest unit + trigger jitter (-1 until measured); `same_instant` asks for one shot on one unit |
+  | bandwidth | NEVER | the analog front end bounds every signal each unit sees: N slow scopes never see a fast edge |
+  | sample rate per channel | NEVER | interleaving two units needs sample clocks phase-aligned to a fraction of a sample — independent units are not (NOT claimed); a unit stating ETS reaches its ETS rate for REPETITIVE signals only |
+  | bits | NEVER | the ADC's; N units on the SAME signal (or N captures) average uncorrelated noise by √N — noise, not accuracy, not bandwidth |
+  | digital on analog | yes | a spare analog channel reads a digital signal (and shows its edges); a logic input never reads an analog one |
+  | differential | native input, else 2 analog channels + A − B | common mode costs range, channel skew costs timing |
+  Each need gets a row (value, offered, ok | caveat | no, the rule in words); the options list says what one more unit of each model adds (channels only) with
+  its price, cheapest first. Instrument rows gained `digital_channels`, `digital_max_rate_sps`, `differential_inputs`, `ets_sample_rate_sps`, `openness`,
+  `data_access`; the card shows Signals / Openness / Data access. A Mission Purpose "needs N channels at ≥ X MHz" (§2) feeds the same door later.
+
 ## 3. Slices (each its own branch off dev; backend proven by selftests; the Chrome pass in the isle)
 | # | slice | proves |
 |---|---|---|
@@ -130,6 +172,8 @@ modules/instruments/
 | d | ✅ **osc-3** BUILT 2026-10-26: `custom/client.py` (`ScopeClient`: raw socket default, PyVISA resource path refusing BY NAME without the wheel — untested, D-osc-6; `capture()` = switch the asked channels on, `:SINGle`, `*OPC?`, then paged reads; sha256 per block; `ScopeRefusal` carries the words), `custom/captures.py` (endpoint rows typed at runtime, `start_emulator` in-process on a loopback port, `idn`, `capture` → `WaveformCapture` rows with the block inline ≤ 2 MB + sha256 + `source_ref`, `chart_rows` stride-decimated ≤ 4000 long-form t_s/ch1..ch4), nine doors in `instruments_api.py`, `/display/instruments` tabs endpoints / capture / chart (door-forms + tables + ONE `named-graph-panel` over the seeded GraphDefinition `instruments-capture`, four series). **Chrome pass owed in the isle** (the page is configured data; every path is a registered route by selftest) | selftest: capture via the emulator → `WaveformCapture` rows with sha256 of the raw block; chart rows decimated; refusal path — PROVEN 53/53 |
 | e | ✅ **osc-4** BUILT 2026-10-26: `custom/device_feed.py` — `sources_from_stimulus(variant)` turns a cycle_stimuli record into channel sources (a button pin = a `pulses` line idling at 5 V with every `--pin-at` edge at cycle/CPS; ADC0 = `dc` mV/1000 or the twin's `triangle` ramp, a new source kind; wires noted), `sources_from_events(events, cps)` turns the twin's own `{"t":"pin"}` events into lines, `feed(emu, …)` sets the window to [0, seconds] (timebase + trigger offset), 2 V/div on fed channels (a 5 V line clips at the default 1 V/div, as a real scope does) and drops the last acquisition; door `POST /api/instruments/emulators/{name}/feed`; the capture's `source_ref` names the stimulus. Reading a LIVE twin session's events is a later bridge (the events door streams; the feed takes posted events) | selftest (62/62): the uno-light stimulus's five presses are five low pulses on CH1 with falling edges at 0.1 s + k × 157 ms within one sample and ~5 ms held; ADC0 0.75 V on CH2; the analog variant's 0.2..4.8 V triangle on CH3 (mean = the function's over 3.6 periods); events → PD6 on CH4; refusals |
 | f | ✅ **osc-5 part 1** BUILT 2026-10-26: the emulator as an isle app — `polari-rf-node/prf-scope-engines/` (Dockerfile on the digest-pinned trixie base with Debian python3-numpy / falcon / gunicorn; `scope_engines_service.py` = the control API :9880 — /capability, /system-info, /cost, /emulators CRUD, /source, /feed — with up to five raw SCPI sockets :5555-:5559, one emulated instrument per port; `build.sh` vendors the framework's five emulator files (one source of truth, sha256 recorded); `cost.json` MEASURED), `docker-compose.scope-engines.yml`, the catalog tile `scope-engines` (mesh-app / engine `scope` / 9880) + the `scope` binder, `pol dev deploy scope-engines` (polari-cli dev.sh builds through build.sh then pushes), the framework seam `custom/scope_engines.py` (SCOPE_ENGINES_URL → the `scope` EngineProviderBinding → in-process; a declared worker that is unreachable REFUSES), `captures.py` routes start / source / feed / stop to the worker and the capture reads the worker-hosted scope over SCPI; `ModuleResourceProfile prf-scope-engines-resource-profile` + `modules/instruments/COST.md` (image 177.8 MB, build 20 s, 41 MB idle / 55 MB after a 4 × 250k capture at 0.38 s). Worker selftest 22/22 (the service run under wsgiref on a loopback port; the image also run as a container for the measurement); islemesh 103/103. ✅ **osc-5 part 2 BUILT 2026-10-26 (the two biggest makers' DIALECTS):** `custom/emulator_tek.py` — the Tektronix command dialect cited to scopehal's TektronixOscilloscope.cpp (DAT:SOU/WID 1|2/ENC SRI|RIB/START/STOP, `WFMO?` 22-field preamble, `CURV?` signed blocks, CHn:SCA/OFFS/COUP/BAN/PRO:GAIN?, DISP:WAVEV:CHn:STATE, HOR:MODE:SAMPLER/RECO, HOR:DELAY:TIME, TRIG:A:TYP/EDGE:SOU/LEV:CHn/EDGE:SLO, TRIG:STATE?, ACQ:STATE/STOPA/MOD, HEAD/VERB, EVMSG?; V = (raw − yoff) × ymult + yzero with OUR vertical convention stated); the Keysight Infiniium aliases on the agilent dialect (CHANn:RANGE/INP, WAV:BYT MSBF|LSBF, WAV:STR, ACQUIRE:SRATE?/POINTS?, ACQ:POINTS:ANALOG, ADER?, TRIG:SOURCE/SLOPE/LEV?); profiles `keysight-dialect` / `tek-dialect` whose limits are labelled DIALECT PROOF ONLY (no Keysight/Tek datasheet read — the Instrument lineage rows keep -1 and emulated=False, the card says "dialect proof only"); the client's tektronix path (`capture_tek`, `read_channel_tek`, `parse_tek_preamble`, signed INT8/INT16 incl. big-endian RIB; the doors pick the dialect from the endpoint's Instrument row); the worker vendors six files now. Dialects selftest 29/29. **REMAINING:** the actual isle deploy (registry on the core, TEST_ISLE ti-0) + the Chrome pass; real Keysight / Tektronix MODEL rows once a datasheet + programmer guide is read (then the dialect profiles become model profiles) | the isle app answers `*IDN?` from another node; the page shows a 4-channel capture from the emulator in Chrome |
+| g | ✅ **osc-6** BUILT 2026-10-27 (framework `dev-ipb-6`, with ipb-6): the two open-source rows `scopefun` + `jyetech-dso138` (§1 table; lineage `none`, not emulated, openness + data access said), the signal-kind axis on the pin view's vocabulary (§2b; `PeripheralSignal.signal_kind`, per-pin `kind`, the legend, `ScopeChannel.signal_kind`), the `digital` source, `custom/testability.py` + its door + the Signals + testability tab (5 tabs now) | instruments 33/33, capture 62/62, dialects 29/29; chain / pin view / hardware system 113/113; C3 pins 29/29: 4 × DSO138 for 4 analog signals = caveat (shared trigger), 1 MHz on them = no ("never adds up"), 5 MSa/s = no (interleaving not claimed), a differential by A − B = caveat, + a ScopeFun: 14 digital = 12 logic + spare analog (caveat), 1 GSa/s repetitive = caveat by ETS, not repetitive = no |
+| h | **osc-7** the open instruments' ADAPTERS: a DSO138 serial-text reader into the canonical capture (once a real dump is read — a unit cost ~USD 23 by the 2015 report), a ScopeFun saved-capture reader (its software's file format, GPLv3, to read); then `emulated` can become true for the DSO138's text dump | a real DSO138 dump → a WaveformCapture with the manual's numbers; the chart draws it |
 
 ## 4. Decisions (recommended option first; his call unless he says "go with your recommendations")
 - **D-osc-1 `*IDN?` honesty.** Recommended: the emulator answers `POLARI,DHO804-EMU,<session>,<version>` by default and a knob
@@ -143,6 +187,12 @@ modules/instruments/
 - **D-osc-5 vendor order after Rigol.** Recommended: Keysight (same command lineage, ~a profile) then Tektronix (second adapter) — or Tek first.
 - **D-osc-6 dependencies.** Recommended: admit `pyvisa` + `pyvisa-py` (MIT) to the backend image as OPTIONAL imports, with `zeroconf`
   only when discovery lands — or stdlib only forever (then no VXI-11/HiSLIP/USBTMC instruments).
+
+- **D-osc-7 which open instrument first on the bench.** Recommended: a DSO138 (cheapest real instrument; one 200 kHz channel; its serial dump is a one-way text
+  line → the adapter is small; partial openness said) — or ScopeFun (2 + 12 channels, 100 MHz, GPLv3 software; USD 899 in 2019 and availability unverified).
+- **D-osc-8 the "several cheap scopes" answer.** Recommended: keep the testability rules as built (channels add up with a shared trigger; bandwidth / bits / rate
+  never) and make the shared-trigger alignment a MEASURED number on the bench (two DSO138s on one square wave → the alignment error) before any multi-unit
+  capture is called one acquisition — or claim interleaving (refused: independent sample clocks).
 
 ## 5. Rules this plan keeps
 derive-or-cite ([[derive-or-cite-chip-data]]: -1/"unverified" are honest values); no raw JSON on screens — the chart is `named-graph-panel`

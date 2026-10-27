@@ -62,6 +62,30 @@ on this axis. `schedule_model` on the hart row decides the derivations:
 An interrupt belongs to the HART in all three (it can land inside any thread's window), so the interrupt column is per hart and only the deferred
 work carries a thread link.
 
+## 2c. The standard PollCycle, per-hart assignment, lockstep, and the kinds of parallelism (his asks 2026-10-27 afternoon)
+**His words:** "profile 'If we hit each hart with every possible interrupt and poll, and need to be able to complete all of them, how much time does that
+take?' And then that Interrupted-Worst-Case-Poll-Cycle becomes the standard 1 PollCycle for a Hart. Each Hart I think should be able to have different
+interrupts and polling assignable if there are multiple? Unless they are configured to be lockstep and in the same chip? We need to think of different
+kinds of chip internal parallelism like instruction level parallelism and other forms of parallelism defined like those found in the RISC-V book."
+- **PollCycle** (`derived.poll_cycle_cycles` / `_ms`, ✅ ipb-6): every poll ONCE at its `cycles_max` (dividers ignored — "every possible poll"), every interrupt
+  ONCE at its `length_max` + the controller's cited entry latency ("every possible interrupt"), + the loop's quiet pass. A missing part makes the whole -1 and
+  `poll_cycle_missing` NAMES it. Beside it the rate-aware bound `poll_cycle_inflated_cycles` = polls / (1 − isr_utilisation) (interrupts at their expected
+  rates instead of once). The check per hart: one PollCycle ≤ the shortest wanted response / 2 (`poll_cycle_verdict` ok | miss | unknown, with why); a miss is
+  a `poll-cycle` warning suggestion; a -1 is an info suggestion naming what to measure. The scan metrics of §3 stay (the scan is the divided, rate-aware
+  picture; the PollCycle is the worst case and the hart's standard unit). On the UNO today: 177 388 cycles = 11.09 ms, ok against 100 ms / 2.
+- **Per-hart assignment**: `hart_of {task: i}` places a task; ✅ `isr_hart_of {vector: i}` (ipb-6) routes an interrupt to a different hart than its task (the
+  interrupt-matrix case; the deferred work then crosses harts and the hart says so). **Lockstep** (his "unless"): the parallelism facts row's `lockstep`
+  (yes | no | n/a (one core) | configurable | unverified) or the knob `lockstep: true` makes hart 0 the ONE assignable stream and every other hart a MIRROR
+  (`mirror_of`, same columns, rows prefixed "mirror of …", `hart_of` / `isr_hart_of` ignored, a lockstep info suggestion). No chip on the bench is known
+  lockstep today (RP2350: unverified, the datasheet named).
+- **Kinds of parallelism** (`board/custom/parallelism.py`, ✅ ipb-6): the RISC-V book = Patterson & Hennessy, COD RISC-V Edition 2nd ed. — its table of
+  contents READ 2026-10-27 (the bodies not; each row cites its section title and names it in `to_read`): §2.11 synchronization, §3.6 subword, §4.6 pipelining,
+  §4.11 multiple issue, §5.10 cache coherence, §6.3 SISD/MIMD/SIMD/SPMD/vector, §6.4 hardware multithreading, §6.5 multicore, §6.6–6.7 GPUs/DSAs, §6.8
+  message passing; levels = H&P's ILP / DLP / TLP (+ core) / RLP. What each does to the budget (the honest part): instruction- and data-level kinds change an
+  atom's CYCLES (measured counts already include them; no column); a hardware thread IS a hart (its own pair); multicore = one pair per core, assignable
+  separately unless lockstep; two chips = the links rows. Per-processor facts (pipeline_stages, issue_width, hw_threads_per_core, vector, lockstep) cited
+  or -1: Hazard3 = 3 stages (readme), the rest -1 with the TRM named. Door `/api/hart-facts?view=parallelism | parallelism-kinds`; two tables on the Facts tab.
+
 ## 3. The row shapes — the unit is ONE PROGRAM COUNTER (his ruling, see D-ipb-3)
 **His words (2026-10-27):** "Two columns of polls and interrupts per PC, since that is what takes in the instructions and determines the genuine
 stepping. In systems with two PCs (two chips) we would have four columns and so on." RISC-V's word for a PC with its own instruction stream is a
@@ -142,6 +166,8 @@ separate chips on a board") — each is a seeded graph + a selftest in ipb-1, a 
 | # | slice | holds | proves |
 |---|---|---|---|
 | ipb-5 | the two-chip link + the C3 FreeRTOS graph | `links[]` on `SystemBudget` + the chain check; seeded graph `c3-uart-relay` (FreeRTOS: UART ISR → queue → task → GPIO) built through cmod's parser like the UNO's; the TC-B1/B2 graphs | selftests: the chain's legs sum to the measured/cited end-to-end; TC-B2 on the twins (UNO on simavr, C3 on QEMU) reproduces one frame end to end |
+| ipb-6 | ✅ BUILT 2026-10-27 (framework `dev-ipb-6`): the PollCycle + per-hart assignment + lockstep + parallelism facts (§2c) | `derived.poll_cycle_*` + the check + two suggestion kinds; knobs `isr_hart_of`, `lockstep`; `mirror_of` harts; `board/custom/parallelism.py` (10 kind rows, 14 processor rows); `/api/hart-facts?view=parallelism|parallelism-kinds`; the Facts tab's two new tables; hart rows carry parallelism / lockstep / mirror_of / poll_cycle | selftest 31/31: the UNO's PollCycle equals the sum of the maxima + 4-cycle entries + the quiet pass, ok vs 100 ms / 2, unchanged by the scan-deadline knob; -1 names what is missing without a record; `isr_hart_of` moves INT0 to hart 1 with the note; lockstep mirrors ignore `hart_of`; every parallelism number cited or -1 |
+| ipb-7 | the masked window + a real PollCycle on RISC-V | measure `cli..sei` / `MIE`-cleared stretches on the twin (the last -1 in worst_latency) and the C3 / QEMU-virt `mcycle` PollCycle (needs ipb-4's harness) | selftest: worst_latency_cycles is a number on the UNO; the C3's PollCycle is a number |
 
 ## 5. Decisions (his; my recommendation first)
 - **D-ipb-1** Where the rows live: recommended = facts in `board` (beside variants/target_compat), the budget + suggestions in `cmod` (beside task_plan). Alt: a new `schedule` module.
@@ -155,6 +181,11 @@ separate chips on a board") — each is a seeded graph + a selftest in ipb-1, a 
   because they do genuinely step instructions. Alt: fold them into the hart they signal.
 - **D-ipb-4** Build ipb-4 (C3 `mcycle` harness) BEFORE ipb-2's page, so the first page shown is RISC-V numbers, not AVR's. Alt: page first on AVR numbers.
 - **D-ipb-5** Openness shown on every processor page: a cited row "ISA open / core RTL open / silicon open / tooling open" (yes/no/unverified each) — the UNO reads closed/closed/closed/open, the Pico 2 open/open/closed/open.
+- **D-ipb-8** (his words 2026-10-27, built as said) the hart's standard unit = the Interrupted-Worst-Case-Poll-Cycle (every poll + every interrupt once, at their maxima). Recommended
+  refinement kept beside it, not instead: the rate-inflated bound (polls / (1 − isr_utilisation)) for the case where an interrupt fires more than once per cycle. Alt: define the
+  PollCycle by rates only (then a burst is invisible).
+- **D-ipb-9** Lockstep: recommended = a FACT per processor (the datasheet says whether the cores can run in lockstep) with a knob to force it for a plan; the mirror hart keeps its
+  column pair (visible, not assignable). Alt: collapse a lockstep chip to one pair (hides that two cores exist).
 
 ## 6. Rules this plan keeps
 RISC-V names canonical; other ISAs adapt ([[riscv-first-firmware-basis]]). Every number cited or -1. Measured costs over estimates (cyc-0 first). One no-code

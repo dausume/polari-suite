@@ -3,6 +3,24 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-27 afternoon — ipb-6 (PollCycle, per-hart assignment, lockstep, parallelism) + osc-6 (signal kinds, two open scopes, testability)
+His asks (plan words in `INTERRUPT_POLL_BUDGET_PLAN.md` §2c and `OSCILLOSCOPE_PLAN.md` §1 + §2b): the Interrupted-Worst-Case-Poll-Cycle as the hart's standard
+PollCycle; harts assignable separately unless lockstep; the kinds of parallelism from the RISC-V book; analog / digital / differential separation on the signals
+component; ScopeFun + DSO138 as open-source scopes; testability per scope and "several cheap ones in parallel instead of one expensive one?". His correction
+mid-build: "a lot of the signal kinds stuff and other things should already exist, examine what is there first" → the kinds now RIDE ON the pin view's existing
+family vocabulary (`pv_families`), nothing duplicated; `SystemLink.signal_kind`, the task kinds and the pin view's `differential-pair` drive role were found and mapped.
+- ✅ BUILT on framework `dev-ipb-6` (NOT merged until the full cmod suite reads green — running in the background at the time of this line): `board/custom/parallelism.py`
+  (COD RISC-V 2nd ed. TOC read: ten kind rows + per-processor facts, Hazard3 3 stages cited), `board/custom/signal_kinds.py` (the axis on pv_families; `kind_of_signal`
+  falls back to the peripheral), `instruments/custom/testability.py` (+ door + tab), `budget.py` PollCycle / `isr_hart_of` / `lockstep` mirrors, the two Instrument rows
+  (ScopeFun: software GPLv3 read, hardware licence unverified; DSO138: PARTLY open, closed `libdso138.a`, no licence found), `ScopeChannel.signal_kind`, source kind
+  `digital`, the pin-view legend prints the kind (angular types + html, no logic). Selftests: budget 31/31, instruments 33/33 + 62/62 + 29/29, chain + pin view +
+  hardware system 113/113, C3 pins 29/29, bench 46/46, bench setup 0, task plan 56/56.
+- The honest answer to the cheap-scopes question is in the rules (plan §2b): channels add up only with a shared trigger (alignment -1 until measured), bandwidth /
+  bits / per-channel sample rate never, ETS for repetitive signals, a spare analog channel reads a digital signal. D-osc-7 (DSO138 first, ~USD 23 by a 2015 report)
+  and D-osc-8 (measure the shared-trigger alignment before calling a multi-unit capture one acquisition) are his; D-ipb-8/9 recommended.
+- NOT done: osc-7 (the DSO138 serial-text adapter — needs a real dump; the ScopeFun file reader), ipb-7 (the masked window + a RISC-V PollCycle; needs ipb-4's harness),
+  the Chrome pass of the new tab / legend in the isle. The C3 `mcycle` harness (ipb-4) and the C3 FreeRTOS graph (ipb-5) stay owed as before.
+
 ## 2026-10-27 — the interrupt + polling budget (ipb), built autonomously (his "go with your own recommendations … work autonomously through the day")
 His rulings today, all in `AI-Notes/plans/INTERRUPT_POLL_BUDGET_PLAN.md` by his words: RISC-V names canonical (memory `riscv-first-firmware-basis`); the unit =
 one PROGRAM COUNTER (hart): two columns per PC, four for two (D-ipb-3); two columns ALWAYS (bare C has interrupts too); threads = sub-rows of their hart;
