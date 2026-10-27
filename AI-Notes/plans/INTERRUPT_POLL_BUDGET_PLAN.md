@@ -47,6 +47,21 @@ Every row above that names a number (entry latency, priority levels, nesting) is
   the longest MASKED window (critical section, `MIE` cleared) plus the hardware entry latency. What polls and interrupts fight over is CPU TIME: ISR work
   steals cycles from the scan, so the scan deadline slips. That is the budget.
 
+## 2b. Two columns ALWAYS, and the three ways a hart's time is divided (his questions 2026-10-27)
+Interrupts are a feature of the chip, not of the RTOS: a hart's intake (enables, vector, controller) exists with or without a scheduler, so bare C
+gets both columns too (the UNO's bare-C firmware already has six ISR atoms beside its polling loop; cyc-0 measured both). A column may be EMPTY
+(pure polling superloop; interrupt-only design whose loop sleeps) but never missing. The RTOS adds threads and the defer-to-thread link, nothing else
+on this axis. `schedule_model` on the hart row decides the derivations:
+- **superloop** (bare C): one scan, polls in order; a poll is a part of the scan by construction. Tracks poll order + divider.
+- **cyclic-executive** (bare C, time-triggered): the scan is split into fixed slots a tick starts; a task OWNS a slot — the only model where a
+  task holds a fixed part of the cycle. Tracks the slot table (slot length, task, slack per slot).
+- **preemptive-rtos** (FreeRTOS, Zephyr): a thread owns no part of the cycle; each thread is its own loop with a period or blocking point and the
+  scheduler hands the PC to the highest-priority ready thread (on the tick or an event). The windows a thread occupies are an OUTCOME, repeating
+  over the hyperperiod (LCM of the periods). Tracks per thread sub-row: period, priority, measured execution cycles, utilisation; per hart: the
+  hyperperiod timeline + the response-time check (each thread meets its deadline given everything above it plus the interrupts).
+An interrupt belongs to the HART in all three (it can land inside any thread's window), so the interrupt column is per hart and only the deferred
+work carries a thread link.
+
 ## 3. The row shapes — the unit is ONE PROGRAM COUNTER (his ruling, see D-ipb-3)
 **His words (2026-10-27):** "Two columns of polls and interrupts per PC, since that is what takes in the instructions and determines the genuine
 stepping. In systems with two PCs (two chips) we would have four columns and so on." RISC-V's word for a PC with its own instruction stream is a
