@@ -23,7 +23,8 @@ set -eu
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRAMEWORK="$ROOT/polari-rf-node/polari-framework"
 TARGET="ubuntu-24.04"; VERSION=""; MODULES=""
-CLOSURE="docker.io | docker-ce,docker-compose-v2 | docker-compose-plugin,containerd | containerd.io,runc | containerd.io,dpkg-dev,avahi-daemon,avahi-utils,apt-utils,gnupg,qemu-system-x86,qemu-utils,libvirt-daemon-system,libvirt-clients,bridge-utils,wget,acl,yad,sshpass,dnsmasq,network-manager,systemd-resolved,python3,python3-yaml,python3-jinja2,iproute2,iputils-ping,dnsutils,net-tools,openssh-client,rsync,inotify-tools,openssl,sudo,isc-dhcp-client,libgtk-3-0t64,libasound2t64,libx11-6,libxext6,libxrender1,libxtst6,libxi6,libgl1,libnss3,libgbm1"
+CLOSURE="nodejs,npm,ethtool,netcat-openbsd,nmap,docker.io | docker-ce,docker-compose-v2 | docker-compose-plugin,containerd | containerd.io,runc | containerd.io,dpkg-dev,avahi-daemon,avahi-utils,apt-utils,gnupg,qemu-system-x86,qemu-utils,libvirt-daemon-system,libvirt-clients,bridge-utils,wget,acl,yad,sshpass,dnsmasq,network-manager,systemd-resolved,python3,python3-yaml,python3-jinja2,iproute2,iputils-ping,dnsutils,net-tools,openssh-client,rsync,inotify-tools,openssl,sudo,isc-dhcp-client,libgtk-3-0t64,libasound2t64,libx11-6,libxext6,libxrender1,libxtst6,libxi6,libgl1,libnss3,libgbm1"
+CACHE_ONLY="openssh-server,python3-pip,python3-venv"
 BUNDLE=""; DOWNLOAD=1
 DEBS_DIR="$ROOT/.generated/debs"
 ROUTER_IMAGE=""; ROUTER_PACKAGES=""
@@ -38,6 +39,7 @@ while [ $# -gt 0 ]; do case "$1" in
     --version) VERSION="$2"; shift 2 ;;
     --modules) MODULES="$2"; shift 2 ;;
     --closure) CLOSURE="$CLOSURE,$2"; shift 2 ;;
+    --cache-only) CACHE_ONLY="$CACHE_ONLY,$2"; shift 2 ;;
     --bundle) BUNDLE="$2"; shift 2 ;;
     --no-download) DOWNLOAD=0; shift ;;
     *) echo "unknown arg $1" >&2; exit 1 ;;
@@ -103,7 +105,7 @@ ok "$(ls "$OUT/debs" | wc -l) debs ($(ls "$OUT/debs" | tr '\n' ' '))"
 step "apt/ (section 1: distro closure as a flat file: repo)"
 if [ -z "$BUNDLE" ]; then
     BUNDLE="$OUT/.bundle"
-    ARGS=(--debs-dir "$DEBS_DIR" --target "$TARGET" --media usb16 --out "$BUNDLE" --closure "$CLOSURE")
+    ARGS=(--debs-dir "$DEBS_DIR" --target "$TARGET" --media usb16 --out "$BUNDLE" --closure "$CLOSURE,$CACHE_ONLY")
     [ "$DOWNLOAD" = 1 ] && ARGS+=(--download)
     "$ROOT/build-offline-bundle.sh" "${ARGS[@]}" >"$OUT/.bundle.log" 2>&1 || { tail -5 "$OUT/.bundle.log"; fail "build-offline-bundle.sh failed (log: $OUT/.bundle.log)"; }
 fi
@@ -207,9 +209,9 @@ if [ -d "$OUT/engines/reticulum" ]; then chmod +x "$OUT"/engines/reticulum/*.sh;
 ok "$(ls "$OUT/scripts" | tr '\n' ' ')"
 
 step "marker, manifest, README, SHA256SUMS"
-python3 - "$OUT" "$VERSION" "$TARGET" "$SHA" "$CLOSURE" "$IMAGES" <<'PY'
+python3 - "$OUT" "$VERSION" "$TARGET" "$SHA" "$CLOSURE" "$IMAGES" "$CACHE_ONLY" <<'PY'
 import json, os, sys, datetime, socket, subprocess, pathlib
-out, ver, target, sha, closure, required_images = sys.argv[1:7]
+out, ver, target, sha, closure, required_images, cache_only = sys.argv[1:8]
 def section(name):
     d = os.path.join(out, name); files = []
     for root, _, fs in os.walk(d):
@@ -242,7 +244,7 @@ m = {'polari': ver, 'flavor': 'offline', 'target': target, 'superproject': sha,
      'builtAt': datetime.datetime.now().isoformat(timespec='seconds'), 'builtOn': socket.gethostname(),
      'desktopRuntime': {'package': 'polari-shell-core', 'file': debs['polari-shell-core']},
      'architecture': subprocess.check_output(['dpkg', '--print-architecture'], text=True).strip(),
-     'requiredPackages': required_packages, 'requiredImages': required_images.split(),
+     'requiredPackages': required_packages, 'cachedPackages': sorted(set(x for x in cache_only.split(',') if x)), 'requiredImages': required_images.split(),
      'router': {'file': 'openwrt-isle-router.qcow2', 'metadata': 'build.json', 'packages': sorted('packages/' + f for f in os.listdir(os.path.join(out, 'router', 'packages')) if f.endswith('.ipk'))},
      'components': comps, 'debs': debs, 'modules': mods,
      'images': json.load(open(os.path.join(out, 'images', 'images.json'))),

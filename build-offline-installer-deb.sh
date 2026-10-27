@@ -67,6 +67,15 @@ Description: Complete Polari Isle offline installer
  and pristine OpenWrt router plus packages. Open Polari Offline Installer
  after installation. Compatible installed dependencies and images are reused.
 EOF
+# Root-owned package payloads must also be non-writable by other accounts.
+# Normalize after installation rather than chmod the hardlinked build inputs.
+cat > "$STAGE/DEBIAN/postinst" <<'POSTINST'
+#!/bin/sh
+set -eu
+chmod -R go-w /usr/share/polari-offline-installer
+POSTINST
+chmod 755 "$STAGE/DEBIAN/postinst"
+
 # Publish only a complete archive; interruption must not leave a plausible DEB.
 PACKAGE_TMP=$(mktemp "$OUTPUT/.polari-offline-installer.XXXXXX")
 dpkg-deb --build --root-owner-group --threads-max=1 -Zzstd -z3 "$STAGE" "$PACKAGE_TMP"
