@@ -20,6 +20,14 @@ family vocabulary (`pv_families`), nothing duplicated; `SystemLink.signal_kind`,
 - The honest answer to the cheap-scopes question is in the rules (plan §2b): channels add up only with a shared trigger (alignment -1 until measured), bandwidth /
   bits / per-channel sample rate never, ETS for repetitive signals, a spare analog channel reads a digital signal. D-osc-7 (DSO138 first, ~USD 23 by a 2015 report)
   and D-osc-8 (measure the shared-trigger alignment before calling a multi-unit capture one acquisition) are his; D-ipb-8/9 recommended.
+- His next ask (2026-10-27, late): "we will want to be able to place devices like oscilloscopes on the bench (or more than one) and use them in simulation as well" →
+  "look into it and put that work into the handoff". LOOKED INTO, written as `OSCILLOSCOPE_PLAN.md` §2c + slice osc-8, NOT built. Found existing: placement by COUNT on
+  `Bench.instruments_json` (+ the Workbench step 4 picker / table), the emulator + `start_emulator` / `feed_device` (a stimulus variant's or the twin's lines → channels)
+  / capture / chart, and an unused `ScopeChannel` class with a `probing` field. Missing: units with PROBES onto bench lines (recommended as ScopeChannel rows — D-osc-9
+  his), a capability STAND-IN emulator profile built from each model row's cited numbers (the protocol stays Polari's: `*IDN?` says POLARI,<model>-EMU), a
+  `simulate` door per bench that starts one emulator per unit and feeds its probes from the stimulus (alignment exact in simulation by construction — said; real
+  units keep the shared-trigger caveat), the Workbench units table + two door-forms, the selftest shape (two DSO138 units + a DHO804 on the home bench from
+  `uno-light`). Next session: build osc-8 from §2c (about one slice; every piece named there exists or is specified).
 - NOT done: osc-7 (the DSO138 serial-text adapter — needs a real dump; the ScopeFun file reader), ipb-7 (the masked window + a RISC-V PollCycle; needs ipb-4's harness),
   the Chrome pass of the new tab / legend in the isle. The C3 `mcycle` harness (ipb-4) and the C3 FreeRTOS graph (ipb-5) stay owed as before.
 
