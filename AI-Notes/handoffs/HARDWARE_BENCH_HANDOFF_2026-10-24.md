@@ -3,6 +3,45 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-27 evening — osc-8 (units + probes + simulate) BUILT and ipb-7's UNO half BUILT + the ipb-4 gating fact MEASURED (his: "reference both plans since we should do both in this round")
+Both plans worked in one round on framework branch `dev-osc-8` (one commit per slice), merged to dev + pushed at the end of the session (hashes in the commit carrying this line).
+- ✅ **osc-8** (OSCILLOSCOPE_PLAN §2c / §3 row i): `modules/instruments/custom/placement.py` — a bench entry's count = N UNITS `<bench>-<model>-<n>`; probes = `ScopeChannel`
+  rows keyed by the unit's endpoint name (D-osc-9's recommended option, built; the signal kind rides on the pin view's vocabulary: PD2 → digital by the port-bit pattern,
+  adc0 → analog); `standin_profile(row)` builds a CAPABILITY STAND-IN emulator profile `row:<name>` from the Instrument row's cited numbers (every -1 → a default NAMED in
+  `basis`; the protocol is Polari's agilent-lineage emulator, `*IDN?` = `POLARI,DSO138-EMU` — never the instrument's own serial/USB protocol: that stays osc-7); `simulate`
+  = per probed unit stop → start on its profile (`restart` reuses the endpoint row, so no duplicates) → feed from the stimulus / events, one row per unit with the refusal
+  words (a line the stimulus does not drive is refused naming PD2 / adc0), `alignment` = "exact by construction" on every row (real units keep the shared-trigger caveat);
+  doors `GET /api/instruments/bench/{bench}/units`, `POST …/probe {model, unit, channel, line}` (refuses channel 2 on the one-channel DSO138 and channel 3 on the ScopeFun
+  naming its 12 logic inputs as not scope channels), `POST …/simulate {stimulus | events, units?}`, `POST …/stop`; `captures.capture` with channels blank asks for the
+  MODEL's channel count; the Workbench Instruments step gained the units table (+ scope `unit`) and the probe / simulate door-forms; the Instruments page's Signals tab
+  points there. Selftest `instruments_placement_selftest` 38/38 (two DSO138 units + one DHO804 on the home bench from `uno-light`: 1024-point captures at 1024 / 1.3 s,
+  mid-scale 2048, PD2 idles at 5 V and dips, the DHO804's ch2 reads 0.75 V; simulate twice = three endpoints, new sessions); instruments 33/33, capture 62/62, dialects
+  29/29, bench setup 0, bench 46/46, both manifests conform. Chrome pass in the isle OWED (as every osc page).
+- ✅ **ipb-7, the UNO half** (INTERRUPT_POLL_BUDGET_PLAN §4b row ipb-7): the avr twin gained `--masked-windows` (`prf-board-engines/twin_forcing.c`: SREG.I cleared in
+  main-line code outside ISRs, cli → the instruction that set I again, armed by the first sei; per opening pc), the image REBUILT on pol-core (602 713 297 B, README cost
+  line), `cycle_measure` records `masked` (sites with pc + enclosing function; `counts()` includes them; an old image without the flag falls back to a plain run and the
+  record SAYS it), ALL SEVEN committed cycle records RE-MEASURED (`cycle_records/*.json`, `git add -f`), `budget._derive` now gives `masked_window_max_cycles` + where and
+  **worst_latency_cycles = entry latency + the longest masked window + the longest handler when handlers do not nest** (+ `worst_latency_us`), per poll
+  `masked_window_cycles` attributed through the task's loop + called atoms, the masked-window suggestion asks only for what is missing and fires on a measured window only
+  when it exceeds the longest handler; the Budget page's poll + derived tables carry the columns. **Numbers:** uno-light's critical sections are `hal_millis`'s ATOMIC_BLOCK
+  (9 cycles × 92 577) and `hal_take_toggle_pending`'s (5 × 92 570) → worst_latency = 4 + 9 + 116 (INT0) = 129 cycles = 8.06 µs, a healthy budget gets no suggestion;
+  ⚠️ FINDING: `uno-button-clock`'s `telemetry_send` holds a **1497-cycle (93.6 µs) critical section** (`ATOMIC_BLOCK { snap = state; }` — the whole-state snapshot copy),
+  far above any handler: the first thing the masked-window suggestion would name on that Mission. Selftests: budget 34/34, cycle 10/10 (two runs identical incl. the
+  masked sites). The `__stack` linker symbol (RAMEND 0x8ff, weak) showed up as an "enclosing function" on the first pass — linker-script symbols are now excluded
+  (`_NOT_FN`) and the button-clock record re-measured; `telemetry_send` there is one large static function (0x632..main at 0x1282), so its three sites are right.
+- ✅ **ipb-4 PROBED — the gating fact:** the C3 firmware prints `@CYC <where> cycles=<esp_cpu_get_cycle_count()> t_us=<esp_timer>` at boot and at the window's end
+  (`polari_cycle_line`; the light + two_lock apps call it before `@END`); on the QEMU twin (Espressif QEMU 9.2.2, icount shift 3) the counter ADVANCES and the run is
+  DETERMINISTIC: boot 4 912 878 @ 19 819 µs, end 189 148 243 @ 1 171 284 µs, identical on two runs → **160.00 cycles per virtual µs** = the chip's nominal 160 MHz applied
+  to icount time, i.e. a PACE, not the pipeline's cost (basis `qemu-icount-160MHz` to be said on every C3 number). The harness SHAPE is written in the plan row (ipb-4):
+  `-finstrument-functions` on the app's atoms with 8-byte enter/exit hooks into the existing trace ring, pc → atom by nm; latency not observable (-1 said). One C3 build
+  ≈ 85–100 s on pol-core, a run 1.5 s. `board_light_c3_selftest` on pol-core = 21/25 WITH the change and 21/25 WITHOUT it (stashed, rebuilt, re-run): the four
+  misses are the "0 frames" acceptance checks on this host (the changed firmware's press run decodes 16 states / 9 events, bad_crc 0, so the cycle line breaks
+  nothing) — pre-existing here, the same four `smp S5` checks the 2026-10-24 handoff lists as passing on isle-core; not chased tonight.
+- NOT done: ipb-4 itself (the instrumented build), ipb-5 (the C3 FreeRTOS relay graph + link numbers), the RISC-V PollCycle (ipb-7's other half), osc-7 (adapters; needs a
+  real DSO138 dump), every Chrome pass (the isle). ⚠️ isle-core's `prf-board-engines` image predates `--masked-windows`: a cycle selftest there measures without the
+  masked block (the record says so) until the image is rebuilt there (`docker compose -p board-engines -f docker-compose.board-engines.yml build` in polari-rf-node).
+- Decisions: D-osc-9 built on the recommended option (ScopeChannel rows); nothing new for him.
+
 ## 2026-10-27 afternoon — ipb-6 (PollCycle, per-hart assignment, lockstep, parallelism) + osc-6 (signal kinds, two open scopes, testability)
 His asks (plan words in `INTERRUPT_POLL_BUDGET_PLAN.md` §2c and `OSCILLOSCOPE_PLAN.md` §1 + §2b): the Interrupted-Worst-Case-Poll-Cycle as the hart's standard
 PollCycle; harts assignable separately unless lockstep; the kinds of parallelism from the RISC-V book; analog / digital / differential separation on the signals
