@@ -14,8 +14,11 @@ test cases TC-A (multi-hart) / TC-B (two chips over a link); "go with risc-v set
   (+ `/knobs`, per process), page `/display/budget` (Bench / Plan / Facts tabs, configured tables only). On the real home-bench: the UNO's hart from its
   Mission (11 polls, 3 interrupts from the uno-light cycle record; scan bound 177 400 cycles beside the twin's measured worst gap 175 647; headroom 0.78 at
   the defaulted 50 ms scan deadline), Zero / Feather facts-only, the S3 as TWO harts → 10 columns.
-- NOT done: ipb-4 (the C3 `mcycle` harness — engines down), ipb-5 (the C3 FreeRTOS graph + real link numbers), the Chrome pass of `/display/budget` (the
-  isle), merge of `dev-ipb-0` to dev (after the full cmod suite is read — it was running at handoff time; the per-test 500 s window cut it once).
+- ✅ MERGED + PUSHED: full cmod suite 1373/1373 read → framework dev = ced06eb (= dev-ipb-0 ff, branch removed), polari-rf-node dev = 6473d3f, suite dev =
+  the commit carrying this line. Also: the AVR entry latency (4 cycles) and reti (4) are now CITED (the AVR core section read on Microchip's online docs — the
+  PB datasheet's; the 328P page is named in `to_read`), Hazard3 16 priority levels cited to the Pico SDK docs; the Bench page has a Budget tab.
+- NOT done: ipb-4 (the C3 `mcycle` harness — engines down), ipb-5 (the C3 FreeRTOS graph + real link numbers), the Chrome pass of `/display/budget` + the
+  Bench Budget tab (the isle).
 - Open decisions left to him: none new; D-ipb-6 (PIO state machines) still his.
 
 ## 2026-10-27 morning — joining the isle (ti-1, pol-core as a member) — his: "check the messages from isle-core, we are going to want to join the isle for testing"
