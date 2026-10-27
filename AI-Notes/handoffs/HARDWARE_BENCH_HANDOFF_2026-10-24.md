@@ -4,7 +4,7 @@ Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
 ## 2026-10-27 evening — osc-8 (units + probes + simulate) BUILT and ipb-7's UNO half BUILT + the ipb-4 gating fact MEASURED (his: "reference both plans since we should do both in this round")
-Both plans worked in one round on framework branch `dev-osc-8` (one commit per slice), merged to dev + pushed at the end of the session (hashes in the commit carrying this line).
+Both plans worked in one round on framework branch `dev-osc-8` (one commit per slice: 077dc98 osc-8, c11eacd ipb-7), MERGED + PUSHED: framework dev = c11eacd, polari-rf-node dev = de717df, suite dev = 813093e (+ the commit carrying this line).
 - ✅ **osc-8** (OSCILLOSCOPE_PLAN §2c / §3 row i): `modules/instruments/custom/placement.py` — a bench entry's count = N UNITS `<bench>-<model>-<n>`; probes = `ScopeChannel`
   rows keyed by the unit's endpoint name (D-osc-9's recommended option, built; the signal kind rides on the pin view's vocabulary: PD2 → digital by the port-bit pattern,
   adc0 → analog); `standin_profile(row)` builds a CAPABILITY STAND-IN emulator profile `row:<name>` from the Instrument row's cited numbers (every -1 → a default NAMED in
