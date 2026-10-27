@@ -102,12 +102,16 @@ URIS_FILE="$POOL/repo/CLOSURE_URIS.txt"
 APT_RECORDS="$POOL/repo/CLOSURE_APT_RECORDS.txt"
 APT_INVENTORY="$POOL/repo/CLOSURE_METADATA.json"
 # Preserve SHA256 and size chosen from apt's authenticated package indexes.
+# Include the small container OS baseline too: already-installed resolver
+# libraries must not hide a required system-library update on an older Ubuntu
+# installation. These archives are available, not forced installation targets.
 # --print-uris defaults to MD5 unless ForceHash is explicit; never discard
 # these fields and subsequently trust only a download/cache filename.
 if docker run --rm --memory=384m --cpus=1 "$BASE_IMAGE" bash -lc \
     "apt-get -o APT::Update::Error-Mode=any -o Acquire::AllowInsecureRepositories=false \
          -o Acquire::AllowDowngradeToInsecureRepositories=false update -qq >/dev/null 2>&1 && \
-     apt-get -o Acquire::ForceHash=SHA256 install --reinstall --print-uris -qq -y $DEPS 2>/dev/null" \
+     baseline=\$(dpkg-query -W -f='\${binary:Package} ') && \
+     apt-get -o Acquire::ForceHash=SHA256 install --reinstall --print-uris -qq -y $DEPS \$baseline 2>/dev/null" \
     > "$APT_RECORDS"; then
     python3 "$ROOT/offline-apt-integrity.py" inventory --records "$APT_RECORDS" \
         --json "$APT_INVENTORY" --uris "$URIS_FILE" \
