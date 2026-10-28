@@ -267,5 +267,13 @@ through that change those pieces of the struct from catoms. And those would be d
 
 **Decisions (his):** D-hsp-5 lane vocabulary (isr | loop | task | userspace) = the task plan's LANE words + `userspace` (recommended);
 D-hsp-6 keep `BridgePath` + `PolariBridgeInstance` in grpcbridge (the bridge owns its location, recommended) vs board; ✅ D-hsp-7 RULED
-2026-10-28: the couplings are **Catom assertions** (`CatomAssertion` rows on the atom), not a capability flag; D-hsp-8 `StructObjectMap`
-lives in grpcbridge beside the bridge (recommended) vs hwnocode beside the struct.
+2026-10-28: the couplings are **Catom assertions** (`CatomAssertion` rows on the atom), not a capability flag; ✅ **D-hsp-8 RULED
+2026-10-28 (his words): "The structObjectMap should be at the Polari level, because we may be creating multiple instances of Bridges using
+the same StructObjectMaps, the Bridges receive and use the maps but they are not where their definitions live. Those definitions need to
+be intertwined with the Catom definitions via assertions for Catoms to be coherently tied to Benches."** → `StructObjectMap` is a
+DEFINITION row at the Polari level, in the module that owns the catom definitions (cmod, beside the atoms and their `CatomAssertion`
+rows; hwnocode's structs reference it), keyed by struct TYPE → Polari class + field → attribute; a `PolariBridgeInstance` RECEIVES and
+USES maps (its `maps[]` = references, never copies, several bridges share one map); the per-instance part (struct instance → object id,
+the bridge it crossed, updater/timestamp) is the bridge's runtime row (`StructObjectCrossing`, grpcbridge). The assertions are the glue:
+a `changes-field` / `sends-to-bridge` assertion names the map's field → attribute pair, so a catom is tied to the bench (its pins, its
+struct instance, the bridge it feeds, the object it becomes) through definitions only — no bench-local copies.
