@@ -244,6 +244,28 @@ the Polari instance it binds to (since any Bridge should have a Polari Node it i
 | hsp-3b | bench objects + the two bench views (Structs, Bridges) + the pin view's struct lane / bridge chain + the Workbench steps (angular types + draw, no logic) | Chrome pass in the isle through `polari-pol`; view-model selftest |
 | hsp-3c | the no-code editor: declaring a Catom assertion on an atom creates the binding; a twin run verifies / falsifies it; the bridge `mode` flips the path's last hop (twin worker vs serial port); `uno_core_demo` reads its bridge from `PolariBridgeInstance` | round trip: assertion declared → binding row → drawn → run → verified; uno_core_demo_selftest in both modes |
 
+**The two bench views, as he described them (2026-10-28):** "we would want a view specific to structs and a view specific to Polari
+Hardware Bridges for the Bench. Especially since there may be multiple bridges per bench and we may have multiple instances of structs that
+convert to objects once they go over the Polari Hardware Bridge. Like having two of the light objects and then being able to click on
+specific struct instances on the hardware, and then fields in that struct, and be able to have from assertions where the signals pass
+through that change those pieces of the struct from catoms. And those would be defined by the catom assertions."
+- **Instances, not just types.** A firmware struct TYPE (the light-bulb struct) has INSTANCES on the hardware (`light[0]`, `light[1]`:
+  `LightId` 0 and 1, each with its own pins — two buttons, two LEDs); every struct instance that crosses a Polari Hardware Bridge becomes
+  a Polari OBJECT instance (the `StructObjectMap` row: struct type → Polari class, struct instance → object id, field → attribute, the
+  bridge it crossed, the `lastUpdater`/timestamp pair); the same object is what the UI switch flips. Rows: `StructInstance` (type, index,
+  the pins its fields ride, the bench part it sits on) and `StructObjectMap`.
+- **Structs view (bench):** every struct instance on the bench as a card (type + index + the hardware part it lives on); click an instance
+  → its fields; click a field → the view draws, FROM THE CATOM ASSERTIONS, the signal paths that change it: pin(s) → the catom that
+  asserts `changes-field` on it (lane, event, stamp) → the field, and onward the `sends-to-bridge` catom → the bridge → the Polari object
+  attribute; unverified / false assertions drawn in their own colour; a field with no assertion = a gap. Multiple instances of one type
+  are separate cards with separate pins; the click-toggle rule holds.
+- **Polari Hardware Bridges view (bench):** every `PolariBridgeInstance` on the bench (several per bench are normal: one per board, or one
+  per converter) as a card: hardware id, mode, the Polari node (`polari-pol.isle`), the hop chain (pins → converter + level → connector →
+  host port → userspace), and the struct instances / objects that cross it (from `receives-from-bridge` / `sends-to-bridge` assertions and
+  `StructObjectMap`); click a bridge → its structs; click a struct there → jumps into the Structs view at that instance.
+- Both views are configured displays over these rows (no raw JSON); the pin view keeps its per-pin lane as the third angle.
+
 **Decisions (his):** D-hsp-5 lane vocabulary (isr | loop | task | userspace) = the task plan's LANE words + `userspace` (recommended);
 D-hsp-6 keep `BridgePath` + `PolariBridgeInstance` in grpcbridge (the bridge owns its location, recommended) vs board; ✅ D-hsp-7 RULED
-2026-10-28: the couplings are **Catom assertions** (`CatomAssertion` rows on the atom), not a capability flag.
+2026-10-28: the couplings are **Catom assertions** (`CatomAssertion` rows on the atom), not a capability flag; D-hsp-8 `StructObjectMap`
+lives in grpcbridge beside the bridge (recommended) vs hwnocode beside the struct.
