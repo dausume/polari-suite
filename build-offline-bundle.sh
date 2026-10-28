@@ -35,7 +35,7 @@
 #   signs or pretends to. README states how verification stands.
 # - App/docker/VM images = decision 4 + off-0 inventory: named as
 #   absent in README, never guessed at.
-set -eu
+set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRAMEWORK="$ROOT/polari-rf-node/polari-framework"
 DEBS_DIR="$ROOT/.generated/debs"
@@ -67,6 +67,7 @@ case "$TARGET" in
     *) fail "unsupported --target $TARGET (ubuntu-24.04|ubuntu-22.04)" ;;
 esac
 
+[ -f "$ROOT/offline-apt-integrity.py" ] || fail "missing offline-apt-integrity.py verifier"
 [ -d "$FRAMEWORK/modules/appstore" ] || fail "framework not at $FRAMEWORK"
 ls "$DEBS_DIR"/*.deb >/dev/null 2>&1 || fail \
     "no debs staged in $DEBS_DIR — run ./build-polari-isle-deb.sh first"
@@ -90,62 +91,45 @@ for deb in "$POOL/repo/"*.deb; do
         | tr ',' '\n' | sed 's/([^)]*)//; s/|.*//; s/ //g')"
 done
 OUR_NAMES=$(for deb in "$POOL/repo/"*.deb; do
-    dpkg-deb -f "$deb" Package; done | sort -u)
+    dpkg-deb -f "$deb" Package
+    dpkg-deb -f "$deb" Provides | tr ',' '\n' | sed 's/([^)]*)//;s/ //g'
+    done | sort -u)
 DEPS=$(echo "$DEPS" | tr ' ' '\n' | sort -u | grep -v '^$' \
     | grep -vxF -f <(echo "$OUR_NAMES") | tr '\n' ' ')
-[ -n "$CLOSURE_EXTRA" ] && DEPS="$DEPS $(echo "$CLOSURE_EXTRA" | tr ',' ' ')"
+[ -n "$CLOSURE_EXTRA" ] && DEPS="$DEPS $(echo "$CLOSURE_EXTRA" | tr ',' '\n' | sed 's/|.*//;s/([^)]*)//;s/ //g' | tr '\n' ' ')"
 echo "    closure roots:$DEPS"
 URIS_FILE="$POOL/repo/CLOSURE_URIS.txt"
-if docker run --rm "$BASE_IMAGE" bash -lc \
-    "apt-get update -qq >/dev/null 2>&1 && \
-     apt-get install --print-uris -qq -y $DEPS 2>/dev/null" \
-    | grep -oP "^'\K[^']+" > "$URIS_FILE"; then
+APT_RECORDS="$POOL/repo/CLOSURE_APT_RECORDS.txt"
+APT_INVENTORY="$POOL/repo/CLOSURE_METADATA.json"
+# Preserve SHA256 and size chosen from apt's authenticated package indexes.
+# Include the small container OS baseline too: already-installed resolver
+# libraries must not hide a required system-library update on an older Ubuntu
+# installation. These archives are available, not forced installation targets.
+# --print-uris defaults to MD5 unless ForceHash is explicit; never discard
+# these fields and subsequently trust only a download/cache filename.
+if docker run --rm --memory=384m --cpus=1 "$BASE_IMAGE" bash -lc \
+    "apt-get -o APT::Update::Error-Mode=any -o Acquire::AllowInsecureRepositories=false \
+         -o Acquire::AllowDowngradeToInsecureRepositories=false update -qq >/dev/null 2>&1 && \
+     baseline=\$(dpkg-query -W -f='\${binary:Package} ') && \
+     apt-get -o Acquire::ForceHash=SHA256 install --reinstall --print-uris -qq -y $DEPS \$baseline 2>/dev/null" \
+    > "$APT_RECORDS"; then
+    python3 "$ROOT/offline-apt-integrity.py" inventory --records "$APT_RECORDS" \
+        --json "$APT_INVENTORY" --uris "$URIS_FILE" \
+        || fail "closure lacks unambiguous authenticated SHA256/size metadata"
     COUNT=$(wc -l < "$URIS_FILE")
-    ok "closure resolved: $COUNT deb(s) beyond the base image"
+    ok "closure resolved: $COUNT deb(s), signed-APT SHA256/size recorded"
 else
     fail "closure resolution failed — is docker available and $BASE_IMAGE pullable?"
 fi
 
 if [ "$DOWNLOAD" = 1 ]; then
-    step "Download the closure ($COUNT debs) — roomy-box mode"
-    # ci-9 (his ask 2026-09-19, offline-first): POLARI_APT_CACHE — when the
-    # pipeline points this at <cache>/apt, a deb already there is COPIED instead
-    # of re-downloaded, and anything new is folded back in for the next build.
-    # The distro closure barely moves between runs, so this is where the apt
-    # half of "less time when repeatedly using the same data" actually lands.
-    # Unset (a developer running this by hand) = the old behaviour, unchanged.
-    CACHE_APT="${POLARI_APT_CACHE:-}"
-    if [ -n "$CACHE_APT" ]; then
-        mkdir -p "$CACHE_APT"
-        HITS=0; MISSES=0; CB=0; FB=0
-        : > "$POOL/repo/.misses"
-        while IFS= read -r uri; do
-            [ -n "$uri" ] || continue
-            b="$(basename "${uri%%\?*}")"
-            if [ -s "$CACHE_APT/$b" ]; then
-                cp "$CACHE_APT/$b" "$POOL/repo/$b"
-                HITS=$((HITS+1)); CB=$((CB + $(stat -c %s "$CACHE_APT/$b")))
-            else
-                printf '%s\n' "$uri" >> "$POOL/repo/.misses"; MISSES=$((MISSES+1))
-            fi
-        done < "$URIS_FILE"
-        if [ "$MISSES" -gt 0 ]; then
-            ( cd "$CACHE_APT" && xargs -n1 -P4 curl -fsSO < "$POOL/repo/.misses" )
-            while IFS= read -r uri; do
-                [ -n "$uri" ] || continue
-                b="$(basename "${uri%%\?*}")"
-                [ -s "$CACHE_APT/$b" ] || continue
-                cp "$CACHE_APT/$b" "$POOL/repo/$b"; FB=$((FB + $(stat -c %s "$CACHE_APT/$b")))
-            done < "$POOL/repo/.misses"
-        fi
-        rm -f "$POOL/repo/.misses"
-        ok "closure debs: $HITS from the cache ($((CB/1000000)) MB), $MISSES fetched ($((FB/1000000)) MB) → $CACHE_APT"
-        # the arithmetic the pipeline's cache-report.json wants, on one parseable line
-        echo "[cache-report] apt cached_bytes=$CB fetched_bytes=$FB entries=$COUNT"
-    else
-        ( cd "$POOL/repo" && xargs -n1 -P4 curl -fsSO < CLOSURE_URIS.txt )
-        ok "closure debs in pool/repo/ (no POLARI_APT_CACHE — every run re-downloads them)"
-    fi
+    step "Download and verify the closure ($COUNT debs) — P2"
+    CACHE_ARGS=()
+    [ -z "${POLARI_APT_CACHE:-}" ] || CACHE_ARGS=(--cache "$POLARI_APT_CACHE")
+    python3 "$ROOT/offline-apt-integrity.py" fetch --inventory "$APT_INVENTORY" \
+        --output "$POOL/repo" "${CACHE_ARGS[@]}" \
+        || fail "distro cache/download failed authenticated SHA256/size verification"
+    ok "every distro DEB verified against signed-APT SHA256 metadata before inclusion"
     CLOSURE_DOWNLOADED=true
 else
     warn "closure NOT downloaded (skeleton bundle) — rerun with --download on a roomy box"
@@ -172,7 +156,8 @@ HOW COMPLETE IS THIS COPY (honesty section):
 - docker images / VM artifacts: NOT PRESENT (inventoried by off-0;
   decision 4 — app images on medium — is still open)
 
-VERIFICATION: sha256SUMS covers every file. A signing anchor for
+VERIFICATION: distro DEBs were checked against signed-APT SHA256 + size
+metadata (repo/CLOSURE_METADATA.json). sha256SUMS covers every file. A signing anchor for
 media built before any isle exists is an OPEN design decision
 (OFFLINE_INSTALL_PLAN.md decision 3) — until it lands, obtain this
 bundle only from an instance you trust.
