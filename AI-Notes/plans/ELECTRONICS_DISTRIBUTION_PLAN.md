@@ -54,7 +54,8 @@ econ-core  = the SIMULATION workers: board-engines, scope-engines, formal-engine
 | mesh-app | pcb-engines | **isle-core** (image already there) or econ (D2) | 1.23 GB; low duty |
 | mesh-app | bridge-engines | **pol-core** (D4) | must sit where the UNO / ESP32-S3 are plugged in; needs a `devices:` + dialout mapping (gap) |
 | hardware-app / bridge | uno_core_demo = modules (pol) + twin (econ) + launcher (pol) | split as above | the first vertical slice |
-| hardware-app / kvm | none for the bench; isle-relay / guestnet = isle infra on the core | core | no electronics work needs KVM today |
+| polari-instance | `polari-econ` (his D3: one instance per device) with the modules econ's workers and bridge sims render through | **econ-core** | one object tree per device; econ renders its own hardware-app rows later |
+| hardware-app / kvm | none for the bench; isle-relay / guestnet = isle infra on the core | core | no electronics work needs KVM today; ⚠ `isle vm` not in CLI 0.1.162 |
 | silicon / FET / proof / ML workers | eda, orfs, proof, torch (+ cnt, msci, cad when revived) | **isle-core** when needed (779 GB) — today they sit idle on pol-core eating ~19 GB | **D1**: move or retire them off pol-core (compose files + READMEs in the repo; rebuildable) |
 
 Bindings: `polari-pol`'s `EngineProviderBinding` rows → board → `board-engines.isle:9830`, scope → `scope-engines.isle:9880`, formal →
@@ -73,8 +74,8 @@ A declared-but-unreachable worker refuses with words (the seam already does this
 | ed-5 | Store eligibility door `/api/islemesh/catalog/<name>/targets` showing exactly this matrix (ready / setup-required / incompatible per device, with the one missing dependency named) | Claude backend, Codex store UX | the Store on any device answers "where can board-engines run?" = econ ready, pol setup-required (disk), core by choice |
 | ed-6 | the owed Chrome passes (workbench, bench, pin view, chip ladder, budget, instruments, missions) — now through `polari-pol.isle` | Claude | each page seen in Chrome from pol-core and once from econ |
 
-## 4. Decisions for him
-- **D1** pol-core disk: move eda/orfs/proof/torch (and their containers) off pol-core to isle-core, or retire them until the FET arc resumes (frees ≈ 19 GB; rebuildable from the repo). Codex preferred no pruning on pol until asked — this is the ask.
-- **D2** pcb-engines on isle-core (image present, 779 GB) or econ (keeps the core light)? Recommended isle-core.
-- **D3** does econ get its own Polari instance later (for hardware-app rendering / a second object tree), or does everything render from `polari-pol`? Recommended: one instance (pol) until a reason appears.
-- **D4** bridge where the boards are (pol-core, recommended) or move the boards to econ and run bridge + twins together there?
+## 4. Decisions — RULED by him 2026-10-28 (his words: "are we using the silicon engines actively in the design work? I think one polari instance on every device. Disable if they are not actively used in the electronics layer and only used for simulating physics for creating new transistors. Those may be part of a Microchip App? Bridge on Polari along with Boards is probably fine, but we should move workhorses and engines to econ or isle then depending on resources")
+- ✅ **D1 RULED — disable.** Facts: eda-engines + orfs-engines serve `computelod` (chip compute LOD, TABLED arc), proof-engines serves `mathproofs` (lean), torch-engines serves `tensormath`; none is in the electronics layer (firmware proofs use formal-engines' CBMC; hwdigital's ngspice/verilator are system tools). Containers untouched since 2026-10-11, zero requests in 7 days. DONE 2026-10-28 ~12:20Z on pol-core: the four compose projects brought down (containers removed, `restart` gone); images KEPT until his word (they are the 19 GB). They belong to a future **Microchip App** (app as data composing computelod, tensormath, mathproofs, cntfet, sifet, fetviews, microchip) hosted on isle-core or econ by resources when that arc resumes.
+- **D2** pcb-engines: isle-core (image present) — stands as recommended; final placement of all workhorses = econ or isle "depending on resources" (his).
+- ✅ **D3 RULED — one Polari instance on EVERY device:** core `polari.isle` (exists), pol `polari-pol`, econ `polari-econ`. Each hosts the modules its role needs; the electronics module set lives on pol (the bench), econ's instance carries what its workers/bridge sims render, the core's stays the catalog/store core.
+- ✅ **D4 RULED — bridge + boards stay on pol-core.** Workhorses and engines move to econ or isle by resources (board/scope/formal/esp → econ; pcb → isle; the Microchip App workers → isle when revived).
