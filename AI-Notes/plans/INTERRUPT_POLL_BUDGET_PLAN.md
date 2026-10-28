@@ -86,6 +86,36 @@ kinds of chip internal parallelism like instruction level parallelism and other 
   separately unless lockstep; two chips = the links rows. Per-processor facts (pipeline_stages, issue_width, hw_threads_per_core, vector, lockstep) cited
   or -1: Hazard3 = 3 stages (readme), the rest -1 with the TRM named. Door `/api/hart-facts?view=parallelism | parallelism-kinds`; two tables on the Facts tab.
 
+## 2d. Affinity: why a task sits on a hart; symmetric vs asymmetric multi-core; null affinity (his ask 2026-10-28)
+His words: "'affinities' for multi-core-chips, as well as accounting for Symmetric Multi-Core and Asymmetric Multi-Core Chips. I think this
+may already be getting accounted for in the task organizing? But being able to give a word to the Tasks for why they are on a particular
+chip for polling or interrupts is good 'affinity for hart-name'. I think we may have missed making asymmetric or null-affinity tasks, which
+are asymmetric and may go to any of the chips. We may need refinement on the task component for that." And: "a specific open source
+FreeRTOS implementation from google that handles multi-core firmware specifically … a level in between FreeRTOS and Zephyr."
+- **What exists:** per-hart placement by KNOB only — `hart_of {task: n}`, `isr_hart_of {vector: n}`, `lockstep` (§2c, budget.py); the
+  mirror hart for lockstep; `parallelism.py` kinds (hardware threads per core, issue width …); `tier` ∈ bare | freertos | zephyr. There is
+  no WORD on the task saying why it is where it is, no "any hart" placement, and no chip-level symmetric/asymmetric fact.
+- **The RTOS level between FreeRTOS and Zephyr = FreeRTOS-SMP** (not a Google fork — searched 2026-10-28: the SMP kernel is the FreeRTOS
+  project's own, MIT, merged to main after the 2021 SMP branch, first on XMOS xcore + RP2040; Google's Pigweed (Apache-2.0) only MIRRORS
+  that kernel; Espressif's ESP-IDF FreeRTOS (Apache-2.0) is the older SMP fork that runs on our ESP32-S3 with `xTaskCreatePinnedToCore` and
+  `tskNO_AFFINITY`). Its vocabulary is exactly his: `configUSE_CORE_AFFINITY`, `vTaskCoreAffinitySet(mask)`, `tskNO_AFFINITY` = may run on
+  any core; `configRUN_MULTIPLE_PRIORITIES`. So `tier` gains **`freertos-smp`** (ladder: bare → freertos → freertos-smp → zephyr; Zephyr
+  SMP has `k_thread_cpu_mask_*` — cited when its row is read).
+- **Chip fact `multicore_model`** (per processor row, cited): `single` · `smp` (identical harts, shared memory, ONE kernel schedules
+  across them: ESP32-S3's two LX7 under IDF-SMP, RP2040/RP2350 under FreeRTOS-SMP) · `amp` (harts with different ISAs or separate
+  kernels/images, each its own PC and firmware: S3 main cores + its ULP RISC-V; RP2350 Arm/Hazard3 select; the UNO ↔ C3 link is AMP
+  across chips) · `lockstep` (ipb-6). The schedule model per hart follows: AMP harts never share a task set; SMP harts share one.
+- **Task refinement (the task component, cmod task_plan rows):** `affinity` ∈ `<hart-name>` (pinned; the hart's RISC-V-first name from
+  the facts row) | `any` (null affinity: the scheduler places it; only legal on an `smp` chip) | `mirror` (lockstep); `affinity_reason`
+  = a WORD from a small vocabulary — `owns-interrupt <vector>` (the ISR that feeds it is routed to this hart, §2c `isr_hart_of`),
+  `polls-peripheral <name>` (the peripheral's port/registers belong to this hart or its IRQ matrix), `latency` (kept beside its source
+  to meet a deadline), `isolation` (kept away from a bursty task), `by-default` (nobody chose) — the knob `hart_of` becomes the pinned
+  affinity's concrete form, `isr_hart_of` the reason `owns-interrupt`'s evidence. `any` tasks are placed by the budget as a LOAD that may
+  land on any hart: the derivation books their worst cost on every SMP hart's worst case (and the best split as the optimistic column), and
+  the suggestion row says "pin to <hart> for <reason>" when a null-affinity task would break a PollCycle on the hart it could land on.
+- **Pages:** the Budget page's poll and interrupt tables gain `affinity` + `reason` columns; the Mission settings let a person set them
+  (the knob route); the hart column header shows the chip's `multicore_model` + tier word.
+
 ## 3. The row shapes — the unit is ONE PROGRAM COUNTER (his ruling, see D-ipb-3)
 **His words (2026-10-27):** "Two columns of polls and interrupts per PC, since that is what takes in the instructions and determines the genuine
 stepping. In systems with two PCs (two chips) we would have four columns and so on." RISC-V's word for a PC with its own instruction stream is a
@@ -169,7 +199,11 @@ separate chips on a board") — each is a seeded graph + a selftest in ipb-1, a 
 | ipb-6 | ✅ BUILT 2026-10-27 (framework `dev-ipb-6`): the PollCycle + per-hart assignment + lockstep + parallelism facts (§2c) | `derived.poll_cycle_*` + the check + two suggestion kinds; knobs `isr_hart_of`, `lockstep`; `mirror_of` harts; `board/custom/parallelism.py` (10 kind rows, 14 processor rows); `/api/hart-facts?view=parallelism|parallelism-kinds`; the Facts tab's two new tables; hart rows carry parallelism / lockstep / mirror_of / poll_cycle | selftest 31/31: the UNO's PollCycle equals the sum of the maxima + 4-cycle entries + the quiet pass, ok vs 100 ms / 2, unchanged by the scan-deadline knob; -1 names what is missing without a record; `isr_hart_of` moves INT0 to hart 1 with the note; lockstep mirrors ignore `hart_of`; every parallelism number cited or -1 |
 | ipb-7 | ✅ **UNO half BUILT 2026-10-27 evening** (framework `dev-osc-8`, rf-node `prf-board-engines`): the twin flag `--masked-windows` (twin_forcing.c: every stretch of main-line code run with SREG.I cleared, outside ISRs — cli → the instruction that set I again, an ATOMIC_BLOCK's SREG restore counts; armed by the first sei so the reset→sei stretch is not a critical section; per opening pc n / min / max, the longest named) on the same shipped-hex run as `--isr-latency`; the cycle record gained `masked` (sites with pc + ENCLOSING function = the largest text symbol at or below the pc; `counts()` carries them so the determinism check covers them); every committed record RE-MEASURED on the rebuilt image; `budget._derive`: `masked_window_max_cycles` + where, `worst_latency_cycles` = the cited entry latency + the longest masked window + the longest handler when handlers do not nest (AVR `software` nesting: a running handler blocks the next; `hardware` adds nothing), `worst_latency_us`; per poll `masked_window_cycles` = the longest window inside the task's loop + called atoms (the callee's ATOMIC_BLOCK is the poll's to pay; 0 = measured, none; -1 only without a record); the masked-window suggestion now asks only for what is missing, and when the window is measured it fires only if the window exceeds the longest handler ("shorten the critical section in …"); the Budget page's poll and derived tables show the new columns. **On the UNO (uno-light):** the only critical sections are `hal_millis`'s ATOMIC_BLOCK (9 cycles, 92 577 windows in the 1.3 s stimulus) and `hal_take_toggle_pending`'s (5 cycles, 92 570) → worst_latency = 4 + 9 + 116 (INT0) = **129 cycles = 8.06 µs**; a healthy budget now gets NO suggestion. RISC-V half: see ipb-4 (the C3's cycle counter ADVANCES on the QEMU twin — the gating fact, measured tonight) | budget selftest 35/35 (worst_latency is a number on the UNO, the per-poll attribution, the record's two sites); the C3's PollCycle is still -1 (ipb-4) |
 
+| ipb-8 | affinity + multicore model (§2d): processor fact `multicore_model` (cited rows for UNO single, S3 smp+ULP amp, C3 single, RP2350 smp/select, QEMU virt smp), tier `freertos-smp` (FreeRTOS-SMP MIT, IDF variant Apache-2.0 cited), task fields `affinity` / `affinity_reason` with the vocabulary, `any` placement in `budget._derive` (worst-on-every-SMP-hart + best split), the pin-for-reason suggestion, Budget page columns + Mission settings knobs | selftest: TC-A1 with one `any` task books on both S3 harts; an `any` task on the UNO (single) refuses by name; a lockstep mirror reports `mirror`; the reason words round-trip through the knob door; existing 35/35 unchanged |
+
 ## 5. Decisions (his; my recommendation first)
+- **D-ipb-10** The affinity words: the five above (owns-interrupt, polls-peripheral, latency, isolation, by-default) — add or rename?
+- **D-ipb-11** `freertos-smp` as its own tier row (recommended) vs a flag on `freertos`. The IDF fork gets its own cited row either way.
 - **D-ipb-1** Where the rows live: recommended = facts in `board` (beside variants/target_compat), the budget + suggestions in `cmod` (beside task_plan). Alt: a new `schedule` module.
 - **D-ipb-2** The word for one pass of all polls: recommended **scan** (PLC lineage, established). Alt: "loop pass".
 - ✅ **D-ipb-3** RULED by his words (2026-10-27): the unit is one PROGRAM COUNTER (hart): two columns per PC, four for two PCs, and so on; RTOS

@@ -165,3 +165,51 @@ undetermined, and the answer names the first blocking rung. A missing input is `
 - **Rolled to pol-core 2026-10-18 16:28** (everything since the last roll: mis-0 … fgm-6a, C3, sense routes, cycles, c3-derive, the boot fix): the live
   backend answered in **≈7.5 min (was ≈26)**; its log: "Skipping polariServer … **53** stored row(s) left on disk". task-plan, pin-view, atom-jobs doors 200.
   Pruned 772 MB; pol-core disk 5.0 GB free. `pol board retire-derived` dry run on pol-core: 0 stored (it was never rolled while the C3 rows were stored) — nothing to retire.
+
+## 7. Struct ↔ pins ↔ USB bridge ↔ userspace — "where the bridge is" (his notebook draft, 2026-10-28) → slice hsp-3
+His words: "I think we need a component for tying structs to pins and for tying usb and usb-c conversions to userspace, so we define where
+a bridge is. This is something we will want visualized in the bench."
+**His draft, transcribed (the photo is in the chat of 2026-10-28; the copy into designs/ was refused by the sandbox — re-add by hand):**
+- the light-bulb **struct**: `lastUpdater: ENUM(HW, US)`, `LightId: Int8`, `LedOn: T/F`, `HardSwitch: T/F`, `UIswitch: T/F`,
+  `timestampHW`, `timestampUS` (HW = the chip, US = userspace).
+- **ATmega** pins: `P1`, `P2` = digital OUTPUTS set HIGH → 5 V, "same as supplying power" (they feed the button loop); `P3`, `P4` = digital
+  INPUTS: when the button is pressed both go low → high (or high → low) → the INTERRUPT routine changes the struct; `P5`/`P6` = the LED
+  (analog 5 V); `P7`/`P8` = UART (digital 5 V) → a **UART-to-USB** block (`U1`, `U2`) → **Userspace** holding the `UI switch`.
+- **Peripheral pins** `B1`..`B4` on the button; UART **POLLING** carries the signal to flip `UIswitch` on/off and also pulls any struct
+  change that has no `timestampHW` into userspace to get a `timestampUS`.
+- Notes on the same page: DSO138 (~$20–30) and ScopeFun = both open-source scopes (OSCILLOSCOPE_PLAN); "FT → 5 V pin, TTA → 3.3 V pin" =
+  the two UART-adapter voltage levels (FTDI-class 5 V vs 3.3 V TTL adapters) — the bridge's signal level is a fact to record.
+
+**What exists:** the struct and its mutators (STRUCT_CONTROLS, memory `struct-controls-hardware`: UI alters the struct, struct change drives
+tasks; the uno-button-clock rows `led_on`, `sense_rises`, `button_presses` in hwnocode), pins and system links (hsp-0/1: HardwareSystem
+links/paths, SocPin rows incl. the UNO's USB bridge chip `soc_atmega16u2` + `packages_atmega16u2`, `schematic.usb_bridge_part`), the pin
+view (pv-0..6: drive view, signal kinds analog/digital/differential, bench parts, breadboard), the Hardware Bridge (grpcbridge
+`HardwareBridgeDefinition`: source simulated | serial; the native panel), hwmap (USB/serial scan of the host). **Missing:** the rows that
+TIE them: which struct FIELD is written from which PIN event in which LANE (isr / poll / userspace) with which timestamp, and the PATH
+from the chip's UART pins through the converter chip, its signal level, the USB connector, the host port, to the userspace process — i.e.
+"where the bridge is".
+
+**The component (as data, two row kinds + one view):**
+1. `StructPinBinding` (hwnocode): `struct`, `field`, `pin` (the pin view's pin id, e.g. PD2), `direction` (in | out | supply),
+   `event` (edge rise/fall | level | poll | uart-rx | uart-tx | ui), `lane` (isr | loop | task | userspace), `updater` (HW | US — the
+   struct's `lastUpdater` enum), `stamps` (timestampHW | timestampUS | both), `basis` (the firmware atom / the UI control that does it).
+   The UNO light draft yields: P3/P4 → `HardSwitch` (isr, HW, timestampHW); P5/P6 ← `LedOn` (out, loop); P1/P2 = supply; P7/P8 ↔
+   `UIswitch` (uart, poll, US, timestampUS) + the "pull HW changes without timestampUS" rule as a `sync` binding.
+2. `BridgePath` (grpcbridge + board): ordered hops `chip pin(s)` → `converter` (SocPin/package of the bridge chip: ATmega16U2 on the UNO,
+   CH340 on the Elecrow S3, CP210x/FTDI on adapters; `signal_level_v` 5.0 | 3.3 — his FT/TTA note) → `connector` (USB-A | USB-B | micro |
+   **USB-C** incl. a C→A conversion as its own hop) → `host_port` (hwmap's USB bus/port row on the device) → `userspace` (the process:
+   the Polari bridge daemon / the Hardware Bridge panel / a scope reader) with `protocol` (uart-text | polari-frames | scpi) and `mode`
+   (simulated | serial). Each hop carries a `basis` (cited part, measured level, scanned port) and `-1` where unread.
+3. **Visualization in the bench (pin view + workbench):** a "struct lane" drawn beside the pins — struct fields as a column, arrows
+   pin → field (coloured by lane isr/poll/userspace, stamped HW/US), and the bridge path drawn as a chain of hops from the UART pins
+   out through the converter/connector/host-port to a userspace box, with the signal level on the converter hop and the mode on the last
+   hop; the legend prints the vocabulary. Selecting a field highlights its pins and the bridge hops it travels; click-toggle rule holds.
+
+| # | Slice | Proof |
+|---|---|---|
+| hsp-3a | `StructPinBinding` + `BridgePath` rows + doors (`/api/hwnocode/struct-pins/{solution}`, `/api/board/bridge-paths/{bench}`), seeded from the UNO light draft (bindings as above; path UNO: PD0/PD1 → ATmega16U2 (5 V) → USB-B → host port (hwmap) → bridge daemon; Elecrow: U0TXD/U0RXD → CH340 (3.3 V) → USB-C → host → …) + `hsp_struct_pins_selftest` | every draft binding present with lane + stamp; a field with no pin refuses by name; a path hop with an unknown level says -1 |
+| hsp-3b | pin view: the struct lane + bridge chain (angular types + draw, no logic), workbench Instruments/Bridge step shows the path | Chrome pass in the isle through `polari-pol`; selftest on the view model rows |
+| hsp-3c | the bridge's `mode` flips the path's last hop to the twin worker (`board-engines.isle`) vs the real serial port; `uno_core_demo` reads its bridge location from `BridgePath` instead of a knob | uno_core_demo_selftest shows the path in simulated and serial modes |
+
+**Decisions (his):** D-hsp-5 lane vocabulary (isr | loop | task | userspace) = the task plan's LANE words + `userspace` (recommended);
+D-hsp-6 keep `BridgePath` in grpcbridge (the bridge owns its location, recommended) vs board.
