@@ -221,13 +221,17 @@ the Polari instance it binds to (since any Bridge should have a Polari Node it i
    pins that feed/consume each field, lane + stamp colours) and **Bridges view** (each Polari Bridge instance with its hardware id, its
    Polari node URL, the pins it rides and the hop chain). The pin view's struct lane / bridge chain (3. above) are the same rows seen from
    the pins' side; the Workbench walkthrough gains a step for each.
-5. **The bindings are MADE BY FIRMWARE CATOMS, not hand rows:** a C-atom (cmod's atoms; the no-code atoms of hwnocode) carries a
-   capability `binds` ∈ `pin→struct` (reads/writes a pin into a struct field: the ISR that flips `HardSwitch`, the loop atom that drives
-   `LedOn`) | `pin→bridge` (streams a field over the UART pins to the bridge: the `telemetry_send` / `uart_rx` atoms that carry `UIswitch`
-   and the un-stamped changes) | `none`. `StructPinBinding.basis` IS the atom; a binding without an atom is a GAP the view names ("no atom
-   binds PD2 to HardSwitch yet"). Choosing an atom with `binds` in the no-code editor creates/updates the binding row (struct controls
-   hardware: the UI alters the struct, the struct change drives tasks — this closes the loop in the other direction: the atom declares
-   which pin and field it couples).
+5. **The bindings are CATOM ASSERTIONS, not hand rows** (his word, 2026-10-28: "These can be called Catom assertions, we assert a piece
+   of code changes a struct or parts of a struct, or that it sends data to or from bridges."): a C-atom (cmod's atoms; the no-code atoms of
+   hwnocode) carries `CatomAssertion` rows — `kind` ∈ `changes-struct` (the whole struct) | `changes-field` (named fields: the ISR that
+   flips `HardSwitch`, the loop atom that drives `LedOn`) | `sends-to-bridge` | `receives-from-bridge` (the `telemetry_send` / `uart_rx`
+   atoms that carry `UIswitch` and the un-stamped changes) — with `struct`, `fields[]`, `bridge`, and the `pins` the atom touches to do it.
+   An assertion is DECLARED by the atom (the no-code editor / the parser's hints) and VERIFIED by a twin run: the cycle/trace record shows
+   the field change or the UART frames → `status` ∈ verified | unverified | false (the run contradicted it), in the Polari assertion
+   vocabulary already used for scores (`pull_and_assert`, score assertions). `StructPinBinding` and the bridge's pin attachments are
+   DERIVED from the assertions (basis = the asserting atom); a field or bridge with no asserting atom is a GAP the view names ("no catom
+   asserts a change of HardSwitch from PD2"). Struct controls hardware runs both ways: the UI alters the struct, the struct change drives
+   tasks, and the atoms assert which pins and fields they couple.
 6. **`PolariBridgeInstance`** (grpcbridge) = the bridge as a row: `hardware_id` (the bound hardware: BoardInstance id + the USB serial /
    port from hwmap, or the twin session id when simulated), `polari_node` (the Polari instance it binds to — its NAME and `.isle` URL, e.g.
    `polari-pol` → `https://api.polari-pol.isle`; every bridge has one; refuses without), `mode` (simulated | serial), the `BridgePath` it
@@ -236,10 +240,10 @@ the Polari instance it binds to (since any Bridge should have a Polari Node it i
 
 | # | Slice (revised) | Proof |
 |---|---|---|
-| hsp-3a | rows: `StructPinBinding` (basis = atom), `BridgePath`, `PolariBridgeInstance` (hardware_id + polari_node + mode + path); atom capability `binds`; doors; seeded from the UNO light draft (bindings derived from uno-light's atoms; the bridge instance bound to `uno-1` on pol-core's USB and to `polari-pol`) + selftest | every draft binding present WITH its atom; a field with no binding atom reported as a gap; a bridge without a polari_node refuses by name; the node URL resolves to the instance's `.isle` name |
+| hsp-3a | rows: `CatomAssertion` (kind, struct, fields, bridge, pins, status), `StructPinBinding` derived from them (basis = the asserting atom), `BridgePath`, `PolariBridgeInstance` (hardware_id + polari_node + mode + path); doors; seeded from the UNO light draft (assertions on uno-light's atoms; the bridge instance bound to `uno-1` on pol-core's USB and to `polari-pol`) + selftest; verification of the seeded assertions against the committed uno-light cycle record | every draft binding present WITH its asserting atom; a field with no assertion reported as a gap; an assertion the record contradicts = `false` by name; a bridge without a polari_node refuses by name; the node URL resolves to the instance's `.isle` name |
 | hsp-3b | bench objects + the two bench views (Structs, Bridges) + the pin view's struct lane / bridge chain + the Workbench steps (angular types + draw, no logic) | Chrome pass in the isle through `polari-pol`; view-model selftest |
-| hsp-3c | the no-code editor: picking an atom with `binds` creates the binding; the bridge `mode` flips the path's last hop (twin worker vs serial port); `uno_core_demo` reads its bridge from `PolariBridgeInstance` | round trip: atom chosen → binding row → drawn; uno_core_demo_selftest in both modes |
+| hsp-3c | the no-code editor: declaring a Catom assertion on an atom creates the binding; a twin run verifies / falsifies it; the bridge `mode` flips the path's last hop (twin worker vs serial port); `uno_core_demo` reads its bridge from `PolariBridgeInstance` | round trip: assertion declared → binding row → drawn → run → verified; uno_core_demo_selftest in both modes |
 
 **Decisions (his):** D-hsp-5 lane vocabulary (isr | loop | task | userspace) = the task plan's LANE words + `userspace` (recommended);
-D-hsp-6 keep `BridgePath` + `PolariBridgeInstance` in grpcbridge (the bridge owns its location, recommended) vs board; D-hsp-7 `binds`
-as an atom capability field (recommended) vs a separate binding-atom kind.
+D-hsp-6 keep `BridgePath` + `PolariBridgeInstance` in grpcbridge (the bridge owns its location, recommended) vs board; ✅ D-hsp-7 RULED
+2026-10-28: the couplings are **Catom assertions** (`CatomAssertion` rows on the atom), not a capability flag.
