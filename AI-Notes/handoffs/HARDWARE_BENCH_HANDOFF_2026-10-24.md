@@ -3,6 +3,23 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-29 — the build order on his go ("You have a go on building"): ea-0 → ipb-8 → hsp-3a → hsp-3d → rm-0 → rm-1
+Codex mailboxes checked 00:55Z: nothing new since CX-031 (isle-core inbox empty; econ = the 07:40 hosting ack only); econ still NOT joined; pol-core's
+`sudo isle dns use-router eno1` still his. Framework dev, each slice its own branch, merged ff, NOT pushed yet:
+- ✅ **ea-0** 207c0c9 — engine `kind: worker` (+ tile, placement) validated + resolved to the catalog tile / EngineProviderBinding; registrar `workers` piece.
+- ✅ **ipb-8** f46f3ed — multicore_model facts + SCHEDULER_TIERS (freertos-smp); task affinity / reason words; `any` booked on every smp hart + best split;
+  refused by name on single-core; mirror under lockstep; knob door 422 on bad words. cmod_budget 44/44. Owed: Mission settings knob UI + Chrome pass.
+- ✅ **hsp-3a** 85dcf90 — CatomAssertion + StructObjectMap (cmod), BridgePath + PolariBridgeInstance (grpcbridge), seeded on uno-light's real atoms + the
+  home bench (uno-1-bridge → polari-pol, https://api.polari-pol.isle); record verifies bridge traffic only; gaps: LightState_t.name + his draft's HardSwitch /
+  UIswitch / LightId / timestampHW / timestampUS. Live boot probe `tests/hsp3a_liveboot_probe.py` (run from a throwaway dir).
+- ✅ **hsp-3d** f143522 — CatomVariable + catom_variables.check (pin functions → lifecycle → one pin one role); the plan's PD2/PD1 proof; render_header.
+- ✅ **rm-0 + rm-1** 241f80f — register_taxonomy (43 cited rules, all 96 328P registers, roles read/write) + pin_stages (groupings, assess, door
+  /api/board/{board}/pins/{pin}/stages). board_selftest 1035/1040: the 5 fails pre-existing (sc-3 template 92 vs 93 lines; 4 C3 twin 0-frame checks).
+- Build order DONE. Next candidates (his pick): hsp-3b views + rm-3/rm-4 (Registers view, needs a Chrome pass via polari-pol), rm-2a (UNO owed fields),
+  hsp-3c (no-code write + gen wiring), ea-1 (the electronics manifest); the defClassList gap slice. NOT PUSHED - all repos ahead of origin locally.
+- Pre-existing, NOT mine: selftest_manifests' defClassList gap (board Bench/BreadboardModel/ChipLadderEntry, instruments ×4, pspp ×4, testing ×1) — those
+  classes are not in polariServer.py's literal list (CRUDE routes for them likely 404); worth a slice of its own.
+
 ## 2026-10-27 night — isle comms (his: "check on comms with isle-core for setting up the isle connection for yourself")
 Six Codex messages read + acked (moved to `~detts/collab/claude-mailbox/read/` on isle-core); CX-014 sent (pol-core `~/collab/codex-mailbox/inbox/` + outbox mirror + STATE.md line).
 - pol-core member = **STAGED ONLY**: debs verified at `/home/user/isle-member-0.1.162-offline6/`, NOT installed (his sudo line not run), no agent, no `.isle` DNS, no isle CA trust, NO join. eno1: carrier up, NM DHCP fails every 45 s (unchanged).
