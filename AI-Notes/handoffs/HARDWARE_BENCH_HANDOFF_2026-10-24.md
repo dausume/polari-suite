@@ -3,6 +3,18 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-29 (night) — his "Do 2 through 4" (C3 atoms, C3 wiring, the struct lane)
+- **C3 firmware atoms** (framework 3555bb7, merged ae4cd66): `cmod.custom.c3_atoms` parses the C3 firmware into 41 atoms of project `c3`; each IDF
+  driver call is linked to its registers per call, cited to the ESP-IDF v5.5.5 source; C3 pins in the Registers view show C3 code only.
+- **C3 bench wiring** (7010e06): circuit `c3-light` + 4 BoardPinNet DESIGN rows; the electrical check uses the C3's own cited 3.3 V / 40 mA typical
+  IOH and never the UNO's budgets. Follow-on fixes: the BoardPinNet checks are per board; a Zephyr ingest compares only the devicetree keys of
+  electrical_json (Polari's typical-drive annotation is not a conflict).
+- **The pin view's struct lane** (angular 7fb930e, merged 80df16d): fields beside the board, lane-coloured arrows stamped HW/US, the bridge hop chain,
+  field <-> pin selection both ways; `?struct=1` or the toggle.
+- Suites: cmod 1377/1377, c3 atoms 10/10, board 1043/1043, manifests 25/25, pin-view specs 49/49, AOT build clean. Nothing pushed.
+- OWED: the Chrome pass (needs a deploy - his call), bit-strip / stage-matrix, D-rm-3 redirects; C3 Catom assertions (the C3 lane is empty until
+  a C3 variant has them - the view says so).
+
 ## 2026-10-29 (evening) — "continue on your original work" (space freed: 18 GB)
 - Structs -> pin -> Registers link (a pin row of a signal path opens the Registers tab; pin ref '<soc>:<pin>'); the HAL ELECTRICAL rule (hal_electrical, bench
   wiring rows); **rm-2b the ESP32-C3 registers** (91 / 761, TRM-cited, every bit + address IDF-checked) with C3 taxonomy, reset stage and both-ways view.
