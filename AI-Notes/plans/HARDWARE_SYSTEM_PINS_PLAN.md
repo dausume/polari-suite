@@ -264,6 +264,7 @@ through that change those pieces of the struct from catoms. And those would be d
   host port → userspace), and the struct instances / objects that cross it (from `receives-from-bridge` / `sends-to-bridge` assertions and
   `StructObjectMap`); click a bridge → its structs; click a struct there → jumps into the Structs view at that instance.
 - Both views are configured displays over these rows (no raw JSON); the pin view keeps its per-pin lane as the third angle.
+- The fourth bench view is **Registers** (`REGISTER_MAPPING_PLAN.md`, his ask 2026-10-28): a struct field's catom → the register fields it writes (Catom assertions + RegisterSetting) → their pins and lifecycle stages; Structs / Bridges views link into it.
 
 **Decisions (his):** D-hsp-5 lane vocabulary (isr | loop | task | userspace) = the task plan's LANE words + `userspace` (recommended);
 D-hsp-6 keep `BridgePath` + `PolariBridgeInstance` in grpcbridge (the bridge owns its location, recommended) vs board; ✅ D-hsp-7 RULED

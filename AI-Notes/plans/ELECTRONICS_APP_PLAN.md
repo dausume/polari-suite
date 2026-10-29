@@ -23,7 +23,8 @@ engine X **as a worker tile**" (today `requires.engines[].kind` ∈ {system, pyt
   `EngineProviderBinding` (knob → binding row → `https://<tile>.isle`); `placement` is a hint the targets door honours (`with-usb-boards`,
   `any-member`, `core-only`).
 - `pages` = the bench pages that exist: workbench, bench, pin view, chip ladder, budget, instruments, missions, hardware solutions,
-  C-function atom; `selftests = [electronics_selftest]` (manifest conformance + requires closure + every named tile exists in the
+  C-function atom; + the bench views being added: **Registers** (REGISTER_MAPPING_PLAN rm-4, absorbing hardware-chain / register profile /
+  memory map / pin profile), **Structs** and **Polari Hardware Bridges** (HARDWARE_SYSTEM_PINS_PLAN §7, hsp-3); `selftests = [electronics_selftest]` (manifest conformance + requires closure + every named tile exists in the
   catalog + every page route registered); `security` block like its modules.
 - `uno_core_demo` stays the FIRST SLICE inside it: the acceptance run is its uno-light mission on the twin.
 
