@@ -3,6 +3,29 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-29 (later) — his order: "no code for HAL takes priority ... Then structs/bridges, then registers"
+- **hsp-3c-hal** (framework 4fff470, merged 4a9b97d): `catom_variables.propose` = THE slot write (HAL check vs the proposed set, then the variant's own
+  `resolve`; both must pass); LED/BUTTON/SENSE_PIN live in the FirmwareVariant knob (no copy); lifecycle conditions judged in the board context (fixed:
+  hsp-3d refused D11-13 as if ICSP were connected); `hal-<variant>` no-code drawing (HalVariableState); doors `/api/cmod/catom-variables/{v}/set`,
+  `/solution`; `pol board gen` refuses what the HAL refuses + `catom_hal` in repro. Also fixed: cmod selftest_uno never had the hsp-3a/3d seed counts.
+- **hsp-3b + hsp-3c bridge half** (`dev-hsp-3b`): `/display/bench-views` (Structs / Bridges / HAL tabs, configured tables only); struct instances derived
+  (bridge x HardwareInterfaceBinding); field signal paths from the Catom assertions; bridge mode toggle door + hops by mode (simulated -> board-engines.isle);
+  uno_core_demo readiness names where its bridge is; class-rows-table: a row link that also selects sets the scope then opens the tab.
+- OWED: Chrome pass of /display/bench-views via polari-pol; pin view struct lane (d3); electrical check on a HAL role.
+- **rm-2a / rm-3 / rm-4** built (UNO owed fields + RegisterAccessKind; register categories; the Registers tab, both ways in from a pin).
+- **The long-standing failures FIXED** (his ask: "fix those failures ... the work may have been lost"), branch `dev-fix-registration`:
+  - 11 classes were never registered, so on a real server their seeds were SILENTLY SKIPPED (boot probe: typed=False, CRUDE 404): board Bench /
+    BreadboardModel / ChipLadderEntry (not even in feature_imports), pspp BenchmarkCase / PrecursorSource / ResearchTool / ThresholdReactionWindow (in the
+    seed list, missing from defClassList), and the whole **instruments** module (scaffolded for manifest admission, which only runs on a LIVE admit - a boot
+    never brought it up; the workbench's Instruments step had no doors). Now threaded like every built-in module; boot: 1 bench, 5 breadboards, 18 ladder
+    rows, 8 instruments, pspp 3/6/9/11 rows. testing.Acct1ParityProbe is exempt BY DESIGN (manifests.DEFCLASS_EXEMPT, the reason written).
+  - sc-3: ipb-7 added polari_cycle_line to polari_c3.h (93 lines) without updating the check; it now pins 93 + the new line + the include on line 23.
+  - the four C3 twin 0-frame checks: the local prf-esp-engines:noble image predated smp S5's `--rx-plan` / `--boots` ("unknown option"); rebuilt -> 25/25;
+    light_c3_run.engine_stale() now refuses with the rebuild command instead of "undetermined".
+  - DISK: the rebuild filled / (0 MB); freed docker build cache + dangling images (7.3 GB) + 8 superseded swarm task containers (1.25 GB) -> 8.6 GB free.
+    Big tagged images left for HIS call: polari-proof-tools 11 GB, prf-orfs-engines 4.6 GB, prf-eda-engines 2.6 GB, polari-torch-tools 1 GB. His SSD/HDD
+    arrive Sunday (move docker's data-root onto the SSD). His WavLink: no 24/7 rating found; check its bridge chip (`lsusb`) for UAS quirks + disable sleep.
+
 ## 2026-10-29 — the build order on his go ("You have a go on building"): ea-0 → ipb-8 → hsp-3a → hsp-3d → rm-0 → rm-1
 Codex mailboxes checked 00:55Z: nothing new since CX-031 (isle-core inbox empty; econ = the 07:40 hosting ack only); econ still NOT joined; pol-core's
 `sudo isle dns use-router eno1` still his. Framework dev, each slice its own branch, merged ff, NOT pushed yet:
