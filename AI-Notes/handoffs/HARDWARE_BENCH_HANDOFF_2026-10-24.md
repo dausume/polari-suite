@@ -3,6 +3,13 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-29 (evening) — "continue on your original work" (space freed: 18 GB)
+- Structs -> pin -> Registers link (a pin row of a signal path opens the Registers tab; pin ref '<soc>:<pin>'); the HAL ELECTRICAL rule (hal_electrical, bench
+  wiring rows); **rm-2b the ESP32-C3 registers** (91 / 761, TRM-cited, every bit + address IDF-checked) with C3 taxonomy, reset stage and both-ways view.
+- Disk: pinned OpenSTA (6be0b1d7, the exact binary byte for byte) + ORFS (digest, layers checked) in polari-eda-tools, removed polari-proof-tools (11 GB).
+- OWED: the Chrome pass (needs a deploy - his call: polari-pol is not running; the 8-day staging stack predates this work), bit-strip / stage-matrix,
+  D-rm-3 redirects, the pin view's struct lane, C3 firmware atoms (cmod parses only the UNO project), C3 bench wiring rows (the electrical rule is undetermined there).
+
 ## 2026-10-29 (later) — his order: "no code for HAL takes priority ... Then structs/bridges, then registers"
 - **hsp-3c-hal** (framework 4fff470, merged 4a9b97d): `catom_variables.propose` = THE slot write (HAL check vs the proposed set, then the variant's own
   `resolve`; both must pass); LED/BUTTON/SENSE_PIN live in the FirmwareVariant knob (no copy); lifecycle conditions judged in the board context (fixed:
