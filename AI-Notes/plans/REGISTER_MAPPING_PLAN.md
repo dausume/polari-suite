@@ -93,11 +93,42 @@ distinctions shown everywhere (P§9): **supported** (rows exist + verified), **d
 Acceptance (P§12) maps 1:1: (1) rm-0+rm-4 · (2) rm-0 · (3)(4) rm-3+rm-4 · (5)(6) rm-1 · (7) existing fields kept · (8) rm-5 · (9) rm-0
 deferred branches · (10) every existing selftest (chain, pin view phases, register profile, lifecycle) unchanged.
 
-## 5. Decisions for him
-- **D-rm-1** the domain/role assignment = DERIVED by a cited rule table per chip (recommended) vs typed per register.
-- **D-rm-2** keep the 7 fine PHASES as rows and present the 4 STAGES as a grouping (recommended) vs collapse the rows to 4.
-- **D-rm-3** retire the four old pages behind redirects after rm-4's Chrome pass (recommended) vs keep them as alternate entries.
-- **D-rm-4** C3 ingest scope = the pin path only (IO MUX, GPIO/matrix, strap, UART0, clock enable, reset reason — recommended, P§3) vs the
-  whole TRM.
-- **D-rm-5** rename the board "register" snapshot (`register_map.py`, capability register of boards/adapters) to "board capability
-  register" in the UI so "Registers" means chip registers only (recommended).
+## 5. Decisions — his answers 2026-10-28
+- ✅ **D-rm-1 RULED:** "Rule table per chip that comes from a DataSheet" — every rule row cites the datasheet page/table it was read from.
+  His addition, **deferred to a later round** ("maybe not in this round though"): a STEP-BY-STEP GUIDE that walks a person through a
+  datasheet and lets them enter the rules by hand (pick the register table → classify each register's domain + role → enter field bit
+  ranges, access, reset → cite the page), producing the same rule rows. Recorded as slice **rm-6 (deferred)**.
+- ✅ **D-rm-2 RULED:** "keep all phases, but define groupings of them so we can constrain what we see to what is relevant per view."
+  → the 7 phases stay as rows; `custom/pin_stages.py` defines NAMED GROUPINGS, and each view declares which grouping it shows:
+  `lifecycle-4` (RESET = power-up+reset · BOOTLOADER = bootloader+programming+debug · INITIALIZATION = init · ACTIVE = runtime) for the
+  Registers view's pin-lifecycle panel; `boot-safety` (power-up, reset, bootloader, programming) for the boot-conflict list; `firmware`
+  (init, runtime) for the firmware trace and the Structs view; `all-7` for the pin view's phase mode (unchanged). A grouping is a data
+  row (name, phases, purpose), so a new view adds a grouping instead of a new phase.
+- **D-rm-3 (clarified, open):** today four separate pages each show a slice of this: `/display/hardware-chain` (one pin's chain down to
+  its register fields), the register profile page (a chip's registers grouped by peripheral), the memory map, and cmod's pin profile page.
+  The question: once the new Registers bench view shows all of that in its three panels, do those four pages (a) stay as they are, as
+  separate entries, or (b) stop being separate pages — their address keeps working but opens the Registers view with the same pin or
+  register already selected ("redirect"), so bookmarks and links in other pages still land somewhere useful. Recommended (b), and only
+  after the new view is checked in Chrome.
+- **D-rm-4 (clarified, open):** how much of the ESP32-C3's register map to type in now. The C3 Technical Reference Manual documents
+  hundreds of registers across every peripheral (Wi-Fi, Bluetooth, crypto, timers, LED PWM …). Option (a) only the registers a PIN
+  touches: IO MUX (a pad's function, pull-up/down, drive strength), GPIO + its routing matrix (direction, output, input, interrupt, which
+  peripheral signal is routed to which pad), the strap register (boot-mode pins), UART0 (the programming/console port), the peripheral
+  clock-enable register (to detect "peripheral used but its clock is off"), and the reset-reason register (for the RESET column). Option
+  (b) every register in the manual. Recommended (a): it is what pin configuration and boot safety need; the rest appears in the taxonomy
+  as "documented, not ingested" and gets added when a firmware uses that peripheral.
+- ✅ **D-rm-5 RESOLVED by his explanation (2026-10-28):** "the capability snapshot was supposed to be pinning code to registers, that may
+  be deprecated now. But the way we are switching to pin code to registers now is through the literal pins visualized on the Bench, and
+  how they get tied into code because Catoms get tied to tasks and tasks go to chips, and the catom then ties assertions from the code to
+  pins that can be clicked on. This way the code is tied to pins through assertions for the UI and variables in the real firmware."
+  Facts checked: two things are named "register" in the code. (i) `register_map.py` + `register_rows.json` = the HARDWARE CAPABILITY
+  REGISTER (`AI-Notes/designs/HARDWARE_CAPABILITY_REGISTER.md`: one row per board/adapter — chip, ISA, USB programming method, openness,
+  twin …) → BoardDefinition / AdapterDefinition / Road rows. It never tied code to anything; it stays as the board catalogue (the chip
+  ladder and the bench's board picker read it) and is labelled "board catalogue", not "registers", in the UI. (ii) The code → register
+  tie that DOES exist: `RegisterSetting` + `RegisterFieldSetting` (board, ucd-0a/0b: "uno-button-clock writes EICRA = 0b00000101 at init",
+  each field naming the claim and the task, `source_file` / `source_line`). **His model makes this the firmware-variable END of one
+  chain:** Catom → task → chip (hart affinity, ipb-8) → **Catom assertion** → the clicked pin on the bench (UI side) and → the
+  RegisterFieldSetting the generated firmware writes (firmware side). So `RegisterFieldSetting` gains the asserting catom as its reason
+  (alongside claim + task), and a register write with no asserting catom shows as a gap — the same rule as the Structs view. No separate
+  "code-to-register" route remains; the assertions are the route.
+- **rm-6 (DEFERRED, his D-rm-1 addition):** the datasheet rule-entry guide (a Workbench-style walkthrough producing cited rule rows).
