@@ -110,7 +110,23 @@ deferred branches · (10) every existing selftest (chain, pin view phases, regis
   separate entries, or (b) stop being separate pages — their address keeps working but opens the Registers view with the same pin or
   register already selected ("redirect"), so bookmarks and links in other pages still land somewhere useful. Recommended (b), and only
   after the new view is checked in Chrome.
-- **D-rm-4 (clarified, open):** how much of the ESP32-C3's register map to type in now. The C3 Technical Reference Manual documents
+- ✅ **D-rm-4 RULED 2026-10-28 — option (a), with his condition:** "a is probably fine for now, we need Uart, init, and the other stuff in
+  the picture I sent before accounted for however." → the ingest scope for BOTH chips = every register and field his notebook drawing
+  (HARDWARE_SYSTEM_PINS_PLAN §7) touches, through all four stages:
+  | Drawing element | ATmega328P (UNO) — fields today → owed | ESP32-C3 — owed (TRM, cited) |
+  |---|---|---|
+  | P1/P2 outputs held HIGH (supply), LED P5/P6 | DDRB/D, PORTB/D, PINB/D fields ✅ cited | IO MUX `MCU_SEL`/`FUN_DRV`, `GPIO_ENABLE`, `GPIO_OUT`(_W1TS/_W1TC) |
+  | P3/P4 inputs + pull, button | MCUCR.PUD ✅, PORTx pull-up ✅ | IO MUX `FUN_IE`, `FUN_WPU/WPD`, `GPIO_IN` |
+  | button → INTERRUPT routine | EICRA/EIMSK/EIFR (INT0/1) ✅, PCICR/PCMSK0-2/PCIFR ✅ | `GPIO_PINn_REG` (INT_TYPE, INT_ENA), `GPIO_STATUS`(_W1TC), interrupt-matrix map reg for the GPIO source |
+  | timestampHW (the chip's clock) | Timer2 TCCR2A/B, TIMSK2, TIFR2 ✅ (the HAL's millis timer) | SYSTIMER unit/alarm regs (the IDF tick) |
+  | P7/P8 UART → polling, UIswitch | UBRR0H/L, UCSR0A/B/C, UDR0 — registers ✅ in the snapshot, **FIELDS OWED** (U2X0, RXC0, UDRE0, RXEN0, TXEN0, UCSZ0x … cited bit by bit) | UART0: `UART_CLKDIV`, `UART_CONF0/1`, `UART_STATUS`, `UART_FIFO`; GPIO-matrix routing of U0TXD/U0RXD |
+  | init (configuration ordering) | `RegisterSetting phase=init` rows ✅ (uno-light); clock: CLKPR **owed**; power: PRR (PRUSART0, PRTIM2) **owed** | `SYSTEM_PERIP_CLK_EN0/RST_EN0` (UART, timers) **owed** |
+  | RESET / BOOTLOADER columns | MCUSR (reset source), WDTCSR (Optiboot's watchdog reset) **owed**; Optiboot + DTR auto-reset already in `lifecycle_uno` ✅ | `GPIO_STRAP` (GPIO2/8/9), RTC reset-reason reg **owed**; download mode / USB-Serial-JTAG in `lifecycle_c3` ✅ |
+  | UART-to-USB bridge chip | ATmega16U2 side: `soc_atmega16u2` + package rows ✅ (its pins on the BridgePath hops, hsp-3) | CH340 on the Elecrow S3 (external, no registers: a BridgePath hop with level 3.3 V); the C3's own USB-Serial-JTAG = `USB_SERIAL_JTAG_*` conf/status regs owed |
+  | SREG (global interrupt enable, the masked windows of ipb-7) | SREG.I **owed** as a cited field | `mstatus.MIE` = CPU internal (taxonomy: mcu-internal, shown, not ingested) |
+  rm-2 widens to "rm-2a UNO owed fields (UART0, CLKPR, PRR, MCUSR, WDTCSR, SREG)" + "rm-2b C3 drawing set"; everything else in either
+  manual = "documented, not ingested" in the taxonomy until a firmware uses it.
+- **D-rm-4 (original wording, kept for the record):** how much of the ESP32-C3's register map to type in now. The C3 Technical Reference Manual documents
   hundreds of registers across every peripheral (Wi-Fi, Bluetooth, crypto, timers, LED PWM …). Option (a) only the registers a PIN
   touches: IO MUX (a pad's function, pull-up/down, drive strength), GPIO + its routing matrix (direction, output, input, interrupt, which
   peripheral signal is routed to which pad), the strap register (boot-mode pins), UART0 (the programming/console port), the peripheral
