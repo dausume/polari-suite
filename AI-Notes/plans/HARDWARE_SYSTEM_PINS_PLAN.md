@@ -264,6 +264,35 @@ through that change those pieces of the struct from catoms. And those would be d
   host port → userspace), and the struct instances / objects that cross it (from `receives-from-bridge` / `sends-to-bridge` assertions and
   `StructObjectMap`); click a bridge → its structs; click a struct there → jumps into the Structs view at that instance.
 - Both views are configured displays over these rows (no raw JSON); the pin view keeps its per-pin lane as the third angle.
+- **Catom VARIABLES = the generalized HAL (his words, 2026-10-28):** "a Catom variable can be both a variable and an assertion I suppose.
+  Catom Variables are how we make a generalized HAL, that is defined by people doing data entry for data sheets to define boards and
+  benches. The catom variables/assertions also tie back to the visualization so that firmware can coherently be visualized on a
+  board/bench. Other assertions might be something like 'this is a Tx definition for Uart at this Pin' … We need the variables and
+  assertions to be a way that enforces the logic to the visualization and rules, and then by defining things appropriately for variables,
+  then we can get those variables from no-code."
+  - **What a Catom variable is:** a named HAL value a catom reads (`UART0_TX_PIN`, `LED_PIN`, `BUTTON_PIN`, `F_CPU`, `UART0_BAUD`) whose
+    VALUE for a given board/bench comes from datasheet data entry (board definition) or the bench (what is wired where), and which IS AT
+    THE SAME TIME AN ASSERTION: `UART0_TX_PIN = PD1` asserts "this is the TX of UART0 at pin PD1". Row `CatomVariable`: `name`, `role`
+    (a HAL role word: `uart.tx`, `uart.rx`, `gpio.out`, `gpio.in`, `int.ext`, `adc.in`, `clock.hz` …), `value` per scope (chip default
+    from the datasheet → board → bench override), `type` (pin | number | enum | struct-field | bridge), the assertion it makes
+    (`CatomAssertion` kind `defines-role`: role × pin, plus the existing changes-field / sends-to-bridge kinds), `basis` (datasheet page
+    the default came from, or the bench part), `status`.
+  - **Enforcement, not decoration:** a variable's assertion is checked against the rules before it can take a value: the role must be a
+    function the pin offers (PinFunction: PD1 offers TXD → `uart.tx` legal; PD2 does not → refused by name), the lifecycle stage groupings
+    must allow it (REGISTER_MAPPING_PLAN rm-1: D1 is reserved in BOOTLOADER on the UNO → a warning that names Optiboot), the electrical
+    check must pass, two variables cannot assert conflicting roles on one pin. The same check feeds the visualization: the pin view, the
+    Structs and Bridges views and the Registers view draw the variable at its pin with its role and verdict, so the picture and the rules
+    can never disagree — both read the variable rows.
+  - **From no-code:** the no-code editor offers a catom's variables as SLOTS filtered by role (the `uart.tx` slot lists only pins whose
+    PinFunction offers TXD on this board, ordered by the lifecycle verdict); choosing one writes the variable's bench value, which makes
+    the assertion, which draws it and generates the firmware value (`#define UART0_TX_PIN …` / the HAL table entry). The existing pieces
+    this generalizes: `CAtom.bindings` (literal or knob values to in ports), cmod `code_interface` identifiers of kind `knob` (macro with or
+    without a cited fact), `POLARI_NODE(…, uses(…))` annotations in the HAL — a knob becomes a Catom variable with a role.
+  - **Data entry:** the datasheet rule-entry guide (REGISTER_MAPPING_PLAN rm-6, deferred) is where people define chip defaults; board
+    definitions and bench wiring fill the board/bench scopes. Slice **hsp-3d** (after hsp-3a): `CatomVariable` rows + the `defines-role`
+    assertion + the role vocabulary + the enforcement check, seeded from the UNO HAL's macros (cited) and the C3's; no-code slot filtering
+    in hsp-3c. Proof: `UART0_TX_PIN = PD2` refused naming the pins that offer TXD; `= PD1` accepted with the bootloader warning; the pin
+    view shows `uart.tx` at PD1; regenerated firmware carries the value.
 - The fourth bench view is **Registers** (`REGISTER_MAPPING_PLAN.md`, his ask 2026-10-28): a struct field's catom → the register fields it writes (Catom assertions + RegisterSetting) → their pins and lifecycle stages; Structs / Bridges views link into it.
 
 **Decisions (his):** D-hsp-5 lane vocabulary (isr | loop | task | userspace) = the task plan's LANE words + `userspace` (recommended);
