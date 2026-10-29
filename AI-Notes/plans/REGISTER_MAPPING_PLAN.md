@@ -104,7 +104,7 @@ deferred branches · (10) every existing selftest (chain, pin view phases, regis
   Registers view's pin-lifecycle panel; `boot-safety` (power-up, reset, bootloader, programming) for the boot-conflict list; `firmware`
   (init, runtime) for the firmware trace and the Structs view; `all-7` for the pin view's phase mode (unchanged). A grouping is a data
   row (name, phases, purpose), so a new view adds a grouping instead of a new phase.
-- **D-rm-3 (clarified, open):** today four separate pages each show a slice of this: `/display/hardware-chain` (one pin's chain down to
+- ✅ **D-rm-3 RULED 2026-10-28 — (b), his words: "redirect into the new registers view for now i guess".** The four pages stop being separate entries once rm-4 passes its Chrome check; their routes open the Registers view with the same pin/register pre-selected; nothing deleted ("for now" = reversible). Original wording: today four separate pages each show a slice of this: `/display/hardware-chain` (one pin's chain down to
   its register fields), the register profile page (a chip's registers grouped by peripheral), the memory map, and cmod's pin profile page.
   The question: once the new Registers bench view shows all of that in its three panels, do those four pages (a) stay as they are, as
   separate entries, or (b) stop being separate pages — their address keeps working but opens the Registers view with the same pin or
