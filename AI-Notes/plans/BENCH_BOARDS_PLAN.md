@@ -78,6 +78,26 @@ One ADAPTER per definition kind derives the footholds from the definition's rows
 | bob-2 connections across boards | Wires/jumpers foothold ↔ foothold across any two Boards; MATING (a dev board's header pins pushed into breadboard tie points, a PCB connector onto a header) joins footholds automatically. The layout compiler and the electrical checks (drive limits, levels, one output per node) run over footholds + connections. | A C3 DevKitM-1 on a breadboard wired to an ingested KiCad PCB: one node graph, the 3.3 V vs 5 V check fires across boards, the LED current check reads the foothold drive data. |
 | bob-3 Board Details = the single-Board design simulation view | His addition 2026-10-30 (below). `/display/board-details?board=<BenchBoard>` is a SEPARATE simulation view for ONE Board and its design, dispatching by definition kind. For a layers+physics board it breaks the design down: the layer stack (copper, dielectric, mask, silkscreen, paste, courtyard, edge) one layer at a time; the circuits IN the layers (nets traced across copper and vias, which parts and pads each joins, per-net current/voltage from the circuit simulation); THERMAL behaviour (heat sources from the parts' dissipation, spreading through copper/planes/vias, the board's temperature map); silkscreen and fab layers; footprints and pads per part. For a datasheet board: its package / die levels (today's pin view levels), facts and electrical tables. For a geometry board: the strip drawing and its rules. Linked from every Board on the Bench page and the bench pin view; the Bench never shows this detail itself. | Click-toggle, theme tokens, no raw JSON; one click Bench → Details → back; each simulated number (thermal, net current) names its model and inputs or says undetermined. |
 | bob-4 bench views on footholds | The bench pin view and layout view draw every Board's footholds the same way (a PCB's connector pads like a dev board's header pins); drive/signal modes read foothold data only. | The UNO pin view unchanged byte for byte; the PCB appears on the bench drawing with its connectors. |
+| bob-5 the home bench's own dev boards (✅ BUILT 2026-10-30) | His "go ahead": the Zero, the Feather M0 Express and the Elecrow had no BoardPin rows, so no footholds. Declared as CITED SPECS (board.custom.board_spec), not three more 280-line modules. | Each validates as a board object and yields footholds with every number sourced. |
+
+### bob-4 + bob-5 as built (2026-10-30, his "go agead on those")
+- **bob-5** `board.custom.board_spec`: one spec (docs, facts, headers in physical order, label -> pin, power labels, rails, per-pin electrical, positions,
+  input words) -> DatasheetFact / SocDefinition / SocPin / BoardPin / BoardNet / Connector / ConnectorPin / BoardHardware, appended by board_object_seed;
+  electrical_check reads a spec board's logic level.
+  - Arduino Zero (`board_zero`): ArduinoCore-samd 1.8.14 variant.cpp INGESTED verbatim (custom/upstream/arduino-samd-1.8.14, LGPL-2.1+;
+    `ingest_arduino_variant` parses its pin table) + the schematic V4.0 read rendered (J1 18 = D0..D13 GND AREF SDA SCL; J2 14 = NC IOREF RESET 3V3 5V GND GND
+    VIN A0..A5; ICSP = SERCOM4 SPI; CN2 SWD) + Arduino's tech-specs.yml (3.3 V I/O, 7 mA per pin). Zephyr's arduino_zero has no header map - read, not used.
+  - Feather M0 Express (`board_feather_m0`): Adafruit's Eagle files (JP1 16 / JP3 12, pad positions), variant, learn guide (3.3 V logic, 3V 500 mA peak), AP2112;
+    the chip's drive from the SAM D21 datasheet (`soc_samd21`: source 7 / sink 10 mA at DRVSTR=1, 2 / 2.5 mA at the default) - footholds now carry a separate
+    sink when cited (`electrical.sink_ma`).
+  - Elecrow (`board_elecrow_s3`): IDENTIFIED as the CrowPanel ESP32 E-Paper HMI 3.7" (SKU DIE01237S in the wiki, the silk, the manual); U5 2x10 numbered
+    around the part; 21 on-board GPIOs (e-paper, keys, microSD, LED, UART0) as BoardPins; 3V3 = 3.318 V DERIVED from the RY3420 divider; S3 drive typical
+    40 mA. Recorded, not resolved: his note's UART0 connector is absent from PCB V1.0 (check the unit); which header row faces up (SMD right-angle).
+- **bob-4** `board.custom.bench_scene`: the bench drawn as the PIN VIEW's own payload - GET /api/board/bench:<bench>/pin-view - so the sanctioned
+  hardware-pin-view draws it with no new component (/display/pin-view?board=bench:home-bench; the Bench page's new Drawing tab mounts it). A surface per
+  Board, a mark per foothold, a line per connection; drive words from the foothold data + the bench checks (a finding marks the pin `over`). Positions: the
+  definition's own; uncited ones set out under the board by name (strip x column for a breadboard's holes, connector order for pins) and said in the notes.
+  The layout view's breadboard drawing is not reused here (the marks are the footholds themselves). Chrome pass owed (needs a deploy - his call).
 
 ### The single-Board design simulation view (his words, 2026-10-30)
 > "We can have a seperate simulation view for the breakdown of a single Board and it's design. Going into the layers, going into the details of

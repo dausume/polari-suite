@@ -83,8 +83,18 @@ never a dump of every row.
 - **Our decks = KiCad's**: every element of rectifier (5) and sallen_key (8) equal in nodes, node order and value except sallen_key V1
   ("DC ac=1 AC 1" KiCad vs "DC 0 AC 1" ours); **run on econ: identical vectors** (rectifier max diff 0 over 10008 points, sallen_key 5.6e-15
   over 61 frequencies). References: `pcb/custom/reference/kicad10_spice_*.cir`, `kicad10_sim_*.json`. Fixture sallen_key added (GPL-2+).
-- Still open in kxc-3: waveform storage + the chart (CircuitRunResult / sci-xy-chart), the econ worker binding (deploy = his go), the
-  projection of results onto footholds (rail / logic volts) and onto the single-Board view.
+- ~~Still open in kxc-3: waveform storage + the chart~~ -> kxc-3b below; still open: the econ worker binding (deploy = his go), the projection of
+  results onto footholds (rail / logic volts).
+
+### kxc-3b as built (2026-10-30, his "go agead on those")
+- Composed like the board model (his rule: no object overwhelming with fields): `SpiceRun` (one run: board, deck sha256, plot, points, engine, source
+  local | worker | reference, host, ok / refused) + `SpiceVector` (one per result vector, naming its run: role scale | value, unit DERIVED from ngspice's
+  names - time s, frequency Hz, #branch A, else V - values verbatim, AC as magnitude + phase). PCB_CLASSES 26.
+- `pcb/custom/spice_runs.py`: store / runs / vectors / chart (long form x, y, series; a plain stride, said). /simulate now keeps every run (a refusal too,
+  with its reason); POST /api/pcb/{board}/runs takes a worker's result (econ's libngspice); GET /api/pcb/{board}/runs, /api/pcb/runs/{run}/vectors,
+  /api/pcb/runs/{run}/chart.
+- Board Details: a `runs` part + a Simulation tab (runs -> scope run -> vectors + a named-graph-panel over GraphDefinition `pcb-spice-run`, seeded by
+  board_seed). Checked with econ's recorded reference runs (rectifier tran, sallen_key AC). Chrome pass owed.
 
 ### kxc-4 as built (2026-10-30)
 - `pcb/custom/kicad_geometry.py` + classes `PcbPad` (every pad: type, shape, size, drill, layers, net, ERC type/function, board position + angle),
