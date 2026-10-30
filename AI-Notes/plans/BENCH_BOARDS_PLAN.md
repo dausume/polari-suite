@@ -77,6 +77,23 @@ Its layers (sub-slices of bob-3, each needing the kxc data it reads):
   exposure (E2 → bench). EnclosureContact rows stay the definition-level chain (die → package → board).
 - Mission (MISSION_GENERIC_PLAN): the Inventory step reads Boards on the Bench; Combine places parts on footholds.
 
+## 5b. As built
+
+- **D-bob-1..3 his (2026-10-30): "Just go with recommendations"** → foothold; extend electrodevice `BenchBoard`; one breadboard class into `BoardModel`.
+- **bob-0 ✅ BUILT 2026-10-30:** `BoardFoothold` (board module; derived on read for datasheet/geometry, stored by the PCB ingest) +
+  `board.custom.footholds` (datasheet / geometry adapters, dispatcher) + `pcb.custom.kicad_footholds` (layers: connector / test pads, positions =
+  pcbnew's on all 198 pads of two demo boards, references in `pcb/custom/reference/`) + door `GET /api/board/footholds/{kind}/{definition}`.
+  UNO 38 footholds (4 GND pins one node), C3 30, half breadboard 400 / 64 nodes, ecc83 PCB 12 pads; every number cited or -1 + reason.
+  With kxc-2, a PCB foothold names what is behind its pad (the schematic net's pins + ERC types; drivers → direction out, inputs only → in).
+- **bob-1 (part a) ✅ BUILT 2026-10-30:** `BenchBoard` gains `bench`, `definition_kind`, `definition`; `board.custom.bench_boards`: ONE list per
+  bench (the older two lists + BenchBoard rows naming the bench); doors `GET /api/board/benches/{bench}/all-boards`,
+  `POST /api/board/benches/{bench}/pcbs`. **Found:** three of the four dev boards on home-bench (Zero, Feather M0, ESP32-S3 e-paper) have NO
+  BoardPin rows → no footholds (said per row). Still open in bob-1: the breadboard class merge (D-bob-3), the Bench page reading the one list.
+- **bob-3 (part a) ✅ BUILT 2026-10-30:** `/display/board-details?board=<kind>/<definition>` (`board_details_page.py`, configured tables only):
+  picker = the Boards on home-bench; tabs Summary / Footholds / Nets / Parts / Layers / KiCad coverage, all from `GET /api/board/details/{kind}/
+  {definition}/{part}` (`board.custom.board_details`). Each bench row now carries `board` = kind/definition and `details` = the page link.
+  The design-simulation drawing (copper per layer, circuits in the layers, thermal map) is the next part; its data now exists (kxc-4).
+
 ## 6. Decisions (his)
 
 - D-bob-1: the word. "foothold" (his) for the bench-level landing point — recommended, distinct from the chip-level "pin" and the

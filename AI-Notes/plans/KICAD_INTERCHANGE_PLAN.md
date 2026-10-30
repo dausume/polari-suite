@@ -36,9 +36,9 @@ So:
 | Slice | What | Acceptance |
 |---|---|---|
 | **kxc-1** preserve + identify ✅ BUILT 2026-10-30 | `read_dir` takes EVERY project file (bounded to the project dir; 3D models listed by sha, not read). `KiCadArtifact` row per file (path, kind, sha256, bytes, handling). `KiCadCoverage` row per (file, element kind): count + handling (`typed:<Class>` / `counted` / `preserved`). Sheets walked by INSTANCE (uuid path, ancestor-cycle check) — a child sheet used twice yields two instances. `SchematicSymbol` row per PLACED instance: uuid, instance path, ref, unit, lib_id, value, footprint, position/rotation/mirror, in_bom/on_board/dnp, ALL properties (Sim.* split out). Ingested net volts = unknown (-1, said). | Every file of a project is an artifact; coverage lists every element kind of every file; a twice-used sheet → 2 instances with distinct refs; Sim.* of the UNO sim project survive; no `volts 0.0` invented. |
-| kxc-2 electrical graph | Our own connectivity from the schematic (pins, wires, junctions, labels local/global/hierarchical, power symbols, no-connects, buses) → `SchematicNet` + `NetEndpoint` (instance uuid path + pin) with ERC pin types. Cross-checked against `kicad-cli sch export netlist` when the worker is there. | UNO fixture endpoint sets equal KiCad's netlist; reversed LED caught; a dangling pin reported; reused sheets scope their local nets. |
-| kxc-3 simulation | `SimulationModel` rows (Sim.Device/Type/Params/Pins/Library, the `.lib`'s sha + text kept as artifact), directives, the `.wbk` (analyses, probes, signals). Our renderer gains PULSE/PWL/SIN/AC sources and `.ac`/`.dc`/`.noise`; `spice_run` runs libngspice as well as an executable (in a bounded worker process). Full waveforms stored (sci-xy-chart), with run provenance. | KiCad-exported and Polari-rendered decks of the same circuit agree within stated tolerances (amplitude, timing, current sign); reversed-LED control fails as expected. |
-| kxc-4 PCB complete | Pads per footprint (number, shape, size, position, layers, net, drill); tracks/arcs/vias as geometry rows; zones (polygons, net, layer, fill rules); net classes + assignments from `.kicad_pro`; custom rules from `.kicad_dru` as rows; dimensions/text/graphics counted→typed as needed. | A routed fixture with back-side parts, vias, arcs, zones and custom rules: every element typed or preserved, counts equal KiCad's `pcb export stats`. |
+| kxc-2 electrical graph ✅ BUILT 2026-10-30 | Our own connectivity from the schematic (pins, wires, junctions, labels local/global/hierarchical, power symbols, no-connects, buses) → `SchematicNet` + `NetEndpoint` (instance uuid path + pin) with ERC pin types. Cross-checked against `kicad-cli sch export netlist` when the worker is there. | UNO fixture endpoint sets equal KiCad's netlist; reversed LED caught; a dangling pin reported; reused sheets scope their local nets. |
+| kxc-3 simulation (part a ✅ BUILT 2026-10-30: deck + runner) | `SimulationModel` rows (Sim.Device/Type/Params/Pins/Library, the `.lib`'s sha + text kept as artifact), directives, the `.wbk` (analyses, probes, signals). Our renderer gains PULSE/PWL/SIN/AC sources and `.ac`/`.dc`/`.noise`; `spice_run` runs libngspice as well as an executable (in a bounded worker process). Full waveforms stored (sci-xy-chart), with run provenance. | KiCad-exported and Polari-rendered decks of the same circuit agree within stated tolerances (amplitude, timing, current sign); reversed-LED control fails as expected. |
+| kxc-4 PCB complete ✅ BUILT 2026-10-30 | Pads per footprint (number, shape, size, position, layers, net, drill); tracks/arcs/vias as geometry rows; zones (polygons, net, layer, fill rules); net classes + assignments from `.kicad_pro`; custom rules from `.kicad_dru` as rows; dimensions/text/graphics counted→typed as needed. | A routed fixture with back-side parts, vias, arcs, zones and custom rules: every element typed or preserved, counts equal KiCad's `pcb export stats`. |
 | kxc-5 export | Polari → KiCad: multi-sheet `.kicad_sch` with symbols, rotations, wires or labels, Sim fields; netlist; an unrouted `.kicad_pcb` (footprints placed from our placement rows, nets assigned, outline from our board shape). Every export run through kicad-cli (ERC/DRC/netlist) and compared with our graph; an export report lists what had no KiCad form. UNO/C3 bench circuits export with the DevKitM-1 / UNO parts. | Exported projects open in KiCad 10, ERC clean except stated, re-exported netlist = our graph; C3 bench circuit uses RF_Module:ESP32-C3-DevKitM-1 pins via `kicad_devkit_pin`. |
 | kxc-6 views | Pages for the ingested/exported objects: coverage table, schematic net navigator, pad-level footprint view, simulation waveforms with probes/cursors (Codex part C informs). The board-level breakdown (layers, circuits in the layers, thermal, silkscreen, footprints) is the single-Board design simulation view, BENCH_BOARDS_PLAN bob-3. | Theme tokens, no raw JSON, click-toggle. |
 
@@ -50,6 +50,39 @@ So:
   saw 73 symbols, now 119) and `simulation/rectifier/` (Sim fields + diode.mod). Ubuntu's KiCad 10 demos on econ say "GPL v2" only
   (no "or later") — NOT vendored.
 - Tests: pcb 55/55 (7 new), manifests 25/25, `tests/kxc1_liveboot_probe.py` 8/8 (real boot, POST /api/pcb/ingest stores the rows).
+
+### kxc-2 as built (2026-10-30)
+- `pcb/custom/kicad_connect.py`: our own nets from the .kicad_sch (library pin tips transformed by mirror + rotation, wires with T-joins, junctions,
+  local / global / hierarchical labels per sheet INSTANCE, global power symbols = a (power) symbol with power_in pins — PWR_FLAG joins nothing by
+  name, shared unit pins counted once). Classes `SchematicNet` (scope, aliases, ERC pintype counts, kicad_check) + `NetEndpoint` (ref, unit, pin,
+  name, ERC type, instance path, position, no-connect).
+- **Our nets = KiCad's, 69 of 69**, groups AND names, on the three fixtures (ecc83 13, rectifier 4, complex_hierarchy 52 across both sheet
+  instances); references = `kicad-cli sch export netlist` (KiCad 10.0.6 on econ) in `pcb/custom/reference/kicad10_nets_*.tsv`. The ingest marks
+  every SchematicNet same / differs whenever the engine's netlist is in the record (`ingest.ours_vs_kicad`).
+- Buses not expanded yet (coverage says preserved).
+
+### kxc-3 (part a) as built (2026-10-30)
+- `pcb/custom/kicad_spice.py`: the deck from OUR rows — Sim.Device / Sim.Type / Sim.Params / Sim.Pins / Sim.Library + Sim.Name (subcircuit ports
+  read from the library's .subckt line; .model kind → D/Q/M/J), sources DC / SIN / PULSE / EXP / SFFM / AM / PWL + AC, passives inferred from the
+  reference letter, KiCad's value reading (1M → 1Meg), the schematic's text directives, model files included by name. `parse_deck` reads any deck.
+- `electrodevice/custom/ngspice_shared.py` + `ngspice_shared_runner.py`: libngspice (what KiCad ships; econ has it, pol-core has neither) run in
+  its own bounded process; capability says executable vs shared library separately. Doors `GET /api/pcb/{board}/spice-deck`,
+  `POST /api/pcb/{board}/simulate` (`pcb_sim_api.py`).
+- **Our decks = KiCad's**: every element of rectifier (5) and sallen_key (8) equal in nodes, node order and value except sallen_key V1
+  ("DC ac=1 AC 1" KiCad vs "DC 0 AC 1" ours); **run on econ: identical vectors** (rectifier max diff 0 over 10008 points, sallen_key 5.6e-15
+  over 61 frequencies). References: `pcb/custom/reference/kicad10_spice_*.cir`, `kicad10_sim_*.json`. Fixture sallen_key added (GPL-2+).
+- Still open in kxc-3: waveform storage + the chart (CircuitRunResult / sci-xy-chart), the econ worker binding (deploy = his go), the
+  projection of results onto footholds (rail / logic volts) and onto the single-Board view.
+
+### kxc-4 as built (2026-10-30)
+- `pcb/custom/kicad_geometry.py` + classes `PcbPad` (every pad: type, shape, size, drill, layers, net, ERC type/function, board position + angle),
+  `NetGeometry` (ONE row per net — D-kxc-2 as recommended, his to confirm: segments / arcs / vias lists, length, layers), `PcbZone` (pours,
+  keep-outs, teardrops: outline, outline area, FILLED area, thermal relief), `PcbNetClass` (.kicad_pro classes + their nets by assignment /
+  pattern / Default), `PcbDesignRule` (.kicad_dru rules), `PcbLayerGraphics` (silkscreen / fab / courtyard / edge / user drawings per layer +
+  item kind: count + bbox, board-level and in footprints). Coverage: footprint, segment, arc, via, zone, gr_* now TYPED.
+- **= pcbnew's** on both demo boards: pads 165 / 33, segments 364 / 59, zones 166 / 1, per-net routed length exact, every zone's filled area
+  within 0.002 mm² (reference `pcb/custom/reference/pcbnew_geometry_*.json`).
+- Not yet: dimensions, groups, text strings as rows (still preserved in the kept file); geometry drawn (kxc-6 / bob-3 design view).
 
 ### Boards on the Bench (his ruling 2026-10-30, BENCH_BOARDS_PLAN.md)
 An ingested (or Polari-designed) PCB is a **layers + physics board definition** — one of the definition kinds a Board on the Bench can point
