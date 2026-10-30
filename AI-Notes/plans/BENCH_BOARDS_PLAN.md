@@ -134,6 +134,10 @@ Its layers (sub-slices of bob-3, each needing the kxc data it reads):
   names a pin lands on that pin's row: `defined` names the circuit + role + net, refuse = a check, warn / undetermined = a note (D6: 13.636 mA with
   the ASSUMED 2 V LED, Vf-free ceiling 22.727 mA vs the cited 20 mA; D2: no pull). New cross-check: firmware use vs the circuit's role for the pin
   (a firmware that reads a pin the circuit drives = role mismatch). The page's pins table shows `defined`.
+- **bob-2d ✅ BUILT 2026-10-30:** the firmware a Board RUNS = a BenchConnection of kind `firmware` (POST .../firmware {board, firmware}); the bench
+  then shows only that firmware's pin use (others: "uno-light (if flashed)") and the board-level checks run with its binding
+  (`<solution>@<board>`), so they read its real PinClaims - uno-light's D2 pull-up (hal_button_init: PORTD |= _BV(PD2)) turns the false "D2 has
+  no pull" warning into ok. (esp32c3-light has no FirmwareSolution yet: its claims are not derivable - said, never guessed.)
 - **bob-3 (part a) ✅ BUILT 2026-10-30:** `/display/board-details?board=<kind>/<definition>` (`board_details_page.py`, configured tables only):
   picker = the Boards on home-bench; tabs Summary / Footholds / Nets / Parts / Layers / KiCad coverage, all from `GET /api/board/details/{kind}/
   {definition}/{part}` (`board.custom.board_details`). Each bench row now carries `board` = kind/definition and `details` = the page link.
