@@ -51,6 +51,11 @@ So:
   (no "or later") — NOT vendored.
 - Tests: pcb 55/55 (7 new), manifests 25/25, `tests/kxc1_liveboot_probe.py` 8/8 (real boot, POST /api/pcb/ingest stores the rows).
 
+### Boards on the Bench (his ruling 2026-10-30, BENCH_BOARDS_PLAN.md)
+An ingested (or Polari-designed) PCB is a **layers + physics board definition** — one of the definition kinds a Board on the Bench can point
+at, equal to a datasheet-defined dev board and a geometry-defined breadboard. kxc feeds that definition; the Bench reads only the PCB's
+footholds (its connector pads, with node / drive / signal derived from kxc-2 connectivity and kxc-4 pads).
+
 ## 4. Placement
 
 Ingest/parse/rows = framework (pure Python, no KiCad needed). kicad-cli + libngspice runs = the KiCad worker on econ-core (plan only
