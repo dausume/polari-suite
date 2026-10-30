@@ -111,7 +111,7 @@ Its layers (sub-slices of bob-3, each needing the kxc data it reads):
 - **bob-1 (part a) ✅ BUILT 2026-10-30:** `BenchBoard` gains `bench`, `definition_kind`, `definition`; `board.custom.bench_boards`: ONE list per
   bench (the older two lists + BenchBoard rows naming the bench); doors `GET /api/board/benches/{bench}/all-boards`,
   `POST /api/board/benches/{bench}/pcbs`. **Found:** three of the four dev boards on home-bench (Zero, Feather M0, ESP32-S3 e-paper) have NO
-  BoardPin rows → no footholds (said per row). Still open in bob-1: the breadboard class merge (D-bob-3), the Bench page reading the one list.
+  BoardPin rows → no footholds (said per row). The breadboard class merge (D-bob-3) is built - see §6.
 - **bob-2 ✅ BUILT 2026-10-30:** `BenchConnection` (bench, from board + foothold, to board + foothold, kind wire | jumper | mated, colour);
   every Board on the Bench has a stable `id` (boards_json#n, breadboards_json#e.k, a BenchBoard name); `board.custom.bench_nets`: union-find over
   each board's own nodes + the connections → nets that cross boards, findings from foothold data only (supply-conflict, supply-to-ground,
@@ -157,3 +157,17 @@ Its layers (sub-slices of bob-3, each needing the kxc data it reads):
   board-module class.
 - D-bob-3: one breadboard class: keep board.BreadboardModel's fields (tie points, power limits) merged into electrodevice.BoardModel kind
   breadboard — recommended (BoardModel already spans kinds).
+  **Built 2026-10-30 (his "go ahead ... if there are sensible sub-classes that can compose it ... via references go with that; we do not want
+  one object to overwhelm someone with how many fields are on it"):** a straight merge would have been ~25 fields, most meaningless for a
+  devboard. Instead (electrodevice/objects/layout/):
+    BoardModel        identity only, 9 fields: name, title, kind, vendor, part_number, status (built | unverified | reserved), board_definition,
+                      description, notes
+    BreadboardLayout  the strips and rails (size, rows, holes_per_side, rails, rail_holes, pitch_mm, tie_points, basis) - breadboards only
+    BoardOutline      a vendor-STATED outline + `drawable` (the derived drawing fits it) - only where a size is cited (the BUD); otherwise derived on read
+    BoardRating       vendor-rated rail voltage / current - only where a source states it (or states there is none: the BUD's n/a)
+  each sub-row names its model by `board_model` (one per model). Read whole by electrodevice.custom.board_models.composed() - a read view, never
+  stored - which the board family, the bench's breadboard list and the footholds use. board.BreadboardModel is deleted (BOARD_CLASSES 67);
+  its five seeds are BoardModel rows now (eight models in all). The older names half-400 / full-830 resolve to breadboard-half / breadboard-full
+  (MODEL_ALIASES), so a Bench saved before the merge still reads. An `unverified` model (the kit's breadboard) refuses a layout like a reserved one.
+  Found on the way: kxc-5b's round-trip check had broken after bob-2d (the "(if flashed)" marker was written INTO the variant name); now a use
+  carries `running` and the KiCad field adds `:if-flashed` as its own tag.
