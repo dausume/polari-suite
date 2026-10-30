@@ -3,6 +3,17 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-30 (later) — HIS RULING: Polari is the source of truth; kxc-1 built
+- **His words:** "we should keep polari as the source of truth, but make it so we ensure we encapsulate everything KiCAD has as well, so we can
+  ingest files coming from KiCAD, since it sounds like fully two way design is not feasible. We should make what exports we can from polari to
+  kiCad possible happen, but keep polari and our structuring as the focus". Overrides econ Codex's "KiCad native authoritative".
+- **Plan:** `AI-Notes/plans/KICAD_INTERCHANGE_PLAN.md` (kxc-1 preserve+identify · kxc-2 electrical graph · kxc-3 simulation · kxc-4 PCB complete ·
+  kxc-5 export · kxc-6 views; D-kxc-1 raw bytes in row vs file store, D-kxc-2 geometry granularity — his).
+- **kxc-1 BUILT** (framework `dev-kxc-1`): every project file a KiCadArtifact, every element kind a KiCadCoverage row, sheets walked by instance
+  (the reused-sheet bug: 73 → 119 symbols), SchematicSymbol per placed instance with every property + Sim.* split out, net volts unknown (-1).
+- **econ Codex:** replied in its own folder (`~/collab/electronics-kicad-review-2026-10-30/ASSESSMENT.md`); CX-033 sent with the ruling + open
+  parts A/B2/C. It acts only when Dustin starts it.
+
 ## 2026-10-30 — KiCad cross-compare with econ (kxc-0), on `dev-electronics`
 - **Branch rule (his, 2026-10-29):** electronics work lives on remote `dev-electronics` (four repos), NOT dev, until the isle work lands; then
   both merge and get tested together in the browser/app views.
