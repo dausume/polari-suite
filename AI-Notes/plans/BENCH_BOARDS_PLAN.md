@@ -126,9 +126,14 @@ Its layers (sub-slices of bob-3, each needing the kxc data it reads):
   supplies / a supply and ground); notes for floating inputs and for loads (no board-level circuit defines a load yet - the mA limits wait for
   one). Door `GET /api/board/benches/{bench}/pins`. /display/bench's "Boards on the bench" tab: the one list, then the PINS table; the bench
   NETLIST (bench_nets, `GET .../nets`) only in its own popup ("Bench netlist" picker-button, his follow-up); the raw wiring table beside it.
-  Next (bob-2c): connections DEFINED at board level with real drive behaviour - a breadboard circuit (CircuitDefinition: R + LED) or a PCB
+  bob-2c (below) followed: connections DEFINED at board level with real drive behaviour - a breadboard circuit (CircuitDefinition: R + LED) or a PCB
   schematic net converted into a pin <-> load connection whose current / level requirement comes from the board-level schematic (electrical_check
   / the simulation), so the load check reads real numbers.
+- **bob-2c ✅ BUILT 2026-10-30:** a board-level circuit built on the bench = a BenchConnection of kind `circuit` (POST .../circuits {board,
+  circuit, on?}); bench_pins runs board.custom.electrical_check on it (the circuit's BoardPinNet binding to the board's pins) and each finding that
+  names a pin lands on that pin's row: `defined` names the circuit + role + net, refuse = a check, warn / undetermined = a note (D6: 13.636 mA with
+  the ASSUMED 2 V LED, Vf-free ceiling 22.727 mA vs the cited 20 mA; D2: no pull). New cross-check: firmware use vs the circuit's role for the pin
+  (a firmware that reads a pin the circuit drives = role mismatch). The page's pins table shows `defined`.
 - **bob-3 (part a) ✅ BUILT 2026-10-30:** `/display/board-details?board=<kind>/<definition>` (`board_details_page.py`, configured tables only):
   picker = the Boards on home-bench; tabs Summary / Footholds / Nets / Parts / Layers / KiCad coverage, all from `GET /api/board/details/{kind}/
   {definition}/{part}` (`board.custom.board_details`). Each bench row now carries `board` = kind/definition and `details` = the page link.

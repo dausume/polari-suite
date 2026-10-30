@@ -108,6 +108,11 @@ never a dump of every row.
 - His correction (BENCH_BOARDS_PLAN): the Bench is pins, not a netlist; this export is of the bench NETLIST view (its popup), a board-level
   artifact - the main bench never shows it.
 - Done the same day: the C3 as KiCad's own RF_Module:ESP32-C3-DevKitM-1 (cited pin map); KiCad re-read it 11/11, ERC clean of power clashes.
+- **kxc-5b ✅ 2026-10-30 (his "encode critical data in standard label / description data"):** every exported part carries hidden
+  Polari.Board / Polari.Definition / Polari.Connector / Polari.Drive (per pin: direction, volts, source / sink mA) / Polari.Firmware (per pin:
+  variable + role); the ingest reads them back into SchematicSymbol.polari_json. **Round trip proven:** our export → KiCad 10 re-saved it
+  (`kicad-cli sch upgrade`, its format 20260306) → our ingest: the same fields for all six parts, nets equal, no problems; KiCad's own netlist
+  carries the fields too. Reference `pcb/custom/reference/kicad10_resaved_bench_export.kicad_sch`.
 - Open in kxc-5: ingested schematics re-exported; an unrouted .kicad_pcb.
 
 ### Boards on the Bench (his ruling 2026-10-30, BENCH_BOARDS_PLAN.md)
