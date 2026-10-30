@@ -20,6 +20,18 @@ So:
 - **No sync.** Re-ingesting an edited KiCad project produces a NEW ingested revision plus a diff against the Polari design; a person
   (or a later rule) adopts changes into the Polari rows. No merge engine, no native-file editing in place.
 
+### His addition (2026-10-30): encode what has no direct conversion
+
+> "note if there are not direct conversions between KiCAD and polari data, we can attempt to encode that data into standard label and description
+> data in KiCAD, for things where it is critical"
+
+So, on EXPORT, Polari data with no KiCad equivalent but critical to keep rides in KiCad's own standard places: hidden symbol PROPERTIES with a
+`Polari.` prefix (as KiCad itself keeps `Sim.*`: Polari.Board, Polari.Definition, Polari.Connector, Polari.Drive - logic V / source and sink mA and
+their basis, Polari.Firmware - which variable uses the pin and how, Polari.Source - the row and its sha), net LABELS (names) and the title block's
+comments / the symbol Description. On INGEST those fields are read back (they already survive: SchematicSymbol.properties_json keeps every property),
+so a Polari export that went through KiCad comes back with its identity and its critical data. Rule: only what is CRITICAL (safety, identity, drive),
+never a dump of every row.
+
 ## 2. Where we are (kxc-0, 2026-10-30)
 
 - Board netlists checked against KiCad 10's own libraries; importer goes by package pin number; C3 netlist names KiCad parts;
@@ -93,8 +105,10 @@ So:
 - **KiCad reads it the same**: on econ, kicad-cli 10.0.6 re-exported the netlist of the test bench's schematic → 11 of 11 multi-pin nets equal ours,
   none extra; ERC: 29 unconnected pins (= the writer's list) + 5 single-pin labels (a pin whose breadboard strip holds nothing KiCad can draw).
   References `pcb/custom/reference/kicad10_bench_export.json` + the nine symbols used (`kicad10_symbols_bench_export.txt`, CC-BY-SA-4.0 + exception).
-- Open in kxc-5: the C3 as KiCad's own RF_Module:ESP32-C3-DevKitM-1 part (via board_c3.kicad_devkit_pin) instead of two generic headers;
-  ingested schematics re-exported; an unrouted .kicad_pcb.
+- His correction (BENCH_BOARDS_PLAN): the Bench is pins, not a netlist; this export is of the bench NETLIST view (its popup), a board-level
+  artifact - the main bench never shows it.
+- Done the same day: the C3 as KiCad's own RF_Module:ESP32-C3-DevKitM-1 (cited pin map); KiCad re-read it 11/11, ERC clean of power clashes.
+- Open in kxc-5: ingested schematics re-exported; an unrouted .kicad_pcb.
 
 ### Boards on the Bench (his ruling 2026-10-30, BENCH_BOARDS_PLAN.md)
 An ingested (or Polari-designed) PCB is a **layers + physics board definition** — one of the definition kinds a Board on the Bench can point

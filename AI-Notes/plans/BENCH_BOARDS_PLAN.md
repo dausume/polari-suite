@@ -22,6 +22,29 @@ Two levels, kept apart:
   | layers + physics | the copper, stackup, parts and nets of a design (a KiCad import or a Polari design) | PcbBoard + Placement + Footprint + Route + SchematicSymbol + BoardNet (pcb, kxc) |
   A **Board Details page** per definition kind is where one dives in from the Bench.
 
+### His correction (2026-10-30, later) - the Bench is NOT a netlist
+
+> "keep in mind that the board is only concerned about connections and pins, it is not meant to be a complete netlist, the netlist/schematic can be
+> something addressed at the board level that gets converted into a connection with drive and signal characteristics at the Bench level. The Bench
+> level is focused around pins from board and chips and their connections to firmware and the pin driving requirements being met from inherent
+> properties of pins and defined connections. Connections may be something we want defined at the board level since it needs robust schematics to
+> define real drive behavior and safety handling."
+
+So:
+- **Board level** holds schematics / netlists (a PCB's, a breadboard circuit's) and is where real drive behaviour and safety handling are worked out.
+- A board-level definition is CONVERTED into **bench connections**: pin <-> pin, or pin <-> load, each with DRIVE and SIGNAL characteristics (the
+  current it needs, the level it needs, which side drives, the safety handling it carries) and the board-level definition it came from.
+- **Bench level** = pins of boards and chips + their firmware use + those connections; the check is per pin: do the pin's INHERENT properties (source /
+  sink limit, logic level, direction) meet the requirements of the connections defined on it.
+- bob-2 as first built drifted: it unions breadboard strips and wires into bench-wide nets. That union is the board-level CONVERSION step; its output
+  must be pin-to-pin connections with characteristics, and the checks must be per pin (bob-2b).
+
+His follow-up the same day: "We can still have a bench level netlist view, it should just not be the main focus at the Bench level. The bench level is
+meant to make it intuitive for normal people and simplify things to be concerned about the minimum possible. The Bench level netlist can exist but be
+it's own seperate view that comes as a popup, it would overcrowd the main view to put a full netlist on there with the visualizations of real
+components." → the bench netlist (bob-2's union, `GET .../nets`) stays as its OWN view, opened as a POPUP from the bench; the main bench view shows
+only pins, their connections and whether the drive requirements are met.
+
 ## 2. Where we are (gaps)
 
 - `Bench` keeps two lists (`boards_json` dev/eval boards, `breadboards_json` breadboards); PCBs cannot be on a Bench.
@@ -96,10 +119,26 @@ Its layers (sub-slices of bob-3, each needing the kxc data it reads):
   yet); `mate_header` (a 1 x N header pushed into breadboard holes). Doors `GET|POST /api/board/benches/{bench}/connections`, `POST .../mate`,
   `GET .../nets` (`bench_nets_api.py`). His example works: C3 on a breadboard wired to the UNO → one graph; UNO D6 onto C3 IO0's strip = over-voltage.
   Open: pulls as foothold facts; current budgets across boards (LED current through a series part needs the circuit, kxc-3); the bench page drawing.
+- **bob-2b ✅ BUILT 2026-10-30 (after his correction):** `board.custom.bench_pins` CONVERTS the board-level wiring (wires, mated headers, a
+  breadboard's strips) into the main bench view: one row per PIN (pins a board joins inside = one row, "UNO GND (4 pins)"; no breadboard hole is
+  ever a row - holes are named in `via`), its FIRMWARE use (CatomVariable: LED_PIN gpio.out in uno-light ...), the pins it reaches, and checks of
+  the pin's inherent properties against its connections + firmware: over-voltage, contention (two outputs driving each other), short (two
+  supplies / a supply and ground); notes for floating inputs and for loads (no board-level circuit defines a load yet - the mA limits wait for
+  one). Door `GET /api/board/benches/{bench}/pins`. /display/bench's "Boards on the bench" tab: the one list, then the PINS table; the bench
+  NETLIST (bench_nets, `GET .../nets`) only in its own popup ("Bench netlist" picker-button, his follow-up); the raw wiring table beside it.
+  Next (bob-2c): connections DEFINED at board level with real drive behaviour - a breadboard circuit (CircuitDefinition: R + LED) or a PCB
+  schematic net converted into a pin <-> load connection whose current / level requirement comes from the board-level schematic (electrical_check
+  / the simulation), so the load check reads real numbers.
 - **bob-3 (part a) ✅ BUILT 2026-10-30:** `/display/board-details?board=<kind>/<definition>` (`board_details_page.py`, configured tables only):
   picker = the Boards on home-bench; tabs Summary / Footholds / Nets / Parts / Layers / KiCad coverage, all from `GET /api/board/details/{kind}/
   {definition}/{part}` (`board.custom.board_details`). Each bench row now carries `board` = kind/definition and `details` = the page link.
   The design-simulation drawing (copper per layer, circuits in the layers, thermal map) is the next part; its data now exists (kxc-4).
+- **bob-1b ✅ 2026-10-30:** /display/bench gains the tab "Boards on the bench (one list)": every Board with a Board Details link (`view` cell),
+  the connections, the nets across boards with their findings.
+- **bob-3b ✅ 2026-10-30:** Board Details tabs for a PCB's design - Pads, Copper (per net: segments, vias, length, narrowest track, DC resistance
+  rho L / (w t) per segment, t from the board's stackup, rho = IEC 60028 annealed copper by definition; the net sum labelled an UPPER BOUND),
+  Zones (filled copper area), Silkscreen + drawings, Net classes + rules. Thermal is NOT built: it needs each part's dissipation (the circuit
+  simulation, kxc-3) and a spreading model - said on the page.
 
 ## 6. Decisions (his)
 
