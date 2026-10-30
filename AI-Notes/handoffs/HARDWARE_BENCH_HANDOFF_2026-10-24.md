@@ -3,6 +3,30 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-29 (late night) — "Keep working, feel free to use agents": C3 Catom assertions + the C3 in the pin view
+- **CORRECTION to the entry below:** the pin view could not draw the C3 at all (its shapes were the UNO's only), so "the C3 lane is empty" was the
+  wrong reason. Both halves are fixed now.
+- **C3 Catom assertions** (`dev-c3-assertions`): 9 assertions on esp32c3-light's FreeRTOS tasks (lane `task`), struct ButtonClockState_t, map
+  ButtonClockState_t->ButtonClockState, bridge **c3-1-bridge** (SIMULATED: the QEMU esp32c3 twin on the esp-engines worker; the serial path is the c3-light
+  design's five hops, chip hop at the cited 3.3 V, the rest -1). Pins come from LIGHT_KNOBS + board_c3's frame symbols (LED GPIO0, sense GPIO1, button
+  GPIO3, UART0 TX GPIO21 / RX GPIO20). No C3 cycle record -> every C3 assertion unverified, said. Gaps carry their reason (clock-sync half unused; command
+  fields decoded into a copy). New door `GET /api/cmod/catom-assertions?board=B` -> the pin view's lane loads the board's asserted variant when no binding
+  is chosen. twin_hops is per board (TWINS: the C3 -> QEMU on esp-engines, never "simavr").
+- **C3 in the pin view** (`dev-c3-pv`): J1/J3 as Connector + ConnectorPin rows from the DevKitM-1 user guide's Header Block; outline 25.40 x 38.91, rows
+  22.86 apart, pitch 2.54, pin 1 at the antenna end - CITED from Espressif's dimension drawing (sha256 284d7b40...); inset / offset / corners / U1 place = knobs.
+  **Latent bugs fixed on the way** (they fired only once the C3 had headers, i.e. a board enclosure): `exposure.build` ran the UNO's E2 builder (UNO
+  schematic cite + UNO typed paths) for EVERY board with one, which put ATmega legs, ICSP1, X2... on the C3; the C3 now has its own `exposure_e2_c3`
+  (QFN leg -> BoardPin -> J1/J3, partial: the MINI-1 module is not traced). `exposure_view.header_pins` matched rails by net name only (C3 GND -> UNO GND
+  pins): now per board. The KiCad ingest matched header pins by printed label only (the DevKitM-1's are silk: IO0, TX): it falls back to the ConnectorPin's
+  board_pin. J1/J3 joined the C3's BoardHardware components (the netlist's own check). **The ladder's rung 4 said "no onboard part shares this
+  line" for every C3 pin** because none was modelled: the C3's board parts are now typed paths read from the DevKitM-1 schematic sheet 2 (sha256 d2ac6d64...):
+  GPIO8 -> R17 -> RGB LED D6 + R20 10k pull-up, GPIO9 -> Boot SW1 + Q2, CHIP_PU -> Reset SW2 + R5/C6 + Q1, U0TXD/U0RXD -> R22/R21 -> CP2102N U3, GPIO18/19 ->
+  R2/R3 NC (not fitted). **Finding for him:** sol-0 on the C3 still puts the light's SENSE line on GPIO8 - the RGB LED's data line with a 10k pull-up -
+  now listed as a rung-4 caution, but the solver does not move off it (scoring choice, his call). The C3 now has a board enclosure (six enclosures). The UNO pin view
+  is byte-identical (hash checked).
+- Agents: his "feel free to use agents" lifted the 2026-10-26 hold (memory updated). One research agent cited the DevKitM-1 geometry; I re-read the drawing
+  and the header tables myself before using them.
+
 ## 2026-10-29 (night) — his "Do 2 through 4" (C3 atoms, C3 wiring, the struct lane)
 - **C3 firmware atoms** (framework 3555bb7, merged ae4cd66): `cmod.custom.c3_atoms` parses the C3 firmware into 41 atoms of project `c3`; each IDF
   driver call is linked to its registers per call, cited to the ESP-IDF v5.5.5 source; C3 pins in the Registers view show C3 code only.
