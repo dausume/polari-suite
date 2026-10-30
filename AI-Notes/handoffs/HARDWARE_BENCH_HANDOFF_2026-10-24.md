@@ -3,6 +3,27 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-30 — KiCad cross-compare with econ (kxc-0), on `dev-electronics`
+- **Branch rule (his, 2026-10-29):** electronics work lives on remote `dev-electronics` (four repos), NOT dev, until the isle work lands; then
+  both merge and get tested together in the browser/app views.
+- **His ask:** "work with econ on refining electronics on what might be missing still for full simulations, and for it to cross-compare against
+  kicad interfaces for what logic or views we might want or be missing." econ-core has KiCad 10.0.6 (libs 10.0.7) + libngspice; its Codex has the GUI.
+- **Proven headless on econ:** kicad-cli `sch export netlist --format spice` → libngspice via ctypes → a .tran (demo rectifier, 10008 points, no
+  errors). = the candidate kicad/ngspice worker (plan only, no deploy).
+- **Checked against KiCad's own libraries:** UNO U1 = ATmega328P-P, 20/20 pins agree; C3 15/15 package pins agree with MCU_Espressif:ESP32-C3,
+  which names 8 of them by primary function (MTMS = GPIO4, U0RXD = GPIO20 …). **Bug fixed:** the importer took the pin NAME first, so a real
+  KiCad C3 netlist read 8 GPIOs as MTMS/U0RXD/XTAL_32K_P…; now package pin number first. The C3 netlist now names KiCad parts (U1
+  MCU_Espressif:ESP32-C3 on QFN-32, J1/J3 PinHeader_1x15). KiCad has RF_Module:ESP32-C3-DevKitM-1 (pins 1-15 = J1, 16-30 = J3 reversed) →
+  `board_c3.kicad_devkit_pin`, fact `esp32-c3:kicad.symbols`. KiCad 10 has NO ESP32-C3-MINI-1 symbol (the module gap stays undetermined).
+  New `board_kicad_libs_selftest` (4 checks). Also removed a duplicated manifest line in board/polari-app.json.
+- **Sent CX-032 (task KICAD-XCMP-20261029)** to econ Codex (`~/collab/codex-inbox` on econ-core; shared folder `~/collab/kicad-xcmp/`): A a
+  feature map of KiCad's editors/simulator vs ours (have/partial/missing-logic/missing-view, ranked for full simulation); B two reference
+  projects (UNO light, C3 light on the DevKitM-1 part) with Sim fields, .op + .tran, kicad-cli spice/ERC/BOM exports — I cross-check them
+  against our decks + electrical_check; C UI patterns (probes, cursors, measurements, cross-probing). econ Codex acts only when Dustin starts it.
+- **Gaps already known (inventory):** no ERC pin electrical types, no pad-level footprints, no net classes read, no .kicad_pcb writer, no 3D,
+  round trip compares net NAMES only, SPICE = .op + one .tran (no AC/noise/sweeps, Sim.* fields unused, one generic LED model), wireless
+  schematics. Next: wait for CX-032's reply, then rank and slice.
+
 ## 2026-10-29 (late night) — "Keep working, feel free to use agents": C3 Catom assertions + the C3 in the pin view
 - **CORRECTION to the entry below:** the pin view could not draw the C3 at all (its shapes were the UNO's only), so "the C3 lane is empty" was the
   wrong reason. Both halves are fixed now.
