@@ -96,6 +96,17 @@ never a dump of every row.
 - Board Details: a `runs` part + a Simulation tab (runs -> scope run -> vectors + a named-graph-panel over GraphDefinition `pcb-spice-run`, seeded by
   board_seed). Checked with econ's recorded reference runs (rectifier tran, sallen_key AC). Chrome pass owed.
 
+### kxc-3c / bob-3c as built (2026-10-30, his "keep working on those")
+- PROJECTION (`spice_runs.projection`): a run's results on the board's nets - each net's node vector (kicad_spice.node_name, lower-cased as ngspice
+  names it): transient min / max / final, AC peak |V| and its frequency; GND 0 V by definition; a net the run did not save says so; the PCB footholds on
+  each net listed. GET /api/pcb/runs/{run}/projection; Board Details Simulation tab gains "the selected run on the board's nets"; the Bench pin rows of a
+  PCB foothold carry a note "simulated (transient): V a..b, final c (run ...) - not a cited limit" (simulated numbers never replace cited ones).
+- THERMAL (`pcb/custom/thermal.py`): per-part power from a kept TRANSIENT run - R by Ohm's law on the node voltages, V by what it delivers (branch
+  current), ideal C / L 0 W average by definition, anything else undetermined (the run holds no current for it); the ENERGY BALANCE (delivered -
+  counted = the power in the undetermined parts); the board's mean rise dT = P / (h x 2A) from the PcbBoard outline, h = 10 W/(m2 K) a knob inside the
+  cited free-convection range (Incropera & DeWitt Table 1.1, 2-25). Radiation / mounting left out - a first-order mean, not a hot-spot map. Board
+  Details Thermal tab (estimate + power per part). An AC run is refused (small-signal). Still open: a spreading model over the copper (zones / planes).
+
 ### kxc-4 as built (2026-10-30)
 - `pcb/custom/kicad_geometry.py` + classes `PcbPad` (every pad: type, shape, size, drill, layers, net, ERC type/function, board position + angle),
   `NetGeometry` (ONE row per net — D-kxc-2 as recommended, his to confirm: segments / arcs / vias lists, length, layers), `PcbZone` (pours,
