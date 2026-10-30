@@ -89,6 +89,13 @@ Its layers (sub-slices of bob-3, each needing the kxc data it reads):
   bench (the older two lists + BenchBoard rows naming the bench); doors `GET /api/board/benches/{bench}/all-boards`,
   `POST /api/board/benches/{bench}/pcbs`. **Found:** three of the four dev boards on home-bench (Zero, Feather M0, ESP32-S3 e-paper) have NO
   BoardPin rows → no footholds (said per row). Still open in bob-1: the breadboard class merge (D-bob-3), the Bench page reading the one list.
+- **bob-2 ✅ BUILT 2026-10-30:** `BenchConnection` (bench, from board + foothold, to board + foothold, kind wire | jumper | mated, colour);
+  every Board on the Bench has a stable `id` (boards_json#n, breadboards_json#e.k, a BenchBoard name); `board.custom.bench_nets`: union-find over
+  each board's own nodes + the connections → nets that cross boards, findings from foothold data only (supply-conflict, supply-to-ground,
+  over-voltage: a pin's logic level below a rail / driving level on its net); "only inputs" is a NOTE (a board's own pull is not a foothold fact
+  yet); `mate_header` (a 1 x N header pushed into breadboard holes). Doors `GET|POST /api/board/benches/{bench}/connections`, `POST .../mate`,
+  `GET .../nets` (`bench_nets_api.py`). His example works: C3 on a breadboard wired to the UNO → one graph; UNO D6 onto C3 IO0's strip = over-voltage.
+  Open: pulls as foothold facts; current budgets across boards (LED current through a series part needs the circuit, kxc-3); the bench page drawing.
 - **bob-3 (part a) ✅ BUILT 2026-10-30:** `/display/board-details?board=<kind>/<definition>` (`board_details_page.py`, configured tables only):
   picker = the Boards on home-bench; tabs Summary / Footholds / Nets / Parts / Layers / KiCad coverage, all from `GET /api/board/details/{kind}/
   {definition}/{part}` (`board.custom.board_details`). Each bench row now carries `board` = kind/definition and `details` = the page link.

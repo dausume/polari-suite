@@ -39,7 +39,7 @@ So:
 | kxc-2 electrical graph ✅ BUILT 2026-10-30 | Our own connectivity from the schematic (pins, wires, junctions, labels local/global/hierarchical, power symbols, no-connects, buses) → `SchematicNet` + `NetEndpoint` (instance uuid path + pin) with ERC pin types. Cross-checked against `kicad-cli sch export netlist` when the worker is there. | UNO fixture endpoint sets equal KiCad's netlist; reversed LED caught; a dangling pin reported; reused sheets scope their local nets. |
 | kxc-3 simulation (part a ✅ BUILT 2026-10-30: deck + runner) | `SimulationModel` rows (Sim.Device/Type/Params/Pins/Library, the `.lib`'s sha + text kept as artifact), directives, the `.wbk` (analyses, probes, signals). Our renderer gains PULSE/PWL/SIN/AC sources and `.ac`/`.dc`/`.noise`; `spice_run` runs libngspice as well as an executable (in a bounded worker process). Full waveforms stored (sci-xy-chart), with run provenance. | KiCad-exported and Polari-rendered decks of the same circuit agree within stated tolerances (amplitude, timing, current sign); reversed-LED control fails as expected. |
 | kxc-4 PCB complete ✅ BUILT 2026-10-30 | Pads per footprint (number, shape, size, position, layers, net, drill); tracks/arcs/vias as geometry rows; zones (polygons, net, layer, fill rules); net classes + assignments from `.kicad_pro`; custom rules from `.kicad_dru` as rows; dimensions/text/graphics counted→typed as needed. | A routed fixture with back-side parts, vias, arcs, zones and custom rules: every element typed or preserved, counts equal KiCad's `pcb export stats`. |
-| kxc-5 export | Polari → KiCad: multi-sheet `.kicad_sch` with symbols, rotations, wires or labels, Sim fields; netlist; an unrouted `.kicad_pcb` (footprints placed from our placement rows, nets assigned, outline from our board shape). Every export run through kicad-cli (ERC/DRC/netlist) and compared with our graph; an export report lists what had no KiCad form. UNO/C3 bench circuits export with the DevKitM-1 / UNO parts. | Exported projects open in KiCad 10, ERC clean except stated, re-exported netlist = our graph; C3 bench circuit uses RF_Module:ESP32-C3-DevKitM-1 pins via `kicad_devkit_pin`. |
+| kxc-5 export (part a ✅ BUILT 2026-10-30: the Bench as a schematic) | Polari → KiCad: multi-sheet `.kicad_sch` with symbols, rotations, wires or labels, Sim fields; netlist; an unrouted `.kicad_pcb` (footprints placed from our placement rows, nets assigned, outline from our board shape). Every export run through kicad-cli (ERC/DRC/netlist) and compared with our graph; an export report lists what had no KiCad form. UNO/C3 bench circuits export with the DevKitM-1 / UNO parts. | Exported projects open in KiCad 10, ERC clean except stated, re-exported netlist = our graph; C3 bench circuit uses RF_Module:ESP32-C3-DevKitM-1 pins via `kicad_devkit_pin`. |
 | kxc-6 views | Pages for the ingested/exported objects: coverage table, schematic net navigator, pad-level footprint view, simulation waveforms with probes/cursors (Codex part C informs). The board-level breakdown (layers, circuits in the layers, thermal, silkscreen, footprints) is the single-Board design simulation view, BENCH_BOARDS_PLAN bob-3. | Theme tokens, no raw JSON, click-toggle. |
 
 ### kxc-1 as built (2026-10-30)
@@ -83,6 +83,18 @@ So:
 - **= pcbnew's** on both demo boards: pads 165 / 33, segments 364 / 59, zones 166 / 1, per-net routed length exact, every zone's filled area
   within 0.002 mm² (reference `pcb/custom/reference/pcbnew_geometry_*.json`).
 - Not yet: dimensions, groups, text strings as rows (still preserved in the kept file); geometry drawn (kxc-6 / bob-3 design view).
+
+### kxc-5 (part a) as built (2026-10-30)
+- `pcb/custom/bench_export.py`: a Bench (Boards on the Bench + BenchConnection rows) → the writer's design: every header-like foothold group of a dev
+  board or PCB = ONE generic KiCad header (Conn_01xNN; Conn_02xNN_Odd_Even when its footholds' positions are a 2 x N grid), pinned exactly as the
+  footholds; breadboards = nets only; nets = each board's own joins + the connections; a power name is global in KiCad so only ONE bench net may
+  carry it (a second, unjoined rail becomes +5V_2). Door `POST /api/pcb/export/bench/{bench}` (libraries from the KiCad worker; refused in words
+  without one).
+- **KiCad reads it the same**: on econ, kicad-cli 10.0.6 re-exported the netlist of the test bench's schematic → 11 of 11 multi-pin nets equal ours,
+  none extra; ERC: 29 unconnected pins (= the writer's list) + 5 single-pin labels (a pin whose breadboard strip holds nothing KiCad can draw).
+  References `pcb/custom/reference/kicad10_bench_export.json` + the nine symbols used (`kicad10_symbols_bench_export.txt`, CC-BY-SA-4.0 + exception).
+- Open in kxc-5: the C3 as KiCad's own RF_Module:ESP32-C3-DevKitM-1 part (via board_c3.kicad_devkit_pin) instead of two generic headers;
+  ingested schematics re-exported; an unrouted .kicad_pcb.
 
 ### Boards on the Bench (his ruling 2026-10-30, BENCH_BOARDS_PLAN.md)
 An ingested (or Polari-designed) PCB is a **layers + physics board definition** — one of the definition kinds a Board on the Bench can point
