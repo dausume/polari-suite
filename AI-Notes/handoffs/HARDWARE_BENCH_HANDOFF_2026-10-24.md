@@ -3,6 +3,24 @@
 Supersedes `HARDWARE_BENCH_HANDOFF_2026-10-20.md` for the state; that file keeps the history. Written under the operating rule of
 2026-10-24 (memory `operating-mode-token-split`): checkpoint at milestones, write the handoff, tell him when to clear.
 
+## 2026-10-30 (day, his "work autonomously through the day") — Boards on the Bench + KiCad steps 2-5
+- **His rulings today (verbatim in the plans):** dev boards / breadboards / PCBs are equally Boards on the Bench, definition is its own level
+  (BENCH_BOARDS_PLAN); a single-Board design simulation view (layers, circuits in layers, thermal, silkscreen, footprints); D-bob-1..3 = my
+  recommendations; **the Bench is PINS, not a netlist** (board-level schematics convert into pin connections with drive + signal requirements;
+  the bench checks pins' inherent properties against them and ties pins to firmware); the bench netlist = its own POPUP view; critical Polari
+  data with no KiCad equivalent rides in KiCad fields/labels.
+- **Built (all on dev-electronics, framework 43bfd49):** bob-0 footholds · bob-1 one bench list (+ PCB on a bench, stable ids, bench page tab) ·
+  bob-2 connections + bench netlist (popup) · bob-2b pins view (main) · bob-2c board-level circuits define pin connections (electrical_check
+  findings on pins, firmware/circuit role cross-check) · bob-2d the firmware a board runs (real PinClaims: uno-light's D2 pull-up) · bob-3
+  /display/board-details (+ PCB design tabs: pads, copper with cited DC resistance, zones, drawings, rules) · kxc-2 our nets = KiCad's 69/69 ·
+  kxc-3a deck from rows = KiCad's, same vectors on econ · kxc-4 pads/copper/zones/netclasses = pcbnew's · kxc-5 Bench → KiCad schematic (KiCad
+  re-reads 11/11; C3 as RF_Module DevKitM-1) + Polari.* fields surviving a KiCad re-save.
+- **Found:** home-bench's Zero / Feather M0 / ESP32-S3 e-paper have NO BoardPin rows (no footholds); the writer's PWR_FLAG clashed with a
+  power_out pin (fixed); a power name is global in KiCad (two unjoined rails would merge — fixed); the reused-sheet walk (fixed earlier).
+- **Tests at the end:** board 1079/1079, pcb 72/72, layout 89/89, manifests 25/25, tests/kxc1_liveboot_probe.py 32/32.
+- **Open:** breadboard class merge (D-bob-3); kxc-3b (store runs, chart, project results onto footholds); thermal (needs dissipation + model);
+  pulls as foothold facts; bench drawing (bob-4); the Chrome pass (needs a deploy — his call); econ Codex parts A/B2/C (it acts only when started).
+
 ## 2026-10-30 (later) — HIS RULING: Polari is the source of truth; kxc-1 built
 - **His words:** "we should keep polari as the source of truth, but make it so we ensure we encapsulate everything KiCAD has as well, so we can
   ingest files coming from KiCAD, since it sounds like fully two way design is not feasible. We should make what exports we can from polari to
