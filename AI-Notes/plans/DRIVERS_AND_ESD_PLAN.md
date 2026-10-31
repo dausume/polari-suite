@@ -2,7 +2,7 @@
 
 **Branch:** remote `dev-electronics`.
 **Started:** 2026-10-31.
-**Status:** drv-0 + drv-1 BUILT 2026-10-31 (with mounting by position); drv-2 partly (suggestions); esd-0 + esd-1 + esd-2 BUILT 2026-10-31.
+**Status:** drv-0 + drv-1 BUILT 2026-10-31 (with mounting by position); drv-2 (four more cited parts, judged fixes, Mount here) + drv-3 (whole-part budgets) BUILT 2026-10-31; esd-0 .. esd-5 BUILT 2026-10-31.
 
 ## The ask, in the user's words
 
@@ -189,7 +189,59 @@ In a KiCad design a driver is an ordinary part with a SPICE model, either the ve
 - esd-5: foothold-level events for dev boards.
 - The Chrome pass.
 
-**esd-4 — the IEC 61000-4-2 waveform-matched gun network** (a published one, cited), replacing the plain RC for system-level levels.
+### Built 2026-10-31 (esd-3, esd-4, esd-5; drv-2, drv-3) — the user: "go ahead on those"
+
+**esd-3 — protection parts** (`ProtectionPart`, `board.custom.protection_parts`)
+- Cited seed: **SMBJ5.0A** (Bourns SMBJ datasheet REV. 09/20: V_BR 6.40 / 7.00 V at 10 mA, V_C 12.0 V at I_PP 326.5 A for 8/20 µs, V_F 3.5 V at 50 A) and the UNO's **CG0603MLC-05E** (Bourns REV. A 11/18: V_T 300 V and V_C 30 V typical, by TLP).
+- The TVS's ngspice diode is DERIVED: BV = V_BR max, IBV = I_T, RS and N solved so the model lands exactly on the 8/20 µs clamping pair and on the forward pair (checked to 1 mV). No capacitance is modelled (it's given only as a graph), which, if anything, overstates the peak.
+- Refused in words: a snapback polymer (the CG0603), a bidirectional TVS and a varistor. Each needs the vendor's model.
+- An area's `protection_parts` are placed from the shocked net to ground in both runs, each through a 0 V meter, and each peak is checked against its I_PP. Decks with a clamp use Gear integration: the trapezoidal rule rang ±0.2 A around the 1.33 A HBM current.
+
+**esd-4 — IEC 61000-4-2's own current** (`iec-contact-waveform`)
+- The standard's equation (2008 edition, §6.2, under Figure 2) reproduces Table 3 at 4 kV: 14.9 A peak, 0.81 ns rise, 8.0 A at 30 ns, 4.0 A at 60 ns.
+- It is sampled as a PWL source. On econ-core's libngspice the measured peak is 14.92 A against Table 3's 15 A.
+- Caveat: it is a forced current, so it overstates the voltage at a high-impedance net.
+
+**esd-5 — dev-board pins** (`board.custom.esd_footholds`): on a board with no circuit, a foothold area runs on the pin alone.
+- The circuit is the pin's capacitance (`pin_cap_pf`, a knob, default 10 pF), held at its own level through `hold_ohm` (a knob, 1 MΩ).
+- The area's protection parts and the same source and baseline are added. The absolute maximum is the area's, otherwise the foothold's `max_volts`.
+- Doors: `POST /api/board/esd-areas/run` (any area), `/protection` (toggle a part) and `GET|POST /api/board/protection-parts`.
+
+**Recorded runs** (`kicad10_esd_protection.json`)
+- **Rectifier with the SMBJ5.0A:** the 100 nF holds the net at 2.8 V, below breakdown, so the TVS carries picoamps.
+- **The UNO's DIGITAL_L:7, pin alone, HBM 2 kV:** 1814 V, so it breaks.
+- **The same pin with the SMBJ5.0A:** 7.15 V, the TVS carries about 1.3–1.5 A (0.46 % of its I_PP), and it **still breaks** against the ATmega328P's 5.5 V absolute maximum. A 5 V TVS clamps above a 5 V chip's maximum.
+
+**drv-2 — four more cited parts, in D-drv-2's order:**
+- SN74AHCT125 (SCLS264R);
+- TLC5916 (SLVS695D);
+- LM1117-3.3 (SNOS412Q);
+- LM2596-5.0 (SNVS124G).
+
+Supporting changes:
+- **New fields:** `PartBoard.out_volts`, `needs`, and role `regulated`.
+- **Per-pin overrides:** for example, the TLC5916's SDO is 1 mA, and a regulator's VIN has its own minimum.
+- **Net checks:**
+  - a regulator's input below its minimum is under-voltage;
+  - with no driving pin, the one rail that gives current is held to its source_ma.
+- **Fixes are judged against every number, with `fits`.** For example, the AHCT125 fixes 3.3 V into the TLC5916's 3.5 V input but not 5 V into a 3.6 V pin. The LDO fixes a starved 3V3; the bare LM2596 does not (5 V, and it needs its inductor).
+- **Mount here:** `bench_mount.placements` (a spatial index) lists every clean position. The ULN2003A has 46 on a half breadboard (23 columns × 2 orientations); the LM2596 has none (1.7 mm pitch).
+- **Doors:** `GET /mount-options?child=` and `/part-budgets`.
+
+**drv-3 — whole-part budgets** (`part_boards.budgets`): seven 400 mA loads on a ULN2003A are fine pin by pin but total 2.8 A, over its 2.5 A, so each gets a group-budget row.
+
+**Selftests**
+- `pcb_esd_protection_selftest` (8 checks);
+- `board_part_catalogue_selftest` (8 checks).
+
+**Still owed**
+- Bidirectional TVS and varistor models (vendor models);
+- CDM;
+- a down-shifter in the catalogue (74LVC-family, 5 V-tolerant inputs);
+- a buck MODULE as a part;
+- the Chrome pass.
+
+**esd-4 — the IEC 61000-4-2 waveform-matched gun network** (a published one, cited), replacing the plain RC for system-level levels. Built as the standard's own current equation (above).
 
 **esd-5 — foothold-level ESD for dev boards** (no deck)
 - The foothold's protection part + the chip pin's cited input capacitance and ESD rating, as a small deck per foothold.
