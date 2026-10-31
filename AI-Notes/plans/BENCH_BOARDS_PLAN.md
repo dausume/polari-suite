@@ -168,6 +168,8 @@ Its layers (sub-slices of bob-3, each needing the kxc data it reads):
   rho L / (w t) per segment, t from the board's stackup, rho = IEC 60028 annealed copper by definition; the net sum labelled an UPPER BOUND),
   Zones (filled copper area), Silkscreen + drawings, Net classes + rules. Thermal is NOT built: it needs each part's dissipation (the circuit
   simulation, kxc-3) and a spreading model - said on the page.
+- **bob-3c / bob-3d ✅ 2026-10-30:** the Thermal tab - power per part and the mean rise (bob-3c), then where the heat sits: the board as a thin plate in
+  the existing FEM engine (scikit-fem), copper pours included (bob-3d; details in KICAD_INTERCHANGE_PLAN).
 
 ## 6. Decisions (his)
 

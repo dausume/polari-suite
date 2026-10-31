@@ -105,7 +105,20 @@ never a dump of every row.
   current), ideal C / L 0 W average by definition, anything else undetermined (the run holds no current for it); the ENERGY BALANCE (delivered -
   counted = the power in the undetermined parts); the board's mean rise dT = P / (h x 2A) from the PcbBoard outline, h = 10 W/(m2 K) a knob inside the
   cited free-convection range (Incropera & DeWitt Table 1.1, 2-25). Radiation / mounting left out - a first-order mean, not a hot-spot map. Board
-  Details Thermal tab (estimate + power per part). An AC run is refused (small-signal). Still open: a spreading model over the copper (zones / planes).
+  Details Thermal tab (estimate + power per part). An AC run is refused (small-signal). Spreading: bob-3d below.
+
+### bob-3d as built (2026-10-30, his "finite element model simulations are already well defined")
+- NO NEW MODEL: the textbook thin-plate (fin) problem -div(K grad T) + 2hT = q'' solved by the EXISTING FEM engine (scikit-fem):
+  `materialsScience/engines/fem_plate_thermal.py` (solve_plate_conduction_2d, plate_mesh_convergence; reuses fem_engine's capability + feature-aligned
+  mesh). Built-in checks on every solve: energy balance (power in = 2h integral of T) and mean rise = the lumped P / (h 2A).
+- `pcb/custom/thermal_spread.py` maps a board's own rows onto it: plate = Edge.Cuts box; K = sum k t - stackup dielectric at FR-4 in-plane 0.81 W/(m K)
+  (Azar & Graebner, SEMI-THERM 1996, a knob) + each copper pour / teardrop (PcbZone) at k_Cu 401 (Incropera Table A.1) x layer thickness x fill
+  fraction; sources = each part's run power over its pads' box (PcbPad); unplaced / unaccounted power listed, never guessed. Tracks and pads not
+  counted (peaks read high). GET /api/pcb/{board}/thermal-spread (summary, hotspots, field map); Board Details Thermal tab gains "Where the heat sits" +
+  "Hot spots per part".
+- Proof (pcb_thermal_spread_selftest, 7 checks): the analytic K0 plate solution within 2%, energy balance, uniform heat = q/2h exactly, refusals; ecc83's
+  GND pour roughly thirds the peak with the mean unchanged; mesh convergence.
+- Still open: drawing the field map (the pin view could colour the board by it); tracks + vias in K; non-rectangular outlines solved as their box.
 
 ### kxc-4 as built (2026-10-30)
 - `pcb/custom/kicad_geometry.py` + classes `PcbPad` (every pad: type, shape, size, drill, layers, net, ERC type/function, board position + angle),
