@@ -171,6 +171,37 @@ Its layers (sub-slices of bob-3, each needing the kxc data it reads):
 - **bob-3c / bob-3d ✅ 2026-10-30:** the Thermal tab - power per part and the mean rise (bob-3c), then where the heat sits: the board as a thin plate in
   the existing FEM engine (scikit-fem), copper pours included (bob-3d); the board's own outline + tracks + pads (bob-3e); the map drawn on the pin view
   (bob-3f, `pcb:<board>`); details in KICAD_INTERCHANGE_PLAN.
+- **bob-3g ✅ 2026-10-31 — Thermal over time + black-box parts from their datasheets.** The user's words: "some components are black boxes and we need
+  the capability to run simulations based on their data sheets specified thermal behavior over time". Built on established models only:
+  - **What a person gives**, two new pcb rows, both edited in place on the new Board Details tab *Thermal over time* (long form, one row per
+    number, PUT / Clear = DELETE; `pcb.custom.thermal_inputs`, doors in `pcb_thermal_api.py`):
+    - `PartPowerInput` (`<board>:<ref>`): watts, plus always on / one pulse (`on_s`) / duty cycle (`on_s` every `period_s`). A given figure
+      wins over the run's average for that part (steady views too; a duty cycle counts at its average there).
+    - `PartThermalModel`: the datasheet's transient thermal impedance junction → board as Foster pairs (R_i K/W, tau_i s), up to 6 stages,
+      Tj max, and the datasheet's own Rth j-a (its JEDEC test board: shown beside the result, never added). A board-free row keyed by
+      `part_key` (symbol value or lib_id) applies to every matching part. To keep the citation: `POST /api/pcb/<board>/thermal-models/<ref>`
+      with `document` / `page_table` / `url` (the page's number boxes can't take text).
+  - **The board over time** (`materialsScience.engines.fem_plate_transient`): the same plate as bob-3d/e, plus its heat capacity
+    (FR-4 c_p 760 J/kg·K at 300 K, Kpobie et al., J. Mater. Res. Technol. 40 (2026); rho 1850 a typical figure — both knobs; copper
+    Incropera Table A.1). Backward Euler; the step starts small and doubles, and every switch-on/off is a step boundary.
+  - **Each junction** (`materialsScience.engines.thermal_rc`): Tj = ambient (25 °C, a knob) + the board's mean rise under the part's pads +
+    the part's Foster Zth driven by its own power. Each stage is solved exactly per step. The coupling is one way and said so: a Foster
+    network can't be wired into another network (that needs Cauer).
+  - **Checks** (pcb selftest 108/108):
+    - the FEM equals the lumped backward-Euler recurrence to 1e-9;
+    - a run left on settles onto the steady solve to 1e-6;
+    - energy balances (in = stored + lost) to 1e-9;
+    - the Foster trajectory equals P·Zth(t) exactly;
+    - after a pulse, superposition P(Zth(t) − Zth(t − on)) holds.
+  - **Fixed along the way:**
+    - The bob-3f drawing on the Thermal tab asked for `pcb:layers/<board>`. That slash can't travel in one path field, so the page got a 404.
+      There's now a route `/api/board/pcb:{kind}/{definition}/pin-view`.
+    - The committed bob-3e spread selftest didn't compile (an unescaped quote).
+  - **Owed:**
+    - the Chrome pass (a deploy is the user's call);
+    - a real part's cited Foster table seeded as an example;
+    - a through-thickness model, so vias count;
+    - a Cauer form, for two-way coupling.
 
 ## 6. Decisions (his)
 
