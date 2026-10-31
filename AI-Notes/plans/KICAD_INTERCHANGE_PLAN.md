@@ -118,7 +118,17 @@ never a dump of every row.
   "Hot spots per part".
 - Proof (pcb_thermal_spread_selftest, 7 checks): the analytic K0 plate solution within 2%, energy balance, uniform heat = q/2h exactly, refusals; ecc83's
   GND pour roughly thirds the peak with the mean unchanged; mesh convergence.
-- Still open: drawing the field map (the pin view could colour the board by it); tracks + vias in K; non-rectangular outlines solved as their box.
+- bob-3e (same day, "keep going"): the BOARD'S SHAPE - `pcb/custom/kicad_outline.py` chains Edge.Cuts lines / arcs / rects / circles / polys into the
+  outer loop + holes (arcs as 5-degree chords; ends that meet nothing counted as open, never closed by guessing), kept on PcbBoard.outline_json
+  (polygon_mm, holes_mm); the plate is meshed to that shape (outline vertices become grid lines, elements outside removed). TRACKS + PADS in K: each
+  NetGeometry segment / arc chord an embedded 1-D conductor k_Cu w t along itself only (with linear elements the line integral IS the element tensor
+  (kA L_e / A_e) d d^T - exact, not a smear); each pad k_Cu t over its rectangle. Vias not counted (a one-temperature plate: they carry heat through the
+  board, not along it). Proof: an L-shape with a cut-out meshes to its exact area; a plate ruled with tracks = the textbook orthotropic plate within 3%.
+- bob-3f: THE MAP DRAWN - `board/custom/pcb_scene.py`: GET /api/board/pcb:<board>/pin-view = the pin view's payload of one PCB (its outline, its pads,
+  `thermal` = the field); hardware-pin-view shades it (pin-view-thermal.ts: one token --heat-hot, opacity proportional to the rise, clipped to the outline,
+  no clicks); each pad's notes carry the rise where it sits; Board Details Thermal tab mounts it (board = pcb:{scope:board}). Spec: pin-view-thermal.spec.ts
+  on real framework output.
+- Still open: a person-entered power budget on the page (the API takes `powers` in code only); vias in a multi-layer (through-thickness) model.
 
 ### kxc-4 as built (2026-10-30)
 - `pcb/custom/kicad_geometry.py` + classes `PcbPad` (every pad: type, shape, size, drill, layers, net, ERC type/function, board position + angle),
