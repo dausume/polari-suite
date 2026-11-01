@@ -151,7 +151,7 @@ An ideal R, C or L (with no tc1 / tc2) **does not change with temperature at all
 
 **Page:** a **Timing at temperature** tab with the clock, the UART link and the logic delays, for the UNO and the two logic part boards; other boards say why there's nothing.
 
-**Not done:** "fed into the firmware simulation" is still owed. simavr runs one exact clock, so this is a budget beside the runs (ClockSkewFault forcing is sc-3).
+**Fed into the firmware simulation:** done in tmp-6 below.
 
 ### tmp-5 — parts with no SPICE model: BUILT 2026-11-01
 
@@ -180,9 +180,45 @@ An ideal R, C or L (with no tc1 / tc2) **does not change with temperature at all
 
 **Also found:** the UNO's Z1/Z2 (Bourns CG0603MLC-05E) and its successor's datasheet (CGA0603MLC-05E, REV. G 05/26) both give V_C 30 V by TLP **with no current**, so they stay unmodelled. The dead datasheet URL was replaced with the live REV. E 07/20.
 
+### tmp-6 — the timing band forced into a firmware run: BUILT 2026-11-01
+
+The user: "keep working on the timing going into a firmware run on the Bench".
+
+**Why one simavr clock is enough:** the twin is cycle-exact, so the firmware's behaviour in cycles does not depend on the clock rate; the rate only maps cycles to true time. A clock off by e therefore lives at the boundary:
+- the twin runs at f = 16 MHz × (1 + e);
+- whatever the far side does is placed in true time (a byte sent at t arrives at cycle t × f);
+- every UART byte is re-sampled bit by bit by the receiving USART at its own rate. The twin's byte-level UART has no baud check, so it is bypassed.
+
+**The receiver** (`board.custom.uart_sampling`) follows DS40002061B §20.8 (and the 16U2's 7799D §18.8, the same text):
+- start = a low sample after a high; samples 8-9-10 (or 4-5-6 with U2X) vote by majority;
+- the next start may come only after the last voting sample.
+
+Bisection finds its edges at 8N1 94.74..103.90 % and U2X 94.74..102.56 %, matching its closed form. The datasheet's own equations (95.36..104.58 %, 96.00..103.90 %) sit one sample away: they count the first voting sample for a slow sender and the middle one for a fast one. Both are shown.
+
+**The far end** is the UNO's ATmega16U2, as its own firmware sets it (arduino-usbserial: U2X1 + LUFA SERIAL_2X_UBBRVAL; 57600 is the exception). At 115200 that is UBRR1 16, 117647 Bd: **the same +2.1 % as the 328P's U2X build**. So the tmp-4 budget, which takes the far end as exact, is pessimistic for the shipped build. That tab now says so.
+
+**Results** (`board.custom.clock_skew_run`, uno-sim-rig: SET pwm_duty 50 sent from the 16U2; 2 s of true time; decoded with the reference parser on both sides):
+- **Shipped build (U2X0 1):** holds for a 328P clock within −2.50..+2.56 %. At 25 °C the resonator's ±1.0 % corners decode every byte, the command is done and echoed, and uptime_ms runs (1+e) × true time (measured −9910 / +91 / +10087 ppm against −10000 / 0 / +10000; resolution ±500 ppm).
+- **0.3 % inside either edge it holds; 0.3 % outside it breaks** (the run agrees with the band).
+- **The U2X0 0 build (UBRR0 8, 111111 Bd)** fails against the real 16U2 even at nominal: the 16U2's bytes come 5.9 % fast for the 328P's 8N1 receiver, so the command never lands. It holds only for a clock 1.91..8.60 % fast. board_config.h called it "marginal"; it is broken. The twin alone never showed this.
+
+**Limits, said in the module:**
+- A framing error is counted, but the byte is still delivered: both firmwares read UDR without checking FE.
+- The board's bytes are re-timed to the chip's byte time within a burst: the twin's UART is about 2.2× slower than the chip's.
+- Injected bytes can slip by up to about 2 % (the twin's own feed pace).
+- The sampling phase is a knob (0.5).
+- The 16U2's clock is a knob (peer_pct 0): the schematic gives no tolerance for Y1.
+- 8 MHz RC clocks need their own build, so they are refused. Outside the resonator's −20..80 °C the clock is "unrated", so nothing is run.
+
+**Door and page:**
+- POST/GET `/api/board/timing-run/{definition}` {temp_c, u2x?, ppm?, peer_pct?, clock?}.
+- Board Details → Timing at temperature: **Run the firmware at a temperature** (one editable row per build) and **Each corner of the newest runs**.
+- ClockSkewFault's forcing text names tmp-6. It is still not a ScenarioStep, and two clocked MCUs on one bus still need Renode.
+
 ## Owed
 
 - **The Chrome pass** of all five temperature tabs (Temperature, Parts at their own temperature, Self-heating, Temperature curves, Timing at temperature). It needs a deploy, which is the user's call.
-- **tmp-4 into a firmware run:** needs a clock that can skew (sc-3 / Renode).
+- **tmp-6 as a ScenarioStep** (clock-skew forcible inside the step runner, so a scenario pair can carry it), and a twin flag for framing errors (so a HAL_UART_ERRCOUNT build sees FE).
+- **Fix or retire the U2X0 0 knob:** it cannot talk to the UNO's 16U2 at 115200 (tmp-6). The user's call.
 - **Live runs:** this host has no libngspice, so simulate-at / sweep refuse here in words. econ-core has it, so the next step there is the worker route or an isle deploy.
 - **A real part's** cited rated range and TCR, as an example. The tests use synthetic values.
