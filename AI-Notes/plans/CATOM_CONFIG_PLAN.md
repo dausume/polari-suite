@@ -1,7 +1,7 @@
 # Catom configuration plan (cfg): configurations per Bench solution, graded options, and remedies when the chip cannot
 
 **Branch:** remote `dev-electronics` (electronics work never goes to `dev`).
-**Started:** 2026-11-01 as CLOCK_CONFIG_PLAN (clk); widened the same day to catom configurations of every kind. **Status: PLAN ONLY.**
+**Started:** 2026-11-01 as CLOCK_CONFIG_PLAN (clk); widened the same day to catom configurations of every variable group. **Status: PLAN ONLY.**
 D-cfg-1..8 are the user's to decide.
 **Builds on:** tmp-4 / tmp-6 (TEMPERATURE_PLAN.md: `timing_drift`, `uart_sampling`, `clock_skew_run`), hsp-3c-hal / hsp-3d
 (HARDWARE_SYSTEM_PINS_PLAN.md: `CatomVariable`, `HalVariableState`, `catom_variables.propose`), the catoms' `hal_contract` families
@@ -44,17 +44,39 @@ in a **Bench Solution**: the same configuration can be ideal on an UNO alone and
   solution, the stage, its participants including twin sessions), `FirmwareSolution` (graph + board -> firmware), `FirmwareVariant` (a
   configured build) and `TwinSession` (ONE simulated board running ONE locked firmware). Nothing ties a Bench to a firmware solution and runs
   the whole bench. D-cfg-1 decides whether the Bench Solution is a new row or `HardwareSystem` grown into it.
-- **Catom configuration:** for one catom in one firmware solution, and one **configuration kind** (clock, signal, ...): the typed knobs, the
-  chosen option and whether it was chosen automatically or by a person. Edited on the catom's page with a firmware solution picker.
+- **Catom configuration:** for one catom in one firmware solution: the values given to the chosen isotope's variables, and for each whether it
+  was chosen automatically or by a person. Edited on the catom's page with a firmware solution picker.
 - **Verdicts are per Bench Solution:** the worked-out values and every option's verdict are computed for a configuration in a Bench Solution
   context (its boards, peers, conditions). The catom page shows them for the Bench Solution in context, and lists the other Bench Solutions
   that use the same firmware solution with their verdicts, so a configuration that works on one bench and breaks on another is visible.
-- **Configuration kind:** a catalogue entry saying which knobs a kind has, how its values are worked out (the datasheet formulas), and which
-  checks judge it. Kinds line up with the `hal_contract` families the catoms already declare, plus clock and power (D-cfg-2).
 
-Clock is the first kind built, because the evidence and the solvers are there (tmp-6). The machinery is the same for every kind.
+## The words (picked 2026-11-01; the user: "maybe you should pick the terminology")
 
-## Three verdicts and the default (the same for every kind)
+Two levels of choice, kept apart because they behave differently:
+
+| Word | What it is | Changing it | Row today |
+|---|---|---|---|
+| **Catom** | a firmware job and its interface: *what* gets done ("know when the button is pressed") | - | `CFunctionAtom` / `AtomJob`, `catom.json` |
+| **Isotope** | one *way* of doing the catom's job (pin-change interrupt, analog threshold; matched-divisor UART, autobaud UART) | **changes the code**; chosen per firmware solution | `IsotopeVariant` (the route) |
+| **Configuration** | the *values* the chosen isotope runs with, for one firmware solution (baud 115200, U2X 1, debounce 50 ms, ADC prescaler 128) | **keeps the code**, changes the numbers | new: `CatomConfiguration` |
+| **Variable** | one named slot a configuration fills; declared by the catom (shared by every isotope) or by one isotope (the analog isotope's threshold and ADC reference; the pin-change isotope has neither) | - | `CatomVariable` (extended from pins and F_CPU to every value) |
+| **Variable group** | how variables are grouped on the page and judged: clock, signal, drive, analog, timing, power, memory, rf | - | the `hal_contract` families, plus clock / power / memory / rf |
+| **Option** | one candidate the checks grade invalid / compromise / ideal: either an isotope or a set of values | - | `ConfigOption` |
+
+The rule of thumb on the page: "**Isotope:** how this catom does its job; changing it changes the code. **Configuration:** the numbers it runs
+with; changing them keeps the code." Choosing an isotope comes first, because it decides which variables the configuration has. Something that
+needs new code (a calibration routine, autobaud, polling instead of an interrupt) is an isotope, never a configuration value.
+
+`CIsotope` (the generated C text of one route on one binding, with pins and values substituted) stays an internal build row: it is what an
+isotope plus a configuration *produce*, not something a person picks. Its page label becomes "generated code" so the word "isotope" on screens
+always means the choice.
+
+Variable values keep the existing scope order (chip default -> board -> bench), with the **configuration** as the firmware solution's own layer
+on top for values a person chooses (baud, prescalers, debounce). Pin values stay derived from the bench wiring, as today.
+
+Clock is the first variable group built, because the evidence and the solvers are there (tmp-6). The machinery is the same for every group.
+
+## Three verdicts and the default (the same for every group, and for isotopes)
 
 - **invalid:** cannot work whatever else is chosen, and the checks show it. Never selected by default; refused at build time (gen); shown
   greyed, with the reason and the evidence.
@@ -68,7 +90,7 @@ what it gives up against the automatic one. A choice that turns invalid later (a
 and the automatic choice offered again.
 
 **Checks are layered, cheapest first:** (1) closed form (formulas against cited limits; catches the 5.9 % alone), (2) derived ranges from the
-registers and the conditions, (3) simulator runs at the corners (the twin, SPICE, the thermal FEM, whichever the kind uses), which confirm the
+registers and the conditions, (3) simulator runs at the corners (the twin, SPICE, the thermal FEM, whichever the group uses), which confirm the
 formulas and catch what a formula cannot.
 
 ## Which features need configurations (the survey the user asked for)
@@ -76,7 +98,7 @@ formulas and catch what a formula cannot.
 Each row is a place where today the codebase has a fixed setting, a finding, or a hard-coded table, and where a choice with invalid /
 compromise / ideal options exists.
 
-| Kind | What is configured | Typical invalid | Typical compromise | Exists today (fold in, do not duplicate) |
+| Variable group | What is configured | Typical invalid | Typical compromise | Exists today (fold in, do not duplicate) |
 |---|---|---|---|---|
 | **clock** | clock source, F_CPU, prescalers; serial baud / U2X / divisor; tick; PWM frequency; ADC clock; watchdog | U2X0 at 115200 against the 16U2 (5.9 %); ADC clock outside 50 to 200 kHz | matched divisor (works only with a matched peer); lower baud (throughput); a crystal (a part) | `timing_drift.CLOCKS`, `uart_sampling`, `clock_skew_run`, the `usart_u2x` knob, `clock.hz` |
 | **signal** | logic levels across boards (5 V UNO against the 3.3 V Feather M0 / ESP32-S3 on the bench), input thresholds, bus speed against bus capacitance and pull-ups (I2C rise time), SPI clock against the slowest device | a 5 V output into a pin that is not 5 V tolerant; an I2C rise time over the mode's limit | a 3.3 V high read by a 5 V input with thin margin; a slower bus mode; a level shifter (a part) | bob-2 bench findings (over-voltage), `BenchConnection` signal data, the "FT -> 5 V, TTA -> 3.3 V" note in hsp |
@@ -84,11 +106,11 @@ compromise / ideal options exists.
 | **analog** | ADC reference (AVCC / internal 1.1 V / AREF), prescaler, source impedance, thresholds (the analog `read-button` isotope) | a signal above the chosen reference; a source impedance far over the datasheet's recommendation | lower resolution at a faster ADC clock; a buffer (a part) | the analog-threshold isotope, `button_detect_registers` |
 | **timing (execution)** | debounce window, ISR versus poll, the loop period, event rates against latency | an event rate above what the chosen path can service | polling with a worse latency; a longer debounce | ipb (interrupt / poll budget), `press_flag`, `debounce_ms` |
 | **power** | supply rail, regulator, brown-out level against the supply, sleep modes | a load over the regulator's output; a brown-out level above the rail | a bigger regulator (a part); a lower clock at a lower voltage | drv-2 regulator suggestions, the UNO's USB budget |
-| **thermal** | the temperature range to cover, derating | a part outside its rated range | derated current; a clock band only cited to a narrower range | tmp-1..6 (temperature as a condition every other kind reads) |
+| **thermal** | the temperature range to cover, derating | a part outside its rated range | derated current; a clock band only cited to a narrower range | tmp-1..6 (temperature as a condition every other group reads) |
 | **memory** | flash and RAM against the isotopes and options chosen | an option set that does not fit | a smaller isotope with fewer features | firmware sizes from gen (resource-cost rule) |
 | **rf** | band, power, duty cycle against the region | a transmission `tx_permitted()` refuses | a lower power or duty cycle | the no-TX-without-legality rule |
 
-Thermal is a condition more than a configuration: every kind reads the temperature range from the Bench solution. Recommended first: clock,
+Thermal is a condition more than a configuration: every group reads the temperature range from the Bench solution. Recommended first: clock,
 then signal, then drive and analog (D-cfg-3).
 
 ## When the chip cannot do it: the fix suggester (an assistive tool)
@@ -99,16 +121,16 @@ with its verdict, what it costs and its evidence. Nothing is applied until a per
 the catom page, an isotope pick, a part or module board added to the bench), recorded like any other. (The automatic default above picks
 among options inside the configuration only; it never adds a part or a board.)
 
-1. **knob:** a different setting (baud, U2X, a prescaler, a slower bus mode).
-2. **code:** another isotope (a calibration routine, autobaud, polling instead of an interrupt).
+1. **configuration:** different values (baud, U2X, a prescaler, a slower bus mode); the code stays.
+2. **isotope:** another way of doing the job (a calibration routine, autobaud, polling instead of an interrupt); the code changes.
 3. **part on the board:** a part added or swapped on a board already on the bench (a crystal for the resonator, a pull-up, a series
-   resistor). Today's `part_fixes` catalogue is this rung for drive.
+   resistor). Today's `part_fixes` catalogue is this level for drive.
 4. **module board:** a third-party board planted on the bench and wired in through footholds. It is a board like any other (bob-5:
    `board_spec`, new boards are data), and it adds a **provides** block: what it gives the bench (a clock at a frequency and stability on a
    pin, level translation between two voltages on N channels, a UART with its own crystal, a regulated rail).
 5. **another board or chip:** the Mission search's inventory step, when nothing on the bench can be made to work.
 
-**Yes, module boards with their own oscillators are a real thing.** Candidates for the clock kind (each is cited from its datasheet before it
+**Yes, module boards with their own oscillators are a real thing.** Candidates for the clock group (each is cited from its datasheet before it
 is seeded, so no number here is final):
 
 - **An external clock into the chip:** the ATmega328P accepts an external clock on XTAL1 (the "external clock" CKSEL setting). A canned
@@ -123,7 +145,7 @@ is seeded, so no number here is final):
 - **A temperature-compensated real-time clock breakout** (such as one built on the DS3231) for timekeeping. It fixes long-term time, not the
   baud rate, and the plan says so on the card.
 
-The same ladder serves the other kinds. Signal: level-shifter breakouts. Drive: driver and MOSFET boards. Power: regulator or buck modules.
+The same ladder serves the other groups. Signal: level-shifter breakouts. Drive: driver and MOSFET boards. Power: regulator or buck modules.
 Each is a module board with a `provides` block, and each fix is proven by re-running the same checks with the module board on the bench.
 
 ## The rows (one object per concern, small)
@@ -131,16 +153,16 @@ Each is a module board with a `provides` block, and each fix is proven by re-run
 | Row | Fields (short) | Notes |
 |---|---|---|
 | `BenchSolution` (D-cfg-1) | name, bench, firmware_solution, conditions (temperature range, supply, aging years) | everything on a bench + one configured firmware, runnable as a simulation |
-| `ConfigKind` | name, hal_family, knobs, derived fields, checks, simulator | code-owned catalogue: clock, signal, drive, analog, timing, power, memory, rf |
-| `CatomConfiguration` | firmware_solution, catom, kind, knobs_json, chosen_option, chosen_by (auto / person), why | one per (firmware solution, catom, kind), edited on the catom page; knobs written through `catom_variables.propose` |
-| `ConfigOption` | kind, name, rung (knob / code / part / module-board / board), sets, isotope, parts, module_board, costs, source | the options and the suggester's catalogue (the clock rows are the clk table below) |
+| `VariableGroup` | name, hal_family, derived fields, checks, simulator | code-owned catalogue: clock, signal, drive, analog, timing, power, memory, rf |
+| `CatomConfiguration` | firmware_solution, catom, isotope, isotope_chosen_by, values_json (variable -> value, chosen_by, why) | one per (firmware solution, catom), edited on the catom page; values written through `catom_variables.propose` |
+| `ConfigOption` | group, name, level (values / isotope / part / module-board / board), sets, isotope, parts, module_board, costs, source | the options and the suggester's catalogue (the clock rows are the clk table below) |
 | `ConfigVerdict` | configuration, bench_solution, option, verdict, margin, gives_up, score, evidence (run ids, corners), flagged | written by the checks for one Bench Solution, never typed |
-| `ClockSource` | name, kind, nominal, tolerance, band and temperature range, aging, source | the first kind's cited data (clk-0) |
+| `ClockSource` | name, kind, nominal, tolerance, band and temperature range, aging, source | the clock group's cited data (clk-0) |
 | module board `provides` | in `board_spec` | what a module board gives the bench, for remedies |
 
 **Where it is edited: the catom page.** Catoms have no page of their own today; this plan adds one (`/display/catom` scoped to a catom,
 configured Table definitions, no raw JSON). Its Configuration tab: a firmware solution picker, a Bench Solution picker for context, then one
-section per kind with the knobs as edit fields, the options with their verdicts and scores, the chosen one and why, and the suggester's fixes
+isotope picker (with each isotope's verdict), then a section per variable group with the values as edit fields, the options with their verdicts and scores, the chosen one and why, and the suggester's fixes
 when nothing inside the chip works. The other Bench Solutions using the same firmware solution are listed with their verdicts. The HAL drawing
 (`HalVariableState`) links to the catom page instead of holding a second editor (D-cfg-4).
 
@@ -160,7 +182,7 @@ A person steps through the firmware with a Bench Solution as its context, and ca
 - **The whole bench:** the session gets a Bench Solution context: the bench's boards and peers (the 16U2 model from tmp-6 first), its
   conditions, its connections; other boards on the bench join as more twins or as models, said per board (the Bench's testing column).
 
-## The clock kind in detail (carried from clk)
+## The clock group in detail (carried from clk)
 
 - **Clock source:** the thing that makes the chip's clock (resonator, crystal, internal RC, external oscillator). Datasheet bounds, used as
   bounds, never drawn as curves (the tmp-4 rule).
@@ -170,14 +192,14 @@ A person steps through the firmware with a Bench Solution as its context, and ca
   both directions decode (`clock_skew_run.limits`) and the margin left.
 - **Peer rows:** the 16U2 as arduino-usbserial sets it (built in tmp-6), "exact", a USB-serial adapter by its datasheet, another of our boards.
 
-| Option | Rung | What it costs | Note |
+| Option | Level | What it costs | Note |
 |---|---|---|---|
-| Matched divisor (U2X, UBRR 16, as Arduino does) | knob | works only with a peer that uses the same divisor; about +-2.5 % margin against the 16U2 | today's shipped build |
-| Normal mode (16 samples, UBRR 8) | knob | -3.5 % divisor error: invalid against the 16U2 at 115200 | wider window, worse divisor |
-| Lower baud (57600 / 38400 / 9600) | knob | throughput, worked out against the telemetry load | 9600 = 0.2 % error |
-| Two stop bits sent | knob | about 9 % less throughput | removes the fast-sender failure |
-| RC + OSCCAL user calibration | code (isotope) + part removed | +-1 % after calibration, +-10 % before | a calibration routine |
-| Autobaud / a sync byte | code (isotope) | firmware size and cycles, a sync protocol | follows the peer's clock |
+| Matched divisor (U2X, UBRR 16, as Arduino does) | configuration | works only with a peer that uses the same divisor; about +-2.5 % margin against the 16U2 | today's shipped build |
+| Normal mode (16 samples, UBRR 8) | configuration | -3.5 % divisor error: invalid against the 16U2 at 115200 | wider window, worse divisor |
+| Lower baud (57600 / 38400 / 9600) | configuration | throughput, worked out against the telemetry load | 9600 = 0.2 % error |
+| Two stop bits sent | configuration | about 9 % less throughput | removes the fast-sender failure |
+| RC + OSCCAL user calibration | isotope + part removed | +-1 % after calibration, +-10 % before | a calibration routine |
+| Autobaud / a sync byte | isotope | firmware size and cycles, a sync protocol | follows the peer's clock |
 | Crystal instead of the resonator | part | rework on an UNO, part cost, longer start-up (fuses) | tens of ppm |
 | Baud-friendly crystal (14.7456 / 18.432 MHz) | part + F_CPU | the 1 ms tick no longer exact; the Arduino core assumes 16 MHz | the tick check shows the cost |
 | External oscillator / clock generator into XTAL1 | module board | a fuse change; rework on an UNO (XTAL1 not on a header) | clean on a breadboard 328P |
@@ -192,14 +214,14 @@ sessions last.
 
 | Phase | What | Proof |
 |---|---|---|
-| cfg-0 | the shape: `BenchSolution` (D-cfg-1), `ConfigKind`, `CatomConfiguration` (per firmware solution), `ConfigOption`, `ConfigVerdict` (per Bench Solution); the verdict engine (layered checks, the automatic default, a person's choice recorded) with no kind wired yet | a toy kind with one invalid, one compromise, one ideal option: the ideal is chosen; the override is recorded with what it gives up; the same configuration judged in two Bench Solutions gets two verdicts |
-| cfg-1 | clock kind, part 1: `ClockSource` and peer rows (cited); `timing_drift` reads them; the serial-link and tick checks from tmp-6 code | the UNO's shipped configuration: 117 647 Bd, +2.1 %, the 16U2 matched, margin -2.50 .. +2.56 % against a +-1.0 % band, compromise, chosen automatically; U2X0 invalid with the 5.9 % |
+| cfg-0 | the shape: `BenchSolution` (D-cfg-1), `VariableGroup`, `CatomConfiguration` (isotope + values, per firmware solution), `ConfigOption`, `ConfigVerdict` (per Bench Solution); the verdict engine (layered checks, the automatic default, a person's choice recorded) with no group wired yet | a toy catom with two isotopes and one invalid, one compromise, one ideal option: the ideal is chosen; the override is recorded with what it gives up; the same configuration judged in two Bench Solutions gets two verdicts |
+| cfg-1 | clock group, part 1: `ClockSource` and peer rows (cited); `timing_drift` reads them; the serial-link and tick checks from tmp-6 code | the UNO's shipped configuration: 117 647 Bd, +2.1 %, the 16U2 matched, margin -2.50 .. +2.56 % against a +-1.0 % band, compromise, chosen automatically; U2X0 invalid with the 5.9 % |
 | cfg-2 | the catom page: `/display/catom`, its Configuration tab (firmware solution and Bench Solution pickers, knobs, options, verdicts, other Bench Solutions) | the door returns the UNO's serial configuration with both verdicts; Chrome pass needs a deploy (the user's call) |
-| cfg-3 | clock kind, part 2: the option catalogue graded; the simulator by configuration; the FE twin flag; `clock-skew` as a scenario step | a HAL_UART_ERRCOUNT build counts the 236 FEs tmp-6 saw; 9600 invalid for the telemetry load |
+| cfg-3 | clock group, part 2: the option catalogue graded; the simulator by configuration; the FE twin flag; `clock-skew` as a scenario step | a HAL_UART_ERRCOUNT build counts the 236 FEs tmp-6 saw; 9600 invalid for the telemetry load |
 | cfg-4 | stepping: pause / run-to / step on the twin's control channel (D-cfg-6); change a configuration at a step = rebuild + replay to the same point + side-by-side difference; the session carries its Bench Solution | step to the first command byte, switch U2X 1 -> 0, replay: the command now fails to land, shown beside the original run from that step |
-| cfg-5 | the fix suggester: `provides` in `board_spec`; two cited clock module boards and one UART bridge; the footholds reachability check (XTAL1 not on the UNO's headers); each suggestion tried in a copy of the Bench Solution; `part_fixes` becomes the drive kind's part rung | for U2X0 at 115200 the suggester lists: matched divisor (knob), lower baud (knob), the UART bridge board (clean), the external-clock module (needs rework), each with its verdict and evidence; nothing applied until accepted |
-| cfg-6 | signal kind: levels across bench boards from footholds, I2C rise time; level-shifter module boards in the suggester | the UNO wired to the Feather M0: a 5 V output into its pin is invalid; a level-shifter board is suggested and proven |
-| cfg-7 | drive and analog kinds, then timing, power, memory (rf when an RF catom exists) | each verdict cites its datasheet formula or measurement |
+| cfg-5 | the fix suggester: `provides` in `board_spec`; two cited clock module boards and one UART bridge; the footholds reachability check (XTAL1 not on the UNO's headers); each suggestion tried in a copy of the Bench Solution; `part_fixes` becomes the drive group's part level | for U2X0 at 115200 the suggester lists: matched divisor (values), lower baud (values), the UART bridge board (clean), the external-clock module (needs rework), each with its verdict and evidence; nothing applied until accepted |
+| cfg-6 | signal group: levels across bench boards from footholds, I2C rise time; level-shifter module boards in the suggester | the UNO wired to the Feather M0: a 5 V output into its pin is invalid; a level-shifter board is suggested and proven |
+| cfg-7 | drive and analog groups, then timing, power, memory (rf when an RF catom exists) | each verdict cites its datasheet formula or measurement |
 | cfg-8 | the firmware follows the choice: gen reads the configuration (baud, U2X, F_CPU, stop bits, divisor by the datasheet equation) and refuses one that is invalid in the Bench Solution being built for | `pol board gen --u2x 0` at 115200 for the UNO's USB link is refused with the reason |
 
 ## Decisions (the user's)
@@ -207,8 +229,8 @@ sessions last.
 - **D-cfg-1: the Bench Solution.** It does not exist under that name. Recommend a new `BenchSolution` row (bench + firmware solution +
   conditions) that `HardwareSystem` can name, since `HardwareSystem` already carries stage, participants and circuits. The alternative: grow
   `HardwareSystem` into it (add bench and firmware solution).
-- **D-cfg-2: the kinds.** Recommend the list above, lined up with the catoms' `hal_contract` families plus clock, power, memory and rf, with
-  thermal as a condition every kind reads.
+- **D-cfg-2: the variable groups.** Recommend the list above, lined up with the catoms' `hal_contract` families plus clock, power, memory and rf, with
+  thermal as a condition every group reads.
 - **D-cfg-3: the order.** Recommend the phase order above: clock, the catom page, stepping, the suggester, then signal, drive and analog.
 - **D-cfg-4: where configurations are edited.** Per the user: on the catom page, per firmware solution. Recommend the HAL drawing links there
   instead of keeping its own editor.
@@ -217,4 +239,4 @@ sessions last.
   image (a local build, not a deploy). Yes / no.
 - **D-cfg-7: the `USART_U2X 0` knob.** Recommend: keep it; the clock check marks it invalid at 115200 against the UNO's 16U2, and gen refuses
   it there with the reason (it is fine against a matched peer, or at 9600).
-- **D-cfg-8: the words.** "Bench Solution", "catom configuration", "configuration kind", "fix suggester", "module board".
+- **D-cfg-8: the words.** Picked in "The words" above: catom, isotope (changes the code), configuration (changes the values), variable, variable group, option, Bench Solution, fix suggester, module board; `CIsotope` shown as "generated code".
