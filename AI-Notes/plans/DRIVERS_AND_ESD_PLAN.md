@@ -2,7 +2,7 @@
 
 **Branch:** remote `dev-electronics`.
 **Started:** 2026-10-31.
-**Status:** drv-0 + drv-1 BUILT 2026-10-31 (with mounting by position); drv-2 (four more cited parts, judged fixes, Mount here) + drv-3 (whole-part budgets) BUILT 2026-10-31; esd-0 .. esd-5 BUILT 2026-10-31.
+**Status:** drv-0 + drv-1 BUILT 2026-10-31 (with mounting by position); drv-2 (four more cited parts, judged fixes, Mount here) + drv-3 (whole-part budgets) BUILT 2026-10-31; esd-0 .. esd-5 BUILT 2026-10-31; esd-6 (bidirectional TVS + varistor, derived) + esd-7 (CDM) + drv-4 (LVC245A down-shifter) + drv-5 (LM2596 module) BUILT 2026-10-31.
 
 ## The ask, in the user's words
 
@@ -240,6 +240,55 @@ Supporting changes:
 - a down-shifter in the catalogue (74LVC-family, 5 V-tolerant inputs);
 - a buck MODULE as a part;
 - the Chrome pass.
+
+### Built 2026-10-31 (esd-6, esd-7; drv-4, drv-5) — the user: "okay go ahead on those remember to prefer open source"
+
+Open source first: every model sits on ngspice's own elements and is derived from datasheet numbers. No vendor model file is used, since those come
+under the vendor's own terms; TDK's SIOV PSpice models are one example. The CDM numbers come from a PUBLIC Industry Council paper, because JS-002
+itself is sold.
+
+**esd-6 — bidirectional TVS and varistor** (`board.custom.protection_models`, split out of protection_parts)
+- **SMBJ5.0CA**, the bidirectional column of the same Bourns row: two equal diodes, cathode to cathode.
+  - RS = (V_C − V_BR − (1+N) Vt ln(I_PP/I_T)) / (2(I_PP − I_T)) = 6.834 mΩ; BV = V_BR − N Vt ln(I_T/IS) − 2 I_T RS = 6.285 V.
+  - Forward N = 1 is a LABELLED assumption: a bidirectional datasheet gives no forward pair. It shapes the curve between the rated points, not the points.
+  - ngspice: 7.0004 V at ±10 mA and 12.000001 V at ±326.5 A.
+- **S05K11** (TDK SIOV StandarD series, March 2018): the varistor law I = k V^α through V_V max 19.8 V (18 V + 10 %) at 1 mA and v_c,max 36 V at 1 A.
+  - α = 11.555, with its 1750 pF; written `sgn(V)*pwr(abs(V),α)`, because KiCad 10's libngspice has no `pwrs`.
+  - ngspice: 19.8 V and 35.999 V, in both polarities.
+  - New field `ProtectionPart.i_c_a`: the current v_c is given at, when it isn't I_PP.
+  - Each protection row has `in_model`, which says when the peak went past the cited points. For a varistor above i_c, the law understates the voltage.
+- **Polymer:** still refused. Its clamping voltage comes without the current it's measured at.
+
+**esd-7 — CDM** (`pcb.custom.esd_cdm`; models `cdm-small` and `cdm-large`)
+- Source: Industry Council on ESD Target Levels, White Paper 2, rev. 3.0 (May 2021).
+  - Table C-II: the JS-002 modules are 6.8 pF and 55 pF; levels 125–1000 V.
+  - Table C-III: 7.2 A / 12.1 A ± 15 % at 500 V (6+ GHz scope).
+  - Annex D: a series LCR loop with R = 25 Ω spark + 1 Ω detector.
+- L = 15.88 nH, solved so Eq. 9 gives 7.2 A on the small module. The large module is a check: 12.8 A, inside ± 15 %.
+- The shape is slower than JS-002's (FWHM 0.70 ns and 2.1 ns). That is reported as not met: it delivers more charge, which is the safe side.
+  - No single R and L meets all six numbers; I searched for one.
+- ngspice into a short matches the closed form: 7.199 A, with rise and FWHM within 1 %.
+
+**Recorded runs** (`kicad10_esd_cdm.json`), the UNO's DIGITAL_L:7 pin alone:
+
+| Case | Pin peak | Verdict |
+|---|---|---|
+| HBM 2 kV, SMBJ5.0CA | 7.28 V | breaks (the one-way part gave 7.15 V) |
+| HBM 2 kV, S05K11 | 35.6 V | breaks; 1.32 A, past the 1 A model point (flagged) |
+| CDM 500 V, bare | 312 V | breaks |
+| CDM 500 V, SMBJ5.0A | 7.27 V | breaks; the TVS carries 7.19 A, 2.2 % of I_PP |
+
+**drv-4 — down-shifter:** **SN74LVC245A** (TI SCAS218X, PDIP-20, DIR high). On from 2 V, takes 5.5 V, high to 2.1 V at 24 mA, never above 3.8 V.
+- The UNO's 5 V D7 into the ESP32-C3's 3.3 V pin: the LVC245A fits; the AHCT125 doesn't.
+
+**drv-5 — buck module:** **lm2596-5.0-module** is the LM2596-5.0 with SNVS124G §9.2.1's own design (33 µH, 330 µF, 1N5823, 680 µF).
+- 5 V at 3 A from 7–12 V (the design's own maximum).
+- It fixes a starved 5 V rail where the bare chip doesn't.
+- Its 2.54 mm header is a CHOSEN layout, and says so.
+
+**Selftests:** `pcb_esd_cdm_selftest` (7 checks); `board_part_catalogue_selftest` gains `run_down_shift_and_module` (3 checks).
+
+**Still owed:** the Chrome pass (it needs the user's deploy); a polymer model (it needs a datasheet giving V_C with its current).
 
 **esd-4 — the IEC 61000-4-2 waveform-matched gun network** (a published one, cited), replacing the plain RC for system-level levels. Built as the standard's own current equation (above).
 
