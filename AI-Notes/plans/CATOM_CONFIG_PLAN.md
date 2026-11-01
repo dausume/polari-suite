@@ -78,6 +78,16 @@ Consequences for this plan:
 
 ## Thermal System and Thermal Solution (outline; its own plan on the user's go, D-cfg-9)
 
+**Scope now: open air only (the user, 2026-11-01).** "Typically we are wanting to for now assume that Bench Solutions are always open air
+because they are meant to be simplified simulations we do to ensure the baseline concept for electronics of the embedded system works before
+we move on to dealing with the actual embedding process. For now we just need to be concerned with open air solutions and nothing special
+yet." So a Bench Solution's thermal condition is: open air, natural convection, an ambient range, nothing else. What is built now: each
+part's junction temperature in open air at the hottest ambient (the plate FEM and Foster networks as they are), the runaway loop-gain check,
+and the board temperature feeding the other checks (the clock band). The mitigation catalogue below (heat sinks, fans, pads, venting,
+enclosures) is **deferred to the embedding stage**, a later kind of solution, and is kept here only so it is not lost. Until then, a part
+that fails in open air is reported as invalid with its numbers; the fix suggester offers only what changes the electronics (another part,
+derating through a configuration, another board).
+
 Mitigating heat, and thermal runaway in particular, is part of a working solution, so thermal gets the same treatment as configurations:
 options graded invalid / compromise / ideal, a default chosen automatically, and the fix suggester for when nothing on hand is enough.
 
@@ -205,7 +215,7 @@ Each is a module board with a `provides` block, and each fix is proven by re-run
 
 | Row | Fields (short) | Notes |
 |---|---|---|
-| `BenchSolution` | name, bench, hardware_solution, firmware_solution, thermal_solution, conditions (ambient range, supply, aging years) | the specific solutions bound as a whole; simulated whole |
+| `BenchSolution` | name, bench, hardware_solution, firmware_solution, thermal_solution, conditions (ambient range, supply, aging years; always open air for now) | the specific solutions bound as a whole; simulated whole |
 | `VariableGroup` | name, hal_family, derived fields, checks, simulator | code-owned catalogue: clock, signal, drive, analog, timing, power, memory, rf |
 | `CatomConfiguration` | firmware_solution, catom, isotope, isotope_chosen_by, values_json (variable -> value, chosen_by, why) | one per (firmware solution, catom), edited on the catom page; values written through `catom_variables.propose` |
 | `ConfigOption` | group, name, level (values / isotope / part / module-board / board), sets, isotope, parts, module_board, costs, source | the options and the suggester's catalogue (the clock rows are the clk table below) |
@@ -293,6 +303,6 @@ sessions last.
   image (a local build, not a deploy). Yes / no.
 - **D-cfg-7: the `USART_U2X 0` knob.** Recommend: keep it; the clock check marks it invalid at 115200 against the UNO's 16U2, and gen refuses
   it there with the reason (it is fine against a matched peer, or at 9600).
-- **D-cfg-9: thermal.** Recommend a separate plan, THERMAL_SOLUTION_PLAN (ths), for the Thermal System / Thermal Solution outlined above,
-  started after cfg-0, so the Bench Solution has a thermal slot from the start.
+- **D-cfg-9: thermal.** Open air only for now (the user). Recommend the open-air thermal checks ride in this plan as one phase after cfg-0;
+  the mitigations get their own plan (THERMAL_SOLUTION_PLAN) when the embedding stage starts.
 - **D-cfg-8: the words.** Picked in "The words" above: catom, isotope (changes the code), configuration (changes the values), variable, variable group, option, System (template), Solution (specific), Bench Solution, fix suggester, module board; `CIsotope` shown as "generated code".
