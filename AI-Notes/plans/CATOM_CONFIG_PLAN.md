@@ -27,16 +27,28 @@ findings, `board_spec`), drv-2/3 (DRIVERS_AND_ESD_PLAN.md: `part_fixes.suggestio
 
 The trigger was the 5.9 % mismatch tmp-6 found: the `USART_U2X 0` build (111 111 Bd) cannot talk to the UNO's 16U2 (117 647 Bd).
 
-## The shift: no "clocked catom"; a catom gets configurations, per Bench solution
+> (2026-11-01, later) "Bench Solutions should already exist, that is just the complete combination of everything on a bench with specific
+> configured firmware that is able to be run as a simulation? Or were we calling that something else? The fix ladder should be an assistive
+> suggestion tool, and the configurations should be on the Catom pages, so we can configure them on a per firmware solution basis. We should be
+> able to step through firmware with a Bench Solution context tied to it to be able to change configurations"
 
-A catom stays what it is: code with an interface, a `hal_contract` and isotopes. What changes is that **how a catom is set up for one Bench
-solution** becomes a row of its own: a **catom configuration**. The same `read-button` catom can be configured one way on an UNO alone and
-another way on an UNO wired to a 3.3 V board; the catom does not change, its configuration does.
+## The shift: no "clocked catom"; a catom gets configurations, per firmware solution, judged in a Bench Solution
 
-- **Bench solution:** one solution (a `HardwareSolution` and its firmware variant) set up on one Bench: these boards, these connections,
-  these conditions (temperature range, supply). D-cfg-1 decides its home.
-- **Catom configuration:** for one catom in one Bench solution, and one **configuration kind** (clock, signal, ...): the typed knobs, the
-  worked-out values, the verdict of every option, which option is chosen and whether it was chosen automatically or by a person.
+A catom stays what it is: code with an interface, a `hal_contract` and isotopes. What changes is that **how a catom is set up in one firmware
+solution** becomes a row of its own: a **catom configuration**, edited on the **catom's page**. Whether that configuration works is judged
+in a **Bench Solution**: the same configuration can be ideal on an UNO alone and invalid on an UNO wired to a 3.3 V board.
+
+- **Bench Solution:** the complete combination of everything on a bench (boards, module boards, connections, conditions) with a specific
+  configured firmware, runnable as a simulation. **It does not exist under that name today.** What exists, in pieces: `Bench` (the boards
+  and breadboards on the table), `BenchConnection` (the wiring), `HardwareSystem` (the whole working thing: boards, circuits, the Cross-Domain
+  solution, the stage, its participants including twin sessions), `FirmwareSolution` (graph + board -> firmware), `FirmwareVariant` (a
+  configured build) and `TwinSession` (ONE simulated board running ONE locked firmware). Nothing ties a Bench to a firmware solution and runs
+  the whole bench. D-cfg-1 decides whether the Bench Solution is a new row or `HardwareSystem` grown into it.
+- **Catom configuration:** for one catom in one firmware solution, and one **configuration kind** (clock, signal, ...): the typed knobs, the
+  chosen option and whether it was chosen automatically or by a person. Edited on the catom's page with a firmware solution picker.
+- **Verdicts are per Bench Solution:** the worked-out values and every option's verdict are computed for a configuration in a Bench Solution
+  context (its boards, peers, conditions). The catom page shows them for the Bench Solution in context, and lists the other Bench Solutions
+  that use the same firmware solution with their verdicts, so a configuration that works on one bench and breaks on another is visible.
 - **Configuration kind:** a catalogue entry saying which knobs a kind has, how its values are worked out (the datasheet formulas), and which
   checks judge it. Kinds line up with the `hal_contract` families the catoms already declare, plus clock and power (D-cfg-2).
 
@@ -79,10 +91,13 @@ compromise / ideal options exists.
 Thermal is a condition more than a configuration: every kind reads the temperature range from the Bench solution. Recommended first: clock,
 then signal, then drive and analog (D-cfg-3).
 
-## When the chip cannot do it: the remedy ladder
+## When the chip cannot do it: the fix suggester (an assistive tool)
 
-When every option inside the chip is invalid (or only poor compromises are left), the configuration offers **remedies**, cheapest first. A
-remedy is graded with the same three verdicts, by the same checks, after it is applied in the simulator.
+The ladder is an **assistive suggestion tool**, never an automatic change. When every option inside the chip is invalid (or only poor
+compromises are left), it suggests fixes, cheapest first; each suggestion is tried in a copy of the Bench Solution in the simulator and shown
+with its verdict, what it costs and its evidence. Nothing is applied until a person accepts it, and accepting is an ordinary edit (a knob on
+the catom page, an isotope pick, a part or module board added to the bench), recorded like any other. (The automatic default above picks
+among options inside the configuration only; it never adds a part or a board.)
 
 1. **knob:** a different setting (baud, U2X, a prescaler, a slower bus mode).
 2. **code:** another isotope (a calibration routine, autobaud, polling instead of an interrupt).
@@ -115,17 +130,35 @@ Each is a module board with a `provides` block, and each fix is proven by re-run
 
 | Row | Fields (short) | Notes |
 |---|---|---|
-| `BenchSolution` (D-cfg-1) | name, bench, hardware_solution, firmware_variant, conditions (temperature range, supply, aging years) | the scope of every configuration |
+| `BenchSolution` (D-cfg-1) | name, bench, firmware_solution, conditions (temperature range, supply, aging years) | everything on a bench + one configured firmware, runnable as a simulation |
 | `ConfigKind` | name, hal_family, knobs, derived fields, checks, simulator | code-owned catalogue: clock, signal, drive, analog, timing, power, memory, rf |
-| `CatomConfiguration` | bench_solution, catom, kind, knobs_json, derived_json, chosen_option, chosen_by (auto / person), why, flagged | one per (bench solution, catom, kind); knobs written through `catom_variables.propose` |
-| `ConfigOption` | kind, name, rung (knob / code / part / module-board / board), sets, isotope, parts, module_board, costs, source | the compromise and remedy catalogue (the clock rows are the clk table below) |
-| `ConfigVerdict` | configuration, option, verdict, margin, gives_up, score, evidence (run ids, corners) | written by the checks, never typed |
+| `CatomConfiguration` | firmware_solution, catom, kind, knobs_json, chosen_option, chosen_by (auto / person), why | one per (firmware solution, catom, kind), edited on the catom page; knobs written through `catom_variables.propose` |
+| `ConfigOption` | kind, name, rung (knob / code / part / module-board / board), sets, isotope, parts, module_board, costs, source | the options and the suggester's catalogue (the clock rows are the clk table below) |
+| `ConfigVerdict` | configuration, bench_solution, option, verdict, margin, gives_up, score, evidence (run ids, corners), flagged | written by the checks for one Bench Solution, never typed |
 | `ClockSource` | name, kind, nominal, tolerance, band and temperature range, aging, source | the first kind's cited data (clk-0) |
 | module board `provides` | in `board_spec` | what a module board gives the bench, for remedies |
 
-**The card:** one state node kind, `catom-config` (`CatomConfigState`), category HAL, in the HAL drawing beside the `HalVariableState`
-cards (D-cfg-4). One card per catom per Bench solution, with a section per kind: the knobs as edit fields, the options with their verdicts and
-scores, the chosen one and why, and the remedies when nothing inside the chip works.
+**Where it is edited: the catom page.** Catoms have no page of their own today; this plan adds one (`/display/catom` scoped to a catom,
+configured Table definitions, no raw JSON). Its Configuration tab: a firmware solution picker, a Bench Solution picker for context, then one
+section per kind with the knobs as edit fields, the options with their verdicts and scores, the chosen one and why, and the suggester's fixes
+when nothing inside the chip works. The other Bench Solutions using the same firmware solution are listed with their verdicts. The HAL drawing
+(`HalVariableState`) links to the catom page instead of holding a second editor (D-cfg-4).
+
+## Stepping through firmware in a Bench Solution, changing configurations
+
+A person steps through the firmware with a Bench Solution as its context, and can change a configuration at a step and see the effect.
+
+- **What exists:** `TwinSession` runs one board's locked firmware with a live control channel; `BenchInteraction` records every action with
+  the twin's own CPU cycle; the twin is cycle-exact and deterministic. **It cannot pause or step today**, and it runs one board, not a bench.
+- **Stepping:** the twin gains pause / run-to / step commands on its control channel (by cycle, by time, to the next bench event or serial
+  frame, to a catom's function entry from the build's symbol map). simavr has a gdb stub for instruction-level stepping; event-level
+  stepping is the one a person needs first. This is a C change and a rebuild of the local `prf-board-engines` image (D-cfg-6).
+- **Changing a configuration at a step:** most knobs are build-time (baud, U2X, F_CPU, prescalers), and the twin's firmware is locked, so a
+  change means: rebuild with the new configuration, start a fresh twin, **replay** the recorded interactions to the same point (deterministic,
+  by cycle and by true time), and show both runs side by side from that step: what differs (bytes, pin levels, verdicts). World-side settings
+  (the oscillator's error, the peer's clock, temperature) replay the same way. The original run is kept; nothing is edited in place.
+- **The whole bench:** the session gets a Bench Solution context: the bench's boards and peers (the 16U2 model from tmp-6 first), its
+  conditions, its connections; other boards on the bench join as more twins or as models, said per board (the Bench's testing column).
 
 ## The clock kind in detail (carried from clk)
 
@@ -159,28 +192,29 @@ sessions last.
 
 | Phase | What | Proof |
 |---|---|---|
-| cfg-0 | the shape: `BenchSolution`, `ConfigKind`, `CatomConfiguration`, `ConfigOption`, `ConfigVerdict`; the verdict engine (layered checks, the automatic default, a person's choice recorded) with no kind wired yet | a toy kind with one invalid, one compromise, one ideal option: the ideal is chosen; the override is recorded with what it gives up |
+| cfg-0 | the shape: `BenchSolution` (D-cfg-1), `ConfigKind`, `CatomConfiguration` (per firmware solution), `ConfigOption`, `ConfigVerdict` (per Bench Solution); the verdict engine (layered checks, the automatic default, a person's choice recorded) with no kind wired yet | a toy kind with one invalid, one compromise, one ideal option: the ideal is chosen; the override is recorded with what it gives up; the same configuration judged in two Bench Solutions gets two verdicts |
 | cfg-1 | clock kind, part 1: `ClockSource` and peer rows (cited); `timing_drift` reads them; the serial-link and tick checks from tmp-6 code | the UNO's shipped configuration: 117 647 Bd, +2.1 %, the 16U2 matched, margin -2.50 .. +2.56 % against a +-1.0 % band, compromise, chosen automatically; U2X0 invalid with the 5.9 % |
-| cfg-2 | clock kind, part 2: the option catalogue graded; the simulator by configuration; the FE twin flag (D-cfg-6); `clock-skew` as a scenario step | a HAL_UART_ERRCOUNT build counts the 236 FEs tmp-6 saw; 9600 invalid for the telemetry load |
-| cfg-3 | the remedy ladder and module boards: `provides` in `board_spec`; two cited clock module boards and one UART bridge; the footholds reachability check (XTAL1 not on the UNO's headers); `part_fixes` becomes the drive kind's part rung | the UNO's remedy list shows the external-clock module as "compromise, needs rework" and the UART bridge as a clean option, each proven by a re-run with the module on the bench |
-| cfg-4 | signal kind: levels across bench boards from footholds, I2C rise time from bus capacitance and pull-ups; level-shifter module boards | the UNO wired to the Feather M0: a 5 V output into its pin is invalid; a level-shifter board makes it valid |
-| cfg-5 | drive and analog kinds, reading drv-2/3 and the analog isotope | each verdict cites its datasheet formula |
-| cfg-6 | timing, power, memory (and rf when an RF catom exists) | each verdict cites its formula or measurement |
-| cfg-7 | the page: the `CatomConfigState` card in the HAL drawing, options and remedies with scores, the newest run's corners; links from Board Details | Chrome pass (needs a deploy, the user's call) |
-| cfg-8 | the firmware follows the choice: gen reads the chosen configuration (baud, U2X, F_CPU, stop bits, divisor by the datasheet equation) and refuses a configuration that is invalid | `pol board gen --u2x 0` at 115200 for the UNO's USB link is refused with the reason |
+| cfg-2 | the catom page: `/display/catom`, its Configuration tab (firmware solution and Bench Solution pickers, knobs, options, verdicts, other Bench Solutions) | the door returns the UNO's serial configuration with both verdicts; Chrome pass needs a deploy (the user's call) |
+| cfg-3 | clock kind, part 2: the option catalogue graded; the simulator by configuration; the FE twin flag; `clock-skew` as a scenario step | a HAL_UART_ERRCOUNT build counts the 236 FEs tmp-6 saw; 9600 invalid for the telemetry load |
+| cfg-4 | stepping: pause / run-to / step on the twin's control channel (D-cfg-6); change a configuration at a step = rebuild + replay to the same point + side-by-side difference; the session carries its Bench Solution | step to the first command byte, switch U2X 1 -> 0, replay: the command now fails to land, shown beside the original run from that step |
+| cfg-5 | the fix suggester: `provides` in `board_spec`; two cited clock module boards and one UART bridge; the footholds reachability check (XTAL1 not on the UNO's headers); each suggestion tried in a copy of the Bench Solution; `part_fixes` becomes the drive kind's part rung | for U2X0 at 115200 the suggester lists: matched divisor (knob), lower baud (knob), the UART bridge board (clean), the external-clock module (needs rework), each with its verdict and evidence; nothing applied until accepted |
+| cfg-6 | signal kind: levels across bench boards from footholds, I2C rise time; level-shifter module boards in the suggester | the UNO wired to the Feather M0: a 5 V output into its pin is invalid; a level-shifter board is suggested and proven |
+| cfg-7 | drive and analog kinds, then timing, power, memory (rf when an RF catom exists) | each verdict cites its datasheet formula or measurement |
+| cfg-8 | the firmware follows the choice: gen reads the configuration (baud, U2X, F_CPU, stop bits, divisor by the datasheet equation) and refuses one that is invalid in the Bench Solution being built for | `pol board gen --u2x 0` at 115200 for the UNO's USB link is refused with the reason |
 
 ## Decisions (the user's)
 
-- **D-cfg-1: where "Bench solution" lives.** Recommend a small new `BenchSolution` row (bench + hardware solution + firmware variant +
-  conditions), since `HardwareSolution` is already large. The alternative: a `bench` field and conditions on `HardwareSolution`.
+- **D-cfg-1: the Bench Solution.** It does not exist under that name. Recommend a new `BenchSolution` row (bench + firmware solution +
+  conditions) that `HardwareSystem` can name, since `HardwareSystem` already carries stage, participants and circuits. The alternative: grow
+  `HardwareSystem` into it (add bench and firmware solution).
 - **D-cfg-2: the kinds.** Recommend the list above, lined up with the catoms' `hal_contract` families plus clock, power, memory and rf, with
   thermal as a condition every kind reads.
-- **D-cfg-3: the order.** Recommend clock, then the remedy ladder, then signal, then drive and analog, then the rest.
-- **D-cfg-4: the card.** Recommend one `CatomConfigState` per catom per Bench solution with a section per kind. The alternative: one card per
-  (catom, kind).
+- **D-cfg-3: the order.** Recommend the phase order above: clock, the catom page, stepping, the suggester, then signal, drive and analog.
+- **D-cfg-4: where configurations are edited.** Per the user: on the catom page, per firmware solution. Recommend the HAL drawing links there
+  instead of keeping its own editor.
 - **D-cfg-5: module boards.** Recommend module boards as ordinary boards (`board_spec` data) with a `provides` block, not a separate class.
-- **D-cfg-6: the FE twin flag** needs a C change and a rebuild of the local `prf-board-engines` image (a local build, not a deploy). Yes / no.
-- **D-cfg-7: the `USART_U2X 0` knob.** Recommend: keep it, but the clock check marks it invalid at 115200 against the UNO's 16U2, and gen
-  refuses it there with the reason (it is fine against a matched peer, or at 9600).
-- **D-cfg-8: the words.** "catom configuration", "configuration kind", "Bench solution", "remedy", "module board". ("Clocked catom" is
-  dropped, per the user.)
+- **D-cfg-6: the twin C changes** (the FE flag; pause / run-to / step on the control channel) and a rebuild of the local `prf-board-engines`
+  image (a local build, not a deploy). Yes / no.
+- **D-cfg-7: the `USART_U2X 0` knob.** Recommend: keep it; the clock check marks it invalid at 115200 against the UNO's 16U2, and gen refuses
+  it there with the reason (it is fine against a matched peer, or at 9600).
+- **D-cfg-8: the words.** "Bench Solution", "catom configuration", "configuration kind", "fix suggester", "module board".
