@@ -2,7 +2,7 @@
 
 **Branch:** remote `dev-electronics` (electronics work never goes to `dev`).
 **Started:** 2026-11-01 as CLOCK_CONFIG_PLAN (clk); widened the same day to catom configurations of every variable group. **Status: PLAN ONLY.**
-D-cfg-1..8 are the user's to decide.
+D-cfg-1 decided by the user (Systems and Solutions); D-cfg-2..9 are the user's to decide.
 **Builds on:** tmp-4 / tmp-6 (TEMPERATURE_PLAN.md: `timing_drift`, `uart_sampling`, `clock_skew_run`), hsp-3c-hal / hsp-3d
 (HARDWARE_SYSTEM_PINS_PLAN.md: `CatomVariable`, `HalVariableState`, `catom_variables.propose`), the catoms' `hal_contract` families
 (drive / signal / protocol / register / execution), catom isotopes, bob-0..5 (BENCH_BOARDS_PLAN.md: footholds, `BenchConnection`, bench
@@ -38,17 +38,70 @@ A catom stays what it is: code with an interface, a `hal_contract` and isotopes.
 solution** becomes a row of its own: a **catom configuration**, edited on the **catom's page**. Whether that configuration works is judged
 in a **Bench Solution**: the same configuration can be ideal on an UNO alone and invalid on an UNO wired to a 3.3 V board.
 
-- **Bench Solution:** the complete combination of everything on a bench (boards, module boards, connections, conditions) with a specific
-  configured firmware, runnable as a simulation. **It does not exist under that name today.** What exists, in pieces: `Bench` (the boards
-  and breadboards on the table), `BenchConnection` (the wiring), `HardwareSystem` (the whole working thing: boards, circuits, the Cross-Domain
-  solution, the stage, its participants including twin sessions), `FirmwareSolution` (graph + board -> firmware), `FirmwareVariant` (a
-  configured build) and `TwinSession` (ONE simulated board running ONE locked firmware). Nothing ties a Bench to a firmware solution and runs
-  the whole bench. D-cfg-1 decides whether the Bench Solution is a new row or `HardwareSystem` grown into it.
+- **Bench Solution:** the complete combination of everything on a bench, bound as a whole and simulated as a whole. It references a
+  **Hardware Solution**, a **Firmware Solution** and a **Thermal Solution**, plus the bench's conditions. See "Systems and Solutions" below
+  (the user's rule, 2026-11-01).
 - **Catom configuration:** for one catom in one firmware solution: the values given to the chosen isotope's variables, and for each whether it
   was chosen automatically or by a person. Edited on the catom's page with a firmware solution picker.
 - **Verdicts are per Bench Solution:** the worked-out values and every option's verdict are computed for a configuration in a Bench Solution
   context (its boards, peers, conditions). The catom page shows them for the Bench Solution in context, and lists the other Bench Solutions
   that use the same firmware solution with their verdicts, so a configuration that works on one bench and breaks on another is visible.
+
+## Systems and Solutions (the user's rule, 2026-11-01)
+
+> "Using Solution for specific solutions and Systems for underlying segment of that solution is probably best. Solution is usually a final
+> result and solution. A Bench Solution would probably have a Hardware Solution and a Firmware solution referenced under it which are very
+> specific configurations and implementations. Whereas systems are baseline templates like compositions of No-Code and Catoms and Board
+> options, Systems are what we use as the baseline for composing our solutions, whereas solutions are finalized solutions used together and
+> bound as a whole that can be simulated wholly. A Thermal System and Thermal Solution may also be a thing. Since solving ways to mitigate
+> thermal runaway via fans, thermal sinks, and so on, is also a critical part of a solution."
+
+- **System = a baseline template.** A composition of no-code, catoms and board options with choices still open: which isotope, which
+  values, which board of a family, which mitigation. Reusable; never simulated as a whole on its own.
+- **Solution = a finalized, specific result.** Every choice made (isotopes picked, configurations filled, boards and parts named), bound with
+  the other solutions it is used with, and simulated as a whole.
+
+| Segment | System (template) | Solution (specific) | Today |
+|---|---|---|---|
+| Hardware | **Hardware System**: board definitions, components, circuits, the stage (S1 breadboard .. S5), participants by role | **Hardware Solution**: the actual boards, module boards, parts and connections on the bench | `HardwareSystem` already reads as a template (BoardDefinitions, roles, stage), except that it lists twin sessions as participants, which are specific: those move to the Bench Solution. `HardwareSolution` exists (the no-code drawing spanning board, bridge, backend and browser; it names a board instance), so it is a solution already. |
+| Firmware | **Firmware System**: the catoms composed, isotopes and values still open | **Firmware Solution**: every catom's isotope chosen and its configuration filled, for one board | the composed catoms are a `CGraph`; `FirmwareSolution` exists (graph + board -> firmware) and gains the isotope choices and configurations |
+| Thermal | **Thermal System**: the heat sources, the thermal models and the mitigations one may use | **Thermal Solution**: the mitigations chosen for this bench, its ambient and enclosure, simulated | the pieces exist (`PartPowerInput`, `PartThermalModel`, the plate FEM and Foster networks, tmp-1..6); no System / Solution rows yet |
+| Bench | (the Bench itself: what is on the table) | **Bench Solution**: Hardware + Firmware + Thermal Solutions + conditions, bound and simulated whole | new row |
+
+Consequences for this plan:
+- **Configurations and isotope choices belong to the Firmware Solution.** The Firmware System offers the catoms; the catom page edits them
+  per Firmware Solution (as decided above).
+- **Verdicts belong to the Bench Solution**, because only there is everything bound: the peers, the boards, the temperature the Thermal
+  Solution produces.
+- **The Thermal Solution feeds the others:** the simulated board temperature at a part becomes that part's condition. For example, the
+  resonator's temperature sets the clock band the serial check uses (today tmp-6 takes temperature as a typed input).
+
+## Thermal System and Thermal Solution (outline; its own plan on the user's go, D-cfg-9)
+
+Mitigating heat, and thermal runaway in particular, is part of a working solution, so thermal gets the same treatment as configurations:
+options graded invalid / compromise / ideal, a default chosen automatically, and the fix suggester for when nothing on hand is enough.
+
+- **Thermal System (the template):** heat sources (`PartPowerInput`: watts, on / pulse / duty), part thermal models (`PartThermalModel`:
+  datasheet Foster stages, Tj max), and a catalogue of **mitigations**, each cited:
+  - heat sink: its datasheet thermal resistance to ambient, at natural convection and at stated airflows;
+  - fan: its datasheet airflow against static pressure, turned into a heat transfer coefficient by a cited correlation, with its cost in power,
+    noise and a moving part;
+  - thermal pad or paste: its cited resistance;
+  - copper area and thermal vias on a PCB, which the plate FEM already models;
+  - enclosure venting;
+  - firmware mitigations, which cross into the Firmware Solution: derating, duty cycling, throttling on a temperature reading (an isotope and
+    its configuration).
+- **Thermal Solution (the specific):** the mitigations chosen for this bench, its ambient range and enclosure. It is simulated with the
+  solvers that exist: the transient plate FEM (scikit-fem) and the exact Foster networks (bob-3g), with no new engine.
+- **Thermal runaway:** a part runs away when its dissipation rises with temperature faster than its path to ambient can carry it. The check is
+  the loop gain, dP/dT x Rth (junction to ambient through the chosen mitigations). At or above 1 the steady state is unstable, and the verdict is
+  invalid. Close to 1 is a compromise, with the margin shown. dP/dT comes from the part's datasheet (for example, leakage or forward-voltage
+  temperature coefficients). Where the datasheet does not give it, it is a labelled knob, never a guess.
+- **Verdicts:** invalid when Tj exceeds its maximum at the hottest ambient with the best mitigation available, or the loop runs away. Compromise
+  when it holds only with a fan (power, noise, a part that can fail), with derating, or with thin margin. Ideal when passive mitigation holds
+  with the full recommended margin.
+- **The fix suggester:** heat-sink and fan modules as module boards or parts with `provides` (thermal resistance, airflow), each tried in a copy
+  of the Bench Solution.
 
 ## The words (picked 2026-11-01; the user: "maybe you should pick the terminology")
 
@@ -152,7 +205,7 @@ Each is a module board with a `provides` block, and each fix is proven by re-run
 
 | Row | Fields (short) | Notes |
 |---|---|---|
-| `BenchSolution` (D-cfg-1) | name, bench, firmware_solution, conditions (temperature range, supply, aging years) | everything on a bench + one configured firmware, runnable as a simulation |
+| `BenchSolution` | name, bench, hardware_solution, firmware_solution, thermal_solution, conditions (ambient range, supply, aging years) | the specific solutions bound as a whole; simulated whole |
 | `VariableGroup` | name, hal_family, derived fields, checks, simulator | code-owned catalogue: clock, signal, drive, analog, timing, power, memory, rf |
 | `CatomConfiguration` | firmware_solution, catom, isotope, isotope_chosen_by, values_json (variable -> value, chosen_by, why) | one per (firmware solution, catom), edited on the catom page; values written through `catom_variables.propose` |
 | `ConfigOption` | group, name, level (values / isotope / part / module-board / board), sets, isotope, parts, module_board, costs, source | the options and the suggester's catalogue (the clock rows are the clk table below) |
@@ -214,7 +267,7 @@ sessions last.
 
 | Phase | What | Proof |
 |---|---|---|
-| cfg-0 | the shape: `BenchSolution` (D-cfg-1), `VariableGroup`, `CatomConfiguration` (isotope + values, per firmware solution), `ConfigOption`, `ConfigVerdict` (per Bench Solution); the verdict engine (layered checks, the automatic default, a person's choice recorded) with no group wired yet | a toy catom with two isotopes and one invalid, one compromise, one ideal option: the ideal is chosen; the override is recorded with what it gives up; the same configuration judged in two Bench Solutions gets two verdicts |
+| cfg-0 | the shape: `BenchSolution` (Hardware + Firmware Solution references; Thermal once it exists), `VariableGroup`, `CatomConfiguration` (isotope + values, per firmware solution), `ConfigOption`, `ConfigVerdict` (per Bench Solution); the verdict engine (layered checks, the automatic default, a person's choice recorded) with no group wired yet | a toy catom with two isotopes and one invalid, one compromise, one ideal option: the ideal is chosen; the override is recorded with what it gives up; the same configuration judged in two Bench Solutions gets two verdicts |
 | cfg-1 | clock group, part 1: `ClockSource` and peer rows (cited); `timing_drift` reads them; the serial-link and tick checks from tmp-6 code | the UNO's shipped configuration: 117 647 Bd, +2.1 %, the 16U2 matched, margin -2.50 .. +2.56 % against a +-1.0 % band, compromise, chosen automatically; U2X0 invalid with the 5.9 % |
 | cfg-2 | the catom page: `/display/catom`, its Configuration tab (firmware solution and Bench Solution pickers, knobs, options, verdicts, other Bench Solutions) | the door returns the UNO's serial configuration with both verdicts; Chrome pass needs a deploy (the user's call) |
 | cfg-3 | clock group, part 2: the option catalogue graded; the simulator by configuration; the FE twin flag; `clock-skew` as a scenario step | a HAL_UART_ERRCOUNT build counts the 236 FEs tmp-6 saw; 9600 invalid for the telemetry load |
@@ -226,9 +279,10 @@ sessions last.
 
 ## Decisions (the user's)
 
-- **D-cfg-1: the Bench Solution.** It does not exist under that name. Recommend a new `BenchSolution` row (bench + firmware solution +
-  conditions) that `HardwareSystem` can name, since `HardwareSystem` already carries stage, participants and circuits. The alternative: grow
-  `HardwareSystem` into it (add bench and firmware solution).
+- **D-cfg-1: the Bench Solution.** Decided by the user: a Bench Solution references a Hardware Solution and a Firmware Solution (and a
+  Thermal Solution); Systems are the templates, Solutions the bound specifics. Still open within it: twin sessions move from
+  `HardwareSystem`'s participants to the Bench Solution (recommended), and the composed catoms (`CGraph`) are labelled "Firmware System" on
+  screens rather than adding a new class (recommended).
 - **D-cfg-2: the variable groups.** Recommend the list above, lined up with the catoms' `hal_contract` families plus clock, power, memory and rf, with
   thermal as a condition every group reads.
 - **D-cfg-3: the order.** Recommend the phase order above: clock, the catom page, stepping, the suggester, then signal, drive and analog.
@@ -239,4 +293,6 @@ sessions last.
   image (a local build, not a deploy). Yes / no.
 - **D-cfg-7: the `USART_U2X 0` knob.** Recommend: keep it; the clock check marks it invalid at 115200 against the UNO's 16U2, and gen refuses
   it there with the reason (it is fine against a matched peer, or at 9600).
-- **D-cfg-8: the words.** Picked in "The words" above: catom, isotope (changes the code), configuration (changes the values), variable, variable group, option, Bench Solution, fix suggester, module board; `CIsotope` shown as "generated code".
+- **D-cfg-9: thermal.** Recommend a separate plan, THERMAL_SOLUTION_PLAN (ths), for the Thermal System / Thermal Solution outlined above,
+  started after cfg-0, so the Bench Solution has a thermal slot from the start.
+- **D-cfg-8: the words.** Picked in "The words" above: catom, isotope (changes the code), configuration (changes the values), variable, variable group, option, System (template), Solution (specific), Bench Solution, fix suggester, module board; `CIsotope` shown as "generated code".
