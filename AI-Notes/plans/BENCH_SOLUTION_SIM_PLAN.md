@@ -187,6 +187,23 @@ without touching the rest of the topology:
 - On the canvas, an edge shows its status by theme token, and clicking it offers run / test / the runs so far; the Hardware Events page lists edges by
   status with the same actions.
 
+**Making it obvious what was tested (the user, 2026-11-02: "views and visualization that make it obvious what was tested").** The topology IS the
+coverage map, and what was NOT tested is drawn as loudly as what was:
+- **On the canvas**: every edge by status, through theme tokens: proven (hardware agrees), observed (simulation only), mismatch, expected (never run,
+  drawn dashed), blocked (a field without samples, drawn dashed with the field named on hover), unreachable. Every node: reached by a proven edge /
+  by simulation only / defined but never reached. Hovering an edge says in one line what its runs covered: "3 runs: samples 700 / 750 / 800 mV, simulated;
+  no hardware run". The legend is the status list with counts; clicking a status in the legend dims everything else (click-toggle).
+- **A coverage strip** above the canvas and at the top of the Hardware Events page, derived on read: edges by status (n proven / observed / mismatch /
+  untested / blocked); events by kind and source with how many of each were ever run; struct fields covered (changed by at least one observed edge) vs
+  never changed by any edge; samples declared vs used. Each count is a filter into the tables below it.
+- **Per edge, the test card**: which checks it has and which passed; which samples it ran with and which engines (twin, ngspice, Cauer; hardware);
+  the .hex sha256 the runs used, and whether the current Firmware Solution's build is a different one (then "stale: tested on a previous build").
+- **Per Firmware Solution, assertion coverage**: each `CatomAssertion` of kind changes-field / sends-to-bridge / receives-from-bridge is covered when
+  an observed or proven edge exercised it (the field changed, the frame crossed); the uncovered assertions are listed by atom. This ties coverage
+  back to the code's own claims, and a Firmware Solution shows "n of m assertions exercised" beside its proof status.
+- **Per Bench Solution, the untested list**, in words, first: unexplored states (the exploration bound), blocked edges and the field that blocks each,
+  events never run, assertions never exercised, edges tested on a stale build. An empty list is the only green.
+
 **Decision for the user (D-bss-7):** (a, recommended) node kinds on the no-code canvas (the one canvas; drawings authored from rows; the d3 is there);
 (b) a new dedicated d3 component like the pin view: an explicit exception, justified only if the canvas cannot show a few hundred states legibly: the
 layout for that scale (clustered by the fields that differ) would be the reason.
@@ -215,7 +232,7 @@ layout for that scale (clustered by the fields that differ) would be the reason.
 | bss-3 | the edge as the unit of test: `StructTransitionCheck`, run one edge / every edge out of a state / every edge; hardware runs beside simulation runs -> proven; exploration (bounded); manual transitions | the uno-light map: boot -> press -> release -> SET_LED ...; a manual edge with a wrong expected state -> mismatch naming the field; an analog check without a tolerance refused; a twin-record run on the press edge -> proven |
 | bss-4 | configuration change = rebuild + re-run the affected transitions (cfg-4, D-bss-4) | change the debounce -> new .hex sha, only the PD2 transitions re-run, their `window_set_by` changed |
 | bss-5 | the topology (section 5b): node kinds `struct-state` / `hardware-event` on the no-code canvas, authored from the rows; naming; click into a node / an edge | the uno-light canvas: boot -> press -> release drawn from the rows; name a state -> the row's title; an AI writes a transition through the door -> it appears |
-| bss-6 | the Hardware Events and Structs pages + the Bench Solution page: whole check, per run the step and window with what set them, traces through the scope views (theme tokens, click-toggle, no raw JSON) | the Chrome pass is owed and needs a deploy, which is the user's call |
+| bss-6 | coverage made obvious: edge / node status on the canvas, the coverage strip, the per-edge test card, assertion coverage per Firmware Solution, the untested list; the Hardware Events and Structs pages + the Bench Solution page: whole check, per run the step and window with what set them, traces through the scope views (theme tokens, click-toggle, no raw JSON) | the Chrome pass is owed and needs a deploy, which is the user's call |
 
 ## 8. Rules this plan keeps
 Every number is derived or cited, otherwise a labelled knob. Established open solvers only (simavr, ngspice, the Cauer ladder). Small rows that reference
