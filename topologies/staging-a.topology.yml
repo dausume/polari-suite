@@ -536,7 +536,7 @@ assignments:
   instance_name: prf-a
   state: enabled
   topology_name: staging-a
-  notes: "hn-0: hardware as no-code — a HardwareSolution spanning board, bridge,\
+  notes: "hn-0: hardware as no-code — a HardwareNoCodeSolution (renamed from HardwareSolution 2026-11-02) spanning board, bridge,\
     \ backend and browser; requires board, cmod, grpcbridge (FEATURE_REQUIRES —\
     \ grpcbridge pulled in by the requires-closure, no explicit grpcbridge@prf-a row\
     \ needed). Added on dev-hw-test (2026-10-04, step 3)."
