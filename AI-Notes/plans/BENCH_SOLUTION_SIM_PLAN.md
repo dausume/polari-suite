@@ -321,6 +321,38 @@ layout for that scale (clustered by the fields that differ) would be the reason.
 - **D-bss-9 - collaterals by default.** (a, recommended) every change node whose field drives a pin (a reads-field assertion) or crosses a bridge gets its
   collaterals DERIVED (the pin's level and net, the frame's bytes) and marked derived; a person confirms, edits or sets none. (b) none until declared.
 
+## 6b. bss-2 design: one node test = one deterministic twin run from the root (written 2026-11-02 before coding)
+
+Read 2026-11-02: polari-avr-twin (polari-rf-node/prf-board-engines, the board engines image, reached through the engines seam) already steps simavr per
+instruction and offers, cycle-stamped: `--pin-at cycle=N,pin=P,level=L`, `--inject` (a frame in), `--reset-at`, `--adc0-mv` (stimuli); `--watch 0xADDR/W=name`
+(up to 8 data-memory words: on the final line, and in the VCD); `wire-edge` events (a pin's level changes, with the core's cycle); `--uart-tx-log` (the frames
+out); `--fn-cycles 0xENTRY:ret` (one function per run; min / max / n); `--isr-latency`; `--trace-vcd` + `--trace-window B:A` (the cycle-exact VCD around the
+first forced event). board.custom.press_latency already measures a press -> the light pin's rise this way; cycle_measure.symbols reads the ELF's symbols.
+
+- **A node test is ONE twin run of the Firmware Solution's locked hex from reset** (reset = the init edge; the hex given to the twin = the flash edge; the
+  root's "plugged in" is the engines seam reaching the twin). The path's trigger edges become stimuli at cycles: each placed after the previous node's
+  guard (D-bss-2) so edges do not overlap; a requirement met after the next stimulus began -> "overlap", the run repeats with wider spacing. A cascade
+  edge needs no stimulus: its node is met by the same run. The twin is deterministic, so the run IS the replay.
+- **Requirements are judged from the watched struct words**: the struct instance's address from the ELF's data symbols (avr-nm; symbols() grows a data
+  side), each field's offset and width from firmware_state's parsed C types; `--watch` per required field (8 per run: more fields = more runs, said).
+  **D-bss-12 (recommended, first step of bss-2):** add a `{"t":"watch-change","cycle":N,"name":..,"from":..,"to":..}` event to twin_forcing.c whenever a
+  watched word changes (the same shape as wire-edge), so "met at cycle N" is exact without a VCD over the whole edge; the image is rebuilt through the
+  suite's own build, never a hand-rolled docker run. Until then, the final-line `watches` + the telemetry frames give the end state and `wire-edge`
+  the collateral's cycle.
+- **Executions observed**: one extra run per execution with `--fn-cycles <entry>:ret` (deterministic: the same history), or `--ret-log` for an ISR;
+  observed = n > 0 inside the edge's cycle span.
+- **Collaterals**: pin-level from `wire-edge` (the sense jumper covers D6 today; other pins through the VCD's pin signals or a second jumper, said);
+  frame from the tx log; timing = met cycle - stimulus cycle. net-current: ngspice on the node's electrodevice `CircuitState` (the pin modes at that
+  node) with TMAX = the node's step (section 3); temperature: the Cauer ladder (tmp-3) fed the net's current over the edge's duration. Both only when a
+  collateral asks for them.
+- **Transient data**: the events, the tx log and any VCD window are the run's working buffer; the kept rows are `StructNodeRun` (outcome, step_s +
+  step_set_by, duration_s + duration_set_by), one `StructNodeRunEdge` per edge (met at cycle, executions observed, collaterals measured vs bounds,
+  divergence words) and one `StructNodeRunSignal` per monitored signal (min / max / first and last change / samples); a `WaveformCapture` only when
+  pinned or on failure (3c).
+- **The finding**: a trigger edge whose stimulus was delivered yet no watched word (and no struct word the assertions name) changed within the guard ->
+  `not-struct-testable` on the Firmware Solution, with the run's words.
+- **TestProfile**: the derived default per node (3b) is what bss-2 runs with; manual profiles land with the doors in bss-3.
+
 ## 7. Phases (commit series on dev-electronics; selftests green; no deploy)
 
 | Phase | What | Proof |
