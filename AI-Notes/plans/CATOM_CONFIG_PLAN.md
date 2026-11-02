@@ -2,7 +2,7 @@
 
 **Branch:** remote `dev-electronics` (electronics work never goes to `dev`).
 **Started:** 2026-11-01 as CLOCK_CONFIG_PLAN (clk); widened the same day to catom configurations of every variable group. **Status: PLAN ONLY.**
-D-cfg-1 decided by the user (Systems and Solutions); D-cfg-2..9 are the user's to decide.
+D-cfg-1 decided by the user (Systems and Solutions); D-cfg-2..9 go with the recommendations (the user: "Go ahead and start", 2026-11-01).
 **Builds on:** tmp-4 / tmp-6 (TEMPERATURE_PLAN.md: `timing_drift`, `uart_sampling`, `clock_skew_run`), hsp-3c-hal / hsp-3d
 (HARDWARE_SYSTEM_PINS_PLAN.md: `CatomVariable`, `HalVariableState`, `catom_variables.propose`), the catoms' `hal_contract` families
 (drive / signal / protocol / register / execution), catom isotopes, bob-0..5 (BENCH_BOARDS_PLAN.md: footholds, `BenchConnection`, bench
@@ -83,10 +83,13 @@ because they are meant to be simplified simulations we do to ensure the baseline
 we move on to dealing with the actual embedding process. For now we just need to be concerned with open air solutions and nothing special
 yet." So a Bench Solution's thermal condition is: open air, natural convection, an ambient range, nothing else. What is built now: each
 part's junction temperature in open air at the hottest ambient (the plate FEM and Foster networks as they are), the runaway loop-gain check,
-and the board temperature feeding the other checks (the clock band). The mitigation catalogue below (heat sinks, fans, pads, venting,
+and the board temperature feeding the other checks (the clock band). **Allowed in open air (the user, later the same day):** "A heat sink and fan could still be useful if it is possible to clip them into a
+breadboard in the open air scenario": a clip-on or board-mounted heat sink and a small fan that plugs into the breadboard are open-air
+mitigations and are in scope (each with its datasheet thermal resistance or airflow, the fan's current counted on the supply). Venting and
+enclosures stay deferred. The rest of the mitigation catalogue below (pads, venting,
 enclosures) is **deferred to the embedding stage**, a later kind of solution, and is kept here only so it is not lost. Until then, a part
-that fails in open air is reported as invalid with its numbers; the fix suggester offers only what changes the electronics (another part,
-derating through a configuration, another board).
+that fails in open air is reported as invalid with its numbers; the fix suggester offers what changes the electronics (another part,
+derating through a configuration, another board) and the clip-on heat sink or breadboard fan.
 
 Mitigating heat, and thermal runaway in particular, is part of a working solution, so thermal gets the same treatment as configurations:
 options graded invalid / compromise / ideal, a default chosen automatically, and the fix suggester for when nothing on hand is enough.
@@ -211,17 +214,24 @@ is seeded, so no number here is final):
 The same ladder serves the other groups. Signal: level-shifter breakouts. Drive: driver and MOSFET boards. Power: regulator or buck modules.
 Each is a module board with a `provides` block, and each fix is proven by re-running the same checks with the module board on the bench.
 
-## The rows (one object per concern, small)
+## The rows (one object per concern, small, by level; references, never copies)
 
-| Row | Fields (short) | Notes |
-|---|---|---|
-| `BenchSolution` | name, bench, hardware_solution, firmware_solution, thermal_solution, conditions (ambient range, supply, aging years; always open air for now) | the specific solutions bound as a whole; simulated whole |
-| `VariableGroup` | name, hal_family, derived fields, checks, simulator | code-owned catalogue: clock, signal, drive, analog, timing, power, memory, rf |
-| `CatomConfiguration` | firmware_solution, catom, isotope, isotope_chosen_by, values_json (variable -> value, chosen_by, why) | one per (firmware solution, catom), edited on the catom page; values written through `catom_variables.propose` |
-| `ConfigOption` | group, name, level (values / isotope / part / module-board / board), sets, isotope, parts, module_board, costs, source | the options and the suggester's catalogue (the clock rows are the clk table below) |
-| `ConfigVerdict` | configuration, bench_solution, option, verdict, margin, gives_up, score, evidence (run ids, corners), flagged | written by the checks for one Bench Solution, never typed |
-| `ClockSource` | name, kind, nominal, tolerance, band and temperature range, aging, source | the clock group's cited data (clk-0) |
-| module board `provides` | in `board_spec` | what a module board gives the bench, for remedies |
+The user (2026-11-01, during cfg-0): "keep clean separation between objects and keep them small and multi-level and separated conceptually so
+people can learn these systems", "and prevent overlap, use references". Each row below holds one concern and names the rows it depends on; a
+fact reachable through a reference is never stored twice (the cfg-0 selftest checks it).
+
+| Level | Row | Its one concern | Fields | References |
+|---|---|---|---|---|
+| catalogue (code) | `cmod.custom.config_groups` | the words: variable groups, verdicts, option levels, check layers | - | - |
+| definition (System) | `ConfigOption` | what a candidate would set | catom, group, level, title, sets_json, isotope, source | the catom; the isotope |
+| solution | `CatomConfiguration` | which isotope one catom uses in one firmware solution | isotope, isotope_chosen_by | FirmwareSolution, catom, IsotopeVariant |
+| solution | `ConfigChoice` | which option supplies one group's values, and who chose it | chosen_by, why | CatomConfiguration, ConfigOption (its group and values are the option's) |
+| context | `BenchSolution` (board) | everything on a bench bound as a whole | (references only) | Bench, HardwareSolution, FirmwareSolution, Thermal Solution (later), BenchConditions |
+| context | `BenchConditions` (board) | the room: air (open), ambient range, supply, aging | air, ambient_min_c, ambient_max_c, supply_v, aging_years | - |
+| result | `ConfigVerdict` | whether one option works in one Bench Solution, and its score | verdict, score, why | BenchSolution, ConfigOption (not the catom or configuration: those come through the references) |
+| evidence | `ConfigCheckResult` | what one check found | check, layer, outcome, margin, gives_up, why, evidence | ConfigVerdict |
+| definition (later) | `ClockSource` (cfg-1) | one clock source's cited datasheet bounds | kind, nominal, tolerance, band and temperature range, aging, source | - |
+| definition (later) | module board `provides` (cfg-5) | what a module board gives the bench, for the fix suggester | in `board_spec` | the board |
 
 **Where it is edited: the catom page.** Catoms have no page of their own today; this plan adds one (`/display/catom` scoped to a catom,
 configured Table definitions, no raw JSON). Its Configuration tab: a firmware solution picker, a Bench Solution picker for context, then one
@@ -277,7 +287,7 @@ sessions last.
 
 | Phase | What | Proof |
 |---|---|---|
-| cfg-0 | the shape: `BenchSolution` (Hardware + Firmware Solution references; Thermal once it exists), `VariableGroup`, `CatomConfiguration` (isotope + values, per firmware solution), `ConfigOption`, `ConfigVerdict` (per Bench Solution); the verdict engine (layered checks, the automatic default, a person's choice recorded) with no group wired yet | a toy catom with two isotopes and one invalid, one compromise, one ideal option: the ideal is chosen; the override is recorded with what it gives up; the same configuration judged in two Bench Solutions gets two verdicts |
+| cfg-0 ✅ BUILT 2026-11-01 | the shape: `BenchSolution` (Hardware + Firmware Solution references; Thermal once it exists), `VariableGroup`, `CatomConfiguration` (isotope + values, per firmware solution), `ConfigOption`, `ConfigVerdict` (per Bench Solution); the verdict engine (layered checks, the automatic default, a person's choice recorded) with no group wired yet | a toy catom with two isotopes and one invalid, one compromise, one ideal option: the ideal is chosen; the override is recorded with what it gives up; the same configuration judged in two Bench Solutions gets two verdicts |
 | cfg-1 | clock group, part 1: `ClockSource` and peer rows (cited); `timing_drift` reads them; the serial-link and tick checks from tmp-6 code | the UNO's shipped configuration: 117 647 Bd, +2.1 %, the 16U2 matched, margin -2.50 .. +2.56 % against a +-1.0 % band, compromise, chosen automatically; U2X0 invalid with the 5.9 % |
 | cfg-2 | the catom page: `/display/catom`, its Configuration tab (firmware solution and Bench Solution pickers, knobs, options, verdicts, other Bench Solutions) | the door returns the UNO's serial configuration with both verdicts; Chrome pass needs a deploy (the user's call) |
 | cfg-3 | clock group, part 2: the option catalogue graded; the simulator by configuration; the FE twin flag; `clock-skew` as a scenario step | a HAL_UART_ERRCOUNT build counts the 236 FEs tmp-6 saw; 9600 invalid for the telemetry load |
