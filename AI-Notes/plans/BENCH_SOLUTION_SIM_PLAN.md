@@ -41,39 +41,48 @@ PLAN ONLY. The decisions in section 6 are the user's to make.
 | skew at the boundary | board clock_skew_run + uart_sampling (tmp-6) | UART bytes re-sampled bit by bit at each side's rate | the external-signal kind of event, already proven for one case |
 | `ScopeChannel`, `WaveformCapture` | instruments (osc) | probes on bench lines; captures | the traces an event run records, per probed line |
 
-## 2. The words
+## 2. The words (corrected 2026-11-02: the user: "that struct map change defining is incorrect")
 
 - **Struct State**: the values of every field of every mapped struct (the `StructObjectMap` rows) across the interconnected boards and bridges of one
-  Bench Solution, at one instant. Two Struct States differ exactly when a field differs. It is the unit the whole system is reasoned in: "all hardware
-  changes cause state changes in a struct on the hardware or a struct on a bridge" is both assumed and ENFORCED (section 4).
-- **Hardware Event**: ONE trigger applied to a Bench Solution that is sitting in one Struct State, with nothing else happening, run until the Struct
-  State has changed and settled. Three kinds (the user's a/b/c):
-  - **(a) struct-map change**: a field is written from the Polari side and crosses a bridge (a SET_LED command, a SET_TIME). Source: `polari`.
-  - **(b) actuation**: a sensor or trigger change a PERSON or the ENVIRONMENT can cause. Defined (the user asked for the non-obvious ones):
-    - by a person: anything with a physical control on the bench: a button press or release, a switch, a potentiometer turned, the reset button, USB
-      plugged or unplugged (power-on / boot), a bench jumper moved;
-    - by the environment: anything a sensor on the bench reads from the room or the supply: ambient temperature (the TMP36's millivolts), light on a
-      photoresistor, humidity, supply voltage sag or brown-out;
-    - by time: a period elapsing (a `period` TaskTrigger firing, a watchdog). Neither person nor environment, but it is an actuation of the same shape, so
-      it is listed here as source `time` rather than invented as a fourth kind.
-    Source: `person` | `environment` | `time`.
-  - **(c) external signal**: a defined test signal received from outside the Bench Solution: a frame arriving on the UART from another board or a test
-    harness (bytes, at a rate, with a skew), a level or pulse on a line from another board. Source: `external`.
-- **Hardware Event run**: one application of one event from one Struct State. It is **complete** when the Struct State has changed and then stayed
-  still for the settle window (section 3). Its result is the new Struct State, recorded as a new scenario to evaluate.
-- **Struct Transition**: "from this Struct State, this event leads to that Struct State". Defined MANUALLY (a person picks an initial state and a trigger
-  and, optionally, the state they expect) or DERIVED from a run (hardware test or simulation). Status: expected (not yet run) | observed (a run agrees) |
-  mismatch (a run disagrees, with the difference in words) | unreachable (the initial state was never reached).
-- **State map**: the Struct States reached and the transitions between them, grown by exploration (section 4). Derived on read from the rows; never a
-  stored copy.
+  Bench Solution, at one instant. Two Struct States differ exactly when a field differs. "All hardware changes cause state changes in a struct on the
+  hardware or a struct on a bridge" is both assumed and ENFORCED (section 4). A **resting state** is a Struct State that is not changing: the topology's
+  coarse nodes.
+- **Trigger**: what starts a Hardware Event. Two kinds only (the user's correction folds the old "struct-map change" into the second):
+  - **actuation**: a sensor or trigger change a PERSON (button, switch, potentiometer, reset, USB plugged / unplugged, a jumper moved), the ENVIRONMENT
+    (ambient temperature at the TMP36, light, humidity, supply sag or brown-out) or TIME (a period elapsing, a watchdog) can cause. Source: `person` |
+    `environment` | `time`.
+  - **external signal, from various sources**: anything received from outside the boards: a Polari command crossing a bridge (SET_LED, SET_TIME), a frame
+    from another board or a test harness (bytes, rate, skew), a level or pulse on a line from another board, a network message to a bridge. Source:
+    `polari` | `board` | `harness` | `network`, each a `BridgePath` or a line, named.
+- **Change node**: ONE struct change inside an event, typed by WHERE in the propagation it sits (the user's three):
+  - **hardware-event result**: the first struct that changes because the trigger landed (the press sets `button_down`; the received frame sets
+    `command`);
+  - **cascading change**: a struct change caused by another struct change, not by the trigger: code that reads one field and writes another
+    (`button_down` -> `led_on`; `command` -> `led_on` -> `last_command_id`). Each cascade is its own node, so the chain is visible and each link is
+    testable;
+  - **bridge change**: the change crossing a bridge: the bridge-side struct (the Polari object the `StructObjectMap` maps to) changes, or a frame leaves
+    the board. The last node of a chain that reports.
+  A Hardware Event's **chain** is its change nodes in order; the event is **complete** when the chain ends: no further cascade and every bridge change
+  delivered, for one settle window (section 3). The resting state after the chain is the next coarse node.
+- **Collateral**: a measurable effect of a change node OUTSIDE the structs: a pin level, a net's current, the LED's light (its forward current),
+  a part's temperature rise, a frame's bytes on the wire, a timing (press -> light). Each change node DECLARES whether it has collaterals to measure
+  (the user: "we will need to define if they have collaterals to measure or not"): `none` (a pure data change, verified by the struct alone) or a list
+  of `ChangeCollateral` rows, each naming the signal, the engine that can measure it (twin pin trace, ngspice, Cauer; a scope on hardware) and the
+  bound it is checked against. Collaterals are what the physics engines are FOR; a change node with none runs on the twin alone.
+- **Hardware Event**: one trigger applied to a resting state, with nothing else happening, and its chain of change nodes with their collaterals, run
+  until complete. One edge of the coarse topology; expanded, it shows its chain.
+- **Struct Transition**: "from this resting state, this event leads to that resting state", with the chain expected. Defined MANUALLY (initial state
+  + trigger, optionally the expected end state and chain) or DERIVED from a run. Status: expected | observed | mismatch | proven | unreachable | blocked.
+- **Test profile** (section 3b): for one test, WHICH signals and data are monitored, and at what step.
+- **State map**: resting states and transitions, grown by exploration (section 4); derived on read.
 
 ## 3. Per-event stepping: each signal at its own step, the event as long as its slowest signal
 
 Not continuous time. An event run samples only the signals the event triggers, each at its own step, for only as long as the slowest of them takes.
 
-- **The triggered signals** are found, not guessed: from the trigger's line or field, follow the `CatomAssertion` chain (reads-field -> pins; changes-field
-  -> sends-to-bridge) and the bench nets to the lines, fields and parts the event can reach. Secondary signals (the LED net after the button, the bridge
-  frame after the struct write) are on that chain. Anything not on it is not sampled.
+- **The monitored signals and data** come from the event's TEST PROFILE (section 3b). Its derived default is found, not guessed: from the trigger, follow
+  the `CatomAssertion` chain (reads-field -> pins; changes-field -> sends-to-bridge) and the bench nets to the change nodes the event can reach, and take
+  every field of those nodes plus every collateral they declare. Anything not in the profile is not sampled.
 - **Each signal's step** comes from its smallest feature and the oscilloscope rule:
   - firmware: one CPU cycle, 1/f_clk (62.5 ns at 16 MHz): a floor, since firmware is discrete;
   - a digital or analog line: its fastest edge, `t_10-90 ~ 2.2 R C` from the driver's output resistance and the net's load, or a cited datasheet edge; then
@@ -92,6 +101,29 @@ Not continuous time. An event run samples only the signals the event triggers, e
 - **Feasibility**: a button-press event at 12.5 ns for 41 ms is ~3 million samples on ONE line and far fewer on the slow ones; most events are
   shorter. That is recordable. The total is bounded by the number of events x reached states, not by wall-clock time.
 
+## 3b. Test profiles: what is monitored (the user: "for different tests we should define the signal and data we monitor probably, not sure how we
+define those test profiles")
+
+A **TestProfile** is a named, reusable answer to "what do we watch, and how finely": a list of `TestProfileItem` rows, each one of
+- a **signal** (a line, a net, a part's temperature; the physics side) with its step rule (derived from its edge / time constant and the oscilloscope rule;
+  or an explicit step with a basis), and the engine that samples it;
+- a **datum** (a struct field, a bridge frame, a Polari attribute; the data side), sampled at every change (data is discrete: it is recorded when it
+  changes, not on a clock);
+- a **timing** between two of the above (press -> light pin; frame sent -> Polari object changed), with a bound.
+
+How a profile is defined (three sources, the same row either way):
+1. **Derived default per edge**: from the edge's chain: all its change-node fields, all their declared collaterals, the trigger's line or frame. Named
+   `<edge>:derived`. Always available; this is what an edge runs with when nobody has chosen.
+2. **Named profiles a person saves and edits**: start from a derived one, drop or add items, save it under a name ("button-to-light", "bridge round
+   trip", "thermal only", "everything on D6"). Assignable to any edge whose chain contains the items (an item the edge cannot reach is refused in
+   words). Reusable across edges and Bench Solutions with the same structs.
+3. **Suggested from the test's purpose**: an edge whose checks are only on fields gets a data-only profile suggested; an edge with a timing check gets
+   the two ends and the lines between; an edge with a thermal collateral gets the part's temperature and the net's current. Suggestions are shown,
+   never applied silently (knobs and suggestions).
+
+A run names the profile it used; the coverage views (5b) say per edge which profile ran and what it left unwatched ("ran button-to-light: LED current not
+monitored; the thermal collateral on D1 unmeasured"). An edge whose collaterals are not all in its profile is observed at most, never proven.
+
 ## 4. The state map: what can change, to what, and enforcing the rule
 
 - **What can change, and to what (the start).** From the `StructObjectMap` fields and the `CatomAssertion` rows: each field the code can write and, by its
@@ -99,8 +131,9 @@ Not continuous time. An event run samples only the signals the event triggers, e
   **declared samples** (`StructFieldSamples`: "temperature_c: 20, 25, 30, 85"; "adc0_mv: 700, 750, 800"). A field without samples blocks the events that
   reach it from running in simulation mode, and the block is said in words with the field named. Samples are declared by a person; a suggestion can be
   derived from the field's cited sensor range (knobs and suggestions).
-- **The initial map** = the initial Struct State (boot) + every applicable Hardware Event: one per `TaskTrigger` edge line and command, one per actuation
-  the bench offers (its controls and sensors, from the board pins and `CatomVariable` roles), one per declared external signal. Each is a row a person
+- **The initial map** = the initial Struct State (boot) + every applicable Hardware Event: one per actuation the bench offers (its controls and sensors, from the
+  board pins and `CatomVariable` roles; `TaskTrigger` edge / period / boot rows name them), one per external signal source (`TaskTrigger` command / message
+  rows, each `BridgePath`, each declared harness signal). The expected CHAIN of each is derived from the assertions and shown before any run. Each is a row a person
   can see, remove or add to.
 - **Exploration**: from each reached Struct State, run every applicable event (with each declared sample where the event carries a value); each run
   yields a transition and, when new, a new state to explore. Bounded by a depth / state-count knob (D-bss-5); unexplored states are listed, not hidden.
@@ -126,11 +159,16 @@ Not continuous time. An event run samples only the signals the event triggers, e
 | solution | `ThermalSolution` | the specific mitigations (a sink part with cited Rth, a fan with cited airflow, or none) | its `ThermalSystem`, `PartThermalModel` rows |
 | solution | `BenchSolution` (exists; gains `system`) | the three Solutions bound + the conditions | its `BenchSystem`, the three Solutions, `BenchConditions` |
 | definition | `StructFieldSamples` | the declared test values of one non-enumerable field | the `StructObjectMap`, the field |
-| definition | `HardwareEvent` | one trigger: kind (struct-change / actuation / external-signal), source (polari / person / environment / time / external), what (the line, field or frame), its arguments | its `BenchSolution`; the `TaskTrigger` / `CatomVariable` / `BridgePath` it came from |
+| definition | `HardwareEvent` | one trigger: kind (actuation / external-signal), source (person / environment / time / polari / board / harness / network), what (the line or frame), its arguments | its `BenchSolution`; the `TaskTrigger` / `CatomVariable` / `BridgePath` it came from |
+| definition | `HardwareEventChange` | one change node of an event's expected chain: position, stage (hardware-event-result / cascading / bridge), the struct and fields it changes, `collaterals` = none or declared | its `HardwareEvent`; the `CatomAssertion` that makes it; the `StructObjectMap` |
+| definition | `ChangeCollateral` | one measurable effect of one change node outside the structs: the signal (line / net / part), the engine that measures it, the bound | its `HardwareEventChange`; the pin / net / `PartThermalModel` |
+| definition | `TestProfile` | one named answer to what is monitored | its `BenchSolution` ('' when shared) |
+| definition | `TestProfileItem` | one monitored signal (with its step rule), datum, or timing in a profile | its `TestProfile`; the line / field / collateral it watches |
 | state | `StructState` | one snapshot: the field values, a digest | its `BenchSolution`; the `StructObjectMap` rows |
 | scenario | `StructTransition` | ONE EDGE: from-state + event -> to-state; basis (manual / simulation / hardware); status (expected / observed / mismatch / proven / unreachable / blocked) | `StructState` x2, `HardwareEvent` |
 | scenario | `StructTransitionCheck` | one expectation on one edge: a field exact / within a tolerance / in a range, or a timing bound on the edge | its `StructTransition`, the field |
-| run | `HardwareEventRun` | one application: from-state, to-state, complete?, `step_s` + `step_set_by`, `window_s` + `window_set_by`, the .hex sha256, finding words | its `HardwareEvent`, the `StructTransition` it produced, its `CircuitStateTransition` |
+| run | `HardwareEventRun` | one application: from-state, to-state, complete?, `step_s` + `step_set_by`, `window_s` + `window_set_by`, the .hex sha256, finding words | its `HardwareEvent`, the `StructTransition` it produced, the `TestProfile` it ran with, its `CircuitStateTransition` |
+| run | `HardwareEventRunChange` | one change node as it actually happened in a run: the cycle it landed, the fields' values, its collaterals' measured values vs bounds | its `HardwareEventRun`, the expected `HardwareEventChange` (or none: an unexpected cascade) |
 | run | `HardwareEventRunSignal` | one triggered signal in one run: its step, its settle time, where its trace is | its `HardwareEventRun`; the `WaveformCapture` |
 
 **Whole**: a Bench Solution is whole only when each of its three Solutions exists and is complete and names a System the Bench System also names.
@@ -146,8 +184,9 @@ tool sidebar) already draws NODE KINDS whose drawing reads and writes the row it
 hwnocode's `HardwareSubgraph` / `HardwareInterface`). The deployment `topology-graph-view` is specific to hosts and modules and is not reused. The pin
 view (pv) is the one sanctioned custom d3 component for pins and stays about pins.
 
-**The topology.** Nodes are Struct States; edges are Hardware Events (a `StructTransition` is one edge: from-state, event, to-state). The same drawing
-serves three jobs:
+**The topology.** Coarse nodes are resting Struct States; edges are Hardware Events (a `StructTransition` is one edge). An edge EXPANDS into its
+chain: the change nodes in order, typed by stage (hardware-event result -> cascading -> bridge), each with its collaterals as small marks (measured /
+unmeasured / none declared). The same drawing serves three jobs:
 - **Define**: a person or an AI places a Struct State node (composes its field values, or picks a reached one), places a Hardware Event between two
   nodes, and NAMES both. Naming is the point: `StructState.title` ("light off, idle") and `HardwareEvent.title` ("press the button") are a person's
   words over a derived digest; an unnamed node shows its differing fields instead, until named.
@@ -222,12 +261,18 @@ layout for that scale (clustered by the fields that differ) would be the reason.
 - **D-bss-6 - where a run's traces live.** (a, recommended) `WaveformCapture` rows (the osc arc's, so the scope views show them unchanged). (b) files
   beside the run.
 
+- **D-bss-8 - how test profiles are defined.** (a, recommended) all three of 3b: a derived default per edge, named saved profiles assignable to edges,
+  purpose-based suggestions never applied silently. (b) only derived defaults (nothing to name or reuse). (c) only hand-made profiles (every edge needs one
+  before it runs).
+- **D-bss-9 - collaterals by default.** (a, recommended) every change node whose field drives a pin (a reads-field assertion) or crosses a bridge gets its
+  collaterals DERIVED (the pin's level and net, the frame's bytes) and marked derived; a person confirms, edits or sets none. (b) none until declared.
+
 ## 7. Phases (commit series on dev-electronics; selftests green; no deploy)
 
 | Phase | What | Proof |
 |---|---|---|
 | bss-0 | names (D-bss-1); the template rows `HardwareSystem` / `ThermalSystem` / `BenchSystem`; `ThermalSolution`; each Solution names its System; the whole check | `uno-light-bench` / `uno-light-on-desk` whole; remove the Thermal Solution -> "not whole: no Thermal Solution", in words |
-| bss-1 | the state map's start: `StructState` from the maps; "what can change and to what" from the assertions; `StructFieldSamples` and the block in words; the initial `HardwareEvent` rows derived from `TaskTrigger` / `CatomVariable` roles / `BridgePath` + manual | uno-light: boot state; events = press PD2, release PD2, SET_LED command, TMP36 level (blocked until adc0_mv samples are declared), reset; the words |
+| bss-1 | the state map's start, with chains and collaterals: `HardwareEvent` + its expected `HardwareEventChange` chain derived from the assertions, `ChangeCollateral` derived / declared (D-bss-9), `TestProfile` derived defaults (3b); `StructState` from the maps; "what can change and to what" from the assertions; `StructFieldSamples` and the block in words; the initial `HardwareEvent` rows derived from `TaskTrigger` / `CatomVariable` roles / `BridgePath` + manual | uno-light: boot state; events = press PD2, release PD2, SET_LED command, TMP36 level (blocked until adc0_mv samples are declared), reset; the words |
 | bss-2 | ONE event run: apply the trigger to the twin + circuit (+ Cauer), sample each triggered signal at its own step, settle, record from -> to, `step_set_by`, `window_set_by`; the "changed no struct" finding | press PD2 from boot -> LightState.led_on 0 -> 1, bridge report seen; step set by D6's edge, window by the debounce; a build with the struct write removed -> the finding |
 | bss-3 | the edge as the unit of test: `StructTransitionCheck`, run one edge / every edge out of a state / every edge; hardware runs beside simulation runs -> proven; exploration (bounded); manual transitions | the uno-light map: boot -> press -> release -> SET_LED ...; a manual edge with a wrong expected state -> mismatch naming the field; an analog check without a tolerance refused; a twin-record run on the press edge -> proven |
 | bss-4 | configuration change = rebuild + re-run the affected transitions (cfg-4, D-bss-4) | change the debounce -> new .hex sha, only the PD2 transitions re-run, their `window_set_by` changed |
