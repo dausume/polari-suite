@@ -50,24 +50,27 @@ PLAN ONLY. The decisions in section 6 are the user's to make.
   bootloader, no structs yet. Every node branches out from it (the user: "all of these nodes to branch out from the initial state of the hardware
   before it is flashed"). The first edge is the flash (the existing `ConfigurationEvent` kind flash, confirmed by `SimInstallConfirmation`), and its
   node is boot: every struct at its init value.
-- **Node**: a DEFINED STRUCT CHANGE, or a defined SET of struct changes, reached together, and named. The node is the change set (`led_on 0 -> 1`;
-  `command set AND last_command_id set`), not a free snapshot; its full Struct State is derived by replaying the path from the root. A node may or
-  may not carry **collaterals** (section 2b). Per node, two things are declared: the **expected struct changes** that define it and the **Catom
-  executions** expected to produce them (the atoms, with the isotopes the Firmware Solution's configuration selected).
+- **Node**: a set of END-STATE REQUIREMENTS on the structs, and a name (the user, 2026-11-02: "nodes have matching end-state struct set requirements
+  ... only specific values or value ranges or sets that need to be met for something to be considered ending in that node's state"). Each requirement
+  names one field and what it must satisfy: an exact value (`led_on = 1`), a range (`temperature_c in 20..30`), or a set of allowed values
+  (`state in {armed, firing}`). A field the node does not name is don't-care. A node is NOT a snapshot: the full Struct State a run has when it lands
+  there is recorded per run, and may differ between paths; only the requirements must match. A node may or may not carry **collaterals** (section 2b).
+  Per node, two things are declared: its **requirements** and the **Catom executions** expected to bring the structs to meet them (the atoms, with the
+  isotopes the Firmware Solution's configuration selected).
 - **Edge**: what moves from one node to the next. Two kinds:
   - **trigger edge**: a Hardware Event starts it: an actuation (person / environment / time) or an external signal from one of various sources
     (a Polari command through a bridge, another board, a harness, a network message to a bridge);
   - **cascade edge**: no outside trigger: the previous node's change makes code run that produces the next change (`button_down` -> `led_on`;
     `command` -> `led_on` -> a report frame leaves on the bridge). A bridge change is a node like any other, reached by a cascade edge.
-  An edge ALWAYS ENDS by encountering its node's defined struct change (set). Never by a clock. A guard time (D-bss-2) only turns a run into
-  "not reached" with its trace; a struct change that is not the expected one is a **divergence** (D-bss-10), offered as a new node for a person to
-  accept and name, never silently absorbed.
+  An edge ALWAYS ENDS when its node's requirements are all met at once. Never by a clock. A guard time (D-bss-2) only turns a run into "not reached"
+  with its trace; a struct change on a field the node requires that lands OUTSIDE its requirement (`led_on` required 1, became 0) is a **divergence**
+  (D-bss-10), offered as a new node for a person to accept and name, never silently absorbed. Changes on don't-care fields are recorded, not judged.
 - **Path**: the ordered edges from the root to a node. A node can be reached by several paths. **Every test of a node starts at the root and replays
   a path** (the user: "whenever testing a new node we go from the beginning in terms of struct state so we have a coherent and complete state context
   for the bench"); nothing is resumed from a snapshot. The **first test of a node uses the fastest plausible path**: the fewest edges whose nodes are
-  all defined, preferring already-confirmed nodes; other paths can be chosen and tested after, each recorded on its own. The full Struct State a node
-  has must be the same by every path; if two paths yield different full states, that is a finding: it is two nodes (D-bss-11).
-- **Confirmation**: a node is confirmed, for one path and one build, when a run from the root reached its change set, the declared Catom executions
+  all defined, preferring already-confirmed nodes; other paths can be chosen and tested after, each recorded on its own. The full Struct State at the
+  node may differ by path (the don't-care fields); each run records its own, and the node shows them side by side.
+- **Confirmation**: a node is confirmed, for one path and one build, when a run from the root met its requirements, the declared Catom executions
   were observed running (the twin's trace of symbols), and its collaterals measured within bounds. Confirmed by simulation (engine named), by hardware
   (a record read in), or by a person (attested in words, like `SimInstallConfirmation`); a confirmation is VOIDED, never deleted, when the build sha256
   or the node's definition changes. The user: "we will need confirmations of things being completed."
@@ -125,18 +128,19 @@ observed at most, never confirmed.
 
 ## 4. Defining the topology, exploring it, and enforcing the rule
 
-- **Definition first.** People and AI define nodes branching from the root: the change set, the executions, the collaterals (or none), the edge that
+- **Definition first.** People and AI define nodes branching from the root: the requirements, the executions, the collaterals (or none), the edge that
   reaches it (trigger or cascade) and a name. The AI defines through the same doors the canvas writes. Exploration (below) only PROPOSES nodes.
 - **What can change, and to what.** From the `StructObjectMap` fields and the `CatomAssertion` rows: each field the code can write and, by its C type,
   the values it can take: a bool or enum enumerates; an integer or analog-derived field needs **declared samples** (`StructFieldSamples`: "adc0_mv: 700,
-  750, 800"). A node whose change set names a value of such a field without a sample is blocked, in words, naming the field. Suggestions for samples
+  750, 800"). A node whose requirements name a value of such a field without a sample is blocked, in words, naming the field (a RANGE requirement on such a field
+  is not blocked: the run's value is judged against the range). Suggestions for samples
   come from the field's cited sensor range.
 - **The offered edges** from any node: one trigger edge per actuation the bench offers (its controls and sensors: board pins and `CatomVariable` roles;
   `TaskTrigger` edge / period / boot rows name them), one per external source (`TaskTrigger` command / message rows, each `BridgePath`, each declared
   harness signal); and the cascade edges the assertions predict (changes-field -> reads-field -> changes-field / sends-to-bridge). The predicted
-  change set of each is shown before any run.
-- **Exploration (secondary, bounded, D-bss-5)**: from a confirmed node, run each offered edge from the root along the node's fastest path; a reached
-  change set that matches no defined node is PROPOSED as a node (derived, unnamed) for a person to accept or discard. Unexplored edges are listed.
+  changes of each are shown before any run, so a person can turn them into a node's requirements.
+- **Exploration (secondary, bounded, D-bss-5)**: from a confirmed node, run each offered edge from the root along the node's fastest path; a run whose
+  changes meet no defined node's requirements is PROPOSED as a node (its requirements = the exact changed values, to be loosened by a person) (derived, unnamed) for a person to accept or discard. Unexplored edges are listed.
 - **Enforcing the rule.** A trigger edge whose trigger provably reached the firmware (the pin edge delivered, the frame received) yet encountered NO
   struct change within the guard is a FINDING on the Firmware Solution: "the press on PD2 changed no struct: the button is not testable through the
   structs", with the trace; the Firmware Solution is marked `not-struct-testable` for that trigger until a struct carries the change.
@@ -158,17 +162,17 @@ observed at most, never confirmed.
 | catalogue | `IsotopeStepRule` | the step an isotope asks for (kind, value, basis: derived / cited / knob) | its `IsotopeVariant` |
 | definition | `StructFieldSamples` | the declared test values of one non-enumerable field | the `StructObjectMap`, the field |
 | definition | `HardwareEvent` | one trigger: kind (actuation / external-signal), source (person / environment / time / polari / board / harness / network), what, its arguments | its `BenchSolution`; the `TaskTrigger` / `CatomVariable` / `BridgePath` it came from |
-| topology | `StructNode` | ONE NODE: its title, kind (root / boot / change), whether it has collaterals | its `BenchSolution` |
-| topology | `StructNodeChange` | one expected struct change that defines the node (struct, field, value or sample) | its `StructNode`; the `StructObjectMap` field |
+| topology | `StructNode` | ONE NODE: its title, kind (root / boot / state), whether it has collaterals | its `BenchSolution` |
+| topology | `StructNodeRequirement` | one end-state requirement: a field and what it must satisfy (exact value / range / set of allowed values) | its `StructNode`; the `StructObjectMap` field |
 | topology | `StructNodeExecution` | one Catom execution expected at the node (atom, the isotope as configured, order) | its `StructNode`; the `CFunctionAtom`, `IsotopeVariant`, `CatomAssertion` |
 | topology | `StructNodeCollateral` | one measurable effect outside the structs: the signal, the engine, the bound | its `StructNode`; the pin / net / `PartThermalModel` |
 | topology | `StructEdge` | ONE EDGE: from node, to node, kind (trigger / cascade / flash) | `StructNode` x2; the `HardwareEvent` when trigger; the `ConfigurationEvent` when flash |
-| topology | `StructEdgeCheck` | one expectation on an edge beyond the change set: a field tolerance / range, a timing bound | its `StructEdge`, the field or collateral |
+| topology | `StructEdgeCheck` | one expectation on an edge beyond the requirements: a field tolerance / range, a timing bound | its `StructEdge`, the field or collateral |
 | topology | `StructNodePath` | one ordered path root -> node (edges in order, length, fastest?) | its `StructNode`; the `StructEdge` rows |
 | definition | `TestProfile`, `TestProfileItem` | what one test monitors (3b) | its `BenchSolution` ('' when shared); the line / field / collateral per item |
-| state | `StructState` | the full snapshot derived at a node by a path: field values, digest (equal across paths, or D-bss-11) | its `StructNode`, `StructNodePath` |
+| state | `StructState` | the full snapshot a run had when it met a node's requirements: field values, digest (may differ by path: the don't-care fields) | its `StructNodeRun` |
 | run | `StructNodeRun` | one test of a node: from the root along one path, with one profile, on one .hex sha256; outcome (reached / not reached / diverged / blocked); `step_s` + `step_set_by`, `duration_s` + `duration_set_by` | its `StructNode`, `StructNodePath`, `TestProfile` |
-| run | `StructNodeRunEdge` | one edge as it ran in that test: reached at cycle N, duration, the executions observed (symbols), the collaterals measured vs bounds, divergence words | its `StructNodeRun`, `StructEdge`; the `CircuitStateTransition` |
+| run | `StructNodeRunEdge` | one edge as it ran in that test: requirements met at cycle N, duration, the executions observed (symbols), the collaterals measured vs bounds, divergence words | its `StructNodeRun`, `StructEdge`; the `CircuitStateTransition` |
 | run | `StructNodeRunSignal` | one monitored signal's trace in that test | its `StructNodeRun`; the `WaveformCapture` |
 | evidence | `StructNodeConfirmation` | one confirmation: node, path, by (simulation engine / hardware record / person), the run, the build sha256; state confirmed / voided (why) | its `StructNode`, `StructNodePath`, `StructNodeRun` |
 
@@ -186,14 +190,14 @@ hwnocode's `HardwareSubgraph` / `HardwareInterface`). The deployment `topology-g
 view (pv) is the one sanctioned custom d3 component for pins and stays about pins.
 
 **The topology.** One tree-like graph from the ROOT (the unflashed hardware) through the flash edge to boot and out: nodes are `StructNode`s (a defined
-change set, named), edges are `StructEdge`s (trigger, drawn with the Hardware Event's source; cascade, drawn thin; flash). A node with collaterals carries
+requirements, named), edges are `StructEdge`s (trigger, drawn with the Hardware Event's source; cascade, drawn thin; flash). A node with collaterals carries
 small marks (measured / unmeasured / none declared). The path being tested is highlighted root -> node. The same drawing serves three jobs:
-- **Define**: a person or an AI adds a node out of an existing one: its change set, its executions (picked from the catoms the assertions say can make
+- **Define**: a person or an AI adds a node out of an existing one: its requirements (fields with exact / range / set), its executions (picked from the catoms the assertions say can make
   that change), its collaterals or none, the edge kind (a trigger from the offered Hardware Events, or a cascade), and NAMES it. Naming is the point:
-  `StructNode.title` ("light on") and `HardwareEvent.title` ("press the button") are a person's words; an unnamed node shows its change set until named.
+  `StructNode.title` ("light on") and `HardwareEvent.title` ("press the button") are a person's words; an unnamed node shows its requirements until named.
 - **Explore**: nodes the exploration (section 4) proposed appear dashed and unnamed; the person accepts and names them, or discards them.
 - **Read a run**: click a node -> its confirmations (by path, by engine / hardware / person, on which build; voided ones greyed), its runs with
-  `step_s` + `step_set_by` and `duration_s` + `duration_set_by`, its full Struct State beside its parent's (the change set first), and the edges offered
+  `step_s` + `step_set_by` and `duration_s` + `duration_set_by`, its requirements, and the full Struct State each run had on arrival beside its parent's (the required fields first), and the edges offered
   from it. Click an edge -> its checks and its `StructNodeRunEdge` rows: reached at which cycle, the executions observed, the collaterals measured, the
   traces (the osc chart), divergence words. Click again to deselect (click-toggle). Status is shown by theme tokens (expected / observed /
   mismatch / unreachable / blocked-for-samples), never by raw JSON.
@@ -212,7 +216,7 @@ small marks (measured / unmeasured / none declared). The path being tested is hi
 
 **Testing and simulation per edge (the user, 2026-11-02: "we will also want testing and simulation per topology edge").** The node, reached by an edge along a path, is the
 unit of test; the edge carries the checks. One node can be tested, re-tested after a rebuild, and compared across engines without touching the rest:
-- **The expectation** is the node's change set plus, per field, an optional `StructEdgeCheck`: exact for a bool or enum; a tolerance or a range for an
+- **The expectation** is the node's requirements plus, per field, an optional `StructEdgeCheck`: exact for a bool or enum; a tolerance or a range for an
   integer or analog-derived field ("temperature_c within 0.5 of 25"); a timing bound on the edge itself ("reached within 60 ms", checked against
   `duration_s`). A check without a tolerance on an analog field is refused in words.
 - **Test this node**: `POST .../nodes/{name}/run {path?, profile?}` replays from the root along the fastest plausible path (or the named one) in the
@@ -267,10 +271,8 @@ layout for that scale (clustered by the fields that differ) would be the reason.
 - **D-bss-8 - how test profiles are defined.** (a, recommended) all three of 3b: a derived default per edge, named saved profiles assignable to edges,
   purpose-based suggestions never applied silently. (b) only derived defaults (nothing to name or reuse). (c) only hand-made profiles (every edge needs one
   before it runs).
-- **D-bss-10 - divergence.** A run that encounters a struct change other than the node's. (a, recommended) outcome diverged; the change set is proposed
-  as a new node off the same parent for a person to accept and name; the intended node stays unconfirmed. (b) a plain failure.
-- **D-bss-11 - path-dependent state.** The same node reached by two paths with different full Struct States. (a, recommended) a finding: "two nodes",
-  the differing fields named, the person splits it. (b) tolerated, the state recorded per path.
+- **D-bss-10 - divergence.** A run in which a required field lands outside its requirement. (a, recommended) outcome diverged; the reached values are
+  proposed as a new node off the same parent for a person to accept, loosen and name; the intended node stays unconfirmed. (b) a plain failure.
 - **D-bss-9 - collaterals by default.** (a, recommended) every change node whose field drives a pin (a reads-field assertion) or crosses a bridge gets its
   collaterals DERIVED (the pin's level and net, the frame's bytes) and marked derived; a person confirms, edits or sets none. (b) none until declared.
 
@@ -279,9 +281,9 @@ layout for that scale (clustered by the fields that differ) would be the reason.
 | Phase | What | Proof |
 |---|---|---|
 | bss-0 | names (D-bss-1); `HardwareSystem` / `ThermalSystem` / `BenchSystem`; `ThermalSolution`; each Solution names its System; the whole check | `uno-light-bench` / `uno-light-on-desk` whole; remove the Thermal Solution -> "not whole: no Thermal Solution", in words |
-| bss-1 | the topology's start: the root (unflashed), the flash edge, the boot node from the structs' init values; `StructNode` / `Change` / `Execution` / `Collateral`, `StructEdge`, `StructNodePath`; `IsotopeStepRule` rows for the isotopes the UNO light uses (derived on the twin or cited); the offered edges and predicted change sets from the assertions; `StructFieldSamples` and the block in words; `HardwareEvent` rows | uno-light: root -> flash -> boot; offered: press PD2, release PD2, SET_LED, TMP36 level (blocked until adc0_mv samples), reset; a defined node "light on" with change `led_on 0 -> 1`, execution `led_follow_state`, collateral D6 level + LED current; its fastest path named |
-| bss-2 | ONE node test from the root along the fastest path: the twin replays flash -> boot -> press, stepping at each node as its executions and collaterals ask, ngspice for D6, Cauer for the LED; the edge ends on the change; `StructNodeRun` + per-edge rows; `step_set_by`, `duration_set_by`; the "changed no struct" finding; the guard | "light on" reached: `led_on` 0 -> 1 at cycle N, `led_follow_state` observed, D6 high, LED current within bound -> confirmed by simulation; a build with the struct write removed -> the finding; step set by D6's edge, duration by the debounce in read-button:gpio-poll |
-| bss-3 | confirmations and paths: `StructNodeConfirmation` (simulation / hardware / person; voided on a build change); a second path to the same node; D-bss-11; divergence proposals (D-bss-10); `StructEdgeCheck`; hardware records read in; manual `TestProfile`s | "light off again" by press -> release -> press and by SET_LED: two confirmations; a wrong expected change -> diverged with a proposed node; a twin-record run -> a hardware confirmation; a manual profile without the D6 collateral -> "observed, not confirmed: D6 current unmonitored" |
+| bss-1 | the topology's start: the root (unflashed), the flash edge, the boot node from the structs' init values; `StructNode` / `Requirement` / `Execution` / `Collateral`, `StructEdge`, `StructNodePath`; `IsotopeStepRule` rows for the isotopes the UNO light uses (derived on the twin or cited); the offered edges and predicted requirementss from the assertions; `StructFieldSamples` and the block in words; `HardwareEvent` rows | uno-light: root -> flash -> boot; offered: press PD2, release PD2, SET_LED, TMP36 level (blocked until adc0_mv samples), reset; a defined node "light on" with requirement `led_on = 1`, execution `led_follow_state`, collateral D6 level + LED current; a node "warm" with `temperature_c in 20..30`; its fastest path named |
+| bss-2 | ONE node test from the root along the fastest path: the twin replays flash -> boot -> press, stepping at each node as its executions and collaterals ask, ngspice for D6, Cauer for the LED; the edge ends on the change; `StructNodeRun` + per-edge rows; `step_set_by`, `duration_set_by`; the "changed no struct" finding; the guard | "light on" met: `led_on = 1` at cycle N, `led_follow_state` observed, D6 high, LED current within bound -> confirmed by simulation; a build with the struct write removed -> the finding; step set by D6's edge, duration by the debounce in read-button:gpio-poll |
+| bss-3 | confirmations and paths: `StructNodeConfirmation` (simulation / hardware / person; voided on a build change); a second path to the same node with a different don't-care field, both confirmed; divergence proposals (D-bss-10); `StructEdgeCheck`; hardware records read in; manual `TestProfile`s | "light off again" by press -> release -> press and by SET_LED: two confirmations; a requirement `led_on = 0` where the code sets 1 -> diverged with a proposed node; a twin-record run -> a hardware confirmation; a manual profile without the D6 collateral -> "observed, not confirmed: D6 current unmonitored" |
 | bss-4 | a configuration or isotope change = rebuild, void that build's confirmations, re-test the nodes whose executions touch the changed catom first (cfg-4) | switch read-button to pin-change-interrupt: step rule changes to cycle level, the press nodes re-tested, their `step_set_by` changed; untouched nodes voided but queued |
 | bss-5 | the canvas: node kinds `struct-node` / `struct-edge` on the no-code canvas, authored from the rows; the root at the top; the tested path highlighted; naming; click into a node / an edge | the uno-light canvas drawn from the rows; name a node -> the row's title; an AI adds a node through the door -> it appears |
 | bss-6 | coverage made obvious: node confirmation states, the coverage strip, the per-node test card, assertion coverage per Firmware Solution, the untested list; the Hardware Events and Structs pages + the Bench Solution page (theme tokens, click-toggle, no raw JSON) | the Chrome pass is owed and needs a deploy, which is the user's call |
