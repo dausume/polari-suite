@@ -116,6 +116,9 @@ def md_to_html(text, links, drop_first_h1=True):
             while i < n and not lines[i].strip().startswith(fence):
                 buf.append(lines[i]); i += 1
             i += 1
+            if lang == 'mermaid':
+                out.append('<div class="mermaid">%s</div>' % html.escape('\n'.join(buf), quote=False))
+                continue
             cls = ' class="lang-%s"' % html.escape(lang) if lang else ''
             out.append('<pre><code%s>%s</code></pre>' % (cls, html.escape('\n'.join(buf))))
             continue
@@ -281,10 +284,20 @@ TEMPLATE = '''<!doctype html>
     </div>
   </footer>
   <script src="assets/app.js"></script>
-  <script src="assets/docs.js"></script>
+  <script src="assets/docs.js"></script>{mermaid}
 </body>
 </html>
 '''
+
+MERMAID_SCRIPT = '''
+  <!-- Mermaid from CDN. For a fully self-hosted / offline build, vendor
+       mermaid.esm.min.mjs into assets/ and point the import below at it. -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+    const t = document.documentElement.getAttribute('data-theme')
+      || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    mermaid.initialize({ startOnLoad: true, theme: t === 'dark' ? 'dark' : 'default', securityLevel: 'strict' });
+  </script>'''
 
 
 def link_resolver(docs, source_path):
@@ -322,6 +335,9 @@ def build(check=False):
     changed, stale = [], []
 
     def write(path, content):
+        # scrub BEFORE comparing: the file on disk is the scrubbed text, so an
+        # unscrubbed compare reports every page the scrub touches as stale
+        content = privacy_scrub(content, os.path.relpath(path, HERE))
         old = open(path, encoding='utf-8').read() if os.path.exists(path) else None
         if old == content:
             return
@@ -330,7 +346,7 @@ def build(check=False):
             stale.append(rel); return
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w', encoding='utf-8') as fh:
-            fh.write(privacy_scrub(content, str(out_path) if "out_path" in dir() else "page"))
+            fh.write(content)
         changed.append(rel)
 
     for cat, page in all_pages(docs):
@@ -344,7 +360,8 @@ def build(check=False):
             content = TEMPLATE.format(
                 title=html.escape(page['title']), gist=html.escape(page.get('gist', ''), quote=True),
                 source=html.escape(page['source']), category=html.escape(cat['title']),
-                nav_start=NAV_START, nav=nav_html(docs, page['href']), nav_end=NAV_END, body=body)
+                nav_start=NAV_START, nav=nav_html(docs, page['href']), nav_end=NAV_END, body=body,
+                mermaid=MERMAID_SCRIPT if '<div class="mermaid">' in body else '')
             write(path, content)
         elif page.get('external'):
             continue   # a link to something the running stack serves (e.g. /downloads)

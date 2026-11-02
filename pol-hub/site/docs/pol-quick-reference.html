@@ -79,6 +79,8 @@
         <a href="docs/shell-bridge-contract.html">The shell bridge contract</a>
         <a href="docs/frontend.html">The frontend</a>
         <a href="docs/testing.html">Testing the framework</a>
+        <div class="col-h">Hardware and no-code</div>
+        <a href="docs/hardware-nocode.html">How Polari works for hardware</a>
         <div class="col-h">Pipeline</div>
         <a href="docs/pipeline-guide.html">The Polari pipeline — an operator&#x27;s guide</a>
         <div class="col-h">Reference</div>
@@ -118,6 +120,25 @@ pol swarm init|status|join-token              cluster management
 pol swarm render|deploy|rm|ps|services &lt;role&gt; stacks (roles: engines|suite|node)
 #   engines proven E2E; suite/node conflict with their compose twins (refuse)
 #   v1 inlines generated env values via compose-config; secrets = refinement
+
+# Bridging devices OPENS the ports it needs — with your consent
+pol swarm ports &lt;node&gt; [--apply] [--yes]   check (default) or open CLOSED
+                                            ports: a single y/N (or sudo
+                                            itself) per host, never a
+                                            blanket &#x27;allow &lt;port&gt;&#x27;
+pol swarm join &lt;node&gt; [--no-apply] [--yes] does the handshake by default
+pol swarm leave &lt;node&gt;                     hands back what join opened,
+                                            then leaves (no duplicate logic)
+pol net needs &lt;binding&gt; [port]             the port-needs TABLE (data, not
+                                            prose): swarm-manager|swarm-worker|
+                                            engine-worker &lt;port&gt;
+pol net handback [&lt;node&gt;] [--peer p] [--apply]   the hand-back journal
+                                            (~/.polari/handback/firewall.jsonl);
+                                            --apply replays the undo in
+                                            reverse, same consent rules
+#   never prompts/applies in a pipeline or CI (POL_ASSUME_NO=1 forces that
+#   refusal on purpose); firewalld/nftables hosts get the equivalent
+#   command printed, never applied (ufw-only automation)
 
 # Generated nginx proxies (replaces the sed .template path)
 pol proxy render|check|promote|status         check = nginx -t in a container
@@ -168,6 +189,10 @@ pol build clean                              rm rendered jinja-build/
 
 # CA toolkit                                           [alias: certs, ca]
 pol cert setup|issue|renew|verify|walkthrough</code></pre>
+<h2 id="bridging-devices-opens-ports-with-consent">Bridging devices opens ports with consent</h2>
+<p><code>pol swarm join &lt;node&gt;</code> bridges two devices (this manager and a worker) — that needs ports open between them. Instead of only printing <code>sudo ufw allow …</code> lines for a person to run by hand, the join/ports handshake can run that line itself, with consent, every time:</p>
+<ol><li><strong>check</strong> — <code>check_swarm_ports</code> (unchanged) probes node→manager on 2377/tcp, 7946/tcp+udp, 4789/udp and reports which are CLOSED.</li><li><strong>detect</strong> — is <code>ufw</code> active on this host? Inactive/absent ⇒ nothing to do. <code>firewalld</code>/<code>nftables</code> ⇒ the equivalent command is PRINTED, never applied (pol only automates ufw).</li><li><strong>skip</strong> — a rule already present in <code>ufw status</code> is left alone (idempotent; pol never re-adds what's already there).</li><li><strong>ask</strong> — one prompt lists every rule for that host: <code>apply these N rules on &lt;host&gt;? [y/N]</code>. No TTY, <code>POL_ASSUME_NO=1</code>, or a CI environment ⇒ never prompts, never applies, only prints the lines — a pipeline can never open a port. <code>--yes</code> skips the prompt for a person who already decided; <code>sudo</code> is still the real gate (it asks for a password unless it's already passwordless on that host).</li><li><strong>apply</strong> — every rule is SOURCE-SCOPED: <code>sudo ufw allow from &lt;peer ip&gt; to any port &lt;p&gt; proto &lt;tcp|udp&gt; comment &#x27;polari &lt;binding&gt; &lt;peer&gt;&#x27;</code>. Never a blanket <code>allow &lt;port&gt;</code>.</li><li><strong>journal</strong> — every rule actually applied is appended as one JSON line to <code>~/.polari/handback/firewall.jsonl</code> <strong>on the host it touched</strong> (<code>{ts, host, binding, peer, rule, undo, comment}</code>), and the ports are re-checked so the transcript shows the before/after.</li></ol>
+<p><code>pol swarm ports &lt;node&gt; --apply</code> does this check-only; <code>pol swarm join &lt;node&gt;</code> does it by default (<code>--no-apply</code> for the old print-only behaviour). <code>pol net needs &lt;binding&gt; [port]</code> prints the port-needs table a binding draws its rules from (<code>swarm-manager</code>, <code>swarm-worker</code>, <code>engine-worker &lt;port&gt;</code> — data, not prose). <code>pol net handback [&lt;node&gt;] [--peer &lt;label&gt;] [--apply]</code> lists — or, with <code>--apply</code>, REPLAYS IN REVERSE and shrinks — the hand-back journal, under the same consent rules. <code>pol swarm leave &lt;node&gt;</code> calls that hand-back on both hosts before delegating the actual leave to the existing <code>pol deploy uninstall --route swarm-worker</code> route (no duplicated <code>docker swarm leave</code> logic).</p>
 <p>Knobs honored everywhere: <code>LOCAL_IP</code>, <code>POLARI_SUITE_ROOT</code>, and the credential knobs (<code>POLARI_KC_ADMIN_PASS</code>, <code>POLARI_MYSQL_ROOT_PASS</code>, <code>POLARI_KC_DB_PASS</code>, <code>POLARI_PSC_DB_PASS</code>, <code>POLARI_MINIO_ROOT_USER/_PASS</code>, <code>POLARI_MARIADB_ROOT_PASS</code>, <code>POLARI_OBJECTS_DB_PASS</code>, <code>POLARI_KEYDB_PASS</code>).</p>
 <p>Gotchas:</p>
 <ul><li>Standalone node and combined suite share container names — run one.</li><li>Combined staging first <code>up</code>: prf-backend healthcheck can flap on a cold seed and block pol-proxy — re-run <code>pol suite up</code> once it's healthy.</li></ul>

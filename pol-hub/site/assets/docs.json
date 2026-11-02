@@ -324,6 +324,19 @@
    ]
   },
   {
+   "id": "hardware-nocode",
+   "title": "Hardware and no-code",
+   "blurb": "How boards, firmware and simulation work in Polari, in plain words.",
+   "pages": [
+    {
+     "href": "docs/hardware-nocode.html",
+     "title": "How Polari works for hardware",
+     "gist": "One no-code model from browser to device: boards on the bench, firmware from catoms, structs and bridges, Systems and Solutions, configuration checks, simulation, temperature.",
+     "source": "AI-Notes/guides/HARDWARE_NOCODE_GUIDE.md"
+    }
+   ]
+  },
+  {
    "id": "pipeline",
    "title": "Pipeline",
    "blurb": "The build-test-release pipeline: the branch model, setup, tokens, day-to-day operation, and what it cannot do yet.",
