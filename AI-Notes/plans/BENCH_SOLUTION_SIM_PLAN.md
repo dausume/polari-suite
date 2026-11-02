@@ -128,7 +128,8 @@ Not continuous time. An event run samples only the signals the event triggers, e
 | definition | `StructFieldSamples` | the declared test values of one non-enumerable field | the `StructObjectMap`, the field |
 | definition | `HardwareEvent` | one trigger: kind (struct-change / actuation / external-signal), source (polari / person / environment / time / external), what (the line, field or frame), its arguments | its `BenchSolution`; the `TaskTrigger` / `CatomVariable` / `BridgePath` it came from |
 | state | `StructState` | one snapshot: the field values, a digest | its `BenchSolution`; the `StructObjectMap` rows |
-| scenario | `StructTransition` | from-state + event -> to-state; basis (manual / simulation / hardware); status | `StructState` x2, `HardwareEvent` |
+| scenario | `StructTransition` | ONE EDGE: from-state + event -> to-state; basis (manual / simulation / hardware); status (expected / observed / mismatch / proven / unreachable / blocked) | `StructState` x2, `HardwareEvent` |
+| scenario | `StructTransitionCheck` | one expectation on one edge: a field exact / within a tolerance / in a range, or a timing bound on the edge | its `StructTransition`, the field |
 | run | `HardwareEventRun` | one application: from-state, to-state, complete?, `step_s` + `step_set_by`, `window_s` + `window_set_by`, the .hex sha256, finding words | its `HardwareEvent`, the `StructTransition` it produced, its `CircuitStateTransition` |
 | run | `HardwareEventRunSignal` | one triggered signal in one run: its step, its settle time, where its trace is | its `HardwareEventRun`; the `WaveformCapture` |
 
@@ -169,6 +170,23 @@ serves three jobs:
 - For an AI: the same rows through the doors (`/api/board/bench-solutions/{name}/events|states|transitions`), so an agent defines a topology by writing
   the rows the canvas reads; nothing is drawn by hand twice.
 
+**Testing and simulation per edge (the user, 2026-11-02: "we will also want testing and simulation per topology edge").** The edge is the unit of
+test. A `StructTransition` carries its own expectation and its own runs, so one edge can be run, re-run after a rebuild, and compared across engines
+without touching the rest of the topology:
+- **The expectation** is the to-state plus, per field, an optional `StructTransitionCheck`: exact for a bool or enum; a tolerance or a range for an
+  integer or analog-derived field ("temperature_c within 0.5 of 25"); a timing bound on the edge itself ("settles within 60 ms", checked against
+  `window_s`). A check without a tolerance on an analog field is refused in words.
+- **Simulate this edge**: `POST .../transitions/{name}/run` applies the event from the from-state in the twin + circuit (+ Cauer) and writes one
+  `HardwareEventRun` naming the edge; the edge's status becomes observed or mismatch with the differing fields and the failed checks in words. Variants
+  of the same edge run per declared sample of any field the event carries (one run per sample, all named by the edge).
+- **Test this edge against hardware**: a run with basis `hardware` (a twin-session record or a real-board log read in) is kept beside the simulation
+  runs of the same edge; the edge shows both and their difference (fields, and `window_s` simulated vs measured). Matching hardware is what promotes an
+  edge from observed to **proven**.
+- **Runs in bulk** are just edges: run every edge out of one state; run every edge of the topology; after a rebuild, run only the edges whose event chain
+  touches the changed catom (bss-4). Each result lands on its own edge; there is no topology-level verdict other than the count of edges by status.
+- On the canvas, an edge shows its status by theme token, and clicking it offers run / test / the runs so far; the Hardware Events page lists edges by
+  status with the same actions.
+
 **Decision for the user (D-bss-7):** (a, recommended) node kinds on the no-code canvas (the one canvas; drawings authored from rows; the d3 is there);
 (b) a new dedicated d3 component like the pin view: an explicit exception, justified only if the canvas cannot show a few hundred states legibly: the
 layout for that scale (clustered by the fields that differ) would be the reason.
@@ -194,7 +212,7 @@ layout for that scale (clustered by the fields that differ) would be the reason.
 | bss-0 | names (D-bss-1); the template rows `HardwareSystem` / `ThermalSystem` / `BenchSystem`; `ThermalSolution`; each Solution names its System; the whole check | `uno-light-bench` / `uno-light-on-desk` whole; remove the Thermal Solution -> "not whole: no Thermal Solution", in words |
 | bss-1 | the state map's start: `StructState` from the maps; "what can change and to what" from the assertions; `StructFieldSamples` and the block in words; the initial `HardwareEvent` rows derived from `TaskTrigger` / `CatomVariable` roles / `BridgePath` + manual | uno-light: boot state; events = press PD2, release PD2, SET_LED command, TMP36 level (blocked until adc0_mv samples are declared), reset; the words |
 | bss-2 | ONE event run: apply the trigger to the twin + circuit (+ Cauer), sample each triggered signal at its own step, settle, record from -> to, `step_set_by`, `window_set_by`; the "changed no struct" finding | press PD2 from boot -> LightState.led_on 0 -> 1, bridge report seen; step set by D6's edge, window by the debounce; a build with the struct write removed -> the finding |
-| bss-3 | exploration (bounded) + `StructTransition` expected / observed / mismatch; manual transitions; transitions read from a hardware record | the uno-light map: boot -> press -> release -> SET_LED ...; a manual transition with a wrong expected state -> mismatch naming the field |
+| bss-3 | the edge as the unit of test: `StructTransitionCheck`, run one edge / every edge out of a state / every edge; hardware runs beside simulation runs -> proven; exploration (bounded); manual transitions | the uno-light map: boot -> press -> release -> SET_LED ...; a manual edge with a wrong expected state -> mismatch naming the field; an analog check without a tolerance refused; a twin-record run on the press edge -> proven |
 | bss-4 | configuration change = rebuild + re-run the affected transitions (cfg-4, D-bss-4) | change the debounce -> new .hex sha, only the PD2 transitions re-run, their `window_set_by` changed |
 | bss-5 | the topology (section 5b): node kinds `struct-state` / `hardware-event` on the no-code canvas, authored from the rows; naming; click into a node / an edge | the uno-light canvas: boot -> press -> release drawn from the rows; name a state -> the row's title; an AI writes a transition through the door -> it appears |
 | bss-6 | the Hardware Events and Structs pages + the Bench Solution page: whole check, per run the step and window with what set them, traces through the scope views (theme tokens, click-toggle, no raw JSON) | the Chrome pass is owed and needs a deploy, which is the user's call |
