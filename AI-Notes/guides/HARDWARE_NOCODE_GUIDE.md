@@ -6,7 +6,7 @@ Polari treats a circuit board the way it treats everything else: as objects you 
 
 Polari already lets you build things in the browser and on the backend by wiring boxes together instead of writing programs. Hardware uses the same idea and the same object tree. There is one no-code model, not a separate one for devices.
 
-A single drawing (`CrossDomainSolution`) can hold a piece of firmware on a board, the link to the backend, a backend step that reacts, and a chart in the browser. Hardware only adds new kinds of box to the same canvas. The result you can always ask for is a real C project that builds with the normal tools, with or without Polari.
+A single drawing (`HardwareNoCodeSolution`) can hold a piece of firmware on a board, the link to the backend, a backend step that reacts, and a chart in the browser. Hardware only adds new kinds of box to the same canvas. The result you can always ask for is a real C project that builds with the normal tools, with or without Polari.
 
 ## Boards on the bench
 
