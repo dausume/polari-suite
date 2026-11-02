@@ -220,6 +220,8 @@ The user (2026-11-01, during cfg-0): "keep clean separation between objects and 
 people can learn these systems", "and prevent overlap, use references". Each row below holds one concern and names the rows it depends on; a
 fact reachable through a reference is never stored twice (the cfg-0 selftest checks it).
 
+Naming (the user, 2026-11-01): a row that clearly depends on one parent is named after that parent - `ConfigOptionGrade` (an option's grade on a bench, was ConfigVerdict) and `ConfigOptionResult` (one check's result under that grade, was ConfigCheckResult; its reference field is `grade`). Keep names simple.
+
 | Level | Row | Its one concern | Fields | References |
 |---|---|---|---|---|
 | catalogue (code) | `cmod.custom.config_groups` | the words: variable groups, verdicts, option levels, check layers | - | - |
@@ -228,8 +230,8 @@ fact reachable through a reference is never stored twice (the cfg-0 selftest che
 | solution | `ConfigChoice` | which option supplies one group's values, and who chose it | chosen_by, why | CatomConfiguration, ConfigOption (its group and values are the option's) |
 | context | `BenchSolution` (board) | everything on a bench bound as a whole | (references only) | Bench, HardwareSolution, FirmwareSolution, Thermal Solution (later), BenchConditions |
 | context | `BenchConditions` (board) | the room: air (open), ambient range, supply, aging | air, ambient_min_c, ambient_max_c, supply_v, aging_years | - |
-| result | `ConfigVerdict` | whether one option works in one Bench Solution, and its score | verdict, score, why | BenchSolution, ConfigOption (not the catom or configuration: those come through the references) |
-| evidence | `ConfigCheckResult` | what one check found | check, layer, outcome, margin, gives_up, why, evidence | ConfigVerdict |
+| result | `ConfigOptionGrade` | whether one option works in one Bench Solution, and its score | verdict, score, why | BenchSolution, ConfigOption (not the catom or configuration: those come through the references) |
+| evidence | `ConfigOptionResult` | what one check found | check, layer, outcome, margin, gives_up, why, evidence | ConfigOptionGrade |
 | definition (later) | `ClockSource` (cfg-1) | one clock source's cited datasheet bounds | kind, nominal, tolerance, band and temperature range, aging, source | - |
 | definition (later) | module board `provides` (cfg-5) | what a module board gives the bench, for the fix suggester | in `board_spec` | the board |
 
@@ -287,7 +289,7 @@ sessions last.
 
 | Phase | What | Proof |
 |---|---|---|
-| cfg-0 ✅ BUILT 2026-11-01 | the shape: `BenchSolution` (Hardware + Firmware Solution references; Thermal once it exists), `VariableGroup`, `CatomConfiguration` (isotope + values, per firmware solution), `ConfigOption`, `ConfigVerdict` (per Bench Solution); the verdict engine (layered checks, the automatic default, a person's choice recorded) with no group wired yet | a toy catom with two isotopes and one invalid, one compromise, one ideal option: the ideal is chosen; the override is recorded with what it gives up; the same configuration judged in two Bench Solutions gets two verdicts |
+| cfg-0 ✅ BUILT 2026-11-01 | the shape: `BenchSolution` (Hardware + Firmware Solution references; Thermal once it exists), `VariableGroup`, `CatomConfiguration` (isotope + values, per firmware solution), `ConfigOption`, `ConfigOptionGrade` (per Bench Solution); the verdict engine (layered checks, the automatic default, a person's choice recorded) with no group wired yet | a toy catom with two isotopes and one invalid, one compromise, one ideal option: the ideal is chosen; the override is recorded with what it gives up; the same configuration judged in two Bench Solutions gets two verdicts |
 | cfg-1 | clock group, part 1: `ClockSource` and peer rows (cited); `timing_drift` reads them; the serial-link and tick checks from tmp-6 code | the UNO's shipped configuration: 117 647 Bd, +2.1 %, the 16U2 matched, margin -2.50 .. +2.56 % against a +-1.0 % band, compromise, chosen automatically; U2X0 invalid with the 5.9 % |
 | cfg-2 | the catom page: `/display/catom`, its Configuration tab (firmware solution and Bench Solution pickers, knobs, options, verdicts, other Bench Solutions) | the door returns the UNO's serial configuration with both verdicts; Chrome pass needs a deploy (the user's call) |
 | cfg-3 | clock group, part 2: the option catalogue graded; the simulator by configuration; the FE twin flag; `clock-skew` as a scenario step | a HAL_UART_ERRCOUNT build counts the 236 FEs tmp-6 saw; 9600 invalid for the telemetry load |
