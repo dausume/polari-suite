@@ -17,7 +17,10 @@ Naming follows [systems-vs-solutions]: a System is a template with its choices s
 Solutions, and can be simulated as a whole. A child row is named after its parent. Rows stay small and name each other; they never copy fields.
 Bench Solutions are open air for now. A clip-on heat sink and a breadboard fan are allowed.
 
-PLAN ONLY. The decisions in section 6 are the user's to make.
+The user approved the shape 2026-11-02 ("this sounds good for now"); bss-0 started with the recommended options, D-bss-1 as its own commit so it can be
+reverted alone. Also theirs, the same day: keep objects separated, coherent and referential; use NO-CODE logic where possible to reduce new code (section
+5c); click a node -> the Bench Solution view at that snapshot; do NOT record everything on the edges (transient data at the stepping, the assessment kept);
+play from one node to another; the chain starts where the USB is plugged into the bridge.
 
 ---
 
@@ -46,10 +49,17 @@ PLAN ONLY. The decisions in section 6 are the user's to make.
 - **Struct State**: the values of every field of every mapped struct (the `StructObjectMap` rows) across the interconnected boards and bridges of one
   Bench Solution, at one instant. "All hardware changes cause state changes in a struct on the hardware or a struct on a bridge" is assumed and
   ENFORCED (section 4).
-- **The root**: the hardware as delivered, BEFORE it is flashed: the chip at reset (inputs, tri-stated, reset values; the pin view's blank state), the
-  bootloader, no structs yet. Every node branches out from it (the user: "all of these nodes to branch out from the initial state of the hardware
-  before it is flashed"). The first edge is the flash (the existing `ConfigurationEvent` kind flash, confirmed by `SimInstallConfirmation`), and its
-  node is boot: every struct at its init value.
+- **The root and the fixed first chain** (the user: "starting from the node where the usb to the bridge is plugged in, and then where the usb flashes the
+  device with the firmware until completion of the flashing of the firmware and then init and then exploring various possible interaction based paths"):
+  - **root: plugged in**: the hardware as delivered, its USB plugged into the bridge host: powered, enumerated (the bridge sees a serial device: a
+    `BoardInstance` as `pol board detect` sees it), the chip at reset with the bootloader (the pin view's blank state), no structs yet. Requirements:
+    the bridge's device present; the bootloader answering;
+  - **flash edge -> flashed**: the USB flashes the firmware (the existing `ConfigurationEvent` kind flash; avrdude's verify) until completion.
+    Requirements: `SimInstallConfirmation` / the flash tool's verify complete, hex sha256 = the Firmware Solution's build;
+  - **init edge -> boot**: reset after flash, the HAL's init (pin modes set), every struct at its init value. Requirements: the init values of the
+    mapped structs; the pin modes as the firmware's init sets them;
+  - from boot, the **interaction paths**: trigger and cascade edges to nodes people and AI define.
+  Every node branches out from the root through this chain.
 - **Node**: a set of END-STATE REQUIREMENTS on the structs, and a name (the user, 2026-11-02: "nodes have matching end-state struct set requirements
   ... only specific values or value ranges or sets that need to be met for something to be considered ending in that node's state"). Each requirement
   names one field and what it must satisfy: an exact value (`led_on = 1`), a range (`temperature_c in 20..30`), or a set of allowed values
@@ -65,6 +75,9 @@ PLAN ONLY. The decisions in section 6 are the user's to make.
   An edge ALWAYS ENDS when its node's requirements are all met at once. Never by a clock. A guard time (D-bss-2) only turns a run into "not reached"
   with its trace; a struct change on a field the node requires that lands OUTSIDE its requirement (`led_on` required 1, became 0) is a **divergence**
   (D-bss-10), offered as a new node for a person to accept and name, never silently absorbed. Changes on don't-care fields are recorded, not judged.
+- **Play**: a person chooses a start node and an end node and plays the path between them: the run replays silently from the root to the start node
+  (coherent full state), then plays the chosen edges to the end node with the transient data visible at the stepping (section 3c). Playing from the
+  root is the default.
 - **Path**: the ordered edges from the root to a node. A node can be reached by several paths. **Every test of a node starts at the root and replays
   a path** (the user: "whenever testing a new node we go from the beginning in terms of struct state so we have a coherent and complete state context
   for the bench"); nothing is resumed from a snapshot. The **first test of a node uses the fastest plausible path**: the fewest edges whose nodes are
@@ -106,6 +119,17 @@ finely only where its node's executions and collaterals need it, and the firmwar
   code, a configuration the values; both change the stepping).
 - **Feasibility**: a path is a handful of edges; each edge steps finely only around its executions and collaterals; the twin runs free elsewhere. The
   total is bounded by nodes x paths tested, not by wall-clock time.
+
+## 3c. Transient data, kept assessment (the user: "we do not want to record everything on the edges in between nodes")
+
+The data at the stepping (pin traces, net voltages and currents, temperatures, frames) exists only in the run's WORKING BUFFER while the edge is played,
+so it can be looked at and evaluated: is it working, how long does it take. What is KEPT per edge is the assessment: the cycle at which the requirements
+were met, `duration_s` + `duration_set_by`, `step_s` + `step_set_by`, each execution observed (yes / no, the cycle), each collateral's measured value
+against its bound (and its extreme values), each check's verdict, divergence words. Per monitored signal, a `StructNodeRunSignal` holds the assessment
+(min / max / the time of the first and last change / the sample count), not the trace. A trace is written as a `WaveformCapture` only when (a) a person
+pins it while playing, or (b) the edge fails (not reached / diverged / a bound exceeded), and then only the window around the failure (a knob, default
+the edge's last 10 %). Replaying the edge recreates the data exactly (deterministic engines, locked hex, recorded seeds), so nothing is lost by not
+keeping it. D-bss-6 is decided this way.
 
 ## 3b. Test profiles: what is monitored
 
@@ -173,7 +197,7 @@ observed at most, never confirmed.
 | state | `StructState` | the full snapshot a run had when it met a node's requirements: field values, digest (may differ by path: the don't-care fields) | its `StructNodeRun` |
 | run | `StructNodeRun` | one test of a node: from the root along one path, with one profile, on one .hex sha256; outcome (reached / not reached / diverged / blocked); `step_s` + `step_set_by`, `duration_s` + `duration_set_by` | its `StructNode`, `StructNodePath`, `TestProfile` |
 | run | `StructNodeRunEdge` | one edge as it ran in that test: requirements met at cycle N, duration, the executions observed (symbols), the collaterals measured vs bounds, divergence words | its `StructNodeRun`, `StructEdge`; the `CircuitStateTransition` |
-| run | `StructNodeRunSignal` | one monitored signal's trace in that test | its `StructNodeRun`; the `WaveformCapture` |
+| run | `StructNodeRunSignal` | one monitored signal's ASSESSMENT in that test (min / max / first and last change / samples), not its trace; a pinned or failure capture when one exists | its `StructNodeRun`; the `WaveformCapture` when kept |
 | evidence | `StructNodeConfirmation` | one confirmation: node, path, by (simulation engine / hardware record / person), the run, the build sha256; state confirmed / voided (why) | its `StructNode`, `StructNodePath`, `StructNodeRun` |
 
 **Whole**: a Bench Solution is whole only when each of its three Solutions exists and is complete and names a System the Bench System also names.
@@ -196,6 +220,12 @@ small marks (measured / unmeasured / none declared). The path being tested is hi
   that change), its collaterals or none, the edge kind (a trigger from the offered Hardware Events, or a cascade), and NAMES it. Naming is the point:
   `StructNode.title` ("light on") and `HardwareEvent.title` ("press the button") are a person's words; an unnamed node shows its requirements until named.
 - **Explore**: nodes the exploration (section 4) proposed appear dashed and unnamed; the person accepts and names them, or discards them.
+- **Go to the bench at this node**: a node offers "see the bench here": it navigates to the Bench Solution view with `?node=<name>&run=<run>` and
+  that view shows the SNAPSHOT at arrival: the pins (the pin view at that state), the circuit's `CircuitState` (modes, currents), each part's temperature
+  (the Parts-at-temperature tab), the structs' values (the required fields first), the bridge-side objects; a bar names the node and the run and offers
+  the previous and next nodes on the path. All existing views, parameterised; nothing new drawn.
+- **Play**: pick a start and an end node (click-toggle; the path highlights); play / pause / step one edge; while playing, the transient data shows in
+  the scope views at the stepping and the assessment fills in per edge; pin a trace to keep it.
 - **Read a run**: click a node -> its confirmations (by path, by engine / hardware / person, on which build; voided ones greyed), its runs with
   `step_s` + `step_set_by` and `duration_s` + `duration_set_by`, its requirements, and the full Struct State each run had on arrival beside its parent's (the required fields first), and the edges offered
   from it. Click an edge -> its checks and its `StructNodeRunEdge` rows: reached at which cycle, the executions observed, the collaterals measured, the
@@ -249,6 +279,20 @@ coverage map, and what was NOT tested is drawn as loudly as what was:
   others exist, blocked nodes and the field that blocks each, collaterals never measured, Hardware Events never used by any edge, assertions never
   exercised, proposed nodes not yet accepted. An empty list is the only green.
 
+### 5c. No-code first (the user, 2026-11-02: "use no-code oriented logic where possible to reduce new code, and implement no-code and configuration
+capabilities where it makes the most sense")
+
+New code is limited to what no-code cannot express: the stepper (replay, the step rules, the engines' coupling), the derivations (offered edges,
+predicted changes, fastest path, confirmations' voiding) and their doors. Everything else rides what exists:
+- the topology is a no-code canvas with node kinds `struct-node` / `struct-edge` (the drawing reads and writes the rows);
+- a node's requirements, executions and collaterals are rows edited through the generic row editor and configured tables (per-object display config),
+  not a bespoke form; the requirement kinds (exact / range / set) are the generic field-constraint vocabulary, shared with `StructEdgeCheck`;
+- test profiles are rows, composed on a configured table with a picker over the node's reachable items;
+- the coverage strip, the untested list and the test card are configured Table / Graph definitions over derived endpoints (no raw JSON);
+- the step rules per isotope are catalogue rows (`IsotopeStepRule`) a person can see and override as a labelled knob, the same way `ConfigOption`s
+  are, and the cfg engine's checks can read them: an isotope's step rule is a configuration fact;
+- playback is a configured panel over the run doors (start / end node, play, pause, step, pin), not a new component.
+
 **Decision for the user (D-bss-7):** (a, recommended) node kinds on the no-code canvas (the one canvas; drawings authored from rows; the d3 is there);
 (b) a new dedicated d3 component like the pin view: an explicit exception, justified only if the canvas cannot show a few hundred states legibly: the
 layout for that scale (clustered by the fields that differ) would be the reason.
@@ -265,8 +309,8 @@ layout for that scale (clustered by the fields that differ) would be the reason.
   transitions whose event chain touches the changed catom.
 - **D-bss-5 - the exploration bound** (exploration only proposes nodes). (a, recommended) one edge out from confirmed nodes, up to 64 proposals, knobs;
   the unexplored listed. (b) deeper, exhaustive.
-- **D-bss-6 - where a run's traces live.** (a, recommended) `WaveformCapture` rows (the osc arc's, so the scope views show them unchanged). (b) files
-  beside the run.
+- **D-bss-6 - decided by the user 2026-11-02 (section 3c)**: transient at the stepping, the assessment kept; a `WaveformCapture` only when pinned or on
+  failure (the window around it).
 
 - **D-bss-8 - how test profiles are defined.** (a, recommended) all three of 3b: a derived default per edge, named saved profiles assignable to edges,
   purpose-based suggestions never applied silently. (b) only derived defaults (nothing to name or reuse). (c) only hand-made profiles (every edge needs one
@@ -281,11 +325,11 @@ layout for that scale (clustered by the fields that differ) would be the reason.
 | Phase | What | Proof |
 |---|---|---|
 | bss-0 | names (D-bss-1); `HardwareSystem` / `ThermalSystem` / `BenchSystem`; `ThermalSolution`; each Solution names its System; the whole check | `uno-light-bench` / `uno-light-on-desk` whole; remove the Thermal Solution -> "not whole: no Thermal Solution", in words |
-| bss-1 | the topology's start: the root (unflashed), the flash edge, the boot node from the structs' init values; `StructNode` / `Requirement` / `Execution` / `Collateral`, `StructEdge`, `StructNodePath`; `IsotopeStepRule` rows for the isotopes the UNO light uses (derived on the twin or cited); the offered edges and predicted requirementss from the assertions; `StructFieldSamples` and the block in words; `HardwareEvent` rows | uno-light: root -> flash -> boot; offered: press PD2, release PD2, SET_LED, TMP36 level (blocked until adc0_mv samples), reset; a defined node "light on" with requirement `led_on = 1`, execution `led_follow_state`, collateral D6 level + LED current; a node "warm" with `temperature_c in 20..30`; its fastest path named |
+| bss-1 | the topology's start: root = plugged in (the bridge's device, the bootloader), flash edge -> flashed (verify complete, hex sha), init edge -> boot (the structs' init values, the pin modes); `StructNode` / `Requirement` / `Execution` / `Collateral`, `StructEdge`, `StructNodePath`; `IsotopeStepRule` rows for the isotopes the UNO light uses (derived on the twin or cited); the offered edges and predicted requirementss from the assertions; `StructFieldSamples` and the block in words; `HardwareEvent` rows | uno-light: plugged in -> flashed -> boot; offered: press PD2, release PD2, SET_LED, TMP36 level (blocked until adc0_mv samples), reset; a defined node "light on" with requirement `led_on = 1`, execution `led_follow_state`, collateral D6 level + LED current; a node "warm" with `temperature_c in 20..30`; its fastest path named |
 | bss-2 | ONE node test from the root along the fastest path: the twin replays flash -> boot -> press, stepping at each node as its executions and collaterals ask, ngspice for D6, Cauer for the LED; the edge ends on the change; `StructNodeRun` + per-edge rows; `step_set_by`, `duration_set_by`; the "changed no struct" finding; the guard | "light on" met: `led_on = 1` at cycle N, `led_follow_state` observed, D6 high, LED current within bound -> confirmed by simulation; a build with the struct write removed -> the finding; step set by D6's edge, duration by the debounce in read-button:gpio-poll |
-| bss-3 | confirmations and paths: `StructNodeConfirmation` (simulation / hardware / person; voided on a build change); a second path to the same node with a different don't-care field, both confirmed; divergence proposals (D-bss-10); `StructEdgeCheck`; hardware records read in; manual `TestProfile`s | "light off again" by press -> release -> press and by SET_LED: two confirmations; a requirement `led_on = 0` where the code sets 1 -> diverged with a proposed node; a twin-record run -> a hardware confirmation; a manual profile without the D6 collateral -> "observed, not confirmed: D6 current unmonitored" |
+| bss-3 | play node to node (replay silently to the start, play to the end), transient data with the kept assessment (3c), pin / failure captures; confirmations and paths: `StructNodeConfirmation` (simulation / hardware / person; voided on a build change); a second path to the same node with a different don't-care field, both confirmed; divergence proposals (D-bss-10); `StructEdgeCheck`; hardware records read in; manual `TestProfile`s | "light off again" by press -> release -> press and by SET_LED: two confirmations; a requirement `led_on = 0` where the code sets 1 -> diverged with a proposed node; a twin-record run -> a hardware confirmation; a manual profile without the D6 collateral -> "observed, not confirmed: D6 current unmonitored" |
 | bss-4 | a configuration or isotope change = rebuild, void that build's confirmations, re-test the nodes whose executions touch the changed catom first (cfg-4) | switch read-button to pin-change-interrupt: step rule changes to cycle level, the press nodes re-tested, their `step_set_by` changed; untouched nodes voided but queued |
-| bss-5 | the canvas: node kinds `struct-node` / `struct-edge` on the no-code canvas, authored from the rows; the root at the top; the tested path highlighted; naming; click into a node / an edge | the uno-light canvas drawn from the rows; name a node -> the row's title; an AI adds a node through the door -> it appears |
+| bss-5 | the canvas: node kinds `struct-node` / `struct-edge` on the no-code canvas, authored from the rows; the root at the top; the tested path highlighted; naming; click into a node / an edge; "see the bench here" -> the Bench Solution view at that snapshot; the playback panel | the uno-light canvas drawn from the rows; name a node -> the row's title; an AI adds a node through the door -> it appears |
 | bss-6 | coverage made obvious: node confirmation states, the coverage strip, the per-node test card, assertion coverage per Firmware Solution, the untested list; the Hardware Events and Structs pages + the Bench Solution page (theme tokens, click-toggle, no raw JSON) | the Chrome pass is owed and needs a deploy, which is the user's call |
 
 ## 8. Rules this plan keeps
