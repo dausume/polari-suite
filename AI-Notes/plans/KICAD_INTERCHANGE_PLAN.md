@@ -179,6 +179,22 @@ D6 -> 220R -> LED -> GND, D6 jumpered to D3 sense), `uno-light-simulation/` (the
 - **Still open (kxc-1/kxc-3):** the `.wbk` is kept byte for byte but not typed into rows (analyses, probes, traces); the sheet's `.tran` text is a
   directive kxc-3 reads, yet KiCadCoverage counts every `text` as preserved. pcb_selftest 174/174 on econ.
 
+### econ's cross-checks on the fixture (2026-11-03, KiCad 10.0.6 + libngspice ngspice-43; all pass, these are the open findings)
+- The three demo netlists re-exported with kicad-cli 10.0.6 match 69 of 69 (13 / 4 / 52), no new nets; the resaved bench export is byte-identical
+  to `reference/kicad10_resaved_bench_export.kicad_sch` and re-reads with every `Polari.*` field intact.
+- The LED branch (5 V, 220 ohm, LED to ground) through libngspice: 14.715 mA at 1.763 V on `spice_run.LED_MODEL` (= the bss-9 batch result,
+  14.72 mA); 12.807 mA at 2.182 V on the fixture's illustrative `.lib`. Both are KNOBS; the kit LED's measured Vf decides (board.custom.kit_parts says
+  it is undetermined). The uno-light pulse run gives the same 12.807 mA on our deck and on KiCad's (max difference 0).
+- **Open (a)**: a bench export of uno-light carries only the UNO's pins: the PartBoard catalogue has no LED, resistor or switch, so nothing can carry
+  R1, D1, SW1. -> D-kxc-3 below: a discrete-part PartBoard kind.
+- **Open (b)**: the export writes the UNO as five generic headers; uno-light uses KiCad's whole part `MCU_Module:Arduino_UNO_R3`. `whole_parts()`
+  knows only the C3 DevKitM-1: the UNO needs a cited header -> symbol-pin map like `kicad_devkit_pin` (on uno-light: A1 pin 17 = D2, 18 = D3,
+  21 = D6, 6 / 7 / 29 = GND). A kxc-5 slice.
+- Holds (c): UNO + half breadboard exported (D6 and D3 on strip 9, D2 on strip 12, GND on strip 1): KiCad's netlist equals ours 9 of 9; ERC
+  reports only pin_not_connected on the 17 unused header pins and one isolated_pin_label on D2.
+- **Open (d)**: the export names the D6 / D3 net `D3` after a pin; uno-light names it by function, `/LED_CONTROL`. Convention to decide: a
+  net named by function from a `Polari.*` label when one exists, else by pin.
+
 ### Carried from the Codex KiCad/Polari plan (shelved 2026-11-03, plans/shelved/KICAD_POLARI_ELECTRONICS_PLAN.md)
 Its three-way sync direction is superseded by the ruling above; these parts still hold and are kept here:
 - **Identity rules.** Immutable Polari design / instance ids; KiCad UUID + hierarchical instance path are the EXTERNAL identity, so a refdes or net
@@ -211,3 +227,6 @@ econ Codex (CX-032).
   text files ≤ 1 MB in the row (deterministic tests), larger + binary in the file store.
 - D-kxc-2: geometry as rows (kxc-4) — every track segment a row, or one geometry row per net with the segment list? Recommended: per-net
   geometry rows (a routed board has 10^4 segments).
+- D-kxc-3 (econ finding (a), 2026-11-03): a DISCRETE-PART PartBoard kind (LED, resistor, pushbutton; the kit's parts from board.custom.kit_parts, each
+  with its KiCad symbol + footprint) so a bench export carries R1 / D1 / SW1 and an ingest maps them back. Recommended: yes, as a kxc-5 slice, the
+  kit as the first catalogue; the LED's Vf stays a knob until measured.
