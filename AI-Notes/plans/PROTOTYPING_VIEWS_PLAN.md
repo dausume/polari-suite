@@ -99,6 +99,7 @@ It stays the drive-behaviour view. It gains only the shared-selection links (a p
 - **lay-1 (= bb-1 + bb-2):** the placer for S1 + the netlist gate + the build steps.
 - **lay-2:** the N-board renderer + the layout page + step mode.
 - **lay-3 (= bb-4):** confirmation → bind.
+- **wm-0..5 (2026-11-03, PLAN ONLY):** real wire behaviour — gauge, bends at the ends, pairing/wire wrap, parasitics into the bss deck; BREADBOARD_BUILD_PLAN §8.
 - **cst-3:** the transient co-simulation driven by the firmware twin's pin timeline.
 - **later:** protoboard; PCB through the pcb module.
 

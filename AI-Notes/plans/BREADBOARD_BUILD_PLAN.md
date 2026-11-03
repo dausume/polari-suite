@@ -117,3 +117,41 @@ This plan is now the LAYOUT slice of `AI-Notes/plans/PROTOTYPING_VIEWS_PLAN.md`:
 - bb-5 stays (any no-code Hardware System gets a walkthrough).
 
 The circuit-state work (cst) and its SPICE pairing are new slices in that plan.
+
+## 8. 2026-11-03 — real wire behaviour (slice `wm`, PLAN ONLY; his ask)
+His words: "something else we will want is to model real wire behavior and that they will need to bend at the ends and be wrapped around each other
+strategically, wire wrapping is a thing I believe that techniques exist for".
+
+What exists: a `BoardJumper` is a straight tie between two holes/pins with a colour (lay-0/1); the layout gate checks connectivity only. A wire has no
+length, gauge, bend, pairing or parasitics, and the ngspice deck of the bss-9 net-current collateral has no wire in it.
+
+The techniques (cite when read; numbers below are the common practice, each a labelled knob until cited):
+- **Wire wrap** (MIL-STD-1130 solderless wrapped connections): 30 AWG solid Kynar/Tefzel wire on a 0.025 in (0.635 mm) square post; a *regular* wrap is
+  ~7 turns of bare wire, a *modified* wrap adds 1–2 turns of insulated wire as strain relief; the post corners bite the wire (gas-tight, no solder).
+  Applies to wire-wrap/proto boards, not the breadboard; the first use here is the protoboard stage (S2).
+- **Lead and wire bending** (IPC-A-610 / IPC/WHMA-A-620): a minimum bend radius (≥ 1 × lead diameter for a part lead; a multiple of the outer diameter for
+  insulated wire), a straight length between the body and the bend, a strip length that matches the hole depth (breadboard ≈ 6–8 mm for 22 AWG solid).
+- **Pairing and bundling:** a twisted pair (signal with its return, a stated twist rate) cancels magnetic pickup and shrinks the loop area; power and ground
+  twisted together lowers supply-loop EMI; crossings at right angles, runs kept short, a service loop at a connector. On the bench this matters FIRST on the
+  analog sense route (`BUTTON_ROUTES=adc`, a high-impedance ADC input): a long untwisted sense wire picks up noise that the twin never sees.
+
+Shape (small separated objects, [[small-separated-objects]]):
+- `WireModel` — gauge (AWG), solid/stranded, insulation, outer diameter, min bend radius, R/L/C per metre (cited: 22 AWG ≈ 52.9 mΩ/m, 30 AWG ≈ 338 mΩ/m;
+  ~1 nH/mm straight wire), the kit's premade jumper lengths.
+- `Wire` (the BoardJumper grown, or beside it) — model, length, colour (the scheme stays), a route (waypoints on the bench), two `WireEnd`s.
+- `WireEnd` — termination kind (hole insert / header pin / wire wrap regular|modified / solder / screw terminal), strip length, bend angle + radius, turns.
+- `WirePairing` — kind (twisted-pair + twists per metre, bundle, parallel + spacing, right-angle crossing), the wires it binds, why (derived: "sense + return").
+- `WireTechnique` rows = the rules above with their citation; `WireCheck` verdicts per wire (bend radius, strip length vs hole depth, length ≥ path + end
+  allowance, wrap turns per standard, sense-route pairing, loop area) in words, advise never block.
+- Into the simulation: a wire's R/L/C becomes elements in the bss-9 ngspice deck (the LED branch gets its real series resistance; the sense route gets a
+  coupling/noise term from the pairing), so a node's net-current / level collateral can change with the wiring. Into the walkthrough: the steps say the cut
+  length, strip, bend and twist ("cut 85 mm of 22 AWG, strip 7 mm each end, bend 90°, twist with the black return 3 turns per 10 cm").
+
+Slices: wm-0 objects + cited WireModel rows + the kit's jumpers · wm-1 ends + bends in the placer (lay-1) and the steps · wm-2 pairing/bundling + the checks
+(the sense route first) · wm-3 parasitics in the ngspice deck + a noise collateral for sense routes · wm-4 the render (curved runs with bends, a twisted
+pair drawn as one) · wm-5 wire wrap as the protoboard build kind (posts, turns).
+
+Decisions (his): **D-wm-1** which standards to cite (MIL-STD-1130 for wrap, IPC-A-610 / IPC/WHMA-A-620 for bends and harnesses; recommend both, read before
+numbers are seeded). **D-wm-2** the route: derived by a small auto-router with the person's drawn route kept beside it (recommend), or drawn only.
+**D-wm-3** what the bench kit holds (premade jumper set vs a 22 AWG spool, and whether a wire-wrap tool and 30 AWG wire exist) — his measurement.
+Order: after the bss vital list (fault edges + bounce, the electrical check at every node), since wm-3 builds on that deck.
