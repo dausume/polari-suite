@@ -155,3 +155,7 @@ Decisions (his): **D-wm-1** which standards to cite (MIL-STD-1130 for wrap, IPC-
 numbers are seeded). **D-wm-2** the route: derived by a small auto-router with the person's drawn route kept beside it (recommend), or drawn only.
 **D-wm-3** what the bench kit holds (premade jumper set vs a 22 AWG spool, and whether a wire-wrap tool and 30 AWG wire exist) — his measurement.
 Order: after the bss vital list (fault edges + bounce, the electrical check at every node), since wm-3 builds on that deck.
+
+**2026-11-03 his ruling: "will go with your recommendations"** — D-wm-1 cite both families (MIL-STD-1130; IPC-A-610 / IPC/WHMA-A-620), read before numbers are seeded;
+D-wm-2 derived route with the drawn route kept beside it; D-wm-3 stays his measurement (default = the premade jumper set until he says). Order confirmed:
+bss fault edges + bounce → the electrical check at every node → wm-0.
