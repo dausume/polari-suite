@@ -18,6 +18,8 @@ deploy is the user's call.
 | bss-7a | cmod | the command edge runs: a Polari command = `--inject` of a frame built from the to-node's exact wire-field requirements | `cmod_command_edge_selftest` 7/7 on the twin |
 | bss-8 | cmod + board + prf-board-engines | THE WHOLE LIGHT TOPOLOGY, EVERY ROUTE, AS DATA: a topology spec per Bench System (`custom/topologies/uno-light-bench.json`; nodes by ROLE press / command / reset / period) applied per Bench Solution (`cmod.custom.bench_topology_spec.apply`: roles -> that Solution's events, jobs -> that variant's isotopes); every light variant's assertions derived from uno-light's re-pinned by its knobs (`catom_assertions.for_variant`); the stimuli reset (`--reset-at`), period (a window of 2 periods, no stimulus) and analog level (the twin's NEW `--adc-at`); the command frame carries only the atom's own presence-tested fields; enum labels judged by their wire byte; `retest.run_all` + `.../run-all`; `GET /api/cmod/topology-specs`, `POST .../apply-spec`; inert events + chain-node crossings in coverage; the bench rows seeded in board_seed | `cmod_light_topology_selftest` 21/21 on the twin: 6 state nodes x 8 paths all reached (39 s), the untested list EMPTY; the pin-change and analog routes reach "light on" / "light off" |
 | bss-9 | cmod + board + prf-board-engines | the owed list: per-edge execution counts (the twin's windowed `--fn-cycles ...@LO:HI`); a pin without a jumper read from the driven port word (`node_collaterals.port_watches`); `net-current` by ngspice batch on the LED branch at the node's step, `temperature` from a PartThermalModel's Foster rise (else the refusal); the failure capture = WaveformCapture rows of the twin's pin lines over the failing edge's last 10 % (`failure_capture`); three more Bench Solutions seeded (pwm / transistor / all-pcint); the Structs page's samples table (`?view=samples`) | `cmod_light_topology_selftest` 27/27 on the twin |
+| bss-10 | cmod | a pinned capture (`pin: true` on the run door: the whole target edge, whatever the outcome) + the run's captures listed and charted on the Hardware Events page's Runs tab (door `.../runs/{run}/captures`; the instruments arc's `instruments-capture` graph over its chart door) | `cmod_light_topology_selftest` 29/29 on the twin |
+| cfg-1 | board + cmod | the clock group's first checks (CATOM_CONFIG_PLAN.md): `ClockSource` / `ClockPeer` rows (cited; seeded), `clock_checks` serial-link + tick on the cfg-0 registry, the two divisor options on report-state; the shipped matched divisor = compromise (chosen automatically), normal mode = invalid against the 16U2 (+5.9 %) and, by 0.01 %, even against an exact peer at the cold edge of 18 .. 30 C | `cmod_clock_config_selftest` 13/13 |
 | docs | pol-hub | "How Polari works for hardware" (`AI-Notes/guides/HARDWARE_NOCODE_GUIDE.md` -> `pol-hub/site/docs/hardware-nocode.html`); build-docs renders mermaid fences | `build-docs.py --check` clean |
 
 ## How to run it (from polari-framework/, `PYTHONPATH=.:modules`)
@@ -72,13 +74,15 @@ deploy is the user's call.
    events (`level-<variable>` from CatomVariable adc.in rows carry no mV yet: a sample value on the node, StructFieldSamples) and an ADC ramp as an edge.
 2b. ~~The other LED / sense routes not seeded~~ DONE in bss-9: six Bench Solutions seeded, each proven to reach every node by every path (the dry run) or "light on"
    (the selftest). A Firmware Solution row per variant, with the configuration driving the build, is cfg-1.
-3. ~~The failure WaveformCapture~~ DONE in bss-9 (`cmod.custom.failure_capture`, rows in instruments' WaveformCapture). Still owed: a PINNED capture while playing
-   (the play door has no pin yet); the chart on the Hardware Events page over a run's captures.
+3. ~~The failure WaveformCapture~~ DONE in bss-9 (`cmod.custom.failure_capture`, rows in instruments' WaveformCapture); the pinned capture and the chart on the
+   Hardware Events page DONE in bss-10.
 4. ~~A per-edge execution count~~ DONE in bss-9 (the twin's windowed `--fn-cycles`). Still owed: an ISR execution (`--ret-log` for vectors) is not counted this way.
 5. ~~Physics collaterals~~ DONE in bss-9 for the LED branch: net-current by ngspice batch, temperature from a PartThermalModel. Still owed: the branch comes from the
    collateral's notes (`R=220`), not from a CircuitState / ingested schematic of the bench (none exists for the UNO light); the kit LED's Vf is a knob until measured;
    no PartThermalModel is seeded, so every temperature collateral refuses in words today.
-6. ~~Seed the UNO light Bench System / Bench Solution rows~~ DONE in bss-8 (board_seed: SEED_BENCH_*); cfg-1 (the clock group's checks, the shipped UART config proof,
-   a Firmware Solution per route whose configuration drives the build) is still the next catom-config slice.
+6. ~~Seed the UNO light Bench System / Bench Solution rows~~ DONE in bss-8 (board_seed: SEED_BENCH_*); cfg-1 (the clock group's checks, the shipped UART config proof)
+   DONE 2026-11-03 (`cmod_clock_config_selftest`). Next in the catom-config arc: cfg-2 (the catom page `/display/catom` with its Configuration tab), then cfg-3
+   (the option catalogue: lower bauds, two stop bits, other clocks; the FE twin flag; clock-skew as a scenario step) and cfg-8 (gen reads the configuration: a
+   Firmware Solution per route whose configuration drives the build - what bss-8's "variant name standing in" waits for).
 7. ~~The Structs page's samples~~ DONE in bss-9 (`/display/bench-views` Structs tab, the foot table over `?view=samples`; the Chrome pass is owed with the rest).
 8. `modules/cmod/custom/glue_builds/uno-sim-rig-graph.json` carries an older, unrelated uncommitted change; left alone.
