@@ -164,6 +164,41 @@ An ingested (or Polari-designed) PCB is a **layers + physics board definition** 
 at, equal to a datasheet-defined dev board and a geometry-defined breadboard. kxc feeds that definition; the Bench reads only the PCB's
 footholds (its connector pads, with node / drive / signal derived from kxc-2 connectivity and kxc-4 pads).
 
+### polari-uno-light fixture as built (econ-core, 2026-11-03, framework dev-kxc-uno-light 673fe74b)
+Polari's own first native KiCad bench (built on econ 2026-10-29 by Codex, KiCad 10.0.6) is now an ingest fixture beside the kicad-demos:
+`pcb/custom/upstream/polari-uno-light/` (SOURCE.json, GPL-3, firmware variant source hash) = `uno-light/` (whole-module UNO A1; D2 -> SW1 -> GND,
+D6 -> 220R -> LED -> GND, D6 jumpered to D3 sense), `uno-light-simulation/` (the analog harness: PULSE source for the GPIO, `.tran 10u 80m`, the
+`.wbk`, an illustrative LED `.lib` labelled as a knob), `polari-design.json`, and two negative controls as sibling projects: `uno-light-no-sense`
+(D3 label cut - KiCad's ERC only says isolated_pin_label; our contract check names D3 missing from /LED_CONTROL) and `uno-light-led-reversed`
+(D1 Sim.Pins swapped - ERC 0; the run carries ~5 pA instead of 12.807 mA). References `kicad10_nets_uno-light*.tsv`,
+`kicad10_spice_/kicad10_sim_uno-light-{simulation,led-reversed}`.
+- **Found + fixed (kxc-2):** KiCad escapes `/` in a pin name inside an auto net name as `{slash}` (`unconnected-(A1-D0{slash}RX-Pad15)`); we wrote
+  the raw `/`, so 6 of 30 names differed though every group matched. Now 30/30, 31/31, 3/3, 3/3 groups AND names.
+- kxc-3 on it: our deck = KiCad's element for element (KiCad writes its SPICE ground symbol as node `0`, we write `GND` - same node to ngspice) and
+  runs to the recorded vectors exactly. The bench contract (was econ's `check_uno_light.py`) now runs on OUR graph in pcb_kicad_connect_selftest.
+- **Still open (kxc-1/kxc-3):** the `.wbk` is kept byte for byte but not typed into rows (analyses, probes, traces); the sheet's `.tran` text is a
+  directive kxc-3 reads, yet KiCadCoverage counts every `text` as preserved. pcb_selftest 174/174 on econ.
+
+### Carried from the Codex KiCad/Polari plan (shelved 2026-11-03, plans/shelved/KICAD_POLARI_ELECTRONICS_PLAN.md)
+Its three-way sync direction is superseded by the ruling above; these parts still hold and are kept here:
+- **Identity rules.** Immutable Polari design / instance ids; KiCad UUID + hierarchical instance path are the EXTERNAL identity, so a refdes or net
+  label change is a rename, not delete + create. Board definition, design configuration and a plugged-in board instance stay separate (two UNOs
+  never share runtime identity). Symbol pin, package lead and footprint pad stay distinct and their mapping is validated (MCU packages,
+  transistor pinouts, multi-unit symbols). Net equivalence is explicit and scoped: KiCad `GND`, circuit `GND` and SPICE `0` are equal only inside a
+  declared design / harness. Values carry unit, tolerance, source and unknown state - a default or inference never becomes a measured fact.
+  Commanded output, sampled pin level, measured current and derived app state are four different things (a high D6 does not prove a lit LED).
+  Every check / export job carries the source-to-row mapping so a finding opens the right object; old results stay on their old revision.
+- **Sample order** after uno-light, each a separate configuration over shared definitions: `uno-button-clock` (host-synchronised software clock,
+  not a fictional RTC), `uno-light-all-pcint` (button D4, sense D6 -> D8: the pin remap must reach firmware AND schematic), `uno-light-pwm-analog`
+  (10k pull-up A0, 1500 / 3500 mV thresholds, on/off-only PWM), `uno-light-transistor` (a real transistor with verified lead order; D6 command sense
+  is not collector / LED current), the UNO shield (TMP36 pinout + header geometry cited before layout), `rc-lowpass-demo`, `led-branch-row`; ESP32-C3
+  and FPGA after the UNO set.
+- **Failure controls** each sample should carry as a negative-control project (as uno-light now does): missing D6 -> sense jumper (done), wrong
+  button pin, missing pull-up, conflicting output roles, LED reversed (done) / open, transistor wrong terminal map, missing ground, bridge contract
+  tag-order mismatch, stale firmware after a pin reassignment. Unsensed and slow-loop variants are intentional negatives, never defaults.
+- **Engine provenance.** Every engine job records input revision / hash, exact argv, provider, KiCad + library + model versions / hashes, outputs
+  with hashes, exit status and parsed findings; staged in its own job directory; KiCad 9 and 10 results are never interchangeable baselines.
+
 ## 4. Placement
 
 Ingest/parse/rows = framework (pure Python, no KiCad needed). kicad-cli + libngspice runs = the KiCad worker on econ-core (plan only

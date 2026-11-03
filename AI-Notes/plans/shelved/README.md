@@ -15,6 +15,7 @@ Convention: ⏸ = shelved by decision · ⛔ = shelved as not-fit-for-use
 
 | plan | arc | shelved | state when shelved | revival path |
 |---|---|---|---|---|
+| KICAD_POLARI_ELECTRONICS_PLAN.md | kicad (Codex, econ-core) | ⛔ 2026-11-03 | Superseded by CX-033 (Polari the source of truth; ingest + export, no three-way sync). Its uno-light project became the polari-uno-light kxc fixture (framework dev-kxc-uno-light) | None - its identity rules, sample order and failure controls live in KICAD_INTERCHANGE_PLAN.md |
 | COMPOSTING_LOOP_PLAN.md | cmp | ⏸ 2026-08-20 | Plan RATIFIED (decisions 1-9) + cmp-0 research pass DONE same day — all 5 data sources GREEN (evaluations/COMPOSTING_DATA_LICENSE_GATE.md). NOTHING built. | Dustin go-ahead → build starts at cmp-0 vendoring straight from the verdicts; deps (nmp dev-nmp-1, aqp-7) already built |
 | SCAN_RECONSTRUCTION_PLAN.md | scan | ⛔ 2026-08-12 | Machinery E2E-proven (dev-scan-1 ×5 repos) but sparse clouds ≠ usable end product — Dustin notated NOT FUNCTIONAL for end use | SCAN_REVIVAL_PLAN.md (rev-0..7); ⛔ DA3 1.0-large weights are NC — Apache variants only |
 | SCAN_REVIVAL_PLAN.md | scan (revival) | ⏸ 2026-08-16 | PLANNING ONLY by instruction — rev-0..7 scoped, nothing built | Dustin go-ahead on rev-0 |
