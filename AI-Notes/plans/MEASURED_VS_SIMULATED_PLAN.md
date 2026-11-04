@@ -280,13 +280,28 @@ Elsewhere:
   - a measure step answered by the meter's steady value (via usb-serial)
   - its own outcomes: NO DATA (no line: the probe / cable / port), NOT STEADY, WRONG MODE (another unit or AC)
   - the BRIDGE PATH {instrument, lines} for a meter on the person's machine
-- **The Test sheet tab's "Touch and confirm" form.**
+- **PRIMING (the user, 2026-11-04):** "People only have two hands, they cannot hit the button and be doing the probe at the same time, what you
+  can do is prime it to expect a signal soon and it waits for a certain (configurable) period of time and awaits the data, confirming it once it
+  comes." The rows are `TestStepPrime` + `cmod/custom/test_primes.py`.
+  - **Prime a measure step, then put both hands on the work.** A background thread listens to the sigrok endpoint (a Bridge feeds its lines instead).
+  - **CONFIRMED** as soon as a steady value is one a correct build may read (the instrument or tolerance band). An open probe's steady 0 is NOT a confirmation.
+  - **When the window ends:**
+    - KEPT-LAST: the last steady value is kept and judged (an open joint reads steady 0 too).
+    - Otherwise not-steady / wrong-mode / no-data.
+  - **The window:** the prime's window_s, else the session's prime_window_s, else 30 s (a KNOB), bounded 0..600.
+  - **CHAIN** primes the next pending measure step with the same meter. A stimulus or look step stops it.
+  - **One prime at a time** per session; cancel stops it.
+  - **The doors:** prime, primes, the Bridge's lines, cancel.
+  - **The Test sheet tab:** a Prime form (replacing Take on the page; the take door is kept) and a primed-steps table.
 - **OWED:**
   - sigrok-cli where the meter is plugged in: the backend image has none; an isle-node engine or the Bridge.
   - The Bridge side (run sigrok-cli on the person's machine, post the lines) is Codex's.
   - The USBTMC/pyvisa fallback.
   - Continuity by meter (the sheet's). |
-`cmod_sigrok_selftest` 14/14:
+`cmod_sigrok_selftest` 23/23 (with priming):
+- Priming: the open-probe 0 keeps it waiting, then it confirms 14.61 mA by itself; kept-last unexplained on a steady 0; no-data; the Bridge feed; a Bridge prime expiring; chain; cancel and bounds; the doors.
+
+And from the take checks:
 - The recorded sigrok-cli 0.7.2 lines parse; steady, on one channel; refused without the binary.
 - A stand-in sigrok-cli drives the real subprocess path; the endpoint door and its refusals.
 - A take: 14.62 mA pass with the sha256, then no-data / not-steady / wrong-mode, the Bridge lines; a continuity step refused; the door.
