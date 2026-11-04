@@ -17,7 +17,7 @@ import urllib.request
 
 VERSION = '23.05.3'
 BASE_SHA256 = '7643950cbf6bf5d785525f300efc4e2ceaad613b5d0725886e7f5fcc5a9d18f9'
-ROOTS = ['avahi-dbus-daemon', 'avahi-utils', 'ip-full', 'tcpdump']
+ROOTS = ['avahi-dbus-daemon', 'avahi-utils', 'ip-full', 'tcpdump', 'socat']
 
 
 def fetch(url, destination, digest=None):

@@ -16,7 +16,7 @@
 #
 # Inputs it expects to exist (built beforehand):
 #   .generated/debs/                    build-polari-isle-deb.sh + build-polari-complete-deb.sh --flavor offline
-#   docker images                       published prf-backend/prf-frontend release, nginx:alpine, alpine:latest, isle-vlan-agent:latest
+#   docker images                       published prf-backend/prf-frontend release, registry:2, nginx:alpine, alpine:latest, isle-vlan-agent:latest
 #                                       isle-sample-app-sample:latest (python:3.11-slim) pol-reticulum:staging
 #   polari-cli/shells/offline/          the installer/proof/engine scripts (copied to scripts/ + engines/)
 set -eu
@@ -57,7 +57,7 @@ step(){ echo; echo -e "${C}==> $*${N}"; }
 SHA=$(git -C "$ROOT" rev-parse --short HEAD)
 [ -n "$VERSION" ] || VERSION="$(date +%Y.%m.%d)-dev+$SHA"
 OUT="$ROOT/offline-build/$VERSION"
-IMAGES="${IMAGE_REPO}prf-backend:${IMAGE_TAG} ${IMAGE_REPO}prf-frontend:${IMAGE_TAG} nginx:alpine alpine:latest isle-vlan-agent:latest isle-sample-app-sample:latest traefik/whoami:latest"
+IMAGES="${IMAGE_REPO}prf-backend:${IMAGE_TAG} ${IMAGE_REPO}prf-frontend:${IMAGE_TAG} registry:2 nginx:alpine alpine:latest isle-vlan-agent:latest isle-sample-app-sample:latest traefik/whoami:latest"
 ENGINE_IMAGES=""
 case ",$MODULES," in *,reticulum,*) ENGINE_IMAGES="pol-reticulum:staging" ;; esac
 [ -z "$ENGINE_IMAGES" ] || IMAGES="$IMAGES $ENGINE_IMAGES"
@@ -161,7 +161,7 @@ cp --sparse=always "$ROUTER_IMAGE" "$OUT/router/openwrt-isle-router.qcow2"
 cp "$ROUTER_METADATA" "$OUT/router/build.json"
 cp "$ROUTER_PACKAGES"/*.ipk "$OUT/router/packages/"
 ok "router: pristine qcow2 + OpenWrt package closure"
-empty hardware "no Hardware Apps in this release (tree-1 not built)"
+empty hardware "no optional Hardware App guest images included in this medium"
 
 step "modules/ (section 5: offline module debs, wheels inside)"
 if [ -n "$MODULES" ]; then
