@@ -19,6 +19,7 @@ deploy is the user's call.
 | bss-8 | cmod + board + prf-board-engines | THE WHOLE LIGHT TOPOLOGY, EVERY ROUTE, AS DATA: a topology spec per Bench System (`custom/topologies/uno-light-bench.json`; nodes by ROLE press / command / reset / period) applied per Bench Solution (`cmod.custom.bench_topology_spec.apply`: roles -> that Solution's events, jobs -> that variant's isotopes); every light variant's assertions derived from uno-light's re-pinned by its knobs (`catom_assertions.for_variant`); the stimuli reset (`--reset-at`), period (a window of 2 periods, no stimulus) and analog level (the twin's NEW `--adc-at`); the command frame carries only the atom's own presence-tested fields; enum labels judged by their wire byte; `retest.run_all` + `.../run-all`; `GET /api/cmod/topology-specs`, `POST .../apply-spec`; inert events + chain-node crossings in coverage; the bench rows seeded in board_seed | `cmod_light_topology_selftest` 21/21 on the twin: 6 state nodes x 8 paths all reached (39 s), the untested list EMPTY; the pin-change and analog routes reach "light on" / "light off" |
 | bss-9 | cmod + board + prf-board-engines | the owed list: per-edge execution counts (the twin's windowed `--fn-cycles ...@LO:HI`); a pin without a jumper read from the driven port word (`node_collaterals.port_watches`); `net-current` by ngspice batch on the LED branch at the node's step, `temperature` from a PartThermalModel's Foster rise (else the refusal); the failure capture = WaveformCapture rows of the twin's pin lines over the failing edge's last 10 % (`failure_capture`); three more Bench Solutions seeded (pwm / transistor / all-pcint); the Structs page's samples table (`?view=samples`) | `cmod_light_topology_selftest` 27/27 on the twin |
 | bss-10 | cmod | a pinned capture (`pin: true` on the run door: the whole target edge, whatever the outcome) + the run's captures listed and charted on the Hardware Events page's Runs tab (door `.../runs/{run}/captures`; the instruments arc's `instruments-capture` graph over its chart door) | `cmod_light_topology_selftest` 29/29 on the twin |
+| bss-11 | cmod + prf-board-engines | fault edges: `StructNode.expect = hold` (met AND kept to the end of the window); the fault stimuli bounce / long-press / held / idle beside every press (`bench_events.FAULT_PRESSES`, `node_run._train` / `_press_points` / `_window_extra`); five hold nodes in the spec; the twin's pin-at / adc-at limits 256 | `cmod_light_topology_selftest` on the twin: 12 of 13 reached; THE FINDING: a long press released with bounce double-toggles on every route |
 | cfg-1 | board + cmod | the clock group's first checks (CATOM_CONFIG_PLAN.md): `ClockSource` / `ClockPeer` rows (cited; seeded), `clock_checks` serial-link + tick on the cfg-0 registry, the two divisor options on report-state; the shipped matched divisor = compromise (chosen automatically), normal mode = invalid against the 16U2 (+5.9 %) and, by 0.01 %, even against an exact peer at the cold edge of 18 .. 30 C | `cmod_clock_config_selftest` 13/13 |
 | docs | pol-hub | "How Polari works for hardware" (`AI-Notes/guides/HARDWARE_NOCODE_GUIDE.md` -> `pol-hub/site/docs/hardware-nocode.html`); build-docs renders mermaid fences | `build-docs.py --check` clean |
 
@@ -68,8 +69,28 @@ deploy is the user's call.
 - `pgrep -f` in a wait loop matches its own command line; wait on a PID instead
 - the twin's final line reports a watched word as `final`, not `value`
 
+## bss-11: fault edges and what they found (2026-11-03, fourth session)
+- A node's `expect` is `reach` (the rule: met at the first cycle its requirements hold) or `hold` (met AND kept to the end of its edge's window). A hold node is
+  a FAULT EDGE: it says what must NOT happen. `node_run._judge` reports a later change of a required field as `diverged` with the field, the value and the cycle
+  ("met at cycle N, then toggles became 2 at cycle M (500.142 ms after the stimulus)"), and D-bss-10's proposal mechanism offers the reached values as a node.
+- The fault stimuli are derived beside every button's press (`bench_events.FAULT_PRESSES`): `bounce-<pin>` = an edge train down, the 5 ms hold, a train up;
+  `long-press-<pin>` = held 0.5 s then a bouncing release (its window stretched by `_window_extra` so the release is inside it); `held-<pin>` = never released;
+  `idle` = no stimulus for 0.3 s (source time, like a period). On the analog route they are `--adc-at` level trains between the pressed and released mV. The
+  train: `_train` - BOUNCE_EDGES (6, kept even) over BOUNCE_SPAN_S (2.5 ms), quadratic spacing, settling at the level it was going to. Every number is a knob
+  in node_run with its citation (Ganssle's measurements) in the comment.
+- THE FINDING: all three read-button isotopes debounce by a lockout counted from the LAST ACCEPTED PRESS (hal.c `g_last_press`; the templates' `L.lockout_accept`).
+  A long press (0.5 s) released with bounce puts the release's falling edges outside the 30 ms lockout, so a second press is counted: led_on back to 0, toggles 2.
+  The twin shows it on D2/INT0, D4/PCINT and A0/analog alike. It is NOT fixed here - it is a configuration option for the timing group (CATOM_CONFIG_PLAN cfg-7),
+  and the hold node `on-by-long-press` is the acceptance test of whatever option is chosen. Until then the untested list of every light bench names it.
+- Coverage: an event an edge USES is never inert (`topology_coverage.inert`), so the release and idle leave the inert list once their hold nodes exist.
+- The twin image: MAX_PINAT / MAX_ADCAT 32 -> 256 (a bouncing press is 14 entries; a path with two is 28). Rebuilt 2026-11-03.
+
 ## Owed / next
 1. The Chrome pass of the new pages and the canvas (`/display/hardware-events`, `/display/bench-solutions`, `/display/hardware-solutions?solution=bench-topology-<bs>`): needs a deploy (the user's call).
+0. bss-11's finding: the debounce option (cfg-7's timing group); until a graded option is chosen and built, `on-by-long-press` diverges on every light bench and its
+   proposed node (led_on 0, toggles 2) sits in the untested list. Also owed from the vital list: the electrical check at EVERY node (bss-12: pin source / sink,
+   port totals, the LED current, from a net list - today net-current runs only where the spec declares it), one hardware confirmation of one node, stack / RAM
+   watermarks and brown-out as collaterals, VCD export + a run diff.
 2. ~~Stimuli still refused in words: reset, environment levels, periods~~ DONE in bss-8 (reset, period, an ADC level at a cycle). Still owed: the TMP36 "level"
    events (`level-<variable>` from CatomVariable adc.in rows carry no mV yet: a sample value on the node, StructFieldSamples) and an ADC ramp as an edge.
 2b. ~~The other LED / sense routes not seeded~~ DONE in bss-9: six Bench Solutions seeded, each proven to reach every node by every path (the dry run) or "light on"
