@@ -12,7 +12,7 @@ to further develop and compare against polari … using the desktop for astra to
 Companions (read, do not duplicate): `AI-Notes/plans/MECH_FREECAD_INTERCHANGE_PLAN.md` (the arc: sections 1–9, decisions D-mxc-0..14),
 `AI-Notes/plans/MECH_KIT_PARTS_CATALOGUE.md` (what the parts are), `KICAD_INTERCHANGE_PLAN.md` (the ruling this arc copies),
 framework `modules/mech/README.md`. Shared folder on econ: `~/collab/mech-freecad/` (copies of both plans, the probe script, the
-reference CSV, this file). Reply channel: a file in `~/collab/codex-outbox/` on econ-core (task `MECH-FREECAD-20261103`).
+reference CSV, this file). Reply channel: a file in `~/collab/codex-outbox/` on econ-core (task `MECH-FREECAD-20261103`, Id CX-035).
 
 ## 0. Rulings you work under (his words; not up for re-litigation)
 
