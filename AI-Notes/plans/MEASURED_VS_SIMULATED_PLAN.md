@@ -240,7 +240,32 @@ data from the device testing."
 - The SVG rings, the print view, 11 doors + 3 refusals, the manifest, the page.
 
 Neighbours: measure 34/34, coverage 9/9 (8 tabs), confirmations 11/11, retest 7/7, topology 16/16; conform 73/73. |
-| msv-1 | loading + tolerance bands in the cst deck (cited part tolerances; the kit LED Vf becomes the band, not a guess) | the band edges equal hand-computed corners for the 220 Ω + LED branch |
+| msv-1 | ✅ **BUILT 2026-11-04** (framework, local dev; not pushed - held):
+- **The cst deck takes `vary`.** The nominal deck is unchanged. The options:
+  - the rail
+  - a factor per resistor
+  - a driven pin's output resistance
+  - an LED's Vf shift (its model's Is scaled)
+  - a voltmeter's input to GND, an ammeter's burden in series
+- **`cmod/custom/measure_bands.py`:** the worst-case corners (D-msv-4). Each point gets band_lo..band_hi; led-on takes 32 runs. The parameters:
+  - **the rail** 4.75..5.25 V: a KNOB, a USB host port, not read here. When the unit has its own 5 V rail reading, that reading +/- its meter band replaces it.
+  - **R** +/-5 %: a KNOB, the gold band.
+  - **LED Vf** 1.8..2.5 V at 20 mA: a KNOB, the kit LED has no cited rating. The user's kit LED Vf replaces it.
+  - **The pin's output resistance** 0..40 ohm high / 0..45 ohm low: DERIVED from the cited VOH 4.2 V / VOL 0.9 V at 20 mA, Table 30-1.
+  - **The pull-up** 20..50 k: cited.
+- **The meter's loading** is one run with its cited input resistance or burden in the deck; uncited means none, said.
+- **The new verdict IN TOLERANCE:** off the nominal but inside the band widened by the instrument band. Without a cited meter it says the meter is not counted.
+- **The Measured tab** shows the band and the expected value. Monte Carlo (the typical spread) is not built yet. |
+`cmod_bands_selftest` 10/10:
+- The LED band edges equal the hand corners (the diode law by bisection, 8.5335..16.5816 mA both).
+- LED_CONTROL's low edge by hand; 32 runs.
+- Every state's nominal inside its bands; the nominal deck unchanged.
+- Loading by hand: -9.98 mV for 10 Mohm on the 20 k pull-up, -65 uA for a 1 ohm burden.
+- The unit's rail narrows the band.
+
+Elsewhere:
+- measure 36/36: 14.2 mA is now in tolerance, 5 mA unexplained.
+- procedure 24/24; electrodevice circuit_states 29/29, rows 13/13, electrodevice 119/119; conform 73/73. |
 | msv-2 | VarianceRuling (accepted / mistake / measurement-error, scope, closure by re-measure); fault signatures + ranking | an open LED joint reading ranks "open at D6 branch" first; a mistake stays open until an in-band re-read |
 | msv-3 | **USB**: an `InstrumentEndpoint` transport usbtmc (pyvisa-py) and sigrok:<driver> (sigrok-cli, optional), refused by name when absent; take / stable-trigger; the Bridge-side reader agreed with Codex; **touch and confirm** (§5b mode 1): steps wait for a stable meter reading, a scope trigger or the board's serial fields, pass/fail by the bands, timeout = "no data came through" | a sigrok `demo` device reading through the same row path (sigrok's own demo driver, no hardware); a session run unattended against the twin's serial fields + the demo meter passes every step; a pulled cable gives "no data came through"; then your meter |
 | msv-4 | real scope binding: a real WaveformCapture aligned to the twin run by the stimulus edge; features vs twin + spice transient; measured bounce -> the switch part's knobs | a replayed real-style capture (source replay) aligned within one sample; the bounce count read off it |
