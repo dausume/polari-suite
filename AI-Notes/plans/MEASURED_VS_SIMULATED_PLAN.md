@@ -214,7 +214,32 @@ data from the device testing."
 | | phase | proof |
 |-|-------|-------|
 | msv-0 | ✅ **BUILT 2026-11-04** (framework, local dev; not pushed - held with bss-11..14): `BuiltUnit` / `MeasurementPoint` / `MeasurementReading` (cmod) + `InstrumentAccuracy` (instruments: +/-(% of reading + counts x resolution) per function and range, input impedance / burden, the cite); `custom/measure_points.py` (the node's latest reached run -> its electrical collateral names the circuit state -> the cst .op of that state -> one V dc point per net with the probe words from the net's board pins, one I dc point per ammetered part with where to break the circuit, the 5 V rail under the node's load; a vanished point is marked stale, never dropped), `custom/measure_readings.py` (units, manual readings with units parsed V/mV/uV/A/mA/uA and refused across V vs A, judged on read: in-band / unexplained / unjudged / over-range, stale on another build; no range = the smallest that holds the value), `cmod_measure_api.py` (.../nodes/{slug}/measurement-points GET + POST derive, .../units GET + POST, .../units/{unit}/readings GET + POST), the **Measured** tab on /display/hardware-events (unit form + table, the node's points, the manual reading form, the judged readings). No real meter seeded (D-msv-2) | `cmod_measure_selftest` 32/32: led-on gives 5 points (LED current 14.715 mA, the R1/LED junction 1.763 V "no board pin", the rail 4.9926 V); with a FIXTURE meter 4.995 V in band (+/-27 mV), 14.2 mA unexplained (+/-0.442 mA), 14.7 mA in band, no instrument unjudged, 250 mA over range, an unread line unjudged, stale on a rebuilt unit; 5 refusals; 6 doors; the manifest (73/73 conform), the page; neighbours instruments 33/33, bench views 17/17, confirmations 11/11, coverage 9/9, retest 7/7, topology 16/16, node run 14/14 |
-| msv-0b | the GENERATED TestProcedure (§5b) + the **guided sheet**: left pane = the board / breadboard view with the point and probes lit, right pane = the fill-out sheet judged live; printable; sessions that stop and resume | the uno-light procedure lists, in order: the power-off R checks between D2/D6 neighbours, power on, boot, press -> led-on (rail V, D6 V, LED I, "LED lit"), release; a typed sheet gives pass / fail / unexplained as expected |
+| msv-0b | ✅ **BUILT 2026-11-04** (framework, local dev; not pushed - held with bss-11..14):
+- **Rows:** `TestProcedure` / `TestProcedureStep` / `TestSession` / `TestStepMark` (cmod).
+- **`custom/test_procedures.py`:** GENERATES the test.
+  - **Power off first.** Continuity between the circuit's board pins and their header neighbours (a bridge beeps before power is ever applied), 5V-GND, and each switch released then held.
+  - **Then** power on, flash, boot.
+  - **Then every state node** by its fastest path. A node continuing the one just tested needs no RESET; otherwise RESET first. Stimuli come in a person's words from the Hardware Events (press / bounce tap / long press with its knob / hold / release / send the command / wait).
+  - **Each node ends with** its msv-0 measurement points and a look (the LED lit / dark, from its circuit state).
+  - **Frozen per build**: an unchanged regeneration returns the frozen procedure.
+- **`custom/test_sessions.py`:** the GUIDED SHEET.
+  - A measure step is an ordinary MeasurementReading. Other steps are marks: done / skipped, beep / no-beep, yes / no.
+  - Verdicts: pass / fail / unexplained / unjudged / over-range / done / skipped / pending.
+  - Resume asks the RESET and presses again.
+  - Done when nothing is pending.
+  - Touch mode falls back to the sheet, said (msv-3).
+- **`custom/procedure_svg.py`:** the LEFT PANE.
+  - The UNO headers in board order plus the circuit's parts, drawn per step: the red / black probe rings, a pin-less net lit among the parts, a series current shown at the part's leg.
+  - The print view (HTML, D-msv-8).
+- **Doors** in `cmod_measure_api.py`: procedures, preview, steps, the step picture (image/svg+xml), sessions, the sheet, answer, resume, print, summary.
+- **The Test sheet tab** on /display/hardware-events: the picture (api-svg-panel) beside the sheet, side by side. |
+`cmod_procedure_selftest` 24/24 on the applied light spec with one run node:
+- The order: off, 9 continuity checks, on, flash, boot.
+- The words, the continue-vs-RESET rule, 10 nodes owed, frozen per build.
+- A session: continuity pass / fail, the LED 14.6 mA on the TP4000ZC pass, the rail 4.6 V unexplained, the look fail; resume re-asks the RESET + press; done.
+- The SVG rings, the print view, 11 doors + 3 refusals, the manifest, the page.
+
+Neighbours: measure 34/34, coverage 9/9 (8 tabs), confirmations 11/11, retest 7/7, topology 16/16; conform 73/73. |
 | msv-1 | loading + tolerance bands in the cst deck (cited part tolerances; the kit LED Vf becomes the band, not a guess) | the band edges equal hand-computed corners for the 220 Ω + LED branch |
 | msv-2 | VarianceRuling (accepted / mistake / measurement-error, scope, closure by re-measure); fault signatures + ranking | an open LED joint reading ranks "open at D6 branch" first; a mistake stays open until an in-band re-read |
 | msv-3 | **USB**: an `InstrumentEndpoint` transport usbtmc (pyvisa-py) and sigrok:<driver> (sigrok-cli, optional), refused by name when absent; take / stable-trigger; the Bridge-side reader agreed with Codex; **touch and confirm** (§5b mode 1): steps wait for a stable meter reading, a scope trigger or the board's serial fields, pass/fail by the bands, timeout = "no data came through" | a sigrok `demo` device reading through the same row path (sigrok's own demo driver, no hardware); a session run unattended against the twin's serial fields + the demo meter passes every step; a pulled cable gives "no data came through"; then your meter |
