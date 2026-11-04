@@ -76,10 +76,13 @@ step "isle-mesh-cli (from Isle-Mesh/)"
 CLI_VERSION="0.1.$(cd "$ROOT/Isle-Mesh" && git log --oneline | wc -l)"
 # the PUBLISHED image tag the shipped polari-isle compose pulls (2026-09-13 finding: a deb from the website must bring
 # Polari up without a local build) — stamped into polari-isle/.env (gitignored; copied into ~/polari-isle at deploy).
-# Default: the newest polari-v* release tag of the suite + "-core"; override: POLARI_IMAGE_TAG=… POLARI_IMAGE_REPO=…
-IMAGE_TAG="${POLARI_IMAGE_TAG:-$(git -C "$ROOT" tag -l 'polari-v*' | sort -V | tail -1)}"
-[ -n "$IMAGE_TAG" ] || IMAGE_TAG="polari-v$(date +%Y.%m.%d)"
-case "$IMAGE_TAG" in *-core|*-all) ;; *) IMAGE_TAG="${IMAGE_TAG}-core" ;; esac
+# Image releases use the date tag, e.g. 2026.09.27; explicit overrides are exact.
+IMAGE_TAG="${POLARI_IMAGE_TAG:-}"
+if [ -z "$IMAGE_TAG" ]; then
+    RELEASE_TAG="$(git -C "$ROOT" tag -l 'polari-v*' | sort -V | tail -1)"
+    [ -n "$RELEASE_TAG" ] || { echo "No release tag: set POLARI_IMAGE_TAG to a published image tag" >&2; exit 1; }
+    IMAGE_TAG="${RELEASE_TAG#polari-v}"
+fi
 printf 'POLARI_IMAGE_REPO=%s\nPOLARI_IMAGE_TAG=%s\n' "${POLARI_IMAGE_REPO:-ghcr.io/dausume/}" "$IMAGE_TAG" > "$ROOT/Isle-Mesh/polari-isle/.env"
 ok "polari-isle images pinned: ${POLARI_IMAGE_REPO:-ghcr.io/dausume/}prf-*:$IMAGE_TAG (polari-isle/.env)"
 ( cd "$ROOT/Isle-Mesh/isle-cli/shells" \
