@@ -172,6 +172,23 @@ data from the device testing."
   USBTMC via pyvisa-py for bench gear (msv-3), and LAN stays as built. Alternative: USB first, if a USB meter is already on the bench.
 - **D-msv-2 which instruments you own** (your fact): DMM make and model, whether it has a USB/serial port, and the scope. Each gets an Instrument
   row with cited accuracy before its readings are judged. Until then a reading is judged with the instrument band "unmeasured", which is said.
+  **ANSWERED 2026-11-04 (the user: "I do not own any currently, just look into affordable commercial options as examples which are ideally
+  American, and if open source options exist do one of those as well").** Examples, prices as seen 2026-11-04 (US brands; manufacture location
+  not checked):
+  - DMM, bench, USB + LAN SCPI: **Keysight EDU34450A** (~USD 1003). SEEDED (`instruments_seed.SEED_ACCURACY`): every DC V and DC I range from the
+    data sheet table as a reseller transcribed it (check against Keysight's PDF before a calibration claim). Its 100 mA range gives the LED
+    point a band of +/-21 uA, so until msv-1 a real board will read "unexplained" on it.
+  - DMM, handheld: **Fluke 87V** (~USD 450-580). The ranges are SEEDED, but the accuracy is not: the spec sheet gives only the basic accuracy
+    (0.05 % DC V, 0.2 % DC I) and no per-range digits, so those lines stay -1 (unjudged) until the user manual is read. It has no USB adapter
+    listed (the IR189USB names other models), so it is a manual-entry meter.
+  - Scope: **Tektronix TBS1052C** (~USD 590-620, 50 MHz, 2 ch) or **Keysight EDUX1052A** (~USD 600-950). Neither's USB/SCPI interface or
+    datasheet has been read yet, so no row is seeded.
+  - Scope + meter-ish + supply in one USB box: **Digilent Analog Discovery 3** (~USD 325-375; 2 ch 14-bit 125 MS/s, 30 MHz). It is read
+    through its own SDK, not SCPI or sigrok, so it would need its own adapter.
+  - OPEN SOURCE: there is no mature, purchasable open-hardware DMM. The open path for meters is the **sigrok** software (GPLv3) reading cheap
+    serial/USB meters (D-msv-1). Open scopes already seeded (osc-6): ScopeFun and the DSO138. New candidates:
+    - **ThunderScope**: open hardware, 1 GS/s, ~350 MHz, Thunderbolt/PCIe, ngscopeclient, about USD 950-1150, on Crowd Supply pre-order; shipping not confirmed.
+    - **PSLab**: GPLv3/Apache, USB, a 2 MSPS scope plus meter functions, about USD 65-155, not a calibrated meter.
 - **D-msv-3 the scope of an accepted variance.** Recommended: this unit by default. "This design" or "this part lot" only by an explicit ruling
   with the reason, and it can be revoked.
 - **D-msv-4 the tolerance method.** Recommended: worst-case corners for the band's edge (the mistake boundary), and ngspice Monte Carlo for the
