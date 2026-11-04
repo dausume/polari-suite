@@ -1,4 +1,4 @@
-# Measured vs simulated: binding real scope and multimeter readings to the simulation (msv) - plan 2026-11-04, PLAN ONLY
+# Measured vs simulated: binding real scope and multimeter readings to the simulation (msv) - plan 2026-11-04
 
 The user (2026-11-04): "we will want to make the capability to bind real oscilloscope and multimeter readings to the simulation data testing, to act
 as a way to proof out that the physical device was done properly and/or to gauge what real soldered device variance is from the simulated device, and
@@ -117,7 +117,56 @@ its source said, which closes bss-11's guess.
   through a GraphDefinition, with no raw JSON on screen. The Workbench gets a "measure this node" walkthrough: put the board in the node's state
   (the path's stimuli in words: press, hold, release), then probe here, using the layout view's net highlight.
 
+## 5b. Generated step-by-step manual tests (the user, 2026-11-04)
+
+The user: "generate step by step manual tests that either have people just touch the different pieces and then confirms when data came through from
+the device to pass the test or fail it, or tells and shows you where to test visually on the left side while giving a sheet to manually fill out with
+data from the device testing."
+
+**A TestProcedure is GENERATED, not written by hand.** It is derived on read from a Bench Solution's topology and its measurement points
+([nocode-first-reduce-code]). It is stored only once it is frozen for a run.
+- **The order.** Each node is visited by the fastest path from the root, the same rule as the twin. Power-off checks come first: R and continuity
+  between nets, so a bridge is found before power is applied. Then power on. Then the nodes along each path.
+- **The steps.** Each step is one of:
+  - **set up** — "plug the USB into the bridge", "flash build <sha12>"
+  - **stimulus** — "press and release the button on D2", "hold it for 1 s". These words come from the edge's stimulus. The fault edges become
+    steps too, e.g. "press and bounce": you tap it quickly.
+  - **measure** — one measurement point: which instrument and mode, red probe here, black probe there, and the expected range.
+  - **observe** — "the LED on D6 is lit". This is a person's yes/no, and it is recorded as evidence of the person's judgement, not as a measurement.
+- **The rows.** A **TestProcedure** `<bench solution>-proc-<n>` is frozen per build (hex sha256 plus the layout) and is regenerated when either
+  changes. Its **TestProcedureStep** `<proc>-s<n>` children each name the node, the point or stimulus, and the words. A **TestSession** `<unit>-<proc>-t<n>`
+  is one person working through one procedure on one BuiltUnit. Its readings are ordinary MeasurementReadings carrying the session and the step.
+
+**Two ways to run the same procedure** (picked per session; a session may mix them step by step):
+
+1. **Touch and confirm (auto).**
+   - The screen says what to touch: the probe point, or the button to press.
+   - The step waits for the data to arrive from a device: a USB/LAN meter reading that holds steady inside its resolution, a scope trigger on the
+     probed line, or the board's own serial fields changing (the twin's fields, read off the real firmware).
+   - The step then passes or fails by the bands in §4 and moves to the next one. There is nothing to type.
+   - **A timeout** (a knob, stated per step kind) fails the step with "no data came through", which is its own outcome: it means the probe, the
+     cable or the connection, not the circuit.
+   - Stimulus steps are confirmed by the device too. The press is seen in the serial fields, or on a probed line.
+   - Needs: an instrument with a live path (§3) or firmware that reports its fields. A step whose instrument has no live path drops to mode 2 for
+     that step, and says so.
+2. **Guided sheet (manual).**
+   - **Left pane — where to test:** the board or breadboard view (bb's layer, the layout view's net highlight) with the point lit, the probe colours
+     (red / black) drawn on the two nets, the meter mode and range shown as an icon, and for a stimulus the part to press highlighted.
+   - **Right pane — the sheet:** a form with one row per step: the expected range, a field for the value, pass/fail filled in as the value is
+     typed (judged by §4 live), and a note. Observe steps are a yes/no.
+   - **Printable:** the same sheet rendered for paper, with the left-pane picture per step. A filled paper sheet is entered back through the same
+     form, and its photo is kept as evidence.
+
+**What a session ends with.**
+- A summary of passed / failed / unexplained / no-data steps.
+- Every unexplained reading goes into §4's ruling queue, with its fault-signature ranking.
+- Passed nodes feed §5's hardware confirmation.
+- A session can stop and resume. A resumed session re-asks the stimulus steps before the next measure step, so the board is back in the node's
+  state.
+
 ## 6. Decisions (recommended first; each is the user's)
+
+**RULED 2026-11-04 (the user: "go with recommendations"): D-msv-1, 3, 4, 5, 6, 7, 8 as recommended. D-msv-2 is still the user's fact (the instruments they own); until it is given, readings carry the instrument band "unmeasured".**
 
 - **D-msv-1 order of acquisition paths.** Recommended: manual first (msv-0, works with anything), then USB via sigrok for handheld DMMs plus
   USBTMC via pyvisa-py for bench gear (msv-3), and LAN stays as built. Alternative: USB first, if a USB meter is already on the bench.
@@ -128,15 +177,22 @@ its source said, which closes bss-11's guess.
 - **D-msv-4 the tolerance method.** Recommended: worst-case corners for the band's edge (the mistake boundary), and ngspice Monte Carlo for the
   typical spread shown beside it.
 - **D-msv-5 whether an unexplained or open-mistake reading blocks the hardware confirmation.** Recommended: yes until ruled.
+- **D-msv-6 how a touch-and-confirm step counts its data.** Recommended: the device's data decides pass/fail, and a person's "yes" never
+  substitutes for it. A step with no live path is a sheet step, and is labelled as one on the result.
+- **D-msv-7 whether power-off checks come first** (R / continuity between neighbour nets before power is applied). Recommended: yes, so a bridge is
+  caught before it can damage a part. They can be skipped per session, and a skip is recorded.
+- **D-msv-8 how far the paper sheet goes.** Recommended: a printable view of the same sheet (HTML print), entered back through the form. No PDF
+  generator for now.
 
 ## 7. Phases (dev-electronics; selftests green; no deploy)
 
 | | phase | proof |
 |-|-------|-------|
-| msv-0 | BuiltUnit / MeasurementPoint (derived from the node's electrical collateral: rail V, each driven pin's V, the LED branch I) / MeasurementReading via **manual**; the judgement with the instrument band; the Workbench card door-form | uno-light led-on: a typed 4.98 V rail, a 14.7 mA LED current judged in band; a typed 2 mA marked unexplained |
+| msv-0 | ✅ **BUILT 2026-11-04** (framework, local dev; not pushed - held with bss-11..14): `BuiltUnit` / `MeasurementPoint` / `MeasurementReading` (cmod) + `InstrumentAccuracy` (instruments: +/-(% of reading + counts x resolution) per function and range, input impedance / burden, the cite); `custom/measure_points.py` (the node's latest reached run -> its electrical collateral names the circuit state -> the cst .op of that state -> one V dc point per net with the probe words from the net's board pins, one I dc point per ammetered part with where to break the circuit, the 5 V rail under the node's load; a vanished point is marked stale, never dropped), `custom/measure_readings.py` (units, manual readings with units parsed V/mV/uV/A/mA/uA and refused across V vs A, judged on read: in-band / unexplained / unjudged / over-range, stale on another build; no range = the smallest that holds the value), `cmod_measure_api.py` (.../nodes/{slug}/measurement-points GET + POST derive, .../units GET + POST, .../units/{unit}/readings GET + POST), the **Measured** tab on /display/hardware-events (unit form + table, the node's points, the manual reading form, the judged readings). No real meter seeded (D-msv-2) | `cmod_measure_selftest` 32/32: led-on gives 5 points (LED current 14.715 mA, the R1/LED junction 1.763 V "no board pin", the rail 4.9926 V); with a FIXTURE meter 4.995 V in band (+/-27 mV), 14.2 mA unexplained (+/-0.442 mA), 14.7 mA in band, no instrument unjudged, 250 mA over range, an unread line unjudged, stale on a rebuilt unit; 5 refusals; 6 doors; the manifest (73/73 conform), the page; neighbours instruments 33/33, bench views 17/17, confirmations 11/11, coverage 9/9, retest 7/7, topology 16/16, node run 14/14 |
+| msv-0b | the GENERATED TestProcedure (§5b) + the **guided sheet**: left pane = the board / breadboard view with the point and probes lit, right pane = the fill-out sheet judged live; printable; sessions that stop and resume | the uno-light procedure lists, in order: the power-off R checks between D2/D6 neighbours, power on, boot, press -> led-on (rail V, D6 V, LED I, "LED lit"), release; a typed sheet gives pass / fail / unexplained as expected |
 | msv-1 | loading + tolerance bands in the cst deck (cited part tolerances; the kit LED Vf becomes the band, not a guess) | the band edges equal hand-computed corners for the 220 Ω + LED branch |
 | msv-2 | VarianceRuling (accepted / mistake / measurement-error, scope, closure by re-measure); fault signatures + ranking | an open LED joint reading ranks "open at D6 branch" first; a mistake stays open until an in-band re-read |
-| msv-3 | **USB**: an `InstrumentEndpoint` transport usbtmc (pyvisa-py) and sigrok:<driver> (sigrok-cli, optional), refused by name when absent; take / stable-trigger; the Bridge-side reader agreed with Codex | a sigrok `demo` device reading through the same row path (sigrok's own demo driver, no hardware); then your meter |
+| msv-3 | **USB**: an `InstrumentEndpoint` transport usbtmc (pyvisa-py) and sigrok:<driver> (sigrok-cli, optional), refused by name when absent; take / stable-trigger; the Bridge-side reader agreed with Codex; **touch and confirm** (§5b mode 1): steps wait for a stable meter reading, a scope trigger or the board's serial fields, pass/fail by the bands, timeout = "no data came through" | a sigrok `demo` device reading through the same row path (sigrok's own demo driver, no hardware); a session run unattended against the twin's serial fields + the demo meter passes every step; a pulled cable gives "no data came through"; then your meter |
 | msv-4 | real scope binding: a real WaveformCapture aligned to the twin run by the stimulus edge; features vs twin + spice transient; measured bounce -> the switch part's knobs | a replayed real-style capture (source replay) aligned within one sample; the bounce count read off it |
 | msv-5 | proof of build through `from_record` with readings; population spread; the Measured tab + walkthrough | a two-unit fixture: one confirmed, one blocked by an open mistake, then confirmed after rework |
 
