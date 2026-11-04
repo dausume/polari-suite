@@ -21,6 +21,7 @@ deploy is the user's call.
 | bss-10 | cmod | a pinned capture (`pin: true` on the run door: the whole target edge, whatever the outcome) + the run's captures listed and charted on the Hardware Events page's Runs tab (door `.../runs/{run}/captures`; the instruments arc's `instruments-capture` graph over its chart door) | `cmod_light_topology_selftest` 29/29 on the twin |
 | bss-11 | cmod + prf-board-engines | fault edges: `StructNode.expect = hold` (met AND kept to the end of the window); the fault stimuli bounce / long-press / held / idle beside every press (`bench_events.FAULT_PRESSES`, `node_run._train` / `_press_points` / `_window_extra`); five hold nodes in the spec; the twin's pin-at / adc-at limits 256 | `cmod_light_topology_selftest` on the twin: 12 of 13 reached; THE FINDING: a long press released with bounce double-toggles on every route |
 | bss-12 | cmod + electrodevice | the electrical check at EVERY node: `node_electrical` over the cst slice (state from the driver pin's settled level + held), a derived `electrical circuit` collateral per node, REFUSED -> checks-failed; cst_modes passes its raw rows (resistors were `?`) | light topology selftest on the twin; electrodevice circuit_states 29/29 |
+| bss-13 | cmod | a derived `memory sram` collateral on every node (avr-size statics + the twin's --sp-watch / --stack-fill high water, headroom vs the cited SRAM; REFUSED -> checks-failed) and the supply / brown-out sentence in the electrical check (knobs labelled) | light topology selftest on the twin |
 | cfg-1 | board + cmod | the clock group's first checks (CATOM_CONFIG_PLAN.md): `ClockSource` / `ClockPeer` rows (cited; seeded), `clock_checks` serial-link + tick on the cfg-0 registry, the two divisor options on report-state; the shipped matched divisor = compromise (chosen automatically), normal mode = invalid against the 16U2 (+5.9 %) and, by 0.01 %, even against an exact peer at the cold edge of 18 .. 30 C | `cmod_clock_config_selftest` 13/13 |
 | docs | pol-hub | "How Polari works for hardware" (`AI-Notes/guides/HARDWARE_NOCODE_GUIDE.md` -> `pol-hub/site/docs/hardware-nocode.html`); build-docs renders mermaid fences | `build-docs.py --check` clean |
 
@@ -98,11 +99,21 @@ deploy is the user's call.
 - Found: `cst_modes.catalogue` never carried the raw CircuitComponentDefinition rows, so `cst_netlist.deck` rendered every resistor as `?` and ngspice refused
   every cst deck; the circuit_states selftest skipped its SPICE checks honestly ("without the binary") and nobody noticed. Fixed (one key, `_components`).
 
+## bss-13: memory and the supply at every node (2026-11-04)
+- `memory sram` on every state node: `node_run` passes `--sp-watch` and `--stack-fill 0x<__bss_end>` on every run (the ELF's `__bss_end` from avr-nm) and reads
+  `min_sp` / `stack_high_water_sp` / `stack_fill` from the twin's summary; `node_collaterals.memory` adds the build's `.data + .bss` (avr-size -A, cached per
+  variant) and judges the headroom against `board.custom.build.limits` (the cited 2048 B). The high water is the run's to this node (from reset), so a deeper node
+  can only report more, never less.
+- The supply: `node_electrical._supply` appends one sentence to the electrical words: the rail under the state's ground-return current against the brown-out
+  detector's maximum. R_supply and the BOD level are knobs with their provenance in the comment; a `bootloader.extended_fuses` fact row in uno_facts (boards.txt)
+  + the BODLEVEL fuse-coding table (DS40002061B §31) would make the level cited - OWED. The twin has no VCC, so a brown-out is never SIMULATED, only bounded.
+
 ## Owed / next
 1. The Chrome pass of the new pages and the canvas (`/display/hardware-events`, `/display/bench-solutions`, `/display/hardware-solutions?solution=bench-topology-<bs>`): needs a deploy (the user's call).
 0. bss-11's finding: the debounce option (cfg-7's timing group); until a graded option is chosen and built, `on-by-long-press` diverges on every light bench and its
    proposed node (led_on 0, toggles 2) sits in the untested list. ~~The electrical check at EVERY node~~ DONE in bss-12 (owed there: circuit rows for the D4 / A0
-   benches). Still owed from the vital list: one hardware confirmation of one node (his), stack / RAM watermarks and brown-out as collaterals, VCD export + a run diff.
+   benches). ~~Stack / RAM watermarks and brown-out~~ DONE in bss-13 (owed there: the fuse fact row, a measured R_supply). Still owed from the vital list: one hardware confirmation
+   of one node (his), VCD export + a run diff.
 2. ~~Stimuli still refused in words: reset, environment levels, periods~~ DONE in bss-8 (reset, period, an ADC level at a cycle). Still owed: the TMP36 "level"
    events (`level-<variable>` from CatomVariable adc.in rows carry no mV yet: a sample value on the node, StructFieldSamples) and an ADC ramp as an edge.
 2b. ~~The other LED / sense routes not seeded~~ DONE in bss-9: six Bench Solutions seeded, each proven to reach every node by every path (the dry run) or "light on"
