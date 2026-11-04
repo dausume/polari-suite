@@ -170,25 +170,33 @@ data from the device testing."
 
 - **D-msv-1 order of acquisition paths.** Recommended: manual first (msv-0, works with anything), then USB via sigrok for handheld DMMs plus
   USBTMC via pyvisa-py for bench gear (msv-3), and LAN stays as built. Alternative: USB first, if a USB meter is already on the bench.
+  **REFINED 2026-11-04 by the user: "anything with sigrok"**. The automatic path is sigrok for every meter (msv-3 builds a sigrok-cli reader first).
+  Manual entry stays the cheap path, and pyvisa-py is only a fallback for SCPI gear sigrok does not read.
 - **D-msv-2 which instruments you own** (your fact): DMM make and model, whether it has a USB/serial port, and the scope. Each gets an Instrument
   row with cited accuracy before its readings are judged. Until then a reading is judged with the instrument band "unmeasured", which is said.
-  **ANSWERED 2026-11-04 (the user: "I do not own any currently, just look into affordable commercial options as examples which are ideally
-  American, and if open source options exist do one of those as well").** Examples, prices as seen 2026-11-04 (US brands; manufacture location
-  not checked):
-  - DMM, bench, USB + LAN SCPI: **Keysight EDU34450A** (~USD 1003). SEEDED (`instruments_seed.SEED_ACCURACY`): every DC V and DC I range from the
-    data sheet table as a reseller transcribed it (check against Keysight's PDF before a calibration claim). Its 100 mA range gives the LED
-    point a band of +/-21 uA, so until msv-1 a real board will read "unexplained" on it.
-  - DMM, handheld: **Fluke 87V** (~USD 450-580). The ranges are SEEDED, but the accuracy is not: the spec sheet gives only the basic accuracy
-    (0.05 % DC V, 0.2 % DC I) and no per-range digits, so those lines stay -1 (unjudged) until the user manual is read. It has no USB adapter
-    listed (the IR189USB names other models), so it is a manual-entry meter.
-  - Scope: **Tektronix TBS1052C** (~USD 590-620, 50 MHz, 2 ch) or **Keysight EDUX1052A** (~USD 600-950). Neither's USB/SCPI interface or
-    datasheet has been read yet, so no row is seeded.
-  - Scope + meter-ish + supply in one USB box: **Digilent Analog Discovery 3** (~USD 325-375; 2 ch 14-bit 125 MS/s, 30 MHz). It is read
-    through its own SDK, not SCPI or sigrok, so it would need its own adapter.
-  - OPEN SOURCE: there is no mature, purchasable open-hardware DMM. The open path for meters is the **sigrok** software (GPLv3) reading cheap
-    serial/USB meters (D-msv-1). Open scopes already seeded (osc-6): ScopeFun and the DSO138. New candidates:
-    - **ThunderScope**: open hardware, 1 GS/s, ~350 MHz, Thunderbolt/PCIe, ngscopeclient, about USD 950-1150, on Crowd Supply pre-order; shipping not confirmed.
-    - **PSLab**: GPLv3/Apache, USB, a 2 MSPS scope plus meter functions, about USD 65-155, not a calibrated meter.
+  **ANSWERED 2026-11-04.** The user first said: "I do not own any currently, just look into affordable commercial options as examples which are
+  ideally American, and if open source options exist do one of those as well". They then added: "the open scopes we have already are fine, and
+  anything with sigrok then, readings coming in automatically is one critical case and another is doing do manually/cheaply". So:
+  - **Scopes:** the open scopes already seeded (osc-6: ScopeFun, DSO138) stand. No new scope is added.
+  - **The automatic path is sigrok** (libsigrok/sigrok-cli, GPLv3). Every meter-type device is read through it, which refines D-msv-1. The
+    `usb-scpi` path is kept only for what sigrok's own scpi-dmm driver reads.
+  - **Two critical cases:**
+    1. **Automatic**: a sigrok-supported meter streams its readings in.
+    2. **Manual / cheap**: any meter, read by eye and typed in (msv-0, built).
+  - **The example meter covers both:** the **TekPower TP4000ZC**. It costs about USD 43 from Kaito Electronics, a US company, and is a rebadged
+    Digitek DT4000ZC. It has 4000 counts and an optically isolated RS232 port on a 3.5 mm jack (RS232 or USB cable), and sigrok lists it as
+    supported (serial-dmm).
+  - **Its accuracy is SEEDED** (`instruments_seed.SEED_ACCURACY`):
+    - DC V: +/-(0.5 % + 5) on 0.4 / 4 / 40 / 400 V.
+    - DC mA: +/-(1.5 % + 5) on 40 / 400 mA. This is the wider of two conflicting figures: a review gives 1.5 %, the seller 1.2 %.
+    - The source is a review table plus the seller listing. The user manual's own table is still owed.
+    - On its 40 mA range the LED point's band is about +/-0.27 mA, so a good board's 14.6 mA reads IN BAND.
+  - **Looked at and not seeded:**
+    - Keysight EDU34450A (about USD 1003; not on sigrok's list).
+    - Fluke 87V (about USD 450-580; no data port).
+    - Fluke 287/289 (sigrok-supported but costly).
+    - SparkFun 70C (sigrok-supported, retired).
+    - No mature open-hardware DMM exists. ThunderScope and PSLab are noted, but the open scopes already seeded suffice.
 - **D-msv-3 the scope of an accepted variance.** Recommended: this unit by default. "This design" or "this part lot" only by an explicit ruling
   with the reason, and it can be revoked.
 - **D-msv-4 the tolerance method.** Recommended: worst-case corners for the band's edge (the mistake boundary), and ngspice Monte Carlo for the
