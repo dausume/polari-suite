@@ -20,6 +20,7 @@ deploy is the user's call.
 | bss-9 | cmod + board + prf-board-engines | the owed list: per-edge execution counts (the twin's windowed `--fn-cycles ...@LO:HI`); a pin without a jumper read from the driven port word (`node_collaterals.port_watches`); `net-current` by ngspice batch on the LED branch at the node's step, `temperature` from a PartThermalModel's Foster rise (else the refusal); the failure capture = WaveformCapture rows of the twin's pin lines over the failing edge's last 10 % (`failure_capture`); three more Bench Solutions seeded (pwm / transistor / all-pcint); the Structs page's samples table (`?view=samples`) | `cmod_light_topology_selftest` 27/27 on the twin |
 | bss-10 | cmod | a pinned capture (`pin: true` on the run door: the whole target edge, whatever the outcome) + the run's captures listed and charted on the Hardware Events page's Runs tab (door `.../runs/{run}/captures`; the instruments arc's `instruments-capture` graph over its chart door) | `cmod_light_topology_selftest` 29/29 on the twin |
 | bss-11 | cmod + prf-board-engines | fault edges: `StructNode.expect = hold` (met AND kept to the end of the window); the fault stimuli bounce / long-press / held / idle beside every press (`bench_events.FAULT_PRESSES`, `node_run._train` / `_press_points` / `_window_extra`); five hold nodes in the spec; the twin's pin-at / adc-at limits 256 | `cmod_light_topology_selftest` on the twin: 12 of 13 reached; THE FINDING: a long press released with bounce double-toggles on every route |
+| bss-12 | cmod + electrodevice | the electrical check at EVERY node: `node_electrical` over the cst slice (state from the driver pin's settled level + held), a derived `electrical circuit` collateral per node, REFUSED -> checks-failed; cst_modes passes its raw rows (resistors were `?`) | light topology selftest on the twin; electrodevice circuit_states 29/29 |
 | cfg-1 | board + cmod | the clock group's first checks (CATOM_CONFIG_PLAN.md): `ClockSource` / `ClockPeer` rows (cited; seeded), `clock_checks` serial-link + tick on the cfg-0 registry, the two divisor options on report-state; the shipped matched divisor = compromise (chosen automatically), normal mode = invalid against the 16U2 (+5.9 %) and, by 0.01 %, even against an exact peer at the cold edge of 18 .. 30 C | `cmod_clock_config_selftest` 13/13 |
 | docs | pol-hub | "How Polari works for hardware" (`AI-Notes/guides/HARDWARE_NOCODE_GUIDE.md` -> `pol-hub/site/docs/hardware-nocode.html`); build-docs renders mermaid fences | `build-docs.py --check` clean |
 
@@ -85,12 +86,23 @@ deploy is the user's call.
 - Coverage: an event an edge USES is never inert (`topology_coverage.inert`), so the release and idle leave the inert list once their hold nodes exist.
 - The twin image: MAX_PINAT / MAX_ADCAT 32 -> 256 (a bouncing press is 14 entries; a path with two is 28). Rebuilt 2026-11-03.
 
+## bss-12: the electrical check at every node (2026-11-04)
+- Every state node carries a derived `electrical circuit` collateral. At the node's settled cycle (the end of its window) `node_run._settled_levels` reads every
+  known pin (a jumpered pin from its last wire-edge, an unwired output from its port word - the circuit's driver pins are watched at every node now, budget
+  permitting), `node_electrical.check` picks the cst state (`cst_modes._name(lifecycle, held, led_on)`), runs its `.op` (`cst_netlist.run`, pull-up 20 kΩ,
+  ideal pin sources: the worst-case bound) and judges it (`cst_verdict.judge`). The words name the circuit, the state, every current and the limits' citation.
+- REFUSED (a pin past 40 mA or the supply past 200 mA) makes the run `checks-failed`; warn (past 20 mA, or a floating input) stays in the words.
+- The circuit is matched to the CONFIG by its pins (cst_sources.circuit_for). Only `uno-button-clock` (D2 / D3 / D6) and `c3-light` are seeded, so the
+  pin-change (D4 / D8) and analog (A0) builds are judged against a circuit whose switch is on D2: WARN, a floating input, said. OWED: CircuitDefinition +
+  BoardPinNet rows for those benches (or derive them from the lay-1 layout's compiled nets - the better door).
+- Found: `cst_modes.catalogue` never carried the raw CircuitComponentDefinition rows, so `cst_netlist.deck` rendered every resistor as `?` and ngspice refused
+  every cst deck; the circuit_states selftest skipped its SPICE checks honestly ("without the binary") and nobody noticed. Fixed (one key, `_components`).
+
 ## Owed / next
 1. The Chrome pass of the new pages and the canvas (`/display/hardware-events`, `/display/bench-solutions`, `/display/hardware-solutions?solution=bench-topology-<bs>`): needs a deploy (the user's call).
 0. bss-11's finding: the debounce option (cfg-7's timing group); until a graded option is chosen and built, `on-by-long-press` diverges on every light bench and its
-   proposed node (led_on 0, toggles 2) sits in the untested list. Also owed from the vital list: the electrical check at EVERY node (bss-12: pin source / sink,
-   port totals, the LED current, from a net list - today net-current runs only where the spec declares it), one hardware confirmation of one node, stack / RAM
-   watermarks and brown-out as collaterals, VCD export + a run diff.
+   proposed node (led_on 0, toggles 2) sits in the untested list. ~~The electrical check at EVERY node~~ DONE in bss-12 (owed there: circuit rows for the D4 / A0
+   benches). Still owed from the vital list: one hardware confirmation of one node (his), stack / RAM watermarks and brown-out as collaterals, VCD export + a run diff.
 2. ~~Stimuli still refused in words: reset, environment levels, periods~~ DONE in bss-8 (reset, period, an ADC level at a cycle). Still owed: the TMP36 "level"
    events (`level-<variable>` from CatomVariable adc.in rows carry no mV yet: a sample value on the node, StructFieldSamples) and an ADC ramp as an edge.
 2b. ~~The other LED / sense routes not seeded~~ DONE in bss-9: six Bench Solutions seeded, each proven to reach every node by every path (the dry run) or "light on"
