@@ -267,7 +267,32 @@ Elsewhere:
 - measure 36/36: 14.2 mA is now in tolerance, 5 mA unexplained.
 - procedure 24/24; electrodevice circuit_states 29/29, rows 13/13, electrodevice 119/119; conform 73/73. |
 | msv-2 | VarianceRuling (accepted / mistake / measurement-error, scope, closure by re-measure); fault signatures + ranking | an open LED joint reading ranks "open at D6 branch" first; a mistake stays open until an in-band re-read |
-| msv-3 | **USB**: an `InstrumentEndpoint` transport usbtmc (pyvisa-py) and sigrok:<driver> (sigrok-cli, optional), refused by name when absent; take / stable-trigger; the Bridge-side reader agreed with Codex; **touch and confirm** (§5b mode 1): steps wait for a stable meter reading, a scope trigger or the board's serial fields, pass/fail by the bands, timeout = "no data came through" | a sigrok `demo` device reading through the same row path (sigrok's own demo driver, no hardware); a session run unattended against the twin's serial fields + the demo meter passes every step; a pulled cable gives "no data came through"; then your meter |
+| msv-3 | ✅ **sigrok half BUILT 2026-11-04** (framework, local dev; not pushed - held). The user: "anything with sigrok".
+- **`instruments/custom/sigrok_reader.py`:**
+  - capability, or refused by name (apt install sigrok-cli / SIGROK_CLI)
+  - SIGROK_DRIVERS from `sigrok-cli -L`: tekpower-tp4000zc -> `tekpower-tp4000ZC`, plus the demo driver
+  - the `-O analog` line parser (SI prefixes, flags, overload)
+  - one sigrok-cli run per take (argv checked: no shell characters)
+  - STEADY = 3 samples in a row within one count, on one channel (knobs)
+  - the evidence = the sha256 of the verbatim output
+- **InstrumentEndpoint** transport `sigrok` (resource `<driver>[:conn=<port>]`, typed, never seeded).
+- **TOUCH AND CONFIRM:** `test_sessions.take` + POST .../sessions/{s}/steps/{step}/take:
+  - a measure step answered by the meter's steady value (via usb-serial)
+  - its own outcomes: NO DATA (no line: the probe / cable / port), NOT STEADY, WRONG MODE (another unit or AC)
+  - the BRIDGE PATH {instrument, lines} for a meter on the person's machine
+- **The Test sheet tab's "Touch and confirm" form.**
+- **OWED:**
+  - sigrok-cli where the meter is plugged in: the backend image has none; an isle-node engine or the Bridge.
+  - The Bridge side (run sigrok-cli on the person's machine, post the lines) is Codex's.
+  - The USBTMC/pyvisa fallback.
+  - Continuity by meter (the sheet's). |
+`cmod_sigrok_selftest` 14/14:
+- The recorded sigrok-cli 0.7.2 lines parse; steady, on one channel; refused without the binary.
+- A stand-in sigrok-cli drives the real subprocess path; the endpoint door and its refusals.
+- A take: 14.62 mA pass with the sha256, then no-data / not-steady / wrong-mode, the Bridge lines; a continuity step refused; the door.
+- Proven against the REAL sigrok-cli 0.7.2 in a throwaway Debian trixie container: the demo read and steady, and a TP4000ZC with nothing plugged in gives "No devices found".
+
+Elsewhere: instruments capture 62/62 (the seed-pair check now names the accuracy rows); conform 73/73. |
 | msv-4 | real scope binding: a real WaveformCapture aligned to the twin run by the stimulus edge; features vs twin + spice transient; measured bounce -> the switch part's knobs | a replayed real-style capture (source replay) aligned within one sample; the bounce count read off it |
 | msv-5 | proof of build through `from_record` with readings; population spread; the Measured tab + walkthrough | a two-unit fixture: one confirmed, one blocked by an open mistake, then confirmed after rework |
 
