@@ -1,6 +1,6 @@
 # Topology layers: Polari vs isle (tpl)
 
-**Status:** PLAN, 2026-11-06; D-tpl-1..3 taken; tpl-0 BUILT (local); next tpl-1. The user's go for the plan and for tpl-0/tpl-1/tpl-3 source work (steps 1, 3, 4 of the proposal).
+**Status:** PLAN, 2026-11-06; D-tpl-1..3 taken; tpl-0 + tpl-1 BUILT (local); next tpl-4. The user's go for the plan and for tpl-0/tpl-1/tpl-3 source work (steps 1, 3, 4 of the proposal).
 Nothing live changes without a separate go.
 
 ## The ask (the user, 2026-11-06)
@@ -97,7 +97,9 @@ no-isle fallback, never blank or stale data.
   `PolariNodeMachine` and one `ModuleAssignment` per running module at boot (idempotent). The July snapshot is seeded only
   when knob `POLARI_TOPOLOGY_SEED=example` (dev tiers keep it); default `none`. On a fresh backend this also applies the
   Bench topology specs (manual fix 13). Selftest: fresh manager -> only self rows; second boot -> no duplicates.
-- **tpl-1 Engines and connections as edges** (Polari, source). Each `EngineProviderBinding` and each configured frontend
+- **tpl-1 Engines and connections as edges** (Polari, source). ✅ BUILT 2026-11-06 (framework 0d239c0b, local): 30/30
+  selftest; fresh boot + engine ingest + restart -> worker, resolved edge, frontend connection, validate clean. Rows appear at
+  boot; econ's fix-11 consumer is asked to call describe_links on every bind/unbind. Each `EngineProviderBinding` and each configured frontend
   origin becomes a dependency edge / service connection marked `source: binding` / `source: config`, with live health from
   the existing ping.
 - **tpl-2 Polari peering without the isle** (Polari; DESIGN FIRST, for the user's review). A backend publishes its
