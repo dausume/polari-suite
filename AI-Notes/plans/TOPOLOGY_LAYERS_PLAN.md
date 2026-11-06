@@ -1,6 +1,6 @@
 # Topology layers: Polari vs isle (tpl)
 
-**Status:** PLAN, 2026-11-06. The user's go for the plan and for tpl-0/tpl-1/tpl-3 source work (steps 1, 3, 4 of the proposal).
+**Status:** PLAN, 2026-11-06; D-tpl-1..3 taken; tpl-0 in progress. The user's go for the plan and for tpl-0/tpl-1/tpl-3 source work (steps 1, 3, 4 of the proposal).
 Nothing live changes without a separate go.
 
 ## The ask (the user, 2026-11-06)
@@ -21,7 +21,9 @@ Nothing live changes without a separate go.
 | **Isle** (network) | Which devices exist, their agents, addresses, names, certificates, routes, router, installed isle apps, updates | Isle CLI + agents; mirrored in Polari by the `islemesh` module (`/api/islemesh/graph`) | Yes. The isle runs with no Polari backend at all. |
 | **Polari** (logic) | Which Polari instances exist, which modules each runs, which module needs which, which engine serves which capability, which service wires to which, who owns which object, which Polari Apps are composed of what | `topology/` rows (`/api/topology/*`, the `/topology` page) | **Must** be yes. Today it is no (see Gaps). |
 
-The Isle App gets one topology screen with a switch: **Network** (isle layer) and **Polari** (logic layer). Selecting a
+The Isle App's topology screen gets **tabs**: **Isle Topology** (the network layer, the DEFAULT tab) and **Polari Topology**
+(the logic layer). The user, 2026-11-06: "the topologies get multiple tabs, where one is for the Polari and one is for the Isle
+Topology where the Isle Topology is the default". Selecting a
 Polari instance on the Network view opens its Polari view; selecting an engine edge on the Polari view highlights the
 devices it crosses.
 
@@ -100,11 +102,15 @@ no-isle fallback, never blank or stale data.
 - **tpl-3 Isle feed merged** (shared). Isle ingest writes rows marked `source: isle`; fix the core's report failure;
   retire stale device names (isle side, Codex). Each row shows where it came from.
 - **tpl-4 Needs-an-isle states** (Polari UI). The `requiresIsle` flags above, the honest panel text and the fallbacks.
-- **tpl-5 The Isle App switch** (isle side, Codex). The app shows the Network view and embeds the Polari view
-  (`/topology?embed=1&instance=<name>`) for a chosen backend; cross-links as described above.
+- **tpl-5 The Isle App topology tabs** (isle side, Codex). Two tabs: Isle Topology (default, opens first) and Polari
+  Topology, which embeds `/topology?embed=1&instance=<name>` for a chosen backend; cross-links as described above. More
+  tabs may follow (the tab strip is the extension point).
 - **tpl-6 Clean the live rows** (needs the user's go). Remove the July rows from the Electronics backend once tpl-0 ships.
 
 ## Decisions
+
+All three TAKEN 2026-11-06 (the user: "This sounds good"): the recommendations below.
+
 
 - **D-tpl-1 Who aggregates the Polari view on an isle?** Recommendation: no hub; every backend merges its peers (tpl-2), so
   any backend shows the whole Polari layer and the core has no special role. Alternative: the core aggregates.
