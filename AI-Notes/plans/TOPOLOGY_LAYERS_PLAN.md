@@ -1,6 +1,6 @@
 # Topology layers: Polari vs isle (tpl)
 
-**Status:** PLAN, 2026-11-06; D-tpl-1..3 taken; tpl-0 + tpl-1 BUILT (local); next tpl-4. The user's go for the plan and for tpl-0/tpl-1/tpl-3 source work (steps 1, 3, 4 of the proposal).
+**Status:** PLAN, 2026-11-06; D-tpl-1..3 taken; tpl-0 + tpl-1 + tpl-4 BUILT (local); next `pol topology --api`, tpl-2 design. The user's go for the plan and for tpl-0/tpl-1/tpl-3 source work (steps 1, 3, 4 of the proposal).
 Nothing live changes without a separate go.
 
 ## The ask (the user, 2026-11-06)
@@ -108,7 +108,8 @@ no-isle fallback, never blank or stale data.
   peer-token connection kind.
 - **tpl-3 Isle feed merged** (shared). Isle ingest writes rows marked `source: isle`; fix the core's report failure;
   retire stale device names (isle side, Codex). Each row shows where it came from.
-- **tpl-4 Needs-an-isle states** (Polari UI). The `requiresIsle` flags above, the honest panel text and the fallbacks.
+- **tpl-4 Needs-an-isle states** (Polari UI). ✅ BUILT 2026-11-06 (framework a3e58cdd GET /api/topology/isle-needs, selftest 49/49;
+  angular: the /topology panel + `?embed=1`; tsc/ngc clean for these files; not built into an image). The `requiresIsle` flags above, the honest panel text and the fallbacks.
 - **tpl-5 The Isle App topology tabs** (isle side, Codex). Two tabs: Isle Topology (default, opens first) and Polari
   Topology, which embeds `/topology?embed=1&instance=<name>` for a chosen backend; cross-links as described above. More
   tabs may follow (the tab strip is the extension point).
