@@ -1,6 +1,6 @@
 # Topology layers: Polari vs isle (tpl)
 
-**Status:** PLAN, 2026-11-06; D-tpl-1..3 taken; tpl-0 in progress. The user's go for the plan and for tpl-0/tpl-1/tpl-3 source work (steps 1, 3, 4 of the proposal).
+**Status:** PLAN, 2026-11-06; D-tpl-1..3 taken; tpl-0 BUILT (local); next tpl-1. The user's go for the plan and for tpl-0/tpl-1/tpl-3 source work (steps 1, 3, 4 of the proposal).
 Nothing live changes without a separate go.
 
 ## The ask (the user, 2026-11-06)
@@ -20,6 +20,10 @@ Nothing live changes without a separate go.
 |---|---|---|---|
 | **Isle** (network) | Which devices exist, their agents, addresses, names, certificates, routes, router, installed isle apps, updates | Isle CLI + agents; mirrored in Polari by the `islemesh` module (`/api/islemesh/graph`) | Yes. The isle runs with no Polari backend at all. |
 | **Polari** (logic) | Which Polari instances exist, which modules each runs, which module needs which, which engine serves which capability, which service wires to which, who owns which object, which Polari Apps are composed of what | `topology/` rows (`/api/topology/*`, the `/topology` page) | **Must** be yes. Today it is no (see Gaps). |
+
+The Polari side KEEPS ITS OWN `/topology` page, standalone. The user, 2026-11-06: "the Polari side Topology should also
+retain it's own page as well so it is still possible to spin them up via specific docker compose files and them be able to
+work". A compose-only stack (no isle) opens `/topology` directly and it works; the Isle App tab embeds that same page.
 
 The Isle App's topology screen gets **tabs**: **Isle Topology** (the network layer, the DEFAULT tab) and **Polari Topology**
 (the logic layer). The user, 2026-11-06: "the topologies get multiple tabs, where one is for the Polari and one is for the Isle
@@ -87,7 +91,8 @@ no-isle fallback, never blank or stale data.
 
 ## Phases
 
-- **tpl-0 Self-identity + no fiction** (Polari, source). The backend derives its instance name (knob
+- **tpl-0 Self-identity + no fiction** (Polari, source). ✅ BUILT 2026-11-06 (framework c5c7ec21, local): selftest 19/19,
+  topology/islemesh regressions green, fresh isolated boot = self rows only + 6 benches applied, restart idempotent. The backend derives its instance name (knob
   `POLARI_INSTANCE_NAME`, else the deployment name, else the hostname) and upserts its own `InstanceDefinition`,
   `PolariNodeMachine` and one `ModuleAssignment` per running module at boot (idempotent). The July snapshot is seeded only
   when knob `POLARI_TOPOLOGY_SEED=example` (dev tiers keep it); default `none`. On a fresh backend this also applies the
