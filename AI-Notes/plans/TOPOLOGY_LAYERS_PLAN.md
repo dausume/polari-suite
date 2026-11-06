@@ -1,0 +1,119 @@
+# Topology layers: Polari vs isle (tpl)
+
+**Status:** PLAN, 2026-11-06. The user's go for the plan and for tpl-0/tpl-1/tpl-3 source work (steps 1, 3, 4 of the proposal).
+Nothing live changes without a separate go.
+
+## The ask (the user, 2026-11-06)
+
+> Polari topology is supposed to be a real independent topology that shows a deeper layer of topology ... available on the
+> Isle App. So we would be able to switch between the topology focused on the isle/actual networking setup, and the view
+> focused on Polari modules and apps interconnecting and their logic ... able to operate mostly at the polari level without
+> the isle.
+
+> it is fine for the isle and polari to be co-dependent to some extent on some features where it makes sense but we should
+> have clarity that certain information needs an isle to be usable and build that in. We just need a clean plan for where
+> they should be fully separate, and where there is overlap but certain features live primarily on the polari side or isle side.
+
+## Two layers
+
+| Layer | Answers | Lives in | Works without the other? |
+|---|---|---|---|
+| **Isle** (network) | Which devices exist, their agents, addresses, names, certificates, routes, router, installed isle apps, updates | Isle CLI + agents; mirrored in Polari by the `islemesh` module (`/api/islemesh/graph`) | Yes. The isle runs with no Polari backend at all. |
+| **Polari** (logic) | Which Polari instances exist, which modules each runs, which module needs which, which engine serves which capability, which service wires to which, who owns which object, which Polari Apps are composed of what | `topology/` rows (`/api/topology/*`, the `/topology` page) | **Must** be yes. Today it is no (see Gaps). |
+
+The Isle App gets one topology screen with a switch: **Network** (isle layer) and **Polari** (logic layer). Selecting a
+Polari instance on the Network view opens its Polari view; selecting an engine edge on the Polari view highlights the
+devices it crosses.
+
+## Separation map
+
+### Fully Polari (no isle needed, ever)
+- Instances, module assignments, module dependency edges (`InstanceDefinition`, `ModuleAssignment`, `ModuleDependencyEdge`).
+- Object ownership chain (class -> module -> instance -> database).
+- Polari Apps (module compositions, plan-first deploy as rows).
+- Engine resolution ladder: knob -> local binary -> local image -> binding row -> topology provider -> refusal.
+- Service connections between Polari services (`ServiceConnection`) and their generated artifacts.
+- Drift (desired rows vs reported observation), reallocation suggestions, testing over topology.
+- Benches, simulations, everything that consumes the above.
+
+### Fully isle (no Polari needed, ever)
+- Devices, agents, DHCP leases, `.isle` DNS, the CA and certificates, proxy routes, the router, segments.
+- The isle app registry, `isle store install`, `isle update plan/apply`, `isle reconcile`, operation status/retry.
+- Trust distribution (system store, NSS, Firefox policy).
+
+### Overlap: Polari primary (isle feeds or caches)
+| Feature | Authority | The isle's role |
+|---|---|---|
+| Module placement | `ModuleAssignment` rows (`topology/placement_truth.py`, already the rule) | Its registry `modules:` strings are a cache refreshed from `placement_report()` |
+| Engine binding | `EngineProviderBinding` row on each backend | Announces engines it hosts (`/api/islemesh/ingest/engine`); never decides the binding |
+| Resource ledger (consumed vs available) | `topology/device_resources.py` | Agents report device capacity as observations |
+
+### Overlap: isle primary (Polari records)
+| Feature | Authority | Polari's role |
+|---|---|---|
+| Deploying a Polari instance onto a device | `isle polari instance deploy` | Records the `InstanceDefinition` + its observation; never executes on a device itself |
+| Cross-device reachability (names, trusted HTTPS) | isle DNS + CA | Records edges and their health; reports failures as findings |
+| Discovering engines on other devices | isle registry | Binds what the isle announces |
+| Executing topology changes from the app | the Isle App via `pkexec isle ...` | Web views stay show-only (D-tnb, 2026-10-04) |
+
+### Needs an isle (built in as an honest state, not an empty panel)
+These features declare `requiresIsle: true` with a reason; with no isle the UI shows **"Needs an isle: <reason>"** and the
+no-isle fallback, never blank or stale data.
+
+| Feature | Without an isle |
+|---|---|
+| Automatic discovery of other devices and their Polari instances | Peers listed by hand (tpl-2) or `pol topology report` over ssh |
+| Auto-routing to an engine on another device with no URL knob | Set the `*_ENGINES_URL` knob |
+| Trusted HTTPS names for cross-device calls | The user's own TLS / plain dev URLs |
+| Agent-observed device resources | `pol topology observe` over ssh, or "capacity unknown" |
+| Running a placement change from the app | `pol allocate` / manual steps (suggestions only) |
+| The Network view itself | Hidden; the Polari view still works |
+
+## Gaps (found 2026-11-06 on the Electronics backend)
+
+1. **Seeded fiction.** `topology/topology_seed.py` writes the 2026-07-09 dev snapshot (3 machines, 11 instances, 13
+   assignments, 16 connections) into EVERY backend as reality. The Electronics backend shows instances that exist nowhere.
+2. **No self-identity.** The isle's generator never sets `POLARI_INSTANCE_NAME`, so the backend calls itself `local` and
+   has no `InstanceDefinition` for itself; its real modules appear in no assignment row.
+3. **No observer on an isle.** The only correction path is `pol topology report` (dev CLI). The boot observation exists
+   (`record_placement_observation`) but it attaches to `local`, not to a row the page shows.
+4. **Engine bindings are invisible in the topology.** The `board` binding to the board-engines worker is a row, but no
+   dependency edge or connection shows it.
+5. **The isle feed failed.** The core's frontend deploy printed "topology report skipped (api unreachable)".
+6. **Stale isle device.** The core's isle graph still lists a device under an old hostname next to its current name.
+7. **No peering.** Without the isle, a backend cannot learn of any other Polari backend.
+
+## Phases
+
+- **tpl-0 Self-identity + no fiction** (Polari, source). The backend derives its instance name (knob
+  `POLARI_INSTANCE_NAME`, else the deployment name, else the hostname) and upserts its own `InstanceDefinition`,
+  `PolariNodeMachine` and one `ModuleAssignment` per running module at boot (idempotent). The July snapshot is seeded only
+  when knob `POLARI_TOPOLOGY_SEED=example` (dev tiers keep it); default `none`. On a fresh backend this also applies the
+  Bench topology specs (manual fix 13). Selftest: fresh manager -> only self rows; second boot -> no duplicates.
+- **tpl-1 Engines and connections as edges** (Polari, source). Each `EngineProviderBinding` and each configured frontend
+  origin becomes a dependency edge / service connection marked `source: binding` / `source: config`, with live health from
+  the existing ping.
+- **tpl-2 Polari peering without the isle** (Polari; DESIGN FIRST, for the user's review). A backend publishes its
+  self-description at `/api/topology/self`; peers come from a knob list (no isle) or from the isle registry (isle present);
+  each backend merges peers' self-descriptions as rows marked `source: peer:<name>`, with age. Auth: the existing
+  peer-token connection kind.
+- **tpl-3 Isle feed merged** (shared). Isle ingest writes rows marked `source: isle`; fix the core's report failure;
+  retire stale device names (isle side, Codex). Each row shows where it came from.
+- **tpl-4 Needs-an-isle states** (Polari UI). The `requiresIsle` flags above, the honest panel text and the fallbacks.
+- **tpl-5 The Isle App switch** (isle side, Codex). The app shows the Network view and embeds the Polari view
+  (`/topology?embed=1&instance=<name>`) for a chosen backend; cross-links as described above.
+- **tpl-6 Clean the live rows** (needs the user's go). Remove the July rows from the Electronics backend once tpl-0 ships.
+
+## Decisions
+
+- **D-tpl-1 Who aggregates the Polari view on an isle?** Recommendation: no hub; every backend merges its peers (tpl-2), so
+  any backend shows the whole Polari layer and the core has no special role. Alternative: the core aggregates.
+- **D-tpl-2 The July snapshot.** Recommendation: seeded only on dev (`example`), importable anywhere from
+  `topologies/staging-a.topology.yml`.
+- **D-tpl-3 Peering transport.** Recommendation: HTTPS pull of `/api/topology/self` on a timer plus the existing STOMP topic
+  as a change signal; Reticulum later for off-isle peers.
+
+## Ownership
+
+Polari side (Claude): tpl-0, tpl-1, tpl-2, tpl-4, tpl-6. Isle side (Codex): tpl-5, the isle half of tpl-3 (report failure,
+stale devices). The ingest contract in tpl-3 is agreed by both before either edits it.
