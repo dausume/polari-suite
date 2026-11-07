@@ -1,6 +1,6 @@
 # Topology layers: Polari vs isle (tpl)
 
-**Status:** PLAN, 2026-11-06; D-tpl-1..3 taken; tpl-0 + tpl-1 + tpl-4 BUILT (local); next `pol topology --api`, tpl-2 design. The user's go for the plan and for tpl-0/tpl-1/tpl-3 source work (steps 1, 3, 4 of the proposal).
+**Status:** PLAN, 2026-11-06; D-tpl-1..3 taken; tpl-0 + tpl-1 INSTALLED on core (boot3); tpl-4 source-accepted (3ba6b8fc, not built); tpl-6 BUILT as source 2026-11-07 (plan-only live); tpl-2 design written (AI-Notes/designs/TOPOLOGY_PEERING_DESIGN.md, for the user's review); `pol topology --api / --json / isle-needs / example-rows` built (polari-cli 974d14c, 79abde8). The user's go for the plan and for tpl-0/tpl-1/tpl-3 source work (steps 1, 3, 4 of the proposal).
 Nothing live changes without a separate go.
 
 ## The ask (the user, 2026-11-06)
@@ -105,7 +105,8 @@ no-isle fallback, never blank or stale data.
 - **tpl-2 Polari peering without the isle** (Polari; DESIGN FIRST, for the user's review). A backend publishes its
   self-description at `/api/topology/self`; peers come from a knob list (no isle) or from the isle registry (isle present);
   each backend merges peers' self-descriptions as rows marked `source: peer:<name>`, with age. Auth: the existing
-  peer-token connection kind.
+  peer-token connection kind. DESIGN written 2026-11-07: AI-Notes/designs/TOPOLOGY_PEERING_DESIGN.md (reuses polariPeers'
+  agreement handshake + PeerNode rows; decisions D-tpl2-a..c for the user).
 - **tpl-3 Isle feed merged** (shared). Isle ingest writes rows marked `source: isle`; fix the core's report failure;
   retire stale device names (isle side, Codex). Each row shows where it came from.
 - **tpl-4 Needs-an-isle states** (Polari UI). ✅ BUILT 2026-11-06 (framework a3e58cdd GET /api/topology/isle-needs, selftest 49/49;
@@ -114,6 +115,10 @@ no-isle fallback, never blank or stale data.
   Topology, which embeds `/topology?embed=1&instance=<name>` for a chosen backend; cross-links as described above. More
   tabs may follow (the tab strip is the extension point).
 - **tpl-6 Clean the live rows** (needs the user's go). Remove the July rows from the Electronics backend once tpl-0 ships.
+  ✅ BUILT as source 2026-11-07 (framework c74a2442; selftest 41/41; Codex gate 8): GET /api/topology/example-rows (dry-run plan +
+  provenance), POST .../retire {planDigest} (verified backup first, review-bound), .../backups, .../restore; CLI
+  `pol topology example-rows`. Live dry run over the exports: polari-pol retire 49 / keep 0; core retire 48 / keep 6 / move 5.
+  Order: pol member update (tpl-0 rows) -> plan per backend -> the user's go -> retire. Not in any image yet.
 
 ## Decisions
 
