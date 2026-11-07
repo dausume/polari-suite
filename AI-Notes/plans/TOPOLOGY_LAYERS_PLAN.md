@@ -106,7 +106,8 @@ no-isle fallback, never blank or stale data.
   self-description at `/api/topology/self`; peers come from a knob list (no isle) or from the isle registry (isle present);
   each backend merges peers' self-descriptions as rows marked `source: peer:<name>`, with age. Auth: the existing
   peer-token connection kind. DESIGN written 2026-11-07: AI-Notes/designs/TOPOLOGY_PEERING_DESIGN.md (reuses polariPeers'
-  agreement handshake + PeerNode rows; decisions D-tpl2-a..c for the user).
+  agreement handshake + PeerNode rows; decisions D-tpl2-a..c TAKEN 2026-11-07: /self open for now, peers from the agreement AND a
+  configured list/file for pre-made configurations, peer wins for its copies). ✅ BUILT as source (framework df3077ae, 36/36).
 - **tpl-3 Isle feed merged** (shared). Isle ingest writes rows marked `source: isle`; fix the core's report failure;
   retire stale device names (isle side, Codex). Each row shows where it came from.
 - **tpl-4 Needs-an-isle states** (Polari UI). ✅ BUILT 2026-11-06 (framework a3e58cdd GET /api/topology/isle-needs, selftest 49/49;

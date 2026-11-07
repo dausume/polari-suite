@@ -1,6 +1,6 @@
 # tpl-2: Polari backends see each other without an isle (design, for the user's review)
 
-**Status:** DESIGN ONLY, 2026-11-07. No code. Part of AI-Notes/plans/TOPOLOGY_LAYERS_PLAN.md (tpl-2). Builds on decisions
+**Status:** DECIDED 2026-11-07 (the user, see Decisions); BUILT as source 2026-11-07 (framework df3077ae, selftest_peering 36/36; CLI `pol topology self | peers [pull]`). STOMP change signal not built yet (timer + pull door only); /self is open per D-tpl2-a. Part of AI-Notes/plans/TOPOLOGY_LAYERS_PLAN.md (tpl-2). Builds on decisions
 D-tpl-1 (no hub: every backend merges its peers) and D-tpl-3 (HTTPS pull on a timer + the STOMP topic as a change signal),
 both taken 2026-11-06.
 
@@ -43,19 +43,21 @@ and on an isle it depends on the isle feed. The plan's gap 7: "No peering."
 6. **CLI.** `pol topology self [--api URL]` and `pol topology peers [--api URL]` (each peer, its source, its last pull,
    its words). The same doors as the page.
 
-## Decisions for the user
+## Decisions (TAKEN by the user, 2026-11-07)
 
-- **D-tpl2-a: who may read `/api/topology/self`.** Recommendation: only a holder of an agreement token, as with other
-  peer calls, because it lists modules and machines. Alternative: open to anyone who can reach the backend (simpler; the
-  isle network is already private).
-- **D-tpl2-b: a plain URL list for peers without an agreement.** Recommendation: no; the agreement handshake is the one
-  way to name a peer, so nothing is read from a backend that never agreed. Alternative: a knob `POLARI_TOPOLOGY_PEERS`.
-- **D-tpl2-c: when a peer and a local row disagree.** Recommendation as in step 4 (the peer wins for its own instance, a
-  person's local row is kept and reported). Alternative: always keep local.
+- **D-tpl2-a: who may read `/api/topology/self`: OPEN for now.** The user: "alternative for now, we can secure further
+  later." Anyone who can reach the backend may read it; securing it (agreement token) is a later change.
+- **D-tpl2-b: how peers are named: BOTH.** The user: "we need to account for the scenario of loading and rebooting from a
+  pre-made configuration, which may need a list or equivalent, perhaps both?" Peers come from (1) the agreement handshake
+  (`PeerNode` rows) and (2) a configured list that a pre-made configuration ships and that survives a reboot: knob
+  `POLARI_TOPOLOGY_PEERS` (`name=url,...` or bare URLs) and/or a file named by `POLARI_TOPOLOGY_PEERS_FILE` (JSON list of
+  `{name, url}`). Each peer is shown with where it came from (agreed / configured-env / configured-file).
+- **D-tpl2-c: when a peer and a local row disagree: as recommended.** The peer wins for its own copied rows; a row a
+  person (or this backend) wrote under the same name is kept and the conflict is reported.
 
 ## Tests (when built)
 
-Two in-memory backends: A registers B (agreement), A pulls B's self rows, both pages show both instances with the right
+Two in-memory backends: A names B (agreement row, knob or file), A pulls B's self rows, both pages show both instances with the right
 sources; B changes a module, the signal or the timer brings it to A; B goes down, A shows stale (not deleted); B
 retires a module, A retires it at the next pull; a person's local row survives a conflicting peer row, reported; no
 echo (A's copy of B never goes back to B); an unauthorized `/self` read refused per D-tpl2-a; TLS verified, never -k.
