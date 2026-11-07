@@ -119,6 +119,11 @@ no-isle fallback, never blank or stale data.
   provenance), POST .../retire {planDigest} (verified backup first, review-bound), .../backups, .../restore; CLI
   `pol topology example-rows`. Live dry run over the exports: polari-pol retire 49 / keep 0; core retire 48 / keep 6 / move 5.
   Order: pol member update (tpl-0 rows) -> plan per backend -> the user's go -> retire. Not in any image yet.
+  Codex review fixes (framework e657e6ca, selftest_example_retire_durable 58/58): durable first, the first failure stops with
+  retryPlanDigest (memory == database; restart + retry converge); restore keeps rows written since and is an exact inverse;
+  execute doors fail closed (host operator via docker exec / sudo / pkexec, or a Polari admin identity). The user's ruling
+  2026-11-07: un-appliable changes are PLANNED actions the Isle App runs in bulk after one password, with a summary
+  notification; every plan carries plannedAction (the Isle half is Codex's). Staged on econ's cut/topology-20261106.
 
 ## Decisions
 
