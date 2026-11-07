@@ -1,6 +1,6 @@
 # tpl-2: Polari backends see each other without an isle (design, for the user's review)
 
-**Status:** DECIDED 2026-11-07 (the user, see Decisions); BUILT as source 2026-11-07 (framework df3077ae, selftest_peering 36/36; CLI `pol topology self | peers [pull]`). STOMP change signal not built yet (timer + pull door only); /self is open per D-tpl2-a. Part of AI-Notes/plans/TOPOLOGY_LAYERS_PLAN.md (tpl-2). Builds on decisions
+**Status:** DECIDED 2026-11-07 (the user, see Decisions); BUILT as source 2026-11-07 (framework df3077ae, selftest_peering 36/36; CLI `pol topology self | peers [pull]`). Change signal BUILT (framework 395484cb) as digest checks every POLARI_TOPOLOGY_PEER_CHECK_S (15 s) + nudges on own change, instead of a STOMP subscription per peer; /topology labels peer copies and the July rows (angular 6f124c0). /self is open per D-tpl2-a. Part of AI-Notes/plans/TOPOLOGY_LAYERS_PLAN.md (tpl-2). Builds on decisions
 D-tpl-1 (no hub: every backend merges its peers) and D-tpl-3 (HTTPS pull on a timer + the STOMP topic as a change signal),
 both taken 2026-11-06.
 
