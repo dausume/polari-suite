@@ -1,7 +1,7 @@
 # Twin door plan — reaching twin sessions through the agent by name
 
-Status: REVIEWED and answered by the user 2026-11-15 (§7). Both halves are SOURCE-TESTED; econ's half is also packaged.
-Nothing is staged on the core, installed or live. See §9 for the state per slice.
+Status: REVIEWED and answered by the user 2026-11-15 (§7). Econ's half (the worker release and the door) is INSTALLED
+since 2026-11-15T15:31Z; pol's half is SOURCE-TESTED and not released. Nothing is live-verified. See §9 per slice.
 Authors: econ Claude (worker + release half, §4), pol Claude (framework half, §5).
 Date: 2026-11-15. This is the one merged file (econ draft + pol's §5, §5a, D4, D5; merged by econ). The user reviews this one.
 
@@ -206,7 +206,7 @@ States used: source-tested → staged → installed → live-verified. Never mer
 
 | Slice | State | Where |
 |---|---|---|
-| td-0 worker door (econ) | source-tested + packaged on econ (`board-engines 2026.11.15-1`) | polari-rf-node `econ/twin-door`, local |
+| td-0 worker door (econ) | INSTALLED 2026-11-15T15:31Z (`board-engines 2026.11.15-1` + app `twin-board-engines`), see "Install record" | polari-rf-node `econ/twin-door`, local |
 | td-1 capability-driven transport | source-tested | polari-framework `dev-twin-door`, local |
 | td-2 Hub over WebSocket | source-tested | same |
 | td-3 sessions + hosted bridge pass `twin_uart` | source-tested | same, + `prf-bridge-engines` on polari-rf-node `dev-twin-door` |
@@ -246,3 +246,39 @@ Open, for the user and econ (bridge-engines follow-on):
 3. A refused token ends the bridge in words, but the process exit code is probably 0. The worker would show "exited".
 4. Pre-existing: after a gRPC push error the bridge does not re-open its Push stream (a backend restart ends pushes).
 5. Round 88: a domain field in the release manifest and an `islemesh_catalog.py` row for the door (econ's item).
+
+### Install record (2026-11-15, the user's sudo steps, verified read-only by pol)
+
+1. Core: `isle store publish <release.json>` at 14:58Z. Pol's replica of `apt-public-repo` committed it about 15
+   minutes later (timer interval plus the image transfer).
+2. Econ: `isle store install board-engines`. The first run, 51 s after the publish, installed the OLDER release
+   `2026.11.04-1` without saying a newer one was in transit. The second run installed `2026.11.15-1`; the worker's
+   `/capability` now advertises `transports` (ctl and uart, `wss://twin.board-engines.isle/sessions/{id}/...`).
+3. Econ: `isle app deploy twin-board-engines ... --domain twin.board-engines.isle --health-path /health`. The first
+   run stopped at "core DNS publication pending" (cause below). After step 4 the same command passed:
+   "DNS published by core and verified", "Deployment verified ... trusted HTTPS".
+4. Core: `isle dns register twin.board-engines.isle <econ's agent address>`, by hand. This step is NOT in the
+   standard flow and should not be needed (round 88, below).
+
+Proof of "installed" from pol at 15:32Z, certificate verified: `GET /health` 200 (also 200 from the core). A WebSocket
+to `/sessions/00000000/ctl` and to `/uart` upgrades through the agent, and the door closes each with
+`4404 no session 00000000 on this worker`: the door reached its worker and refused by the contract's code.
+A session id is 6 to 32 lowercase hex characters; any other path gets HTTP 404 before the upgrade.
+
+Not proved yet: a real session over the door (ctl or uart). That is the live proof and needs pol's release.
+
+### Round-88 findings from this install
+
+1. No core DNS for an app without a catalog entry. The core's `dns-reconcile.sh` registers only domains found in the
+   catalog's `entries[].instances[]`, and `instances_of()` (`modules/islemesh/islemesh_catalog.py`) matches a reported
+   app to an entry by `^<entry name>(-N)*$`. `twin-board-engines` matches no entry, so its domain was never registered
+   although the registry report was accepted (200). The deploy's own message ("retry the same operation") cannot
+   succeed in that case. Fix candidates: the catalog row + manifest domain field (item 5 above), or the reconcile
+   publishing every accepted registry domain of a known member.
+2. `isle store install` installs the previous release silently while a newer publish has not reached the replica yet.
+   It should say so, or wait, or refuse.
+3. The publish-to-replica time is the timer interval plus the transfer (15 minutes here), not "within 10 minutes".
+4. `dns-reconcile.sh` fetches the catalog with `curl -skf` (unverified TLS). Isle-core's lane.
+5. Unexplained: during the first install (14:59Z) econ's calls to `api.polari.isle` (the CORE's backend) timed out;
+   the same name answered in 0.3 s from econ at 15:17Z.
+6. `isle dns help` does not list `register` / `unregister`.
