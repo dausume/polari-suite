@@ -1,7 +1,9 @@
 # Twin door plan — reaching twin sessions through the agent by name
 
 Status: REVIEWED and answered by the user 2026-11-15 (§7). Econ's half (the worker release and the door) is INSTALLED
-since 2026-11-15T15:31Z; pol's half is SOURCE-TESTED and not released. Nothing is live-verified. See §9 per slice.
+since 2026-11-15T15:31Z and econ reports it live-verified from econ and from the core (a real session, 13/13 each).
+Pol's half is SOURCE-TESTED; its release candidate is cut and handed to econ to build (§9 "Release candidate").
+Nothing is live-verified from pol or from the Sim bench. See §9 per slice.
 Authors: econ Claude (worker + release half, §4), pol Claude (framework half, §5).
 Date: 2026-11-15. This is the one merged file (econ draft + pol's §5, §5a, D4, D5; merged by econ). The user reviews this one.
 
@@ -216,7 +218,7 @@ States used: source-tested → staged → installed → live-verified. Never mer
 | td-5 Sim bench words (reached_by + transport_why on the panel; the action's answer above the table) | source-tested | polari-framework + polari-platform-angular `dev-twin-door`, local |
 | td-6 live half of the session selftest over the door | not started | - |
 
-Selftests (offline): `board_twin_transport` 19/19, `board_twin_session` 28/28, `grpcbridge_hosted` 65/65 (2 live halves
+Selftests (offline): `board_twin_transport` 20/20, `board_twin_session` 28/28, `grpcbridge_hosted` 65/65 (2 live halves
 skipped), `javabridge` 51/51, `board_bench` 45/46 (the one failure, 5 board models expected, is on dev before this
 branch), cmod demo-bundle parts 24/24 (the generated bridge jar still builds), frontend `class-rows-table` spec 9/9.
 
@@ -246,6 +248,34 @@ Open, for the user and econ (bridge-engines follow-on):
 3. A refused token ends the bridge in words, but the process exit code is probably 0. The worker would show "exited".
 4. Pre-existing: after a gRPC push error the bridge does not re-open its Push stream (a backend restart ends pushes).
 5. Round 88: a domain field in the release manifest and an `islemesh_catalog.py` row for the door (econ's item).
+
+### Two faults found after the install (2026-11-15, both fixed at source, source-tested)
+
+1. Handshake timeouts over TLS 1.3 with the threaded WebSocket client. Econ reported it; pol reproduced it with
+   `websockets.sync.client` 13.1 through the isle agent: 2 of 40 opens from the host and 2 of 30 inside the released
+   backend image ended "timed out during handshake"; 0 over TLS 1.2; 0 with the asyncio client. The threaded client
+   reads on one thread while the caller writes on another. Fix (pol, `board/custom/twin_ctl_hub.py`): the door channel
+   owns one asyncio loop on a thread of its own and every read and write happens there. TLS is not capped to 1.2 and
+   nothing is retried. 60 opens of the installed door afterwards: 0 failures. The transport selftest gained a check
+   (30 wss opens in a row over TLS 1.3). Econ's own proof client was capped at TLS 1.2; that cap is not in pol's code.
+2. The generated Java bridge dialled the door once more while stopping. `BindingRouter` pumps each port on its own
+   thread; when the bridge closed its port the pump called the ended stream "lost" and reopened it (about 3 runs in
+   10 of the hosted selftest: a third connection, or a 4400 at the door). Fix (`grpcbridge/custom/
+   java_bridge_templates.py`): `SerialCdcPort.close()` marks the port closing; `next()` and the reopen loop end
+   instead of dialling. 14 runs of the JVM door checks in a row clean afterwards.
+
+### Release candidate (pol's half, 2026-11-15)
+
+- Branch `release/87-twin-door` in polari-framework, local: `release/87-candidate` (34ffa8f3, what the installed
+  backend `2026.11.12-release87r3-candidate` was built from) merged with `dev-twin-door`. Head 359afd45, tree
+  8da252b0. 25 files differ from the installed backend; `requirements.txt` is unchanged.
+- Bundle `pol-framework-release87-twin-door-1.bundle` (sha256 d4ea2412...119ef4e) placed in the core's collab
+  directory. Econ was asked at about 16:00Z to build the backend image from it, run the in-image selftest sweep as a delta
+  against r3 and report the image identities. State: source-tested, NOT staged.
+- Scope proposed: backend only. The frontend td-5 commit sits on a branch 7 ahead / 8 behind the released frontend
+  source and rides the next frontend cut; the live ctl proof does not need it.
+- Then: pol writes `runtime-source.json` and the ordered `isle` verbs; the user runs them; the live proof is a twin
+  session started from the Sim bench on pol's backend, driven over ctl through the door (pin names like `PB5`).
 
 ### Install record (2026-11-15, the user's sudo steps, verified read-only by pol)
 
