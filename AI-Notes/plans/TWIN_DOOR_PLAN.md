@@ -271,11 +271,27 @@ Open, for the user and econ (bridge-engines follow-on):
   8da252b0. 25 files differ from the installed backend; `requirements.txt` is unchanged.
 - Bundle `pol-framework-release87-twin-door-1.bundle` (sha256 d4ea2412...119ef4e) placed in the core's collab
   directory. Econ was asked at about 16:00Z to build the backend image from it, run the in-image selftest sweep as a delta
-  against r3 and report the image identities. State: source-tested, NOT staged.
-- Scope proposed: backend only. The frontend td-5 commit sits on a branch 7 ahead / 8 behind the released frontend
+  against r3 and report the image identities.
+- Econ built it: `polari-framework/prf-backend:2026.11.15-release87td1-candidate`, config digest
+  `sha256:0d3c1a71...9702ed70`, manifest digest `sha256:03a59a35...50466a12`; archive sha256 `9ab23598...11984e1`,
+  1132784128 bytes, in the core's collab directory `release87td-artifacts/` (identities checked there by pol). It is
+  the r3 image plus one layer (33 of r3's layers are shared).
+- Econ's in-image sweep: 368 selftests, 335 exit 0, 33 non-zero, every non-zero identical to the r3 baseline. Six
+  result lines differ, none a regression (transport is new, 17/17: its three TLS checks skip because the image has
+  no `openssl` binary). In the image the asyncio client opened the installed door 60 times with 0 failures; the old
+  threaded client failed 9 of 60 there. The Java redial fix is NOT exercised in the image (no JDK); it rests on
+  pol's source run.
+- `runtime-source.json` (the release-87 manifest with only the `prf-isle-backend` entry changed) is beside the
+  archive on the core (sha256 `e020ad61...d884b25`). State at 17:40Z: source-tested and STAGED. Not published,
+  not installed. The published release is still `ec81fc06...8e1cc2` (backend r3).
+- Scope: backend only. The frontend td-5 commit sits on a branch 7 ahead / 8 behind the released frontend
   source and rides the next frontend cut; the live ctl proof does not need it.
-- Then: pol writes `runtime-source.json` and the ordered `isle` verbs; the user runs them; the live proof is a twin
-  session started from the Sim bench on pol's backend, driven over ctl through the door (pin names like `PB5`).
+- The user's steps (their sudo, `isle` verbs only): core `isle update publish-runtime`, `isle apt-repo publish`,
+  `isle update plan`, `isle update apply <id>`; then the same plan/apply on pol; then
+  `isle polari module add hal --to polari-pol` (finding 7 below). Rollback: publish the release-87 manifest kept
+  in the core's `release87-artifacts/` and apply that id.
+- The live proof is a twin session started from the Sim bench on pol's backend, driven over ctl through the door
+  (pin names like `PB5`).
 
 ### Install record (2026-11-15, the user's sudo steps, verified read-only by pol)
 
@@ -312,3 +328,10 @@ Not proved yet: a real session over the door (ctl or uart). That is the live pro
 5. Unexplained: during the first install (14:59Z) econ's calls to `api.polari.isle` (the CORE's backend) timed out;
    the same name answered in 0.3 s from econ at 15:17Z.
 6. `isle dns help` does not list `register` / `unregister`.
+7. `isle polari module add <m> --to <instance>` rewrites the compose `POLARI_MODULES` and the registry note but not
+   the instance's `deployment.json`. An update apply replays `polari instance deploy` from `deployment.json`, so a
+   module added that way (here `hal` on `polari-pol`) is most likely dropped by the next update and has to be added
+   again. Read from the installed CLI 0.1.207 and confirmed by econ from the CLI source; not yet observed live.
+8. A runtime-only cut still needs `isle apt-repo publish --from <a deb directory>` to produce the release id, and
+   the core's publish reaches the members only after pol's `apt-public-repo` replica has synced (finding 3). An
+   `isle update plan` run before that shows the previous release.
