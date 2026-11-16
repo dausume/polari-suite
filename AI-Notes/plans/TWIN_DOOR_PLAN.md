@@ -341,8 +341,13 @@ LIVE-VERIFIED from pol at 01:08Z, certificate verified, against the installed ba
 
 Not proved: the uart path (the hosted Java bridge through the door; bridge-engines is not an isle app yet, the tracked
 follow-on), the Sim bench screens driving the same calls (the frontend is unchanged, td-5 rides the next frontend
-cut), and the Java redial fix in a released image. Seen and not looked into: in the event stream `PD2` reads 1 again
-about 16 000 cycles (1 ms) after each press, before any release is sent.
+cut), and the Java redial fix in a released image. Seen in the event stream: `PD2` reads 1 again
+about 16 000 cycles (1 ms) after each press, before any release is sent. Econ's finding (reproduced by econ on the
+installed worker `2026.11.15-1`, not verified by pol): the twin's `set` raised the pin once, and simavr recomputes a
+pulled-up input to 1 at the firmware's next PORTx/DDRx write, so a set level did not stand. Econ's fix registers the
+level with the port as an external drive (a set level stands until the next set of that pin); source-tested on econ,
+not committed, not released. It needs a new board-engines release (the user's publish/install). No backend change.
+Open for the user: a true pin release (`{"release":"PD2"}`, back to pull-up/floating) as a later contract slice.
 
 ### Round-88 findings from this install
 
