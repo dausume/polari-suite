@@ -368,7 +368,12 @@ Open for the user: a true pin release (`{"release":"PD2"}`, back to pull-up/floa
   256, a bouncing press is ~14 entries) was never pushed, so it is in neither `origin/dev-electronics` nor af4771f.
   pol's rf-node merge (ac959cf = dev-twin-door + af4771f) holds it; bundles for rf-node, framework and frontend are
   staged on the core (`~/collab/twin-door-merge-20261115-pol/`). Recommendation sent to econ: rebuild -2 from that
-  tree before publishing. Open until econ answers and the user decides.
+  tree before publishing. Econ rebuilt it from ac959cf (2026-11-16T01:5xZ): config `sha256:dbbf80c8...393a9503`,
+  manifest `sha256:8cd5ef72...673ab3cbc`, tar sha256 `742600ee...4f67d027`; 17/17 checksums and the source
+  manifest read back by pol on the core. Econ's tests on this build: door selftest 29/29 and hold selftest 8/8 at
+  build, 11/11 real-twin and 6/6 hold through the door between scratch containers, 256 `--pin-at` accepted and
+  257 refused. Econ also found 2026.11.04-1 had the limit at 32, so 256 was never in a released image.
+  State: source-tested, staged on the core; NOT published, NOT installed, NOT live-verified.
 - Behaviour change with the hold: `--pin-at` and `--wire` levels stand too, so expected numbers recorded with the
   old bounce may move. pol's part of the proof after install: the PD2 hold through the door, then the board, cmod
   and firmwarefaults selftests from the installed backend against the new worker.
