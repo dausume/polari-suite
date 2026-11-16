@@ -356,6 +356,24 @@ level with the port as an external drive (a set level stands until the next set 
 not committed, not released. It needs a new board-engines release (the user's publish/install). No backend change.
 Open for the user: a true pin release (`{"release":"PD2"}`, back to pull-up/floating) as a later contract slice.
 
+### Worker release 2026.11.15-2 (econ's, prepared; not published, not installed)
+
+- Econ committed the hold fix and the door log, merged `econ/twin-door` into rf-node `dev-electronics` (af4771f) and
+  staged a packet on the core (`~/collab/electronics-worker-20261115-2/`, 15/15 checksums read back by pol).
+- Regression in the INSTALLED worker `2026.11.15-1` (econ's finding, confirmed by pol from the worker's own usage
+  text over verified TLS): its twin lacks `--masked-windows`, watch-change events, `--adc-at` and the `ret@` form of
+  `--fn-cycles`, because its branch was cut from an older base. The backend's cycle_measure, cmod budget and node_run
+  use them. The -2 packet puts them back. pol has not run those paths against either worker.
+- Found by pol while merging: the -2 image as built still has `MAX_PINAT` / `MAX_ADCAT` 32. pol's 44fcb33 (bss-11,
+  256, a bouncing press is ~14 entries) was never pushed, so it is in neither `origin/dev-electronics` nor af4771f.
+  pol's rf-node merge (ac959cf = dev-twin-door + af4771f) holds it; bundles for rf-node, framework and frontend are
+  staged on the core (`~/collab/twin-door-merge-20261115-pol/`). Recommendation sent to econ: rebuild -2 from that
+  tree before publishing. Open until econ answers and the user decides.
+- Behaviour change with the hold: `--pin-at` and `--wire` levels stand too, so expected numbers recorded with the
+  old bounce may move. pol's part of the proof after install: the PD2 hold through the door, then the board, cmod
+  and firmwarefaults selftests from the installed backend against the new worker.
+- Not done: the superproject pointer and any push (the user's go on pol's side).
+
 ### Round-88 findings from this install
 
 1. No core DNS for an app without a catalog entry. The core's `dns-reconcile.sh` registers only domains found in the
