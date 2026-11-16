@@ -2,8 +2,10 @@
 
 Status: REVIEWED and answered by the user 2026-11-15 (§7). Econ's half (the worker release and the door) is INSTALLED
 since 2026-11-15T15:31Z and econ reports it live-verified from econ and from the core (a real session, 13/13 each).
-Pol's half is SOURCE-TESTED; its release candidate is cut and handed to econ to build (§9 "Release candidate").
-Nothing is live-verified from pol or from the Sim bench. See §9 per slice.
+Pol's half (backend `2026.11.15-release87td1-candidate`, release id `05834476...6ee2eded`) is INSTALLED on the core and
+on pol since 2026-11-16T00:2xZ, and the control path is LIVE-VERIFIED from pol's installed backend through the door
+(§9 "Install record and live proof"). Not proved: the uart path (bridge-engines follow-on) and the Sim bench screens.
+Owed: `hal` back on pol's instance, econ's member update. See §9 per slice.
 Authors: econ Claude (worker + release half, §4), pol Claude (framework half, §5).
 Date: 2026-11-15. This is the one merged file (econ draft + pol's §5, §5a, D4, D5; merged by econ). The user reviews this one.
 
@@ -313,6 +315,35 @@ A session id is 6 to 32 lowercase hex characters; any other path gets HTTP 404 b
 
 Not proved yet: a real session over the door (ctl or uart). That is the live proof and needs pol's release.
 
+### Install record and live proof, pol's half (2026-11-15 evening local, the user's sudo steps)
+
+1. Core, 23:3xZ: `isle update publish-runtime <runtime-source.json>`, then `isle apt-repo publish --from <the 87 debs>`
+   (published 23:52Z). Pol's `apt-public-repo` replica committed it at 00:04Z. Release id
+   `0583447672cabcfecfdc182edf3aced2fcdbc6890811966998a3a28a6ee2eded`: backend td1, everything else as in 87.
+2. Core, 00:11Z: `isle update apply <id>`. The backend came up on td1, then the operation failed at `provider-dns`
+   (finding 9). `isle operation retry <operation>` at 00:17Z succeeded. INSTALLED on the core.
+3. Pol, 00:19Z: `isle update apply <id>` succeeded in one run. `prf-polari-pol-backend` runs config digest
+   `0d3c1a71...`. INSTALLED on pol. Full boot took 248 s (15 modules).
+4. As predicted (finding 7) the apply dropped `hal` from pol's instance: `POLARI_MODULES` no longer lists it and
+   `/api/hal/socs` went from 200 to 404. Owed: `isle polari module add hal --to polari-pol` (the user's sudo).
+5. Econ's member update to the same release id is still owed (not needed for the proof).
+
+LIVE-VERIFIED from pol at 01:08Z, certificate verified, against the installed backend (`api.polari-pol.isle`):
+
+- `POST /api/board/twins` (`uno-light`) answers 201 in 0.9 s (it was the 502). The session row reads transport
+  `door`, "read from the worker's /capability", `ctl_url wss://twin.board-engines.isle/sessions/<id>/ctl`.
+- Control out: `watch`, then `set PD2` 0 / 1 / 0, each acknowledged by the twin with its own cycle count
+  (134 M, 151 M, 168 M cycles one second apart: the AVR's 16 MHz in real time).
+- Control back: the events stream (`/events`, SSE) delivers the twin's pin edges through the same door channel. Each
+  press shows `PD2` falling and the firmware answering on `PD6` (1 after the first press, 0 after the second).
+- A wrong pin (`PX9`) is refused in the twin's words ("PX9 is not a pin of atmega328p", HTTP 409) and recorded as a
+  failed interaction. `stop` ends the session ("stopped by pol-live-proof"). Two sessions were run and stopped.
+
+Not proved: the uart path (the hosted Java bridge through the door; bridge-engines is not an isle app yet, the tracked
+follow-on), the Sim bench screens driving the same calls (the frontend is unchanged, td-5 rides the next frontend
+cut), and the Java redial fix in a released image. Seen and not looked into: in the event stream `PD2` reads 1 again
+about 16 000 cycles (1 ms) after each press, before any release is sent.
+
 ### Round-88 findings from this install
 
 1. No core DNS for an app without a catalog entry. The core's `dns-reconcile.sh` registers only domains found in the
@@ -335,3 +366,9 @@ Not proved yet: a real session over the door (ctl or uart). That is the live pro
 8. A runtime-only cut still needs `isle apt-repo publish --from <a deb directory>` to produce the release id, and
    the core's publish reaches the members only after pol's `apt-public-repo` replica has synced (finding 3). An
    `isle update plan` run before that shows the previous release.
+9. The core's update apply races its own backend's two-phase boot. Release `05834476...6ee2eded`, operation
+   `4427b2bb...`, 2026-11-16: the new backend container was up and the update went on to the provider step for the
+   core's `electronics` frontend instance; its registry report (`POST /api/islemesh/ingest/registry`) got 503 at
+   00:14:51.4Z and the `islemesh` module came online at 00:14:52.4Z. The operation failed at stage `provider-dns`,
+   retryable. The readiness gate should wait for `/api/modules/status` (islemesh online), or the report should retry
+   on 503. Nothing in the release touches `islemesh`; nginx only printed deprecation warnings (its test passed).
