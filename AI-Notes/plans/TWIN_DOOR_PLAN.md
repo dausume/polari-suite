@@ -5,7 +5,8 @@ since 2026-11-15T15:31Z and econ reports it live-verified from econ and from the
 Pol's half (backend `2026.11.15-release87td1-candidate`, release id `05834476...6ee2eded`) is INSTALLED on the core and
 on pol since 2026-11-16T00:2xZ, and the control path is LIVE-VERIFIED from pol's installed backend through the door
 (§9 "Install record and live proof"). Not proved: the uart path (bridge-engines follow-on) and the Sim bench screens.
-Owed: `hal` back on pol's instance, econ's member update. See §9 per slice.
+Core, pol and econ are all on that release id since 2026-11-16T01:24Z; `hal` is back on pol's instance (01:20Z).
+See §9 per slice.
 Authors: econ Claude (worker + release half, §4), pol Claude (framework half, §5).
 Date: 2026-11-15. This is the one merged file (econ draft + pol's §5, §5a, D4, D5; merged by econ). The user reviews this one.
 
@@ -326,7 +327,13 @@ Not proved yet: a real session over the door (ctl or uart). That is the live pro
    `0d3c1a71...`. INSTALLED on pol. Full boot took 248 s (15 modules).
 4. As predicted (finding 7) the apply dropped `hal` from pol's instance: `POLARI_MODULES` no longer lists it and
    `/api/hal/socs` went from 200 to 404. Owed: `isle polari module add hal --to polari-pol` (the user's sudo).
-5. Econ's member update to the same release id is still owed (not needed for the proof).
+5. `hal` back on pol: the user ran `sudo isle polari module add hal --to polari-pol`; 16/16 modules online at
+   01:20Z, `/api/hal/socs` 200, a twin still starts through the door after the bounce. `deployment.json` still
+   lacks `hal`, so the next apply on pol drops it again (finding 7).
+6. Econ's member update: the user ran the apply on econ-core, operation `63fa3b20265549c2a168e62c4506dc9e`
+   succeeded in one attempt (01:24:45Z to 01:24:59Z, a near no-op: no Polari instance there, debs and agent
+   already at the release's versions). Read back by pol: operation state, plan id, identity "consistent",
+   door health 200 over verified TLS.
 
 LIVE-VERIFIED from pol at 01:08Z, certificate verified, against the installed backend (`api.polari-pol.isle`):
 
