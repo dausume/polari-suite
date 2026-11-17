@@ -377,6 +377,28 @@ Open for the user: a true pin release (`{"release":"PD2"}`, back to pull-up/floa
 - Behaviour change with the hold: `--pin-at` and `--wire` levels stand too, so expected numbers recorded with the
   old bounce may move. pol's part of the proof after install: the PD2 hold through the door, then the board, cmod
   and firmwarefaults selftests from the installed backend against the new worker.
+- INSTALLED 2026-11-16: the user published on the core (02:16Z) and installed on econ. The first install (02:18Z)
+  ran 3 minutes before pol's replica carried the publish and silently reloaded `-1` (round-88 item 2, with
+  timestamps); the rerun at 02:26Z loaded `-2`. Worker and door both on image `8cd5ef72b66d`.
+- LIVE-VERIFIED, the hold, from pol's installed backend through the door (02:27:40Z, verified TLS): session
+  `18123022e1ac`, press / 3 s / release, twice. PD2 0 @27236616, PD6 1 @27378807, PD2 1 @76244282 (the release),
+  PD2 0 @109748296, PD6 0 @109748705, PD2 1 @158800829: no PD2=1 edge between a press and its release. Econ matched
+  the session in the door's new log (open 02:27:40Z, close code 4410 after 11.9 s) and proved the same from econ by
+  name (session `5366fe32b2f6`, 6/6). The worker's usage text read from pol lists the four put-back flags.
+- The 28 board / cmod / firmwarefaults selftests in pol's installed backend with `BOARD_ENGINES_URL` on the worker
+  did NOT prove the worker, and no failure is the worker's:
+  - 21 exit 0, but the twin checks in them SKIP ("no simavr twin here - knob"): `light_twin.engine_ready`,
+    `cycle_measure.measure`, `button_clock_acceptance`, `twin.py` and the C3 twins accept only a twin LOCAL to the
+    backend (local binary or local image), by the 2026-10-07 proof-push rule. On an isle member whose worker is on
+    another machine these one-shot twin runs refuse; only hosted twin sessions (the door) reach the worker.
+  - 4 fail at their first check for the same reason (cmod node_run, command_edge, light_topology, confirmations:
+    0/1, as in econ's no-network sweep).
+  - board_selftest 1016/1019: two ins-1 flashing checks (no local avrdude) and one td-2 fake-door check where the
+    "unknown session" refusal arrived as a 5 s timeout; the same selftest alone passed 17/17 three times after
+    (a timing flake under load, for td-6). cmod_fsc 135/143 as in econ's sweep. cmod_selftest hit the 20 min limit
+    with 3 failures (the twin prove gate disagreeing with the runner once the knob is set; a demo-bundle README hash).
+  - NOT proved: node_run, cycle_measure and scenario runs through the remote worker's put-back flags and the 256
+    limit; expected numbers under the held `--pin-at`. Nothing on a member runs them against a remote worker today.
 - Not done: the superproject pointer and any push (the user's go on pol's side).
 
 ### Round-88 findings from this install
