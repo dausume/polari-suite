@@ -76,3 +76,20 @@ user's rulings, and the next round. Report states in the four words: source-test
   the approval and wait on it until the limit. Needs a verb to retire a device, or "*" limited to recently seen ones.
 - Round-88 items still open: the twin door as a store app with a catalog row; the core-only denylist.
 - Backend: one-shot twin runs accept only a twin local to the backend (TWIN_DOOR_PLAN, worker 15-2 section).
+
+### E. Operating system overwrite - a separate kind of update (the user's ruling, 2026-11-18) - PLAN, nothing built
+Ruling: a full OS overwrite must be offerable as an update, but entirely separate from apt updates, because it goes
+by different safety standards and steps. Proposed shape, for review:
+- Three things that never share a channel:
+  1. Isle packages: the isle apt source carries isle-* and polari-* packages only. Routine, by release-run packet.
+  2. Offline dependency set: the Ubuntu packages the offline installer needs, kept per Ubuntu release, read only by
+     that installer from files. Never an apt source on a member.
+  3. OS overwrite: its own verbs, its own store location, its own approval. No apt source, and never a side effect
+     of a package install, an `update-apply` step or a store install.
+- Proposed safety steps for an OS overwrite (each a verb, checked before anything is written): the approval names
+  the device and the target release; the device's current release and hardware are checked against what the image
+  was built for; a backup of the device's isle state exists and was verified; one device at a time, the core never
+  together with a member; the device proves itself after the restart before the run reports done; the way back is
+  stated before the start.
+- Related, both plan-only: the Polari ISO arc; uninstall hands back a working Ubuntu.
+
