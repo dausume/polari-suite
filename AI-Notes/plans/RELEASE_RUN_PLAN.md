@@ -91,5 +91,16 @@ by different safety standards and steps. Proposed shape, for review:
   was built for; a backup of the device's isle state exists and was verified; one device at a time, the core never
   together with a member; the device proves itself after the restart before the run reports done; the way back is
   stated before the start.
-- Related, both plan-only: the Polari ISO arc; uninstall hands back a working Ubuntu.
+- The user, 2026-11-18: the OS overwrite uses the same standard approach as the ISO work (Ubuntu with KDE Plasma),
+  and compatibility must be ensured. So section E builds on POLARI_ISO_PLAN.md, it does not start a second method:
+  - Exists (iso-1, 2026-09-15): `pol iso` verbs, the `iso` backend module, the Ubuntu Server installer with an
+    unattended autoinstall and the Plasma desktop as packages (Kubuntu's own installer cannot be scripted), hardware
+    compatibility derived from the target kernel's driver table against a device probe, two full installs proven in
+    a VM guest. Base decided: 26.04.
+  - Missing for an overwrite of a machine that is already in the isle: (1) software compatibility - the isle's
+    packages, offline dependency set and images built and checked for the target release; (2) carrying the device's
+    isle identity, datasets and app data across the wipe (save, verify, overwrite, restore); (3) delivery without a
+    stick (network boot was decided, not built); (4) a real-hardware install, with docker and the isle CLI on the
+    image (both were absent in the VM proof).
+- Related: uninstall hands back a working Ubuntu (plan only).
 
