@@ -61,6 +61,17 @@ user's rulings, and the next round. Report states in the four words: source-test
 - `isle hotfix storage-units` then keeps only the two one-off actions (the symlink, the hand drop-in).
 
 ### D. Findings to fold in
+- FIRST, 2026-11-18: the isle package source can replace a member's operating system libraries. The repository index
+  holds 123 isle/polari packages and 1,135 Ubuntu 24.04 packages (the offline bundle's dependencies: libc6, systemd,
+  apt, dpkg, docker among them), and the member source line gives it the same priority as Ubuntu's own archive. On
+  econ (Ubuntu 22.04) a plain `apt install blender` therefore took 24.04 libraries, upgraded libc6 and removed the
+  desktop (2026-11-17 20:22 local; the run never finished). Codex's recovery put the 22.04 packages back and blocked
+  the source with a pin at -1; three libraries stayed missing on disk (libatk-bridge2.0-0, libatspi2.0-0, libasound2
+  were registered as installed without their files), so the login screen still failed. The core runs 24.04 and pol
+  has no isle source line, so neither is exposed today. Owed: (1) the CLI package ships a pin so a member accepts only
+  isle-* and polari-* packages from the isle source; (2) Ubuntu packages leave the main index for a per-release
+  offline index used only by the offline installer; (3) a check that compares a member's Ubuntu release with the
+  release the offline packages were built for.
 - The core's device list holds a stale member (last seen 2026-11-06). A packet addressed to "*" would sign it into
   the approval and wait on it until the limit. Needs a verb to retire a device, or "*" limited to recently seen ones.
 - Round-88 items still open: the twin door as a store app with a catalog row; the core-only denylist.
