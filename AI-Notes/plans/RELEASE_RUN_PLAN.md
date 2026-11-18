@@ -70,22 +70,9 @@ The sections below keep their letters; this list is the order of work.
 - `isle storage units check|apply --dataset <name>`: compare the units on the device with what the CLI renders,
   rewrite, prove the sync starts. Run after every `isle update apply`; a release-run step kind.
 - `isle hotfix storage-units` then keeps only the two one-off actions (the symlink, the hand drop-in).
-- Roles on partitions (the user, 2026-11-18): partitioning and the assignment of a specific purpose stay central.
-  1. A role is assigned to a partition. A partition may be a whole storage device.
-  2. One role may be split across several partitions, on one device or on several.
-  3. Roles are the ones the user described: where the blob store puts files, the package store for distribution,
-     images for distribution, git, and so on.
-  So the record is: a partition carries one role; a role owns one or more partitions. The earlier idea of folder
-  quotas on one shared filesystem in place of partitions is withdrawn as the main mechanism.
-- Proposed, not ruled (pol): how a role uses several partitions. Each dataset or app store lives whole on ONE
-  partition of its role, and the plan says which; an app that spreads over several folders by itself (the blob
-  store) is given all of them. No pooling of partitions into one filesystem, so losing a disk loses only what the
-  plan placed on it. Repartitioning a disk that holds data = move its datasets to another partition of the role
-  with the existing migrate and cutover verbs, then partition the empty disk. Nothing is shrunk in place.
-- Econ's draft (`STORAGE-ROLES-PROPOSAL-20261117.md` in the hand-over folder on the core; device, volume, role,
-  slot) fits ruling 1; it has to change from "one volume, one role, one place" to a role that owns several
-  partitions. Still open and the user's to decide: where backups live in that draft (it moves them off the
-  removable SSD), and whether the old internal disk may hold primary copies.
+- Roles on partitions (the user, 2026-11-18): a role is assigned to a partition, a partition may be a whole
+  device, and one role may be split across several partitions. The full storage design now lives in
+  `STORAGE_ROLES_PLAN.md` (revamped the same day); this section keeps only the two verbs above.
 
 ### D. Findings to fold in
 - FIRST, 2026-11-18: the isle package source can replace a member's operating system libraries. The repository index
