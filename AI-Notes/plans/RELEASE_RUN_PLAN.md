@@ -45,6 +45,42 @@ user's rulings, and the next round. Report states in the four words: source-test
 
 The sections below keep their letters; this list is the order of work.
 
+## Proof packet 2 - PLAN for the user's review (2026-11-18). Nothing staged, nothing built as a package.
+
+Purpose: prove what run 1 did not, with a packet that is also real work (CLI release 89).
+
+| Part of the packet | What it carries | What it proves |
+|---|---|---|
+| `publish` kind `debs` | the CLI package of release 89 | publish-debs, the release id, wait-until-served on pol's replica |
+| step `update-apply` `published`, on all three devices | CLI 89 installed by the run itself | update-apply on the core and on both members |
+| `publish` kind `catalog` + step `store-install` | one store app at a new version | catalog publication, store-install with the manifest and image checks |
+| step `module-add` | one module not yet on one instance | module-add |
+| `verify` | `https://apt.isle/updates` names the id; the app's health URL | the verify list after real changes |
+
+CLI release 89 = econ's 6ec5b78 (role refused before the sudo demand; "*" = devices heard from within 24 h) plus
+the apt pin (section D, item 1; source-tested, see there). After the run, on each device: `isle apt-repo pin check`
+answers "in place", and `isle release run` typed on a member without sudo names the core.
+
+Resume, in two parts:
+- Interrupted run: the user stops the command on the core during the wait for the replica and types the same
+  command again. Expected: the publication is skipped as done, the wait continues, the run ends "done".
+- Failed step: needs a fault that a second run can pass, without breaking anything. Proposed: a registered
+  hot fix `proof-fail-once` (fails the first time on a device, passes the second, writes only its own marker),
+  as one step on one member. Not built; it is runner code (econ's lane).
+
+Open before the packet can be written:
+1. Who builds the CLI 89 package. Releases 86 to 88 were built by econ; econ's Claude session is not reachable
+   from pol (2026-11-18). Source for 89 is on pol only (branch `pol/apt-separation`, on no remote).
+2. Which store app gets the new catalog version. Recommended: `board-engines` on econ (econ's example packet
+   already describes release 2026.11.15-2 with manifest and image digest), or the twin door as a store app (still
+   owed from round 88). Not the demo app `whoami`: its catalog entry names an outside image by a moving tag.
+3. Which module on which instance. Checked 2026-11-18: pol's instance records 15 modules and `hal` is not among
+   them, so `hal` on `polari-pol` is a real candidate. Still to check: that the released backend image carries
+   `hal` (the hal work is partly not on dev).
+4. `proof-fail-once`: build it, or prove the failed step later when a real one happens.
+
+The user's part stays one command on the core: `sudo isle release run <packet>`.
+
 ## Next round (one packet, not one release per item) - PLAN, nothing built, for the user's review
 
 ### A. Start setting (econ's runner; pol's backend for the intake)
@@ -86,6 +122,27 @@ The sections below keep their letters; this list is the order of work.
   isle-* and polari-* packages from the isle source; (2) Ubuntu packages leave the main index for a per-release
   offline index used only by the offline installer; (3) a check that compares a member's Ubuntu release with the
   release the offline packages were built for.
+  - Item (1), SOURCE-TESTED 2026-11-18 (Isle-Mesh branch `pol/apt-separation`, commit 01debe6, on pol only, not
+    built as a package, not installed anywhere): the pin file `isle-mesh.pref` (isle-* and polari-* at 500,
+    everything else from origin isle-mesh at -1); `isle apt-repo enable` writes it before the source line; new verb
+    `isle apt-repo pin check|apply`; `isle apt-repo status` reports source line and pin; the CLI package writes it
+    on install, purge removes it; `isle apt install` does not read host pins (it is the one reader of the offline
+    set). Test `test-apt-isle-pin.py`, real apt with no network: without the pin the foreign library is the
+    candidate; with it a full upgrade leaves the library alone, upgrades the isle package and has no candidate for
+    a foreign-only package. Same result on apt 2.4 (the members' version, candidates only), 2.7 and 3.0. The test
+    fails when the pin's isle record or the installer's two lines are taken out. A throwaway package built from
+    the branch, in a container with no network: install writes the pin, remove keeps it, purge removes it.
+  - Checked against the live index the same day: 9 first-party package names, all `isle-*` or `polari-*`.
+  - Where the source line is on today: the core (24.04, no pin; same release as the offline set, so not exposed)
+    and econ (22.04, behind the recovery block). Pol has none.
+  - Econ's recovery block and the pin work together: block alone = no candidate for anything from the source,
+    isle packages included (installs by file path and by named version still work); block plus pin = isle and
+    polari packages are candidates again, everything else stays blocked.
+  - Known limits of item (1): a named version (`apt install name=version`) still installs from the source; a join
+    by bootstrap installs the CLI before the pin exists, so that one install can still take dependencies from the
+    source (closed by item 2); with the pin, `isle update apply` gets missing Ubuntu dependencies only from
+    Ubuntu's own archive.
+- `isle store list` on pol (CLI release 88) prints a Python error (`KeyError: 'provides_engine'`) before the list.
 - The core's device list holds a stale member (last seen 2026-11-06). A packet addressed to "*" would sign it into
   the approval and wait on it until the limit. Needs a verb to retire a device, or "*" limited to recently seen ones.
 - Round-88 items still open: the twin door as a store app with a catalog row; the core-only denylist.
