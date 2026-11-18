@@ -34,6 +34,17 @@ user's rulings, and the next round. Report states in the four words: source-test
    for a purpose get their own standard verbs.
 5. Every later change ships as a release-run packet, never as a hand list of sudo steps.
 
+## Priority order (the user, 2026-11-18)
+
+1. One-command release (the full proof: publication, wait-served, update-apply, store-install, module-add, resume;
+   then section A and B).
+2. Apt separation (section D, first item).
+3. Storage (section C and the storage handoff's fix list).
+4. Backups (`pol backup create|restore`; unencrypted, local, on the removable SSD).
+5. Operating system overwrite (section E).
+
+The sections below keep their letters; this list is the order of work.
+
 ## Next round (one packet, not one release per item) - PLAN, nothing built, for the user's review
 
 ### A. Start setting (econ's runner; pol's backend for the intake)
