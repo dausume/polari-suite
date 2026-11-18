@@ -399,7 +399,12 @@ Open for the user: a true pin release (`{"release":"PD2"}`, back to pull-up/floa
     with 3 failures (the twin prove gate disagreeing with the runner once the knob is set; a demo-bundle README hash).
   - NOT proved: node_run, cycle_measure and scenario runs through the remote worker's put-back flags and the 256
     limit; expected numbers under the held `--pin-at`. Nothing on a member runs them against a remote worker today.
-- Not done: the superproject pointer and any push (the user's go on pol's side).
+- PUSHED 2026-11-18 (the user's go: "we need things merged and pushed to dev"): dev on origin = polari-framework
+  11ac681a (the released line 359afd45, release 87 + twin door, plus a one-line note fix), polari-platform-angular
+  8446ef2, polari-rf-node 4761e2b (ac959cf + the framework pointer), polari-cli 4debcea, suite pointer moved. All
+  fast-forwards. Module sub-repositories were not re-published (`--skip-modules`).
+- Not on dev: the HAL branch `dev-hal-3b` (46 commits, review owed; a trial merge shows no conflict), and the isle
+  CLI code of releases 86 to 88 (Isle-Mesh origin/dev is still 2cfef2c; econ's `econ/release-run` holds it).
 
 ### Round-88 findings from this install
 
