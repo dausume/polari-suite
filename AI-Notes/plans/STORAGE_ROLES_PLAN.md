@@ -75,6 +75,10 @@ Roles (first list): `package-repo`, `distribution` (install and operating-system
 | st-0 | The decisions in section 7 | the user's words |
 | st-1 | Records and read-only verbs; register the disks; `partition assign` for what exists. No data moves. | `isle storage role show package-repo` lists pol's partition and the dataset on it |
 | st-2 | `units check\|apply`; the open items of the phase A fix list (retire-source on the core, core-only denylist, sync proof at cutover) | units match after an `isle update apply` with no hand edit |
+| st-3 | `partition create` on a disk with nothing to lose (the 2 TB disk), a second partition for one role, one dataset moved between two partitions of its role | R2 shown live |
+| st-4 | Slots with writable binds behind the same gate; the first role an app writes to live | an app stops cleanly when its partition is absent, starts when it returns |
+| st-5 | Backups (fourth in the order of work) write to the role `backup` | one restore actually performed |
+| st-6 | Isle App storage page: read-only first, then the verbs as actions | the page shows devices, partitions with roles, apps with slots, protection |
 
 Done ahead of st-2 (2026-11-20), the core-only denylist: source-tested, on the isle CLI's dev, in no release. `authorize`
 no longer reads a list of movable names. It refuses one name, the core itself, and moves any other name whose source
@@ -82,11 +86,6 @@ device owns it. Pol's reading of "the core itself" (not ruled): the address the 
 `api.polari.isle`, because the isle's own configuration calls that address the core (`ISLE_CORE_API`). No other name is
 protected: not the CA, not the router, not `polari.isle`. The old file `/etc/isle-mesh/storage/hostable-names` on the
 core is not read any more once the core runs this CLI; removing it is a job for `units apply`, not a hand step.
-
-| st-3 | `partition create` on a disk with nothing to lose (the 2 TB disk), a second partition for one role, one dataset moved between two partitions of its role | R2 shown live |
-| st-4 | Slots with writable binds behind the same gate; the first role an app writes to live | an app stops cleanly when its partition is absent, starts when it returns |
-| st-5 | Backups (fourth in the order of work) write to the role `backup` | one restore actually performed |
-| st-6 | Isle App storage page: read-only first, then the verbs as actions | the page shows devices, partitions with roles, apps with slots, protection |
 
 ### Done ahead of st-0 (2026-11-18): the two listings that need no decision
 
