@@ -87,9 +87,63 @@ device owns it. Pol's reading of "the core itself" (not ruled): the address the 
 protected: not the CA, not the router, not `polari.isle`. The old file `/etc/isle-mesh/storage/hostable-names` on the
 core is not read any more once the core runs this CLI; removing it is a job for `units apply`, not a hand step.
 
+### st-1 built (2026-11-20): the records of one machine
+
+State: source-tested, on the isle CLI's dev. In no release, installed nowhere, run with sudo nowhere. The proof of
+st-1 (the role listing on pol) waits for the next CLI release, because the verbs are not in the installed CLI.
+
+- `sudo isle storage device register <serial> --class fixed|dock|flash` - declares a disk that is present. The
+  same class again changes nothing; another class corrects it and says what it was.
+- `sudo isle storage partition assign <filesystem-identifier> --role <role>` - adopts a mounted filesystem. It
+  writes the marker `isle-partition.json` at the root of the partition and one entry in the machine's record, and
+  nothing else: no file is moved, created or erased. The same role again changes nothing, or writes a missing
+  marker again. A partition marked on another machine is recorded without rewriting its marker.
+- `isle storage partition check [--table]` - read-only. Record against marker for each recorded partition; exit 1
+  when one needs attention. A partition of a dock or flash device that is away is reported and is not an error; one
+  of a fixed device that is away is.
+- `isle storage role list [--table]`, `isle storage role show <role> [--table]` - read-only. The partitions of a
+  role with device serial, class, size, free space and the datasets bound on them.
+- `device list` and `partition list` now print the recorded class and role.
+- Refused with nothing written: a device that is not registered or has no serial; a second role (taking one away is
+  `partition retire`, not built); two partitions with one identifier; a marker that names another filesystem (a
+  block copy); a file of the marker's name that is not a marker; a filesystem not mounted whole where it can be
+  reached. A link at the marker's name is never followed. A damaged record stops every verb.
+- Records: `/etc/isle-mesh/storage/device-records.json` on the machine (devices by serial, partitions by filesystem
+  identifier, so a partition that is away is still known) and the marker on the partition. One more than section 4
+  said ("a device list and the marker"): the record also lists the partitions.
+- Files: `isle-cli/scripts/storage_roles.py`, `test-storage-roles.py` (34 tests, made-up reports and temporary
+  folders only), `storage_devices.py`, `storage.sh`, the CLI's README.
+- Read on pol with the new code, without sudo: the listings work on the real disks, no role is recorded, `assign`
+  refuses because the disk is not registered, `register` prints the sudo command. Nothing was written.
+
+Pol's choices in this step, not ruled, for the user to correct:
+1. `assign` refuses a partition that carries the running system (`/`, `/boot`, `/home`, `/var` ...). One line to lift.
+2. These verbs are not journaled operations. They hold their own lock on the record. The journal is built around
+   one dataset per operation, and these verbs have none.
+3. A dock that reports its own serial instead of the disk's is not detected. Two disks with one serial are refused.
+   A partition found behind another serial is shown as `on another device`, and `assign` with its role records it
+   where it is.
+
+Not in st-1, still owed: the core's placement record does not hold partitions or roles yet, so the isle-wide view
+and the Polari side of R8 (Polari aware of storage for planning) are not there. No verb reads a role to place data.
+
+What the user types on pol once a release carries this (serial and identifier as the two listings print them):
+
+    isle storage device list --table
+    sudo isle storage device register <serial of the 466 GB disk> --class fixed
+    isle storage partition list --table
+    sudo isle storage partition assign <identifier of its filesystem> --role package-repo
+    isle storage role show package-repo --table
+
+A conflict to settle before `git` is placed (decision 3): the internal 466 GB disk is one filesystem, and a
+partition carries one role. It holds the package replica today, so it becomes `package-repo`. `git` on the same disk
+needs a second partition, and nothing is shrunk in place (section 3): the package replica would move away, the disk
+be partitioned, and the replica move back. The other way is to let one partition carry more than one role, which
+changes the model. Not chosen.
+
 ### Done ahead of st-0 (2026-11-18): the two listings that need no decision
 
-Source-tested on pol, not committed, not in release 89, not installed anywhere.
+On the isle CLI's dev since 2026-11-20 (source-tested). Not in release 89, not installed anywhere.
 
 - `isle storage device list [--table]` - every disk of this machine by hardware serial: model, size, medium
   (rotational, solid-state, nvme), bus, hotplug, whether it carries the running system, partition count. A
@@ -98,14 +152,13 @@ Source-tested on pol, not committed, not in release 89, not installed anywhere.
   disk and that disk's serial, filesystem and filesystem identifier, state (mounted, not mounted, no filesystem
   reported, not a plain filesystem), mount, free space, whether it carries the running system, and the datasets
   bound on it today (from the copies under `/var/lib/isle-mesh/storage`).
-- Read-only, no sudo. They report what the machine says; nothing is registered. Roles and the declared class
-  are not printed until the records exist (decisions 1 and 2), and the verbs `register`, `health`, `retire`,
-  `create`, `assign`, `check` answer "not in this CLI" rather than doing anything.
+- Read-only, no sudo. They report what the machine says; nothing is registered. Since st-1 they also print the
+  recorded class and role. The verbs `health`, `retire` and `create` answer "not in this CLI yet".
 - Files: `isle-cli/scripts/storage_devices.py`, `test-storage-devices.py` (14 tests, fixtures only), one line in
   `storage.sh`. `isle storage list` is unchanged.
 - On pol they show what section 6 says: the four partitions of the 2 TB disk report no filesystem.
 
-The units verbs of R4 (first half of st-2), same state: source-tested on pol, not committed, not installed.
+The units verbs of R4 (first half of st-2), same state: on the isle CLI's dev, source-tested, not installed.
 
 - `isle storage units check [--dataset D]` - read-only, no sudo. For each dataset bound on this machine: the
   gate unit, the sync service and the sync timer against the text the installed CLI writes today (matches,
@@ -135,6 +188,12 @@ The units verbs of R4 (first half of st-2), same state: source-tested on pol, no
 | 1.8 TB HDD | dock | four empty partitions of 683 GB, no filesystem; passed a full overwrite test 2026-11-10 | `distribution`, a second `package-repo` partition, `scratch`, one left unassigned |
 
 Nothing here needs a shrink or a move of live data. Where `blob`, `git` and `assets` live is decision 3.
+
+After the answers of 2026-11-20 (section 7) this table is partly overtaken. It is kept as the proposal it was:
+- 233 GB SSD: not `backup`. Its first purpose is the isle template medium (decision 4).
+- 1.8 TB HDD: `assets` for what is rarely used (decisions 3 and 5). What its other partitions carry is open.
+- 466 GB HDD: `git` and the dependency stores go there (decision 3), and it is one filesystem that holds the package
+  replica today. See the conflict under "st-1 built" in section 5.
 
 ## 7. Decisions - answered by the user, 2026-11-20
 
