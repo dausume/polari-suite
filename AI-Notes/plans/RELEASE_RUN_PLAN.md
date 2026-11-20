@@ -45,7 +45,26 @@ user's rulings, and the next round. Report states in the four words: source-test
 
 The sections below keep their letters; this list is the order of work.
 
-## Proof packet 2 - PLAN for the user's review (2026-11-18). Nothing staged, nothing built as a package.
+### Run 2, 2026-11-20 - LIVE-VERIFIED (a publication and `update-apply`; CLI release 89)
+- Packet `release-run-proof-2` (packet 2a below), run id `668a123d4f5f`. The user typed ONE command, on the core.
+- Core: published 3 package files (with the release-88 publisher; the scan of the whole package store took about
+  20 minutes), read the release id `ed83e4c84a94`, waited until it was served, updated itself (operation
+  `441098aa...`), signed the approval (serial 1795199348). Package `polari-complete-offline 0.1.89+release89`.
+- Members followed on their own timers, nothing typed there: econ (operation `0110f199...`) and pol (operation
+  `0a14e819...`), both `isle-mesh-cli 0.1.209+release89`. The core's member table shows both done.
+- Checked afterwards, read-only, on all three: `isle release status` = done with the three verify URLs ok;
+  `isle apt-repo pin check` = in place; `isle release setting` = core-only (the members say the core publishes no
+  setting, the core says any-device is not available yet); on both members `isle release run` WITHOUT sudo is
+  refused with the device named and the core named (the release-88 fault of section B is gone).
+- Proved now, beyond run 1: a packages publication, wait-until-served against the replica, `update-apply` with
+  `releaseId: published` on the core and on both members.
+- NOT proved yet: a runtime-image or catalog publication, `store-install`, `module-add`, a failed step and its
+  resume, the pkexec entry. Not there yet, as stated in D item (2) limit (a): the separate index for operating
+  system packages appears at the first publication after this one. `isle store list` still prints the Python
+  error on the members (the fix is not in 89). `test-apt-local-priority.py` was not run on the core (it starts a
+  container there).
+
+## Proof packet 2 - for the user's review (2026-11-18). Packet 2a RUN 2026-11-20, see Run 2 above.
 
 Purpose: prove what run 1 did not, with a packet that is also real work (CLI release 89).
 
@@ -55,11 +74,12 @@ Purpose: prove what run 1 did not, with a packet that is also real work (CLI rel
 | step `update-apply` `published`, on all three devices | CLI 89 installed by the run itself | update-apply on the core and on both members |
 | `publish` kind `catalog` + step `store-install` | one store app at a new version | catalog publication, store-install with the manifest and image checks |
 | step `module-add` | one module not yet on one instance | module-add |
-| `verify` | `https://apt.isle/updates` names the id; the app's health URL | the verify list after real changes |
+| `verify` | the release notice, the repository `InRelease`, the api health URL (each must answer 200) | the verify list after real changes |
 
-CLI release 89 = econ's 6ec5b78 (role refused before the sudo demand; "*" = devices heard from within 24 h) plus
-the apt pin (section D, item 1; source-tested, see there). After the run, on each device: `isle apt-repo pin check`
-answers "in place", and `isle release run` typed on a member without sudo names the core.
+CLI release 89 = econ's 6ec5b78 (role refused before the sudo demand; "*" = devices heard from within 24 h) plus,
+from pol: the apt pin, the two package indexes, the pin at bootstrap (section D) and the start setting (sections A
+and B). After the run, on each device: `isle apt-repo pin check` answers "in place", `isle release setting` answers
+core-only, and `isle release run` typed on a member without sudo names the setting and the core.
 
 Resume, in two parts:
 - Interrupted run: the user stops the command on the core during the wait for the replica and types the same
@@ -68,9 +88,63 @@ Resume, in two parts:
   hot fix `proof-fail-once` (fails the first time on a device, passes the second, writes only its own marker),
   as one step on one member. Not built; it is runner code (econ's lane).
 
+BUILT on pol and STAGED on the core, 2026-11-18 (the user: pol takes over the build; "implement those remaining
+things for 89 and then rebuild"; then "stage it there"). Packet `cli-release-89`, run id `668a123d4f5f...`, in
+the folder `release-run-proof-2` of the core's hand-over folder (a copy is `isle-release-89` in the home folder on
+pol). `isle release check` answers valid on pol and on the core (4 files match). State: SOURCE-TESTED, built,
+STAGED. Not published, installed nowhere, nothing live-verified. The user's one command on the core is owed.
+
+| Package in the packet | sha256 (start) | For |
+|---|---|---|
+| `isle-mesh-cli` 0.1.209+release89 | `22d3b79c90ca` | the members (pol, econ) |
+| `isle-app-store` 0.1.89+release89 | `98ede20f9f94` | the members; unchanged content, version only (it sets the version of the combined package) |
+| `polari-complete-offline` 0.1.89+release89 | `c554420c6a0e` | the core |
+
+Found while staging, and why the packet has three packages and not one:
+- THE CORE TAKES ITS CLI FROM THE COMBINED PACKAGE. On the core `isle-mesh-cli` is not installed as its own
+  package; the CLI files belong to `polari-complete-offline` (0.1.88+release88 before this run). `isle update`
+  selects the combined package there (`update.py`, `selected_packages`). A packet with only the CLI package would
+  have moved pol and econ to 89 and left the core on 88, with no two indexes, no setting verb and no notice key.
+  A release that changes the CLI must always carry: the CLI package, the store package at the new release
+  version, and the combined package built from them (plus the unchanged shell and `polari-isle` members).
+- The full set was built on pol the way releases 87 and 88 were built on the core: CLI builder, store builder
+  (same isle root certificate on pol and the core, compared by checksum), the shell package of release 86 and
+  `polari-isle` 0.1.0 taken checksum-verified from the release 88 packet, then the suite's combined-package
+  script, offline flavour. Compared with the published release 88 combined package: only the CLI files of this
+  work differ, plus the version and the two maintainer-script changes for the pin. The store package differs in
+  the version line only. The CLI files in the combined package equal the CLI package, and both equal the tested
+  tree. Upgrade 88 to 89 of the combined package tried in a container without network: installs, pin in place,
+  setting verb present.
+- The verify URL of the first draft (`https://apt.isle/updates`) answers 404; the notice lives at the api. The
+  packet now verifies the notice at the api, the repository `InRelease`, and the api health URL (all 200 today).
+- Earlier builds (CLI sha256 `4f076c9c...`, `9f735269...`; run id `ff180434...`) are replaced and must not be
+  used. The CLI package was rebuilt in the same build as the combined package, so its checksum changed; its
+  content is the same tree.
+- Not proven before the run: the update step on econ under its own blanket block on the isle source (the update
+  installs the downloaded files by path with the device's own apt; a path install under that block passed in
+  the pin test, in a container). The run itself is the live test.
+- What 89 adds to release 88: econ's 6ec5b78; the apt pin; the main index without operating system packages and
+  a dependency index per Ubuntu release; the pin written at bootstrap before any package work; the start setting
+  (verb, notice key, the member's refusal). Details in sections A, B and D.
+- Tests on pol, all on the tree the package was built from (the package content was compared file by file with
+  the tree): release runner 106 passed; release notice 10; publication 19 (stand-in tools); index split 6;
+  bootstrap pin all pass; apt pin all pass on apt 2.8 and 3.0; `test-apt-deps-index.py` (real publish, real apt,
+  the real installer, no network) all pass on apt 2.8 (Ubuntu 24.04) and 3.0, with the host's apt 2.4 for the
+  index checks; module record 4. `test-guided-join.py` has one failure that is the same on the commit before
+  this work (not caused by it, not fixed here).
+- Not tested: an Ubuntu 22.04 container (no such image on pol; pulling one needs the user's word), so on apt 2.4
+  only the index, signature, by-hash and download were checked, not the installer. `test-apt-local-priority.py`
+  cannot run on pol (it needs the offline installer medium on the core); it is owed on the core after the install.
+- The package is built from the branch plus uncommitted work (16 files; a patch copy is beside the packet folder).
+  The commit follows after 18:00 and must match the package content, else rebuild.
+- `release_run.py`, `release.sh` and `release_notice.py` are econ's lane; pol changed them for the start setting
+  on the user's instruction. Econ is to be told.
+- The packages-only packet (2a) proves publication, wait-until-served, update-apply and the interrupted-run
+  resume. Store install, module add and the failed step need a second packet (2b) once items 2 to 4 are settled.
+
 Open before the packet can be written:
-1. Who builds the CLI 89 package. Releases 86 to 88 were built by econ; econ's Claude session is not reachable
-   from pol (2026-11-18). Source for 89 is on pol only (branch `pol/apt-separation`, on no remote).
+1. DONE (see above): who builds the CLI 89 package. Source for 89 is on pol only (branch `pol/apt-separation`,
+   on no remote).
 2. Which store app gets the new catalog version. Recommended: `board-engines` on econ (econ's example packet
    already describes release 2026.11.15-2 with manifest and image digest), or the twin door as a store app (still
    owed from round 88). Not the demo app `whoami`: its catalog entry names an outside image by a moving tag.
@@ -85,12 +159,113 @@ The user's part stays one command on the core: `sudo isle release run <packet>`.
 
 ### A. Start setting (econ's runner; pol's backend for the intake)
 - The setting lives on the core, is changed only on the core by an isle verb, default core-only.
+- IN RELEASE 89 (source-tested, see proof packet 2): `isle release setting` shows it on any device;
+  `sudo isle release setting core-only|any-device` changes it, on the core only. The record is a root-owned file
+  on the core; the release notice carries it as `startSetting` (written at once and again at every publication),
+  so members read it where they already read the release. `any-device` is REFUSED with the reason until the
+  core has the packet intake below; a hand-written `any-device` record is ignored. A member that reads
+  `any-device` from a later core still refuses and says this CLI cannot hand a packet over.
+- NOT in 89: everything below (the intake, the submission, the receipt entry).
 - any-device: a member's `sudo isle release run <packet>` checks the packet, submits it to the core under the
   member's enrollment identity; the core re-verifies and runs what `run` does today. The core alone publishes and
   signs; members keep acting only on the core's signature. The submitting device is recorded in the receipt.
 - Cost, stated: with any-device on, root on any enrolled member can deploy to the whole isle.
-- Needs an authenticated intake on the core for large files and a root runner there. If the intake is a backend
-  door it is pol's islemesh module (a backend release, shipped as a packet).
+- Needs a way for the packet to reach the core, proof of which member sent it, and a root runner on the core.
+  See "Any-device intake" below: PARKED 2026-11-18, three decisions wait on the user.
+
+#### Any-device intake - decisions answered 2026-11-20 (see the end of this section); nothing built, nothing live
+- What was built first, and why it was dropped. Pol built the core's side as four hand-made backend routes in the
+  islemesh module plus a private database file for the submissions, and the CLI side against them (source-tested
+  only: runner tests 106 of 106, intake tests 13 of 13, backend selftest 102 of 102). The user, 2026-11-18: "do not
+  duplicate those capabilities we have already automated away, you should not be messing with falcon since the
+  polari engine handles automating api creation and networking them. If you create them manually it is likely to
+  cause problems". The routes and the private database are removed from the framework worktree (branch
+  `dev-release-intake` is back to dev). Copies are kept on pol in `~/isle-intake-parked/`, outside every repository.
+- What stays valid, whatever carries the packet (CLI side, `isle-cli/scripts/release_intake.py`, uncommitted): the
+  core acts only on its own root-owned setting; the sender must be a listed member; the copied files are checked
+  (exact set, no links, sizes, sha256); the full packet check runs again on the core; the run id must be equal;
+  one run at a time under the run lock; the receipt names the submitting device (`submittedBy`); a timer verb
+  `sudo isle release intake run [--auto]`. The transport part of that file must be rewritten.
+- The engine way, as far as it reaches today. A submission is one row class (`IsleReleaseSubmission`) in
+  `objects/islemesh/`, listed in the module's `polari-app.json`. The engine then creates the table and the
+  create/read/update/delete door for it. No route and no database of pol's own.
+- Measured on the core, 2026-11-18, read-only:
+  - The engine's generated doors are live there and answer without any credential (`IsleStorageReceipt`,
+    `IsleDevice`: 200). The permission gate is off (`POLARI_APP_PERMISSIONS` unset), there is no identity provider
+    and no file store in the core's Polari instance.
+  - A release packet is 154 MB (release 89). Rows are the wrong place for that; the engine's place for bytes is
+    its file store, which the core does not run.
+  - The fingerprint of a member's enrollment credential is stored in rows any device in the isle can read, and it
+    is the same value the core's member list holds. A field in a row therefore cannot prove which member wrote it.
+- Second cost, stated: whatever software carries the packet on the core becomes part of what a release trusts,
+  unless the packet itself is signed by the sending device.
+- Three decisions for the user. Nothing of the core's side is built until 1 and 2 are answered.
+  1. How the core knows which member sent a packet.
+     (a) A key pair per device, certified by the isle root at enrollment; the member signs the packet. The carrier
+         then needs no trust at all, and the second cost above is closed. No device key exists today: enrollment,
+         the member list and a re-enrollment step for the three devices would change.
+     (b) The engine's permission gate switched on in the core's instance, with an identity per device. Needs an
+         identity provider on the core, which it does not run.
+     (c) The engine's own node-to-node consent record (`PeerAgreement`: approved by the parent, one revocable
+         token per child, only the hash stored). Fits if each member's local Polari node is the sender. The
+         second cost stays.
+     Pol's recommendation: (a).
+  2. How 154 MB travel.
+     (a) The engine's file store added to the core's Polari instance (one more service on the core, and its
+         data needs a storage role - priority 3).
+     (b) The member's own local node offers the packet and the core fetches it (members would have to serve; today
+         only the core serves).
+     With 1(a) either one is safe, because the core checks the signature after the copy.
+  3. Separate from releases: the generated doors on the core accept writes and deletes from any device in the isle
+     without a credential. Whether that stays as it is, is the user's call.
+- The user, 2026-11-18, on decision 1 (verbatim): "keycloak should be the identity provider we should not require
+  identity provviders to have base functionality though since in some cases we are only running the isle privately
+  with no external exposure".
+  - What it settles: where an identity is needed, it comes from Keycloak, through the engine's own gate. That is
+    1(b). Pol's recommendation 1(a) (a key pair per device) is withdrawn: it would build a second identity system
+    beside the one the engine already has.
+  - What must keep working with no Keycloak anywhere: everything an isle does today - enrollment, updates, the
+    store, storage, and the release run started on the core (`core-only`, the default).
+  - Pol's reading, NOT yet confirmed by the user: `any-device` is an addition that needs Keycloak on the core's
+    instance and the gate switched on; on an isle without Keycloak, `isle release setting any-device` is refused
+    with that reason and `core-only` is unaffected. The other reading (any-device must also work without
+    Keycloak) would need a second proof of the sender and is not planned unless the user asks for it.
+  - Decision 3, pol's reading, NOT yet confirmed: the gate stays a setting. Off on a private isle (as today);
+    switched on together with Keycloak where the isle is exposed.
+  - The user, right after (verbatim): "we already have a keycloak app configured to be our identity provider".
+    Found, and to be used as it is: the suite's Keycloak (`polari-rf-node/prf-keycloak`, realm import included;
+    it runs on pol today; in `pol prod` it is the answer "logins = keycloak or off", on the lean stack the
+    compose profile `logins`), the engine's side of it (token check, permission gate, the `security` module), and
+    on the isle side `isle polari security status|enable|disable|require --feature <name>|release`, where a
+    feature that needs sign-in declares itself. Any-device would be one such feature
+    (`require --feature release-any-device`). Nothing of this is rebuilt.
+  - Measured 2026-11-18: the core's own instance is the lean one, with no Keycloak by design, and the isle store
+    on the core lists no Keycloak app.
+  - Still open: decision 2 (how the bytes travel), and which Keycloak the core's instance should trust (the one on
+    pol, or one beside the core's instance) and when it is switched on (a deploy; none without the user's go).
+- Release 89 is not touched by any of this: `any-device` is refused there, as tested.
+- The user, 2026-11-20, on the open points:
+  - How the packet travels (verbatim): "Core fetching that way we do not necessitate the core having large storage".
+    So 2(b): the member's node offers the packet and the core fetches it. No file store on the core for this.
+  - Which Keycloak (verbatim): "we should be able to configure which keycloak we trust but it should be able to be
+    anywhere on the isle, we should not need more than one keycloak instance for now, just specify one". So: one
+    Keycloak for the isle, named by a setting, on any device. Today that is the one on pol.
+  - Pol's two readings above (any-device needs Keycloak and is refused without it; the gate stays a setting) were
+    left to pol ("The rest I defer to your decisions") and stand.
+  - Lanes (verbatim): "Don't be worried about econ they are on totally different tasking now, there are no split
+    concerns right now". Pol works in the runner files as needed; nothing is owed to econ for it.
+  - Owed next, in this order: (1) the setting that names the isle's Keycloak, read by `isle polari security`;
+    (2) the submission as an engine row class, the member's node offering the packet, the core fetching and
+    checking it; (3) `isle release setting any-device` allowed once (1) is set, refused with the reason otherwise.
+    Switching the gate on in the core's instance is a live change and waits for the user's go.
+
+#### Fixed or checked on the way (2026-11-18)
+- `isle store list` Python error (section D): fixed in the worktree with a test (`test-store-list.py`),
+  source-tested, uncommitted, NOT in release 89.
+- `hal` for the module-add proof of packet 2b: the backend image of pol's isle instance already contains the `hal`
+  module; it is not among the 15 switched on. A module add needs no new image.
+- Files of econ's lane changed by pol and still to be told to econ (held for the user's word): `release_run.py`,
+  `release.sh`, `release_notice.py`, `test-release-run.py`.
 
 ### B. The warning (CLI now, Isle App with the page)
 - Release 88 fault: on a member, without sudo, `isle release run` answers "Type: sudo isle release run ..."; the
@@ -98,7 +273,10 @@ The user's part stays one command on the core: `sudo isle release run <packet>`.
   message names this device and the core.
 - Members read the setting from the core (it rides the release notice they already read). It decides the wording
   only; the core's intake enforces it.
+- IN RELEASE 89 (source-tested): the member's refusal follows the published setting, in three cases: the value
+  is known; the core did not answer (refused, and it says so); any-device but this CLI cannot submit.
 - Isle App: the start control on a non-core device is disabled with the same words while the setting is core-only.
+  NOT BUILT. The value is in the release notice the app already reads, so the page needs no new door.
 
 ### C. Storage devices and units (pol leads storage)
 - `isle storage device`: allocate a device to the isle for a named purpose, list (purpose, mount, free space,
@@ -138,10 +316,33 @@ The user's part stays one command on the core: `sudo isle release run <packet>`.
   - Econ's recovery block and the pin work together: block alone = no candidate for anything from the source,
     isle packages included (installs by file path and by named version still work); block plus pin = isle and
     polari packages are candidates again, everything else stays blocked.
-  - Known limits of item (1): a named version (`apt install name=version`) still installs from the source; a join
-    by bootstrap installs the CLI before the pin exists, so that one install can still take dependencies from the
-    source (closed by item 2); with the pin, `isle update apply` gets missing Ubuntu dependencies only from
-    Ubuntu's own archive.
+  - Known limits of item (1): a named version (`apt install name=version`) still installs from the source; with
+    the pin, `isle update apply` gets missing Ubuntu dependencies only from Ubuntu's own archive.
+  - Item (2), IN RELEASE 89, SOURCE-TESTED 2026-11-18 (same branch, uncommitted until 18:00): `isle apt-repo
+    publish` scans once and writes two signed indexes. The main index (what the source line reads) lists only
+    isle-* and polari-* packages, by the same name rule as the pin. Every other package goes to
+    `deps/<Ubuntu release name of the core>/`, with its own origin (`isle-mesh-deps`), signature and by-hash
+    files; the package files stay where they are. Both indexes are built before either is put in place, the
+    dependency index first. Publication is refused, repository unchanged, when the core's release name cannot be
+    read. `isle apt install` adds the dependency index only for the device's own release: the core from its
+    disk, a member after asking the core over verified TLS whether `deps/<its release>/` is served (the live
+    core answers 404 for a missing path, checked). A device of another release is never offered it. The pin now
+    applies inside `isle apt install` too; the one exception is a core whose repository still has the single old
+    index (before its first publication with 89), where its own dependency packages are still in that index.
+  - Bootstrap, IN RELEASE 89, SOURCE-TESTED: `isle-bootstrap.sh` writes the pin right after it trusts the archive
+    key, before the source line and before any package work, on the join and on the update path. A test holds
+    the embedded copy equal to `apt/isle-mesh.pref` and the order.
+  - Item (3) is covered by item (2): the release the set was built for is the directory name, and the installer
+    asks for its own release only. No separate check verb was built.
+  - Limits of item (2), stated: (a) the two indexes appear on the core only at the first publication AFTER the
+    core runs 89 (the run that ships 89 still publishes with 88), so until then the pin is the only guard;
+    (b) from that publication on, a member still on CLI 88 gets no operating system packages from the core
+    (its installer reads the main index only) until it runs 89; (c) a 22.04 member gets no dependency set at
+    all (none is built for 22.04): missing dependencies come from Ubuntu's archive or the offline medium, as the
+    pin already made it; (d) every dependency package in the repository is filed under the core's CURRENT
+    release, so after an operating system upgrade of the core the old ones would be filed wrongly until the
+    offline set is rebuilt; (e) a device's own blanket block on the isle host (econ's recovery block) also
+    blocks the dependency index there.
 - `isle store list` on pol (CLI release 88) prints a Python error (`KeyError: 'provides_engine'`) before the list.
 - The core's device list holds a stale member (last seen 2026-11-06). A packet addressed to "*" would sign it into
   the approval and wait on it until the limit. Needs a verb to retire a device, or "*" limited to recently seen ones.

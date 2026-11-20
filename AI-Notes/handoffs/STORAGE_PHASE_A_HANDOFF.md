@@ -68,7 +68,7 @@ Still to design/build for 88:
 7. Cosmetic: nginx autoindex writes epoch hrefs as raw `%3a` (click → 404; apt unaffected).
 8. **Authenticate the plan door** (`PUT /api/islemesh/placement-plan` needs only verified TLS) + journaled approval record
    {planId, revision, digest, approvedBy, approvedAt, summary} — prerequisite for §4.
-9. Stale device registration `User-hp-prodesk-600-g1-sff` (user's call). Pre-existing test `status with no copies` fails on all hosts;
+9. Stale device registration (the stale member name in the core's device list) (user's call). Pre-existing test `status with no copies` fails on all hosts;
    installed test suites on hotfixed devices fail (they pin the old behaviour) until 88 replaces them.
 10. **Hand-change inventory to unwind when 88 lands** (econ): overwritten by the deb — storage_receive line 40 (pol, econ), app-deploy
     probe (pol), migrate/catalog served+bridge (pol), dns-register `-O` (core). NOT touched by the deb, remove by hand or by verb —

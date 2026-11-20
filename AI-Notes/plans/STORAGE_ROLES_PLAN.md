@@ -16,6 +16,7 @@ plan door, with a fail-closed gate unit) and on econ's draft of 2026-11-17 (in t
 | R5 | Backups are never encrypted, local only, on the removable SSD. A removable disk is in `backup` or `export` mode. | 2026-11-12 |
 | R6 | The denylist of what may never be moved holds only the core itself. | 2026-11-14 |
 | R7 | Every step is an `isle` or `pol` verb; a plan is approved once and then runs. | 2026-11-14 |
+| R8 | The isle is responsible for storage, because storage is tied to hardware. Polari only has to be aware of it, since planning goes through Polari as well as the isle. | 2026-11-20 |
 
 Reported by econ from its own session with the user (2026-11-17), not said to pol: purposes named were where the
 blob store puts files, the package store for distribution, images for distribution, git; SATA is the standard and
@@ -79,6 +80,44 @@ Roles (first list): `package-repo`, `distribution` (install and operating-system
 | st-5 | Backups (fourth in the order of work) write to the role `backup` | one restore actually performed |
 | st-6 | Isle App storage page: read-only first, then the verbs as actions | the page shows devices, partitions with roles, apps with slots, protection |
 
+### Done ahead of st-0 (2026-11-18): the two listings that need no decision
+
+Source-tested on pol, not committed, not in release 89, not installed anywhere.
+
+- `isle storage device list [--table]` - every disk of this machine by hardware serial: model, size, medium
+  (rotational, solid-state, nvme), bus, hotplug, whether it carries the running system, partition count. A
+  disk without a serial is reported as one that cannot be told from another.
+- `isle storage partition list [--table]` - every partition (and a whole disk with a filesystem on it): its
+  disk and that disk's serial, filesystem and filesystem identifier, state (mounted, not mounted, no filesystem
+  reported, not a plain filesystem), mount, free space, whether it carries the running system, and the datasets
+  bound on it today (from the copies under `/var/lib/isle-mesh/storage`).
+- Read-only, no sudo. They report what the machine says; nothing is registered. Roles and the declared class
+  are not printed until the records exist (decisions 1 and 2), and the verbs `register`, `health`, `retire`,
+  `create`, `assign`, `check` answer "not in this CLI" rather than doing anything.
+- Files: `isle-cli/scripts/storage_devices.py`, `test-storage-devices.py` (14 tests, fixtures only), one line in
+  `storage.sh`. `isle storage list` is unchanged.
+- On pol they show what section 6 says: the four partitions of the 2 TB disk report no filesystem.
+
+The units verbs of R4 (first half of st-2), same state: source-tested on pol, not committed, not installed.
+
+- `isle storage units check [--dataset D]` - read-only, no sudo. For each dataset bound on this machine: the
+  gate unit, the sync service and the sync timer against the text the installed CLI writes today (matches,
+  differs, missing, a link); drop-in overrides; enabled or not. Exit 1 when anything is off. Whether the gate
+  is running is reported and does not decide the result.
+- `sudo isle storage units apply --dataset D [--overrides keep|remove]` - rewrites what does not match, reloads
+  systemd, enables the gate and the timer. It never starts, stops or restarts the host; a rewritten gate unit
+  is used from its next start. Overrides stay unless `--overrides remove` is given. It runs as a journaled
+  operation under the dataset lock, as `units-apply` (one new row in the contract's table of verbs, section 2.1).
+- Files: `isle-cli/scripts/storage_units.py`, `test-storage-units.py` (23 tests; 11 of 12 deliberate breaks
+  caught, the twelfth is a doubled guard), `storage.sh`, `storage_contract.py`,
+  `docs/STORAGE-MIGRATION-CONTRACT.md`.
+- Read on pol today with the new code: all three units of `apt-public-repo` match, no overrides, enabled.
+  `apply` has not been run anywhere (it needs sudo).
+- Open, for st-2: nothing calls `units apply` after an update yet. Two ways: the package's install script runs
+  it for every bound dataset, or it is a step kind of the release run. Not chosen.
+- Fixed on the way: `test-storage-receive.py` asked the core for the placement view and read this machine's
+  own operation journal, so it failed on a device that hosts the dataset. It now reaches neither.
+
 ## 6. Where the disks stand (pol, 2026-11-18)
 
 | Disk | Class | Today | First assignment proposed |
@@ -90,19 +129,62 @@ Roles (first list): `package-repo`, `distribution` (install and operating-system
 
 Nothing here needs a shrink or a move of live data. Where `blob`, `git` and `assets` live is decision 3.
 
-## 7. Decisions for the user
+## 7. Decisions - answered by the user, 2026-11-20
 
-1. Naming. "Role" now means the purpose of a partition. The ruling of 2026-11-12 used "disk roles: core,
-   removable"; proposed: those become the device class (fixed, dock, flash) and "role" keeps one meaning.
-2. Section 3: each dataset whole on one partition and no pooling (recommended), or partitions pooled into one
-   larger space per role.
-3. The home of primary copies (`blob`, `git`, `assets`). Econ's draft puts them on pol's old internal disk. Pol's
-   caution, not a ruling: that disk is old and single; a primary there should have a verified second copy from
-   the first write. Alternatives: the core's internal disk, or a new disk.
-4. Econ's draft adds a second backup copy on the core's disk. R5 keeps the removable SSD as the home; say whether
-   the second copy is wanted as an addition.
-5. The 2 TB disk: the first assignment in section 6, or retire it.
-6. Docker's store as a role. It is the largest consumer on all three machines and what filled pol's system disk;
-   the migration handoff of 2026-11-09 said never to move it. Leave it out, or plan it as a late step.
-7. From econ's draft: design files through the forge with large-file storage; "images for distribution" as two
-   roles (`registry` for container images, `distribution` for operating-system images).
+"The rest I defer to your decisions" covers 1, 2 and 7; pol's recommendation is taken there.
+
+1. Naming (left to pol): "role" is the purpose of a partition. Fixed, dock and flash are the device class.
+2. Several partitions per role (left to pol): each dataset lives whole on one partition; no pooling.
+3. Primary copies, ruled (verbatim): "The old internal disk for git, code dependencies, and the like. For rendering
+   and CAD assets I think the external 2 TB HDD would be ideal, and for assemblies, since we will not use the
+   frequently and they take up a lot of space. They can be loaded into the internal where needed when they are
+   actively being used."
+   - So: `git` and the dependency stores on pol's internal 466 GB disk; `assets` (renders, CAD, assemblies) on the
+     2 TB dock disk; an asset in active use is copied to the internal disk and is not the primary there.
+   - Pol's caution stands, not ruled: that internal disk is old and single, so `git` wants a verified second copy.
+4. The 233 GB SSD, ruled (verbatim): "rather than a backup copy I more so want that to be used as a way to refresh
+   and create a totally new isle from scratch, because part of what I am testing here is my abaility to create
+   Isle Templates for people to use, which means easily being able to make new isles with new names and security
+   from scratch automatically. And the 250GB SSD is a perfect test case for that since it is large enough to fit
+   most plausible Isle use cases for small businesses, it is a good way to proof out what plans are viable for
+   cheap sellable pre-formatted Isles. We should be capable of transforming it into a backup as well, but that is
+   the main way we are going to be wanting to do updates or installing fresh isles offline is 250 GB SSD via Docks."
+   - So the SSD's first purpose is the isle template medium: a fresh isle, new names, new security, set up from
+     the SSD with no network, and offline updates. This is mode `export` of R5, now the main mode. It can be
+     turned into a backup disk as well. No second backup copy on the core.
+   - Open after this answer: where routine backup sets live when the SSD is a template medium (BACKUP_PLAN.md).
+5. The 2 TB disk, ruled: "We want to use the 2 TB for miscellaneous storage of assets we do not use frequently."
+6. Container images, ruled (verbatim): "I think that may make sense to specify being somewhere specific as well
+   like allocating images to live primarily on the HDD since it is not used often and takes up a lot of space
+   across the isle, that way we are not duplicating images across each device and make it feasible for each docker
+   to ping that for the images as they need them, then get rid of them after creating the container they are
+   going to use."
+   - So: a role `registry`, one place on the isle that holds the images; a device fetches an image when it needs it.
+   - A limit of Docker, to be said to the user before this is built: a container is stored as a thin layer on top
+     of its image, so the image cannot be removed while the container exists. What a device can drop is every
+     image no container uses (old versions, apps not installed there). That is where the space went on pol.
+   - Open: which HDD. A registry must be reachable whenever a device needs an image, and a dock disk can be unplugged.
+7. From econ's draft (left to pol): yes to both. Design files go through the forge with large-file storage;
+   `registry` (container images) and `distribution` (operating-system images) are two roles.
+
+## 8. File spaces (the user, 2026-11-20) - PLAN, nothing built
+
+Verbatim: "I think we should also have generalized isle-partitions and app-specific file-spaces linked to both an
+app and an isle. Like kicad and freecad having defined partitions of file spaces specific to them that are
+accessible by the isle as a volume. We will want to implement functionality like with OneCloud (maybe integrate
+onecloud to enable this? or whatever the open source solution was?) or if we can leverage our existing file-store
+system with a simpler equivalent that would be good as well. But the goal would be to be able to centralize
+storage of the isle in certain places so that such files can be accessible both to the apps for manipulation and
+to the isle itself for simulation purposes, while being distributed throughout the isle."
+
+- The requirement: a file space belongs to one app and to the isle; it is stored in a named place (a partition
+  with a role); the app opens it as ordinary files; the isle's own services (simulation) read the same files;
+  every device of the isle can reach it.
+- What exists: the suite's file store (SeaweedFS, `polari-rf-node/prf-file-store`), already the engine's place
+  for bytes, with buckets per app and Keycloak-issued temporary keys where sign-in is on.
+- Pol's first lean, to be checked before anything is built: one file space = one bucket of that file store, its
+  data on a partition of the right role, mounted into the app as a folder. The open-source products of the kind
+  the user means are ownCloud and Nextcloud; they add desktop sync and a sharing page, and bring a second
+  application with its own database and accounts.
+- Owed: a comparison on this isle's terms (how KiCad and FreeCAD open the files, offline behaviour, licence, what a
+  second copy costs), then the user's choice.
