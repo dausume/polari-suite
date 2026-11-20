@@ -152,7 +152,7 @@ Nothing here needs a shrink or a move of live data. Where `blob`, `git` and `ass
    - So the SSD's first purpose is the isle template medium: a fresh isle, new names, new security, set up from
      the SSD with no network, and offline updates. This is mode `export` of R5, now the main mode. It can be
      turned into a backup disk as well. No second backup copy on the core.
-   - Open after this answer: where routine backup sets live when the SSD is a template medium (BACKUP_PLAN.md).
+   - Open after this answer: where routine device-backups live when the SSD is a template medium (BACKUP_PLAN.md).
 5. The 2 TB disk, ruled: "We want to use the 2 TB for miscellaneous storage of assets we do not use frequently."
 6. Container images, ruled (verbatim): "I think that may make sense to specify being somewhere specific as well
    like allocating images to live primarily on the HDD since it is not used often and takes up a lot of space
