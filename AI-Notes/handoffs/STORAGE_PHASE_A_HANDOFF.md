@@ -70,6 +70,15 @@ Still to design/build for 88:
    `isle hotfix storage-units` (release 89).
 4. Migrate must start the gate unit once (boot-equivalent path), and cutover/receipt must prove the sync service executes (not just
    is-enabled). Keep the container restart policy `no` so the gate unit owns boot (econ's recommendation; raise with the user).
+   ✅ code 2026-11-20 (isle CLI dev `94ef15d`, source-tested, in no release, no real systemd run yet). Built differently from the
+   first sentence, because migrate cannot start the gate unit: the unit's own `isle storage check` refuses the placement state
+   `authorized`. Instead the first sync that the sync unit itself starts after `mark-migrated` (name still at the source)
+   restarts the gate unit through systemd, reads that it is active, and posts its sync receipt to the core with `unitProof`,
+   once per migration. Cutover refuses until the core holds a verified proof not older than the last migrate receipt.
+   `sudo isle storage units prove --dataset D` on the hosting device does it now instead of within the timer's 10 minutes;
+   `isle storage status --dataset D` shows `unitProof`. Detail: contract section 2.5b. These are pol's choices, not rulings.
+   A hosting device whose CLI predates this posts no proof, so cutover refuses until it is updated.
+   Still open: the restart-policy recommendation (not decided, to raise with the user).
 5. Honour release.json `health.path` in the staged probe.
 6. **Core-only denylist** replacing hostable-names (the user's ruling); delete the stopgap file on the core.
    ✅ code 2026-11-20 (isle CLI dev, source-tested, in no release); the file on the core is still there, unread by the new code.
