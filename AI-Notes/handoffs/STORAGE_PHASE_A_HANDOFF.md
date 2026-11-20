@@ -82,6 +82,9 @@ Still to design/build for 88:
     refuses foreign hardlinks), SMART/mount preparation of the target disk, any hostable-names step. Each needs a verb or a refusal that
     names the verb.
 12. Cutover must verify the router's managed-names list contains the domain, not assume authorize pushed it.
+    ✅ code 2026-11-20 (isle CLI dev, source-tested, in no release, not in the release 90 packet): cutover reads the router's
+    list before it writes its intent, pushes a missing name once and reads again, and refuses with nothing written when the
+    router does not answer or still lacks the name. New read verb `sudo isle dns managed-names list`.
 13. **App/plan authoring prerequisites** for "choose the plan and it works": the App cannot author storage items (addApp builds only
     catalog/polari/task), plan id "default" fails PLAN_ID, and saveAs was a hand PUT.
 14. **Codex review**: none received for any of the 7 commits (seven queue messages, no reply or review file on isle-core `~/collab`);
