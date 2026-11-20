@@ -61,6 +61,10 @@ Still to design/build for 88:
    let the door supersede a stored ok=false. Document `isle operation retry <id>` as THE resume; operatorCommand must say so.
 2. **Plan door honesty**: after a local success whose receipt never landed, the App showed `planned`; show "receipt not delivered".
 3. `isle storage repair-units --dataset D` (the deb does not rewrite units already written) — then drop pol's symlink + drop-in.
+   ✅ code 2026-11-20 (isle CLI dev, source-tested, in no release): the verbs are `isle storage units check` and
+   `sudo isle storage units apply --dataset D`, and `isle update apply` / `isle reconcile` rewrite a unit file whose text an
+   update changed (detail: `AI-Notes/plans/STORAGE_ROLES_PLAN.md` section 5). Pol's symlink and drop-in are gone since econ's
+   `isle hotfix storage-units` (release 89).
 4. Migrate must start the gate unit once (boot-equivalent path), and cutover/receipt must prove the sync service executes (not just
    is-enabled). Keep the container restart policy `no` so the gate unit owns boot (econ's recommendation; raise with the user).
 5. Honour release.json `health.path` in the staged probe.

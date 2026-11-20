@@ -64,6 +64,35 @@ The sections below keep their letters; this list is the order of work.
   error on the members (the fix is not in 89). `test-apt-local-priority.py` was not run on the core (it starts a
   container there).
 
+### Run 3 packet `cli-release-90` - STAGED on pol only (2026-11-20). Not on the core, not run
+State: source-tested and built. Installed nowhere, nothing live. Copying it to the core and running it both wait
+for the user's go.
+- Built on pol from the isle CLI's dev (commit `a45e0b7`). Three packages, as every CLI release:
+  `isle-mesh-cli 0.1.210+release90`, `isle-app-store 0.1.90+release90`, `polari-complete-offline 0.1.90+release90`.
+- Same shape as run 2: the core publishes the three files, every device does `update-apply` of the published
+  release. One verify URL is added: `https://apt.isle/deps/noble/InRelease` answers 200.
+- Checked: the CLI inside the combined package is file for file the dev tree; against release 89 the combined
+  package has nine added files, none removed, the same dependencies and a new version; `isle release check` with
+  the installed release-89 CLI says the packet is valid (run id `f58332896e64`).
+- First release that carries: the storage listings, device classes and partition roles (`isle storage device
+  list|register`, `partition list|assign|check`, `role list|show`); `isle storage units check|apply` and the
+  rewrite of changed unit files at an update; the core-only denylist for storage moves; the setting that names
+  the isle's Keycloak (`isle polari security provider`); the fix of `isle store list` on members.
+- What this run would prove beyond run 2:
+  1. A second publication and update of all three devices from one command.
+  2. The first publication made by the release-89 publisher, so the separate signed index for operating system
+     packages (priority 2). The added verify URL is that proof: every device reads it after its own update.
+  3. `isle store list` without the Python error on the members.
+  4. The units step prints nothing and changes nothing on pol (release 90 changes no unit text).
+- To know before the go:
+  1. After this publication the main index of `apt.isle` lists only isle and polari packages. The operating
+     system packages are listed under `deps/noble/` only. There is still no set for a 22.04 device, as before.
+     An installed device needs none of them for this update: the dependencies are the same as in release 89.
+  2. In run 2 the publisher's scan of the whole package store took about 20 minutes.
+  3. Read in the code, not run: with no Keycloak named, the core's reconcile finds no changed setting and does
+     not re-create the backend.
+- After it is live, the storage proof of st-1 is typed on pol (STORAGE_ROLES_PLAN.md, section 5).
+
 ## Proof packet 2 - for the user's review (2026-11-18). Packet 2a RUN 2026-11-20, see Run 2 above.
 
 Purpose: prove what run 1 did not, with a packet that is also real work (CLI release 89).
