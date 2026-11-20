@@ -259,6 +259,54 @@ The user's part stays one command on the core: `sudo isle release run <packet>`.
     checking it; (3) `isle release setting any-device` allowed once (1) is set, refused with the reason otherwise.
     Switching the gate on in the core's instance is a live change and waits for the user's go.
 
+#### Step (1) built: the setting that names the isle's Keycloak (2026-11-20)
+
+State: **source-tested** on pol, on the isle CLI's dev. In no release, installed nowhere, nothing live changed.
+
+    isle polari security provider                                    show it (core: its record; member: what the core publishes)
+    sudo isle polari security provider <https://host/realms/name>    name it (core only); --client <id> when it is not polari-frontend
+    sudo isle polari security provider none                          name none (core only)
+
+- The record is one file on the core, `/etc/isle-mesh/identity/provider.json`: issuer, realm, address of the
+  signing keys, client id, when and on which device it was set. No secret is in it.
+- Naming one checks, in this order and before anything is written: this device is the core; the address is HTTPS,
+  has no user name, query or fragment and ends in `/realms/<name>`; the Keycloak at that address answers its
+  discovery document over verified TLS (no redirect followed) and names itself with exactly that address; its
+  signing keys are offered over HTTPS on the same host. Then it asks for sudo by naming the full command.
+  The address is kept letter for letter as typed, because a sign-in token must name it letter for letter.
+- Members learn it from the core's release notice (key `identityProvider`, served unchanged by the engine at
+  `/api/islemesh/updates`), the same way they learn the start setting. Each publication carries it again.
+- `none` is refused while the start setting is `any-device`.
+- Who reads it:
+  - a backend deployed with `isle polari deploy` is given `POLARI_KEYCLOAK_ISSUER_URI`, `POLARI_KEYCLOAK_JWKS_URI`,
+    `POLARI_KEYCLOAK_REALM` and `POLARI_KEYCLOAK_FRONTEND_CLIENT_ID` (the names the engine reads);
+  - the core's own backend is given the same at an update (the runtime reconcile);
+  - `isle polari security enable|require` write address, client and realm into the frontend's file first.
+- What it does not do: it switches no rule on. The engine's sign-in check never rejects a request by itself, and
+  the permission mode (`POLARI_APP_PERMISSIONS`) is not touched and stays off.
+- Files (isle CLI): `identity_provider.py` (new), `test-identity-provider.py` (new, 29 tests, a fake device and a
+  fake Keycloak, no network; 18 of 18 deliberate breaks caught), small changes in `polari.sh`,
+  `polari-security.py`, `polari-component-config.py`, `runtime_reconcile.py`, `release_run.py` (the notice writer
+  may replace this one more key), `release_notice.py`, `test-runtime-reconcile.py`, `README.md`.
+
+Not done and not proven (said plainly):
+- A backend that is already running keeps what it started with. A verb that re-creates one instance's backend with
+  the new setting does not exist yet; today it happens at the next deploy or update of that instance.
+- Whether a backend container can fetch the signing keys (trust bundle and isle DNS inside the container) has not
+  been tried against a real Keycloak. No Keycloak runs on the isle today.
+- The sign-in switch on the Isle App's page (`security-toggle.py`) does not read the setting yet; only the CLI does.
+- The redirect addresses a Keycloak client must allow for each instance frontend are not handled.
+
+Found in the engine while mapping this, bearing on steps (2) and (3):
+- The engine has no way to say "this one API needs a signed-in sender". The permission gate is one mode for the
+  whole instance: `off` (today: everything open), `advisory`, or `enforce` (everything refused unless a permission
+  profile allows it). So "the core's submission API needs sign-in, the rest of a private isle stays open" cannot be
+  expressed today. It needs an answer inside the engine's permission model (a per-class rule, as owner-defined
+  permissions already are per class), never a hand-wired check.
+- How a member's CLI obtains a sign-in token for the person typing the command is not designed (a browser sign-in
+  on the device, or Keycloak's device flow).
+Both are questions for the user before step (2) is built.
+
 #### Fixed or checked on the way (2026-11-18)
 - `isle store list` Python error (section D): fixed in the worktree with a test (`test-store-list.py`),
   source-tested, uncommitted, NOT in release 89.
