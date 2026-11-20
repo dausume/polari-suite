@@ -173,8 +173,26 @@ The units verbs of R4 (first half of st-2), same state: on the isle CLI's dev, s
   `docs/STORAGE-MIGRATION-CONTRACT.md`.
 - Read on pol today with the new code: all three units of `apt-public-repo` match, no overrides, enabled.
   `apply` has not been run anywhere (it needs sudo).
-- Open, for st-2: nothing calls `units apply` after an update yet. Two ways: the package's install script runs
-  it for every bound dataset, or it is a step kind of the release run. Not chosen.
+- Built 2026-11-20 (source-tested, on the isle CLI's dev, in no release): an update rewrites the unit files whose
+  text it changed. It is one step of the reconcile that `sudo isle update apply` and `sudo isle reconcile` run.
+  `isle update apply` hands over to the reconcile script of the package it has just installed, so the release
+  that carries this step already uses it on every device. That is why it is neither of the two ways named
+  before: an install script runs inside the package manager and cannot report well, and a new step kind of the
+  release run is usable only one release later and never runs for an update a member takes by timer.
+  - What it changes: a unit file that exists and whose text differs from what the installed CLI writes. The
+    replaced text is kept in `/var/lib/isle-mesh/storage/<dataset>/units-replaced/<time>/`.
+  - What it leaves as found and names in the output: a missing unit, a unit that is not enabled, a link in place
+    of a unit file, a hand override. `sudo isle storage units apply --dataset D` stays the verb for those.
+  - It enables, starts and restarts nothing. A rewritten unit is used from its next start.
+  - It takes the dataset's operation lock and skips a dataset that another storage operation holds.
+  - It never fails the update: a fault is one printed line.
+  - Pol's choice, not ruled: a unit file someone edited by hand (the file itself, not an override beside it) is
+    also "text that differs" and is rewritten. The copy of the replaced text is the way back.
+  - Tests: `test-storage-units.py` (31), `test-update-shell-boundary.py` (3: the order of the reconcile steps,
+    and that a failing units step does not stop the reconcile).
+  - Proof owed (st-2): a release whose unit text differs from the installed one, taken with one
+    `sudo isle release run`, after which `isle storage units check` answers ok on the hosting device with no
+    hand step. Release 90 changes no unit text, so on release 90 the step must print nothing and change nothing.
 - Fixed on the way: `test-storage-receive.py` asked the core for the placement view and read this machine's
   own operation journal, so it failed on a device that hosts the dataset. It now reaches neither.
 
