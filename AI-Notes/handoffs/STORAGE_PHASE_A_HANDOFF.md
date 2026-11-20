@@ -61,7 +61,11 @@ Still to design/build for 88:
    let the door supersede a stored ok=false. Document `isle operation retry <id>` as THE resume; operatorCommand must say so.
    ✅ code 2026-11-20, the device side (isle CLI dev, source-tested, in no release, not in the release 90 packet): the attempt
    of a migrate receipt counts per action on the device, and a number the core already holds is stepped past. The door is
-   unchanged. Still open here: the words about `isle operation retry <id>`.
+   unchanged.
+   ✅ words 2026-11-20 (isle CLI dev `d97f350`, source-tested, in no release): every journaled operation that ends other than
+   `succeeded` prints `sudo isle operation retry <id>` with its id (stderr); the contract (section 2.2) and the README name it as
+   the resume. Still open: the App's planned-action text (`operatorCommand`) does not name the retry on a failed action; that
+   belongs with item 2.
 2. **Plan door honesty**: after a local success whose receipt never landed, the App showed `planned`; show "receipt not delivered".
 3. `isle storage repair-units --dataset D` (the deb does not rewrite units already written) — then drop pol's symlink + drop-in.
    ✅ code 2026-11-20 (isle CLI dev, source-tested, in no release): the verbs are `isle storage units check` and
@@ -80,6 +84,9 @@ Still to design/build for 88:
    A hosting device whose CLI predates this posts no proof, so cutover refuses until it is updated.
    Still open: the restart-policy recommendation (not decided, to raise with the user).
 5. Honour release.json `health.path` in the staged probe.
+   ✅ 2026-11-20: found already honoured in today's code (a staged install passes the release's `health.path` to the deploy and
+   the staged probe asks for it; `isle-content-host` declares `/.well-known/isle-storage/current`). No code change; a test now
+   pins it (isle CLI dev `d97f350`). If the Phase A observation was something else, this handoff does not record it.
 6. **Core-only denylist** replacing hostable-names (the user's ruling); delete the stopgap file on the core.
    ✅ code 2026-11-20 (isle CLI dev, source-tested, in no release); the file on the core is still there, unread by the new code.
 7. Cosmetic: nginx autoindex writes epoch hrefs as raw `%3a` (click → 404; apt unaffected).
