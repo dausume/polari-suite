@@ -7828,3 +7828,23 @@ identifier in `managedDB.makeSQLiteTable()` (and whatever the matching MariaDB p
 column name in double quotes (SQLite) / backticks (MariaDB) when building `CREATE TABLE`/`INSERT`/`UPDATE`
 statements — so a treeObject field name is never at the mercy of the SQL dialect's reserved-word list. That
 closes this whole class of bug at the root instead of one renamed field at a time.
+
+## §79 — framework dev with the HAL branch merged (2026-11-20, framework `4d05a159`, selftested on pol; nothing deployed)
+
+`dev-hal-3b` (the HAL generator hal-3b, the pin twin rows pt-1a, gate 2 on the device) is merged into the framework's `dev`
+and pushed. All 110 module selftests were run on the merged tree, each with a 600 s limit: 103 passed in the batch.
+
+**Passed when run alone with a long limit (the limit, not the code):**
+- `board.board_selftest`: 1142/1142, 2234 s.
+- `cmod.cmod_light_topology_selftest`: 38/38.
+- `cmod.cmod_selftest`: 1379/1379.
+
+**Owed (each fails the same way on a parent branch, so the merge did not cause it):**
+- `board.board_bench_selftest` fails on `dev` before the merge.
+- `board.board_access_overlay_selftest`: its evidence file is stale (came with `dev-hal-3b`).
+- `board.board_c3_hal_gate_selftest`: needs `riscv64-unknown-elf-gcc`, which is not installed on pol (came with `dev-hal-3b`).
+- `cmod.cmod_catom_hal_nocode_selftest`: 17/18, one stale assertion about `DECLARATIVE` (same on both parents).
+- A selftest that needs 37 minutes (`board.board_selftest`) cannot sit in a batch with a 600 s limit: split it or give the
+  batch a per-selftest limit.
+- `cmod.cmod_selftest` rewrites the tracked file `modules/cmod/custom/glue_builds/uno-sim-rig-graph.json` when it runs.
+- No browser pass and no run on the home machines was done for the merged tree.
