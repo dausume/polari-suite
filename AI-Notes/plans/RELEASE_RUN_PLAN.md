@@ -290,8 +290,9 @@ State: **source-tested** on pol, on the isle CLI's dev. In no release, installed
   may replace this one more key), `release_notice.py`, `test-runtime-reconcile.py`, `README.md`.
 
 Not done and not proven (said plainly):
-- A backend that is already running keeps what it started with. A verb that re-creates one instance's backend with
-  the new setting does not exist yet; today it happens at the next deploy or update of that instance.
+- The core's own backend takes the setting at the next `sudo isle reconcile` (read in the code and in the core's
+  published release, which lists that backend; not run). A backend on another device keeps what it started with
+  until its instance is deployed or updated; no verb re-creates it on its own.
 - Whether a backend container can fetch the signing keys (trust bundle and isle DNS inside the container) has not
   been tried against a real Keycloak. No Keycloak runs on the isle today.
 - The sign-in switch on the Isle App's page (`security-toggle.py`) does not read the setting yet; only the CLI does.
