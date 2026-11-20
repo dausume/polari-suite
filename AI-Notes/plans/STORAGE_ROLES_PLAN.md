@@ -56,7 +56,7 @@ Roles (first list): `package-repo`, `distribution` (install and operating-system
     isle storage slot      list | bind
     isle storage units     check | apply --dataset <name>
     (existing) isle storage authorize | migrate | cutover | witness | accept | rollback | sync | status
-    pol backup create | restore      writes to and reads from partitions with the role `backup`
+    isle backup plan | create | list | verify | release-hold      writes to the partition with the role `backup` (BACKUP_PLAN.md)
 
 - `partition assign` adopts an existing filesystem: writes the marker and the record, moves no data.
 - `partition create` erases. It runs only from an approved plan that names the device serial, the size and the
@@ -65,8 +65,9 @@ Roles (first list): `package-repo`, `distribution` (install and operating-system
 - Records: on the machine, a device list and the marker at each partition root (one scheme: the dataset's
   existing on-disk binding file is kept inside it, not beside it). On the core, the placement record gains
   partitions and roles, and the plan gains partition items.
-- `isle storage backup` from econ's draft is not taken: the storage layer owns the partition with the role
-  `backup` and its health; the app-consistent export and the restore stay `pol backup` (the split of 2026-11-12).
+- The split of 2026-11-12 (`pol backup` for the export and the restore) is overtaken by the user's ruling of
+  2026-11-20: the isle CLI is responsible for storage, Polari only has to be aware of it. The verbs are
+  `isle backup ...`; a running instance is held still through the engine's write gate. Detail: BACKUP_PLAN.md.
 
 ## 5. Steps (each ships as a release-run packet)
 
@@ -212,6 +213,9 @@ After the answers of 2026-11-20 (section 7) this table is partly overtaken. It i
 - 1.8 TB HDD: `assets` for what is rarely used (decisions 3 and 5). What its other partitions carry is open.
 - 466 GB HDD: `git` and the dependency stores go there (decision 3), and it is one filesystem that holds the package
   replica today. See the conflict under "st-1 built" in section 5.
+- The user, 2026-11-20 evening (verbatim): "The device backup can live on the 500 GB HDD Internal. Container
+  Images can be held by the 2 TB HDD." So `backup` is one more role on the 466 GB HDD (it needs its own partition
+  there, the same conflict), and `registry` goes on the 1.8 TB HDD beside `assets`.
 
 ## 7. Decisions - answered by the user, 2026-11-20
 
@@ -236,7 +240,7 @@ After the answers of 2026-11-20 (section 7) this table is partly overtaken. It i
    - So the SSD's first purpose is the isle template medium: a fresh isle, new names, new security, set up from
      the SSD with no network, and offline updates. This is mode `export` of R5, now the main mode. It can be
      turned into a backup disk as well. No second backup copy on the core.
-   - Open after this answer: where routine device-backups live when the SSD is a template medium (BACKUP_PLAN.md).
+   - Answered 2026-11-20 evening: routine device-backups live on pol's internal 466 GB HDD (BACKUP_PLAN.md).
 5. The 2 TB disk, ruled: "We want to use the 2 TB for miscellaneous storage of assets we do not use frequently."
 6. Container images, ruled (verbatim): "I think that may make sense to specify being somewhere specific as well
    like allocating images to live primarily on the HDD since it is not used often and takes up a lot of space

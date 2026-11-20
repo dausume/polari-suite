@@ -1,7 +1,9 @@
 # Backups - pol's plan (2026-11-18)
 
-Pol owns `pol backup create|restore`, the list of what a backup holds and the device-backup record (the split of
-2026-11-12). Built so far: only the read-only listing (section 6, "Done ahead of bk-0").
+The verbs are `isle backup ...` (decision 1 in section 7: the isle CLI owns storage and the copy to disk; the
+core has no `pol`). Built so far, source-tested only: `isle backup plan | create | list | verify | release-hold`
+and the release-run step kind `backup` (section 6, "Built 2026-11-20"). Not built: restore, the fetch of other
+machines' device-backups, the items the isle CLI cannot name by itself.
 
 **The word (the user, 2026-11-20): "Jusst call it a device-backup instead of a set, there are a lot of things called
 sets, it is too generic."** A device-backup is one backup of one machine taken at one time. The word "set" is not
@@ -52,8 +54,8 @@ never in a backup: they come from a release.
 
 ## 4. A device-backup
 
-One folder per device-backup on the target: `backups/<device>/<id>/`. Inside: one file per item and
-`device-backup.json`.
+One folder per device-backup on its home: `device-backups/<device>/<id>/`. Inside: one file per item and
+`device-backup.json`. The device name is read from the machine when it runs; no name is written into the code.
 
 - `device-backup.json`: id, slot (`release` or `long-term`, section 4a), device name, instance names, time, release number and CLI versions, and for every item its
   kind, source, method, size, sha256 and receipt (row counts for a database). Names only, no addresses.
@@ -84,22 +86,25 @@ to something older) and then per-release so that if a release goes badly we can 
   new `long-term` one and the old `long-term` one is deleted. Otherwise the previous `release` one is deleted.
   So the long-term one is always older than the release one, and it moves forward at most once a week.
 - Nothing is deleted before the new device-backup is complete, so three exist for a moment and two afterwards.
-- `pol backup create` by hand stays possible for a test; it fills the `release` slot by the same rule.
+- `sudo isle backup create --yes` by hand stays possible for a test; it fills the `release` slot by the same rule.
 
 ## 5. Verbs
 
-    pol backup plan                       read-only: what a device-backup of this machine would hold, sizes, the target and its free space
-    pol backup create                     root, journaled: writes one device-backup, verifies it, then applies the two-slot rule
-    pol backup list                       the device-backups on the target, their slot, complete or not
-    pol backup verify <id>                re-reads every file against device-backup.json
-    pol backup restore <id> --drill       restores into scratch copies, compares receipts, changes nothing
-    pol backup restore <id> --apply       root, journaled: staged copy, check, swap; the instance is stopped first, the previous generation is kept
+    isle backup plan [--json]             BUILT. read-only: what a device-backup of this machine would hold, sizes, its home and the free space
+    sudo isle backup create --yes         BUILT. journaled: writes one device-backup, re-reads it, then applies the two-slot rule
+    sudo isle backup list [--json]        BUILT. the device-backups of this machine, their slot, complete or not
+    sudo isle backup verify <id>          BUILT. re-reads every file against device-backup.json
+    sudo isle backup release-hold         BUILT. lowers a write gate that an interrupted device-backup left up
+    isle backup restore <id> --drill      not built: restores into scratch copies, compares receipts, changes nothing
+    isle backup restore <id> --apply      not built: journaled; staged copy, check, swap; the instance is stopped first, the previous generation is kept
 
 - `restore --apply` refuses a device-backup that is incomplete, one of another device, and one that has not
   passed a drill on this CLI version.
-- A release-run step kind `backup`: every packet that changes a device takes a device-backup of it first (the
-  user, 2026-11-20: "Only on a release or an update"). This is also what the overwrite needs. Pol builds it in
-  the release runner; econ is on other work and no lane is in the way (the user, same day).
+- A release-run step kind `backup` (BUILT, `{"verb": "backup"}`, no parameter): every packet that changes a
+  device takes a device-backup of it first (the user, 2026-11-20: "Only on a release or an update"). This is also
+  what the overwrite needs. If the device-backup is not complete, the run stops there and nothing after it starts.
+  A runner older than this does not know the step, so the first packet that can carry it is the one after the
+  release that installs this CLI.
 
 ## 6. Steps (each ships as a release-run packet)
 
@@ -115,7 +120,60 @@ to something older) and then per-release so that if a release goes badly we can 
 
 bk-1 needs no decision except where the verb lives (decision 1); it reads only.
 
+### Built 2026-11-20: `isle backup` and the release-run step (bk-1, bk-2 and bk-5, for what the isle CLI can name)
+
+State: **source-tested** on pol, isle CLI dev `6287d2a`. In no release, installed nowhere, no device-backup
+has been written on any machine, no instance's write gate was raised (one read-only status question to pol's
+own instance, over verified TLS).
+
+- Where a device-backup lives (the user, 2026-11-20: "The device backup can live on the 500 GB HDD Internal"):
+  on the partition this machine records with the role `backup`, in `device-backups/<device>/<id>/`. A machine
+  that records no such partition keeps them in its state folder (`/var/lib/isle-mesh/device-backups/`). A
+  recorded `backup` partition that is away, read-only or without its marker is a refusal, never a silent fall
+  back to the state folder. More than one is a refusal too.
+- To be said plainly about pol's internal disk: it is ONE partition today and that partition holds the package
+  replica (a placed dataset). A role is per partition, so `backup` there needs its own partition; shrinking the
+  existing one is the user's decision and their sudo steps. Until then pol's device-backups go to its state
+  folder on the system disk (about 300 MB needed, 35 GB free). Pol also has no storage records yet (the roles
+  verbs are not in the installed release).
+- What one holds:
+  - `/etc/isle-mesh` without `apt/repo` (the package store). The repository's signing-key folder and the CA key
+    are in it (decision 4).
+  - `/var/lib/isle-mesh` without `artifacts`, `operations` (decision 3) and the device-backups themselves.
+  - the data volume of every Polari instance the isle CLI deployed on the machine: the isle's own instance on
+    the core, and every instance record with the role `backend`. A running instance is copied only behind the
+    engine's write gate (gate up, wait for the flush, copy, gate down); one that is not running is copied as it
+    lies. A gate held for something else is not touched and the item fails.
+  - Every other named Docker volume is listed under "not covered" in the plan and in `device-backup.json`.
+- Not covered yet, and owed: MariaDB and Keycloak's database, the file store, the forge and Odoo (pol's swarm
+  instance; nothing declares them to the isle CLI - Polari has to say what its data is, decision 1); the router's
+  virtual machine on the core; the instance's runtime folder in the home folder; credential files in a checkout.
+  So on pol a device-backup today holds the isle settings, the isle state and the isle-deployed instance (10 MB),
+  not the swarm instance.
+- How it is written: one gzip tar per item, read as root straight from the folder (no helper container, no image
+  to pull), sha256 taken while it is written; `device-backup.json` is written first as incomplete and marked
+  complete only after every file was read back and its size and sha256 matched. Folders 0700, files 0600. The
+  first item that fails stops it: it stays incomplete, exit 1, nothing older is touched.
+- The two-slot rule (section 4a) runs only after that: the previous `release` one becomes `long-term` or is
+  deleted. An incomplete one left by an interrupted run is removed by the next `create`; one whose record cannot
+  be read is left alone and shown as damaged.
+- It is a journaled operation (`operations.py`, one lock, one device-backup at a time, `sudo isle operation
+  retry <id>` resumes). The write gate is held under the operation's id, so a retry takes its own hold back.
+- Free space: refused unless the home has twice what is copied plus 256 MiB.
+- Files (isle CLI): `device_backup.py`, `device_backup_items.py`, `backup.sh`, `test-device-backup.py` (32
+  tests: temporary folders, a made-up machine and a made-up write gate; real `tar` only), and small changes in
+  `operations.py`, `release_run.py`, `storage_migrate.py` (the verified POST can take the same route as the GET),
+  `index.js`, `test-operations.py`, `test-release-run.py`.
+- A fault the tests caught before anything ran for real: the first version would have put the device-backups
+  folder into the state archive it was writing. Every left-out path is now excluded whether or not it existed
+  when the listing was made.
+- These are pol's choices, not rulings, and can be changed: gzip tar as the format; twice the size as the free
+  space rule; stop at the first failed item; the state folder as the home of a machine with no `backup` partition.
+
 ### Done ahead of bk-0 (2026-11-18): `pol backup plan`
+
+Overtaken by `isle backup plan` above for the isle's own data. It still lists Polari's other volumes, which is
+what Polari will have to declare to the isle CLI.
 
 Source-tested on pol; on the pol CLI's dev since 2026-11-20 (pushed); in no release, installed nowhere.
 
@@ -161,5 +219,9 @@ Source-tested on pol; on the pol CLI's dev since 2026-11-20 (pushed); in no rele
 New from the same message, changing section 1 (B4): the 233 GB SSD is first of all the isle template medium (a
 completely new isle, new names and new security, set up from the SSD with no network; offline updates). "We
 should be capable of transforming it into a backup as well". So mode `export` is the main mode and bk-6 moves
-up. Where routine backups live when the SSD is a template medium is open; pol's proposal is one partition of the
-2 TB dock disk with the role `backup`. Full text in STORAGE_ROLES_PLAN.md section 7, item 4.
+up. Full text in STORAGE_ROLES_PLAN.md section 7, item 4.
+
+Where routine device-backups live - answered (the user, 2026-11-20 evening, verbatim): "The device backup can
+live on the 500 GB HDD Internal. Container Images can be held by the 2 TB HDD." So the role `backup` goes on
+pol's internal disk and the role `registry` on the 2 TB dock disk. What that needs on the internal disk is said
+under "Built 2026-11-20" in section 6.

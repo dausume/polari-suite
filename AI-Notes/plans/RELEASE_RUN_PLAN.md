@@ -285,10 +285,26 @@ The user's part stays one command on the core: `sudo isle release run <packet>`.
     left to pol ("The rest I defer to your decisions") and stand.
   - Lanes (verbatim): "Don't be worried about econ they are on totally different tasking now, there are no split
     concerns right now". Pol works in the runner files as needed; nothing is owed to econ for it.
+  - OVERTAKEN the same evening, see "The user, 2026-11-20 evening" below: any-device does not need Keycloak.
   - Owed next, in this order: (1) the setting that names the isle's Keycloak, read by `isle polari security`;
     (2) the submission as an engine row class, the member's node offering the packet, the core fetching and
     checking it; (3) `isle release setting any-device` allowed once (1) is set, refused with the reason otherwise.
     Switching the gate on in the core's instance is a live change and waits for the user's go.
+
+- The user, 2026-11-20 evening (verbatim): "We do not require keycloak for releases unless it is enabled and
+  required by security settings for the isle. The default can just be that you are required to run the release
+  command from the core."
+  - So pol's reading above is withdrawn. The default stays `core-only`. `any-device`, once the intake exists, works
+    on an isle with no Keycloak. Sign-in is asked of a release only where the isle's security settings both switch
+    Keycloak on and require it for releases (`isle polari security require --feature release-any-device`).
+  - Changed in the code for this (isle CLI dev `6287d2a`, source-tested): `provider none` is no longer refused
+    because the start setting is `any-device`.
+  - Still to build, with the intake (step 2): the core's check of a submission asks for a signed-in sender only
+    when that requirement is set. Open in it: the requirement is written today into one frontend's settings file
+    named by hand (`--config`), so the core has no single place to read "releases need sign-in" from; the intake
+    needs one. And `any-device` stays refused until the intake exists.
+  - Without sign-in, what proves which member sent a packet is the open point it was on 2026-11-18 (the claim that
+    the enrollment identity can carry it has to be checked in the code before anything is built on it).
 
 #### Step (1) built: the setting that names the isle's Keycloak (2026-11-20)
 
@@ -307,7 +323,8 @@ State: **source-tested** on pol, on the isle CLI's dev. In no release, installed
   The address is kept letter for letter as typed, because a sign-in token must name it letter for letter.
 - Members learn it from the core's release notice (key `identityProvider`, served unchanged by the engine at
   `/api/islemesh/updates`), the same way they learn the start setting. Each publication carries it again.
-- `none` is refused while the start setting is `any-device`.
+- `none` was refused while the start setting is `any-device`; that refusal is removed (the user, 2026-11-20
+  evening: releases do not need Keycloak unless the isle's security settings switch it on and require it).
 - Who reads it:
   - a backend deployed with `isle polari deploy` is given `POLARI_KEYCLOAK_ISSUER_URI`, `POLARI_KEYCLOAK_JWKS_URI`,
     `POLARI_KEYCLOAK_REALM` and `POLARI_KEYCLOAK_FRONTEND_CLIENT_ID` (the names the engine reads);
