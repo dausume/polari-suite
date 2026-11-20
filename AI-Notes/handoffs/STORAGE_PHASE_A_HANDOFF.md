@@ -65,6 +65,7 @@ Still to design/build for 88:
    is-enabled). Keep the container restart policy `no` so the gate unit owns boot (econ's recommendation; raise with the user).
 5. Honour release.json `health.path` in the staged probe.
 6. **Core-only denylist** replacing hostable-names (the user's ruling); delete the stopgap file on the core.
+   ✅ code 2026-11-20 (isle CLI dev, source-tested, in no release); the file on the core is still there, unread by the new code.
 7. Cosmetic: nginx autoindex writes epoch hrefs as raw `%3a` (click → 404; apt unaffected).
 8. **Authenticate the plan door** (`PUT /api/islemesh/placement-plan` needs only verified TLS) + journaled approval record
    {planId, revision, digest, approvedBy, approvedAt, summary} — prerequisite for §4.

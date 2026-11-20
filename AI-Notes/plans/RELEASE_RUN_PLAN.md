@@ -394,7 +394,8 @@ Both are questions for the user before step (2) is built.
 - `isle store list` on pol (CLI release 88) prints a Python error (`KeyError: 'provides_engine'`) before the list.
 - The core's device list holds a stale member (last seen 2026-11-06). A packet addressed to "*" would sign it into
   the approval and wait on it until the limit. Needs a verb to retire a device, or "*" limited to recently seen ones.
-- Round-88 items still open: the twin door as a store app with a catalog row; the core-only denylist.
+- Round-88 items still open: the twin door as a store app with a catalog row. The core-only denylist is built
+  (2026-11-20, isle CLI dev, source-tested; goes out with the next release; STORAGE_ROLES_PLAN.md, after the step table).
 - Backend: one-shot twin runs accept only a twin local to the backend (TWIN_DOOR_PLAN, worker 15-2 section).
 
 ### E. Operating system overwrite - a separate kind of update (the user's ruling, 2026-11-18) - PLAN, nothing built
