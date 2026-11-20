@@ -92,8 +92,8 @@ for the user's go.
   3. Read in the code, not run: with no Keycloak named, the core's reconcile finds no changed setting and does
      not re-create the backend.
 - After it is live, the storage proof of st-1 is typed on pol (STORAGE_ROLES_PLAN.md, section 5).
-- Not in this packet (on the isle CLI's dev after the build): cutover's check of the router's managed-names list and the
-  verb `isle dns managed-names list`. They ride the next CLI release.
+- Not in this packet (on the isle CLI's dev after the build): cutover's check of the router's managed-names list, the
+  verb `isle dns managed-names list`, and the per-action numbering of migrate receipts. They ride the next CLI release.
 
 ## Proof packet 2 - for the user's review (2026-11-18). Packet 2a RUN 2026-11-20, see Run 2 above.
 

@@ -59,6 +59,9 @@ Still to design/build for 88:
 1. **Receipt attempt keying**: the core door keys receipts by actionId/attempt and 409s a different body; re-running the migrate argv
    creates a new op with attempt 1, so a later success was fenced by the first failure. Derive attempt per actionId (econ's lean) or
    let the door supersede a stored ok=false. Document `isle operation retry <id>` as THE resume; operatorCommand must say so.
+   ✅ code 2026-11-20, the device side (isle CLI dev, source-tested, in no release, not in the release 90 packet): the attempt
+   of a migrate receipt counts per action on the device, and a number the core already holds is stepped past. The door is
+   unchanged. Still open here: the words about `isle operation retry <id>`.
 2. **Plan door honesty**: after a local success whose receipt never landed, the App showed `planned`; show "receipt not delivered".
 3. `isle storage repair-units --dataset D` (the deb does not rewrite units already written) — then drop pol's symlink + drop-in.
    ✅ code 2026-11-20 (isle CLI dev, source-tested, in no release): the verbs are `isle storage units check` and
