@@ -64,9 +64,10 @@ The sections below keep their letters; this list is the order of work.
   error on the members (the fix is not in 89). `test-apt-local-priority.py` was not run on the core (it starts a
   container there).
 
-### Run 3 packet `cli-release-90` - STAGED on pol only (2026-11-20). Not on the core, not run
-State: source-tested and built. Installed nowhere, nothing live. Copying it to the core and running it both wait
-for the user's go.
+### Run 3 packet `cli-release-90` - STAGED on pol and on the core (copied 2026-11-21). Not run
+State: source-tested and built; staged on the core at `~/isle-release-90` (checksums match, `isle release check`
+says valid). Installed nowhere, nothing live. The run is the user's one command on the core:
+`sudo isle release run ~/isle-release-90`.
 - Built on pol from the isle CLI's dev (commit `adecf15`, the dev tip; third build, 2026-11-20 evening - the
   earlier ones were from `a45e0b7` and `6287d2a`). Three packages, as every CLI release:
   `isle-mesh-cli 0.1.210+release90`, `isle-app-store 0.1.90+release90`, `polari-complete-offline 0.1.90+release90`.
@@ -550,6 +551,34 @@ any-device` is typed on the core.
     release, so after an operating system upgrade of the core the old ones would be filed wrongly until the
     offline set is rebuilt; (e) a device's own blanket block on the isle host (econ's recovery block) also
     blocks the dependency index there.
+  - Supported operating systems and one set per release, SOURCE-TESTED 2026-11-21 (the user's ask: "We should
+    record the different OS's we are supporting and variations in the apt seperation."; Isle-Mesh dev `26665f0`,
+    for release 91; installed nowhere):
+    - The record is the file `isle-cli/apt/supported-os.json`: per system its release name, architectures, how far
+      it is proven as a core and as a member (live-verified / source-tested / not proven), the image a dependency
+      set is resolved in, the apt and python versions, the package names that differ, and the place every value
+      was read. Today: ubuntu-24.04 (noble; core live-verified, member source-tested) and ubuntu-22.04 (jammy;
+      member live-verified, core not proven). Three names differ on 22.04: `libgtk-3-0t64` is `libgtk-3-0`,
+      `libasound2t64` is `libasound2`, and `systemd-resolved` is part of `systemd`.
+    - Verbs, all read-only: `isle os list` (the record), `isle os check` (this machine: its system, whether the
+      record has it, whether the core serves a set for its release; exit 1 when it is not in the record),
+      `isle os devices` (what every machine of the isle last reported). Every machine adds `host.os_release` and
+      `host.os_codename` to the device report it already publishes; Polari reads the same rows.
+    - Limit (d) is closed in source: `isle apt-repo publish --dependencies-from <dir>` files the set under the
+      release it was built for - the one typed with `--dependencies-release`, else the one the directory is
+      marked with (`<system id>.txt`, as the offline medium writes it), else the core's own release. A release that
+      is not in the record, a directory marked for two systems, and a typed release that differs from the mark are
+      refused with the repository unchanged. A later publication keeps every package file in each
+      `deps/<release>/` index that already lists it, so the noble set stays when a jammy set is added.
+    - Limit (c), half done: a 22.04 set is BUILT and STAGED on pol only (2026-11-21; 927 packages, 539 MB, every
+      one checked against Ubuntu's signed index; `ubuntu:22.04` image, permitted pull). The first try failed on
+      `systemd-resolved`, which is how the third name difference was found. It must NOT be published by a core
+      older than release 91: release 89 and 90 would file it under noble. So: release 91 first, then the set.
+    - Owed: a release packet cannot carry a dependency set yet (the publication step passes no
+      `--dependencies-from`), so after 91 the set is one typed publication or a new packet kind; no `pol` or
+      `isle` verb builds a dependency set (it is `build-offline-bundle.sh` by hand); the suite's build scripts and
+      the two offline checkers still name the two targets themselves instead of reading the record;
+      `test-apt-local-priority.py` on the core; part F of `test-apt-deps-index.py` needs an image with python3.
 - `isle store list` on pol (CLI release 88) prints a Python error (`KeyError: 'provides_engine'`) before the list.
 - The core's device list holds a stale member (last seen 2026-11-06). A packet addressed to "*" would sign it into
   the approval and wait on it until the limit. Needs a verb to retire a device, or "*" limited to recently seen ones.

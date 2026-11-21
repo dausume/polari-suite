@@ -3,7 +3,20 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-20, evening (read this first; the sections below are older).**
+**State on 2026-11-21, morning (read this first; the 2026-11-20 block below is older).**
+- The release 90 packet is staged on the core too (`~/isle-release-90`, copied at the user's go). Its run is the
+  user's one command on the core: `sudo isle release run ~/isle-release-90`. Everything newer is for release 91.
+- The user's answers of 2026-11-21 (verbatim in the plans): a partition can carry more than one role; fix the older
+  isle scripts (TLS without checking, fixed router addresses, the ssh to the router not checking its key); the list
+  of what needs sign-in lives in the Keycloak provider record on the core; record the operating systems we support
+  and what differs between them for apt.
+- Isle CLI dev is `26665f0`: the record of supported operating systems (`isle os list|check|devices`), the system
+  in every device report, and a dependency set filed under the release it was built for (`RELEASE_RUN_PLAN.md`,
+  section D, last item). Source-tested only.
+- A dependency set for Ubuntu 22.04 is built and staged on pol only (`~/isle-dependencies-ubuntu-22.04`, 927
+  packages). It must not be published by a core older than release 91.
+
+**State on 2026-11-20, evening.**
 - The order of work is the user's (2026-11-18): one-command release, apt separation, storage, backups, OS overwrite.
 - Release 89 is live-verified on all three devices. The release 90 packet is staged on pol only (`RELEASE_RUN_PLAN.md`);
   copying it to the core and running it wait on the user's go.
