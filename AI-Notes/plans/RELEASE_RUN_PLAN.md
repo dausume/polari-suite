@@ -105,6 +105,36 @@ says valid). Installed nowhere, nothing live. The run is the user's one command 
      not re-create the backend.
 - After it is live, the storage proof of st-1 is typed on pol (STORAGE_ROLES_PLAN.md, section 5).
 
+### Building the packet (`isle release build`) - SOURCE-TESTED (2026-11-21, isle CLI dev `a5cc690`), for release 91
+Until release 90 the packet was put together by hand from a scratch script. It is a verb now, so the standard
+steps of a CLI release are two commands: `isle release build` on a member, `sudo isle release run` on the core.
+
+    isle release build <out-dir> --previous <dir> [--source <checkout>] [--commit <ref>]
+        [--combined-builder <file>] [--device <name>]... [--verify <url>]... [--backup]
+
+- Run as a normal user on a member that holds the isle root certificate (the store package carries it). About
+  four minutes. Nothing is published and nothing on the isle changes.
+- `--previous` holds the packages of the release before. The verb takes the next versions from them (CLI and
+  store: patch and release number, each +1), rebuilds the CLI, the store and the combined package, and copies the
+  packages that do not change.
+- It builds from the commit (default: HEAD of the checkout the command runs from), not from the working files.
+  Uncommitted files are left out, and how many is said and written into `build.json`.
+- It compares every file of the CLI inside the CLI package and inside the combined package with the commit.
+- The folder it writes: `packet/` (what `isle release run` takes; read back with the same check the run uses),
+  `members/` (the `--previous` of the next build), `build.json` (commit, versions, sha256 of every package),
+  `build.log`, `source/`.
+- With no `--device` the packet is for every device ("*"); the stale member in the core's device list makes that
+  wait, so name the devices. `--backup` puts a device-backup step before each device's update.
+- It refuses, before it writes anything: root; a folder that is not empty; a `--previous` without exactly one CLI
+  and one store package, or with two different release numbers; a commit that is not found; a missing combined
+  builder; an unreadable root certificate; a device name or check address the run would refuse.
+- Not a default: the check that one release's dependency index answers. For a release that should prove it, type
+  `--verify https://apt.isle/deps/<release name>/InRelease`.
+- Proof so far: 21 tests with fake packages, git and builders; 51 of 51 deliberate breaks caught; one trial with
+  the real builders (a release 91 packet the installed `isle release check` reads as valid, 502 files compared).
+- Owed: the build still needs the suite's combined builder beside the checkout; a packet cannot carry a
+  dependency set.
+
 ## Proof packet 2 - for the user's review (2026-11-18). Packet 2a RUN 2026-11-20, see Run 2 above.
 
 Purpose: prove what run 1 did not, with a packet that is also real work (CLI release 89).
@@ -589,10 +619,13 @@ any-device` is typed on the core.
       one checked against Ubuntu's signed index; `ubuntu:22.04` image, permitted pull). The first try failed on
       `systemd-resolved`, which is how the third name difference was found. It must NOT be published by a core
       older than release 91: release 89 and 90 would file it under noble. So: release 91 first, then the set.
+    - Done 2026-11-21 (isle CLI `385b9f5`, pol CLI `f2150ee`, source-tested): the suite's two offline builders
+      and the two checks of a medium read the record (`supported_os.py base-image|package-names <system id>`)
+      instead of naming the two systems themselves. The medium builder had two of the three name differences
+      by hand; it now gets all three from the record.
     - Owed: a release packet cannot carry a dependency set yet (the publication step passes no
       `--dependencies-from`), so after 91 the set is one typed publication or a new packet kind; no `pol` or
-      `isle` verb builds a dependency set (it is `build-offline-bundle.sh` by hand); the suite's build scripts and
-      the two offline checkers still name the two targets themselves instead of reading the record;
+      `isle` verb builds a dependency set (it is `build-offline-bundle.sh` by hand);
       `test-apt-local-priority.py` on the core; part F of `test-apt-deps-index.py` needs an image with python3.
 - `isle store list` on pol (CLI release 88) prints a Python error (`KeyError: 'provides_engine'`) before the list.
 - The core's device list holds a stale member (last seen 2026-11-06). A packet addressed to "*" would sign it into

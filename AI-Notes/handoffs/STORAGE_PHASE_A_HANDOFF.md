@@ -51,6 +51,23 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
   - While it is required the core takes no offer from a member (an offer cannot carry a sign-in yet). A release
     typed on the core is not asked for one. A record the core cannot read counts as required.
   - **Not built:** how a person on a member signs in, how the offer carries the token, the core checking it.
+- Isle CLI dev then became `a5cc690` (branch `pol/release-build`): `isle release build` makes the packet of a CLI
+  release from one commit, so a release is two commands - build on a member, run on the core
+  (`RELEASE_RUN_PLAN.md`, "Building the packet"). Source-tested only (88 test files run, 0 failed; 51 of 51
+  deliberate breaks caught; tried once with the real builders), for release 91.
+  - `isle release build <out-dir> --previous <dir>`, as a normal user, on a member that holds the isle root
+    certificate. `--previous` is the folder `members/` of the build before; the first time it is the folder of
+    release 90's packages.
+  - It builds from the commit, never from the working files, and compares the CLI inside both packages with the
+    commit file by file. Everything it refuses, it refuses before it writes.
+  - Not a default: the check of one release's dependency index. Type it for a release that needs it
+    (`--verify https://apt.isle/deps/<release name>/InRelease`).
+- Isle CLI dev then became `385b9f5` (branch `pol/os-record-builders`), pol CLI dev `f2150ee` (branch
+  `pol/os-record-checkers`): the suite's two offline builders and the two checks of a medium read the record of
+  supported operating systems instead of naming the systems themselves. The medium builder now also gets the third
+  name difference (`systemd-resolved`), which the hand list did not have. Source-tested only: the builders were not
+  run from start to end (that downloads); their new lines were tried against the record for the newest system, the
+  older one and one the record does not have.
 
 **State on 2026-11-20, evening.**
 - The order of work is the user's (2026-11-18): one-command release, apt separation, storage, backups, OS overwrite.

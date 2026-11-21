@@ -12,7 +12,8 @@
 # builder and page can never drift.
 #
 #   ./build-offline-bundle.sh [--media dvd|cd|usb4|usb8|usb16|BYTES]
-#                             [--target ubuntu-24.04]
+#                             [--target ubuntu-24.04]  any system of the record
+#                                              (isle os list --table)
 #                             [--out .generated/offline]
 #                             [--download]     fetch the closure debs
 #                                              (multi-GB — roomy box)
@@ -61,11 +62,12 @@ warn(){ echo -e "${Y}[WARN]${N} $*"; }
 fail(){ echo -e "${R}[FAIL]${N} $*" >&2; exit 1; }
 step(){ echo; echo -e "${C}==> $*${N}"; }
 
-case "$TARGET" in
-    ubuntu-24.04) BASE_IMAGE="ubuntu:24.04" ;;
-    ubuntu-22.04) BASE_IMAGE="ubuntu:22.04" ;;
-    *) fail "unsupported --target $TARGET (ubuntu-24.04|ubuntu-22.04)" ;;
-esac
+# Which systems a bundle can be built for, and the image each one's packages are
+# resolved in, is the isle's record of supported operating systems
+# (Isle-Mesh/isle-cli/apt/supported-os.json, `isle os list --table`). No list is kept here.
+SUPPORTED_OS="$ROOT/Isle-Mesh/isle-cli/scripts/supported_os.py"
+[ -f "$SUPPORTED_OS" ] || fail "missing $SUPPORTED_OS (is the Isle-Mesh sub-project checked out?)"
+BASE_IMAGE=$(python3 "$SUPPORTED_OS" base-image "$TARGET") || fail "unsupported --target $TARGET"
 
 [ -f "$ROOT/offline-apt-integrity.py" ] || fail "missing offline-apt-integrity.py verifier"
 [ -d "$FRAMEWORK/modules/appstore" ] || fail "framework not at $FRAMEWORK"

@@ -6,7 +6,7 @@
 # the deb is wrapped from. Every section directory ALWAYS exists; an
 # empty one carries an EMPTY file naming why.
 #
-#   ./build-offline-medium.sh [--target ubuntu-22.04|ubuntu-24.04]
+#   ./build-offline-medium.sh [--target ubuntu-24.04]   any system of the record of supported systems (isle os list --table)
 #                             [--version <polari-version>]   default YYYY.MM.DD-dev+<sha>
 #                             [--modules household,reticulum,...]  offline module debs to carry
 #                             [--closure pkg,pkg]  extra distro packages beyond the deb Depends
@@ -44,10 +44,13 @@ while [ $# -gt 0 ]; do case "$1" in
     --no-download) DOWNLOAD=0; shift ;;
     *) echo "unknown arg $1" >&2; exit 1 ;;
 esac; done
-if [ "$TARGET" = ubuntu-22.04 ]; then
-    CLOSURE="${CLOSURE//libgtk-3-0t64/libgtk-3-0}"
-    CLOSURE="${CLOSURE//libasound2t64/libasound2}"
-fi
+# The lists above are written once, with the package names of the newest system.
+# The names another system uses, and which systems there are at all, come from the
+# isle's record of supported operating systems (Isle-Mesh/isle-cli/apt/supported-os.json).
+SUPPORTED_OS="$ROOT/Isle-Mesh/isle-cli/scripts/supported_os.py"
+[ -f "$SUPPORTED_OS" ] || { echo "missing $SUPPORTED_OS (is the Isle-Mesh sub-project checked out?)" >&2; exit 1; }
+CLOSURE=$(python3 "$SUPPORTED_OS" package-names "$TARGET" "$CLOSURE") || { echo "unsupported --target $TARGET" >&2; exit 1; }
+CACHE_ONLY=$(python3 "$SUPPORTED_OS" package-names "$TARGET" "$CACHE_ONLY") || exit 1
 G="\033[0;32m"; R="\033[0;31m"; Y="\033[1;33m"; C="\033[0;36m"; N="\033[0m"
 ok(){ echo -e "${G}[ OK ]${N} $*"; }
 warn(){ echo -e "${Y}[WARN]${N} $*"; }
