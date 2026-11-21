@@ -62,7 +62,9 @@ Roles (first list): `package-repo`, `distribution` (install and operating-system
 - `partition assign` adopts an existing filesystem: writes the marker and the record, moves no data.
 - `partition create` erases. It runs only from an approved plan that names the device serial, the size and the
   role; it refuses the machine's system disk, a partition that carries a dataset, and a device that is not
-  registered.
+  registered. As built (2026-11-21, section 5): the plan is the one the verb prints, and the approval is its id
+  typed back with sudo. It is stricter than this line: it refuses any partition or device that holds a filesystem
+  at all.
 - Records: on the machine, a device list and the marker at each partition root (one scheme: the dataset's
   existing on-disk binding file is kept inside it, not beside it). On the core, the placement record gains
   partitions and roles, and the plan gains partition items.
@@ -220,7 +222,7 @@ In no release and installed nowhere. Release 91 does not have these two verbs.
   1 by a missing case, 1 was a doubled condition that is now removed, 1 was aimed at the wrong test file).
   Read-only run on pol with the real disks: `partition check` answers as before, the refusals and the usage print.
   Not run with sudo anywhere.
-- Still not built in this group: `partition create` (see the block after the next one).
+- `partition create` is built since: see the block after the next one.
 
 #### The disk's own health report, built 2026-11-21 (source-tested, isle CLI dev `52a41dd`, for release 92)
 
@@ -250,6 +252,93 @@ In no release and installed nowhere. Release 91 does not have this verb.
 - Proof: 21 new tests; 58 of 58 deliberate breaks caught (4 were missed at first and each got a test; one was a
   doubled condition, now removed); every test file of the CLI: 91 ok, 1 skipped (it needs the core), 0 failed.
 
+#### Making a partition, built 2026-11-21 (source-tested, isle CLI dev `3148013`, for release 92)
+
+In no release and installed nowhere. Release 91 does not have this verb. It has never run with root and never on a
+real disk. This is the one storage verb that erases.
+
+- Three forms:
+  - `isle storage partition create <serial>`: says what the device holds and which of the two ways below fits.
+  - `isle storage partition create <serial> --partition <partition-identifier> --role <role>[,<role>...] [--label <label>]`:
+    a filesystem on one partition of the device that has none. The partition is named by its partition identifier
+    (the one in the partition table), because a partition with no filesystem has no filesystem identifier yet.
+  - `isle storage partition create <serial> --whole --role <role>[,<role>...] [--label <label>]`: for a device with
+    no partition table and no filesystem, which is what pol's 1.8 TB disk is (section 6). It gets a GPT partition
+    table with one partition over the whole device, then the filesystem.
+- Two steps, and only the second writes:
+  - Without `--expect` it reads the machine and prints the plan (what is made, what is lost), a plan id, and the
+    command to type.
+  - With `sudo` and `--expect <plan-id>` it reads the machine again under the storage lock and goes on only when
+    the plan is still the same one. The id covers the device's serial, model, size and class, the layout (and
+    for `--whole` the sizes of what the system shows under the device), the roles and the label.
+- What it makes: one ext4 filesystem with 1% kept in reserve, a filesystem identifier the verb chooses, the marker
+  of the roles at its root from the first moment (one `mkfs.ext4` call makes both), and the entry in this machine's
+  record. It does not mount.
+- What guards the data:
+  - It asks the disk itself (`blkid --probe`), not only the system's report: at the device and at everything the
+    system shows under it (`--whole`), and at the partition just before the filesystem is made. Anything
+    recognised there stops it.
+  - The partition table is written by `sfdisk` after a rehearsal that writes nothing, with wiping switched off.
+    A filesystem from before that begins where the new partition begins therefore stays readable, and the verb
+    stops on it instead of overwriting it.
+  - There is no option to force anything.
+- It refuses, and writes nothing, when: the device is not registered, is away, carries the running system or is
+  read-only; two devices report the serial; the target holds a filesystem, has something stacked on it, is in use
+  or is read-only; with `--whole` the device has a partition table; two partitions report the partition
+  identifier; a role is typed twice; the label does not fit; one of the three tools is missing; the plan id is
+  not the one of the plan as it reads now.
+- After the first write a failure is not "nothing was changed". The verb prints `FAILED:` and says what the device
+  holds at that point:
+  - the table write had started: the device may hold a part of a table;
+  - the table is written and the new partition is not shown yet, or shows something from before: it prints the
+    `--partition` command that goes on from there;
+  - the filesystem had started: what was on the partition is lost and it may hold a part of a filesystem;
+  - the filesystem is made and the record could not be written: it prints the `partition assign` command.
+- Pol's choices, not ruled:
+  - ext4, 1% reserve, GPT.
+  - `--whole` makes one partition over the whole device and nothing else. There is no size option, no second
+    partition, and no adding a partition to a table that is there. So "a second partition for one role" in st-3
+    cannot be done with this yet.
+  - The approval is the plan id typed back with sudo on the machine itself. It does not go through the core's plan
+    door (fix list item 8 is still open).
+- Tools: `sfdisk` (package `fdisk`), `blkid` (`util-linux`), `mkfs.ext4` (`e2fsprogs`). All three machines have
+  them. The offline package list names none of them, and nothing was added to it.
+- Files: `storage_create.py` (new, 345 lines), `storage_table.py` (new, 56 lines), `test-storage-create.py`
+  (39 tests), the dispatch in `storage_roles.py`, `storage_devices.py` (the listing now asks for the kind of
+  partition table), `storage.sh`, the CLI's README.
+- Proof: 39 new tests. 5 of them run the real `sfdisk`, `blkid` and `mkfs.ext4` on 64 MiB image files in a
+  temporary folder, never on a device: the table is written with the chosen partition identifier, the filesystem
+  reads back with the chosen identifier and the marker at its root, and an old filesystem inside the new partition
+  is still seen after the table is written. 113 of 113 deliberate breaks caught. Every test file of the CLI:
+  92 ok, 1 skipped (it needs the core), 0 failed. Read-only run on pol with the real disks: the 1.8 TB disk reads as a bare device, and with a made-up
+  record in a temporary folder the plan for `--whole --role registry,assets` prints correctly.
+- Not proven: a real device. How the system re-reads a table and shows the new partition is tested with fixtures
+  only; on image files there is no device for the system to show.
+- For the user on pol, once release 92 is installed there (the serial is from `isle storage device list --table`):
+
+      sudo isle storage device register <serial of the 1.8 TB disk> --class dock
+
+      isle storage partition create <serial of the 1.8 TB disk> --whole --role registry,assets
+
+  The second prints the plan and the `sudo ... --expect <plan-id>` line that does it.
+
+#### Proposed next: `partition mount` (not built; pol's proposal, nothing ruled)
+
+A filesystem made by `partition create` is not mounted, and everything else (the marker check, datasets, the
+backup role) needs it mounted whole. Mounting is a hand step today (fix list item 11).
+
+- `isle storage partition mount <filesystem-identifier> --at <folder>`: without sudo it prints what it would
+  write; with sudo it makes the folder, writes one systemd mount unit that names the filesystem by its
+  identifier, and starts it.
+- The unit is wanted by the device, not by the boot: the partition is mounted each time the disk is present, and
+  a dock disk that is away does not hold up a start of the machine.
+- `--at` is typed every time. No folder name is built into the CLI.
+- It refuses a folder that holds anything, a folder something is mounted on, a partition that is mounted
+  elsewhere, and the running system's partitions.
+- `isle storage partition unmount <filesystem-identifier>` is the way back. It refuses while a dataset on the
+  partition is in use.
+- It changes a live machine, so the first run is the user's, read from the printed plan.
+
 ### Done ahead of st-0 (2026-11-18): the two listings that need no decision
 
 On the isle CLI's dev since 2026-11-20 (source-tested). Not in release 89, not installed anywhere.
@@ -262,8 +351,8 @@ On the isle CLI's dev since 2026-11-20 (source-tested). Not in release 89, not i
   reported, not a plain filesystem), mount, free space, whether it carries the running system, and the datasets
   bound on it today (from the copies under `/var/lib/isle-mesh/storage`).
 - Read-only, no sudo. They report what the machine says; nothing is registered. Since st-1 they also print the
-  recorded class and role. The verb `create` answers "not in this CLI yet" (`retire` and `health` are built since
-  2026-11-21, see the two blocks above).
+  recorded class and role. (`retire`, `health` and `create` are built since 2026-11-21, see the three blocks
+  above.)
 - Files: `isle-cli/scripts/storage_devices.py`, `test-storage-devices.py` (14 tests, fixtures only), one line in
   `storage.sh`. `isle storage list` is unchanged.
 - On pol they show four partitions on the 2 TB disk that report no filesystem. Corrected 2026-11-21: those four are
@@ -327,7 +416,8 @@ partitions" are a misreading by the system, not something on the disk.
   entries in it. A file of the same size with the same fill shows nothing at all to `blkid`.
 - Not confirmed by reading the disk itself: that needs root.
 - What follows: there is no empty partition to put a filesystem on. The disk needs a partition table first, so
-  `partition create` needs a way that starts from a whole bare device (st-3, see section 5).
+  `partition create` needs a way that starts from a whole bare device (st-3, see section 5). That way is built
+  since the same day: `--whole`, see "Making a partition" in section 5.
 
 After the answers of 2026-11-20 (section 7) this table is partly overtaken. It is kept as the proposal it was:
 - 233 GB SSD: not `backup`. Its first purpose is the isle template medium (decision 4).
@@ -339,8 +429,8 @@ After the answers of 2026-11-20 (section 7) this table is partly overtaken. It i
   1.8 TB HDD beside `assets`.
 - The user, 2026-11-21 (R9): a partition can have more than one role. The 466 GB filesystem then carries
   `package-repo`, `git` and `backup` together, with no second partition. The 1.8 TB HDD has no partition table and
-  no filesystem (see the correction above): `registry` and `assets` there still wait for `partition create` (st-3),
-  which is not built.
+  no filesystem (see the correction above): `registry` and `assets` there wait for `partition create --whole`
+  (built 2026-11-21, source-tested, for release 92) and for the user's run of it.
 
 ## 7. Decisions - answered by the user, 2026-11-20
 
