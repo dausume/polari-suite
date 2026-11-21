@@ -3,7 +3,18 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-21, afternoon (read this first; the morning block below is older).**
+**State on 2026-11-21, late afternoon (read this first; the blocks below are older).**
+- Two packets are BUILT and STAGED ON POL ONLY. Nothing is copied to the core, published or installed; both wait
+  on the user's go (`RELEASE_RUN_PLAN.md`, "Run 4").
+  1. Release 91: `~/isle-release-91-build/packet` (run id `d09cdc9d7ff5`), from isle CLI dev `60983b8`, all three
+     devices named, a device-backup step before each update. The first live device-backups would happen in it.
+     The run is the user's one command on the core: `sudo isle release run <the copied folder> --expect <run id>`.
+  2. The 22.04 dependency set alone: `~/isle-dependencies-ubuntu-22.04-packet/packet` (run id `ba41aff337b6`).
+     Only after release 91 is live on the core and on the two 22.04 members.
+- The next build's `--previous` is `~/isle-release-91-build/members`. Do not build release 91 a second time.
+- Next: a CLI verb that builds a dependency set; then storage (priority 3).
+
+**State on 2026-11-21, afternoon (the morning block below is older).**
 - Release 90 is LIVE-VERIFIED on all three machines (the user's one command on the core; run 3 in
   `RELEASE_RUN_PLAN.md`). The main index of `apt.isle` holds only isle and polari packages; `deps/noble/` is
   served. No set for 22.04 is published yet.

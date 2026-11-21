@@ -121,6 +121,36 @@ What the packet was (written before the run):
      not re-create the backend.
 - After it is live, the storage proof of st-1 is typed on pol (STORAGE_ROLES_PLAN.md, section 5).
 
+### Run 4 - packet `cli-release-91` - BUILT and STAGED ON POL (2026-11-21), waits on the user's go
+- Built once, by the verb (`isle release build`, run from the checkout because the installed CLI is release 90
+  and has no `build`), from the isle CLI's dev tip `60983b8`. About four minutes, no sudo, nothing published.
+  Folder on pol: `~/isle-release-91-build` (`packet/`, `members/`, `build.json`, `build.log`, `source/`).
+- Packages: `isle-mesh-cli 0.1.211+release91`, `isle-app-store 0.1.91+release91`,
+  `polari-complete-offline 0.1.91+release91`. Run id `d09cdc9d7ff5`.
+- Shape: the core publishes the three files; each of the three devices, named, first takes a device-backup
+  (`backup`), then does `update-apply` of the published release. Four verify URLs, as in run 3. No dependency set.
+- Checked: the verb compared the 504 files of the CLI in the commit, in the CLI package and in the combined
+  package (byte for byte); the installed release-90 `isle release check` says the packet is valid with the same
+  run id; against release 90 all three packages have the same dependency fields and the same install scripts;
+  the `--previous` packages were the ones the core serves (sha256 against `https://apt.isle/Packages`).
+- Found by the comparison: the release 90 CLI package, built by hand, carried a stray build folder
+  (`shells/build/store-deb/`). A build from the commit does not pack it.
+- To know before the go:
+  1. No device-backup has ever been taken live. Step 1 on each device is the first one, run by the installed
+     release-90 code (it differs from 91 in one line, the reading of a partition's roles). On the core and on pol
+     the Polari instance is copied behind its write gate. `isle backup plan` says "Ready" on all three (300, 606
+     and 257 MiB); no machine records a `backup` partition, so each goes to that machine's state folder.
+  2. Order on the core: publish, wait until served, its own steps, then the signed approval. If the core's
+     device-backup fails, release 91 is published but installed nowhere and no member is approved; the rerun
+     resumes. A write gate left up is lowered with `sudo isle backup release-hold`.
+  3. What release 91 changes for a running isle: the handoff, "Depends on the pin after release 91" (the name
+     reconcile and the router reads connect only when the router's key is pinned; `sudo isle router key-status`
+     on the core says whether it is).
+- After it is live on the core: the second packet, staged on pol too (`~/isle-dependencies-ubuntu-22.04-packet`,
+  run `dependencies-ubuntu-22.04`, run id `ba41aff337b6`): the 22.04 dependency set alone, 927 package files,
+  515 MiB, the two 22.04 members named so each asks for `deps/jammy/InRelease`. The installed release-90 CLI
+  refuses it as a whole ("unknown kind"), as designed. The core needs 771 MiB free where it keeps its runs.
+
 ### Building the packet (`isle release build`) - SOURCE-TESTED (2026-11-21, isle CLI dev `a5cc690`), for release 91
 Until release 90 the packet was put together by hand from a scratch script. It is a verb now, so the standard
 steps of a CLI release are two commands: `isle release build` on a member, `sudo isle release run` on the core.
