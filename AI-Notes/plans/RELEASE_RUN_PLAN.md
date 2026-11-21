@@ -209,7 +209,7 @@ The user's part stays one command on the core: `sudo isle release run <packet>`.
 - Needs a way for the packet to reach the core, proof of which member sent it, and a root runner on the core.
   See "Any-device intake" below: PARKED 2026-11-18, three decisions wait on the user.
 
-#### Any-device intake - decisions answered 2026-11-20 (see the end of this section); nothing built, nothing live
+#### Any-device intake - decisions answered 2026-11-20; built as "Step (2)" below (source-tested), nothing live
 - What was built first, and why it was dropped. Pol built the core's side as four hand-made backend routes in the
   islemesh module plus a private database file for the submissions, and the CLI side against them (source-tested
   only: runner tests 106 of 106, intake tests 13 of 13, backend selftest 102 of 102). The user, 2026-11-18: "do not
@@ -360,6 +360,99 @@ Found in the engine while mapping this, bearing on steps (2) and (3):
 - How a member's CLI obtains a sign-in token for the person typing the command is not designed (a browser sign-in
   on the device, or Keycloak's device flow).
 Both are questions for the user before step (2) is built.
+
+#### Step (2) built: a member offers its packet, the core fetches and runs it (2026-11-20)
+
+State: **source-tested** on pol, on the isle CLI's dev (`b58242d`). In no release, installed nowhere, nothing live
+changed. The part that serves the packet on a member has never been started in a container (see "Not proven").
+
+What the person types, and nothing else:
+
+    sudo isle release setting any-device       core, once: allow it (prints the cost; switches the core's timer on)
+    sudo isle release run <packet-dir>         member: check the packet, offer it, wait for the core's answer
+    isle release offer                         member: what this device offers, and what the core answered
+    sudo isle release offer withdraw           member: take the offer down and remove its copy
+    isle release intake                        any device: whether the core takes packets, and its answers
+    sudo isle release intake run               core: look at the members now (the timer does this every minute)
+    sudo isle release setting core-only        core: back to the default (switches the timer off)
+
+How it works, in order:
+1. The member checks the packet exactly as the core would (`isle release check`), shows the summary and asks for
+   the confirmation. It copies the packet, root-owned, into its state folder and checks the copy again.
+2. The member serves that copy as an ordinary isle app named `release-offer-<its paired name>`, through the same
+   verb every app uses (`isle app deploy`, staged). The server is the nginx inside the device's own running agent
+   image, read-only, GET only. No image is pulled and nothing is installed.
+3. Every minute the core's timer looks. For each member in the certificate authority's member list it asks the
+   authority's record who was issued the name `release-offer-<member>.isle`. Only when that is the same member does
+   it fetch, from the address the router leased to that member, over TLS checked against the isle's root, with no
+   redirect followed and a size limit per file.
+4. The core checks what it fetched (exactly the offered files, plain files only, sizes), runs the full packet
+   check again, and compares the run id with the offered one. Then it runs the packet the way `isle release run`
+   on the core does, under the same lock. The receipt names the offering member (`submittedBy`).
+5. The core publishes its answer (`taken`, `running`, `done`, `failed`, `refused`, with the last lines of the run)
+   in its release notice. The member reads it there, prints it, takes the offer down and removes its copy. Exit 0
+   only for `done`. After 30 minutes without a final answer the command ends with exit 3 and the offer stays up;
+   the same command picks it up again.
+
+The user's rulings this follows: the core fetches, so the core needs no large store ("Core fetching that way we do
+not necessitate the core having large storage"); core-only stays the default; no Keycloak is needed unless the
+isle's security settings switch it on and require it; no machine name is written into the code (every name comes
+from the pairing record, the authority's lists and the router).
+
+Pol's own choices, for the user to correct:
+- What proves which member offers: the certificate authority issues a service name to one paired member only and
+  the key never leaves that member. So a TLS answer under `release-offer-<member>.isle` can only come from that
+  member. This uses the enrollment that exists; it adds no key, no token and no second identity system. The
+  authority now also refuses to issue a `release-offer-` name to anyone but the member it names, so no device can
+  block another's offer by taking the name first.
+- No hand-made backend route and no backend change at all: the engine already serves the whole release notice to
+  members, and the answers travel in it under the key `intake`.
+- The offer is not yet an engine row. A row class (`IsleReleaseOffer`) belongs to the Isle App step, when a page
+  has to list offers; the CLI does not need it.
+- One packet per pass, members in name order. A take that is interrupted is tried again 3 times, then answered
+  `failed`. A final answer is never taken again; offering again makes a new offer.
+
+The cost, as the setting prints it: with any-device, root on any paired member can release to the whole isle. The
+core checks which member offers a packet and that the packet is intact; the review is done by the person typing
+the command on that member. While a packet is offered, every device on the isle can read its files from that member.
+
+Open decision for the user - sign-in. Nothing checks a sign-in today, in either setting. The isle has no single
+place that says "releases need sign-in": `isle polari security require --feature release-any-device` writes into
+one frontend's settings file named by hand, which the core cannot read. Pol's recommendation, not built: the
+isle's Keycloak record on the core (`isle polari security provider`) gains the list of what needs sign-in, set by
+a verb on the core and published in the notice like the rest. While that list names releases, the core takes no
+offer unless the offer carries a token of that Keycloak, and `isle release setting any-device` says so. How the
+member's CLI gets a token for the person typing (a browser sign-in on the device, or Keycloak's device flow) is
+the second half of the same decision. Until the user decides, any-device runs without sign-in, as ruled.
+
+Not proven, and owed:
+- The offer server has never run. Starting a container on pol was not permitted in this session, so the first
+  real proof is on a member, at the user's go: that nginx in the agent image starts with the written settings and
+  that the agent routes the name to it.
+- A member in offline mode can only start images its offline rule accepts. Today only the core is offline, and the
+  core never offers. Not handled for a future offline member.
+- The core finds a member's address by its paired name in the router's leases. A machine that announces another
+  name to the router is reported as "the router lists no address" and its offer is not taken. A second way to find
+  the address is owed.
+- An offer whose member is switched off stays recorded on that member until `offer withdraw` or the next run there.
+- Taking an offer down depends on the app removal check answering; if it does not, the command says so and the
+  offer stays up.
+- While any-device is on, the core asks once a minute every member that ever put an offer up (it holds the offer
+  name); the router is asked only then. The offer shows as an app in the topology while it is up.
+- The router's address and the way its leases are read are fixed values in `storage_core.py` from before this
+  work. They are only used to find where to ask; what answers there must still prove itself by its certificate.
+- The last lines of a run are published to the whole isle in the notice. They are the lines `isle release run`
+  prints; no secret is printed there today, and it has to stay that way.
+- The Isle App's warning (section B) for this setting is not built.
+
+Files (isle CLI): `release_offer.py` (new, the member's half), `release_intake.py` (new, the core's half),
+`test-release-intake.py` (new, 16 tests: both halves against each other over a fixture isle - no network, no
+docker, no sudo; 18 of 18 deliberate breaks of the checks caught), `isle-release-intake.service` and `.timer` (new; the package never enables the timer by
+itself), changes in `release_run.py`, `release_notice.py`, `release.sh`, `cert-authority.py`, `storage_core.py`,
+`build-cli-deb.sh`, `destroy.sh` and their tests. Runner tests 107 of 107, authority tests 6 of 6. All 83 test files
+of the isle CLI exit 0 on pol except `test-apt-local-priority.py` (it needs a Docker bind source pol does not have).
+
+Release 90, staged on pol, does not carry this. A packet that does has to be rebuilt from the dev tip.
 
 #### Fixed or checked on the way (2026-11-18)
 - `isle store list` Python error (section D): fixed in the worktree with a test (`test-store-list.py`),
