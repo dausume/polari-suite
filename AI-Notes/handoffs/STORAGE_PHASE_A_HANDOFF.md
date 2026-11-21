@@ -7,7 +7,8 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
 - The order of work is the user's (2026-11-18): one-command release, apt separation, storage, backups, OS overwrite.
 - Release 89 is live-verified on all three devices. The release 90 packet is staged on pol only (`RELEASE_RUN_PLAN.md`);
   copying it to the core and running it wait on the user's go.
-- Isle CLI dev is `adecf15`, and the staged release 90 packet is built from it. Since release 89 it gained, all
+- Isle CLI dev is `9d4ae24`. The staged release 90 packet is built from `adecf15`, one commit before it (the
+  commit after changes the contract's words only, no code). Since release 89 it gained, all
   source-tested only and installed nowhere: storage roles, the fix-list items of section 3, `isle backup`
   (device-backups, `BACKUP_PLAN.md` section 6), the release-run step `backup`, the any-device intake (a member offers
   its packet, the core fetches and runs it; `RELEASE_RUN_PLAN.md`, "Step (2) built"; the core finds the member in its
@@ -86,9 +87,18 @@ Still to design/build for 88:
    unchanged.
    ✅ words 2026-11-20 (isle CLI dev `d97f350`, source-tested, in no release): every journaled operation that ends other than
    `succeeded` prints `sudo isle operation retry <id>` with its id (stderr); the contract (section 2.2) and the README name it as
-   the resume. Still open: the App's planned-action text (`operatorCommand`) does not name the retry on a failed action; that
-   belongs with item 2.
+   the resume. The App's planned-action text (`operatorCommand`) names the retry on a failed migrate since item 2.
 2. **Plan door honesty**: after a local success whose receipt never landed, the App showed `planned`; show "receipt not delivered".
+   ✅ code 2026-11-20 evening (framework dev `cf147743`, source-tested, backend NOT deployed with it; contract section 1.2 on
+   the isle CLI's dev). The door's planned actions now say what the door holds: a migrate is `failed` when its stored receipts
+   do not prove it finished (words: the highest attempt and the stage it stopped at; command: `sudo isle operation retry <id>`
+   from that receipt, the migrate command when it carries no well-formed id); `interrupted` with "receipt not delivered" when
+   the placement already shows migrated, cutover or hosting and no finished receipt is stored at the door; `planned` only when
+   no receipt is stored at all, and its words say so. What the door cannot know: a migrate that finished on the target while
+   its receipt never arrived looks the same as one that stopped or never ran - the words say that, and typing the migrate
+   command again on the target posts a new receipt. Only the pure function `planned_actions` changed: no route, no row class.
+   25 unit tests, door selftest 98 of 98, 16 of 16 deliberate breaks caught. No screen reads these fields yet (the Isle App's
+   plan view is not built).
 3. `isle storage repair-units --dataset D` (the deb does not rewrite units already written) — then drop pol's symlink + drop-in.
    ✅ code 2026-11-20 (isle CLI dev, source-tested, in no release): the verbs are `isle storage units check` and
    `sudo isle storage units apply --dataset D`, and `isle update apply` / `isle reconcile` rewrite a unit file whose text an
