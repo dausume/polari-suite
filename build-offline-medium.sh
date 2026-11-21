@@ -23,8 +23,7 @@ set -eu
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRAMEWORK="$ROOT/polari-rf-node/polari-framework"
 TARGET="ubuntu-24.04"; VERSION=""; MODULES=""
-CLOSURE="nodejs,npm,ethtool,netcat-openbsd,nmap,docker.io | docker-ce,docker-compose-v2 | docker-compose-plugin,containerd | containerd.io,runc | containerd.io,dpkg-dev,avahi-daemon,avahi-utils,apt-utils,gnupg,qemu-system-x86,qemu-utils,libvirt-daemon-system,libvirt-clients,bridge-utils,wget,acl,yad,sshpass,dnsmasq,network-manager,systemd-resolved,python3,python3-yaml,python3-jinja2,iproute2,iputils-ping,dnsutils,net-tools,openssh-client,rsync,inotify-tools,openssl,sudo,isc-dhcp-client,libgtk-3-0t64,libasound2t64,libx11-6,libxext6,libxrender1,libxtst6,libxi6,libgl1,libnss3,libgbm1"
-CACHE_ONLY="openssh-server,python3-pip,python3-venv"
+CLOSURE_MORE=""; CACHE_ONLY_MORE=""
 BUNDLE=""; DOWNLOAD=1
 DEBS_DIR="$ROOT/.generated/debs"
 ROUTER_IMAGE=""; ROUTER_PACKAGES=""
@@ -38,19 +37,25 @@ while [ $# -gt 0 ]; do case "$1" in
     --target) TARGET="$2"; shift 2 ;;
     --version) VERSION="$2"; shift 2 ;;
     --modules) MODULES="$2"; shift 2 ;;
-    --closure) CLOSURE="$CLOSURE,$2"; shift 2 ;;
-    --cache-only) CACHE_ONLY="$CACHE_ONLY,$2"; shift 2 ;;
+    --closure) CLOSURE_MORE="$CLOSURE_MORE,$2"; shift 2 ;;
+    --cache-only) CACHE_ONLY_MORE="$CACHE_ONLY_MORE,$2"; shift 2 ;;
     --bundle) BUNDLE="$2"; shift 2 ;;
     --no-download) DOWNLOAD=0; shift ;;
     *) echo "unknown arg $1" >&2; exit 1 ;;
 esac; done
-# The lists above are written once, with the package names of the newest system.
-# The names another system uses, and which systems there are at all, come from the
-# isle's record of supported operating systems (Isle-Mesh/isle-cli/apt/supported-os.json).
+# The distro packages an offline isle needs are ONE list, kept by the isle CLI
+# (Isle-Mesh/isle-cli/apt/offline-packages.json: install + cacheOnly) and read
+# by `isle os dependencies build` as well, so the two cannot drift. It is
+# written once, with the package names of the newest system; the names another
+# system uses, and which systems there are at all, come from the isle's record
+# of supported operating systems (Isle-Mesh/isle-cli/apt/supported-os.json).
+# --closure / --cache-only ADD to it for this one medium.
 SUPPORTED_OS="$ROOT/Isle-Mesh/isle-cli/scripts/supported_os.py"
 [ -f "$SUPPORTED_OS" ] || { echo "missing $SUPPORTED_OS (is the Isle-Mesh sub-project checked out?)" >&2; exit 1; }
-CLOSURE=$(python3 "$SUPPORTED_OS" package-names "$TARGET" "$CLOSURE") || { echo "unsupported --target $TARGET" >&2; exit 1; }
-CACHE_ONLY=$(python3 "$SUPPORTED_OS" package-names "$TARGET" "$CACHE_ONLY") || exit 1
+CLOSURE=$(python3 "$SUPPORTED_OS" offline-packages "$TARGET" install) || { echo "no offline package list for --target $TARGET" >&2; exit 1; }
+CACHE_ONLY=$(python3 "$SUPPORTED_OS" offline-packages "$TARGET" cache-only) || exit 1
+if [ -n "$CLOSURE_MORE" ]; then CLOSURE="$CLOSURE$(python3 "$SUPPORTED_OS" package-names "$TARGET" "$CLOSURE_MORE")" || exit 1; fi
+if [ -n "$CACHE_ONLY_MORE" ]; then CACHE_ONLY="$CACHE_ONLY$(python3 "$SUPPORTED_OS" package-names "$TARGET" "$CACHE_ONLY_MORE")" || exit 1; fi
 G="\033[0;32m"; R="\033[0;31m"; Y="\033[1;33m"; C="\033[0;36m"; N="\033[0m"
 ok(){ echo -e "${G}[ OK ]${N} $*"; }
 warn(){ echo -e "${Y}[WARN]${N} $*"; }

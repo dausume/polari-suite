@@ -211,7 +211,45 @@ does: in a packet, by `sudo isle release run`. Nobody types a publication by han
 - Proof so far: runner 115 tests, 14 of 14 deliberate breaks caught; publisher 25 tests, 4 of 4; build verb 27
   tests, 21 of 21; every isle CLI test file run (88 run, 0 failed; one needs the core and is skipped). One trial of the second form with the real 22.04 set
   (927 package files, 15 seconds), into a scratch folder; nothing was published.
-- Owed: a CLI verb that builds a dependency set (it is still the hand recipe of section D).
+- The CLI verb that builds a set is the next section (it was the hand recipe of section D).
+
+### Building a dependency set (`isle os dependencies build`) - SOURCE-TESTED (2026-11-21, isle CLI dev `87d9a17`), for release 92
+The set itself was still built by a hand recipe. It is a verb now, so the whole path is commands:
+
+    isle os dependencies build <out-dir> --system <system id> --packages <dir> [--bundle-builder <file>] [--cache <dir>]
+    isle os dependencies check <set dir>
+    isle release build <out-dir> --dependencies <set dir>            (the packet; section above)
+    sudo isle release run <the copied packet> --expect <run id>      (on the core, the user's go)
+
+- `build` is run without sudo and publishes nothing. `--packages` is the folder `members` of a release build. The
+  set is resolved in a fresh container of that system's image, from what the isle's own packages declare and from
+  the offline package list, by the suite's `build-offline-bundle.sh` (beside the checkout, or `--bundle-builder`).
+  Every file is checked against the size and sha256 the signed package index names. The set keeps only the files
+  that list names; each is read again after it is moved.
+- `--cache` is a folder of package files kept between builds. A file from it is used only with that size and
+  sha256. Without it one system is about 500 MiB of fetching.
+- Refused before anything is fetched or written: run as root; an out folder that is not empty; a system the
+  record does not have; `--packages` with no package or with one that is not the isle's; no builder. A stopped
+  builder leaves no set; its last lines and its log are named; the next build removes the work folder.
+- `check` reads a set against its own lists (one system, no isle package, every package file the one
+  `SHA256SUMS` lists and the one the resolve names, none missing, none added) and changes nothing.
+- The offline package list is ONE record now, `isle-cli/apt/offline-packages.json` (`install`, `cacheOnly`),
+  written with the names of the newest system. The suite's `build-offline-medium.sh` reads it
+  (`supported_os.py offline-packages <system id> install|cache-only`) and no longer keeps the list itself. Its
+  two lists come out byte for byte as before, for both systems, with and without `--closure` / `--cache-only`.
+- Proof: 15 tests of the verb (fake builder, no network, no container), 3 more of the record code, 39 of 39
+  deliberate breaks caught, every isle CLI test file run (89 pass; the one that needs the core is skipped).
+  Two real runs on pol with downloading made impossible (a stand-in for `curl` that refuses):
+  1. cache filled with a copy of the hand-built 22.04 set: 927 package files, 0 MiB fetched, the three lists of
+     the resolve and every package file byte for byte the hand-built set. Only `SHA256SUMS` differs: same lines,
+     now in byte order of the names. A packet was built from it into scratch and removed.
+  2. empty cache: the builder stopped at the first file, the verb said so in 19 seconds and wrote no set.
+- Limits:
+  1. Release 91 is built already and does not have this verb. Until release 92 it is run from a checkout.
+  2. The verb needs the suite's builder (and through it the framework's chunker and docker). It is a verb for a
+     building machine, not for every member. Same debt as `isle release build` and its combined builder.
+  3. The staged 22.04 packet (`ba41aff337b6`) stays the one to run; a packet from a rebuilt set has another run
+     id because of the order of `SHA256SUMS`.
 
 ## Proof packet 2 - for the user's review (2026-11-18). Packet 2a RUN 2026-11-20, see Run 2 above.
 

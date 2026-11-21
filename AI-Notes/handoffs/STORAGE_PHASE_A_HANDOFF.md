@@ -3,7 +3,15 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-21, late afternoon (read this first; the blocks below are older).**
+**State on 2026-11-21, later (read this first; the blocks below are older).**
+- Isle CLI dev is `87d9a17`: `isle os dependencies build | check` builds and reads a dependency set
+  (`RELEASE_RUN_PLAN.md`, "Building a dependency set"). Source-tested, two real runs on pol with no download.
+  It is for release 92; the two staged packets below are unchanged and still wait on the user's go.
+- The offline package list is one record (`isle-cli/apt/offline-packages.json`); the suite's medium builder
+  reads it.
+- Next: storage (priority 3). The next release build's `--previous` is still `~/isle-release-91-build/members`.
+
+**State on 2026-11-21, late afternoon (the block above is newer).**
 - Two packets are BUILT and STAGED ON POL ONLY. Nothing is copied to the core, published or installed; both wait
   on the user's go (`RELEASE_RUN_PLAN.md`, "Run 4").
   1. Release 91: `~/isle-release-91-build/packet` (run id `d09cdc9d7ff5`), from isle CLI dev `60983b8`, all three
