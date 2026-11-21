@@ -3,7 +3,18 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-21, morning (read this first; the 2026-11-20 block below is older).**
+**State on 2026-11-21, afternoon (read this first; the morning block below is older).**
+- Release 90 is LIVE-VERIFIED on all three machines (the user's one command on the core; run 3 in
+  `RELEASE_RUN_PLAN.md`). The main index of `apt.isle` holds only isle and polari packages; `deps/noble/` is
+  served. No set for 22.04 is published yet.
+- Isle CLI dev is `60983b8` (branch `pol/packet-dependency-set`): a packet can carry a dependency set, and
+  `isle release build <out-dir> --dependencies <set dir>` builds a packet with a set alone (`RELEASE_RUN_PLAN.md`,
+  "A packet can carry a dependency set"). Source-tested only, for release 91.
+- Next, in this order: build the release 91 packet once (no set in it; `--backup`; `--previous` = the members of
+  release 90), staged on pol; the user's go copies and runs it. After 91 is live on the core: the packet with the
+  22.04 set alone (built from `~/isle-dependencies-ubuntu-22.04` on pol). Then a CLI verb that builds a set.
+
+**State on 2026-11-21, morning (the 2026-11-20 block below is older).**
 - The release 90 packet is staged on the core too (`~/isle-release-90`, copied at the user's go). Its run is the
   user's one command on the core: `sudo isle release run ~/isle-release-90`. Everything newer is for release 91.
 - The user's answers of 2026-11-21 (verbatim in the plans): a partition can carry more than one role; fix the older

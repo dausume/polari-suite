@@ -64,10 +64,26 @@ The sections below keep their letters; this list is the order of work.
   error on the members (the fix is not in 89). `test-apt-local-priority.py` was not run on the core (it starts a
   container there).
 
-### Run 3 packet `cli-release-90` - STAGED on pol and on the core (copied 2026-11-21). Not run
-State: source-tested and built; staged on the core at `~/isle-release-90` (checksums match, `isle release check`
-says valid). Installed nowhere, nothing live. The run is the user's one command on the core:
-`sudo isle release run ~/isle-release-90`.
+### Run 3, 2026-11-21 - LIVE-VERIFIED (packet `cli-release-90`; the per-release dependency index)
+- The user typed ONE command, on the core: `sudo isle release run ~/isle-release-90`. Run id `7c80beaaa025`.
+- Core: published 3 package files, read the release id `3ac16d2188ec`, waited until it was served, updated
+  itself (operation `637adc7b...`), signed the approval (serial 1795284669). Package
+  `polari-complete-offline 0.1.90+release90`.
+- Members followed on their own timers, nothing typed there: econ and pol (operation `cb9705b0...`), both
+  `isle-mesh-cli 0.1.210+release90` and `isle-app-store 0.1.90+release90`. The core's member table shows both done.
+- Checked afterwards, read-only: `isle release status` = done on all three, on the core with the four verify URLs
+  ok, `https://apt.isle/deps/noble/InRelease` among them. The main index of `apt.isle` lists 129 packages, every
+  one `isle-*` or `polari-*`; `deps/noble/Packages` lists 1135 operating system packages and none of the isle's.
+  `deps/jammy/InRelease` answers 404: no set for 22.04 is published yet (it comes after release 91, below).
+  `isle store list` prints the store on both members, without the Python error. `isle release setting` =
+  core-only.
+- Proved now, beyond run 2: a second publication and update of all three devices from one command; the separate
+  signed index for the operating system packages of one release (priority 2), made by the release-89 publisher.
+- NOT proved yet: as after run 2 (a runtime-image or catalog publication, `store-install`, `module-add`, a failed
+  step and its resume, the pkexec entry), and a `backup` step, the any-device intake, a dependency set in a
+  packet. Not checked after this run: what the units step printed on pol.
+
+What the packet was (written before the run):
 - Built on pol from the isle CLI's dev (commit `adecf15`, the dev tip; third build, 2026-11-20 evening - the
   earlier ones were from `a45e0b7` and `6287d2a`). Three packages, as every CLI release:
   `isle-mesh-cli 0.1.210+release90`, `isle-app-store 0.1.90+release90`, `polari-complete-offline 0.1.90+release90`.
@@ -132,8 +148,40 @@ steps of a CLI release are two commands: `isle release build` on a member, `sudo
   `--verify https://apt.isle/deps/<release name>/InRelease`.
 - Proof so far: 21 tests with fake packages, git and builders; 51 of 51 deliberate breaks caught; one trial with
   the real builders (a release 91 packet the installed `isle release check` reads as valid, 502 files compared).
-- Owed: the build still needs the suite's combined builder beside the checkout; a packet cannot carry a
-  dependency set.
+- Owed: the build still needs the suite's combined builder beside the checkout.
+
+### A packet can carry a dependency set - SOURCE-TESTED (2026-11-21, isle CLI dev `60983b8`), for release 91
+The operating system packages one system needs offline (a dependency set) reach the core the same way a release
+does: in a packet, by `sudo isle release run`. Nobody types a publication by hand.
+
+    isle release build <out-dir> --dependencies <set dir> [--device <name>]... [--verify <url>]...
+    sudo isle apt-repo publish --only-dependencies --dependencies-from <dir>     (what the run calls on the core)
+
+- A packet may hold one entry `{"kind": "dependencies", "dir": "<dir>"}`. Every file of that folder is listed in
+  the packet's `SHA256SUMS`; the run record holds one line for the folder, so the notice stays small and the run
+  id still names every byte and every file name.
+- The set has to say its one system with a file `<system id>.txt`, and the record of supported systems has to know
+  it. Otherwise the packet is refused by `isle release check`, before anything changes.
+- In the run the core adds the set first and alone (`--only-dependencies`: no isle package is looked for, and a set
+  that holds an `isle-*` or `polari-*` package is refused, so the release the core announces cannot change). Then
+  it waits until the index of that release lists every package file with its checksum and every file answers. Only
+  then is anything else of the packet published. A rerun resumes at the step that stopped.
+- The build verb has a second form for a set alone: no commit, no builder, no isle package. It checks the set
+  (one known system, no isle package, only regular files, the same files as the set's own `SHA256SUMS`) and copies
+  it into the packet. `--dependencies` can also be added to a release build.
+- A packet with a set alone gives no device a step, and the runner asks a check without a device only of a device
+  with steps. So the proof is the core's own wait; with `--device` each named device also asks for the index of
+  the set, and `--verify` without `--device` is refused.
+- Limits, said by the verb and in the README:
+  1. The core's INSTALLED CLI runs a packet. A core older than this change refuses the kind and changes nothing.
+     So the release 91 packet carries no set; the 22.04 set goes in its own packet after release 91 is live on the
+     core. A member whose CLI is older refuses the run record: name only devices that are on release 91.
+  2. The core copies a packet before it runs it: the size of the set and 256 MiB more must be free where it keeps
+     its runs (the 22.04 set is 515 MiB).
+- Proof so far: runner 115 tests, 14 of 14 deliberate breaks caught; publisher 25 tests, 4 of 4; build verb 27
+  tests, 21 of 21; every isle CLI test file run (88 run, 0 failed; one needs the core and is skipped). One trial of the second form with the real 22.04 set
+  (927 package files, 15 seconds), into a scratch folder; nothing was published.
+- Owed: a CLI verb that builds a dependency set (it is still the hand recipe of section D).
 
 ## Proof packet 2 - for the user's review (2026-11-18). Packet 2a RUN 2026-11-20, see Run 2 above.
 
