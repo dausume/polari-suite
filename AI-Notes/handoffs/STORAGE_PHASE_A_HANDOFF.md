@@ -3,7 +3,18 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-21, later (read this first; the blocks below are older).**
+**State on 2026-11-21, evening (read this first; the blocks below are older).**
+- Isle CLI dev is `52a41dd`. On top of `87d9a17`: `isle storage partition retire | device retire` (`444565e`) and
+  `isle storage device health` (`52a41dd`). Both source-tested only, for release 92
+  (`STORAGE_ROLES_PLAN.md`, section 5). Release 91 has neither.
+- Found, read-only: pol's 2 TB dock disk has no partition table; the four partitions the system shows are a
+  misreading of a disk filled with one byte (`STORAGE_ROLES_PLAN.md`, the correction in section 6).
+- In work: `isle storage partition create`, in two ways: `--partition <partition-identifier>` (a filesystem on a
+  partition that has none) and `--whole` (a table with one partition on a bare device, then the filesystem). It
+  erases, so it runs from a plan id the user has read (`--expect`). Not on dev yet.
+- The two staged packets below are unchanged and still wait on the user's go.
+
+**State on 2026-11-21, later (the block above is newer).**
 - Isle CLI dev is `87d9a17`: `isle os dependencies build | check` builds and reads a dependency set
   (`RELEASE_RUN_PLAN.md`, "Building a dependency set"). Source-tested, two real runs on pol with no download.
   It is for release 92; the two staged packets below are unchanged and still wait on the user's go.

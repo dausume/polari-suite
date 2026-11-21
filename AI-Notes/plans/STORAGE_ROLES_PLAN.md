@@ -107,7 +107,7 @@ st-1 (the role listing on pol) waits for the next CLI release, because the verbs
   role with device serial, class, size, free space and the datasets bound on them.
 - `device list` and `partition list` now print the recorded class and role.
 - Refused with nothing written: a device that is not registered or has no serial; a second role (taking one away is
-  `partition retire`, not built); two partitions with one identifier; a marker that names another filesystem (a
+  `partition retire`, built 2026-11-21, below); two partitions with one identifier; a marker that names another filesystem (a
   block copy); a file of the marker's name that is not a marker; a filesystem not mounted whole where it can be
   reached. A link at the marker's name is never followed. A damaged record stops every verb.
 - Records: `/etc/isle-mesh/storage/device-records.json` on the machine (devices by serial, partitions by filesystem
@@ -189,11 +189,66 @@ filesystem beside `package-repo`. No second partition, no move. See the next hea
 - Device-backups: the home is the partition whose roles include `backup`, whatever else it carries.
 - Files: `storage_roles.py`, `storage_isle.py`, `storage_devices.py`, `device_backup.py`, their four test files
   (46, 18, 14 and 33 tests; 21 of 21 deliberate breaks caught after one test was added), the CLI's README.
-- Limits: no verb takes a role away (`partition retire`, not built). The Isle App does not show roles yet.
+- Limits: the Isle App does not show roles yet. Taking a role away is `partition retire` (next heading).
 
 What the user types on pol once release 91 is live there (the identifier as `partition list` prints it):
 
     sudo isle storage partition assign <identifier of the 466 GB filesystem> --role package-repo,git,backup
+
+#### Taking a role or a device away again, built 2026-11-21 (source-tested, isle CLI dev `444565e`, for release 92)
+
+In no release and installed nowhere. Release 91 does not have these two verbs.
+
+- `sudo isle storage partition retire <filesystem-identifier> --role <role>[,<role>...] [--record-only] [--leave-data]`
+  - Afterwards neither the marker nor this machine's record names the roles typed. A role that is not typed stays,
+    in the marker and in the record. With no role left the record entry is dropped and the marker file is removed.
+  - It erases, formats, unmounts and moves nothing. The marker is the only file it ever removes.
+  - `--record-only`: changes the record and never looks at the marker. For a disk that is away or gone for good,
+    not mounted whole, mounted read-only, with a marker that cannot be read, or a block copy. Without the option
+    each of those is a refusal that names it and prints the command.
+  - `--leave-data`: needed in two cases, refused without it. One: the role `backup` is taken from the partition
+    that holds this machine's device-backups (after that `isle backup` keeps new ones in the state folder and no
+    longer lists those). Two: the last role is taken from a partition a dataset is bound on.
+  - Pol's choices, not ruled: both options, and that these two cases need the second one. They are refusals with a
+    named way through, not things that are forbidden.
+- `sudo isle storage device retire <serial>`: takes a device out of the record. It does not look at the disk, so a
+  disk that is gone can be retired. Refused while the record holds a partition with a role on it; the refusal
+  prints the `partition retire` command for each.
+- Files: `storage_retire.py` (new, 180 lines), `test-storage-retire.py` (30 tests, fixtures only), the dispatch in
+  `storage_roles.py`, `storage_devices.py`, `storage.sh`, the CLI's README.
+- Proof: 30 new tests; 51 of 51 deliberate breaks caught (5 were missed at first: 2 by tests that were too loose,
+  1 by a missing case, 1 was a doubled condition that is now removed, 1 was aimed at the wrong test file).
+  Read-only run on pol with the real disks: `partition check` answers as before, the refusals and the usage print.
+  Not run with sudo anywhere.
+- Still not built in this group: `partition create` (see the block after the next one).
+
+#### The disk's own health report, built 2026-11-21 (source-tested, isle CLI dev `52a41dd`, for release 92)
+
+In no release and installed nowhere. Release 91 does not have this verb.
+
+- `sudo isle storage device health <serial> [--table]`
+  - Asks the disk for its health report with `smartctl` (identity, verdict, attributes). A disk behind a USB bridge
+    that gives no answer is asked a second time the way such bridges need.
+  - Says the disk's own verdict (passed or failed), what needs attention (reallocated, pending or uncorrectable
+    sectors and the like) and the power-on hours.
+  - For a registered device it keeps the reading under the device in this machine's record: when it was read, the
+    verdict, what needs attention, the power-on hours. For a device that is not registered it prints and keeps
+    nothing.
+  - Exit 0 only when the disk passed and nothing needs attention.
+  - It needs root, because the disk answers only root.
+- `device register` now keeps everything else recorded for a device when its class is changed, so a kept reading
+  outlives a change of class.
+- Limits, said plainly:
+  - It needs `smartctl` (package `smartmontools`). Pol and the core have it; econ does not. The package is not in the
+    offline package list, and adding it changes what the dependency sets hold (a rebuild, which downloads). Not
+    added; that is the user's call. Where the tool is absent the verb refuses and names the package.
+  - It has never run as root, so it has not read a real disk's report. The answers it was tested on are made-up
+    ones in the shape `smartctl --json` gives.
+  - `device list` does not show the kept reading yet, and the reading is not in what a machine reports to the core.
+- Files: `storage_health.py` (new, 145 lines), `test-storage-health.py` (21 tests, fixtures only), the dispatch in
+  `storage_roles.py`, `storage_devices.py`, `storage.sh`, the CLI's README.
+- Proof: 21 new tests; 58 of 58 deliberate breaks caught (4 were missed at first and each got a test; one was a
+  doubled condition, now removed); every test file of the CLI: 91 ok, 1 skipped (it needs the core), 0 failed.
 
 ### Done ahead of st-0 (2026-11-18): the two listings that need no decision
 
@@ -207,10 +262,12 @@ On the isle CLI's dev since 2026-11-20 (source-tested). Not in release 89, not i
   reported, not a plain filesystem), mount, free space, whether it carries the running system, and the datasets
   bound on it today (from the copies under `/var/lib/isle-mesh/storage`).
 - Read-only, no sudo. They report what the machine says; nothing is registered. Since st-1 they also print the
-  recorded class and role. The verbs `health`, `retire` and `create` answer "not in this CLI yet".
+  recorded class and role. The verb `create` answers "not in this CLI yet" (`retire` and `health` are built since
+  2026-11-21, see the two blocks above).
 - Files: `isle-cli/scripts/storage_devices.py`, `test-storage-devices.py` (14 tests, fixtures only), one line in
   `storage.sh`. `isle storage list` is unchanged.
-- On pol they show what section 6 says: the four partitions of the 2 TB disk report no filesystem.
+- On pol they show four partitions on the 2 TB disk that report no filesystem. Corrected 2026-11-21: those four are
+  not real partitions, see the correction under the table in section 6.
 
 The units verbs of R4 (first half of st-2), same state: on the isle CLI's dev, source-tested, not installed.
 
@@ -261,6 +318,17 @@ The units verbs of R4 (first half of st-2), same state: on the isle CLI's dev, s
 
 Nothing here needs a shrink or a move of live data. Where `blob`, `git` and `assets` live is decision 3.
 
+Correction, 2026-11-21 (read without root, sizes only): the 1.8 TB HDD has no partition table. The "four empty
+partitions" are a misreading by the system, not something on the disk.
+- What the system shows: four partitions that all begin at the same place and all have the same length, each 733 GB.
+  Four of those do not fit on the disk. None has a partition identifier, and the disk reports no kind of table.
+- What explains it: the overwrite test of 2026-11-10 left the disk filled with one repeated byte. One of the old
+  table formats the kernel still tries has no signature of its own, and a disk filled with that byte reads as four
+  entries in it. A file of the same size with the same fill shows nothing at all to `blkid`.
+- Not confirmed by reading the disk itself: that needs root.
+- What follows: there is no empty partition to put a filesystem on. The disk needs a partition table first, so
+  `partition create` needs a way that starts from a whole bare device (st-3, see section 5).
+
 After the answers of 2026-11-20 (section 7) this table is partly overtaken. It is kept as the proposal it was:
 - 233 GB SSD: not `backup`. Its first purpose is the isle template medium (decision 4).
 - 1.8 TB HDD: `assets` for what is rarely used (decisions 3 and 5). What its other partitions carry is open.
@@ -270,8 +338,9 @@ After the answers of 2026-11-20 (section 7) this table is partly overtaken. It i
   Images can be held by the 2 TB HDD." So `backup` is one more role on the 466 GB HDD, and `registry` goes on the
   1.8 TB HDD beside `assets`.
 - The user, 2026-11-21 (R9): a partition can have more than one role. The 466 GB filesystem then carries
-  `package-repo`, `git` and `backup` together, with no second partition. The 1.8 TB HDD has four partitions and no
-  filesystem: `registry` and `assets` there still wait for `partition create` (st-3), which is not built.
+  `package-repo`, `git` and `backup` together, with no second partition. The 1.8 TB HDD has no partition table and
+  no filesystem (see the correction above): `registry` and `assets` there still wait for `partition create` (st-3),
+  which is not built.
 
 ## 7. Decisions - answered by the user, 2026-11-20
 
