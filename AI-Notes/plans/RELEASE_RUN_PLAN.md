@@ -67,14 +67,14 @@ The sections below keep their letters; this list is the order of work.
 ### Run 3 packet `cli-release-90` - STAGED on pol only (2026-11-20). Not on the core, not run
 State: source-tested and built. Installed nowhere, nothing live. Copying it to the core and running it both wait
 for the user's go.
-- Built on pol from the isle CLI's dev (commit `6287d2a`; rebuilt 2026-11-20 evening, the first build was from
-  `a45e0b7`). Three packages, as every CLI release:
+- Built on pol from the isle CLI's dev (commit `adecf15`, the dev tip; third build, 2026-11-20 evening - the
+  earlier ones were from `a45e0b7` and `6287d2a`). Three packages, as every CLI release:
   `isle-mesh-cli 0.1.210+release90`, `isle-app-store 0.1.90+release90`, `polari-complete-offline 0.1.90+release90`.
 - Same shape as run 2: the core publishes the three files, every device does `update-apply` of the published
   release. One verify URL is added: `https://apt.isle/deps/noble/InRelease` answers 200.
 - Checked: the CLI inside the combined package is file for file the dev tree; against release 89 the combined
   package has the same dependencies and a new version; `isle release check` with the installed release-89 CLI
-  says the packet is valid (run id `b2a28893659b`; the first build's was `f58332896e64`).
+  says the packet is valid (run id `7c80beaaa025`; the earlier builds' were `f58332896e64` and `b2a28893659b`).
 - First release that carries: the storage listings, device classes and partition roles (`isle storage device
   list|register`, `partition list|assign|check`, `role list|show`); `isle storage units check|apply` and the
   rewrite of changed unit files at an update; the core-only denylist for storage moves; the setting that names
@@ -85,6 +85,10 @@ for the user's go.
   and the runner's step `backup`. The packet itself does not carry a `backup` step: the release-89 runner that
   reads it does not know one. The first packet that can take a device-backup before it changes a device is the
   one after this.
+  And since the third build: the any-device intake (`isle release setting`, `isle release offer`, `isle release
+  intake`, the core's timer - installed, never enabled by the package; "Step (2) built" below) and the isle-wide
+  storage view (`isle storage role list --isle`; every device starts to report its partitions with a role).
+  The setting stays `core-only` until someone changes it on the core, so this run itself is started on the core.
 - What this run would prove beyond run 2:
   1. A second publication and update of all three devices from one command.
   2. The first publication made by the release-89 publisher, so the separate signed index for operating system
@@ -431,28 +435,36 @@ Not proven, and owed:
   that the agent routes the name to it.
 - A member in offline mode can only start images its offline rule accepts. Today only the core is offline, and the
   core never offers. Not handled for a future offline member.
-- The core finds a member's address by its paired name in the router's leases. A machine that announces another
-  name to the router is reported as "the router lists no address" and its offer is not taken. A second way to find
-  the address is owed.
+- Done 2026-11-20 evening (source-tested): where the core asks for a member. First the address the member's agent
+  reported to the core's device list (every app deploy reports it, so it is fresh when an offer goes up); the
+  router's leases only for a member the list has no usable address for. Either one only says where to ask; the
+  certificate of the offer name proves the member. `setting any-device` is allowed when one of the two can be read.
 - An offer whose member is switched off stays recorded on that member until `offer withdraw` or the next run there.
 - Taking an offer down depends on the app removal check answering; if it does not, the command says so and the
   offer stays up.
 - While any-device is on, the core asks once a minute every member that ever put an offer up (it holds the offer
   name); the router is asked only then. The offer shows as an app in the topology while it is up.
-- The router's address and the way its leases are read are fixed values in `storage_core.py` from before this
-  work. They are only used to find where to ask; what answers there must still prove itself by its certificate.
+- Done 2026-11-20 evening (source-tested): the lease lookup reads the router's address from the core's own record
+  of its network (`host_network.management_gateway`), no longer a value written in `storage_core.py`. Still from
+  before this work, and a finding for the user: the lookup's ssh to the router does not check the router's host
+  key, and other scripts of the isle CLI (`security.sh`, `scan.sh`, `dns-reconcile.sh`, `router.sh`, `create.sh`,
+  `dns-register.sh`) keep a fixed router address as their default.
+- Fixed 2026-11-20 evening (source-tested), found by a new test: a packet that was replaced by another valid one
+  while the member copied it left its copy behind on the member. The copy is now removed whatever stops the offer.
 - The last lines of a run are published to the whole isle in the notice. They are the lines `isle release run`
   prints; no secret is printed there today, and it has to stay that way.
 - The Isle App's warning (section B) for this setting is not built.
 
 Files (isle CLI): `release_offer.py` (new, the member's half), `release_intake.py` (new, the core's half),
-`test-release-intake.py` (new, 16 tests: both halves against each other over a fixture isle - no network, no
-docker, no sudo; 18 of 18 deliberate breaks of the checks caught), `isle-release-intake.service` and `.timer` (new; the package never enables the timer by
+`test-release-intake.py` (new, 17 tests: both halves against each other over a fixture isle - no network, no
+docker, no sudo; 18 of 18 deliberate breaks of the checks caught, and 11 of 11 of the address lookup's), `isle-release-intake.service` and `.timer` (new; the package never enables the timer by
 itself), changes in `release_run.py`, `release_notice.py`, `release.sh`, `cert-authority.py`, `storage_core.py`,
 `build-cli-deb.sh`, `destroy.sh` and their tests. Runner tests 107 of 107, authority tests 6 of 6. All 83 test files
 of the isle CLI exit 0 on pol except `test-apt-local-priority.py` (it needs a Docker bind source pol does not have).
 
-Release 90, staged on pol, does not carry this. A packet that does has to be rebuilt from the dev tip.
+Release 90, staged on pol, carries this since its third build (from `adecf15`). It changes nothing by being
+installed: the setting stays `core-only` and the core's timer is not enabled until `sudo isle release setting
+any-device` is typed on the core.
 
 #### Fixed or checked on the way (2026-11-18)
 - `isle store list` Python error (section D): fixed in the worktree with a test (`test-store-list.py`),

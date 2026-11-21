@@ -52,7 +52,7 @@ Roles (first list): `package-repo`, `distribution` (install and operating-system
 
     isle storage device    list | register | health | retire
     isle storage partition list | create | assign | check | retire
-    isle storage role      list | show <role>
+    isle storage role      list | show <role>      (--isle: every machine's report, side by side)
     isle storage slot      list | bind
     isle storage units     check | apply --dataset <name>
     (existing) isle storage authorize | migrate | cutover | witness | accept | rollback | sync | status
@@ -125,8 +125,29 @@ Pol's choices in this step, not ruled, for the user to correct:
    A partition found behind another serial is shown as `on another device`, and `assign` with its role records it
    where it is.
 
-Not in st-1, still owed: the core's placement record does not hold partitions or roles yet, so the isle-wide view
-and the Polari side of R8 (Polari aware of storage for planning) are not there. No verb reads a role to place data.
+Not in st-1, still owed: the core's placement record does not hold partitions or roles yet, and no verb reads a
+role to place data. The isle-wide view is built as a report (next paragraph).
+
+#### The isle-wide view, built 2026-11-20 evening (source-tested, on the isle CLI's dev, in no release)
+
+- `isle storage role list --isle [--table]` and `isle storage role show <role> --isle [--table]` - read-only, from
+  any machine. They print what every machine reported, side by side: device, role, filesystem identifier, class,
+  size, free space, state, datasets, and how long ago that machine reported.
+- How it gets there: each machine adds its partitions that carry a role to the device report it already sends to
+  the core (one more fact, `isle.storage_partitions`). The view reads the core's device list. No backend change,
+  no hand-made route, no second store. The hardware serial is not reported.
+- R8 ("Polari just needs to be capable of being aware of it"): the report sits in the engine's device rows
+  (`IsleDevice`), which is where Polari reads devices from. A Polari page or plan that uses it is not built.
+- It is a report, not a check. A machine with an older isle CLI shows as "no storage report yet". Read once from the
+  source tree against the real device list: no machine reports yet, because no installed CLI carries this.
+- Pol's choices, for the user to correct: the report is not an engine row class of its own (`IsleStoragePartition`
+  would be the next step if plans need to point at one partition); the serial stays on the machine.
+- Files: `storage_isle.py` (new), `test-storage-isle.py` (new, 16 tests, 21 of 21 deliberate breaks caught),
+  `capabilities.py`, `storage_roles.py`, `storage.sh`, the CLI's README.
+
+What the user types, on any machine, once a release carries this and the roles are assigned:
+
+    isle storage role list --isle --table
 
 What the user types on pol once a release carries this (serial and identifier as the two listings print them):
 

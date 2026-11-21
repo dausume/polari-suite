@@ -7,18 +7,20 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
 - The order of work is the user's (2026-11-18): one-command release, apt separation, storage, backups, OS overwrite.
 - Release 89 is live-verified on all three devices. The release 90 packet is staged on pol only (`RELEASE_RUN_PLAN.md`);
   copying it to the core and running it wait on the user's go.
-- Isle CLI dev is `b58242d`. Since the release 90 packet was first built it gained, all source-tested only and in no
-  release: storage roles, the fix-list items of section 3, `isle backup` (device-backups, `BACKUP_PLAN.md` section 6),
-  the release-run step `backup`, and the any-device intake (a member offers its packet, the core fetches and runs it;
-  `RELEASE_RUN_PLAN.md`, "Step (2) built"). The intake's offer server has never been started in a container; its
+- Isle CLI dev is `adecf15`, and the staged release 90 packet is built from it. Since release 89 it gained, all
+  source-tested only and installed nowhere: storage roles, the fix-list items of section 3, `isle backup`
+  (device-backups, `BACKUP_PLAN.md` section 6), the release-run step `backup`, the any-device intake (a member offers
+  its packet, the core fetches and runs it; `RELEASE_RUN_PLAN.md`, "Step (2) built"; the core finds the member in its
+  device list first, the router's leases second), and the isle-wide storage view (`isle storage role list --isle`;
+  `STORAGE_ROLES_PLAN.md`, section 5). The intake's offer server has never been started in a container; its
   first proof is on a member at the user's go. Whether and where the isle says "releases need sign-in" is an open
   decision written there.
 - The user's answers of that evening (verbatim in the plans): a release needs no Keycloak unless the isle's security
   settings switch it on and require it; the default is that a release is started on the core; device-backups live on
   pol's internal 466 GB disk; container images on the 2 TB dock disk; the hosting container's restart policy `no` is
   fine while the unit starts it at boot; no machine name or other fixed value written into code.
-- Owed next, in the order above: a release 90 packet rebuilt from the dev tip (it then carries the intake and the
-  `backup` step) and its run on the core, both at the user's go; the `backup`
+- Owed next, in the order above: the run of the release 90 packet on the core (copying it there and running it are
+  the user's go); the `backup`
   partition on pol's internal disk (one partition holds the package replica today; changing that is the user's
   decision and their sudo steps); restore (drill, apply); the fetch of other machines' device-backups; the `registry`
   role; what Polari declares as its data.
