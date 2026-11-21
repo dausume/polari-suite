@@ -67,17 +67,24 @@ The sections below keep their letters; this list is the order of work.
 ### Run 3 packet `cli-release-90` - STAGED on pol only (2026-11-20). Not on the core, not run
 State: source-tested and built. Installed nowhere, nothing live. Copying it to the core and running it both wait
 for the user's go.
-- Built on pol from the isle CLI's dev (commit `a45e0b7`). Three packages, as every CLI release:
+- Built on pol from the isle CLI's dev (commit `6287d2a`; rebuilt 2026-11-20 evening, the first build was from
+  `a45e0b7`). Three packages, as every CLI release:
   `isle-mesh-cli 0.1.210+release90`, `isle-app-store 0.1.90+release90`, `polari-complete-offline 0.1.90+release90`.
 - Same shape as run 2: the core publishes the three files, every device does `update-apply` of the published
   release. One verify URL is added: `https://apt.isle/deps/noble/InRelease` answers 200.
 - Checked: the CLI inside the combined package is file for file the dev tree; against release 89 the combined
-  package has nine added files, none removed, the same dependencies and a new version; `isle release check` with
-  the installed release-89 CLI says the packet is valid (run id `f58332896e64`).
+  package has the same dependencies and a new version; `isle release check` with the installed release-89 CLI
+  says the packet is valid (run id `b2a28893659b`; the first build's was `f58332896e64`).
 - First release that carries: the storage listings, device classes and partition roles (`isle storage device
   list|register`, `partition list|assign|check`, `role list|show`); `isle storage units check|apply` and the
   rewrite of changed unit files at an update; the core-only denylist for storage moves; the setting that names
   the isle's Keycloak (`isle polari security provider`); the fix of `isle store list` on members.
+  And since the rebuild: cutover's check of the router's managed-names list and `isle dns managed-names list`;
+  the per-action numbering of migrate receipts; the proof that the hosting device's units run
+  (`isle storage units prove`); the resume command printed by a failed operation; `isle backup` (device-backups)
+  and the runner's step `backup`. The packet itself does not carry a `backup` step: the release-89 runner that
+  reads it does not know one. The first packet that can take a device-backup before it changes a device is the
+  one after this.
 - What this run would prove beyond run 2:
   1. A second publication and update of all three devices from one command.
   2. The first publication made by the release-89 publisher, so the separate signed index for operating system
@@ -92,8 +99,6 @@ for the user's go.
   3. Read in the code, not run: with no Keycloak named, the core's reconcile finds no changed setting and does
      not re-create the backend.
 - After it is live, the storage proof of st-1 is typed on pol (STORAGE_ROLES_PLAN.md, section 5).
-- Not in this packet (on the isle CLI's dev after the build): cutover's check of the router's managed-names list, the
-  verb `isle dns managed-names list`, and the per-action numbering of migrate receipts. They ride the next CLI release.
 
 ## Proof packet 2 - for the user's review (2026-11-18). Packet 2a RUN 2026-11-20, see Run 2 above.
 
