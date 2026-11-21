@@ -15,6 +15,14 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
   section D, last item). Source-tested only.
 - A dependency set for Ubuntu 22.04 is built and staged on pol only (`~/isle-dependencies-ubuntu-22.04`, 927
   packages). It must not be published by a core older than release 91.
+- Later that morning, isle CLI dev became `df53af2`: a partition can carry more than one role (ruling R9;
+  `STORAGE_ROLES_PLAN.md`, "Several roles on one partition"). `isle storage partition assign <identifier> --role
+  <role>[,<role>...]` adds the typed roles to the ones already there; nothing takes a role away yet. Source-tested
+  only (84 test files run, 0 failed; 21 of 21 deliberate breaks caught), for release 91. No machine holds a storage
+  record yet: the verbs arrive with release 90, so the two shapes meet only between releases 90 and 91, and the new
+  code reads both.
+- In work on the branch `pol/verified-tls-scripts` of the isle repository: the older scripts that called the isle's
+  own services without checking the certificate, and the ssh to the router that did not check its key.
 
 **State on 2026-11-20, evening.**
 - The order of work is the user's (2026-11-18): one-command release, apt separation, storage, backups, OS overwrite.

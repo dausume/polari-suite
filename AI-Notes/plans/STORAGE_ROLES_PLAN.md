@@ -17,6 +17,7 @@ plan door, with a fail-closed gate unit) and on econ's draft of 2026-11-17 (in t
 | R6 | The denylist of what may never be moved holds only the core itself. | 2026-11-14 |
 | R7 | Every step is an `isle` or `pol` verb; a plan is approved once and then runs. | 2026-11-14 |
 | R8 | The isle is responsible for storage, because storage is tied to hardware. Polari only has to be aware of it, since planning goes through Polari as well as the isle. | 2026-11-20 |
+| R9 | A partition can have more than one role. | 2026-11-21 |
 
 Reported by econ from its own session with the user (2026-11-17), not said to pol: purposes named were where the
 blob store puts files, the package store for distribution, images for distribution, git; SATA is the standard and
@@ -28,7 +29,7 @@ storage-heavy apps; the reason is design files (Blender, FreeCAD) that cannot li
 | Thing | What it is | Identified by | Rule |
 |---|---|---|---|
 | Device | one physical disk or stick | hardware serial | has a declared class: fixed, dock or flash |
-| Partition | one filesystem; may cover the whole device | filesystem identifier, plus a marker file at its root | carries exactly ONE role; its size is the hard limit |
+| Partition | one filesystem; may cover the whole device | filesystem identifier, plus a marker file at its root | carries ONE OR MORE roles (R9); its size is the hard limit, shared by all its roles |
 | Role | a purpose | a word from a fixed list | owns ONE OR MORE partitions, on one device or several, on one machine or several |
 | Dataset or store | one named body of data of one role | its name | placed by the plan on a partition of its role |
 | Slot | one storage need of one app | app name + slot name | declared in the app's release manifest; the plan binds it |
@@ -163,6 +164,37 @@ needs a second partition, and nothing is shrunk in place (section 3): the packag
 be partitioned, and the replica move back. The other way is to let one partition carry more than one role, which
 changes the model. Not chosen.
 
+Settled by R9 (2026-11-21): a partition can have more than one role, so `git` and `backup` are added to that
+filesystem beside `package-repo`. No second partition, no move. See the next heading.
+
+#### Several roles on one partition (R9), built 2026-11-21 (source-tested, on the isle CLI's dev, in no release)
+
+- `sudo isle storage partition assign <filesystem-identifier> --role <role>[,<role>...]`. On a partition that
+  already carries roles it keeps them and adds the ones typed. It never takes a role away. The same roles again
+  change nothing.
+- What is written: with one role the marker and the record hold `role`, as before. With more they hold `roles`
+  (all of them, in the order given) and `role` (the first). A CLI of release 90 therefore still reads a role it
+  knows from a record or marker written by a later one.
+- The marker and the record agree when they name the same roles, in any order. When they differ (the disk was
+  given a role on another machine), `assign` joins them only when every one of those roles is typed, and it
+  prints the command that does it. No role is taken over unasked. This is pol's choice, not ruled.
+- A marker that is changed keeps who wrote it first and gains `changedAt` and `changedOn`.
+- Refused with nothing written, new: a role typed twice; a role that has to be written to the marker of a
+  filesystem mounted read-only; a marker or a record that changed while the command ran.
+- The listings: `partition list`, `partition check` and `role show` print a `ROLES` column. A partition with
+  several roles is listed under each of them. `role list` counts its free space under each role and says that it
+  is one space: the roles share the partition, nothing is set aside for each. A limit per role is not built.
+- The isle-wide report (`isle.storage_partitions`) keeps its shape: one row per partition and role. A core of
+  release 90 reads it as it is.
+- Device-backups: the home is the partition whose roles include `backup`, whatever else it carries.
+- Files: `storage_roles.py`, `storage_isle.py`, `storage_devices.py`, `device_backup.py`, their four test files
+  (46, 18, 14 and 33 tests; 21 of 21 deliberate breaks caught after one test was added), the CLI's README.
+- Limits: no verb takes a role away (`partition retire`, not built). The Isle App does not show roles yet.
+
+What the user types on pol once release 91 is live there (the identifier as `partition list` prints it):
+
+    sudo isle storage partition assign <identifier of the 466 GB filesystem> --role package-repo,git,backup
+
 ### Done ahead of st-0 (2026-11-18): the two listings that need no decision
 
 On the isle CLI's dev since 2026-11-20 (source-tested). Not in release 89, not installed anywhere.
@@ -235,8 +267,11 @@ After the answers of 2026-11-20 (section 7) this table is partly overtaken. It i
 - 466 GB HDD: `git` and the dependency stores go there (decision 3), and it is one filesystem that holds the package
   replica today. See the conflict under "st-1 built" in section 5.
 - The user, 2026-11-20 evening (verbatim): "The device backup can live on the 500 GB HDD Internal. Container
-  Images can be held by the 2 TB HDD." So `backup` is one more role on the 466 GB HDD (it needs its own partition
-  there, the same conflict), and `registry` goes on the 1.8 TB HDD beside `assets`.
+  Images can be held by the 2 TB HDD." So `backup` is one more role on the 466 GB HDD, and `registry` goes on the
+  1.8 TB HDD beside `assets`.
+- The user, 2026-11-21 (R9): a partition can have more than one role. The 466 GB filesystem then carries
+  `package-repo`, `git` and `backup` together, with no second partition. The 1.8 TB HDD has four partitions and no
+  filesystem: `registry` and `assets` there still wait for `partition create` (st-3), which is not built.
 
 ## 7. Decisions - answered by the user, 2026-11-20
 
