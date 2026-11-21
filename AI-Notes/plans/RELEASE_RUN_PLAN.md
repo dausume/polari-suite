@@ -121,7 +121,15 @@ What the packet was (written before the run):
      not re-create the backend.
 - After it is live, the storage proof of st-1 is typed on pol (STORAGE_ROLES_PLAN.md, section 5).
 
-### Run 4 - packet `cli-release-91` - BUILT and STAGED ON POL (2026-11-21), waits on the user's go
+### Run 4 - packet `cli-release-91` - STAGED ON THE CORE (2026-11-21 evening), the run is the user's command
+- The user's go, 2026-11-21 evening: "go ahead on 91". The packet folder was copied to the core as
+  `~/isle-release-91` (154 MiB). Checked there without sudo: every file matches `SHA256SUMS`, and the core's
+  installed `isle release check` says the packet is valid with the same run id. Nothing is published or installed.
+- The run, typed by the user on the core:
+
+      sudo isle release run ~/isle-release-91 --expect d09cdc9d7ff5e000f5379121a31ded00b107965e863610e5a0f159b469286bd9
+
+- What follows is as written when it was built and staged on pol.
 - Built once, by the verb (`isle release build`, run from the checkout because the installed CLI is release 90
   and has no `build`), from the isle CLI's dev tip `60983b8`. About four minutes, no sudo, nothing published.
   Folder on pol: `~/isle-release-91-build` (`packet/`, `members/`, `build.json`, `build.log`, `source/`).

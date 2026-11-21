@@ -3,7 +3,19 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-21, late evening (read this first; the blocks below are older).**
+**State on 2026-11-21, night (read this first; the blocks below are older).**
+- Release 91: the user said "go ahead on 91". The packet is STAGED ON THE CORE (`~/isle-release-91`, checked
+  there, same run id). The run is the user's one command on the core (`RELEASE_RUN_PLAN.md`, "Run 4"). Not run
+  yet as far as pol knows: check `isle release status` / the served version before saying anything about it.
+  After it is live on the core and both 22.04 members: the dependency-set packet, on the user's go.
+- Storage direction from the user (`STORAGE_ROLES_PLAN.md`, section 9, their words verbatim): kinds of storage
+  apart from roles, distribution needs, the file store as a pool over partitions on several machines, normal
+  apps (KiCad, FreeCAD, Blender) wrapped for the App Store and bound to file spaces. Answered: the pool's index
+  on any member; one copy by default; a copy that points back at its original must be possible (9.7); a plain
+  registry on the `registry` partition. Nothing of section 9 is built.
+- Next in storage: the lists of 9.1 and the needs check in the isle CLI, then slots, then the pool.
+
+**State on 2026-11-21, late evening (the block above is newer).**
 - Isle CLI dev is `fa087a2`: `isle storage partition mount <filesystem-identifier> --at <folder>` and
   `partition unmount` (`STORAGE_ROLES_PLAN.md`, section 5, "Mounting a partition"). A systemd mount unit wanted by
   the device; `/etc/fstab` is never written; a mount made any other way is never taken over. Source-tested only,
@@ -14,8 +26,6 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
   the user has read (`--expect`). Source-tested only, for release 92; never run on a real device.
 - Deliberate-break runs must use a copy of the whole `isle-cli` folder, not of `scripts` alone: the wiring tests
   start `index.js` beside it and fail for that reason alone in a bare copy, which reads as "caught".
-- Still owed in storage: the core's placement record holds no partitions or roles, and no verb reads a role to
-  place data (section 5, "Not in st-1"). That is the next piece.
 - The two staged packets below are unchanged and still wait on the user's go.
 
 **State on 2026-11-21, evening (the block above is newer).**

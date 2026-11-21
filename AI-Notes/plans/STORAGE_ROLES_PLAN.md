@@ -652,10 +652,35 @@ section 8.
   3. the file store run as a pool (9.2), then the mount and the wrapped apps (9.3, 9.4).
 - This replaces "a verb reads a role to place data" as the next piece of storage work.
 
-### 9.6 Choices for the user
+### 9.6 Choices - answered by the user, 2026-11-21
 
-1. Where the pool's index lives: on the core (small, always on), or on a member.
-2. Copies by default: one (no duplication, away when the disk is away) or two.
-3. Container images: a plain registry on the `registry` partition (pol's lean), or a registry that stores into
-   the pool.
-4. A separate role for long-term storage, or `assets` with two copies.
+Verbatim: "it can live on any member, no duplication but we should be capable of making copies that reference
+back to the original that reserve the original and ensure edits done remotely get applied to it again if that
+makes sense, a plain registry on the registry partition should be fine, will go with your recommendations go
+ahead on 91"
+
+| # | Choice | Answer |
+|---|---|---|
+| 1 | Where the pool's index lives | on any member. Nothing ties it to the core; which machine is a setting of the plan. |
+| 2 | Copies by default | one. No duplication. But a copy that points back at its original must be possible (9.7). |
+| 3 | Container images | a plain registry with its data folder on the `registry` partition. |
+| 4 | Long-term storage | left to pol: no role of its own for now. It is `assets` data with the lifetime "until removed". |
+
+### 9.7 A copy that points back at its original (the user, 2026-11-21) - PLAN, nothing built
+
+- The requirement, in the user's words: copies "that reference back to the original that reserve the original
+  and ensure edits done remotely get applied to it again".
+- Pol's reading, to be confirmed by the user:
+  - A device takes a copy of a file or a folder of a file space onto its own disk. The copy records which
+    original it came from and the state of the original when it was taken.
+  - While the copy is out, the original is reserved: everyone can still read it, and nobody else changes it.
+  - Edits made on the copy are applied back to the original. Then the reservation ends and the copy can be
+    dropped. The original stays the only lasting copy.
+  - This is also the answer for a device that is away from the isle: the mounted folder of 9.3 needs the
+    network, a copy taken beforehand does not.
+- It is a new distribution need beside those of 9.1, "taken": a copy on one device that owes its edits back.
+- Open, for the design: whether "reserve" means that others cannot change the original (the reading above) or
+  only that the original is kept as it was until the edits come back; what happens to a copy that never comes
+  back; whether the edits return by themselves when the device is on the isle again or by a command.
+- As everywhere: each step is an `isle` verb (take, return, drop, list), and Polari holds one small row per
+  copy that points at the original.
