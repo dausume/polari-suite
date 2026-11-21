@@ -21,8 +21,28 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
   only (84 test files run, 0 failed; 21 of 21 deliberate breaks caught), for release 91. No machine holds a storage
   record yet: the verbs arrive with release 90, so the two shapes meet only between releases 90 and 91, and the new
   code reads both.
-- In work on the branch `pol/verified-tls-scripts` of the isle repository: the older scripts that called the isle's
-  own services without checking the certificate, and the ssh to the router that did not check its key.
+- Isle CLI dev then became `82a159d` (branch `pol/verified-tls-scripts`): the older scripts check who they talk to.
+  Source-tested only (88 test files run, 0 failed; 40 of 40 deliberate breaks caught, and 7 of 7 on the new audit),
+  for release 91.
+  - HTTPS: `isle-cli/scripts/lib/tls.sh` is the one place that decides (the user's ruling of 2026-11-07). The
+    default checks the isle's services against the isle's root and no other; `ISLE_TLS_CA=<pem>` checks against
+    that file; `ISLE_TLS_INSECURE=1` checks nothing and says so at every call. curl's `--cacert` alone also trusts
+    the system's certificates, so every call that names a file now adds `--capath /nonexistent` (the core fetching
+    a member's packet among them).
+  - ssh to the router: `isle-cli/scripts/router_ssh.py` gives the address from the machine's record and the
+    options that accept the pinned key only. New verb `sudo isle router key-status`. No script writes a router
+    address any more.
+  - `isle-cli/scripts/test-unverified-calls.py` lists every call that stays unchecked, with its reason, and fails
+    when a script adds one.
+  - **Depends on the pin after release 91:** `isle dns register`, the 2-minute name reconcile on the core, the
+    router reads of `isle security` and `isle scan`, and the lease lookup connect only when the router's key is
+    pinned under its management address (`sudo isle router trust-key`). The record of release 89 suggests the
+    core has the pin; only root can read the file, so the check is `sudo isle router key-status` on the core
+    once release 91 is installed. Without the pin these say so and do nothing; they do not fall back.
+  - **Owed:** 14 files outside `isle-cli` still reach a new router with no pinned key (`openwrt-router/scripts`,
+    `security/harden-host-network.sh`, `fix-openwrt-mdns.sh`): the router's first contact, where the key should
+    be pinned as the router is created. And `router.sh` does not yet write the management address into the
+    record when it creates a router.
 
 **State on 2026-11-20, evening.**
 - The order of work is the user's (2026-11-18): one-command release, apt separation, storage, backups, OS overwrite.
