@@ -4,11 +4,18 @@ Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session af
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
 **State on 2026-11-21, late evening (read this first; the blocks below are older).**
-- Isle CLI dev is `3148013`: `isle storage partition create` (`STORAGE_ROLES_PLAN.md`, section 5, "Making a
+- Isle CLI dev is `fa087a2`: `isle storage partition mount <filesystem-identifier> --at <folder>` and
+  `partition unmount` (`STORAGE_ROLES_PLAN.md`, section 5, "Mounting a partition"). A systemd mount unit wanted by
+  the device; `/etc/fstab` is never written; a mount made any other way is never taken over. Source-tested only,
+  for release 92; no test starts `systemctl`, so a real systemd has not been seen. This closes the mount step of
+  fix list item 11 in source.
+- Before it, `3148013`: `isle storage partition create` (`STORAGE_ROLES_PLAN.md`, section 5, "Making a
   partition"). Two ways: `--partition <partition-identifier>` and `--whole`. It erases, so it runs from a plan id
   the user has read (`--expect`). Source-tested only, for release 92; never run on a real device.
 - Deliberate-break runs must use a copy of the whole `isle-cli` folder, not of `scripts` alone: the wiring tests
   start `index.js` beside it and fail for that reason alone in a bare copy, which reads as "caught".
+- Still owed in storage: the core's placement record holds no partitions or roles, and no verb reads a role to
+  place data (section 5, "Not in st-1"). That is the next piece.
 - The two staged packets below are unchanged and still wait on the user's go.
 
 **State on 2026-11-21, evening (the block above is newer).**

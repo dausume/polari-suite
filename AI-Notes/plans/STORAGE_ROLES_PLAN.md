@@ -52,7 +52,7 @@ Roles (first list): `package-repo`, `distribution` (install and operating-system
 ## 4. Verbs
 
     isle storage device    list | register | health | retire
-    isle storage partition list | create | assign | check | retire
+    isle storage partition list | create | mount | unmount | assign | check | retire
     isle storage role      list | show <role>      (--isle: every machine's report, side by side)
     isle storage slot      list | bind
     isle storage units     check | apply --dataset <name>
@@ -322,22 +322,61 @@ real disk. This is the one storage verb that erases.
 
   The second prints the plan and the `sudo ... --expect <plan-id>` line that does it.
 
-#### Proposed next: `partition mount` (not built; pol's proposal, nothing ruled)
+#### Mounting a partition, built 2026-11-21 (source-tested, isle CLI dev `fa087a2`, for release 92)
 
 A filesystem made by `partition create` is not mounted, and everything else (the marker check, datasets, the
-backup role) needs it mounted whole. Mounting is a hand step today (fix list item 11).
+backup role) needs it mounted whole. Mounting was a hand step (fix list item 11).
 
-- `isle storage partition mount <filesystem-identifier> --at <folder>`: without sudo it prints what it would
-  write; with sudo it makes the folder, writes one systemd mount unit that names the filesystem by its
-  identifier, and starts it.
-- The unit is wanted by the device, not by the boot: the partition is mounted each time the disk is present, and
-  a dock disk that is away does not hold up a start of the machine.
-- `--at` is typed every time. No folder name is built into the CLI.
-- It refuses a folder that holds anything, a folder something is mounted on, a partition that is mounted
-  elsewhere, and the running system's partitions.
-- `isle storage partition unmount <filesystem-identifier>` is the way back. It refuses while a dataset on the
-  partition is in use.
-- It changes a live machine, so the first run is the user's, read from the printed plan.
+    sudo isle storage partition mount <filesystem-identifier> --at <folder>
+    sudo isle storage partition unmount <filesystem-identifier> [--with-datasets]
+
+- Without sudo each runs every check and prints the sudo line to type.
+- What `mount` does: it writes one systemd mount unit that names the filesystem by its identifier (never a name
+  like `sdb1`), reloads systemd, enables the unit and starts it. systemd makes the folder when it is not there.
+- The unit is wanted by the device, not by the start of the machine. The partition is mounted each time the disk
+  is present. A dock disk that is away holds nothing up.
+- It erases, formats and moves nothing. `/etc/fstab` is read and never written. The storage records are not
+  touched: the unit file is the only record of the mount.
+- `mount` refuses, with nothing changed:
+  - an identifier this machine does not see, or sees on two partitions;
+  - a partition of the running system, or a device that is not registered;
+  - a partition that is mounted already in any other way. A mount made by hand or by `/etc/fstab` is not taken
+    over;
+  - a filesystem or a folder that `/etc/fstab` names;
+  - a folder that is `/`, is reached through a link, is not a folder, is not empty, or has something mounted on
+    it;
+  - a unit file for that folder that this verb did not write, and a second folder for a partition that has a unit
+    of this verb already.
+- Typed again for a partition it mounted, it says so and changes nothing.
+- After the unit is written a failed step prints `FAILED:` and what is there (the unit written, or written and
+  enabled, and the partition not mounted by it). The same command goes on from there.
+- What `unmount` does: it stops that unit, disables it and removes the file. The folder stays. No data changes.
+  The roles stay recorded, and `partition check` shows the partition as not mounted.
+  - It only touches a unit that `mount` wrote (the first line of the file says so). A partition mounted another
+    way is refused and left alone.
+  - A partition that holds a dataset of this machine is refused unless `--with-datasets` is typed. What serves
+    the dataset is bound to the mount and stops with it.
+  - It also removes the unit of a disk that is away.
+  - When systemd cannot stop the mount (something on it is in use) it prints `FAILED:`, keeps the unit, and says
+    that what depends on the mount may have been stopped.
+- pol's choices, not ruled:
+  - `--at` is typed every time. No folder name is built into the CLI.
+  - No mount option is set (the filesystem's own defaults, so read and write).
+  - The verb runs with sudo on the machine itself. It does not go through the core's plan door (fix list item 8).
+  - A filesystem that `/etc/fstab` mounts is left to `/etc/fstab`. Read-only look on pol: its two data
+    filesystems are mounted by `/etc/fstab` lines, so this verb refuses both and nothing about them changes.
+    Moving them to units is not built and not proposed.
+- Files: `storage_mounting.py` (new, 231 lines), `test-storage-mounting.py` (37 tests), the dispatch in
+  `storage_roles.py`, `storage_devices.py`, `storage.sh`, the CLI's README.
+- Proof: 37 new tests on fixtures (made-up disks, made-up answers of `systemctl`, the unit folder and the fstab in
+  a temporary folder). 108 of 108 deliberate breaks caught. Every test file of the CLI: 93 ok, 1 skipped (it needs the core), 0 failed.
+- Not proven: systemd itself. No test starts `systemctl`. That a unit wanted by the device unit is mounted when the
+  disk is plugged in and at a start of the machine is how systemd is documented, not something a test here saw.
+  The first real run is the user's.
+- For the user on pol, once release 92 is installed there and the 1.8 TB disk has its filesystem (the identifier
+  is from `isle storage partition list --table`, the folder is their choice):
+
+      sudo isle storage partition mount <identifier of the new filesystem> --at <folder>
 
 ### Done ahead of st-0 (2026-11-18): the two listings that need no decision
 
@@ -351,8 +390,8 @@ On the isle CLI's dev since 2026-11-20 (source-tested). Not in release 89, not i
   reported, not a plain filesystem), mount, free space, whether it carries the running system, and the datasets
   bound on it today (from the copies under `/var/lib/isle-mesh/storage`).
 - Read-only, no sudo. They report what the machine says; nothing is registered. Since st-1 they also print the
-  recorded class and role. (`retire`, `health` and `create` are built since 2026-11-21, see the three blocks
-  above.)
+  recorded class and role. (`retire`, `health`, `create` and `mount` are built since 2026-11-21, see the four
+  blocks above.)
 - Files: `isle-cli/scripts/storage_devices.py`, `test-storage-devices.py` (14 tests, fixtures only), one line in
   `storage.sh`. `isle storage list` is unchanged.
 - On pol they show four partitions on the 2 TB disk that report no filesystem. Corrected 2026-11-21: those four are
