@@ -43,6 +43,14 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
     `security/harden-host-network.sh`, `fix-openwrt-mdns.sh`): the router's first contact, where the key should
     be pinned as the router is created. And `router.sh` does not yet write the management address into the
     record when it creates a router.
+- Isle CLI dev then became `8bbf3ab` (branch `pol/signin-required-for`): the Keycloak record on the core says
+  what needs sign-in, and `releases` is the first name (`RELEASE_RUN_PLAN.md`, "Sign-in for releases"). Source-tested
+  only (87 test files run, 0 failed; 25 of 25 deliberate breaks caught), for release 91.
+  - `sudo isle polari security provider require releases` and `unrequire releases`, on the core. Nothing is
+    required until it is named, and it cannot be named before a Keycloak is.
+  - While it is required the core takes no offer from a member (an offer cannot carry a sign-in yet). A release
+    typed on the core is not asked for one. A record the core cannot read counts as required.
+  - **Not built:** how a person on a member signs in, how the offer carries the token, the core checking it.
 
 **State on 2026-11-20, evening.**
 - The order of work is the user's (2026-11-18): one-command release, apt separation, storage, backups, OS overwrite.

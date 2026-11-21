@@ -421,14 +421,29 @@ The cost, as the setting prints it: with any-device, root on any paired member c
 core checks which member offers a packet and that the packet is intact; the review is done by the person typing
 the command on that member. While a packet is offered, every device on the isle can read its files from that member.
 
-Open decision for the user - sign-in. Nothing checks a sign-in today, in either setting. The isle has no single
-place that says "releases need sign-in": `isle polari security require --feature release-any-device` writes into
-one frontend's settings file named by hand, which the core cannot read. Pol's recommendation, not built: the
-isle's Keycloak record on the core (`isle polari security provider`) gains the list of what needs sign-in, set by
-a verb on the core and published in the notice like the rest. While that list names releases, the core takes no
-offer unless the offer carries a token of that Keycloak, and `isle release setting any-device` says so. How the
-member's CLI gets a token for the person typing (a browser sign-in on the device, or Keycloak's device flow) is
-the second half of the same decision. Until the user decides, any-device runs without sign-in, as ruled.
+Sign-in for releases - the first half BUILT 2026-11-21 (source-tested, for release 91); the user accepted the
+recommendation that day ("everything else do as you say", "the rest as you recommend").
+- Where it is said: the isle's Keycloak record on the core gains the list of what needs a signed-in person. One
+  place, written by root on the core, published in the notice with the rest of the record.
+      sudo isle polari security provider require releases
+      sudo isle polari security provider unrequire releases
+  `isle polari security provider` shows the list on the core and on a member. `releases` is the one name today.
+- Nothing is required until it is named, and it cannot be named before a Keycloak is. `provider none` is refused
+  while the list is not empty; naming another Keycloak keeps the list.
+- What it does today: an offer cannot carry a sign-in yet, so while releases are required the core answers every
+  offer `refused` before it fetches anything, `isle release setting any-device` and `isle release intake` say so,
+  and a member is told before it offers. The release is then started on the core.
+- A release typed on the core is not asked for a sign-in. Sudo on the core is what allows it, and the CLI has no
+  way to carry a token yet: asking for one there would lock releases out of the isle.
+- A record the core cannot read counts as required (no offer is taken), never as "nothing required". A name in
+  the list that this CLI does not know is kept, not dropped, so an older CLI does not lose a requirement.
+- `isle polari security require --feature release-any-device` (one frontend's settings file) is unchanged and is
+  not what the core reads.
+- NOT built, the second half: how the person typing on a member signs in (a browser sign-in on the device, or
+  Keycloak's device flow), how the offer carries the token, and the core checking it against the named Keycloak.
+  Until then "required" means "from the core only".
+- Proof: `test-identity-provider.py` (40 tests) and `test-release-intake.py` (23), 25 of 25 deliberate breaks caught.
+  Not tried against a real Keycloak; none runs on the isle today.
 
 Not proven, and owed:
 - The offer server has never run. Starting a container on pol was not permitted in this session, so the first
