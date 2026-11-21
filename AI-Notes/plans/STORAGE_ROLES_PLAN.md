@@ -530,3 +530,132 @@ to the isle itself for simulation purposes, while being distributed throughout t
   application with its own database and accounts.
 - Owed: a comparison on this isle's terms (how KiCad and FreeCAD open the files, offline behaviour, licence, what a
   second copy costs), then the user's choice.
+
+## 9. Kinds of storage, the file pool, and normal apps bound to the isle (the user, 2026-11-21) - PLAN, nothing built
+
+Verbatim: "Maybe we should define different kinds of storage types and partitions, for normal polari the seaweed
+FS file storage is the best option, and for long term storage it may also be one of our best options. The
+question would be how do we assign the partitions to be for the seaweedFS and make seaweedFS available despite it
+potentially having partitions across multiple machines assigned to it. And the. as you said Images shoumd be tied
+to docker itself likely (I think you implied that?) so different partition types require different things to be
+installed on that machine. And different apps may need different kinds of file storage. Would seaweedFS work as
+the file storage solution for things like Kicad and FreeCad and Blender? Could we bind it to mounted volumes tied
+to those apps so we could by default access the seaweedFS storage? We would want to wrap installations of kicad
+and freecad and blender so they can be installed via Polari App store, but our install versions would wrap then
+and bind then to seaweedFS with specific tags signifying which normal app they are bound to. This is how we can
+bind normal apps to the isle. We started planning and building this out before, but I wanted to ensure the way we
+are building our partitions is also leading towards that capability that way we are bringing everything together."
+
+Everything below is pol's proposal for that. Nothing in it is ruled and nothing is built.
+
+### 9.1 Separate distinctions, not one word
+
+The user, same day, after reading the first draft of this section: "So perhaps think of different levels of
+distinctions aside from roles, like dependency/association for different kinds of storage and distribution need
+typing."
+
+So a role stays only a purpose. Four more things are named apart from it, each a short fixed list, and a body of
+data points at one entry of each.
+
+**Kind of storage: what serves the data, and so what the machine depends on.**
+
+| Kind | What serves it | What the machine must have | Roles that use it first |
+|---|---|---|---|
+| plain folder | a web server on a folder, or nothing | nothing more than today | `package-repo`, `distribution`, `backup`, `scratch`, `transfer` |
+| file pool | one SeaweedFS storage process per partition | the file store's image, or its one program | `blob`, `assets` |
+| image registry | a container registry, its data folder on the partition | Docker and the registry image | `registry` |
+| git | the forge | the forge's image | `git` |
+
+**Distribution need: how the data has to reach the devices that use it.**
+
+| Need | Meaning | Example |
+|---|---|---|
+| kept | used only on the machine it sits on | device-backups, scratch |
+| served | one copy, every device reads it by an isle name | the package store, the image registry, git |
+| pooled | pieces on several machines behind one isle name | file spaces, the blob store |
+| cached | the primary stays where it is; a device keeps a bounded copy while it uses it and drops it by itself | a mounted file space, pulled images |
+| installed | a copy must sit on every device that runs it | packages and images once installed |
+| carried | moved by hand on a disk or a stick | install media, `transfer` |
+
+**Association: what the data belongs to.** The isle (shared by all), one app (a file space), one machine (its
+device-backups), or one release (its packet). An app's file space is tied to both its app and the isle, as in
+section 8.
+
+**Copies: how many, and on how many machines.** One, or two on two machines. Set per body of data.
+
+**Lifetime: how long it is kept.** Until removed, per release, or scratch.
+
+- The kind decides the dependencies. `partition assign` checks that the machine has what the kind needs and says
+  what is missing, the way `device health` says `smartctl` is missing. It installs nothing by itself.
+- The distribution need decides what the plan has to do: nothing (kept), give it a name (served), start storage
+  processes (pooled), mount with a cache (cached), run an install on each device (installed).
+- Which kinds and needs a role allows is a fixed table in the CLI. No record or marker that is built changes; the
+  marker keeps naming roles only.
+- In Polari each of these is a small row class of its own that the others point at, not one wide row.
+- Backups stay plain folders that are kept. A restore must not need the pool to be running.
+
+### 9.2 Partitions on several machines as one file pool
+
+- One place on the isle holds the index of the pool (which machine holds which piece), the list of file names,
+  and the S3 door. It has one isle name. It holds no file content, so it is small and may be on the core.
+- Each partition with a file-pool role runs one storage process that joins that index. It stores in a folder of
+  the partition and is labelled with its machine and its role.
+- The storage process is tied to the partition's mount unit (`partition mount`, section 5). When a dock disk
+  leaves, that one process stops and the rest of the pool keeps serving.
+- Number of copies is set per file space. One copy means no duplication, and those files are away while their
+  disk is away. Two copies on two machines costs the space twice and survives one machine being off.
+- Today the file store is one process per Polari node that names itself by the loopback address
+  (`polari-rf-node/prf-file-store/entrypoint.sh`). A pool needs that changed: the parts must name themselves by
+  isle addresses and speak to each other over TLS from the isle's own certificate authority.
+- Read from the pinned version's own help (4.47, run without a network): a storage process takes several
+  folders, a free label for the kind of disk, a rack and a data-centre name, and the address of the index; the
+  index takes a default number of copies. Not seen: a pool that really spans two machines.
+
+### 9.3 KiCad, FreeCAD and Blender on the pool
+
+- The file store can show one of its folders as an ordinary folder on a machine (its `mount` command). KiCad,
+  FreeCAD and Blender open ordinary files, so they need nothing else. The same folder is a bucket on the S3 door,
+  so Polari and the simulations read the same files with no second copy.
+- Read from the same help: the mount takes the index's address, the folder to show, a local folder for a cache
+  and its size in megabytes, and a number of copies. The cache is what gives "copy it here while it is needed,
+  then drop it": the pool keeps the primary, the machine keeps a bounded cache and empties it by itself.
+- Not tested, and to be tested before this is promised:
+  - Without the network the mounted folder is not usable. The cache is not an offline copy.
+  - Two people saving the same file: the last save wins. Nothing merges.
+  - Speed with large Blender files and with many small KiCad files.
+  - The machine needs the FUSE package and the file store's program outside a container.
+- ownCloud and Nextcloud (section 8) answer the offline case with a synced copy on each machine, which is the
+  duplication this section avoids. The comparison is still owed.
+
+### 9.4 Normal apps wrapped for the Polari App Store
+
+- One file space is one bucket. Its name carries the app and the isle, and that is the tag that says which normal
+  app it is bound to.
+- A wrapped app is an App Store entry that says: which package installs the real app, which file spaces it
+  needs (each one a slot: a role, a number of copies, a size), and how it is started.
+- Installing it: the package comes from the isle's own package store; the plan binds each slot to the pool; the
+  file space is mounted as a folder; a launcher starts the real app with that folder as its place for projects.
+- In Polari a file space is a row (app, bucket, role, copies, who may reach it) of a row class, so the engine
+  makes its table and API. No hand-written routes. Access goes through the door that exists: the signed-in
+  person's own temporary keys, and no sign-in needed on an isle that has it switched off.
+- Found already built in the engine, to build on and not beside: the object-store connection
+  (`polariDBmanagement/managedObjectStore.py`), the store browse page, the App Store module's own use of the
+  store, and the CAD import of the shapes module that keeps its files there.
+
+### 9.5 Does what is built lead there
+
+- Yes for the base: a partition known by its filesystem identifier, a marker with its roles, a mount unit tied
+  to the disk, and one isle-wide report of roles are what 9.2 stands on.
+- Three things are missing, in this order:
+  1. the lists of 9.1 (kind, distribution need, association) and the needs check: small, in the isle CLI;
+  2. slots, the binding of an app's storage need to a role (st-4 in section 5);
+  3. the file store run as a pool (9.2), then the mount and the wrapped apps (9.3, 9.4).
+- This replaces "a verb reads a role to place data" as the next piece of storage work.
+
+### 9.6 Choices for the user
+
+1. Where the pool's index lives: on the core (small, always on), or on a member.
+2. Copies by default: one (no duplication, away when the disk is away) or two.
+3. Container images: a plain registry on the `registry` partition (pol's lean), or a registry that stores into
+   the pool.
+4. A separate role for long-term storage, or `assets` with two copies.
