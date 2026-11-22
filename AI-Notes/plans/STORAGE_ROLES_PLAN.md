@@ -531,7 +531,7 @@ to the isle itself for simulation purposes, while being distributed throughout t
 - Owed: a comparison on this isle's terms (how KiCad and FreeCAD open the files, offline behaviour, licence, what a
   second copy costs), then the user's choice.
 
-## 9. Kinds of storage, the file pool, and normal apps bound to the isle (the user, 2026-11-21) - PLAN, nothing built
+## 9. Kinds of storage, the file pool, and normal apps bound to the isle (the user, 2026-11-21) - PLAN; only 9.8 is built
 
 Verbatim: "Maybe we should define different kinds of storage types and partitions, for normal polari the seaweed
 FS file storage is the best option, and for long term storage it may also be one of our best options. The
@@ -647,7 +647,8 @@ section 8.
 - Yes for the base: a partition known by its filesystem identifier, a marker with its roles, a mount unit tied
   to the disk, and one isle-wide report of roles are what 9.2 stands on.
 - Three things are missing, in this order:
-  1. the lists of 9.1 (kind, distribution need, association) and the needs check: small, in the isle CLI;
+  1. the lists of 9.1 (kind, distribution need, association) and the needs check: small, in the isle CLI
+     (BUILT 2026-11-21, source-tested, see 9.8);
   2. slots, the binding of an app's storage need to a role (st-4 in section 5);
   3. the file store run as a pool (9.2), then the mount and the wrapped apps (9.3, 9.4).
 - This replaces "a verb reads a role to place data" as the next piece of storage work.
@@ -684,3 +685,48 @@ ahead on 91"
   back; whether the edits return by themselves when the device is on the isle again or by a command.
 - As everywhere: each step is an `isle` verb (take, return, drop, list), and Polari holds one small row per
   copy that points at the original.
+
+### 9.8 Built (2026-11-21): the lists of 9.1 and the needs check - source-tested, for release 92
+
+Item 1 of 9.5. Isle CLI dev `3313c57` (branch `pol/storage-kinds`). Installed nowhere.
+
+- Three read-only verbs, no root: `isle storage kind list`, `isle storage need list`,
+  `isle storage association list` (each with `--table`). The listing verb is `need`, because `distribution` is
+  already the name of a role.
+- The lists and the table of what each role allows are fixed in the CLI (`storage_kinds.py`). No record and no
+  marker holds them: they keep naming roles only, so nothing already written changes.
+- `kind list` also says whether this machine has what a kind needs: `ready`, `not ready`, or `not known` when
+  Docker did not answer the user who asked. The look is two questions and nothing else: is a program on the
+  path, and does `docker image ls` show an image of a repository (any tag). It never pulls, starts or installs.
+- `partition assign` and `partition create` say, after the roles are given, what this machine does not have for
+  the kinds of those roles. It is a notice: the roles are recorded all the same and the exit status stays 0.
+- `role list` names the kind of each role; `role show <role>` names its kind, distribution needs and
+  associations.
+
+The table as built. These are pol's choices, not rulings; the user can change any line:
+
+| Role | Kind | Distribution needs | Belongs to |
+|---|---|---|---|
+| package-repo | plain-folder | served | isle |
+| distribution | plain-folder | served, carried | isle, release |
+| registry | image-registry | served, cached | isle |
+| blob | file-pool | pooled | isle, app |
+| git | git | served | isle |
+| assets | file-pool | pooled, cached | app, isle |
+| backup | plain-folder | kept | machine |
+| scratch | plain-folder | kept | machine |
+| transfer | plain-folder | carried | isle |
+
+What a machine must have: `plain-folder` nothing more; `file-pool` the program `weed`, or Docker with an image
+of the file store; `image-registry` Docker with an image of `registry`; `git` Docker with an image of the forge.
+
+Also pol's choices: a missing program or image never refuses a role (the user may assign first and install
+after); "installed" is in the list of needs and no role uses it yet (it is for the wrapped apps of 9.4);
+"taken" (9.7) is not in the list until the reading of "reserve" is confirmed; the lists of copies and of
+lifetimes are left to slots, where they are first used.
+
+Not done: the capability report and the isle-wide view do not carry which kinds a machine is ready for; no plan
+reads a distribution need yet; nothing starts a storage process, a registry or a mount.
+
+Tests: `test-storage-kinds.py`, 31 tests on a made-up machine with a made-up path and a made-up Docker. 115
+deliberate breaks, 114 caught; the one left changes nothing while no kind's name is part of another's.
