@@ -16,6 +16,10 @@ backups. It grows out of section E of RELEASE_RUN_PLAN.md, which stays as the sh
   the Isle App.
 - 2026-11-20: no hard-coded machine names or values; backups are local and never encrypted; a device-backup is
   taken on a release or an update.
+- 2026-11-22: two operating systems, not more: "We do not want to be keeping tons of them in storage, we just
+  wanted 2 to cross-compare. A semi-older one that still works for people who might have lsightly older
+  laptops/desktops, and then the most up to dat". Today that is what the three machines run: 22.04 on the two
+  members, 24.04 on the core. An overwrite is therefore not a way to bring every machine onto one release.
 - The safety steps in section 4 are pol's proposal. The user has not confirmed them.
 
 ## 2. What an overwrite is
@@ -137,9 +141,13 @@ machine. ov-5 is the first step that can lose something; it needs the user's go 
 
 ## 7. Questions for the user (pol's recommendation first)
 
-1. **The first target.** Recommendation: 24.04, for the two members that run 22.04. The core runs 24.04, the
-   isle's packages, the dependency set and the images exist for it, and afterwards all three machines are on one
-   release (one dependency set instead of two). 26.04 after that, once the isle was shown to run on it.
+1. **The first target.** pol's first recommendation here (24.04 for the two members that run 22.04) is withdrawn:
+   it would have left one release, and the user wants two (section 1, 2026-11-22). Open instead: which release is
+   "the most up to date" of the pair. 24.04 is what the core runs and everything of the isle exists for it; 26.04
+   is the newest Ubuntu and the base the ISO plan chose, and nothing of the isle exists for it. Recommendation:
+   the pair stays 22.04 and 24.04 for now, no machine is overwritten for the sake of its release, and the pair
+   moves on as a whole later (26.04 comes in, 22.04 goes out, never three kept). The first real overwrite is then
+   the first machine that moves to 26.04.
 2. **The first delivery.** Recommendation: a stick, with you at the machine. It exists. Network boot (ov-6) after
    the first overwrite worked.
 3. **Home folders and everything that is not the isle's.** Recommendation: the isle does not carry them across.
