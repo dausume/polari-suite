@@ -3,7 +3,28 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-22, early morning (read this first; the blocks below are older).**
+**State on 2026-11-22, night into morning (read this first; the blocks below are older).**
+- Isle CLI dev is `6524970` (branch `pol/storage-registry`, two commits). Source-tested, for release 92,
+  installed nowhere. `STORAGE_ROLES_PLAN.md` 9.13 and 9.14 have the whole of it.
+  - An app's upload size as data: `deploy.maxUpload` in a release, `isle app deploy --max-upload <size>` by
+    hand. The agent's proxy takes 1 MiB at most without it (seen live on pol: 200 at half a MiB, 413 at 2 MiB).
+  - `isle store build <definition> <output folder> [--pull]`: the folder that `isle store publish` takes, made
+    from a release written as data. No download without `--pull`, no sudo, publishes nothing.
+  - The registry as a store release (`isle-cli/releases/registry/`): name `registry` (so `registry.isle`), one
+    slot `images` of role `registry`, no upload limit.
+  - Each machine reports which kinds of storage it is ready to hold (fact `isle.storage_kinds`), and
+    `isle storage kind list --isle` shows every machine side by side.
+- Not done and not seen: a real build, a publish, an install, a slot bound, an upload above 1 MiB passing, a
+  `docker push` through an agent.
+- `registry:2` is on the core, not on pol. An earlier note of this session said pol; that was wrong.
+- The upload size is part of the agent images. An update does not rebuild them. How release 92 gets rebuilt
+  agent images onto the core and the members is open.
+- Pol's choices, for the user to keep or change: the name `registry` (the older `isle registry setup` takes the
+  same name, so one or the other), no sign-in, deletion off, no upload limit.
+- Still waiting on the user's go: the 22.04 dependency-set packet. Still open: shape F or P and the five points
+  of 9.12.
+
+**State on 2026-11-22, early morning (the block above is newer).**
 - The file store across machines was tried by hand on pol, as plain processes of the normal user (no container,
   nothing on the isle). `STORAGE_ROLES_PLAN.md` 9.11 has what was seen, `AI-Notes/evaluations/file-pool-trial/`
   has the two scripts and their outputs.

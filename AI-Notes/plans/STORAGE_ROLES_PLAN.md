@@ -533,7 +533,7 @@ to the isle itself for simulation purposes, while being distributed throughout t
 - Owed: a comparison on this isle's terms (how KiCad and FreeCAD open the files, offline behaviour, licence, what a
   second copy costs), then the user's choice.
 
-## 9. Kinds of storage, the file pool, and normal apps bound to the isle (the user, 2026-11-21) - PLAN; only 9.8, 9.9 and 9.10 are built, 9.11 was seen by hand
+## 9. Kinds of storage, the file pool, and normal apps bound to the isle (the user, 2026-11-21) - PLAN; only 9.8, 9.9, 9.10, 9.13 and 9.14 are built, 9.11 was seen by hand
 
 Verbatim: "Maybe we should define different kinds of storage types and partitions, for normal polari the seaweed
 FS file storage is the best option, and for long term storage it may also be one of our best options. The
@@ -733,8 +733,8 @@ after); "installed" is in the list of needs and no role uses it yet (it is for t
 `assets` is the one role that allows it; nothing takes or returns such a copy yet; the lists of copies and of
 lifetimes are in slots (9.9), where they are first used.
 
-Not done: the capability report and the isle-wide view do not carry which kinds a machine is ready for; no plan
-reads a distribution need yet; nothing starts a storage process, a registry or a mount.
+Not done: no plan reads a distribution need yet; nothing starts a storage process, a registry or a mount. (Which
+kinds a machine is ready for is in the device report and the isle-wide view since 9.14.)
 
 Tests: `test-storage-kinds.py`, 31 tests on a made-up machine with a made-up path and a made-up Docker. 115
 deliberate breaks, 114 caught; the one left changes nothing while no kind's name is part of another's.
@@ -1011,3 +1011,100 @@ Next, in this order:
    read and write through its isle name. Needs a container start and sudo, so it needs the user's go.
 2. A link between two stores on two machines, by hand, through the agents.
 3. Then the verbs: `isle storage copy take | return | drop | list`, and the mount for the wrapped apps.
+
+### 9.13 Built 2026-11-22: an app's upload size, `isle store build`, and the registry as a store release
+
+State: **source-tested** on pol, isle CLI dev `0074cd2` (every test file of the CLI: 99 passed, 1 skipped because
+it needs the core, none failed). It is for release 92. It is in no release and installed nowhere. Nothing was
+built for real, published, installed or bound. No container was left running.
+
+**Why the upload size came first.** Every app on the isle is reached through its device's agent, and the agent's
+proxy takes a request body of 1 MiB at most (nginx's own default; nothing set it). Seen live on pol, through pol's
+own agent, over verified TLS: a body of half a MiB was answered 200, a body of 2 MiB was answered 413. A registry
+behind an agent could not take an image layer, and the file store of 9.12 could not take a file above 1 MiB.
+
+**The upload size, as data.**
+
+- A release says it as `deploy.maxUpload`. A deploy by hand says `isle app deploy --max-upload <size>`.
+- A size is `0` (no limit) or a whole number with `k`, `m` or `g`: `64m`, `2g`.
+- `isle store publish` refuses a size it cannot read. So does an install, before anything is fetched.
+- The agent keeps it on the app's entry in its registry (`maxBody`). Its generator writes it for that app only,
+  and switches off request buffering for that app, so a large upload is passed on while it arrives.
+- An app that declares none keeps 1 MiB. A deploy typed again without the option puts 1 MiB back.
+- Polari's own registrations were not changed. What size they should get is the user's.
+
+**`isle store build <definition> <output folder> [--pull]`.** The step between a release written as data and
+`isle store publish` was done by hand until now. This verb is that step.
+
+- A definition is a folder: `release.json`, its compose file, its files. Each image is written
+  `<release>/<label>:PIN-AT-BUILD` with digests of zeros, and names the image it is built from.
+- The build names the image `<release>/<label>:<version>`, saves it for linux/amd64, reads the identity out of the
+  saved archive, and writes the output folder with the real name and digests. The definition is never changed.
+- Without `--pull` nothing is downloaded. An image that is not on the machine stops the build.
+- It prints the sha256 that `isle store publish` will give the release. A test publishes the built folder into a
+  temporary repository and reads the same sha256 back.
+- It publishes nothing and starts nothing. Any user who may use Docker can run it; no sudo.
+- A definition the CLI carries is named by its bare name: `isle store build registry <output folder>`.
+- Everything an install would refuse (a slot, an upload size, a port, a compose file that runs another image) is
+  refused before Docker is asked anything.
+
+**The registry release** (`isle-cli/releases/registry/`), the user's answer 3 of 9.6.
+
+- Name `registry`, so it answers at `registry.isle`. The CLI already accepts images only from that name.
+- One image, built from `registry:2`. One storage slot, `images`, of role `registry`, on `/var/lib/registry`.
+- `deploy.maxUpload` is `"0"`. Health is read at `/v2/`. The compose file opens no host port and keeps no data
+  outside the slot.
+- The order on a machine: install (the declaration is kept and the install refuses), `sudo isle storage slot bind
+  registry images --partition <filesystem identifier>`, install again.
+- `registry:2` is on the core and not on pol. So the build can run on the core with no download, once release 92
+  is there. On pol it refuses without `--pull`.
+
+**Not seen, and what stands between this and a registry in use.**
+
+1. No real build. The tests use a made-up `docker` that writes real archives.
+2. No upload above 1 MiB was seen to pass. nginx accepted the generated text in one throwaway container with no
+   network; that is all.
+3. The proxy text is part of the agent images. An update does not rebuild an agent image or recreate an agent
+   container. So the upload size reaches a machine only when its agent image is rebuilt and its agent recreated.
+   How release 92 carries that to the core and to the members is open.
+4. No `docker push` to `registry.isle` through an agent was tried, and Docker on each device has to trust the
+   isle's CA for that name.
+5. `docker compose config` of the built compose file is run by the install, not by the build.
+
+**Pol's choices here, not rulings.**
+
+- The name `registry`. The older verb `isle registry setup` (a container on a host port of the core, data under
+  the settings folder) takes the same name. One or the other; which stays is the user's.
+- No sign-in: any device on the isle may push and pull. This is pol's reading of "a plain registry".
+- Deleting images is left at the registry's default, which is off.
+- No limit on an upload (`"0"`), and the version `2026.11.1`.
+
+Tests: `test-store-build.py` (21), `test-upload-size.py` (16), `test-catalog-artifacts.py` (16). Each refusal of
+the build was broken on purpose once, and a test caught every one.
+
+### 9.14 Built 2026-11-22: which machine is ready for which kind, seen from any machine
+
+State: **source-tested** on pol, isle CLI dev `6524970`. For release 92. In no release, installed nowhere.
+
+The registry and the file store have to be put on a machine that can hold them. Until now that was asked on each
+machine by itself (`isle storage kind list`, 9.8).
+
+- Each machine adds one fact to the device report it already sends to the core, `isle.storage_kinds`: one word
+  for each kind (`ready`, `not ready`, `not known`). No program, image or path is in it.
+- `isle storage kind list --isle [--table]`, from any machine: one line for each machine and one column for each
+  kind.
+- `isle storage role list --isle` and `role show <role> --isle` add the kind of each role and what the
+  partition's machine said about it. The table names a machine that holds a partition for a kind it is not ready
+  for.
+- It goes the same way as the partitions report of st-1: a fact in the engine's device rows, read from the
+  core's device list over verified TLS. No backend change, no route made by hand, no second store. Polari reads
+  the same rows (R8).
+- A report, not a check. Nothing is installed or refused because of it. A machine with an older CLI is shown as
+  having said nothing. What a machine lacks is asked on that machine.
+- Read once on pol from the source tree, against the real path and the real Docker (looking only): pol is ready
+  for `plain-folder`, `file-pool` and `git`, and not ready for `image-registry`.
+
+Tests: `test-storage-isle.py`, 30 tests (14 new). 33 deliberate breaks, 32 caught; the one left removes a check
+that the next line makes again.
+
+Not done: no plan picks a machine from this report. A person reads it and binds the slot.
