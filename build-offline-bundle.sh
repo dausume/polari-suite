@@ -109,19 +109,48 @@ APT_INVENTORY="$POOL/repo/CLOSURE_METADATA.json"
 # installation. These archives are available, not forced installation targets.
 # --print-uris defaults to MD5 unless ForceHash is explicit; never discard
 # these fields and subsequently trust only a download/cache filename.
-if docker run --rm --memory=384m --cpus=1 "$BASE_IMAGE" bash -lc \
-    "apt-get -o APT::Update::Error-Mode=any -o Acquire::AllowInsecureRepositories=false \
-         -o Acquire::AllowDowngradeToInsecureRepositories=false update -qq >/dev/null 2>&1 && \
-     baseline=\$(dpkg-query -W -f='\${binary:Package} ') && \
-     apt-get -o Acquire::ForceHash=SHA256 install --reinstall --print-uris -qq -y $DEPS \$baseline 2>/dev/null" \
-    > "$APT_RECORDS"; then
+#
+# A root can be a name that is no package of this system, only something other
+# packages provide (24.04: libasound2, which libasound2t64 and one more provide;
+# our debs name it because 22.04 has it). apt refuses such a name when more than
+# one package provides it. So: a root that a package among the other roots
+# provides is left out (that root is the answer); with one provider apt picks it
+# itself; otherwise the resolve stops and names the root. Nothing is guessed.
+RESOLVE_SAID=$(mktemp)
+# shellcheck disable=SC2086
+if docker run --rm -i --memory=384m --cpus=1 "$BASE_IMAGE" bash -s -- $DEPS \
+    > "$APT_RECORDS" 2> "$RESOLVE_SAID" <<'RESOLVE'
+apt-get -o APT::Update::Error-Mode=any -o Acquire::AllowInsecureRepositories=false \
+    -o Acquire::AllowDowngradeToInsecureRepositories=false update -qq >/dev/null 2>&1 \
+    || { echo "the package index of this system could not be read (apt-get update failed)" >&2; exit 2; }
+roots=""
+for name in "$@"; do
+    if apt-cache policy "$name" 2>/dev/null | grep -q 'Candidate: [^(]'; then roots="$roots $name"; continue; fi
+    providers=$(apt-cache showpkg "$name" 2>/dev/null | sed -n '/^Reverse Provides:/,$p' | sed 1d | cut -d' ' -f1 | sort -u | tr '\n' ' ')
+    if [ -z "$providers" ]; then echo "$name: this system has no package of that name" >&2; exit 3; fi
+    named=""
+    for provider in $providers; do case " $* " in *" $provider "*) named="$named $provider" ;; esac; done
+    if [ -n "$named" ]; then echo "note: $name is no package here; left out, the list names$named, which provides it" >&2
+    elif [ "$(echo $providers | wc -w)" = 1 ]; then roots="$roots $name"
+    else echo "$name: no package here; $providers provide it and the list names none of them" >&2; exit 3; fi
+done
+baseline=$(dpkg-query -W -f='${binary:Package} ')
+apt-get -o Acquire::ForceHash=SHA256 install --reinstall --print-uris -qq -y $roots $baseline 2>/dev/null \
+    || { echo "apt could not resolve the roots together:" >&2
+         apt-get install --reinstall --print-uris -qq -y $roots $baseline 2>&1 >/dev/null | tail -n 5 >&2; exit 4; }
+RESOLVE
+then
+    grep '^note: ' "$RESOLVE_SAID" | sed 's/^/    /' || true
+    rm -f "$RESOLVE_SAID"
     python3 "$ROOT/offline-apt-integrity.py" inventory --records "$APT_RECORDS" \
         --json "$APT_INVENTORY" --uris "$URIS_FILE" \
         || fail "closure lacks unambiguous authenticated SHA256/size metadata"
     COUNT=$(wc -l < "$URIS_FILE")
     ok "closure resolved: $COUNT deb(s), signed-APT SHA256/size recorded"
 else
-    fail "closure resolution failed — is docker available and $BASE_IMAGE pullable?"
+    tail -n 6 "$RESOLVE_SAID" | sed 's/^/    /'
+    rm -f "$RESOLVE_SAID"
+    fail "closure resolution failed in a fresh $BASE_IMAGE (the lines above say why; if there are none: is docker running and is the image here?)"
 fi
 
 if [ "$DOWNLOAD" = 1 ]; then

@@ -284,7 +284,18 @@ The set itself was still built by a hand recipe. It is a verb now, so the whole 
      offline package list changed on 2026-11-22, the set was built again, and its packet (`5a504c42d504`) is the
      one to run. See the next section.
 
-### The 22.04 dependency set, second build - STAGED on pol and on the core (2026-11-22), not run
+### The 22.04 dependency set, second build - RUN by the user on the core (2026-11-22, afternoon): LIVE-VERIFIED
+Seen after the user's run, read-only (pol, 2026-11-22):
+- `isle release status` on the core for run `5a504c42d504`: done. Its three steps are done: the set of
+  ubuntu-22.04 published (930 package files); "deps/jammy lists every package file of the set, and every one
+  answers"; the approval signed and the run record written. Both 22.04 members had no step and both reported done.
+- From pol over verified TLS: `https://apt.isle/deps/jammy/InRelease` answers 200 (it answered 404 before the
+  run); `deps/noble/InRelease` still answers 200.
+- This is the first dependency set that went through a packet. Not seen: a 22.04 machine installed offline from
+  this set.
+
+What was written before the run:
+
 The user, 2026-11-22: "yes to adding them to offline package, for ithers just go with your recommendations". "them" are
 `smartmontools`, `fdisk` and the FUSE package, which the storage verbs use (isle CLI dev `b02e524`).
 
@@ -300,13 +311,45 @@ The user, 2026-11-22: "yes to adding them to offline package, for ithers just go
   was run. In it only the core's own wait proved the set; no member asked.
 - On the core: copied to `~/isle-dependencies-ubuntu-22.04-r2` and checked there with the installed CLI, without
   sudo ("Packet is valid: 936 file(s) match SHA256SUMS. Nothing was changed.").
-- Not run. The run is the user's one command on the core. Today `deps/jammy/InRelease` answers 404 there.
+- (Before the run: `deps/jammy/InRelease` answered 404 on the core.)
 - The CLI package of release 92 does not name `smartmontools` as a package it needs, so release 92 does not need
   this set first. They are two packets because two things in them were never seen live: a dependency set in a
   packet, and a publication of runtime images. One at a time shows which one failed.
-- Owed: the 24.04 set on the core is older than the package list. Building it again needs the image
-  `ubuntu:24.04` on the building machine and, without a cache of the 24.04 package files, about 500 MiB from the
-  Ubuntu archive. Not done; both are downloads and wait for the user's word.
+- The 24.04 set on the core was older than the package list: the next section.
+
+### The 24.04 dependency set, second build - STAGED on pol and on the core (2026-11-22, afternoon), not run
+The user, 2026-11-22, to "the 24.04 dependency set rebuild ... about 500 MiB fetched from Ubuntu's servers": "2 is
+fine". The image `ubuntu:24.04` was pulled for it (the one pol held was from September).
+
+- The first try stopped before anything was fetched: "closure resolution failed". The reason, seen by running the
+  resolve by hand in a throwaway container: the isle's own packages (the shell and the combined package) name
+  `libasound2`. On 22.04 that is a package. On 24.04 it is only a name that two packages provide
+  (`libasound2t64` and one more), and apt refuses such a name when it is asked for by itself. The builder hid
+  apt's words and asked whether docker was available.
+- The fix is in the suite's `build-offline-bundle.sh` (the resolve step). A root that is no package of the system:
+  left out when a package among the other roots provides it (here `libasound2t64`, which the offline list
+  names); kept when exactly one package provides it (apt picks it itself, as for `libgtk-3-0`); otherwise the
+  resolve stops and names the root. A name the system does not know at all stops it too. On a failure the
+  builder now prints what the resolve said. Seen by hand in throwaway 24.04 containers, all four cases: the
+  ambiguous name alone stops (exit 3); an unknown name stops (exit 3); the ambiguous name with its provider
+  beside it is left out and said so; the name with one provider resolves to it.
+- The 22.04 set built again with the changed builder, from its full cache: the same SHA256SUMS as the set that
+  was run today. So nothing changes for 22.04.
+- The set: `~/isle-dependencies-ubuntu-24.04-r2` on pol, 1146 package files, 509 MiB, 508 MiB fetched (the cache
+  for 24.04, `~/isle-dependency-cache-ubuntu-24.04`, was empty and is full now). `smartmontools`, `fdisk`,
+  `libfdisk1`, `fuse3` are in it. Resolved from what the five packages of release 92 declare (they declare the
+  same as those of release 91) and the offline list.
+- Against what the core serves under `deps/noble` today (its index read from pol over verified TLS): 1135 files,
+  459 MiB there; 1085 files of the new set are there already; the run adds 61 files, 111 MiB. 50 files (62 MiB)
+  that the new set no longer names stay published: older versions. No verb removes them; not built.
+- The packet: `~/isle-dependencies-ubuntu-24.04-r2-packet/packet` on pol, run `dependencies-ubuntu-24.04`,
+  run id `a759762a6b6342da7f3a61faef139d9cbdc98ae4e27f7417cf5db01f59394cf1`, 512 MiB. It names one device, the
+  core (the only 24.04 machine), so the core asks for `deps/noble/InRelease` itself after its own wait.
+- On the core: copied to `~/isle-dependencies-ubuntu-24.04-r2` and checked there with the installed CLI, without
+  sudo ("Packet is valid: 1152 file(s) match SHA256SUMS. Nothing was changed.").
+- Not run. Never seen: a set published where a set of the same system is published already (the 22.04 run was
+  the first set of its system), and a set-only packet that names the core.
+- Recorded in `isle-cli/apt/supported-os.json`: the name variation of 24.04 and the evidence for both sets.
 
 ### Agent images in a release (`isle release build --agents`) - SOURCE-TESTED and built once for real (2026-11-22, isle CLI dev `7dadd52`), for release 92
 Until now an update changed packages only. What an agent's proxy does is in the agent image, so a change to the

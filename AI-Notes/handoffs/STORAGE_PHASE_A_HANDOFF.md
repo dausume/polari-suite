@@ -20,7 +20,15 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
 - Priority 5, the operating-system overwrite: SHELVED by the user on 2026-11-22 ("keep the two we have currently
   since we already know they work, and worry about updating later and/or doing ISOs later"). The plan is
   `AI-Notes/plans/shelved/OS_OVERWRITE_PLAN.md`, nothing built. Two systems and never more: 22.04 and 24.04.
-- The two staged packets (the midday block below) are unchanged and still not run.
+- Later the same afternoon: the user ran the 22.04 dependency packet on the core. It is LIVE-VERIFIED (run
+  `5a504c42d504` done, `deps/jammy/InRelease` answers 200, both members reported done). Release 92 is still staged
+  and not run: `sudo isle release run ~/isle-release-92 --expect 05fd538f...` (the whole id is in the midday block).
+- The 24.04 dependency set was built again with the user's word ("2 is fine") and is STAGED on pol and on the
+  core, not run: on the core `~/isle-dependencies-ubuntu-24.04-r2`, run id
+  `a759762a6b6342da7f3a61faef139d9cbdc98ae4e27f7417cf5db01f59394cf1`. It goes after release 92. The suite's
+  `build-offline-bundle.sh` was changed for it (a 24.04 name that only other packages provide);
+  `RELEASE_RUN_PLAN.md`, "The 24.04 dependency set, second build".
+- The user, 2026-11-22: two operating systems and never more (22.04 and 24.04, the ones the machines run).
 
 **State on 2026-11-22, early afternoon (the block above is newer).**
 - Isle CLI dev is `a1240df` (branch `pol/file-store-app`, one commit on top of `73b7c58`), pushed, pinned in the
