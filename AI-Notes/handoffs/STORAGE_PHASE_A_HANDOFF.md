@@ -3,7 +3,25 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-22, midday (read this first; the blocks below are older).**
+**State on 2026-11-22, early afternoon (read this first; the blocks below are older).**
+- Isle CLI dev is `a1240df` (branch `pol/file-store-app`, one commit on top of `73b7c58`), pushed, pinned in the
+  suite. Every isle CLI test file was run at it: 103 pass, the one that needs the core is skipped.
+- New: the file store as a release written as data, `isle-cli/releases/file-store/` (shape F: one store on one
+  partition, one slot `files` of role `blob`, stock image, its S3 door on 8333, every other listener on the
+  container's own loopback). Source-tested, and built once for real on pol with `isle store build file-store`
+  without a download; the built image was run once with the network off. `STORAGE_ROLES_PLAN.md` 9.15 has the
+  whole of it.
+- It is NOT in the staged packet of release 92 (that packet is from `73b7c58`). It is installed nowhere. Not
+  seen: a publish, an install, a slot bound to a partition, the door through an agent.
+- Next for storage, each waiting on the one before: the proof by hand on a machine (publish on the core,
+  install, `slot bind`, on a member too) - it needs release 92 installed, the user's go and their sudo; then
+  the links between two stores through the agents; then `isle storage copy take | return | drop | list`; then
+  the mount for wrapped apps (the filer has to be opened to the machine's loopback as a named choice).
+- Owed with the first install: `isle storage kind list` looks for the stock image names when it says whether a
+  machine is ready for `file-pool` and `image-registry`, not for the names the releases give their images.
+- The two staged packets of the block below are unchanged and still not run.
+
+**State on 2026-11-22, midday (the block above is newer).**
 - The user answered pol's list of open points: "yes to adding them to offline package, for ithers just go with
   your recommendations". So every "open" and "waiting" line in the blocks below is answered: shape F and the
   five points of 9.12, the registry choices, the `restore --apply` proposal, 64m for the engine's address, and

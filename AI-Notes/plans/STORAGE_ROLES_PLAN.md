@@ -576,7 +576,7 @@ data points at one entry of each.
 |---|---|---|
 | kept | used only on the machine it sits on | device-backups, scratch |
 | served | one copy, every device reads it by an isle name | the package store, the image registry, git |
-| pooled | pieces on several machines behind one isle name | file spaces, the blob store |
+| pooled | in a file store on its partition, one store for each partition; every device reads it by the isle name of that store (said so since 9.15; before shape F was accepted it read "pieces on several machines behind one isle name") | file spaces, the blob store |
 | cached | the primary stays where it is; a device keeps a bounded copy while it uses it and drops it by itself | a mounted file space, pulled images |
 | installed | a copy must sit on every device that runs it | packages and images once installed |
 | carried | moved by hand on a disk or a stick | install media, `transfer` |
@@ -1014,6 +1014,7 @@ Next, in this order:
 
 1. The store as an app with one slot, written as data, and proven by hand on one machine: deploy, `slot gate`,
    read and write through its isle name. Needs a container start and sudo, so it needs the user's go.
+   *2026-11-22: written as data and built once for real (9.15). The proof by hand on a machine is not done.*
 2. A link between two stores on two machines, by hand, through the agents.
 3. Then the verbs: `isle storage copy take | return | drop | list`, and the mount for the wrapped apps.
 
@@ -1125,3 +1126,61 @@ Not done: no plan picks a machine from this report. A person reads it and binds 
 A cost to know: the device report asks Docker once per image it looks for, each with a limit of 15 seconds. On a
 machine whose Docker hangs the report takes that much longer (up to three such waits today), and the kinds
 that need an image are then reported as not known. Nothing is retried and nothing is refused because of it.
+
+### 9.15 Built 2026-11-22: the file store as a release written as data - source-tested, built once for real, installed nowhere
+Step 1 of "Next" in 9.12, as far as it goes without a container that stays up and without sudo. Isle CLI dev
+`a1240df` (branch `pol/file-store-app`). It is not in the packet of release 92, which was built before it.
+
+**What it is.** `isle-cli/releases/file-store/`: a `release.json`, a compose file and a readme, shaped like the
+registry's definition (9.13).
+
+| Point | Value | Why |
+|---|---|---|
+| Name | `file-store`; each install answers at `<instance>.isle`, the first at `file-store.isle` | An isle has one store for each partition that holds files this way, so each install has a name of its own |
+| Image | the stock `chrislusf/seaweedfs:4.47`, named `file-store/seaweedfs:2026.11.1` by the build | Point 5 of 9.12 |
+| What runs | one process: master, volume server, filer and the S3 door together | A store is complete by itself: index and content on its partition |
+| The door | the S3 door, port 8333, through the device's agent; no sign-in; no upload limit (`maxUpload "0"`) | Links between stores go through this door (9.11) |
+| Other listeners | master, volume server, filer and their gRPC ports listen inside the container only; the two extra S3 listeners are off | Nothing but the door is for anyone else |
+| Slot | `files`, role `blob`, target `/data`, writable, owner `1000:1000`, belongs to the isle | See below |
+| Stop | 60 seconds allowed | The program needed 21 seconds to stop cleanly |
+| Guard against links into the isle | left on | A store that links needs it off (9.12); that is step 2 and will be a setting |
+
+**Pol's choices in it** (the user: "for ithers just go with your recommendations"):
+
+- The role is `blob`. `assets` is the other file-pool role; a partition can carry both.
+- The slot names its owner. The image starts as root, hands the folder to its own user (1000:1000) if it belongs
+  to someone else, and then runs as that user. With the owner named, the slot's folder is made for that user and
+  the container changes nothing. Seen both ways.
+- The word `pooled` now means one store for each partition, read by the isle name of that store. The table in the
+  CLI said "pieces on several machines behind one isle name", which is shape P. No role, record or marker
+  changed; only the sentence.
+- The S3 door's own gRPC port (18333) cannot be bound apart from the door, so containers on the agent's network
+  of the same device reach it too. The agent passes nothing to it.
+
+**Proof in source.** `test-file-store-release.py`, 11 tests: the definition, a build with a made-up docker, and
+what publish stores. 23 deliberate breaks of the definition, each noticed.
+
+**Seen with real Docker on pol**, with no download, no sudo and no container left running:
+
+| Question | Seen |
+|---|---|
+| `isle store build file-store <folder>` from the image on the machine | Built. The image in it has the stock image's own identity. 508 MiB as a file |
+| The built image with the built command, in a one-shot container with the network off | The door answers `/healthz` with 200. A 2 MiB file is taken and comes back the same |
+| What is in the folder | The index (`filerldb2`), the store's own record (`m9333`) and the content (`*.dat`, `*.idx`) |
+| Stop, then start on the same folder | 21 seconds to stop. The file is there again after the start |
+| Which addresses listen | The door on every address of the container; all others on its loopback only |
+| A folder that belongs to root | The container changes its owner to 1000:1000 |
+
+**Not done and not seen:** a publish, an install, a slot bound, the app stopped and started by `slot gate`, the
+door through an agent by its isle name, two stores on one isle. The hand proof of 9.12 needs release 92 on the core
+and on the member, then on the core `sudo isle store publish <built folder>/release.json`, and on the member the
+three commands of the definition's readme (install, `slot bind`, install). All of them are the user's.
+
+**Owed, found here:**
+
+- `isle storage kind list` counts a machine as ready for `file-pool` when Docker has an image of
+  `chrislusf/seaweedfs`. A machine that got the image from this release has it under the name
+  `file-store/seaweedfs`, and is shown as not ready. The same holds for the registry release. To fix with the
+  first install.
+- The mount for the wrapped apps (9.3) needs the filer reachable from the machine itself. This release keeps it
+  inside the container, so step 3 has to open it to the machine's loopback, as a named choice.
