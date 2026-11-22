@@ -1,0 +1,14 @@
+A: bucket made (http code)                                               200
+A: bytes of content in its own folder                                    3601112
+B: bytes of content in its own folder, before the link                   0
+B: names it lists in the linked folder                                   12
+B: pieces of content it holds for file-00, before any read               0
+B: bytes of content in its own folder, linked, nothing read              0
+B: file-00 read through B gives the bytes of A                           [503, False]
+B: pieces of content it holds for file-00, after that read               0
+B: pieces it holds for file-05 after taking the folder                   0
+B: bytes of content in its own folder after taking the folder            56
+A away: file-05 read through B                                           [503, False]
+(the rest of this run is left out: with no content fetched it shows nothing)
+the reason, from store B's own log: it rejects a remote endpoint that "resolves to loopback address";
+with store A on a private address and the guard on, the same with "resolves to private address"

@@ -1,0 +1,54 @@
+storage processes the index knows                                        ['127.0.0.1:28081', '127.0.0.1:28082']
+one copy: files held by a1 only / by b1 only / other                     [24, 36, 0]
+b1 away: storage processes the index knows                               ['127.0.0.1:28081']
+b1 away: files of a1 that read back whole                                24 of 24
+b1 away: files of b1 that read back whole                                0 of 36
+b1 away: answer for one file of b1                                       [500, "b'volume 4 not found for fileId 4,01b09712ff: provider lookup failed: master volume lookup errors: volume 4: volume id 4 n'"]
+b1 away: new one-copy files written                                      10 of 10
+b1 back: every one-copy file reads back whole                            60 of 60
+rule: /buckets/two/ keeps two copies on two machines                     0
+two copies: files held by both a1 and b1                                 20 of 20
+b1 away: two-copy files that read back whole                             20 of 20
+b1 away: a new two-copy file is written (http code, seconds, answer)     [None, 45.0, "b'timed out'"]
+rule: /buckets/tagged/ goes to partitions labelled assets                0
+labelled: files held by a2 only                                          20 of 20
+unlabelled files that landed on the labelled partition                   0
+folders of the three partitions hold data files                          {'a1': 16, 'b1': 10, 'a2': 7}
+S3 door gives the same bytes for one/file-00.bin                         [200, True]
+rule: /buckets/one/taken/ may not be changed                             0
+held: a change through the names index (http code)                       507
+held: a change through the S3 door (http code)                           500
+held: a new file in the folder (http code)                               507
+held: the original still reads, unchanged                                True
+held: taking a file away through the names index (http code, then a read) [204, 404]
+held: taking a file away through the S3 door (http code, then a read)    [204, 404]
+held: a file given another name inside the folder (http code, old name, new name) [507, 200, 404]
+held: a file beside the folder can still be changed (http code)          201
+rule taken away                                                          0
+released: the edits are written to the original                          b'the edits, returned'
+bucket made with object lock (http code)                                 200
+object written (http code)                                               200
+hold put on the object (http code, answer)                               [200, "b''"]
+hold: a change through the S3 door (http code)                           200
+hold: what the name gives now                                            b'changed through S3'
+hold: a change through the names index (http code)                       201
+hold: what the name gives now                                            b'changed through S3'
+hold: versions the door lists for the name                               [200, 3, 0]
+hold: taking the object away through the S3 door (http code, then a read) [204, 404]
+mounted folder lists the files of the file space                         102
+a file read through the folder has the same bytes                        True
+a file saved in the folder is in the pool                                True
+a change made elsewhere shows in the folder                              True
+two saves of one file: what the pool holds                               b'saved elsewhere, later'
+rule: /buckets/one/held/ may not be changed                              0
+held, in the folder: a save over the original                            refused: Input/output error
+held, in the folder: what the pool holds for it afterwards               [200, "b'the original'"]
+held, in the folder: what the folder shows for it afterwards             b'the original'
+held, in the folder: taking a file away                                  done
+held, in the folder: is that file still in the pool (http code)          404
+held, in the folder: another name for a file                             done
+held, in the folder: old name / new name in the pool (http codes)        [404, 200]
+cache folder size in bytes after use                                     39725
+names index away: a file read before, read again                         ['exit 0', True]
+names index away: a file not read before                                 exit 124
+folder unmounted at the end                                              True

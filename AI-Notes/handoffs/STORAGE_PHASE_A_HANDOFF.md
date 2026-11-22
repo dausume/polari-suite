@@ -3,7 +3,17 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-22, after midnight (read this first; the blocks below are older).**
+**State on 2026-11-22, early morning (read this first; the blocks below are older).**
+- The file store across machines was tried by hand on pol, as plain processes of the normal user (no container,
+  nothing on the isle). `STORAGE_ROLES_PLAN.md` 9.11 has what was seen, `AI-Notes/evaluations/file-pool-trial/`
+  has the two scripts and their outputs.
+- 9.12 is pol's recommendation, NOT ruled: one small complete store per file-pool partition as an isle app with
+  a slot (shape F), and links between stores, instead of one pool with one index for the isle (shape P, 9.2).
+  The copy that points back (9.7) is then the program's own link commands plus its read-only rule.
+- Nothing is built for the pool. The next steps need a container start and sudo on a machine, so the user's go.
+- Open with the user: shape F or P; the five points at the end of 9.12.
+
+**State on 2026-11-22, after midnight (the block above is newer).**
 - Isle CLI dev is `39b1893` (branch `pol/storage-slots`, three commits): storage slots. Source-tested, for
   release 92, installed nowhere. `STORAGE_ROLES_PLAN.md` 9.9 and 9.10.
   - `isle storage slot list | check | declare | bind | unbind`: a release declares its storage needs in the

@@ -533,7 +533,7 @@ to the isle itself for simulation purposes, while being distributed throughout t
 - Owed: a comparison on this isle's terms (how KiCad and FreeCAD open the files, offline behaviour, licence, what a
   second copy costs), then the user's choice.
 
-## 9. Kinds of storage, the file pool, and normal apps bound to the isle (the user, 2026-11-21) - PLAN; only 9.8, 9.9 and 9.10 are built
+## 9. Kinds of storage, the file pool, and normal apps bound to the isle (the user, 2026-11-21) - PLAN; only 9.8, 9.9 and 9.10 are built, 9.11 was seen by hand
 
 Verbatim: "Maybe we should define different kinds of storage types and partitions, for normal polari the seaweed
 FS file storage is the best option, and for long term storage it may also be one of our best options. The
@@ -612,6 +612,8 @@ section 8.
 - Read from the pinned version's own help (4.47, run without a network): a storage process takes several
   folders, a free label for the kind of disk, a rack and a data-centre name, and the address of the index; the
   index takes a default number of copies. Not seen: a pool that really spans two machines.
+- 2026-11-22: the mechanics were tried by hand on one machine (9.11). After that pol recommends another shape
+  than this section (9.12). Not ruled.
 
 ### 9.3 KiCad, FreeCAD and Blender on the pool
 
@@ -653,7 +655,8 @@ section 8.
      (BUILT 2026-11-21, source-tested, see 9.8);
   2. slots, the binding of an app's storage need to a role (st-4 in section 5)
      (BUILT 2026-11-21 and 2026-11-22, source-tested, see 9.9 and 9.10; the proof on a machine is owed);
-  3. the file store run as a pool (9.2), then the mount and the wrapped apps (9.3, 9.4).
+  3. the file store run as a pool (9.2), then the mount and the wrapped apps (9.3, 9.4)
+     (2026-11-22: its mechanics seen by hand on one machine, 9.11; the shape is open, 9.12; nothing built).
 - This replaces "a verb reads a role to place data" as the next piece of storage work.
 
 ### 9.6 Choices - answered by the user, 2026-11-21
@@ -686,7 +689,7 @@ ahead on 91"
 - It is a new distribution need beside those of 9.1, "taken": a copy on one device that owes its edits back.
 - Settled: "reserve" means that others cannot change the original while the copy is out, and can still read it.
 - Open, for the design: what happens to a copy that never comes back; whether the edits return by themselves when
-  the device is on the isle again or by a command.
+  the device is on the isle again or by a command. What the file store's own commands give for both: 9.11, 9.12.
 - As everywhere: each step is an `isle` verb (take, return, drop, list), and Polari holds one small row per
   copy that points at the original.
 
@@ -867,3 +870,144 @@ lines are run alone with a made-up `sudo`. 122 deliberate breaks, every one caug
 96 files ok, 1 skipped (`test-apt-local-priority.py`, needs the core), 1 failed: in `test-apt-repo-publication.py` one
 step ran past its own 15-second limit. That file was run again alone on the same commit and passed (25 tests). The
 commit does not touch what it tests; the likely cause is other work on the machine during the run.
+
+### 9.11 Seen by hand (2026-11-22): the file store's own mechanics, on one machine
+
+The first step for the pool, by hand, before any verb. Nothing here is built into the CLI and nothing ran on the isle.
+
+How it was done:
+
+- The pinned file store program (4.47) was copied out of the image that is already on pol. No image was pulled and no
+  container was started.
+- It ran as plain processes of the normal user, on loopback ports, in a scratch folder. One trial had one process
+  answer on the address of Docker's own bridge, a private address that only pol itself reaches.
+- The two scripts are kept in `AI-Notes/evaluations/file-pool-trial/` so the trials can be run again.
+
+**Trial 1: one pool.** One index, three storage processes, each on its own folder. The folders stand for three
+partitions: two on a made-up machine A, one on a made-up machine B.
+
+| Question | Seen |
+|---|---|
+| One copy: where do 60 files go | Spread over A's and B's partition (24 and 36). No file on both. |
+| B's partition goes away | A's files read. B's files answer with an error (500). Nothing is lost. |
+| New one-copy files while B is away | Written, onto A. |
+| B's partition comes back | All 60 files read again, nothing to repair. |
+| A rule "two copies on two machines" for one file space | Its 20 files are on both. They read with B away. |
+| A new two-copy file while B is away | No answer in 45 seconds. A file space with two copies needs both machines to write. |
+| A partition labelled `assets`, and a rule that sends one file space to that label | Its 20 files are on that partition only. No other file landed there. |
+| The S3 door | Gives the same bytes as the list of names. |
+| A file space shown as an ordinary folder (`mount`) | Lists, reads and saves work. A change made elsewhere shows in the folder. |
+| Two saves of one file, one in the folder and one elsewhere | The later one stays. No notice. |
+| The folder when the list of names is away | A file read before reads again. A file not read before gives no answer (stopped after 15 seconds). |
+| The read-only rule on one folder (for 9.7) | A change, a new file and a new name are refused through the list of names and through the S3 door. Taking a file away is NOT refused, through either. |
+| The same rule seen through the mounted folder | A save over the original is refused and the original is unchanged. Taking a file away and giving it another name both go through. |
+| The S3 door's own hold on an object (object lock) | Not usable for this. A change is accepted as a new version, and the two doors then show different content for the same name. |
+
+**Trial 2: two separate stores, and a folder of one that is a link to a bucket of the other.** Store A holds the
+originals. Store B links a folder to A's bucket through A's S3 door (the program's own `remote.*` commands).
+
+| Question | Seen |
+|---|---|
+| B after the link, nothing read | Lists the 12 names. Holds no content (0 bytes). |
+| A file read through B | Fetched from A, the same bytes. B then keeps that one file's content. |
+| Take the whole folder (`remote.cache`) | B holds all the content (3.6 MB, as A). |
+| A away | B reads the taken files, and saves changes and new files. |
+| A back, the return process started only now (`filer.remote.sync`) | The edits made while A was away reach A, and the new file too. |
+| An edit and a removal on B with A present | Both reach A within seconds. |
+| A changed while the copy is out | B does not see it by itself. It sees it after asking A for the names again (`remote.meta.sync`). |
+| A and B both change one file | B's edit is written over A's. No notice. This is what "reserve" has to prevent. |
+| A holds the folder with the read-only rule while B edits | Someone else's change on A is refused. B's edit waits: the return process tries again and again. |
+| The rule is taken away | B's waiting edit reaches A by itself, and later edits follow. |
+| Drop the copy (`remote.uncache`) | B keeps the names and no content. A is whole. A read through B fetches from A again. |
+| Take the link away (`remote.unmount`) | B's folder is gone. A is whole. |
+| The program's guard on where a link may fetch from | By default it refuses an endpoint on a private or a loopback address. Every isle address is private, so on the isle this guard has to be switched off by its named option on the store that fetches. |
+
+Not seen, and not to be claimed:
+
+- Anything across two real machines, through a device's agent, with the isle's certificates, or in a container.
+- TLS between the parts of one pool. Read, not tried: the program's TLS between its parts is mutual, and the isle's
+  certificates are issued for server use only (`certs.sh`), so one pool across machines would need a new kind of
+  certificate.
+- Speed, large files, many small files.
+- The door's sign-in. In both trials the S3 door was open.
+- Also read, not tried: the S3 door of 4.47 opens two more listeners by default (a table catalog and a namespace
+  server). The trials switch both off. Whether the Polari node's file store has them open is to be checked.
+
+### 9.12 What 9.11 means for the pool, the folders and the copy - pol's recommendation, NOT ruled
+
+Section 9.2 proposed one pool: one index for the isle, and a storage process on every file-pool partition that
+joins it. The user's answer 1 of 9.6 (the index on any member) was given to that proposal. After 9.11 pol
+recommends a different shape. It is put here for the user to accept or turn down. Nothing is built for either.
+
+**Shape P, as in 9.2: one pool for the isle.**
+
+- It is the literal reading of "partitions across multiple machines assigned to it", and it works (trial 1).
+- The parts on different machines speak to each other on several ports of their own, outside the agents. The
+  agents carry one HTTP port per app.
+- Its TLS between parts is mutual, so the isle would issue a new kind of certificate.
+- The one index is needed for every file. When its machine is off, a file on your own disk is away too.
+- A disk carried to another machine brings content that means nothing without the index.
+
+**Shape F, recommended: one small complete store per file-pool partition, and links between stores.**
+
+- A store is one isle app with one storage slot. Its index and its content are both on the partition.
+- It is started and stopped with the partition by `slot gate`, reached by one isle name through the device's
+  agent, with a certificate of the kind the isle issues today. All of that is built (9.9, 9.10) or exists.
+- This is also how the Polari node's file store runs today: one process, one folder.
+- A file is kept once, on its home partition. Every device reads it by the isle name of that store. No duplication.
+- A device that wants a file space as its own folder links it. It then holds the names and fetches content when
+  it is read. This is the cached need of 9.1.
+- The copy that points back (9.7) is the same link, with the content taken. See below.
+- A dock disk carried to another machine brings its whole store, names included.
+- A store that is off takes only its own files away.
+- What it does not do: spread one file space over several partitions. A file space lives on one partition. When
+  it outgrows it, it is moved. The isle-wide list of file spaces (which store is the home of which) is a report
+  of the isle CLI and rows in Polari, not one index.
+- Shape P stays possible inside one machine later: several partitions of one machine behind one index need no
+  network between machines.
+
+**The same in both shapes:**
+
+- A device needs a small store of its own to hold a taken copy, and to show a file space as a folder.
+- The folder for KiCad, FreeCAD and Blender (9.3) is always a mount of the device's own store, never of a store on
+  another machine. A file space from elsewhere is a link in the local store.
+- The guard of 9.11 has to be switched off on a store that links, by its named option. To be recorded as a setting.
+
+**The copy that points back (9.7), with the program's own commands.** No new mechanism is written.
+
+| Step | What it is | In the file store program |
+|---|---|---|
+| take | the device links the folder and takes its content; the home store holds the original | `remote.configure`, `remote.mount`, `remote.cache` on the device; the read-only rule on the home store |
+| work | edits on the device's copy, with or without the isle | the device's own store |
+| return | the hold ends; the edits are written to the original | the read-only rule taken away on the home store; `filer.remote.sync` on the device |
+| drop | the device keeps no content | `remote.uncache`, then `remote.unmount` |
+| list | the copies that are out | one row per copy; the link list of the device's store |
+
+Answers that 9.11 gives to the open points of 9.7:
+
+- Do the edits return by themselves or by a command: both are possible. The return process can run all the time.
+  While the original is held it only waits, and the edits go back the moment the hold ends. So `return` is the
+  one command that ends the hold, and the writing follows by itself.
+- A copy that never comes back: the original stays held and readable. Ending the hold on the home store without
+  the device is one command there, and the device's edits are then refused or written over whatever came after.
+  To be ruled: who may do that.
+
+Open, for the user or for the proof on machines:
+
+1. Shape F or shape P.
+2. The hold does not stop a file being taken away (9.11). Pol's proposal: accept it. The device's copy has the
+   whole content, so `return` writes a missing original back and says so. Stopping it fully needs the door's
+   sign-in (people who may only read), which an isle without sign-in does not have.
+3. The hold is put on by the home store's machine, the copy is taken on another. So `take` is two steps on two
+   machines, or one planned action that the core sequences. The second fits "one command, any device".
+4. The store's program on the machine itself (not in a container) for the mount, and the FUSE package: both are
+   things to install, so both wait for the user's word on package lists and release content.
+5. Which image the store app runs. The stock image is on machines that run Polari. A machine without Polari
+   needs it carried in a release (about 530 MB).
+
+Next, in this order:
+
+1. The store as an app with one slot, written as data, and proven by hand on one machine: deploy, `slot gate`,
+   read and write through its isle name. Needs a container start and sudo, so it needs the user's go.
+2. A link between two stores on two machines, by hand, through the agents.
+3. Then the verbs: `isle storage copy take | return | drop | list`, and the mount for the wrapped apps.

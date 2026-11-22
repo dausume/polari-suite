@@ -1,0 +1,36 @@
+A: bucket made (http code)                                               200
+A: bytes of content in its own folder                                    3601112
+B: bytes of content in its own folder, before the link                   0
+B: names it lists in the linked folder                                   12
+B: pieces of content it holds for file-00, before any read               0
+B: bytes of content in its own folder, linked, nothing read              0
+B: file-00 read through B gives the bytes of A                           [200, True]
+B: pieces of content it holds for file-00, after that read               1
+B: pieces it holds for file-05 after taking the folder                   1
+B: bytes of content in its own folder after taking the folder            3600536
+A away: file-05 read through B                                           [200, True]
+A away: a change saved on B (http code)                                  201
+A away: a new file saved on B (http code)                                201
+A back, nothing run yet: file-05 on A is still the original              True
+edits made while A was away reach A once the return process runs         True
+the new file made on B is on A                                           b'made on B while A was away'
+an edit on B with A present reaches A                                    True
+a file taken away on B is taken away on A                                True
+  (what A answers for it, http code)                                     404
+A: rule, the folder may not be changed                                   0
+held: a change on A by someone else (http code)                          507
+held: the edit of B has reached A after 15 seconds                       False
+held: B still gives its own edit                                         b'edited on B while A holds the original'
+A: rule taken away                                                       0
+released: the edit of B reaches A by itself                              True
+released: a later edit on B reaches A                                    True
+a change on A, before B asks: what B gives for the file                  False
+a change on A, after B asked for the names again: what B gives           b'changed on A meanwhile'
+a change on A, after B took the folder again: what B gives               b'changed on A meanwhile'
+both changed one file: what A holds / what B gives                       ["b'B wrote this'", "b'B wrote this'"]
+B: pieces it holds for file-01 after dropping the copy                   0
+B: pieces it holds for file-05 (edited on B, returned) after dropping    0
+A: file-01 is still whole on A                                           True
+B: file-01 read through B again (fetched from A again)                   [200, True]
+link taken away: B has the folder                                        404
+link taken away: A still has file-01 whole                               True
