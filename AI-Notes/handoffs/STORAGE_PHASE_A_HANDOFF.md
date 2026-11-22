@@ -29,6 +29,8 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
   `build-offline-bundle.sh` was changed for it (a 24.04 name that only other packages provide);
   `RELEASE_RUN_PLAN.md`, "The 24.04 dependency set, second build".
 - The user, 2026-11-22: two operating systems and never more (22.04 and 24.04, the ones the machines run).
+- Isle CLI dev is now `abca444` (branch `pol/os-record-noble-names`, one commit on top of `5383564`: the
+  supported-systems record only), pushed, pinned in the suite; every test file run at it, 104 pass, one skipped.
 
 **State on 2026-11-22, early afternoon (the block above is newer).**
 - Isle CLI dev is `a1240df` (branch `pol/file-store-app`, one commit on top of `73b7c58`), pushed, pinned in the
