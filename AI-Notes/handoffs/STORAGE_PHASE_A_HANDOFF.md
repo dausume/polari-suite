@@ -4,10 +4,11 @@ Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session af
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
 **State on 2026-11-21, night (read this first; the blocks below are older).**
-- Release 91: the user said "go ahead on 91". The packet is STAGED ON THE CORE (`~/isle-release-91`, checked
-  there, same run id). The run is the user's one command on the core (`RELEASE_RUN_PLAN.md`, "Run 4"). Not run
-  yet as far as pol knows: check `isle release status` / the served version before saying anything about it.
-  After it is live on the core and both 22.04 members: the dependency-set packet, on the user's go.
+- Release 91 is LIVE-VERIFIED on all three machines (the user's one command on the core, 2026-11-21 evening;
+  `RELEASE_RUN_PLAN.md`, "Run 4"). The first device-backups were taken in it, one per machine. The router's key
+  is pinned on the core. Everything built after isle CLI `60983b8` is for release 92 and installed nowhere.
+- Waiting on the user's go: the 22.04 dependency-set packet (`~/isle-dependencies-ubuntu-22.04-packet` on pol,
+  run id `ba41aff337b6`). Its condition is met. It is not copied to the core.
 - Storage direction from the user (`STORAGE_ROLES_PLAN.md`, section 9, their words verbatim): kinds of storage
   apart from roles, distribution needs, the file store as a pool over partitions on several machines, normal
   apps (KiCad, FreeCAD, Blender) wrapped for the App Store and bound to file spaces. Answered: the pool's index

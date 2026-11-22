@@ -121,7 +121,29 @@ What the packet was (written before the run):
      not re-create the backend.
 - After it is live, the storage proof of st-1 is typed on pol (STORAGE_ROLES_PLAN.md, section 5).
 
-### Run 4 - packet `cli-release-91` - STAGED ON THE CORE (2026-11-21 evening), the run is the user's command
+### Run 4, 2026-11-21 evening - LIVE-VERIFIED (packet `cli-release-91`; the first device-backups; a packet built by the verb)
+- The user typed ONE command, on the core: `sudo isle release run ~/isle-release-91 --expect <run id>`. Run id
+  `d09cdc9d7ff5`.
+- Core: published 3 package files, read the release id `cc5ad46c66d2`, waited until it was served, took its
+  device-backup ("taken and read back"), updated itself (operation `e9ce25fa...`), signed the approval (serial
+  1795303958). Package `polari-complete-offline 0.1.91+release91`.
+- Members followed on their own timers, nothing typed there: on econ and on pol first the device-backup step,
+  then the update; both `isle-mesh-cli 0.1.211+release91` and `isle-app-store 0.1.91+release91`. The core's member
+  table shows both done.
+- Checked afterwards, read-only: `isle release status` = done on all three with the four verify URLs done; the
+  three URLs and `deps/noble/InRelease` answer 200 over verified TLS from pol; the main index serves
+  `polari-complete-offline 0.1.91+release91`; `isle release help` names `build` on the core and on pol (a verb
+  that release 90 did not have). `deps/jammy/InRelease` still answers 404: the 22.04 set is the next packet.
+  The user ran `sudo isle router key-status` on the core: the router's key is pinned and the router shows it.
+- Proved now, beyond run 3: a `backup` step live on three devices (the first device-backups ever taken); a packet
+  built by `isle release build` and run with `--expect`; a third publication and update from one command.
+- NOT proved yet: a restore from a device-backup; a dependency set in a packet; a runtime-image or catalog
+  publication, `store-install`, `module-add`; a failed step and its resume; the any-device intake; the pkexec
+  entry. Not looked at: the content of the three device-backups (`sudo isle backup list` is the user's), and what
+  the units step printed.
+- The next build's `--previous` stays `~/isle-release-91-build/members` on pol: those are the packages now served.
+
+What was written before the run:
 - The user's go, 2026-11-21 evening: "go ahead on 91". The packet folder was copied to the core as
   `~/isle-release-91` (154 MiB). Checked there without sudo: every file matches `SHA256SUMS`, and the core's
   installed `isle release check` says the packet is valid with the same run id. Nothing is published or installed.
