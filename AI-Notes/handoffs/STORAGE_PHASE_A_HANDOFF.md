@@ -3,7 +3,36 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-22, later in the night (read this first; the blocks below are older).**
+**State on 2026-11-22, midday (read this first; the blocks below are older).**
+- The user answered pol's list of open points: "yes to adding them to offline package, for ithers just go with
+  your recommendations". So every "open" and "waiting" line in the blocks below is answered: shape F and the
+  five points of 9.12, the registry choices, the `restore --apply` proposal, 64m for the engine's address, and
+  `smartmontools`, `fdisk` and FUSE in the offline package list.
+- Isle CLI dev is `73b7c58`, pushed, pinned in the suite. Every isle CLI test file was run at it: 102 pass, the
+  one that needs the core is skipped. Source-tested, installed nowhere.
+- Two packets are STAGED, on pol and in the core's home folder, both read as valid there by the core's installed
+  CLI without sudo. Neither is run. Each is one command of the user on the core, in this order:
+  1. The 22.04 dependency set, second build: on the core `~/isle-dependencies-ubuntu-22.04-r2`, run id
+     `5a504c42d50424d7aefbe260eb8cb02c8225086eb3c208bf3e3d4484e86f6bc2`. The older run ids `ba41aff337b6` and
+     `fe33235a6075` are dead; do not run a packet with them.
+  2. Release 92: on the core `~/isle-release-92`, run id
+     `05fd538ff7852587e38adbab2ba64fd034ebc0314b88337cbf0481a04092ce65`.
+  `RELEASE_RUN_PLAN.md` has three sections on them: "The 22.04 dependency set, second build", "Agent images in a
+  release", "The packet of release 92".
+- Release 92 is the first packet that publishes runtime images (1.6 GB) and the first update that starts each
+  device's agent again from a new image. Neither was ever seen live. A device-backup is taken on each device
+  before its update.
+- After the two runs: `deps/jammy/InRelease` on the core must answer 200; run `test-apt-local-priority.py` on the
+  core; record the evidence in the supported-systems notes; the first drill of a real device-backup
+  (`sudo isle backup restore <id> --drill`, the user's sudo).
+- Next work, in the user's order: the file store as an app with one slot (shape F, written as data like the
+  registry definition, stock image, built with `isle store build`); then `restore --apply` as accepted in
+  `BACKUP_PLAN.md`; then the plan of the OS overwrite.
+- Owed and waiting for the user's word because it is a download: the 24.04 dependency set built again with the
+  new package list (image `ubuntu:24.04`, about 500 MiB without a cache); the agent images built whole again
+  some releases from now.
+
+**State on 2026-11-22, later in the night (the block above is newer).**
 - Isle CLI dev is `b3c8c71` (branch `pol/backup-drill`, one commit on top of the storage commits below).
   Source-tested, for release 92, installed nowhere.
 - New: `sudo isle backup restore <id> --drill`. It unpacks a device-backup into a scratch folder beside it,
@@ -73,8 +102,9 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
 - Release 91 is LIVE-VERIFIED on all three machines (the user's one command on the core, 2026-11-21 evening;
   `RELEASE_RUN_PLAN.md`, "Run 4"). The first device-backups were taken in it, one per machine. The router's key
   is pinned on the core. Everything built after isle CLI `60983b8` is for release 92 and installed nowhere.
-- Waiting on the user's go: the 22.04 dependency-set packet (`~/isle-dependencies-ubuntu-22.04-packet` on pol,
-  run id `ba41aff337b6`). Its condition is met. It is not copied to the core.
+- (Superseded 2026-11-22 midday, see the top block.) Waiting on the user's go: the 22.04 dependency-set packet
+  (`~/isle-dependencies-ubuntu-22.04-packet` on pol, run id `ba41aff337b6`). Its condition is met. It is not
+  copied to the core.
 - Storage direction from the user (`STORAGE_ROLES_PLAN.md`, section 9, their words verbatim): kinds of storage
   apart from roles, distribution needs, the file store as a pool over partitions on several machines, normal
   apps (KiCad, FreeCAD, Blender) wrapped for the App Store and bound to file spaces. Answered: the pool's index
@@ -120,7 +150,8 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
   1. Release 91: `~/isle-release-91-build/packet` (run id `d09cdc9d7ff5`), from isle CLI dev `60983b8`, all three
      devices named, a device-backup step before each update. The first live device-backups would happen in it.
      The run is the user's one command on the core: `sudo isle release run <the copied folder> --expect <run id>`.
-  2. The 22.04 dependency set alone: `~/isle-dependencies-ubuntu-22.04-packet/packet` (run id `ba41aff337b6`).
+  2. The 22.04 dependency set alone: `~/isle-dependencies-ubuntu-22.04-packet/packet` (run id `ba41aff337b6`;
+     superseded 2026-11-22 midday by the second build, see the top block).
      Only after release 91 is live on the core and on the two 22.04 members.
 - The next build's `--previous` is `~/isle-release-91-build/members`. Do not build release 91 a second time.
 - Next: a CLI verb that builds a dependency set; then storage (priority 3).
@@ -255,7 +286,7 @@ decision); backups unencrypted/local; no apt publish rules no longer apply (hold
 | Placement | **hosting**, device pol-core, generation 5 (authorize 1 → migrated 2 → cutover 4 → accept 5) |
 | Plan | `6b95f2a142ee4404b22d686bdc2b035c` rev 1, digest `1ef3290b…`; plan door: authorize/migrate/cutover all `succeeded` |
 | Content | 19,900,577,133 B, 1468 entries, contentSha `a338c124…`, snapshot `dc623a3f…` |
-| Target | pol internal HDD UUID `50c58a56…` at `/mnt/pol-archive/isle/datasets/apt-public-repo` |
+| Target | pol internal HDD, under its mount, in the folder `isle/datasets/apt-public-repo` |
 | Serving | router DNS apt.isle → 10.10.0.116 (pol agent, macvlan); isle-content-host 2026.11.1 registered as `apt.isle` with a CA leaf issued via placement-claims |
 | Witness | econ-core, epoch 4, 4 samples matched |
 | Core ops | authorize 3c0a4ed6 (failed at managed-names push, placement committed), relay a983fe9e (mark-migrated), cutover e7a091f1, accept 8f8d7c1a |

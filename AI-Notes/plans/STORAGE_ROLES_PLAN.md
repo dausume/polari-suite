@@ -243,9 +243,11 @@ In no release and installed nowhere. Release 91 does not have this verb.
 - `device register` now keeps everything else recorded for a device when its class is changed, so a kept reading
   outlives a change of class.
 - Limits, said plainly:
-  - It needs `smartctl` (package `smartmontools`). Pol and the core have it; econ does not. The package is not in the
-    offline package list, and adding it changes what the dependency sets hold (a rebuild, which downloads). Not
-    added; that is the user's call. Where the tool is absent the verb refuses and names the package.
+  - It needs `smartctl` (package `smartmontools`). Pol and the core have it; econ does not. The user, 2026-11-22:
+    "yes to adding them to offline package, for ithers just go with your recommendations". So `smartmontools` and `fdisk` are in the offline package list as packages to install and `fuse3` as one
+    that is carried (isle CLI dev `b02e524`), and the 22.04 dependency set was built
+    again with them (`RELEASE_RUN_PLAN.md`, "The 22.04 dependency set, second build"). The 24.04 set on the core
+    is older than the list and is still owed. Where the tool is absent the verb refuses and names the package.
   - It has never run as root, so it has not read a real disk's report. The answers it was tested on are made-up
     ones in the shape `smartctl --json` gives.
   - `device list` does not show the kept reading yet, and the reading is not in what a machine reports to the core.
@@ -933,7 +935,10 @@ Not seen, and not to be claimed:
 - Also read, not tried: the S3 door of 4.47 opens two more listeners by default (a table catalog and a namespace
   server). The trials switch both off. Whether the Polari node's file store has them open is to be checked.
 
-### 9.12 What 9.11 means for the pool, the folders and the copy - pol's recommendation, NOT ruled
+### 9.12 What 9.11 means for the pool, the folders and the copy - pol's recommendation, ACCEPTED 2026-11-22
+
+**Accepted.** The user, 2026-11-22, to a list that had this section as one of its points: "yes to adding them to offline package, for ithers just go with your recommendations".
+So: shape F, and pol's proposals for points 2 to 5 below, stand. Nothing is built for the pool yet.
 
 Section 9.2 proposed one pool: one index for the isle, and a storage process on every file-pool partition that
 joins it. The user's answer 1 of 9.6 (the index on any member) was given to that proposal. After 9.11 pol
@@ -992,18 +997,18 @@ Answers that 9.11 gives to the open points of 9.7:
   the device is one command there, and the device's edits are then refused or written over whatever came after.
   To be ruled: who may do that.
 
-Open, for the user or for the proof on machines:
+The five points, as they stand after the user's answer of 2026-11-22:
 
-1. Shape F or shape P.
-2. The hold does not stop a file being taken away (9.11). Pol's proposal: accept it. The device's copy has the
-   whole content, so `return` writes a missing original back and says so. Stopping it fully needs the door's
-   sign-in (people who may only read), which an isle without sign-in does not have.
-3. The hold is put on by the home store's machine, the copy is taken on another. So `take` is two steps on two
-   machines, or one planned action that the core sequences. The second fits "one command, any device".
-4. The store's program on the machine itself (not in a container) for the mount, and the FUSE package: both are
-   things to install, so both wait for the user's word on package lists and release content.
-5. Which image the store app runs. The stock image is on machines that run Polari. A machine without Polari
-   needs it carried in a release (about 530 MB).
+1. Shape F.
+2. The hold does not stop a file being taken away (9.11). Accepted as it is. The device's copy has the whole
+   content, so `return` writes a missing original back and says so. Stopping it fully needs the door's sign-in
+   (people who may only read), which an isle without sign-in does not have.
+3. The hold is put on by the home store's machine, the copy is taken on another. `take` is one planned action
+   that the core sequences, not two steps typed on two machines. It fits "one command, any device".
+4. The FUSE package is in the offline package list (the user's yes). The store's program on the machine itself,
+   for the mount, comes in a release like any other program; which release is not decided.
+5. The store app runs the stock image. A machine without Polari gets it carried in the store release (about
+   530 MB), the way `isle store build` packs an image.
 
 Next, in this order:
 
@@ -1031,7 +1036,11 @@ behind an agent could not take an image layer, and the file store of 9.12 could 
 - The agent keeps it on the app's entry in its registry (`maxBody`). Its generator writes it for that app only,
   and switches off request buffering for that app, so a large upload is passed on while it arrives.
 - An app that declares none keeps 1 MiB. A deploy typed again without the option puts 1 MiB back.
-- Polari's own registrations were not changed. What size they should get is the user's.
+- Polari's own registrations: `isle polari deploy` registers `api.polari.isle` with `64m` (isle CLI dev
+  `73b7c58`; the setting `POLARI_API_MAX_UPLOAD` changes it, `0` = no limit). The engine's own limit for one file
+  is 50 MB, so the agent no longer stops a file the engine would take. `polari.isle`, the pages, keeps 1 MiB.
+  This is pol's choice under the user's "go with your recommendations"; pol had named no size before. It reaches
+  the core when the deploy is run there again, with an agent image of release 92.
 
 **`isle store build <definition> <output folder> [--pull]`.** The step between a release written as data and
 `isle store publish` was done by hand until now. This verb is that step.
@@ -1064,20 +1073,24 @@ behind an agent could not take an image layer, and the file store of 9.12 could 
 1. No real build. The tests use a made-up `docker` that writes real archives.
 2. No upload above 1 MiB was seen to pass. nginx accepted the generated text in one throwaway container with no
    network; that is all.
-3. The proxy text is part of the agent images. An update does not rebuild an agent image or recreate an agent
-   container. So the upload size reaches a machine only when its agent image is rebuilt and its agent recreated.
-   How release 92 carries that to the core and to the members is open.
+3. The proxy text is part of the agent images. Answered 2026-11-22: a release carries rebuilt agent images
+   (`isle release build --agents`), and each device loads its image and starts its agent again from it with the
+   update, the way every runtime image reaches a device. `RELEASE_RUN_PLAN.md`, "Agent images in a release".
+   Until release 92 is on a machine, its agent keeps the 1 MiB.
 4. No `docker push` to `registry.isle` through an agent was tried, and Docker on each device has to trust the
    isle's CA for that name.
 5. `docker compose config` of the built compose file is run by the install, not by the build.
 
-**Pol's choices here, not rulings.**
+**Pol's choices here, kept by the user's answer of 2026-11-22** ("yes to adding them to offline package, for ithers just go with your recommendations").
 
-- The name `registry`. The older verb `isle registry setup` (a container on a host port of the core, data under
-  the settings folder) takes the same name. One or the other; which stays is the user's.
+- The name `registry`, so `registry.isle`.
 - No sign-in: any device on the isle may push and pull. This is pol's reading of "a plain registry".
 - Deleting images is left at the registry's default, which is off.
 - No limit on an upload (`"0"`), and the version `2026.11.1`.
+- The app is the isle's registry. The older verb `isle registry setup` (a container on a host port of the core,
+  data under the settings folder) takes the same name, so it goes. It is not removed yet: no registry of either
+  kind runs on the core today (looked 2026-11-22, read-only), and the app has not been seen to take a
+  `docker push`. The verb is taken out in the release after the app was seen to take one through an agent.
 
 Tests: `test-store-build.py` (21), `test-upload-size.py` (16), `test-catalog-artifacts.py` (16). Each refusal of
 the build was broken on purpose once, and a test caught every one.

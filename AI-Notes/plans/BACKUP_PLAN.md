@@ -20,7 +20,7 @@ state exists and was verified").
 | B1 | Backups are never encrypted and there is no knob for it. | 2026-11-12 |
 | B2 | Local only, never cloud by default. | 2026-11-12 |
 | B3 | Each backup belongs to the Polari instance responsible for the data, so that instance can restore it. | 2026-11-12 |
-| B4 | The home is the removable 250 GB SSD (`pol-ssd`). It holds releases and backups only, never Docker's store or live data. | 2026-11-12 |
+| B4 | The home is the removable 250 GB SSD. It holds releases and backups only, never Docker's store or live data. | 2026-11-12 |
 | B5 | A removable disk is in mode `backup` (a full copy) or `export` (a fresh isle modelled on this one; no secrets, only module-defined data, names kept). | 2026-11-12 |
 | B6 | Every step is an `isle` or `pol` verb; a plan is approved once and then runs. | 2026-11-14 |
 | B7 | Do not duplicate what the engine already automates; no hand-wired routes. | 2026-11-18 |
@@ -217,9 +217,9 @@ there does not have this verb.
 - Next (the second half of bk-3): `restore --apply`. It changes a live machine (stops an instance, swaps its
   data), so its design goes to the user before it is built for anything but a made-up machine.
 
-### Proposed, NOT built: `isle backup restore <id> --apply` (the second half of bk-3) - pol's proposal, for the user
+### Accepted 2026-11-22, NOT built: `isle backup restore <id> --apply` (the second half of bk-3)
 
-Nothing of this exists. It is written down so the user can change it before it is built.
+Nothing of this exists yet. The user accepted it on 2026-11-22 (their words are under the questions below).
 
 - What it is for (the user, 2026-11-20): "per-release so that if a release goes badly we can roll back easily".
   A device-backup holds data, not programs. So `--apply` puts data back; going back to the earlier programs is a
@@ -240,7 +240,13 @@ Nothing of this exists. It is written down so the user can change it before it i
   machine stopped first. This is the part with the most ways to go wrong: the state folder records which release
   is installed, and after a rollback of data alone it would name the older one while the newer programs run.
 
-Questions for the user (pol's recommendation first):
+**Answered 2026-11-22.** The user, to a list that had these questions as one of its points: "yes to adding them to offline package, for ithers just go with your recommendations".
+So the recommendation of each question stands: (1) only the instances' data by default, the isle's own two
+folders only when named with `--item`; (2) a release run never calls `--apply` by itself; (3) the first real
+`--apply` is on a made-up instance on pol, with the user's go and sudo; (4) the counts are read from the database
+file opened read-only, as the drill reads them, and nothing is added to the engine by hand.
+
+The questions as they were put (pol's recommendation first):
 1. Which items by default? Recommendation: only the instances' data. The isle's own folders only when named with
    `--item`, because of the last point above.
 2. May a release run call `--apply` by itself when a later step fails? Recommendation: no. A person types it; the

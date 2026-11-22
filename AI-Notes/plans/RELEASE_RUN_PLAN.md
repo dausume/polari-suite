@@ -176,7 +176,9 @@ What was written before the run:
   3. What release 91 changes for a running isle: the handoff, "Depends on the pin after release 91" (the name
      reconcile and the router reads connect only when the router's key is pinned; `sudo isle router key-status`
      on the core says whether it is).
-- After it is live on the core: the second packet, staged on pol too (`~/isle-dependencies-ubuntu-22.04-packet`,
+- SUPERSEDED 2026-11-22 by the second build of the set (run id `5a504c42d504`, see "The 22.04 dependency set,
+  second build" below); the packet named here was never copied to the core and is not to be run.
+  After it is live on the core: the second packet, staged on pol too (`~/isle-dependencies-ubuntu-22.04-packet`,
   run `dependencies-ubuntu-22.04`, run id `ba41aff337b6`): the 22.04 dependency set alone, 927 package files,
   515 MiB, the two 22.04 members named so each asks for `deps/jammy/InRelease`. The installed release-90 CLI
   refuses it as a whole ("unknown kind"), as designed. The core needs 771 MiB free where it keeps its runs.
@@ -278,8 +280,98 @@ The set itself was still built by a hand recipe. It is a verb now, so the whole 
   1. Release 91 is built already and does not have this verb. Until release 92 it is run from a checkout.
   2. The verb needs the suite's builder (and through it the framework's chunker and docker). It is a verb for a
      building machine, not for every member. Same debt as `isle release build` and its combined builder.
-  3. The staged 22.04 packet (`ba41aff337b6`) stays the one to run; a packet from a rebuilt set has another run
-     id because of the order of `SHA256SUMS`.
+  3. Written 2026-11-21: the staged 22.04 packet (`ba41aff337b6`) stays the one to run. No longer so: the
+     offline package list changed on 2026-11-22, the set was built again, and its packet (`5a504c42d504`) is the
+     one to run. See the next section.
+
+### The 22.04 dependency set, second build - STAGED on pol and on the core (2026-11-22), not run
+The user, 2026-11-22: "yes to adding them to offline package, for ithers just go with your recommendations". "them" are
+`smartmontools`, `fdisk` and the FUSE package, which the storage verbs use (isle CLI dev `b02e524`).
+
+- The set: `~/isle-dependencies-ubuntu-22.04-r2` on pol, built by `isle os dependencies build` from a checkout,
+  with the first set as its cache. 930 package files, 515 MiB. Three files more than the first set: `fdisk`,
+  `libfdisk1`, `smartmontools`. `fuse3` was in the first set already. Fetched from the internet: under 1 MiB.
+  An earlier note of this session said a rebuild fetches about 500 MiB; that is true only with an empty cache.
+- The packet: `~/isle-dependencies-ubuntu-22.04-r3-packet/packet` on pol, run `dependencies-ubuntu-22.04`,
+  run id `5a504c42d50424d7aefbe260eb8cb02c8225086eb3c208bf3e3d4484e86f6bc2`, 936 files. It names the two 22.04
+  members, as the first packet did: no device has a step, and each of the two asks for `deps/jammy/InRelease`
+  from where it is.
+- A packet built first without naming a device (run id `fe33235a6075`) was replaced by this one before anything
+  was run. In it only the core's own wait proved the set; no member asked.
+- On the core: copied to `~/isle-dependencies-ubuntu-22.04-r2` and checked there with the installed CLI, without
+  sudo ("Packet is valid: 936 file(s) match SHA256SUMS. Nothing was changed.").
+- Not run. The run is the user's one command on the core. Today `deps/jammy/InRelease` answers 404 there.
+- The CLI package of release 92 does not name `smartmontools` as a package it needs, so release 92 does not need
+  this set first. They are two packets because two things in them were never seen live: a dependency set in a
+  packet, and a publication of runtime images. One at a time shows which one failed.
+- Owed: the 24.04 set on the core is older than the package list. Building it again needs the image
+  `ubuntu:24.04` on the building machine and, without a cache of the 24.04 package files, about 500 MiB from the
+  Ubuntu archive. Not done; both are downloads and wait for the user's word.
+
+### Agent images in a release (`isle release build --agents`) - SOURCE-TESTED and built once for real (2026-11-22, isle CLI dev `7dadd52`), for release 92
+Until now an update changed packages only. What an agent's proxy does is in the agent image, so a change to the
+agent's scripts reached no machine (the upload size of an app, `STORAGE_ROLES_PLAN.md` 9.13, was the first such
+change). A release can now carry the two agent images.
+
+    isle release build <out-dir> --previous <dir> ... --agents [--all-images] [--runtime-archives <dir>]
+
+- `--agents`: for the core's agent and the members' agent, take the image the isle runs now and put the commit's
+  agent scripts on top, as one more layer. The new image is named `<repository>:release<number>`.
+- It is made with the network switched off (`docker build --pull=false --network none`): nothing is downloaded,
+  and no package inside the image changes. The image the isle runs comes from Docker on the building machine, or
+  from the folder `--runtime-archives` names (the published `runtime/` folder; pol has a copy of it).
+- An image whose scripts are already the commit's is not built again; the published one is kept.
+- The packet gets a publication of kind `runtime` before the packages. The core publishes it
+  (`isle update publish-runtime`), and each device takes its own image with its update: load, then its agent is
+  started again from the new image, then a wait until it answers. This is the path every runtime image takes
+  (`runtime_reconcile.py`); nothing new runs on a device.
+- A row of an image that does not change can be written as "kept": its address under `apt.isle/runtime/`, its
+  sha256 and its size, with no file in the packet. The core checks before anything is published that it serves
+  that file with that size.
+- `--all-images` puts every image into the packet as a file instead. **Release 92 needs it**: the core runs a
+  packet with the CLI it has installed (release 91), and that CLI refuses a row without a file. Kept rows are for
+  the releases after 92.
+- Proof in source: 17 tests of the image code and 5 of the publication, more in the tests of the run and of the
+  reconcile, 24 of 24 deliberate breaks caught, every isle CLI test file run at `73b7c58` (102 pass; the one that
+  needs the core is skipped).
+- Proof with real Docker on pol (27.3.1), by the real build of the release 92 packet:
+
+  | Question | Seen |
+  |---|---|
+  | The layers of the new images | 17 each; the published ones have 16 |
+  | Entrypoint, command, environment, ports, user, volumes | The same as the published images |
+  | The scripts in the new images | Byte for byte the commit's; against the running images only `generate-nginx-configs.sh` differs |
+  | A build with the network off, from an image that is only on this machine | Works |
+  | `docker image save --platform` | Docker 27.3.1 does not know the option; the coded second try without it works |
+  | The proxy of each new image, in a one-shot container with the network off, a made-up registry and made-up certificates | `nginx -t` passes (nginx 1.31.8). An app with no size: 2 MiB is refused (413). An app with `64m` and one with `0`: 2 MiB is passed on |
+
+- Not seen: the images on a device of the isle. An agent started again by an update has not been seen since the
+  agents became images of their own; this is what the run of release 92 tests.
+- Each release that changes an agent script adds one layer to the image. After some releases the images should be
+  built whole again; that build fetches packages (`apk add`), so it is a download and was not done.
+
+### The packet of release 92 - STAGED on pol and on the core (2026-11-22), not run
+- Built by `isle release build` on pol from isle CLI dev `73b7c58`, with `--backup --agents --all-images`, the
+  three devices release 91 named, and `--previous` = the packages of release 91. No sudo, nothing published.
+- `~/isle-release-92-build/packet` on pol: run `cli-release-92`, run id
+  `05fd538ff7852587e38adbab2ba64fd034ebc0314b88337cbf0481a04092ce65`, 9 files, 1.6 GB.
+- Versions: `isle-mesh-cli 0.1.212+release92`, `isle-app-store 0.1.92+release92`,
+  `polari-complete-offline 0.1.92+release92`. The 537 files the CLI package packs are the same, byte for byte, in
+  the commit, in the CLI package and in the combined package.
+- The core publishes, in this order: the runtime images (the engine's two images as they are published today,
+  1080 MiB and 238 MiB, and the two new agent images, 70 MiB and 71 MiB), then the three packages.
+- Each of the three devices: a device-backup, then the update. With the update its agent is started again from
+  the new image. The checks after it: the update list, `apt.isle/InRelease`, the engine's health address.
+- The installed CLI of release 91 reads the packet as valid, on pol and on the core
+  ("Packet is valid: 9 file(s) match SHA256SUMS. Nothing was changed."). On the core it is `~/isle-release-92`.
+- The core needs 1461 MiB and 256 MiB more free where it keeps its runs; it has far more.
+- The next build's `--previous` is `~/isle-release-92-build/members`. Do not build release 92 a second time
+  unless the packet is thrown away: another build gives another run id.
+- What release 92 carries, all source-tested only until the run: the storage verbs after release 91 (kinds,
+  slots, the slot gate, the app upload size, `isle store build`, the registry release), the restore drill, the
+  dependency-set verb, `isle release build --agents`, the 64m for the engine's address at the next
+  `isle polari deploy`, and no home folder of one machine in the AppArmor profiles and two scripts.
+- Order for the user, each one command on the core: first the dependency packet, then release 92.
 
 ## Proof packet 2 - for the user's review (2026-11-18). Packet 2a RUN 2026-11-20, see Run 2 above.
 
