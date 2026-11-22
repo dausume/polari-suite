@@ -3,7 +3,18 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-22, night into morning (read this first; the blocks below are older).**
+**State on 2026-11-22, later in the night (read this first; the blocks below are older).**
+- Isle CLI dev is `b3c8c71` (branch `pol/backup-drill`, one commit on top of the storage commits below).
+  Source-tested, for release 92, installed nowhere.
+- New: `sudo isle backup restore <id> --drill`. It unpacks a device-backup into a scratch folder beside it,
+  compares every entry with the archives, opens the SQLite databases of an instance's data, removes the scratch
+  folder and keeps the result as `drill.json`. It puts nothing back. `BACKUP_PLAN.md`, section 6, "Built
+  2026-11-22" has the whole of it.
+- No drill has run on a real device-backup. The first one needs release 92 installed and the user's sudo.
+- Putting a device-backup back (`restore --apply`) is NOT built. `BACKUP_PLAN.md` has pol's proposal and four
+  questions for the user; do not build it for a live machine before they answer.
+
+**State on 2026-11-22, night into morning (the block above is newer).**
 - Isle CLI dev is `6524970` (branch `pol/storage-registry`, two commits). Source-tested, for release 92,
   installed nowhere. `STORAGE_ROLES_PLAN.md` 9.13 and 9.14 have the whole of it.
   - An app's upload size as data: `deploy.maxUpload` in a release, `isle app deploy --max-upload <size>` by

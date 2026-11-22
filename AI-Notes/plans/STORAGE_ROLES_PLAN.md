@@ -1108,3 +1108,7 @@ Tests: `test-storage-isle.py`, 30 tests (14 new). 33 deliberate breaks, 32 caugh
 that the next line makes again.
 
 Not done: no plan picks a machine from this report. A person reads it and binds the slot.
+
+A cost to know: the device report asks Docker once per image it looks for, each with a limit of 15 seconds. On a
+machine whose Docker hangs the report takes that much longer (up to three such waits today), and the kinds
+that need an image are then reported as not known. Nothing is retried and nothing is refused because of it.

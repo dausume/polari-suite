@@ -2,7 +2,8 @@
 
 The verbs are `isle backup ...` (decision 1 in section 7: the isle CLI owns storage and the copy to disk; the
 core has no `pol`). Built so far, source-tested only: `isle backup plan | create | list | verify | release-hold`
-and the release-run step kind `backup` (section 6, "Built 2026-11-20"). Not built: restore, the fetch of other
+and the release-run step kind `backup` (section 6, "Built 2026-11-20"), and `isle backup restore <id> --drill`
+(section 6, "Built 2026-11-22"). Not built: putting a device-backup back (`restore --apply`), the fetch of other
 machines' device-backups, the items the isle CLI cannot name by itself.
 
 **The word (the user, 2026-11-20): "Jusst call it a device-backup instead of a set, there are a lot of things called
@@ -95,7 +96,7 @@ to something older) and then per-release so that if a release goes badly we can 
     sudo isle backup list [--json]        BUILT. the device-backups of this machine, their slot, complete or not
     sudo isle backup verify <id>          BUILT. re-reads every file against device-backup.json
     sudo isle backup release-hold         BUILT. lowers a write gate that an interrupted device-backup left up
-    isle backup restore <id> --drill      not built: restores into scratch copies, compares receipts, changes nothing
+    sudo isle backup restore <id> --drill BUILT. unpacks into a scratch folder, compares with the archives, opens the databases, changes nothing
     isle backup restore <id> --apply      not built: journaled; staged copy, check, swap; the instance is stopped first, the previous generation is kept
 
 - `restore --apply` refuses a device-backup that is incomplete, one of another device, and one that has not
@@ -160,7 +161,7 @@ own instance, over verified TLS).
 - It is a journaled operation (`operations.py`, one lock, one device-backup at a time, `sudo isle operation
   retry <id>` resumes). The write gate is held under the operation's id, so a retry takes its own hold back.
 - Free space: refused unless the home has twice what is copied plus 256 MiB.
-- Files (isle CLI): `device_backup.py`, `device_backup_items.py`, `backup.sh`, `test-device-backup.py` (32
+- Files (isle CLI): `device_backup.py`, `device_backup_items.py`, `backup.sh`, `test-device-backup.py` (33
   tests: temporary folders, a made-up machine and a made-up write gate; real `tar` only), and small changes in
   `operations.py`, `release_run.py`, `storage_migrate.py` (the verified POST can take the same route as the GET),
   `index.js`, `test-operations.py`, `test-release-run.py`.
@@ -169,6 +170,87 @@ own instance, over verified TLS).
   when the listing was made.
 - These are pol's choices, not rulings, and can be changed: gzip tar as the format; twice the size as the free
   space rule; stop at the first failed item; the state folder as the home of a machine with no `backup` partition.
+
+### Built 2026-11-22: `isle backup restore <id> --drill` (the first half of bk-3)
+
+State: **source-tested** on pol, isle CLI dev `b3c8c71`, for release 92. Installed nowhere. No drill has run on a
+real device-backup: the three machines hold their first device-backups from release 91, and the CLI installed
+there does not have this verb.
+
+- What it shows: that a device-backup can be unpacked whole, with what the archives hold. It is not a restore.
+  Nothing is put back, no instance is stopped and no write gate is raised.
+- The steps, in this order:
+  1. Root only, and under the same lock as `create`: a drill and a device-backup never run at the same time.
+  2. A device-backup that is incomplete, damaged or of another device is not drilled.
+  3. Every file is read again against `device-backup.json` (what `verify` does). A file that no longer matches
+     stops it before anything is unpacked.
+  4. Each archive is read from start to end without unpacking: every entry with its size, sha256, permissions
+     and owner. An entry that would be written outside its folder stops it before anything is unpacked.
+  5. Free space: the bytes of all regular files plus 256 MiB must be free beside the device-backup.
+  6. Each archive is unpacked by `tar` with its owners and permissions into `drill-<id>/<item>/`, beside the
+     device-backup (folder mode 0700). A folder left there by an interrupted drill is removed first; anything
+     else in that place (a link, a file) is refused and left alone.
+  7. Every unpacked entry is compared with what step 4 read: missing, another kind, other bytes, a link that
+     points elsewhere, two names that are no longer one file, other permissions, another owner, and anything
+     unpacked that the archive does not hold.
+  8. In the data of a Polari instance every SQLite database is found by its first bytes (not by its name),
+     opened read-only, checked whole by SQLite (`PRAGMA integrity_check`), and the rows of each table are counted.
+  9. The scratch folder is removed whether the drill passed or not. If it cannot be removed, the last line says so.
+- The result is kept as `drill.json` in the device-backup's folder (mode 0600): passed or not, per item the
+  counts, up to 100 lines of what was wrong, the tables and row counts of every database, the CLI versions, and
+  the sha256 of each archive it was run on. `isle backup list` shows `drill: passed | failed | none | unreadable`.
+  A record made on other archives than the ones the device-backup names now counts as `none`.
+- The row counts are what `restore --apply` is to compare against after it has started the instance again
+  (bk-3's proof: "counts equal"). That comparison is not built.
+- What the drill does NOT show: that the engine starts on the unpacked data (no instance is started), and
+  anything about data the device-backup does not hold (the list of "not covered" items above is unchanged).
+- Files (isle CLI): `device_backup_drill.py` (new: reading an archive, comparing, opening databases; it changes
+  nothing itself), `device_backup.py` (the verb, the record, the column in `list`), `backup.sh`, `index.js`,
+  `README.md`, `test-device-backup-drill.py` (30 tests: the made-up machine of `test-device-backup.py`,
+  temporary folders, real `tar` and real SQLite files; no network, no real disk).
+- Deliberate breaks of the two code files: 57. The tests noticed 56 at first. The one they missed (a database that
+  opens and can be counted but fails SQLite's own check was reported as whole) got a test of its own and is noticed now.
+- These are pol's choices, not rulings, and can be changed: the scratch folder beside the device-backup (so it
+  is on the `backup` partition where there is one); keeping the result as a file in the device-backup's folder;
+  `--apply` asking for a passed drill "on this CLI version" is in section 5 and the record carries the versions
+  for it; only SQLite databases are opened (MariaDB and the others are not in a device-backup yet).
+- Next (the second half of bk-3): `restore --apply`. It changes a live machine (stops an instance, swaps its
+  data), so its design goes to the user before it is built for anything but a made-up machine.
+
+### Proposed, NOT built: `isle backup restore <id> --apply` (the second half of bk-3) - pol's proposal, for the user
+
+Nothing of this exists. It is written down so the user can change it before it is built.
+
+- What it is for (the user, 2026-11-20): "per-release so that if a release goes badly we can roll back easily".
+  A device-backup holds data, not programs. So `--apply` puts data back; going back to the earlier programs is a
+  release (the packet of the release before). The two together are a rollback.
+- The verb: `sudo isle backup restore <id> --apply --yes [--item <name>]`. A journaled operation under the
+  device-backup lock, like `create`.
+- Refused before anything is touched: an incomplete or damaged device-backup; one of another device; one with no
+  passed drill of these archives on this CLI version (section 5); too little room for a second copy of the data.
+- For the data of one Polari instance, in this order:
+  1. unpack into a new folder beside the live data, on the same filesystem (the drill's unpacking and comparing);
+  2. stop the instance's container;
+  3. rename the live data aside as `before-<id>` and the new folder into its place (two renames, no copy);
+  4. start the container and wait for its health answer;
+  5. compare the row counts with those in `drill.json`.
+  If step 4 or 5 fails, the two renames are undone and the container is started on the data it had. The folder
+  `before-<id>` is kept until the next `--apply` or until a person removes it with a verb of its own.
+- For the isle's own two folders (settings and state): the same two renames, with every isle service of the
+  machine stopped first. This is the part with the most ways to go wrong: the state folder records which release
+  is installed, and after a rollback of data alone it would name the older one while the newer programs run.
+
+Questions for the user (pol's recommendation first):
+1. Which items by default? Recommendation: only the instances' data. The isle's own folders only when named with
+   `--item`, because of the last point above.
+2. May a release run call `--apply` by itself when a later step fails? Recommendation: no. A person types it; the
+   failed run says which device-backup it took and prints the command.
+3. Where is the first real `--apply` tried? Recommendation: on a made-up instance on pol (a second instance with
+   no real data, deployed for this and removed after), never first on the core. That needs the user's go and
+   their sudo.
+4. How are the counts read after the start (step 5)? Open: by opening the database file read-only while the
+   instance runs, or by asking the engine. Asking the engine is right only if it already has such an answer;
+   nothing is added to the engine by hand for this.
 
 ### Done ahead of bk-0 (2026-11-18): `pol backup plan`
 
