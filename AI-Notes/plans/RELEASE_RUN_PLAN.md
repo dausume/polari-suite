@@ -873,6 +873,9 @@ any-device` is typed on the core.
 - Backend: one-shot twin runs accept only a twin local to the backend (TWIN_DOOR_PLAN, worker 15-2 section).
 
 ### E. Operating system overwrite - a separate kind of update (the user's ruling, 2026-11-18) - PLAN, nothing built
+The longer plan, with what is missing, the proposed verbs and six questions for the user, is OS_OVERWRITE_PLAN.md
+(2026-11-22). This section is the short version.
+
 Ruling: a full OS overwrite must be offerable as an update, but entirely separate from apt updates, because it goes
 by different safety standards and steps. Proposed shape, for review:
 - Three things that never share a channel:

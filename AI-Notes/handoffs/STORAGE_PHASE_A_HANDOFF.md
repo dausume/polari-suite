@@ -3,7 +3,27 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-22, early afternoon (read this first; the blocks below are older).**
+**State on 2026-11-22, afternoon (read this first; the blocks below are older).**
+- Isle CLI dev is `5383564` (branch `pol/backup-apply`, one commit on top of `a1240df`), pushed, pinned in the
+  suite. Every isle CLI test file was run at it: 104 pass, the one that needs the core is skipped.
+- New, priority 4 (backups): `sudo isle backup restore <id> --apply [--yes] [--item <name>]...` puts the data of
+  Polari instances back from a device-backup that passed a drill, and `sudo isle backup before list | drop <item>
+  --yes | undo --yes` handles what is kept from before and a restore that did not finish. `BACKUP_PLAN.md`,
+  "Built 2026-11-22, afternoon", has the order of the steps, every refusal, the undo, and where the build is
+  narrower than the accepted text.
+- State of it: source-tested only (34 tests of its own, 48 deliberate breaks each noticed). It is in no packet
+  (release 92 was built before it), installed nowhere, and has touched no real instance and no real Docker.
+- Not built: putting the isle's own two folders back (naming one is refused and says so); a verb that goes back
+  to the kept `before-` data after a restore that succeeded.
+- The first real run is the user's: on a made-up instance on pol, with their go and their sudo, after a release
+  that carries this CLI is installed there. Nothing of it is pol's to run as root.
+- Priority 5, the operating-system overwrite: `AI-Notes/plans/OS_OVERWRITE_PLAN.md` is written (plan only,
+  nothing built). It lists nine missing pieces, nine safety steps (pol's proposal, not confirmed by the user),
+  proposed verbs `isle os plan | prepare | finish | status`, and six questions for the user. Build nothing of it
+  before they answer; `isle os plan` (read-only) is the first piece once they do.
+- The two staged packets (the midday block below) are unchanged and still not run.
+
+**State on 2026-11-22, early afternoon (the block above is newer).**
 - Isle CLI dev is `a1240df` (branch `pol/file-store-app`, one commit on top of `73b7c58`), pushed, pinned in the
   suite. Every isle CLI test file was run at it: 103 pass, the one that needs the core is skipped.
 - New: the file store as a release written as data, `isle-cli/releases/file-store/` (shape F: one store on one

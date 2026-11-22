@@ -2,9 +2,12 @@
 
 The verbs are `isle backup ...` (decision 1 in section 7: the isle CLI owns storage and the copy to disk; the
 core has no `pol`). Built so far, source-tested only: `isle backup plan | create | list | verify | release-hold`
-and the release-run step kind `backup` (section 6, "Built 2026-11-20"), and `isle backup restore <id> --drill`
-(section 6, "Built 2026-11-22"). Not built: putting a device-backup back (`restore --apply`), the fetch of other
-machines' device-backups, the items the isle CLI cannot name by itself.
+and the release-run step kind `backup` (section 6, "Built 2026-11-20"), `isle backup restore <id> --drill`
+(section 6, "Built 2026-11-22") and `isle backup restore <id> --apply` for the data of Polari instances, with
+`isle backup before list | drop | undo` (section 6, "Built 2026-11-22, afternoon"). None of it has run on a real
+machine's data except `plan`. Not built: putting the isle's own two folders back, going back to the kept data
+after a restore that succeeded, the fetch of other machines' device-backups, the items the isle CLI cannot name
+by itself.
 
 **The word (the user, 2026-11-20): "Jusst call it a device-backup instead of a set, there are a lot of things called
 sets, it is too generic."** A device-backup is one backup of one machine taken at one time. The word "set" is not
@@ -97,7 +100,11 @@ to something older) and then per-release so that if a release goes badly we can 
     sudo isle backup verify <id>          BUILT. re-reads every file against device-backup.json
     sudo isle backup release-hold         BUILT. lowers a write gate that an interrupted device-backup left up
     sudo isle backup restore <id> --drill BUILT. unpacks into a scratch folder, compares with the archives, opens the databases, changes nothing
-    isle backup restore <id> --apply      not built: journaled; staged copy, check, swap; the instance is stopped first, the previous generation is kept
+    sudo isle backup restore <id> --apply [--item <name>]...        BUILT. says what would be put back, changes nothing
+    sudo isle backup restore <id> --apply --yes [--item <name>]...  BUILT for the data of Polari instances. journaled: unpack beside, stop, two renames, start, check; undone when the check fails
+    sudo isle backup before list [--json]  BUILT. the data an instance had before a restore, kept beside its data
+    sudo isle backup before drop <item> --yes   BUILT. removes it
+    sudo isle backup before undo --yes     BUILT. puts a restore that did not finish back as it was
 
 - `restore --apply` refuses a device-backup that is incomplete, one of another device, and one that has not
   passed a drill on this CLI version.
@@ -217,9 +224,10 @@ there does not have this verb.
 - Next (the second half of bk-3): `restore --apply`. It changes a live machine (stops an instance, swaps its
   data), so its design goes to the user before it is built for anything but a made-up machine.
 
-### Accepted 2026-11-22, NOT built: `isle backup restore <id> --apply` (the second half of bk-3)
+### Accepted 2026-11-22: `isle backup restore <id> --apply` (the second half of bk-3)
 
-Nothing of this exists yet. The user accepted it on 2026-11-22 (their words are under the questions below).
+The user accepted this on 2026-11-22 (their words are under the questions below). What was built from it, and
+where the build differs, is in "Built 2026-11-22, afternoon" right after the questions.
 
 - What it is for (the user, 2026-11-20): "per-release so that if a release goes badly we can roll back easily".
   A device-backup holds data, not programs. So `--apply` puts data back; going back to the earlier programs is a
@@ -257,6 +265,72 @@ The questions as they were put (pol's recommendation first):
 4. How are the counts read after the start (step 5)? Open: by opening the database file read-only while the
    instance runs, or by asking the engine. Asking the engine is right only if it already has such an answer;
    nothing is added to the engine by hand for this.
+
+### Built 2026-11-22, afternoon: `isle backup restore <id> --apply` for the data of Polari instances
+
+State: **source-tested only**. In no staged packet (release 92 was built before it), installed nowhere, run on no
+real instance and against no real Docker. Isle CLI branch `pol/backup-apply` (`5383564`), new file
+`isle-cli/scripts/device_backup_apply.py`, tests `scripts/test-device-backup-apply.py`.
+
+- The verbs are in section 5. Without `--yes` it says which instances it would put back, how large the data is
+  and which containers it would stop and start, and changes nothing. With `--yes` it runs through the operation
+  journal (`operations.py`), under the same lock as `create` and the drill, so none of the three runs beside
+  another. `sudo isle operation retry <id>` continues one that stopped.
+- Refused before anything is touched: not root; `--yes` outside the journal; no such device-backup; incomplete,
+  damaged, of another device; a file that no longer matches its record; no passed drill of these archives, or one
+  made with another isle CLI version than the machine runs now; an item the device-backup does not hold; an item
+  named twice; one of the isle's own two folders; an instance that is not deployed now; an instance that uses
+  another volume than the one in the device-backup; data that is not the plain `_data` folder of a local Docker
+  volume on the filesystem of its parent; Docker not saying which containers use the volume; a container on the
+  volume that is neither running nor stopped (paused, restarting); a running instance whose record names no
+  address for the health question; too little room for a second copy plus the 256 MiB kept free.
+- One instance, in the order of the accepted text: (1) unpack into `restore-<id>-<operation>` beside `_data` and
+  compare every entry with the archive, as the drill does; (2) stop every running container that uses the volume,
+  not only the backend; (3) rename `_data` to `before-<id>-<operation>` and the new folder to `_data`; (4) start
+  the containers that were stopped, last stopped first, and ask `<api>/api/health` over verified TLS until it
+  answers or five minutes are up; (5) open the databases of the live data read-only and compare with the tables
+  the drill read.
+- What step 5 treats as a failure: a database that is gone or not whole, a table that is gone, a table that held
+  rows and holds none. A count that only moved is told and does not fail, because a started instance writes.
+  This is pol's reading of "compare the row counts": equal counts cannot be asked of a running instance.
+- Undo, when 1 to 5 fails: stop the containers, the two renames back, remove the unpacked folder, start the
+  containers, ask for the health answer. The result line says which of these it reached. If a container does not
+  start on the data it had, the run stops and says so; the record stays and the next run starts there.
+- An instance that was not running is put back by the two renames and compared with its archive; nothing is
+  started and no database of it is opened.
+- Several instances: one after the other. The first that cannot be put back ends the run; the ones before it stay
+  put back, and the run says which. A retry of the same operation leaves those as they are.
+- While one instance is being put back, a record of it is in the state folder (`restore-apply/<item>.json`),
+  written before each step and removed when the instance is put back or undone. A record that is still there
+  means the restore was interrupted: `before undo --yes` puts that instance back as it was, and so does the next
+  `--apply --yes` before it does anything else. `--apply` without `--yes` then only says that. A record that
+  cannot be read stops everything and names the volume to look at.
+- `before-<id>-<operation>` holds the data the instance had. It stays until the next restore of that instance has
+  succeeded or `before drop <item> --yes` removes it. It is inside the volume's folder beside `_data`, so a later
+  device-backup does not hold it, and it takes the room of one more copy.
+- A restore raises no write gate: the containers are stopped while the data is swapped.
+
+Where the build differs from the accepted text, said plainly:
+- The isle's own two folders are **not** put back, also not when named with `--item`; naming one is a refusal
+  that says so. The accepted answer was "only when named"; the part that stops every isle service is not built.
+- There is no verb that goes back to the `before-` data after a restore that succeeded. A person who wants that
+  today has no command for it; it is the next small piece.
+- `before undo --yes` is new: without it the only way to put an interrupted restore back was to start another.
+
+Tested (34 tests; 48 deliberate breaks of the code, each noticed by a test - one of them, the record written
+before the stop, only after a test was added for it): a made-up device in temporary
+folders, real `tar` and SQLite, a table in place of `docker ps | stop | start`, an object in place of the health
+answer. Not seen, and not claimed:
+- any real instance; any real stop, start or rename. One thing was looked at on pol's Docker (27.3.1) without
+  changing anything: `docker ps --all --filter volume=<name>` lists a container only for the whole volume name
+  (the name without its first or last letter lists none) and prints the two fields the code reads. One thing
+  rests on reading how Docker works, not on a run: that Docker leaves extra folders beside `_data` in a volume's
+  folder alone and removes them with the volume.
+- a machine that restarts in the middle. The record and the undo are tested by an error
+  raised at four points (after the unpacking, after the stop, between the two renames, after the start); a
+  container with a restart policy that Docker starts by itself after a reboot is covered by the undo stopping
+  it first, in the test only.
+- the first real run: on a made-up instance on pol, with the user's go and their sudo (answer 3 above).
 
 ### Done ahead of bk-0 (2026-11-18): `pol backup plan`
 
