@@ -1,8 +1,12 @@
 # Operating-system overwrite - pol's plan (2026-11-22)
 
+**SHELVED by the user on 2026-11-22:** "Let's just keep the two we have currently since we already know they work,
+and worry about updating later and/or doing ISOs later." The two are Ubuntu 22.04 (the two members) and 24.04 (the
+core). The questions of section 7 are not open any more; they are asked again when this is taken up.
+
 **State: plan only. Nothing of this is built, and nothing here was tried on a machine.** Fifth in the user's order
 of work (RELEASE_RUN_PLAN.md, "Priority order"), after the one-command release, the apt separation, storage and
-backups. It grows out of section E of RELEASE_RUN_PLAN.md, which stays as the short version and points here.
+backups. It grows out of section E of ../RELEASE_RUN_PLAN.md, which stays as the short version and points here.
 
 ## 1. Rulings this plan is built on (the user)
 

@@ -17,10 +17,9 @@ You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then th
   to the kept `before-` data after a restore that succeeded.
 - The first real run is the user's: on a made-up instance on pol, with their go and their sudo, after a release
   that carries this CLI is installed there. Nothing of it is pol's to run as root.
-- Priority 5, the operating-system overwrite: `AI-Notes/plans/OS_OVERWRITE_PLAN.md` is written (plan only,
-  nothing built). It lists nine missing pieces, nine safety steps (pol's proposal, not confirmed by the user),
-  proposed verbs `isle os plan | prepare | finish | status`, and six questions for the user. Build nothing of it
-  before they answer; `isle os plan` (read-only) is the first piece once they do.
+- Priority 5, the operating-system overwrite: SHELVED by the user on 2026-11-22 ("keep the two we have currently
+  since we already know they work, and worry about updating later and/or doing ISOs later"). The plan is
+  `AI-Notes/plans/shelved/OS_OVERWRITE_PLAN.md`, nothing built. Two systems and never more: 22.04 and 24.04.
 - The two staged packets (the midday block below) are unchanged and still not run.
 
 **State on 2026-11-22, early afternoon (the block above is newer).**
