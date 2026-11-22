@@ -54,7 +54,9 @@ Roles (first list): `package-repo`, `distribution` (install and operating-system
     isle storage device    list | register | health | retire
     isle storage partition list | create | mount | unmount | assign | check | retire
     isle storage role      list | show <role>      (--isle: every machine's report, side by side)
-    isle storage slot      list | bind
+    isle storage slot      list | check | declare | bind | unbind      (built 2026-11-21, section 9.9)
+    isle storage slot      ready | gate | ungate                       (built 2026-11-22, section 9.10)
+    isle storage kind list | need list | association list              (built 2026-11-21, section 9.8)
     isle storage units     check | apply --dataset <name>
     (existing) isle storage authorize | migrate | cutover | witness | accept | rollback | sync | status
     isle backup plan | create | list | verify | release-hold      writes to the partition with the role `backup` (BACKUP_PLAN.md)
@@ -531,7 +533,7 @@ to the isle itself for simulation purposes, while being distributed throughout t
 - Owed: a comparison on this isle's terms (how KiCad and FreeCAD open the files, offline behaviour, licence, what a
   second copy costs), then the user's choice.
 
-## 9. Kinds of storage, the file pool, and normal apps bound to the isle (the user, 2026-11-21) - PLAN; only 9.8 is built
+## 9. Kinds of storage, the file pool, and normal apps bound to the isle (the user, 2026-11-21) - PLAN; only 9.8, 9.9 and 9.10 are built
 
 Verbatim: "Maybe we should define different kinds of storage types and partitions, for normal polari the seaweed
 FS file storage is the best option, and for long term storage it may also be one of our best options. The
@@ -649,7 +651,8 @@ section 8.
 - Three things are missing, in this order:
   1. the lists of 9.1 (kind, distribution need, association) and the needs check: small, in the isle CLI
      (BUILT 2026-11-21, source-tested, see 9.8);
-  2. slots, the binding of an app's storage need to a role (st-4 in section 5);
+  2. slots, the binding of an app's storage need to a role (st-4 in section 5)
+     (BUILT 2026-11-21 and 2026-11-22, source-tested, see 9.9 and 9.10; the proof on a machine is owed);
   3. the file store run as a pool (9.2), then the mount and the wrapped apps (9.3, 9.4).
 - This replaces "a verb reads a role to place data" as the next piece of storage work.
 
@@ -667,11 +670,12 @@ ahead on 91"
 | 3 | Container images | a plain registry with its data folder on the `registry` partition. |
 | 4 | Long-term storage | left to pol: no role of its own for now. It is `assets` data with the lifetime "until removed". |
 
-### 9.7 A copy that points back at its original (the user, 2026-11-21) - PLAN, nothing built
+### 9.7 A copy that points back at its original (the user, 2026-11-21) - PLAN, only the word `taken` is built
 
 - The requirement, in the user's words: copies "that reference back to the original that reserve the original
   and ensure edits done remotely get applied to it again".
-- Pol's reading, to be confirmed by the user:
+- Pol's reading, CONFIRMED by the user on 2026-11-21 ("That is correct on the copy reserving the original, move on
+  and finish out that work"):
   - A device takes a copy of a file or a folder of a file space onto its own disk. The copy records which
     original it came from and the state of the original when it was taken.
   - While the copy is out, the original is reserved: everyone can still read it, and nobody else changes it.
@@ -680,9 +684,9 @@ ahead on 91"
   - This is also the answer for a device that is away from the isle: the mounted folder of 9.3 needs the
     network, a copy taken beforehand does not.
 - It is a new distribution need beside those of 9.1, "taken": a copy on one device that owes its edits back.
-- Open, for the design: whether "reserve" means that others cannot change the original (the reading above) or
-  only that the original is kept as it was until the edits come back; what happens to a copy that never comes
-  back; whether the edits return by themselves when the device is on the isle again or by a command.
+- Settled: "reserve" means that others cannot change the original while the copy is out, and can still read it.
+- Open, for the design: what happens to a copy that never comes back; whether the edits return by themselves when
+  the device is on the isle again or by a command.
 - As everywhere: each step is an `isle` verb (take, return, drop, list), and Polari holds one small row per
   copy that points at the original.
 
@@ -712,7 +716,7 @@ The table as built. These are pol's choices, not rulings; the user can change an
 | registry | image-registry | served, cached | isle |
 | blob | file-pool | pooled | isle, app |
 | git | git | served | isle |
-| assets | file-pool | pooled, cached | app, isle |
+| assets | file-pool | pooled, cached, taken | app, isle |
 | backup | plain-folder | kept | machine |
 | scratch | plain-folder | kept | machine |
 | transfer | plain-folder | carried | isle |
@@ -722,11 +726,144 @@ of the file store; `image-registry` Docker with an image of `registry`; `git` Do
 
 Also pol's choices: a missing program or image never refuses a role (the user may assign first and install
 after); "installed" is in the list of needs and no role uses it yet (it is for the wrapped apps of 9.4);
-"taken" (9.7) is not in the list until the reading of "reserve" is confirmed; the lists of copies and of
-lifetimes are left to slots, where they are first used.
+"taken" (9.7) was added to the list of needs once the user confirmed the reading of "reserve" (2026-11-21), and
+`assets` is the one role that allows it; nothing takes or returns such a copy yet; the lists of copies and of
+lifetimes are in slots (9.9), where they are first used.
 
 Not done: the capability report and the isle-wide view do not carry which kinds a machine is ready for; no plan
 reads a distribution need yet; nothing starts a storage process, a registry or a mount.
 
 Tests: `test-storage-kinds.py`, 31 tests on a made-up machine with a made-up path and a made-up Docker. 115
 deliberate breaks, 114 caught; the one left changes nothing while no kind's name is part of another's.
+
+
+### 9.9 Built (2026-11-21): storage slots, and an app started with them - source-tested, for release 92
+
+Item 2 of 9.5. Isle CLI dev `d4a396a` (branch `pol/storage-slots`: `19fe4b2` the slot verbs, `d4a396a` the app's start).
+Installed nowhere.
+
+A storage slot is one storage need of one app: a folder the app sees, the role of the partition that has to
+hold it, and whether the app writes to it.
+
+- A release declares its slots in the list `storageSlots` of its release manifest. (`storage` in a manifest is
+  already the dataset bind of a hosting app, so the slots have their own key.) Each slot: `name`, `role`,
+  `target` (the plain absolute path inside the app), and optionally `service`, `writable` (false when left
+  out), `owner` (`<user>:<group>` as numbers), `distribution`, `association`, `copies` (1 or 2), `lifetime`
+  (`until-removed`, `release`, `scratch`), `sizeBytes`. Any other key is refused. The kind comes from the role.
+- What an app declares is kept with the app: `/etc/isle-mesh/apps/<app>/storage-slots.json`.
+- A binding is kept in the machine's storage record, beside the partition's roles: slot, role, filesystem
+  identifier, when. No second store.
+- The data is one folder at the root of the partition: `isle-slots/<app>/<slot>`. A folder that is there
+  already is kept with what is in it, so a disk carried from another machine is taken up as it is.
+
+Verbs:
+
+- `isle storage slot list [--table]` and `isle storage slot check [--app <app>] [--table]` - no root. `check`
+  exits 1 unless every slot is `ok`.
+- `sudo isle storage slot declare <app> --from <release.json>` - keeps the list; binds, makes, starts nothing.
+- `sudo isle storage slot bind <app> <slot> --partition <filesystem-identifier>` - makes the folder, writes
+  the binding.
+- `sudo isle storage slot unbind <app> <slot>` - takes the binding out; the folder and its data stay.
+
+States a slot can be in: `ok`, `not bound`, `not declared`, `declaration cannot be read`, `partition away`,
+`partition needs attention`, `role taken away`, `declared with another role`, `folder missing`,
+`mounted read-only`.
+
+What is refused, with nothing changed: binding a slot the app does not declare; a partition that is away, does
+not carry the role, or needs attention; a written slot on a partition mounted read-only; less free space than
+`sizeBytes`; something at the folder's name that is not a folder of the partition itself (a link is never
+followed); a slot bound to another partition already; a release that drops a bound slot or changes its role;
+`partition retire --role` while a slot is bound under that role; `partition unmount` without
+`--with-datasets` while a slot is bound to the partition.
+
+How an app is started with its slots:
+
+- `isle store publish` refuses a release whose `storageSlots` cannot be read. `isle store install` refuses one
+  that names a service its compose file lacks, before any image is loaded.
+- An install keeps what the release declares and then, before anything is deployed, refuses unless every slot
+  is `ok`. So the first install of an app with slots is a refusal that says which slot to bind; after the
+  `slot bind` commands the same install goes through.
+- `isle app deploy` runs `slot check --app <app>` before it writes or starts anything. The app's overlay then
+  gives each slot's folder to its service at `target`, read-only unless the slot is `writable`. Docker is told
+  never to make a missing folder, so an absent partition fails the start and nothing is written to the system
+  disk in its place.
+- `isle reconcile` (the restart at an update) leaves an app alone when its slots are not all `ok`, or when its
+  overlay does not give exactly the folders that are bound now.
+- An app without `storage-slots.json` is started exactly as before.
+
+pol's choices, not rulings; the user can change any of them:
+
+1. The manifest key `storageSlots`, and the fields and their defaults (not written, one copy, kept until
+   removed, the role's first distribution need, belongs to the app when the role allows it).
+2. The folder name `isle-slots/<app>/<slot>` at the root of the partition.
+3. A slot is bound by hand, one command per slot. The CLI never picks the partition. (A plan that picks it from
+   the roles is the natural next step; it is not built.)
+4. The first install of an app with slots refuses and keeps the declaration, instead of installing the app
+   without its folders.
+5. `unbind` never removes data, and no verb removes a slot's folder.
+6. Two slots may sit inside one another (`/a` and `/a/b`), and a slot may sit on top of a volume of the app's
+   own compose file; only two folders at the very same place in one service are refused.
+
+Not done:
+
+- The unit that stops an app when its partition goes away was built after this: 9.10.
+- A second copy: `copies: 2` is recorded and shown, no more. Moving a slot's data between partitions.
+- `lifetime` and `distribution` are recorded and shown; nothing acts on them yet.
+- A binding whose declaration file was removed by hand is shown as `not declared` by `slot list`, and the
+  deploy does not look at it.
+- The pool (9.2), the mount with a cache (9.3), the wrapped apps (9.4) and the copy that points back (9.7).
+
+Tests: `test-storage-slots.py` (62 tests) and `test-storage-slot-start.py` (24 tests) on the made-up machine;
+4 more in `test-catalog-artifacts.py`. The deploy script is never run whole: only its slot lines, with a
+made-up check. Deliberate breaks: 161 of the slot verbs and 80 of the app's start, every one caught by a test. Whole isle CLI test run: 96 ok, 1 skipped (`test-apt-local-priority.py`, which needs the core), 0 failed..
+
+### 9.10 Built (2026-11-22): an app stopped and started with its partitions - source-tested, for release 92
+
+The rest of item 2 of 9.5 (st-4 in section 5). Isle CLI dev `39b1893` (branch `pol/storage-slots`). Installed
+nowhere. The unit it writes has run against a made-up `systemctl` only, on no machine.
+
+- `isle storage slot ready <app>` - no root, changes nothing. Exit 0 when every slot of the app can be used and
+  the app's overlay gives exactly the folders that are bound now; exit 1 with the reason. An app that declares
+  no slot is ready.
+- `sudo isle storage slot gate <app>` - writes the unit `isle-app-<app>.service`, enables it and starts it.
+  - The unit is bound to the mount units of the partitions the app's slots are bound to (the units of
+    `partition mount`, section 5). A partition that goes away stops the app. A partition mounted again by its
+    unit starts it.
+  - The unit is wanted by those mounts and never by the start of the machine, so a disk that is away holds
+    nothing up at boot.
+  - Before each start the unit asks `slot ready`. The start is the deploy's own compose call from the app's
+    folder, with no build and no pull. The stop is a compose stop: containers are kept, not removed.
+  - Refused, with nothing changed: an app that is not deployed, declares no slot, hosts a dataset (the
+    dataset's own unit starts and stops it already), is not ready, or has a unit of that name which this verb
+    did not write.
+  - Typed again with nothing to do, it says so and changes nothing.
+- `sudo isle storage slot ungate <app>` - takes the unit away and leaves the app as it is, running or not.
+- `isle app undeploy <app>` takes a unit of `slot gate` away first. Without that, the next mount of the
+  partition would start an app that was taken down.
+- `slot list` and `slot check` say when an app's unit no longer names the partitions its slots are bound to
+  now, and print the command that writes it again (`unitsOutOfDate` in the JSON). The exit code of
+  `slot check` is not changed by it.
+
+pol's choices, not rulings:
+
+1. The unit is wanted by the mounts, not by the machine's start.
+2. `gate` starts the app if it is not running. `ungate` never stops it.
+3. No install and no deploy gates an app. The verb is typed once per app. (Doing it in the install is one line
+   once the unit has been seen to work on a machine.)
+4. `undeploy` ungates first, and stops with an error if that fails.
+
+Not done, and not proven:
+
+- The proof on a machine: an app stops cleanly when its partition is unmounted and starts when it is mounted
+  again. It needs a deployed app with a slot, a partition that may be unmounted, and the user's go.
+- `ungate` leaves the app running by first putting a unit in place that stops nothing, then stopping that.
+  This rests on how systemd treats a unit changed while it is active. Seen only against the made-up
+  `systemctl`.
+- A partition mounted by hand, without its mount unit, does not start the app. `slot gate <app>` typed again
+  does.
+
+Tests: `test-storage-slot-gate.py`, 30 tests with a made-up `systemctl` and temporary folders; the undeploy
+lines are run alone with a made-up `sudo`. 122 deliberate breaks, every one caught. Whole isle CLI test run:
+96 files ok, 1 skipped (`test-apt-local-priority.py`, needs the core), 1 failed: in `test-apt-repo-publication.py` one
+step ran past its own 15-second limit. That file was run again alone on the same commit and passed (25 tests). The
+commit does not touch what it tests; the likely cause is other work on the machine during the run.

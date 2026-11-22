@@ -3,7 +3,21 @@
 Written 2026-11-14, rewritten 2026-11-15 (Sat) by the pol-core Claude session after phase A completed.
 You are the **pol-core** agent. Read `CLAUDE.md`, then the memory index, then this file.
 
-**State on 2026-11-21, late night (read this first; the blocks below are older).**
+**State on 2026-11-22, after midnight (read this first; the blocks below are older).**
+- Isle CLI dev is `39b1893` (branch `pol/storage-slots`, three commits): storage slots. Source-tested, for
+  release 92, installed nowhere. `STORAGE_ROLES_PLAN.md` 9.9 and 9.10.
+  - `isle storage slot list | check | declare | bind | unbind`: a release declares its storage needs in the
+    list `storageSlots` of its manifest; a slot is bound by hand to a partition that carries its role.
+  - An app with slots is installed, deployed and restarted only when every slot is `ok`.
+  - `isle storage slot ready | gate | ungate`: a systemd unit per app, bound to the mounts of its partitions.
+    The unit has run against a made-up `systemctl` only. The proof on a machine is owed and needs the user's go.
+- The user confirmed the reading of "reserve" (9.7) on 2026-11-21: "That is correct on the copy reserving the
+  original, move on and finish out that work".
+- Next in storage: the file store as a pool (9.2), then the mount and the wrapped apps, then the copy that
+  points back (9.7).
+- Still waiting on the user's go: the 22.04 dependency-set packet (see the blocks below).
+
+**State on 2026-11-21, late night (the block above is newer).**
 - Isle CLI dev is `3313c57` (branch `pol/storage-kinds`): `isle storage kind list`, `need list`,
   `association list` (read-only, no root), and `partition assign` / `partition create` say what this machine
   does not have for the kinds of the roles they gave (a notice, never a refusal; nothing is installed).
