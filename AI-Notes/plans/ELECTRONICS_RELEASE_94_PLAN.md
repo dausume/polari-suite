@@ -85,6 +85,10 @@ a design question, open in §5.
     backend's gRPC is plaintext :3002 and the agent serves HTTPS by name only, so nothing routes it. And the hosted
     start takes its target from `<host the server was reached at>:3002` (`export_demo.grpc_target`), not from the
     bridge's `PolariBridgeInstance.polari_node_url`, which already names the node's isle URL.
+  - The Polari half was built the same evening (source-tested, `grpcbridge.custom.bridge_link`). A bridge started for
+    an instance pushes to `grpc.<node>.isle:443` with verified TLS, whether the far end is a cabled board or its twin.
+    The isle half is a request to isle-core: `ISLE_GRPC_ROUTE_REQUEST.md`. Both land in a release after 94, not in 94,
+    because the route needs an isle change first.
 - Should a packet be run by its own runner, so a fix to the run is seen in the release that brings it?
 - The publish step still reads every package on every release (25 GB on the core). A kept index, or pruning old
   releases. Not started.
