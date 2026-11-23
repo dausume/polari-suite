@@ -6,6 +6,9 @@ fix anything that needs fixed". On the ESP worker (decisions 2 and 3 of §7): "y
 
 State words used here, never merged: source-tested → staged → installed → live-verified.
 
+**State 2026-11-23: release 93 is installed on all three devices** (the user ran it on the core). What was proved live, what
+failed and what is still owed: §5.
+
 Companions: `TWIN_DOOR_PLAN.md` (the door and its install records), `ELECTRONICS_DISTRIBUTION_PLAN.md` (which worker on which
 device), `PIN_TWIN_PLAN.md` (the C3 pin model), `RELEASE_RUN_PLAN.md` (the one-command release), `TESTING_OWED.md` §80 (evidence).
 
@@ -23,11 +26,11 @@ Six findings from that proof:
 | # | Finding | Where it is fixed |
 |---|---|---|
 | 1 | No bridge worker is installed anywhere, so no path from the page to a real board | release 94 (a store app on pol) |
-| 2 | A click on SW1 in the picture selected a wire instead of pressing the button | frontend source, in release 93 |
-| 3 | Escape unbound the session from the page | frontend source, in release 93 |
-| 4 | `hal` is not a module of `polari-pol` (an update drops it), so `/api/hal/socs` answers 404 | release 93 (`module-add`) |
-| 5 | C3 configs are offered, and no ESP worker is installed | the worker: release 93 (a store app on econ). A live C3 session: its own slice (§4) |
-| 6 | The page description is shown twice | not looked into yet |
+| 2 | A click on SW1 in the picture selected a wire instead of pressing the button | frontend source, in release 93. Live-verified 2026-11-23 |
+| 3 | Escape unbound the session from the page | release 93's fix is installed and does NOT hold on the real page (§5). Fixed again in source, for release 94 |
+| 4 | `hal` is not a module of `polari-pol` (an update drops it), so `/api/hal/socs` answers 404 | release 93 (`module-add`). Live-verified 2026-11-23 |
+| 5 | C3 configs are offered, and no ESP worker is installed | the worker: release 93 (a store app on econ), live-verified 2026-11-23. A live C3 session: its own slice, `C3_SESSION_PLAN.md` (c3g-1 and c3g-2 source-tested 2026-11-23) |
+| 6 | The page description is shown twice | cause: the page definitions of the Sim bench and the Layout gave the page's text to the picture panel as well. Each picture now has its own two lines, and the bench self-test fails if a panel repeats the page text. Source-tested 2026-11-23 (48 of 48), for release 94 |
 
 ## 2. Release 93: what it carries
 
@@ -123,16 +126,59 @@ Order of work:
 
 Found on the way, open: `isle store build` reads a relative definition path against the CLI's own folder (an absolute path works).
 
-## 5. The proof after release 93 is installed
+## 5. The proof after release 93 was installed (run 2026-11-23)
 
-1. `https://api.polari-pol.isle/api/modules/status`: 16 modules online, `hal` among them. `/api/hal/socs` answers 200.
-2. Sim bench, `uno-light`: a click on SW1 in the picture presses the button and LED1 follows (finding 2).
-3. Escape on the page keeps the session (finding 3).
-4. The CLI session as in §1.
-5. `isle store status` on econ: `esp-engines` on `2026.11.22-1`. `https://esp-engines.isle/capability` answers 200 with its engines.
-6. `pol engines sync --api https://api.polari-pol.isle`, then `pol engines list --api https://api.polari-pol.isle`: the `esp`
-   engine is bound to the isle's worker.
-7. A C3 light build and a pin-model run through that worker, from the Electronics app or `pol`.
+The run on the core: started 07:28, done there 08:45 (about 77 minutes: 12 for the runtime publish, about 22 for the package
+publish, which printed nothing while it read 2,156 files and 25 GB for the index). pol and econ followed by their timer and
+were done at 08:53. Release id `fe3c5d1246efe0b5ada054cb73d3030358a26235a8421c0ffbd7c1dd8ceae519`. pol's CLI is
+`isle-mesh-cli 0.1.213+release93`.
+
+Every check below went to `https://api.polari-pol.isle` or the named isle host, with verified TLS.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Modules of `polari-pol`; `/api/hal/socs` | **live-verified**: 16 of 16 online, `hal` among them; 200 with two SoCs (atmega328p, esp32c3) |
+| 2 | Sim bench, `uno-light`: a click on SW1 in the picture | **live-verified**: "LED1 (D6): lit — pin high", the press and the release with their twin cycles, the LED drawn lit; a second click: dark |
+| 3 | Escape with a wire selected keeps the session | **FAILED**: one Escape cleared the wire AND unbound the session. Cause and fix below |
+| 4 | The CLI session | **live-verified**: `pol board twin session start uno-light`, the button pad low, the LED pad high 350 cycles later, and back; through the worker's door on `board-engines.isle` |
+| 5 | The ESP worker | **live-verified**: `https://esp-engines.isle/capability` 200 with its six engines. (`isle store status` is not a verb; `isle store list` and `isle store show esp-engines` are.) |
+| 6 | The `esp` engine bound | **live-verified** without `pol engines sync`: `pol engines list` shows `board-engines@board` and `esp-engines@esp` on their isle workers |
+| 7 | A C3 light build and a pin-model run through that worker | **live-verified from the client side**: the chip-HAL build (`pin_shim 0`) built in 127 s, and the press run on the modelled pads ended with the LED on (pads 300/450/600 ms, 3 presses counted). Run by a small script over `board.custom.light_c3_run` with `ESP_ENGINES_URL=https://esp-engines.isle`. Not checked: that the 127 s build was ONE request (the keep-alive's case) |
+
+**Finding 3, why the installed fix does not hold.** The fix (`escape-first.ts`) lets the picture take Escape in the capture
+phase and call `preventDefault()`, and the table leaves a prevented Escape alone. On the real page that call does nothing:
+
+- The Material focus monitor (`@angular/cdk`, `InputModalityDetector`) registers a PASSIVE capture listener for `keydown` on the
+  document, before any page component exists.
+- zone.js keeps one native listener per (target, event, capture), with the options of the first registration. So every later
+  capture listener for `keydown` on the document runs as passive, and its `preventDefault()` is ignored.
+- Measured on the page: the picture's listener ran, cleared the wire and called `preventDefault()` on a cancelable event, and
+  `defaultPrevented` stayed false. A capture listener added through zone.js could not prevent a test key; the same listener
+  added past zone.js could.
+- The component spec has no focus monitor, so it passed.
+
+The fix for release 94 (frontend source): the picture marks the event as spent in a set of its own, and the table asks
+`escapeSpent(ev)`. The specs now use a key that cannot be prevented, and one runs the picture's listener and the table's own
+document listener together.
+
+**What the proof showed besides:**
+
+- No server-side entry builds or runs the C3 light through the `esp` binding: `POST /api/board/installer/build` is UNO only,
+  sessions use the AVR worker only. Item 7 therefore ran from the client.
+- `pol board gen c3` has no option for `pin_shim`, and its help does not name `esp32c3-light`. The chip-HAL build has no CLI verb.
+- `board.board_light_c3_selftest` skips with a remote worker (it wants a local binary or image).
+- The mouse wheel over the picture zooms it instead of scrolling the page.
+
+**Closed in source the same day (for release 94, not committed):**
+
+- `pol board gen c3 --knob NAME=VALUE`: the chip-HAL light is `pol board gen c3 --variant esp32c3-light --knob pin_shim=0`.
+  A knob the variant does not have is refused, never dropped. The help names `esp32c3-light`.
+- The C3 light proof accepts a worker over the engine ladder (`c3-run` is a batch engine), so
+  `pol firmware prove esp32c3-light` works where the ESP engines are on another device. Run from the source tree with the
+  isle's ESP worker named: all four Purposes passed on the chip-HAL build with the pin model, nothing pushed.
+- `board.board_light_c3_selftest`: 35 of 35, no skip.
+
+What is still missing for the C3 is a session the page can press (the `c3g` slice); the UNO has one.
 
 ## 6. Open, not part of 93
 

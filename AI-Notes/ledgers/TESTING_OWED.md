@@ -7888,7 +7888,7 @@ Downloads folder). Six findings, listed in the plan §1; two are fixed in the fr
 - Finding 6 (the page description shown twice) is not looked into.
 - A live C3 session does not exist in the code (twin sessions are AVR only); the plan §4.
 
-## §81 — release 93 rebuilt with the ESP worker as a store app (2026-11-22, Isle-Mesh `d6e7f25`, rf-node `cc25fb5`; staged on the core, not installed)
+## §81 — release 93 rebuilt with the ESP worker as a store app (2026-11-22, Isle-Mesh `d6e7f25`, rf-node `cc25fb5`; installed on all three 2026-11-23, live proof below)
 
 The user, 2026-11-22: "yes to both 2 and 3, incorporate them into 93". Supersedes the packet of §80 (run id `3a52a74a…`).
 Run id now `3f217807400de9a29f91c73087b256830e8723ef1b7eb39fbd354400f62956e9`.
@@ -7905,8 +7905,10 @@ Source-tested / proved on pol, nothing live:
 
 Owed:
 
-- Everything live: the install on econ, `https://esp-engines.isle/capability`, the engine bound on `polari-pol`, a C3 light
-  build and a pin-model run through the isle's worker (plan §5, items 5 to 7). The keep-alive has not met the real agent yet.
+- Done 2026-11-23, see "Installed and proved" below: the install on econ, `https://esp-engines.isle/capability`, the engine
+  bound on `polari-pol`, a C3 light build and a pin-model run through the isle's worker. Still owed of it: proof that a build
+  longer than 60 s went through the real agent as ONE request (the keep-alive's case; the 127 s build below was not looked
+  at that closely).
 - A packet with SEVERAL store apps on a real core (needs the release-93 runner; source-tested only).
 - A per-app read timeout in the agent (the worker's keep-alive covers this worker only).
 - `isle store build` with a relative definition path reads it against the CLI's own folder.
@@ -7923,3 +7925,146 @@ Found while the user ran release 93 on the core (2026-11-23):
 - Owed: that index scan reads the whole repository on every release (25 GB, 2,156 files, a spinning disk; 41 old offline
   packages are 7.5 GB of it). A cached index, or pruning of old releases. It took 14 minutes on release 92 and more on 93,
   with the core busy and in swap.
+
+Installed and proved (2026-11-23; the user ran the release on the core, pol and econ followed by their timer; every check
+against `https://api.polari-pol.isle` or the named isle host, verified TLS):
+
+- Installed on all three: core 08:45, pol and econ 08:53. About 77 minutes on the core.
+- Live-verified: 16 of 16 modules of `polari-pol` online with `hal`; `/api/hal/socs` 200 (two SoCs).
+- Live-verified: `https://esp-engines.isle/capability` 200 with six engines; `pol engines list` shows the `esp` and `board`
+  engines bound to their isle workers (no sync needed).
+- Live-verified: the CLI twin session (`pol board twin session start uno-light`; button pad low, LED pad high 350 cycles
+  later, and back).
+- Live-verified, from the client side: the C3 chip-HAL light (`pin_shim 0`) built through the isle's ESP worker in 127 s and
+  pressed on the modelled pads (LED on at the end, 3 presses counted). Run by a small script over
+  `board.custom.light_c3_run` with `ESP_ENGINES_URL` set; there is no `pol` verb and no server-side entry for it.
+- Live-verified in the browser: a click on SW1 in the Sim-bench picture presses the button and LED1 follows (finding 2).
+- **FAILED live: finding 3.** With a session bound and a wire selected, one Escape cleared both. The release-93 fix is in the
+  served frontend and its listener runs; its `preventDefault()` is ignored, because the Material focus monitor registers a
+  passive capture listener for `keydown` on the document first and zone.js gives every later one the same options. The
+  component spec has no focus monitor and passed.
+- Source-tested, for release 94 (frontend, not committed yet): the picture marks the Escape as spent itself
+  (`escapeSpent`), the table asks that. The specs use a key that cannot be prevented; one runs the picture's listener and the
+  table's document listener together. Table, layout view and pin view specs: 99 of 99; with the mark taken out, exactly the two
+  new specs fail. Owed: live, after release 94.
+
+Owed from the proof:
+
+- ~~A `pol` verb for the chip-HAL build~~ and ~~`board.board_light_c3_selftest` skips with a remote worker~~: both closed
+  in source the same day, below. Still owed: a server-side C3 light path (a C3 session the page can press, the `c3g` slice).
+- Finding 6 (the page description twice) is still there. The mouse wheel over the picture zooms instead of scrolling the page.
+
+The C3 light as CLI steps (2026-11-23, source-tested, not committed; for release 94):
+
+- `pol board gen c3 --knob NAME=VALUE` sets any knob the variant has; the chip-HAL light is
+  `pol board gen c3 --variant esp32c3-light --knob pin_shim=0`. Refused with exit 1 and the reason, never dropped: a knob
+  the variant does not have, a misspelt knob, a word without a value, a knob named twice, a knob given by its own option
+  and by `--knob`, a value outside the knob. The help names `esp32c3-light` and the light's knobs.
+- The C3 light proof (`light_c3_run.engine_ready`) took only a local engine, so `pol firmware prove esp32c3-light` was
+  refused wherever the ESP engines are a worker on another device, which is the isle. `c3-run` is a batch engine (files in,
+  files out), so a worker over the ladder now counts. The UNO's light twin stays local: its bridge attaches to a process.
+- `board.board_light_c3_selftest`: 35 of 35 on pol's local engines image, no skip (three checks for the knob option, one for
+  the readiness rule with the ladder's answer faked, no network).
+- With the isle's ESP worker named by the knob, `pol firmware prove esp32c3-light` (no `--api`: nothing pushed) passed all
+  four Purposes on the chip-HAL build (`PIN_SHIM 0`) with the pin model. The verb ran from the source tree against the live
+  worker: source-tested, not installed.
+- Owed: both in release 94; then `pol firmware prove esp32c3-light --api` against the isle, so the config reads finished on
+  the scores page (that stores four runs on the isle: the user's go first).
+
+### §81 addendum — finding 6 and the C3 session slice (2026-11-23, pol, uncommitted during working hours)
+
+- Finding 6 (the page text shown twice on the Sim bench and the Layout): the backend page definitions passed the page's
+  text to the picture panel too. Fixed in `hwnocode/sim_bench_page.py` and `board/layout_page.py`;
+  `board.board_bench_selftest` 48 of 48 with a new check per page. Source-tested. Owed: release 94, then a look at both
+  pages on the isle.
+- c3g-1 and c3g-2 (`AI-Notes/plans/C3_SESSION_PLAN.md`): a live C3 twin behind the AVR twin's control line
+  (`prf-esp-engines/polari_c3_twin.py`), and sessions in the ESP worker through the one sessions module
+  (`prf-board-engines/board_sessions.py`, `SESSIONS_KIND=c3`). Source-tested with no network: `test_c3_twin.py` 10 of 10 and
+  `test_c3_sessions.py` (7 on a stand-in QEMU, 1 real) in a trial image; the real chip-HAL light image, two presses on
+  GPIO3 over a session's control port gave GPIO0 = 1 then 0; one session held 64 MiB. The AVR door (29 of 29) and hold
+  (8 of 8) self-tests pass on the changed module in the released board image.
+- NOT done: the tracked ESP Dockerfile was not rebuilt (its heavy layers were not cached, and a rebuild downloads: the
+  user's word). The trial image is the local released image plus the Dockerfile's late lines.
+- c3g-3 (the backend by chip family): `board/custom/twin_kinds.py` holds what differs per chip; the sessions module,
+  the hub and the API doors are shared. Source-tested with no worker, no QEMU and no network:
+  `board.board_twin_session_c3_selftest` 33 of 33 (a made-up esp worker and C3 twin), and on the changed backend the UNO
+  checks are unchanged (session 28 of 28, transport 20 of 20, bench 48 of 48, hosted bridge 65 of 65).
+  NOT proven: the backend against the real esp worker (needs the rebuilt image and the door); a first C3 build
+  inside a start request through the isle's agent (minutes long).
+- c3g-5 (the Sim bench picture for a C3, plan §6): the layout engine reads one small table per board
+  (`electrodevice/custom/layout_boards.py`) and the twin facts per chip (`twin_kinds`), so `esp32c3-light` gets a
+  layout: circuit `c3-light`, wires from the ESP32-C3-DevKitM-1's headers (`bench-c3-1`, a design stand-in: no C3
+  board is on the bench), a press that drives GPIO3 to 0 and a release that lets the pad go, edges in ns, no ADC.
+  The browser draws any development board from the connectors the door sends. Source-tested 2026-11-23:
+  `electrodevice.layout_selftest` 110 of 110 (18 of them the C3's), the electrodevice module 139 of 139, bench 48 of
+  48, the sessions 28 of 28 and 33 of 33, the page module 171 of 171, browser tests 131 of 131. The UNO layout's
+  `sha` and `steps_sha` are the same before and after.
+  The two halves were also put together once by hand: the layout the engine really builds for `esp32c3-light`
+  took the made-up scene's place in the mounted view's tests, and all 40 passed (not kept as a fixture).
+  NOT proven: the page in a real browser against a live session; the picture against a real board's header
+  order; a slider part on a C3 (no C3 circuit has one).
+- The whole board module on that tree, 2026-11-23: `board.board_selftest` 1,198 of 1,198 in 28 minutes on pol (one
+  check skipped in words: pol has a local twin). Run before the installer work (`ins-c3`) touched the module.
+- The ESP worker's cost record now holds a session's memory (64 MiB, measured once).
+- Owed: the user's answer on the door and the rebuild (plan §4); which real C3 board will be on the bench;
+  release 94, then the live proof (a press on the Sim bench lights a C3's LED).
+
+### §81 addendum 2 — the publish step says what it is doing (2026-11-23, pol, uncommitted during working hours)
+
+- What the release-93 run showed: the apt publish step read every package twice and said nothing for minutes, so it
+  looked frozen. `isle-cli/scripts/apt-repo.sh` now says how many packages and how much data it checks, a count at
+  most every 15 s (`ISLE_APT_PROGRESS_S`), that the index is being built, a line every 30 s while it is
+  (`ISLE_APT_HEARTBEAT_S`), and how long the index took. What is checked, copied and published is unchanged.
+- Source-tested with no root and no network: `test-apt-repo-publication.py` 28 of 28 (three new: the lines are
+  said and the published result is the same; a setting that is no number falls back; the heartbeat speaks while the
+  index is built and never outlives the script), `test-apt-deps-index.py` A to E pass (F not run: its container
+  has no python3), `test-apt-isle-pin.py` all pass.
+- `test-apt-local-priority.py` cannot run on pol, with or without this change: it mounts the offline installer's
+  medium from where the offline package puts it, and pol has none there (the path is the test's first argument).
+  It ends in a docker error, where a line saying what is missing would do. Not a failure of the code under test.
+- `isle release run` streams the publish step's lines as they come, so the progress shows there. `core-install.sh`
+  writes the publish output to a log and shows its last two lines, so it does not show there. Left as it is.
+- NOT done: the index is still built from every package on every publish. Keeping the index of unchanged packages
+  is a separate piece of work, not started.
+- Owed: release 94, then a look at the lines during a real publish on the core.
+- Found while scanning this file whole (2026-11-23): 16 older lines of this ledger (September, the old swarm stack's
+  test hosts) hold the same private-network address the privacy list matches in the old `polari-cli` swarm scripts.
+  They were committed long ago. Owed with that fix: made-up addresses in both; the history keeps the old value.
+- Counted across every tracked file of the forest the same day (counts only, nothing printed): 131 lines in 58 files
+  match the privacy list (polari-cli 33 in 9 files, the suite 44 in 12, rf-node 7 in 3, the framework 37 in 31,
+  angular 4 in 2, app-shell 6 in 1, Isle-Mesh none). 110 of them are the one private-network address; three other
+  entries of the list match 21 lines. Some are seeded data (`initialData` reports) whose content may be bound to a
+  recorded sha256. Not changed: the user's decision (a fix at the tip only, the data files, the history).
+
+### §81 addendum 3 — the installer takes a C3 (ins-c3-1, 2026-11-23, pol, uncommitted during working hours)
+
+- `AI-Notes/plans/C3_INSTALL_PLAN.md` §6. One installer: a small table says which board a variant, build or target
+  is; the C3's steps are their own module; the UNO's are unchanged. A C3 real plan is esptool's exact command with
+  four checks (chip-HAL build; the three files are the image the twin ran, byte for byte; the gate; the Purposes
+  ran this image). A sim install is a twin session with the build's own image.
+- Source-tested with no network, engine or board: `board.board_installer_c3_selftest` 51 of 51 (negative controls:
+  shim build, a changed byte, a missing file, no `flash_args.txt`, runs on another image, a run naming no image,
+  esptool verifying two files of three, the files changed between plan and run); UNO installer 61 of 61 unchanged.
+- Owed: the page (ins-c3-2); in a release, `pol board install c3 --real --dry-run` on pol against the isle
+  (ins-c3-3); a real flash once a C3 is on pol and the user says so (ins-c3-4).
+- ins-c3-2 (the Install Firmware page takes the board the server names; the words come from the server):
+  panel browser tests 17 of 17; `board.board_installer_c3_selftest` 52 of 52. Not looked at in a real browser.
+- The whole board module with ins-c3-1 in (2026-11-23, 25 minutes): 1,248 of 1,249. The failure: td-2 "unknown
+  session" got the twin's 5 s answer timeout instead of the door's close code, while browser tests ran at the same
+  time. `board_twin_transport_selftest` alone: 20 of 20, three times.
+  Cause found in the source: `twin_ctl_hub.Hub.request()` empties the reply queue before it sends. A door that closes
+  at once (an unknown session) can queue its refusal before that, so it was thrown away and the request waited 5 s,
+  then said "did not answer" instead of the door's code. Fixed: after the drain, a hub already closed answers with
+  its close words (`close()` marks the hub closed before it queues, so no order of the two is missed). Source-tested:
+  transport 20 of 20 three times, and four runs at once with every CPU busy all 20 of 20; sessions 28 of 28 and 33
+  of 33. The failure itself was not made to happen again on purpose, before or after the fix.
+- Small items closed in source the same day (for release 94, uncommitted):
+  - `firmware-solution-panel`: its document-wide Escape left alone an Escape a picture already spent (the rule of
+    `escape-first.ts`, as the rows table follows it). Browser tests: that panel and the table, 51 of 51, one new.
+  - `electrodevice/custom/layout_sources.py`: `power_label()` (no caller, a fixed `+5V`) removed; the docstring
+    names each board's circuit. Layout 110 of 110, the C3 layout 20 of 20. `_level_of` taking `5V` as a supply
+    stays: the C3 board's `5V` header pin is the USB 5 V.
+  - `prf-esp-engines/README.md`: the pin model's state brought up to date (built 2026-11-22, in release 93), and
+    sections on twin sessions and on the `esp-engines` store app.
+- Final run on the tree to be committed (2026-11-23, 13:29-13:56, pol, no worker, no network): `board.board_selftest`
+  1,250 of 1,250 (with ins-c3-1/2 and the hub fix), `electrodevice` 139 of 139.
