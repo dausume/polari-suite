@@ -7887,3 +7887,27 @@ Downloads folder). Six findings, listed in the plan §1; two are fixed in the fr
 - Installed and live-verified: nothing yet. The proof list after the install is the plan §5.
 - Finding 6 (the page description shown twice) is not looked into.
 - A live C3 session does not exist in the code (twin sessions are AVR only); the plan §4.
+
+## §81 — release 93 rebuilt with the ESP worker as a store app (2026-11-22, Isle-Mesh `d6e7f25`, rf-node `cc25fb5`; staged on the core, not installed)
+
+The user, 2026-11-22: "yes to both 2 and 3, incorporate them into 93". Supersedes the packet of §80 (run id `3a52a74a…`).
+Run id now `3f217807400de9a29f91c73087b256830e8723ef1b7eb39fbd354400f62956e9`.
+
+Source-tested / proved on pol, nothing live:
+
+- `prf-esp-engines/test_keepalive.py` 5 of 5 (a short run answers as before; a long run = spaces, then the JSON; a refusal met
+  after the stream began is in the body with its status; 0 turns it off).
+- `board.board_light_c3_selftest` 31 of 31 on the rebuilt image (pin model inside).
+- A long run through the agent's nginx with its own location block, network off: keep-alive off = 504 at 60 s; on = 200, valid
+  JSON, return code 0 (1 CPU 182 s with 8 spaces; 3 CPUs 69 s with 2). Peak memory 907 MiB, 159 MB in `/tmp`, answer 11.4 MB.
+- Builder and runner tests: store-apps 6, release-build 27, named-images 11, agent-images 17, store-build 21, release-run 118.
+- `isle release check` of the packet with the INSTALLED release-92 CLI, on pol and on the core: valid, 10 files.
+
+Owed:
+
+- Everything live: the install on econ, `https://esp-engines.isle/capability`, the engine bound on `polari-pol`, a C3 light
+  build and a pin-model run through the isle's worker (plan §5, items 5 to 7). The keep-alive has not met the real agent yet.
+- A packet with SEVERAL store apps on a real core (needs the release-93 runner; source-tested only).
+- A per-app read timeout in the agent (the worker's keep-alive covers this worker only).
+- `isle store build` with a relative definition path reads it against the CLI's own folder.
+- A live C3 session (a Sim-bench button on a C3 pad): the `c3g` slice, not built.
