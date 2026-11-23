@@ -148,7 +148,7 @@ publishing and waits on the user's go.
 | pt-1b | `polari-block` QEMU device loading the layout (`-machine esp32c3,polari-layout=FILE`), mapped as an overlay with passthrough; default off | with it off, pt-0 is unchanged; with it on, PIN_SHIM 1 is still UART-identical; econ's measured bus-write logs fold to the same final register state on the device's own read-back; `info mtree -f` shows polari-block answering every mapped run in BOTH spans (GPIO over esp32.gpio, IO_MUX over the esp32c3.iomem catch-all, both priority 0 in the source) and the vendor at GPIO_STRAP (econ, 2026-11-14) |
 | pt-2 | pin level + the chardev channel | the PIN_SHIM 0 builds (ESP-IDF driver and the HAL) both show the LED pin's edge on SET_LED (the measured check of the OUT_SEL 128 inference: IDF writes OUT_SEL_CFG whole, OEN_SEL 0, MCU_SEL twice; the HAL per field, OEN_SEL 1, MCU_SEL once), and both see the button (pt-3); a pad left on a non-GPIO function shows NO edge (negative control) |
 | pt-3 | pin interrupts into the interrupt matrix | driving the button pin low fires the firmware's ISR (ESP-IDF path, PIN_SHIM 0); the toggle is seen on UART and on the LED pin; no edge = no interrupt (control) |
-| pt-4 | Twin integration: twin_c3 / c3-run `--pins`, the scenario runner reads the channel; the image installs `qemu-system-riscv32-polari` beside the prebuilt binary | the C3 light acceptance runs on PIN_SHIM 0; econ's step-2 gate 4 becomes a run |
+| pt-4 | Twin integration: twin_c3 / c3-run `--pins`, the scenario runner reads the channel; the image installs `qemu-system-riscv32-polari` beside the prebuilt binary | the C3 light acceptance runs on PIN_SHIM 0; econ's step-2 gate 4 becomes a run  **source-tested 2026-11-22 (§4); the image stage is unbuilt** |
 | pt-5 | Prototyping path for custom RISC-V: a `native` SimulatedChip described by our own RDL (toyperiph -> rows -> layout), on a plain RISC-V machine | a generated layout for a non-Espressif description boots in a minimal RISC-V machine with the pin channel working |
 
 ## 4. Evidence so far (2026-11-13)
@@ -265,6 +265,42 @@ publishing and waits on the user's go.
   number of times; the IDF and HAL builds end equal except GPIO_FUNC0_OUT_SEL_CFG.OEN_SEL (0 vs 1). The device block is now the
   value reference in light_pins_mmio.json.
 
+### pt-4: SOURCE-TESTED on pol (2026-11-22); in no built engine image yet
+State words: source-tested. Not staged, not installed, not live-verified. The tracked engine Dockerfile's from-source stage is
+written and NOT built (building it downloads: apt packages, the espressif/qemu clone, its sub-projects), so no device's engine
+image holds the pin model. The proof ran on pol in a local test image made from the hand-built binary (no download).
+
+- **The patches are in the tree:** `polari-rf-node/prf-esp-engines/qemu-patches/0001..0007`. Applied to the pinned commit
+  (`40edcca`, tag esp-develop-9.2.2-20260417) they give exactly the built source (blob hashes compared). The scratchpad copy is
+  no longer the only one.
+- **Patch 0007, new:**
+  - Board wires (`wires="0-1"`): two pads joined outside the chip are one node. A pad sees the channel's level on either end,
+    else the other end's driver, else the pulls of both ends. One wire per pad. This is the light's LED-to-sense jumper, which
+    the pin channel could not play because its level depends on what the firmware drives.
+  - A client that connects to the pin channel after the reset report is sent every pad's current level (the live twin's port).
+    A file-backed channel is byte-identical to before (compared).
+- **The engine:** `polari-c3-run --pins LAYOUT [--pins-in FILE] [--wires A-B] [--pins-port N]` runs
+  `qemu-system-riscv32-polari`; without `--pins` nothing changes. An image without the binary refuses `--pins` in words.
+- **The gate (the C3 light acceptance on PIN_SHIM 0): PASSED.** `board.board_light_c3_selftest` on the test image: the config
+  is built as the chip HAL and the three proofs (button / polari / boot, the four Purposes' judges) pass on modelled pads with
+  every negative control rejected. SET_LED reaches the LED pad; 3 stamped presses on GPIO3 reach the firmware through the GPIO
+  interrupt; the sense pad follows the LED pad through the wire at the same virtual instant; a second run gives the same pin
+  channel byte for byte; with the wire off the firmware counts no sense edge. The result's words say which level it is
+  (chip HAL on modelled pads, or the RAM shim) and always "NOT a chip".
+- **econ's step-2 gate 4 is a run now:** that run is the `pt-4 PADS` block of `board.board_light_c3_selftest`. The static
+  check in `board_c3_hal_gate_selftest` is unchanged.
+- **On an engine without the pin model nothing moved:** the shim build is proven as before, the chip-HAL build is REFUSED
+  (never run on the GPIO stub in silence), and the self-test checks that refusal.
+- **The live twin:** `pol board twin c3 up --pins [--wires 0-1] [--pins-tcp N]`, `pol board twin c3 pins`,
+  `pol board twin c3 pin <pad> 0|1|z` (`board.custom.twin_c3_pins`). A chip-HAL light build asks for the pin model by itself.
+  Tested against a fake engine in `board_c3_selftest`, and the host client against the real device in a bounded one-shot
+  container. NOT run as a long-lived twin on pol (that starts a container: the user's word first).
+- **Not done:** the scenario runner (sc-0..4) does not read the pin channel yet; the variant's default knob is still
+  `pin_shim 1` (an engine without the model is the only kind deployed); pt-5.
+
 ## 5. Open (the user's call)
+- Building the tracked `prf-esp-engines` image with the new `qemu` stage (a download), which is what carries the pin model to
+  every device, then a release that ships it.
+- Whether `pin_shim 0` becomes the light variant's default once every engine image holds the pin model.
 - Contributing the device to Espressif's fork (publishing).
 - Whether the from-source binary eventually replaces the prebuilt one, or stays beside it.

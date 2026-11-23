@@ -7848,3 +7848,42 @@ and pushed. All 110 module selftests were run on the merged tree, each with a 60
   batch a per-selftest limit.
 - `cmod.cmod_selftest` rewrites the tracked file `modules/cmod/custom/glue_builds/uno-sim-rig-graph.json` when it runs.
 - No browser pass and no run on the home machines was done for the merged tree.
+
+## §80 — release 93: the electronics instance on the isle (2026-11-22, packet built from Isle-Mesh `9580e457`, staged on the core; not installed)
+
+Plan: `AI-Notes/plans/ELECTRONICS_RELEASE_93_PLAN.md`. State words: the packet is **staged**; nothing of it is installed.
+
+**Live on release 92 before this (the baseline, proved 2026-11-22):** the UNO light as a twin session on the isle's board
+worker, from pol's instance. By CLI: the button pad driven low and high, the LED pad follows. In the browser on
+`electronics.isle`, Sim bench, config `uno-light`: "Press and hold: SW1 (D2)" lights LED1 (a recording is in the user's
+Downloads folder). Six findings, listed in the plan §1; two are fixed in the frontend of this release, one by the `hal` step.
+
+**The packet:** run id `3a52a74a2d8e457e89bd1c6f5d9ada9f3864e837b144c629b7851e73d8d4390b`, 1.5 GB, 7 files. Backend image
+`sha256:11465f34fd0c…` (framework `bdad7efb`, 34 of 35 layers the published image's). Frontend image `sha256:9ce68184734b…`
+(angular `ecf869f`, 16 of 19 layers shared). Agents kept as release 92 publishes them.
+
+**Passed:**
+- Source tests (no Docker, no network): release-run 118, release-build 27, named-images 11, agent-images 17, store-build 21,
+  store-apps 6 (the last one at Isle-Mesh `6ba55fe`, which is after the packet's commit and not in it).
+- The backend image holds its commit: 4,912 files identical, none missing, one stale `.gitignore`.
+- `isle release check` on pol and, after the copy, on the core with the core's own CLI (no sudo): valid, the plan reads the same.
+- Every self-test inside the backend image, network off, 300 s each: 385 run, 344 exit 0, 41 not. The 41 were run again on
+  the published image (`…release87td1-candidate`), same limits: 31 fail there the same way. The other 10:
+  - 7 fail one MANIFEST check, one cause: `custom/twin_c3_pins.py` was not in the board manifest (`board_bench_solution`,
+    `board_register_mapping`, `board_register_view`, `board_registers_c3`, `cmod_catom_config`, `cmod_clock_config`,
+    `cmod_budget`). Fixed in source (framework `2a36311b`). The list is read by the conform report only, so the image built
+    before the fix behaves the same; it was not rebuilt.
+  - `board_twin_transport`: 16/17 in the batch, 17/17 run alone on the same image (load).
+  - `firmwarefaults`: its new block `sc1_wdt_order` (from the HAL branch, not in the published image) needs `avr-gcc` through
+    a board engine, and the container has none with the network off. It ends in a traceback where the other blocks skip in words.
+  - `cmod_approach_profile`: hit the 300 s limit in the batch (273 s on the published image). Run alone on the new image:
+    47/47 in 331 s. A self-test this long does not fit a 300 s limit.
+
+**Not done / owed:**
+- The frontend image was started and its pages fetched by hand with the network off. The committed verb's byte-for-byte page
+  check was not run for it.
+- The 31 self-tests that fail on both images are not looked into here (most need the network or an engine).
+- `firmwarefaults` should skip `sc1_wdt_order` in words when no board engine answers.
+- Installed and live-verified: nothing yet. The proof list after the install is the plan §5.
+- Finding 6 (the page description shown twice) is not looked into.
+- A live C3 session does not exist in the code (twin sessions are AVR only); the plan §4.
