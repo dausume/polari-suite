@@ -7911,3 +7911,15 @@ Owed:
 - A per-app read timeout in the agent (the worker's keep-alive covers this worker only).
 - `isle store build` with a relative definition path reads it against the CLI's own folder.
 - A live C3 session (a Sim-bench button on a C3 pad): the `c3g` slice, not built.
+
+Found while the user ran release 93 on the core (2026-11-23):
+
+- Source-tested, for the next release (Isle-Mesh `3065eb3`; the user: "we should add in a notice saying it resolved them when
+  it succeeds for the next release"): a wait of the runner that printed "still missing" ends with "resolved after <n>s".
+  release-run 119. Owed: seen in a real run (the runner that prints it is the one installed before that run, so from 95 on
+  the core, or 94 if 94 is run by the release-93 CLI: 93 does not hold it).
+- Owed: the package publish prints nothing while it rebuilds the index (about 20 minutes this time), which read as a freeze.
+  A progress line.
+- Owed: that index scan reads the whole repository on every release (25 GB, 2,156 files, a spinning disk; 41 old offline
+  packages are 7.5 GB of it). A cached index, or pruning of old releases. It took 14 minutes on release 92 and more on 93,
+  with the core busy and in swap.
