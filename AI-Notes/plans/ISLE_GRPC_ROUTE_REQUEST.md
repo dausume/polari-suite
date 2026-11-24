@@ -60,6 +60,11 @@ an installed node.
    protocol}]`), this is a natural first user, but that is the isle's choice.
 ### 4a. One feature for both (added 2026-11-24, the user: "go ahead on that")
 
+**Built by pol the same morning for `http` doors** (Isle-Mesh `71bf76b`, framework `b28068d5`; the user wanted the C3
+door in 94): release `doors: [{name, service, port}]`, `isle app deploy --door NAME=SERVICE:PORT`, a registry entry
+`<app>--<door>` with its own certificate, DNS through the core's reconcile. Still open for the isle: a `grpc`
+protocol for a door (item 1), and a Polari instance declaring `grpc` as its door (item 2).
+
 The `esp-engines` store app (2026.11.23-1) carries a second service, its twin door (`twin-door`, :9864). `isle store
 install` already starts it and joins it to the agent network; only the name is missing (`twin.esp-engines.isle`). So the
 ask is one general feature rather than two special cases: a store release declares its extra doors next to `deploy`,

@@ -10,18 +10,21 @@ The user, asked whether the steps could be one plan deployed at once: "go ahead 
 
 | Part | What was built |
 |---|---|
-| Backend | `polari-framework/prf-backend:2026.11.24-release94-candidate`, framework `dev` `f9ac2b74` (the bridge link, the Push reopen, the C3 sessions and installer): 93's 35 layers + 1 of 54 files; 4,922 files checked byte for byte |
+| Backend | `polari-framework/prf-backend:2026.11.24-release94-candidate`, framework `dev` `b28068d5` (the bridge link, the Push reopen, the C3 sessions and installer, an instance's doors): 93's 35 layers + 1 of 56 files; 4,922 files checked byte for byte |
 | Frontend | `polari-framework/prf-frontend:2026.11.24-release94-candidate`, angular `dev` `7d13be7`: 93's 19 layers + 3; 173 pages checked byte for byte |
-| Store app | `esp-engines 2026.11.23-1` (manifest `03e258242ff6…`, 1,851 MiB): the worker and its twin door as two services of one image (Isle-Mesh `304847c`) |
-| Packages | the isle CLI, store and offline package of Isle-Mesh `304847c`; the agents unchanged (their images hold the commit's scripts already) |
+| Store app | `esp-engines 2026.11.23-1` (1,851 MiB): the worker and its twin door as two services of one image, the door declared as `twin` (Isle-Mesh `71bf76b`) |
+| Packages | the isle CLI, store and offline package of Isle-Mesh `71bf76b` (declared doors); the agents unchanged (their images hold the commit's scripts already) |
 | Steps | every device: device-backup, update; econ: `store-install esp-engines 2026.11.23-1` |
 | Verify | 93's five addresses and `https://esp-engines.isle/capability` |
-| Run id | `5610b6527dba5be59057b09a3917252e6a249a7bc2a21693909c717f6648456c` |
+| Run id | `a67fe840649c185f8bfc45b0c2107b9f047969f96461e0d6f9c7661d44865862` |
 
-**Not in 94, said plainly:** the door's own name `twin.esp-engines.isle`. A packet has no app-deploy step, so the door
-rides inside the store app as its second service; the agent registers one name per app. "A store app declares its
-extra doors" is asked of isle-core, together with the node's gRPC door (`ISLE_GRPC_ROUTE_REQUEST.md` §4a). Until it lands, a C3 session started from
-another device is refused in words.
+**The door's name is in 94** (the user: "why would that not be in 94 we need to add that"). A store release
+declares its doors (`"doors": [{"name", "service", "port"}]`, Isle-Mesh `71bf76b`); `isle store install` passes them
+to `isle app deploy --door`, which registers each as its own agent entry `<app>--<door>` with its own certificate,
+publishes its DNS and refuses to finish until it answers over trusted HTTPS. The core's backend attaches a door to
+its app's instance (framework `b28068d5`), and the core's DNS reconcile publishes it. econ installs `esp-engines`
+after its own update, so 94's CLI runs that deploy: no new step kind, and the core's release-93 runner takes the
+packet. `esp-engines` declares `twin` → `twin.esp-engines.isle`. Not proved live until the run.
 
 The user's direction: "we need to get board simulations and hal fully working so we can prep loading to real boards".
 
