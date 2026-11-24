@@ -26,9 +26,9 @@ The user's direction: "we need to get board simulations and hal fully working so
 | Backend image | framework `dev` after today's commits: finding 6, the sessions by chip family, the layout for a C3, the C3 proof over the ladder, and ins-c3-1 if it is done and passes | `pol build image backend`, no download |
 | Frontend image | angular `dev` after today's commits: the Escape fix, the picture for any development board | `pol build image frontend`, no download |
 | Packages | the isle CLI with the resolved notice and the publish progress; the store; the offline package | built from the commit |
-| Store app `esp-engines`, a new release | the worker with sessions (`polari_c3_twin.py`, `board_sessions.py` with the C3 kind), and the door for a session's lines | **the user's word: the image is rebuilt from the tracked Dockerfile, which downloads again (D-c3g-2), and the door's choice (D-c3g-1)** |
+| Store app `esp-engines 2026.11.23-1` and the door app `twin-esp-engines` | the worker with sessions (`polari_c3_twin.py`, `board_sessions.py` with the C3 kind), advertising `wss://twin.esp-engines.isle`; the door is the same image with `twin_door.py` | image BUILT on pol 2026-11-23 (`prf-esp-engines:noble`; the toolchain from cache, the one download the `websockets` wheel by hash; the previous image kept as `:noble-2026-11-22`). In-image: twin 10/10, sessions 8/8, door 5/5, keep-alive 5/5; `board_light_c3_selftest` 35/35 on it. Definition on Isle-Mesh `dev-c3-door`; `isle store build` at packet time |
 | Steps, every device | device-backup, then update | |
-| Steps, econ only | `store-install esp-engines <new release>`, after its update | |
+| Steps, econ only | `store-install esp-engines 2026.11.23-1`, after its update; then `isle app deploy twin-esp-engines --compose twin-door/docker-compose.yml --service twin-door --port 9864 --domain twin.esp-engines.isle` (the board door needed a hand `isle dns register` in round 88, finding 1: check whether that still holds) | |
 | pol's own CLI | `pol board gen c3 --knob`, the help texts | pol's CLI runs from the source tree on pol: no packet part |
 
 **Two shapes.** With the user's yes on D-c3g-1 and D-c3g-2, one release carries all of it. Without it, 94 carries
