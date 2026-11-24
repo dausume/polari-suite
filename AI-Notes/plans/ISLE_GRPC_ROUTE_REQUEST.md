@@ -58,6 +58,17 @@ an installed node.
    protocol `grpc`, and its DNS entry, the same way as `api.<n>.isle`. It is a door of the node itself, not a
    hand-made upstream. If the release format grows declared doors (for example `deploy.doors: [{name, port,
    protocol}]`), this is a natural first user, but that is the isle's choice.
+### 4a. One feature for both (added 2026-11-24, the user: "go ahead on that")
+
+The `esp-engines` store app (2026.11.23-1) carries a second service, its twin door (`twin-door`, :9864). `isle store
+install` already starts it and joins it to the agent network; only the name is missing (`twin.esp-engines.isle`). So the
+ask is one general feature rather than two special cases: a store release declares its extra doors next to `deploy`,
+for example `"doors": [{"service": "twin-door", "port": 9864, "domain": "twin.esp-engines.isle", "protocol": "http"}]`,
+with `http` (today's block, WebSocket upgrade included) or `grpc` (item 1). Install registers each door like the main
+name (agent, leaf certificate, DNS, the core's reconcile publishing it); uninstall removes them. A Polari instance's
+`grpc.<n>.isle` is then the same list with protocol `grpc`. A device runs its store install after its own update in a
+packet, so the feature works in the release whose CLI carries it, with no new step kind.
+
 3. **Not asked:** passing raw TCP through 443 by SNI (TWIN_DOOR_PLAN §8 still holds), or any public route.
 
 ## 5. Open for the isle (its call, said back to pol)

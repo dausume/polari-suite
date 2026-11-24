@@ -2,9 +2,26 @@
 
 Written 2026-11-23 on pol. State words: source-tested, staged, installed, live-verified.
 
-**State 2026-11-23: a plan. Nothing of release 94 is built, staged or installed.** Everything it would carry is
-source-tested on pol and not committed yet (a working day). Release 93 is installed on all three devices; what it
-proved and what failed is in `ELECTRONICS_RELEASE_93_PLAN.md` §5.
+**State 2026-11-24: BUILT on pol; the packet is being staged on the core (`~/isle-release-94`), not run.** Release 93
+is installed on all three devices; what it proved and what failed is in `ELECTRONICS_RELEASE_93_PLAN.md` §5.
+
+The user, asked whether the steps could be one plan deployed at once: "go ahead on that". The packet is that plan: one
+`isle release run`, every device's steps inside it.
+
+| Part | What was built |
+|---|---|
+| Backend | `polari-framework/prf-backend:2026.11.24-release94-candidate`, framework `dev` `f9ac2b74` (the bridge link, the Push reopen, the C3 sessions and installer): 93's 35 layers + 1 of 54 files; 4,922 files checked byte for byte |
+| Frontend | `polari-framework/prf-frontend:2026.11.24-release94-candidate`, angular `dev` `7d13be7`: 93's 19 layers + 3; 173 pages checked byte for byte |
+| Store app | `esp-engines 2026.11.23-1` (manifest `03e258242ff6…`, 1,851 MiB): the worker and its twin door as two services of one image (Isle-Mesh `304847c`) |
+| Packages | the isle CLI, store and offline package of Isle-Mesh `304847c`; the agents unchanged (their images hold the commit's scripts already) |
+| Steps | every device: device-backup, update; econ: `store-install esp-engines 2026.11.23-1` |
+| Verify | 93's five addresses and `https://esp-engines.isle/capability` |
+| Run id | `5610b6527dba5be59057b09a3917252e6a249a7bc2a21693909c717f6648456c` |
+
+**Not in 94, said plainly:** the door's own name `twin.esp-engines.isle`. A packet has no app-deploy step, so the door
+rides inside the store app as its second service; the agent registers one name per app. "A store app declares its
+extra doors" is asked of isle-core, together with the node's gRPC door (`ISLE_GRPC_ROUTE_REQUEST.md` §4a). Until it lands, a C3 session started from
+another device is refused in words.
 
 The user's direction: "we need to get board simulations and hal fully working so we can prep loading to real boards".
 
