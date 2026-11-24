@@ -1,6 +1,7 @@
 # Request to isle-core: carry a Polari node's gRPC on the isle (`grpc.<node>.isle`)
 
 Written 2026-11-23 on pol, for isle-core's own Claude/Codex, who own `~/Isle-Mesh`. pol changes no isle code.
+Handed to isle-core's Codex by mailbox on 2026-11-23 (the user: "hand it").
 State words: source-tested, staged, installed, live-verified.
 
 ## 1. What the user asked
@@ -71,7 +72,8 @@ an installed node.
 - `bridge-engines` as a store app: the isle trust bundle mounted at `/etc/isle-trust` (or `ISLE_TRUST_BUNDLE`), its
   image build (downloads, needs the user's word), its release.
 - After a gRPC push error the generated bridge does not re-open its Push stream (TWIN_DOOR_PLAN §9 open 4). A stream
-  timed out by the agent would show the same gap, so this should be fixed before the live proof.
+  timed out by the agent would show the same gap, so this should be fixed before the live proof. Fixed the same
+  evening (source-tested): Push reopens on the next frame, Commands re-subscribes after 2 s.
 - The live proof, after an isle release carries the route. Start a twin session and
   `pol grpc hosted start <session> --instance <bridge> --api https://api.<n>.isle`. A press then reaches the node's
   row, and a command from the node reaches the twin. The same instance later runs on a cabled board with no change but

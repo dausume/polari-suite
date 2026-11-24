@@ -250,6 +250,9 @@ Open, for the user and econ (bridge-engines follow-on):
 2. bridge-engines needs the isle trust bundle mounted (`/etc/isle-trust`) and is not an installed isle app anywhere.
 3. A refused token ends the bridge in words, but the process exit code is probably 0. The worker would show "exited".
 4. Pre-existing: after a gRPC push error the bridge does not re-open its Push stream (a backend restart ends pushes).
+   Fixed 2026-11-23 (source-tested, `java_bridge_codegen.render_forwarder`): a Push stream ended in an error is opened
+   again on the next frame (at most once a second, frames in between counted), and an ended Commands stream is
+   subscribed again after 2 s. Proved against a live gRPC server that kills the first of each (`ii-push` checks).
 5. Round 88: a domain field in the release manifest and an `islemesh_catalog.py` row for the door (econ's item).
 
 ### Two faults found after the install (2026-11-15, both fixed at source, source-tested)
