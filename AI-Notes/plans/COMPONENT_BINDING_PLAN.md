@@ -237,6 +237,38 @@ a changed input changes the sha; the C3 through the same code; the seed carries 
 `hwnocode_selftest` 171/171; conform clean; Angular 605 + 15 skipped (3 new specs: a tap, the chip's pull as a resistor, the solver's
 decisions on a card, opened when red).
 
+## 8c. One schematic per hardware solution (cb-6, 2026-11-25; the user: "both are needed")
+
+Two views of the whole solution, both from the solved rows:
+
+1. **On the page** (`solution-schematic`, first row of `/display/schematic-components`): one drawing per HardwareSolution. Every component
+   is drawn as its card draws it, stacked on the left; every line runs on to its pin on the chip (a box on the right, pins named
+   inside). Red where a component is not solved. The symbols are now one shared SVG component (`schematic-symbol`) used by the card and
+   this view.
+2. **As a real KiCad sheet** (`hwnocode/custom/schematic_kicad.py`, `pol hwnocode features <solution> --kicad [--out DIR]`). The solved
+   components become a pcb design, the same shape `pcb.custom.uno_shield` builds:
+   - the UNO's own headers, wired by the board rows (D2 -> BUTTON_INPUT, D3 and D6 -> LED_CONTROL, the GND pins -> GND);
+   - the physical parts on their circuit nets;
+   - the chip's own pull-up listed as inside the chip, not drawn.
+
+   `pcb.custom.schematic_writer` writes the `.kicad_sch`, and the pcb engine runs KiCad's electrical-rule check, its netlist and the SVG.
+   **KiCad's netlist is compared with the rows**: any net whose pins differ is named.
+
+**Proven on uno-light-system (2026-11-25)** with isle-core's `prf-pcb-engines:trixie` image, run in transient containers through a
+scratch test harness:
+- KiCad's netlist equals the rows: BUTTON_INPUT = J3.3 + SW1.1; LED_CONTROL = J3.4 + J3.7 + R1.1; LED_ANODE = R1.2 + LED1.2;
+  GND = the header GND pins + LED1.1 + SW1.2;
+- the electrical-rule check: 26 errors, all `pin_not_connected` on the header pins the design leaves unconnected on purpose (the
+  uno_shield posture), and 11 `lib_symbol_issues` warnings (the container has no symbol-library table);
+- a deliberately miswired R1 is caught by the comparison.
+
+No engine runs on pol-core (no image, and the disk is 99% full), so the selftest's render check says SKIP there.
+
+**Not yet:** the sheet on `/display/board-schematic`. That page lists pcb `Schematic` / `FabricationExport` rows written by the pcb
+module's render route, which renders only the uno-shield. Showing this sheet there needs that render made general (a design name
+instead of the one shield): a change to an existing pcb route, which needs the user's call under the no-new-routes ruling. The cosmetic
+side too: the writer's net labels overlap the header pin numbers (the shield has the same).
+
 ## 9. Open with the user
 
 - Is the column list in §4 right, and which columns are required for "complete"?
