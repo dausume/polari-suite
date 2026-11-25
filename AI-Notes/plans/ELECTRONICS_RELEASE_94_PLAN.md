@@ -68,7 +68,7 @@ a design question, open in §5.
 | Everything committed and on `dev` | after 18:00 local, innermost first, each diff and commit text scanned |
 | The whole board module self-test on the changed tree | 1,250 of 1,250 on 2026-11-23 with ins-c3-1 and ins-c3-2 in; electrodevice 139 of 139 |
 | Browser tests | 131 of 131 on the changed tree (2026-11-23) |
-| Backend image holds the commit; every module self-test in the image against the same run on release 93's image | as for 93 (§3 there) |
+| Backend image holds the commit; every module self-test in the image against the same run on release 93's image | PASSED 2026-11-24, network off, 394 lines against 93's 391: no module worse; 13 better (the 7 failing one check in 93 now whole: bench solution, register mapping, registers c3, register view, cmod budget, catom config, clock config; plus more checks in board bench, light c3, electrodevice, layout, grpcbridge hosted, islemesh) and 3 new (installer c3 52/52, twin session c3 33/33, layout c3 20/20). The failures left are the same lines in both images (modules whose tests want a database, a network or the repo tree) |
 | Frontend image serves its pages with the network off; the byte check of the pages | the byte check was not run for 93: run it for 94 |
 | ESP image (if rebuilt): `test_c3_twin.py`, `test_c3_sessions.py`, the keep-alive test, `board.board_light_c3_selftest` on it | in the image, network off |
 | A session through the member's agent: the door's lines from another device | the door on econ, a client on pol, network as on the isle |
